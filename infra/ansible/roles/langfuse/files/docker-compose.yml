@@ -42,8 +42,18 @@ services:
     container_name: ichor-langfuse-clickhouse
     restart: unless-stopped
     user: "101:101"
+    environment:
+      CLICKHOUSE_DB: default
+      CLICKHOUSE_USER: default
+      CLICKHOUSE_PASSWORD_FILE: /run/secrets/langfuse_clickhouse_password
     volumes:
       - ./clickhouse-data:/var/lib/clickhouse
+    secrets:
+      - langfuse_clickhouse_password
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
     networks: [langfuse]
 
   langfuse-redis:
@@ -72,6 +82,8 @@ secrets:
     file: ./secrets/langfuse_postgres_password.txt
   langfuse_minio_password:
     file: ./secrets/langfuse_minio_password.txt
+  langfuse_clickhouse_password:
+    file: ./secrets/langfuse_clickhouse_password.txt
 
 networks:
   langfuse:

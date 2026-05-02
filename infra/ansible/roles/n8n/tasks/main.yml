@@ -16,19 +16,22 @@
 
 - name: Ensure n8n volumes + secrets dir
   ansible.builtin.file:
-    path: "/opt/ichor/n8n/{{ item }}"
+    path: "/opt/ichor/n8n/{{ item.path }}"
     state: directory
     mode: "0755"
+    owner: "{{ item.owner | default(omit) }}"
+    group: "{{ item.group | default(omit) }}"
   loop:
-    - n8n-data
-    - postgres-data
-    - secrets
+    - { path: n8n-data,      owner: "1000", group: "1000" }  # n8n container UID = node user
+    - { path: postgres-data, owner: "999",  group: "999" }   # postgres alpine UID
+    - { path: secrets,       owner: "root", group: "root" }
 
 - name: Write Docker secret (n8n Postgres password)
   ansible.builtin.copy:
     dest: /opt/ichor/n8n/secrets/n8n_postgres_password.txt
     content: "{{ N8N_POSTGRES_PASSWORD }}"
-    mode: "0600"
+    # 0644 so the n8n + postgres container users can read
+    mode: "0644"
     owner: root
     group: root
   no_log: true

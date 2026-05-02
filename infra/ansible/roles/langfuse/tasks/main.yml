@@ -16,25 +16,29 @@
 
 - name: Ensure Langfuse volumes + secrets dir
   ansible.builtin.file:
-    path: "/opt/ichor/langfuse/{{ item }}"
+    path: "/opt/ichor/langfuse/{{ item.path }}"
     state: directory
     mode: "0755"
+    owner: "{{ item.owner | default(omit) }}"
+    group: "{{ item.group | default(omit) }}"
   loop:
-    - postgres-data
-    - clickhouse-data
-    - minio-data
-    - secrets
+    - { path: postgres-data,   owner: "999",  group: "999" }   # postgres alpine UID
+    - { path: clickhouse-data, owner: "101",  group: "101" }   # clickhouse-server UID
+    - { path: minio-data,      owner: "1000", group: "1000" }  # minio UID
+    - { path: secrets,         owner: "root", group: "root" }
 
-- name: Write Docker secrets (Postgres + MinIO passwords)
+- name: Write Docker secrets (Postgres + MinIO + ClickHouse passwords)
   ansible.builtin.copy:
     dest: "/opt/ichor/langfuse/secrets/{{ item.file }}"
     content: "{{ item.value }}"
-    mode: "0600"
+    # 0644 so non-root container users (postgres UID 999, minio UID 1000) can read
+    mode: "0644"
     owner: root
     group: root
   loop:
-    - { file: langfuse_postgres_password.txt, value: "{{ LANGFUSE_POSTGRES_PASSWORD }}" }
-    - { file: langfuse_minio_password.txt,    value: "{{ LANGFUSE_MINIO_PASSWORD }}" }
+    - { file: langfuse_postgres_password.txt,   value: "{{ LANGFUSE_POSTGRES_PASSWORD }}" }
+    - { file: langfuse_minio_password.txt,      value: "{{ LANGFUSE_MINIO_PASSWORD }}" }
+    - { file: langfuse_clickhouse_password.txt, value: "{{ LANGFUSE_NEXTAUTH_SECRET }}" }
   no_log: true
 
 - name: Write Langfuse .env (secrets injected from facts)
@@ -53,7 +57,8 @@
       CLICKHOUSE_URL=http://langfuse-clickhouse:8123
       CLICKHOUSE_MIGRATION_URL=clickhouse://langfuse-clickhouse:9000
       CLICKHOUSE_USER=default
-      CLICKHOUSE_PASSWORD=
+      CLICKHOUSE_PASSWORD={{ LANGFUSE_NEXTAUTH_SECRET }}  # reuse a strong secret as CH password
+      CLICKHOUSE_CLUSTER_ENABLED=false
       LANGFUSE_S3_EVENT_UPLOAD_BUCKET=langfuse
       LANGFUSE_S3_EVENT_UPLOAD_REGION=auto
       LANGFUSE_S3_EVENT_UPLOAD_ACCESS_KEY_ID=minio

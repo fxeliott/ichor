@@ -97,7 +97,7 @@
 | 1 | Achat domaine `ichor.app` Cloudflare Registrar | ⏸ | Deferred Phase 1+ — see [ADR-002](decisions/ADR-002-domain-deferred.md) |
 | 2 | Backup Hetzner pre-wipe (Langfuse + n8n + /etc + clés) | 🟢 | Reduced scope (no Langfuse/n8n on server) — see [ADR-003](decisions/ADR-003-cleanup-vs-wipe.md) |
 | 3 | Wipe + réinstall Ubuntu 24.04 LTS | 🟢 | Replaced by cleanup chirurgical (OS already 24.04.4 LTS), executed without snapshot per Eliot — see [ADR-003](decisions/ADR-003-cleanup-vs-wipe.md) |
-| 4 | Ansible playbook (Postgres 16 + TimescaleDB + Redis + Python 3.12 + uv + Node 22 + pnpm + Docker + Loki + Grafana + Prometheus + Langfuse + n8n) | 🟡 | **Foundation roles GREEN** (base+security+docker+python+node+postgres+redis ALL ran for real, AGE built from source). Observability + Langfuse + n8n + walg deferred until SOPS+age secrets are set up (step 7). |
+| 4 | Ansible playbook (Postgres 16 + TimescaleDB + Redis + Python 3.12 + uv + Node 22 + pnpm + Docker + Loki + Grafana + Prometheus + Langfuse + n8n) | 🟢 | **ALL 11 ROLES GREEN** — base+security+docker+python+node+postgres+redis+walg+observability+langfuse+n8n+cloudflared. 11 containers UP (verified HTTP 200 langfuse/n8n/grafana/prometheus, Loki ready). Multi-recipient SOPS (Eliot + Hetzner age keys), secrets role decrypts at runtime with `no_log`. |
 | 5 | Init repo `ichor/` GitHub privé Turborepo | 🟡 | Local git init done, GitHub push pending Eliot OK |
 | 6 | CI GitHub Actions stub vert + Dependabot + pip-audit + npm audit | 🟡 | Workflows written, not yet pushed |
 | 7 | SOPS+age secrets management | 🟢 | age 1.3.1 + sops live; keypair generated (`age1rgrexge5x3qvf8hns4dhrfhu92zsl9nyem5t6ge4nqn424lxefcsl08xaj`); private key backed up to USB E:\; `.sops.yaml` updated; round-trip OK; 8 `.env.example` templates committed |
@@ -108,7 +108,7 @@
 | # | Item | Status | Notes |
 |---|------|--------|-------|
 | 9 | Cron systemd archiver HY/IG OAS J0 critique (FRED 3 ans rolling) | ⬜ | |
-| 10 | wal-g WAL streaming Postgres → R2 EU bucket + 1er test restauration | ⬜ | wal-g role written, R2 bucket creation manual |
+| 10 | wal-g WAL streaming Postgres → R2 EU bucket + 1er test restauration | 🟢 | wal-g 3.0.8 LIVE: basebackup `base_000000010000000000000006` written to R2 `ichor-walg-eu/postgres/basebackups_005/`, 3 WAL files archived to `wal_005/`. systemd timer `walg-basebackup.timer` enabled (next: Sun 03:08 Paris). archive_mode=on + archive_command=`/usr/local/bin/wal-g-archive %p` flipped on. `set -a` fix in wrapper for env propagation. **Restore test pending Phase 0 W2.** |
 | 11 | Redis Streams setup + producers asyncio | ⬜ | |
 | 12 | ML stack install (hmmlearn + dtaidistance + river + NumPyro + arch + ...) | ⬜ | `pyproject.toml` for `packages/ml` written |
 | 13 | NLP self-host : FOMC-RoBERTa + FinBERT-tone HuggingFace download | ⬜ | |

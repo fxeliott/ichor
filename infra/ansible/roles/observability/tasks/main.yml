@@ -15,21 +15,25 @@
 
 - name: Ensure Loki/Grafana/Prometheus volumes + secrets dir
   ansible.builtin.file:
-    path: "/opt/ichor/observability/{{ item }}"
+    path: "/opt/ichor/observability/{{ item.path }}"
     state: directory
     mode: "0755"
+    owner: "{{ item.owner | default(omit) }}"
+    group: "{{ item.group | default(omit) }}"
   loop:
-    - loki-data
-    - grafana-data
-    - prometheus-data
-    - prometheus-config
-    - secrets
+    # Container UIDs (must match upstream image defaults)
+    - { path: loki-data,         owner: "10001", group: "10001" }
+    - { path: grafana-data,      owner: "472",   group: "472" }
+    - { path: prometheus-data,   owner: "65534", group: "65534" }
+    - { path: prometheus-config, owner: "root",  group: "root" }
+    - { path: secrets,           owner: "root",  group: "root" }
 
 - name: Write Docker secret (Grafana admin password)
   ansible.builtin.copy:
     dest: /opt/ichor/observability/secrets/grafana_admin_password.txt
     content: "{{ GRAFANA_ADMIN_PASSWORD }}"
-    mode: "0600"
+    # 0644 so the grafana container user (UID 472) can read it
+    mode: "0644"
     owner: root
     group: root
   no_log: true
