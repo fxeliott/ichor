@@ -13,7 +13,7 @@
   },
   "dependencies": {
     "next": "15.5.15",
-    "react": "19.0.0",
+    "react": "19.2.5",
     "react-dom": "19.0.0",
     "lightweight-charts": "5.2.0",
     "motion": "12.38.0",
@@ -22,7 +22,7 @@
   },
   "devDependencies": {
     "@types/node": "22.19.17",
-    "@types/react": "19.0.0",
+    "@types/react": "19.2.14",
     "@types/react-dom": "19.0.0",
     "tailwindcss": "4.2.4",
     "@tailwindcss/postcss": "4.2.4",
