@@ -1,49 +1,32 @@
 # Cloudflare Tunnel — claude-runner local Win11
 #
-# Drop this file at %USERPROFILE%\.cloudflared\config.yml after running
-# `cloudflared tunnel create ichor-claude-runner`.
+# Local-managed config. Drop at %USERPROFILE%\.cloudflared\config.yml.
+# Pair with the credentials.json sibling file (output of `cloudflared tunnel create`
+# OR generated via API with TunnelID + AccountTag + TunnelSecret).
 #
-# Replace <TUNNEL-UUID> with the UUID printed by `cloudflared tunnel create`.
+# Tunnel UUID is set per-machine — replace below.
 
 tunnel: <TUNNEL-UUID>
 credentials-file: C:\Users\eliot\.cloudflared\<TUNNEL-UUID>.json
-
-# Auto-update the cloudflared binary on minor versions (safety patches).
-# Major version bumps require manual review.
-autoupdate-freq: 24h
-
-# Don't try to reach the local IPv4-only services over IPv6 — Win11 + tunnel
-# IPv6 stack can be flaky on residential networks.
 no-autoupdate: false
 protocol: quic
 
-# Ingress: route all traffic from the tunnel URL to local FastAPI :8765.
-# Cloudflare Access at the edge filters requests BEFORE they reach this rule.
 ingress:
-  # Health check passthrough (also gated by CF Access at edge)
-  - hostname: ""
-    path: /healthz
-    service: http://127.0.0.1:8765
-    originRequest:
-      connectTimeout: 5s
-      noTLSVerify: false
+  - service: http://127.0.0.1:8765
 
-  # Briefings + usage endpoints
-  - hostname: ""
-    service: http://127.0.0.1:8765
-    originRequest:
-      connectTimeout: 10s
-      # Briefings can take up to 6 min — bump idle timeout
-      tcpKeepAlive: 30s
-      keepAliveTimeout: 360s
-      keepAliveConnections: 4
-      noTLSVerify: false
-      httpHostHeader: localhost
-
-  # Catch-all (cloudflared requires a final 404 rule)
-  - service: http_status:404
-
-# Logging (will stream to local file; rotate via logrotate equivalent on Win)
 loglevel: info
-transport-loglevel: warn
 logfile: C:\Users\eliot\.cloudflared\cloudflared.log
+
+# Run via:
+#   cloudflared tunnel run <TUNNEL-UUID>
+# (uses default config path %USERPROFILE%\.cloudflared\config.yml)
+#
+# IMPORTANT: <UUID>.cfargotunnel.com is NOT publicly reachable by default.
+# It resolves to IPv6 ULA fd10::/8 (private mesh).
+# To expose publicly, you need ONE of:
+#   1. Custom domain DNS route:
+#        cloudflared tunnel route dns <UUID> claude-runner.yourdomain.com
+#      Requires a Cloudflare-managed zone.
+#   2. Cloudflare Access + WARP Connector on the calling machine
+#      (Hetzner installs cloudflared in WARP mode, joins the private mesh).
+#      Requires Cloudflare Access enabled on the account (1-click in dashboard).
