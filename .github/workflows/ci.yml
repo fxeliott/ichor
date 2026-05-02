@@ -59,11 +59,14 @@ jobs:
         run: pnpm lint || echo "::warning::pnpm lint reported issues (warn-only Phase 0)"
         continue-on-error: true
 
-      - name: Typecheck
-        run: pnpm typecheck
-
-      - name: Build
+      # Build BEFORE typecheck — Next.js generates next-env.d.ts and .next/types/
+      # that the tsconfig.json includes. Without a build, tsc fails on missing types.
+      # `next build` itself performs full type-checking, so this also covers app code.
+      - name: Build (also runs Next type-checking)
         run: pnpm build
+
+      - name: Typecheck (post-build, on packages without their own build)
+        run: pnpm typecheck
 
   # -------------------------------------------------------------------------
   # Python workspaces (apps/api, apps/claude-runner, packages/agents,
@@ -114,10 +117,11 @@ jobs:
         working-directory: ${{ matrix.package }}
         shell: bash
         run: |
-          set +e  # don't let GHA's set -eo pipefail kill the find pipeline
+          set +e
           has_tests=false
           [ -d tests ] && has_tests=true
-          if [ "$has_tests" = false ] && find . -name "test_*.py" -print -quit 2>/dev/null | grep -q .; then
+          # Exclude .venv (which contains pytest's own internal test_*.py files)
+          if [ "$has_tests" = false ] && find . -path ./.venv -prune -o -name "test_*.py" -print 2>/dev/null | grep -v "^./.venv" | grep -q .; then
             has_tests=true
           fi
           if [ "$has_tests" = true ]; then
