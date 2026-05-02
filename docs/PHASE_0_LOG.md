@@ -27,9 +27,19 @@
 ### Next (after snapshot)
 
 - 🔜 Run cleanup chirurgical SSH session: purge GUI packages (chromium, gnome, gtk, mesa, cups), reset UFW, remove orphan sudoers, disable failed cloud-init-hotplugd
-- 🔜 Install ansible-core 2.18.x in `.venv-tooling/` locally
+- 🔜 Bootstrap `ansible-core` on Hetzner via `scripts/run-ansible-on-hetzner.sh` (see [ADR-007](decisions/ADR-007-ansible-bootstrap-from-hetzner.md))
 - 🔜 Run `ansible-playbook --check --diff` (sanity check — no changes)
 - 🔜 Run `ansible-playbook` for real (Postgres 16 + TimescaleDB + Apache AGE + Redis + wal-g + Docker + Loki/Grafana/Prometheus + Langfuse + n8n + cloudflared)
+
+### Found during the day (deferred decisions)
+
+- ❗ **Ansible doesn't run on native Windows** (`os.get_blocking()` + `grp` POSIX-only).
+  Tested `ansible-core==2.20.5` with Python 3.14.4 → `WinError 87`.
+  Decision: bootstrap on Hetzner itself ([ADR-007](decisions/ADR-007-ansible-bootstrap-from-hetzner.md)).
+  WSL2 not installed, install requires admin + reboot — out of scope for autonomous session.
+- ✅ All YAML files (24 Ansible + 3 GHA workflows) validated via pure Python `yaml.safe_load_all`.
+- ✅ All JSON config files (7) validated.
+- ✅ SSH connectivity to Hetzner re-verified at 13:35 UTC.
 
 ## Phase 0 — 32 criteria checklist
 
@@ -98,6 +108,8 @@ These deltas are decisions made during execution, all documented as ADRs:
 | Node 20 → Node 22 LTS | Node 20 LTS ended Apr 2026 | [ADR-004](decisions/ADR-004-node-22-not-20.md) |
 | Hetzner backup minimal (no Langfuse/n8n data) | Services never deployed on this server | (covered in ADR-003) |
 | pnpm via official installer (not corepack) | Corepack fails on Windows w/o admin | [ADR-006](decisions/ADR-006-pnpm-via-official-installer.md) |
+| Ansible runs on Hetzner itself, not from Win11 | Ansible control node POSIX-only, WSL2 not installed | [ADR-007](decisions/ADR-007-ansible-bootstrap-from-hetzner.md) |
+| Apache AGE built from source (not apt) | No apt package exists for PG16 | [ADR-005](decisions/ADR-005-apache-age-built-from-source.md) |
 
 ## Open questions for Eliot
 

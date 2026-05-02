@@ -14,6 +14,7 @@
 | [004](ADR-004-node-22-not-20.md) | Accepted | Use Node 22 LTS instead of plan's Node 20 | 2026-05-02 |
 | [005](ADR-005-apache-age-built-from-source.md) | Accepted | Apache AGE built from source (no Ubuntu apt package) | 2026-05-02 |
 | [006](ADR-006-pnpm-via-official-installer.md) | Accepted | pnpm via official Win installer (Corepack fails) | 2026-05-02 |
+| [007](ADR-007-ansible-bootstrap-from-hetzner.md) | Accepted | Run Ansible from Hetzner itself, not local Win11 | 2026-05-02 |
 
 ## How to write a new ADR
 

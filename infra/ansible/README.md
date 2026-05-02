@@ -16,34 +16,53 @@ server and brings it to Phase 0 baseline (steps 4 in `docs/ARCHITECTURE_FINALE.m
 
 ## Usage
 
-From `D:\Ichor\infra\ansible\`:
+**Important** : Ansible's control node does not run on native Windows
+(see [`docs/decisions/ADR-007`](../../docs/decisions/ADR-007-ansible-bootstrap-from-hetzner.md)).
+We bootstrap Ansible **on the Hetzner server itself**.
+
+From local Win11 Git Bash:
 
 ```bash
-# Sanity check (won't change anything)
-ansible-playbook -i inventory/hetzner.yml site.yml --check --diff
+# Dry-run (no changes)
+scripts/run-ansible-on-hetzner.sh --check --diff
 
-# Run for real
-ansible-playbook -i inventory/hetzner.yml site.yml
+# Single role
+scripts/run-ansible-on-hetzner.sh --tags postgres --diff
 
-# Run a single role
-ansible-playbook -i inventory/hetzner.yml site.yml --tags postgres
+# Full run
+scripts/run-ansible-on-hetzner.sh
 
-# Run on a single host
-ansible-playbook -i inventory/hetzner.yml site.yml --limit ichor-prod-1
+# Specific extra-vars
+scripts/run-ansible-on-hetzner.sh -e ufw_force_reset=true
 ```
+
+The script:
+
+1. Verifies SSH connectivity to `ichor-hetzner` alias
+2. Installs `ansible-core` on the server if missing (idempotent)
+3. `rsync`'s `infra/ansible/` to `/root/ansible` on the server
+4. Installs required Galaxy collections (cached after first run)
+5. Runs `ansible-playbook -i 'localhost,' -c local site.yml ...`
 
 ## Prerequisites
 
-- Local: `ansible-core ≥2.18` + collections (`community.general`, `community.docker`,
-  `community.postgresql`, `ansible.posix`)
-- Target: Ubuntu 24.04 LTS, SSH key in `~/.ssh/id_ed25519_ichor_hetzner`
-- Hetzner Cloud snapshot taken before first run (recovery 1-click)
+- Local: SSH alias `ichor-hetzner` working (see Phase 0 Week 1 step 2a setup)
+- Local: `rsync` (Git Bash on Win11 ships with it)
+- Target: Ubuntu 24.04 LTS — Ansible auto-installed on first run
+- Target: **Hetzner Cloud snapshot taken before first run** (recovery 1-click)
 
-## Install collections
+## Required Galaxy collections (installed by the script)
 
-```bash
-ansible-galaxy collection install community.general community.docker community.postgresql ansible.posix
-```
+- `community.general` — `community.general.timezone`, `community.general.locale_gen`,
+  `community.general.ufw`
+- `community.docker` — `community.docker.docker_compose_v2`
+- `community.postgresql` — `community.postgresql.postgresql_ext`
+- `ansible.posix` — `ansible.posix.sysctl`
+
+## Why not WSL2?
+
+Could work, but requires admin install + reboot on Eliot's Win11. Bootstrap-on-server is
+zero-install and identical idempotency. See ADR-007.
 
 ## Status (2026-05-02)
 
