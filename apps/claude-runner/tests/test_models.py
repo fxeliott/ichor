@@ -15,7 +15,7 @@ def test_briefing_request_accepts_typical_payload() -> None:
         context_markdown="# Context\n...",
     )
     assert req.model == "opus"
-    assert req.max_tokens_out == 4_000
+    assert req.effort == "medium"
 
 
 def test_briefing_request_rejects_empty_assets() -> None:
@@ -36,21 +36,22 @@ def test_briefing_request_rejects_too_many_assets() -> None:
         )
 
 
-def test_briefing_request_clamps_max_tokens_range() -> None:
+def test_briefing_request_rejects_invalid_effort() -> None:
     with pytest.raises(ValidationError):
         BriefingTaskRequest(
             briefing_type="ny_mid",
             assets=["EUR_USD"],
             context_markdown="x",
-            max_tokens_out=99,  # below min 100
+            effort="ultra",  # not in Literal set
         )
 
 
-def test_briefing_request_temperature_bounds() -> None:
-    with pytest.raises(ValidationError):
-        BriefingTaskRequest(
+def test_briefing_request_accepts_all_effort_levels() -> None:
+    for effort in ["low", "medium", "high", "xhigh", "max"]:
+        req = BriefingTaskRequest(
             briefing_type="weekly",
             assets=["EUR_USD"],
             context_markdown="x",
-            temperature=1.5,
+            effort=effort,
         )
+        assert req.effort == effort

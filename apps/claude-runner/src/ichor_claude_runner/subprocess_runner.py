@@ -35,8 +35,7 @@ async def run_claude(
     settings: Settings,
     *,
     model: str = "opus",
-    max_tokens: int = 4_000,
-    temperature: float = 0.5,
+    effort: str = "medium",
     persona_text: str | None = None,
 ) -> dict[str, Any]:
     """Run `claude -p <prompt>` and return the parsed JSON envelope.
@@ -44,20 +43,23 @@ async def run_claude(
     Args:
         prompt: User-side prompt (the request).
         settings: runtime config.
-        model: opus / sonnet / haiku.
-        max_tokens: output budget.
-        temperature: sampling temp.
-        persona_text: if provided, written to a temp file and passed via
-            --append-system. Falls back to settings.persona_file.
+        model: opus / sonnet / haiku (or full name like 'claude-sonnet-4-6').
+        effort: low / medium / high / xhigh / max — quality vs latency knob.
+            Voie D (ADR-009) uses Max 20x flat — Anthropic-side weekly caps
+            are the only quota. We don't pass --max-tokens or --temperature
+            (the Claude Code CLI doesn't accept them; those are SDK-only).
+        persona_text: optional override for the system prompt. Defaults to
+            settings.persona_file content.
 
     Returns:
-        Parsed JSON dict. Typical shape:
+        Parsed JSON dict. Claude Code -p --output-format=json shape:
             {
-              "type": "message",
-              "role": "assistant",
-              "content": [{"type": "text", "text": "..."}],
-              "stop_reason": "end_turn",
+              "type": "result",
+              "subtype": "success",
+              "result": "<the model's text>",
+              "session_id": "...",
               "usage": {"input_tokens": ..., "output_tokens": ...},
+              "total_cost_usd": ...,
               ...
             }
 
@@ -68,50 +70,40 @@ async def run_claude(
     workdir = settings.workdir
     workdir.mkdir(parents=True, exist_ok=True)
 
-    persona_path = settings.persona_file
-    if persona_text is not None:
-        persona_path = workdir / f"persona-{int(time.time() * 1000)}.md"
-        persona_path.write_text(persona_text, encoding="utf-8")
-
-    if not persona_path.exists():
-        raise ClaudeSubprocessError(
-            f"Persona file not found at {persona_path} — cannot proceed"
-        )
+    if persona_text is None:
+        if not settings.persona_file.exists():
+            raise ClaudeSubprocessError(
+                f"Persona file not found at {settings.persona_file} — cannot proceed"
+            )
+        persona_text = settings.persona_file.read_text(encoding="utf-8")
 
     cmd = [
         settings.claude_binary,
-        "-p",
-        prompt,
+        "-p", prompt,
         "--output-format", "json",
         "--model", model,
-        "--max-tokens", str(max_tokens),
-        "--temperature", str(temperature),
-        "--append-system", f"@{persona_path}",
+        "--effort", effort,
+        "--no-session-persistence",
+        "--append-system-prompt", persona_text,
     ]
 
-    log.info("claude.subprocess.start", model=model, max_tokens=max_tokens, prompt_len=len(prompt))
+    log.info("claude.subprocess.start", model=model, effort=effort, prompt_len=len(prompt))
     start = time.monotonic()
 
+    proc = await asyncio.create_subprocess_exec(
+        *cmd,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+        cwd=str(workdir),
+    )
     try:
-        proc = await asyncio.create_subprocess_exec(
-            *cmd,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-            cwd=str(workdir),
+        stdout, stderr = await asyncio.wait_for(
+            proc.communicate(), timeout=settings.claude_timeout_sec
         )
-        try:
-            stdout, stderr = await asyncio.wait_for(
-                proc.communicate(), timeout=settings.claude_timeout_sec
-            )
-        except asyncio.TimeoutError:
-            proc.kill()
-            await proc.wait()
-            raise
-
-    finally:
-        # Cleanup temp persona if we wrote one
-        if persona_text is not None and persona_path.exists():
-            persona_path.unlink(missing_ok=True)
+    except asyncio.TimeoutError:
+        proc.kill()
+        await proc.wait()
+        raise
 
     duration = time.monotonic() - start
 
@@ -140,6 +132,6 @@ async def run_claude(
         "claude.subprocess.ok",
         duration=duration,
         usage=result.get("usage"),
-        stop_reason=result.get("stop_reason"),
+        subtype=result.get("subtype"),
     )
     return result

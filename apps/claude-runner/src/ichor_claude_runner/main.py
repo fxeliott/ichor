@@ -171,8 +171,7 @@ async def briefing_task(
                 prompt=req.context_markdown,
                 settings=settings,
                 model=req.model,
-                max_tokens=req.max_tokens_out,
-                temperature=req.temperature,
+                effort=req.effort,
             )
         except asyncio.TimeoutError:
             return BriefingTaskResponse(
@@ -192,8 +191,13 @@ async def briefing_task(
             _in_flight -= 1
 
     duration_ms = int((time.monotonic() - started) * 1000)
-    text_blocks = [b.get("text", "") for b in result.get("content", []) if b.get("type") == "text"]
-    briefing_md = "\n\n".join(text_blocks).strip() or None
+    # Claude Code -p --output-format json outputs a flattened envelope:
+    # top-level "result" is the model's text. (Different from the API SDK
+    # which has content[] blocks.) Parse both for forward compat.
+    briefing_md = result.get("result")
+    if not briefing_md:
+        text_blocks = [b.get("text", "") for b in result.get("content", []) if b.get("type") == "text"]
+        briefing_md = "\n\n".join(text_blocks).strip() or None
 
     return BriefingTaskResponse(
         task_id=req.task_id,
