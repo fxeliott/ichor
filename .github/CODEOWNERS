@@ -1,0 +1,14 @@
+# Ichor — code ownership
+# See https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default: Eliot owns everything until contributors join
+*       @fxeliott
+
+# Sensitive areas always require Eliot review
+infra/                  @fxeliott
+.github/                @fxeliott
+docs/legal/             @fxeliott
+docs/decisions/         @fxeliott
+docs/runbooks/          @fxeliott
+infra/secrets/.sops.yaml @fxeliott
+phase0-artifacts/       @fxeliott

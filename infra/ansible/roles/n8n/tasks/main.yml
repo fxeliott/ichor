@@ -1,0 +1,30 @@
+---
+# Role: n8n — workflow automation via docker-compose
+# Reverse-proxy via Cloudflare Tunnel only.
+
+- name: Ensure n8n dir exists
+  ansible.builtin.file:
+    path: /opt/ichor/n8n
+    state: directory
+    mode: "0755"
+
+- name: Deploy n8n docker-compose
+  ansible.builtin.copy:
+    src: docker-compose.yml
+    dest: /opt/ichor/n8n/docker-compose.yml
+    mode: "0644"
+
+- name: Ensure n8n volumes
+  ansible.builtin.file:
+    path: "/opt/ichor/n8n/{{ item }}"
+    state: directory
+    mode: "0755"
+  loop:
+    - n8n-data
+    - postgres-data
+
+- name: Start n8n stack
+  community.docker.docker_compose_v2:
+    project_src: /opt/ichor/n8n
+    state: present
+    pull: missing

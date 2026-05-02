@@ -1,0 +1,39 @@
+---
+# Role: cloudflared — Cloudflare Tunnel daemon (Hetzner outbound)
+# Tunnel CONFIGURATION (named tunnel + ingress rules) deferred to Phase 0
+# Week 3 step 19, when we know the local Win11 endpoint URL.
+# This role only ensures the binary is installed and the systemd service
+# scaffold is in place.
+
+- name: Add Cloudflare GPG key
+  ansible.builtin.get_url:
+    url: https://pkg.cloudflare.com/cloudflare-main.gpg
+    dest: /etc/apt/keyrings/cloudflare-main.gpg
+    mode: "0644"
+    force: false
+
+- name: Add Cloudflare apt repository
+  ansible.builtin.apt_repository:
+    repo: "deb [signed-by=/etc/apt/keyrings/cloudflare-main.gpg] https://pkg.cloudflare.com/cloudflared {{ ansible_distribution_release }} main"
+    filename: cloudflared
+    state: present
+    update_cache: true
+
+- name: Install cloudflared
+  ansible.builtin.apt:
+    name: cloudflared
+    state: present
+
+- name: Ensure /etc/cloudflared directory
+  ansible.builtin.file:
+    path: /etc/cloudflared
+    state: directory
+    mode: "0755"
+
+- name: Display reminder for tunnel configuration
+  ansible.builtin.debug:
+    msg: |
+      cloudflared installed. Tunnel configuration NOT applied (deferred to Phase 0 Week 3 step 19).
+      To configure: `cloudflared tunnel login` (browser-based, requires interactive session)
+      then `cloudflared tunnel create ichor-hetzner-out`,
+      then place config.yml under /etc/cloudflared/ and `systemctl enable --now cloudflared`.

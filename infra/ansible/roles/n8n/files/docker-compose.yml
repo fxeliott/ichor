@@ -1,0 +1,53 @@
+name: ichor-n8n
+
+services:
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:1.78.1
+    container_name: ichor-n8n
+    restart: unless-stopped
+    depends_on: [n8n-postgres]
+    ports:
+      - "127.0.0.1:5678:5678"
+    environment:
+      - DB_TYPE=postgresdb
+      - DB_POSTGRESDB_HOST=n8n-postgres
+      - DB_POSTGRESDB_PORT=5432
+      - DB_POSTGRESDB_DATABASE=n8n
+      - DB_POSTGRESDB_USER=n8n
+      - DB_POSTGRESDB_PASSWORD_FILE=/run/secrets/n8n_postgres_password
+      - N8N_BASIC_AUTH_ACTIVE=false  # auth handled by Cloudflare Access upstream
+      - N8N_HOST=n8n.ichor.internal  # hostname behind Cloudflare Tunnel
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=https
+      - N8N_DIAGNOSTICS_ENABLED=false
+      - N8N_VERSION_NOTIFICATIONS_ENABLED=false
+      - GENERIC_TIMEZONE=Europe/Paris
+      - TZ=Europe/Paris
+    volumes:
+      - ./n8n-data:/home/node/.n8n
+    secrets:
+      - n8n_postgres_password
+    networks: [n8n]
+
+  n8n-postgres:
+    image: postgres:16-alpine
+    container_name: ichor-n8n-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: n8n
+      POSTGRES_USER: n8n
+      POSTGRES_PASSWORD_FILE: /run/secrets/n8n_postgres_password
+    volumes:
+      - ./postgres-data:/var/lib/postgresql/data
+    secrets:
+      - n8n_postgres_password
+    networks: [n8n]
+
+secrets:
+  n8n_postgres_password:
+    file: ./secrets/n8n_postgres_password.txt
+
+networks:
+  n8n:
+    name: ichor-n8n
+    driver: bridge

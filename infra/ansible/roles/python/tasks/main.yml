@@ -1,0 +1,43 @@
+---
+# Role: python — Python 3.12 + uv (no system pip pollution)
+
+- name: Add deadsnakes PPA (Python {{ python_version }})
+  ansible.builtin.apt_repository:
+    repo: "ppa:deadsnakes/ppa"
+    state: present
+    update_cache: true
+
+- name: Install Python {{ python_version }} interpreter and tools
+  ansible.builtin.apt:
+    name:
+      - "python{{ python_version }}"
+      - "python{{ python_version }}-dev"
+      - "python{{ python_version }}-venv"
+    state: present
+
+- name: Install uv (astral-sh/uv) — official installer per-user under /root
+  ansible.builtin.shell: |
+    set -euo pipefail
+    if ! command -v uv >/dev/null 2>&1; then
+      curl -LsSf https://astral.sh/uv/install.sh | sh
+    fi
+  args:
+    executable: /bin/bash
+    creates: /root/.local/bin/uv
+  environment:
+    UV_INSTALL_DIR: /root/.local/bin
+
+- name: Symlink uv into /usr/local/bin
+  ansible.builtin.file:
+    src: /root/.local/bin/uv
+    dest: /usr/local/bin/uv
+    state: link
+
+- name: Verify uv version
+  ansible.builtin.command: uv --version
+  changed_when: false
+  register: uv_version_check
+
+- name: Display uv version
+  ansible.builtin.debug:
+    msg: "{{ uv_version_check.stdout }}"

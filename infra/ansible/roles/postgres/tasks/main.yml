@@ -1,0 +1,132 @@
+---
+# Role: postgres — Postgres 16 + TimescaleDB + Apache AGE
+# Sources verified 2026-05-02:
+# - PGDG apt repo: https://www.postgresql.org/download/linux/ubuntu/
+# - TimescaleDB apt repo: https://docs.timescale.com/self-hosted/latest/install/installation-linux/
+# - Apache AGE: built from source against PG16 (no apt package as of 2026-05)
+
+- name: Add PostgreSQL PGDG GPG key
+  ansible.builtin.get_url:
+    url: https://www.postgresql.org/media/keys/ACCC4CF8.asc
+    dest: /etc/apt/keyrings/postgresql.asc
+    mode: "0644"
+    force: false
+
+- name: Add PGDG apt repository
+  ansible.builtin.apt_repository:
+    repo: "deb [arch={{ 'amd64' if ansible_architecture == 'x86_64' else ansible_architecture }} signed-by=/etc/apt/keyrings/postgresql.asc] https://apt.postgresql.org/pub/repos/apt {{ ansible_distribution_release }}-pgdg main"
+    filename: pgdg
+    state: present
+    update_cache: true
+
+- name: Add TimescaleDB GPG key
+  ansible.builtin.get_url:
+    url: https://packagecloud.io/timescale/timescaledb/gpgkey
+    dest: /etc/apt/keyrings/timescaledb.asc
+    mode: "0644"
+    force: false
+
+- name: Add TimescaleDB apt repository
+  ansible.builtin.apt_repository:
+    repo: "deb [signed-by=/etc/apt/keyrings/timescaledb.asc] https://packagecloud.io/timescale/timescaledb/ubuntu/ {{ ansible_distribution_release }} main"
+    filename: timescaledb
+    state: present
+    update_cache: true
+
+- name: Install Postgres {{ postgres_version }} + TimescaleDB
+  ansible.builtin.apt:
+    name:
+      - "postgresql-{{ postgres_version }}"
+      - "postgresql-client-{{ postgres_version }}"
+      - "postgresql-contrib-{{ postgres_version }}"
+      - "postgresql-server-dev-{{ postgres_version }}"
+      - "timescaledb-2-postgresql-{{ postgres_version }}"
+      - libreadline-dev
+      - bison
+      - flex
+    state: present
+  notify: Restart postgresql
+
+- name: Tune Postgres via timescaledb-tune (idempotent)
+  ansible.builtin.command: >
+    timescaledb-tune --quiet --yes
+    --conf-path /etc/postgresql/{{ postgres_version }}/main/postgresql.conf
+    --memory={{ postgres_shared_buffers }}
+    --max-conns={{ postgres_max_connections }}
+  changed_when: false  # tune is idempotent
+  notify: Restart postgresql
+
+- name: Apply Ichor postgresql.conf overrides
+  ansible.builtin.template:
+    src: postgresql-ichor.conf.j2
+    dest: /etc/postgresql/{{ postgres_version }}/main/conf.d/ichor.conf
+    owner: postgres
+    group: postgres
+    mode: "0640"
+  notify: Restart postgresql
+
+- name: Ensure conf.d is included from postgresql.conf
+  ansible.builtin.lineinfile:
+    path: /etc/postgresql/{{ postgres_version }}/main/postgresql.conf
+    line: "include_dir = 'conf.d'"
+    state: present
+  notify: Restart postgresql
+
+- name: Apply pg_hba.conf (deny external, allow local + Docker bridge)
+  ansible.builtin.template:
+    src: pg_hba.conf.j2
+    dest: /etc/postgresql/{{ postgres_version }}/main/pg_hba.conf
+    owner: postgres
+    group: postgres
+    mode: "0640"
+  notify: Restart postgresql
+
+- name: Ensure Postgres is started and enabled
+  ansible.builtin.systemd:
+    name: postgresql
+    state: started
+    enabled: true
+
+# --- Apache AGE (source build — no apt package as of 2026-05) ---
+- name: Check if Apache AGE already installed for PG{{ postgres_version }}
+  ansible.builtin.stat:
+    path: "/usr/lib/postgresql/{{ postgres_version }}/lib/age.so"
+  register: age_so_stat
+
+- name: Build & install Apache AGE {{ apache_age_version }}
+  when: not age_so_stat.stat.exists
+  block:
+    - name: Clone Apache AGE repo
+      ansible.builtin.git:
+        repo: https://github.com/apache/age.git
+        dest: /tmp/apache-age
+        version: "release/PG{{ postgres_version }}/{{ apache_age_version }}"
+        force: true
+
+    - name: Build Apache AGE
+      ansible.builtin.command: make PG_CONFIG=/usr/bin/pg_config install
+      args:
+        chdir: /tmp/apache-age
+        creates: "/usr/lib/postgresql/{{ postgres_version }}/lib/age.so"
+
+  rescue:
+    - name: Apache AGE build failed — flag for manual intervention
+      ansible.builtin.fail:
+        msg: |
+          Apache AGE build failed against PG{{ postgres_version }}.
+          Check /tmp/apache-age and rerun manually:
+            cd /tmp/apache-age && make PG_CONFIG=/usr/bin/pg_config install
+          Possible cause: AGE release tag for PG{{ postgres_version }}/{{ apache_age_version }} doesn't exist.
+          Verify available tags: https://github.com/apache/age/releases
+
+- name: Enable extensions in default postgres database
+  community.postgresql.postgresql_ext:
+    name: "{{ item }}"
+    db: postgres
+    state: present
+  become: true
+  become_user: postgres
+  loop:
+    - timescaledb
+    - age
+  ignore_errors: "{{ ansible_check_mode }}"

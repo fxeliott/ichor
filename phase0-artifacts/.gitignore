@@ -1,0 +1,19 @@
+# phase0-artifacts/ — local Phase 0 recovery artifacts
+#
+# Some files in this directory contain secrets (server host keys, etc.)
+# and must NEVER be committed. Whitelist only safe text files.
+
+# Block everything by default
+*
+
+# Allow this gitignore itself
+!.gitignore
+
+# Allow text-only audits (no secrets)
+!hetzner-audit-pre-wipe-2026-05-02.txt
+!README.md
+
+# Tarballs and SHA256 files contain (or reference) /etc/ssh/ host keys
+# — kept locally for Phase 0 rollback only.
+# pre-cleanup-backup-2026-05-02.tar.gz       — local only
+# pre-cleanup-backup-2026-05-02.tar.gz.sha256 — local only

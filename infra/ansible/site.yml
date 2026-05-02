@@ -1,0 +1,53 @@
+---
+# Ichor — main provisioning playbook
+# Run: ansible-playbook -i inventory/hetzner.yml site.yml
+#
+# Order matters: base → security → docker → languages → datastores → walg → observability → apps
+# Each role is idempotent and tagged for selective runs.
+
+- name: Provision Ichor production servers
+  hosts: ichor_prod
+  become: true
+  any_errors_fatal: true
+
+  pre_tasks:
+    - name: Verify target OS is Ubuntu 24.04
+      ansible.builtin.assert:
+        that:
+          - ansible_distribution == "Ubuntu"
+          - ansible_distribution_version is version('24.04', '>=')
+        fail_msg: "Ichor requires Ubuntu 24.04 LTS or newer (got {{ ansible_distribution }} {{ ansible_distribution_version }})"
+
+    - name: Wait for cloud-init to finish (avoid apt locks)
+      ansible.builtin.command: cloud-init status --wait
+      changed_when: false
+      failed_when: false  # cloud-init may already be done or absent
+
+  roles:
+    - { role: base,           tags: [base] }
+    - { role: security,       tags: [security, ssh, ufw, fail2ban] }
+    - { role: docker,         tags: [docker] }
+    - { role: python,         tags: [python] }
+    - { role: node,           tags: [node, pnpm] }
+    - { role: postgres,       tags: [postgres, db] }
+    - { role: redis,          tags: [redis] }
+    - { role: walg,           tags: [walg, backup] }
+    - { role: observability,  tags: [observability, loki, grafana, prometheus] }
+    - { role: langfuse,       tags: [langfuse] }
+    - { role: n8n,            tags: [n8n] }
+    - { role: cloudflared,    tags: [cloudflared, tunnel] }
+
+  post_tasks:
+    - name: Final health check — services must be running
+      ansible.builtin.systemd:
+        name: "{{ item }}"
+        state: started
+        enabled: true
+      loop:
+        - ssh
+        - ufw
+        - fail2ban
+        - postgresql
+        - redis-server
+        - docker
+      tags: [healthcheck]

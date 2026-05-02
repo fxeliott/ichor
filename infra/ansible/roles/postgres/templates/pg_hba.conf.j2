@@ -1,0 +1,29 @@
+# Ichor — pg_hba.conf
+# Managed by Ansible — do not edit by hand.
+# Strategy: deny everything by default. Local socket + Docker bridge only.
+# Apps reach Postgres via Docker bridge (172.17.0.0/16) or Unix socket.
+
+# TYPE  DATABASE        USER            ADDRESS                 METHOD
+
+# Local Unix socket (peer auth — only postgres OS user can connect as postgres)
+local   all             postgres                                peer
+local   all             all                                     peer
+
+# Loopback (for tools like psql -h localhost)
+host    all             all             127.0.0.1/32            scram-sha-256
+host    all             all             ::1/128                 scram-sha-256
+
+# Docker default bridge — apps in containers reach Postgres on the host
+host    all             all             172.17.0.0/16           scram-sha-256
+
+# Custom Docker network (defined in roles/docker/tasks: 172.20.0.0/16 pool)
+host    all             all             172.20.0.0/16           scram-sha-256
+
+# Replication (wal-g uses pg_basebackup-compatible replication slots)
+local   replication     all                                     peer
+host    replication     all             127.0.0.1/32            scram-sha-256
+host    replication     all             ::1/128                 scram-sha-256
+
+# Explicit deny for everything else (last entry — Postgres falls back to reject)
+host    all             all             0.0.0.0/0               reject
+host    all             all             ::/0                    reject

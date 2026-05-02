@@ -1,0 +1,44 @@
+# Ichor — Postgres tuning overrides
+# Managed by Ansible — do not edit by hand.
+# Generated 2026-05-02. Sized for Hetzner CX32 (16GB RAM, 8 vCPU).
+
+# --- Memory ---
+shared_buffers = {{ postgres_shared_buffers }}
+effective_cache_size = {{ postgres_effective_cache_size }}
+maintenance_work_mem = {{ postgres_maintenance_work_mem }}
+work_mem = {{ postgres_work_mem }}
+
+# --- Connections ---
+max_connections = {{ postgres_max_connections }}
+
+# --- WAL / replication / archive (required for wal-g) ---
+wal_level = {{ postgres_wal_level }}
+archive_mode = {{ postgres_archive_mode }}
+archive_command = '/usr/local/bin/wal-g wal-push %p'
+archive_timeout = {{ walg_archive_timeout }}s
+max_wal_senders = {{ postgres_max_wal_senders }}
+wal_compression = on
+wal_keep_size = 1GB
+
+# --- Logging ---
+logging_collector = on
+log_directory = 'log'
+log_filename = 'postgresql-%Y-%m-%d_%H%M%S.log'
+log_rotation_age = 1d
+log_rotation_size = 100MB
+log_truncate_on_rotation = on
+log_min_duration_statement = 250ms
+log_checkpoints = on
+log_connections = on
+log_disconnections = on
+log_lock_waits = on
+log_temp_files = 0
+log_autovacuum_min_duration = 0
+log_line_prefix = '%t [%p]: db=%d,user=%u,app=%a,client=%h '
+
+# --- Extensions preload ---
+shared_preload_libraries = 'timescaledb'
+
+# --- Statement timeouts (defensive) ---
+statement_timeout = 0  # set per-app
+idle_in_transaction_session_timeout = 600000  # 10 min — prevents zombie txns

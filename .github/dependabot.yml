@@ -1,0 +1,113 @@
+version: 2
+
+updates:
+  # ---- npm / pnpm (root) ----
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "07:00"
+      timezone: Europe/Paris
+    open-pull-requests-limit: 5
+    versioning-strategy: increase
+    labels: [dependencies, javascript]
+    commit-message:
+      prefix: "chore(deps)"
+      include: scope
+    groups:
+      next-react:
+        patterns:
+          - "next"
+          - "react"
+          - "react-dom"
+          - "@types/react*"
+      tooling:
+        patterns:
+          - "turbo"
+          - "typescript"
+          - "prettier"
+          - "eslint"
+          - "@types/node"
+
+  # ---- npm / apps/web ----
+  - package-ecosystem: npm
+    directory: /apps/web
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    labels: [dependencies, javascript, web]
+
+  # ---- npm / packages/ui ----
+  - package-ecosystem: npm
+    directory: /packages/ui
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 3
+    labels: [dependencies, javascript, ui]
+
+  # ---- pip / Python packages ----
+  - package-ecosystem: pip
+    directory: /apps/api
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    labels: [dependencies, python, api]
+
+  - package-ecosystem: pip
+    directory: /apps/claude-runner
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    labels: [dependencies, python, claude-runner]
+
+  - package-ecosystem: pip
+    directory: /packages/agents
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    labels: [dependencies, python, agents]
+
+  - package-ecosystem: pip
+    directory: /packages/ml
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    labels: [dependencies, python, ml]
+
+  # ---- GitHub Actions ----
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 3
+    labels: [dependencies, github-actions]
+
+  # ---- Docker images (Ansible roles) ----
+  - package-ecosystem: docker
+    directory: /infra/ansible/roles/observability/files
+    schedule:
+      interval: weekly
+      day: monday
+    labels: [dependencies, docker, observability]
+
+  - package-ecosystem: docker
+    directory: /infra/ansible/roles/langfuse/files
+    schedule:
+      interval: weekly
+      day: monday
+    labels: [dependencies, docker, langfuse]
+
+  - package-ecosystem: docker
+    directory: /infra/ansible/roles/n8n/files
+    schedule:
+      interval: weekly
+      day: monday
+    labels: [dependencies, docker, n8n]

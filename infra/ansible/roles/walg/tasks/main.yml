@@ -1,0 +1,105 @@
+---
+# Role: walg — wal-g {{ walg_version }} for continuous WAL streaming → Cloudflare R2 EU
+# AUDIT_V3 §2 — replaces pgbackrest (archived 2026-04-27).
+# https://github.com/wal-g/wal-g/releases/tag/v{{ walg_version }}
+
+- name: Download wal-g binary
+  ansible.builtin.get_url:
+    url: "https://github.com/wal-g/wal-g/releases/download/v{{ walg_version }}/wal-g-pg-ubuntu-22.04-amd64.tar.gz"
+    dest: "/tmp/wal-g-{{ walg_version }}.tar.gz"
+    mode: "0644"
+    checksum: "sha256:placeholder_to_fill_with_real_hash_from_release_page"
+    # NOTE: replace checksum with real SHA256 from the GitHub release SHASUMS file before running.
+
+- name: Extract wal-g binary
+  ansible.builtin.unarchive:
+    src: "/tmp/wal-g-{{ walg_version }}.tar.gz"
+    dest: /tmp/
+    remote_src: true
+    creates: /tmp/wal-g-pg-ubuntu-22.04-amd64
+
+- name: Install wal-g binary to /usr/local/bin
+  ansible.builtin.copy:
+    src: /tmp/wal-g-pg-ubuntu-22.04-amd64
+    dest: /usr/local/bin/wal-g
+    mode: "0755"
+    owner: root
+    group: root
+    remote_src: true
+
+- name: Verify wal-g version
+  ansible.builtin.command: wal-g --version
+  changed_when: false
+  register: walg_version_check
+
+- name: Display wal-g version
+  ansible.builtin.debug:
+    msg: "{{ walg_version_check.stdout }}"
+
+- name: Create wal-g environment file (R2 credentials from SOPS)
+  ansible.builtin.copy:
+    dest: /etc/wal-g.env
+    owner: postgres
+    group: postgres
+    mode: "0600"
+    content: |
+      WALG_S3_PREFIX=s3://{{ walg_s3_bucket }}/postgres
+      AWS_ENDPOINT={{ walg_s3_endpoint }}
+      AWS_REGION={{ walg_s3_region }}
+      AWS_ACCESS_KEY_ID={{ walg_s3_access_key | default('SET_VIA_SOPS') }}
+      AWS_SECRET_ACCESS_KEY={{ walg_s3_secret_key | default('SET_VIA_SOPS') }}
+      AWS_S3_FORCE_PATH_STYLE=true
+      WALG_COMPRESSION_METHOD=brotli
+      WALG_DELTA_MAX_STEPS=6
+
+- name: Wrap wal-g for use as Postgres archive_command
+  ansible.builtin.copy:
+    dest: /usr/local/bin/wal-g-archive
+    owner: root
+    group: root
+    mode: "0755"
+    content: |
+      #!/usr/bin/env bash
+      set -euo pipefail
+      source /etc/wal-g.env
+      exec /usr/local/bin/wal-g wal-push "$@"
+
+- name: Install systemd timer — daily basebackup at 03:00 Europe/Paris
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/walg-basebackup.service
+    mode: "0644"
+    content: |
+      [Unit]
+      Description=wal-g daily basebackup → R2
+      After=postgresql.service
+      Requires=postgresql.service
+
+      [Service]
+      Type=oneshot
+      User=postgres
+      EnvironmentFile=/etc/wal-g.env
+      ExecStart=/usr/local/bin/wal-g backup-push {{ walg_pg_data }}
+
+- name: Install systemd timer schedule
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/walg-basebackup.timer
+    mode: "0644"
+    content: |
+      [Unit]
+      Description=Run wal-g basebackup daily
+
+      [Timer]
+      OnCalendar=*-*-* 03:00:00 Europe/Paris
+      RandomizedDelaySec=600
+      Persistent=true
+
+      [Install]
+      WantedBy=timers.target
+  notify: Reload systemd
+
+- name: Enable and start wal-g timer
+  ansible.builtin.systemd:
+    name: walg-basebackup.timer
+    state: started
+    enabled: true
+    daemon_reload: true

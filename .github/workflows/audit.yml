@@ -1,0 +1,100 @@
+name: Security audit
+
+on:
+  schedule:
+    - cron: "0 6 * * 1"  # every Monday 06:00 UTC
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "**/pyproject.toml"
+      - "**/uv.lock"
+      - "**/package.json"
+      - "**/pnpm-lock.yaml"
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  pip-audit:
+    name: pip-audit (Python)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        package:
+          - apps/api
+          - apps/claude-runner
+          - packages/agents
+          - packages/ml
+          - packages/shared-types
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install pip-audit
+        run: pip install pip-audit==2.8.1
+
+      - name: Run pip-audit
+        working-directory: ${{ matrix.package }}
+        run: |
+          pip-audit -r <(python -c "
+          import tomllib, sys
+          with open('pyproject.toml','rb') as f:
+              data = tomllib.load(f)
+          deps = data.get('project',{}).get('dependencies',[])
+          print('\n'.join(deps))
+          ") --vulnerability-service osv --strict || echo "::warning::pip-audit found issues (warn-only Phase 0)"
+
+  pnpm-audit:
+    name: pnpm audit (Node/TS)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node 22 + pnpm
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Enable Corepack
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.33.2 --activate
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile || pnpm install  # lockfile may not exist yet in Phase 0
+
+      - name: Run pnpm audit
+        run: pnpm audit --audit-level=high || echo "::warning::pnpm audit found issues (warn-only Phase 0)"
+
+  trivy-fs:
+    name: Trivy filesystem scan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          severity: CRITICAL,HIGH
+          exit-code: "0"  # warn-only Phase 0
+          ignore-unfixed: true
+          format: sarif
+          output: trivy-results.sarif
+
+      - name: Upload Trivy SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: trivy-results.sarif

@@ -1,0 +1,39 @@
+---
+# Role: observability — Loki + Grafana + Prometheus via docker-compose
+
+- name: Ensure observability dir exists
+  ansible.builtin.file:
+    path: /opt/ichor/observability
+    state: directory
+    mode: "0755"
+
+- name: Deploy docker-compose stack
+  ansible.builtin.copy:
+    src: docker-compose.yml
+    dest: /opt/ichor/observability/docker-compose.yml
+    mode: "0644"
+
+- name: Ensure Loki/Grafana/Prometheus volumes
+  ansible.builtin.file:
+    path: "/opt/ichor/observability/{{ item }}"
+    state: directory
+    mode: "0755"
+  loop:
+    - loki-data
+    - grafana-data
+    - prometheus-data
+    - prometheus-config
+
+- name: Deploy Prometheus config
+  ansible.builtin.copy:
+    src: prometheus.yml
+    dest: /opt/ichor/observability/prometheus-config/prometheus.yml
+    mode: "0644"
+  register: prom_config
+
+- name: Start observability stack
+  community.docker.docker_compose_v2:
+    project_src: /opt/ichor/observability
+    state: present
+    pull: missing
+    recreate: "{{ 'always' if prom_config.changed else 'auto' }}"

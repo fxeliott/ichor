@@ -1,0 +1,130 @@
+# ============================================================================
+# Ichor — .gitignore
+# Generated 2026-05-02 (Phase 0 init)
+# ============================================================================
+
+# --- Secrets & credentials (NEVER commit) ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+secrets/*.dec.*
+secrets/*.decrypted.*
+*.sops.json
+!.sops.yaml
+.age-key
+age.key
+
+# --- Node / pnpm ---
+node_modules/
+.pnpm-store/
+.pnpm-debug.log*
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm/
+
+# --- Next.js / build outputs ---
+.next/
+out/
+build/
+dist/
+.turbo/
+.vercel/
+.serwist/
+public/sw.js
+public/sw.js.map
+public/workbox-*.js
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg
+*.egg-info/
+.eggs/
+.venv/
+venv/
+.venv-tooling/
+ENV/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+.hypothesis/
+.dmypy.json
+dmypy.json
+.python-version
+!.python-version-pinned
+
+# --- uv (Python) ---
+uv.lock
+.uv/
+
+# --- IDE ---
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+!.vscode/launch.json
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- TypeScript ---
+*.tsbuildinfo
+next-env.d.ts
+
+# --- Testing & coverage ---
+coverage/
+*.lcov
+.nyc_output/
+playwright-report/
+playwright/.cache/
+test-results/
+
+# --- Logs ---
+*.log
+logs/
+
+# --- OS ---
+$RECYCLE.BIN/
+System Volume Information/
+
+# --- Phase 0 artifacts (server backups, audits) — kept for reference ---
+# phase0-artifacts/ is intentionally NOT ignored (committed for traceability)
+
+# --- Local dev databases / volumes ---
+*.sqlite
+*.sqlite3
+*.db
+postgres-data/
+redis-data/
+
+# --- Build artifacts ML/Data ---
+*.parquet
+*.arrow
+*.h5
+*.pkl
+*.joblib
+mlruns/
+mlartifacts/
+
+# --- Temp ---
+tmp/
+.tmp/
+.cache/

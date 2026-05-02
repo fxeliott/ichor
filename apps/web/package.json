@@ -1,0 +1,31 @@
+{
+  "name": "@ichor/web",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Ichor — Next.js 15 dashboard, deployed to Cloudflare Pages",
+  "scripts": {
+    "dev": "next dev --port 3000",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf .next out"
+  },
+  "dependencies": {
+    "next": "15.5.15",
+    "react": "19.0.0",
+    "react-dom": "19.0.0",
+    "lightweight-charts": "5.2.0",
+    "motion": "12.38.0",
+    "zustand": "5.0.12",
+    "@tanstack/react-query": "5.100.8"
+  },
+  "devDependencies": {
+    "@types/node": "22.19.17",
+    "@types/react": "19.0.0",
+    "@types/react-dom": "19.0.0",
+    "tailwindcss": "4.2.4",
+    "@tailwindcss/postcss": "4.2.4",
+    "typescript": "5.9.3"
+  }
+}

@@ -1,0 +1,94 @@
+---
+# Role: security — SSH hardening + UFW + fail2ban
+
+# --- SSH hardening ---
+- name: Apply SSH hardening drop-in
+  ansible.builtin.copy:
+    dest: /etc/ssh/sshd_config.d/00-ichor-hardening.conf
+    mode: "0644"
+    owner: root
+    group: root
+    content: |
+      # Ichor SSH hardening — managed by Ansible
+      Protocol 2
+      PermitRootLogin {{ ssh_permit_root_login }}
+      PasswordAuthentication {{ ssh_password_authentication }}
+      KbdInteractiveAuthentication {{ ssh_kbd_interactive_authentication }}
+      MaxAuthTries {{ ssh_max_auth_tries }}
+      PubkeyAuthentication yes
+      ChallengeResponseAuthentication no
+      UsePAM yes
+      X11Forwarding no
+      AllowAgentForwarding no
+      AllowTcpForwarding yes
+      PermitTunnel no
+      ClientAliveInterval {{ ssh_client_alive_interval }}
+      ClientAliveCountMax {{ ssh_client_alive_count_max }}
+      LoginGraceTime 30
+      MaxStartups 3:30:10
+      LogLevel VERBOSE
+      Banner none
+  notify: Restart sshd
+
+# --- UFW ---
+- name: Reset UFW to known state (backup taken pre-cleanup)
+  community.general.ufw:
+    state: reset
+  when: ufw_force_reset | default(false) | bool
+
+- name: Set UFW default policies
+  community.general.ufw:
+    direction: "{{ item.direction }}"
+    policy: "{{ item.policy }}"
+  loop:
+    - { direction: incoming, policy: deny }
+    - { direction: outgoing, policy: allow }
+    - { direction: routed,   policy: deny }
+
+- name: Allow SSH (rate-limited)
+  community.general.ufw:
+    rule: limit
+    port: "22"
+    proto: tcp
+    comment: "SSH (rate-limited)"
+
+- name: Allow HTTP/HTTPS public ports
+  community.general.ufw:
+    rule: allow
+    port: "{{ item.port }}"
+    proto: tcp
+    comment: "{{ item.comment }}"
+  loop: "{{ ufw_allowed_tcp }}"
+  when: item.port not in [22]  # already handled with limit above
+
+- name: Enable UFW
+  community.general.ufw:
+    state: enabled
+    logging: low
+
+# --- fail2ban ---
+- name: Configure fail2ban jail.local for SSH
+  ansible.builtin.copy:
+    dest: /etc/fail2ban/jail.local
+    mode: "0644"
+    owner: root
+    group: root
+    content: |
+      [DEFAULT]
+      bantime  = {{ fail2ban_ssh_bantime }}
+      findtime = 600
+      maxretry = {{ fail2ban_ssh_maxretry }}
+      backend  = systemd
+
+      [sshd]
+      enabled  = true
+      port     = ssh
+      filter   = sshd
+      maxretry = {{ fail2ban_ssh_maxretry }}
+  notify: Restart fail2ban
+
+- name: Ensure fail2ban service is running and enabled
+  ansible.builtin.systemd:
+    name: fail2ban
+    state: started
+    enabled: true

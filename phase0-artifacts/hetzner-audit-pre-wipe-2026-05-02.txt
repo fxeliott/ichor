@@ -1,0 +1,551 @@
+=== AUDIT TIMESTAMP ===
+2026-05-02T12:54:21Z
+
+=== UNAME ===
+Linux ubuntu-16gb-nbg1-1 6.8.0-101-generic #101-Ubuntu SMP PREEMPT_DYNAMIC Mon Feb  9 10:15:05 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux
+
+=== OS ===
+Distributor ID:	Ubuntu
+Description:	Ubuntu 24.04.4 LTS
+Release:	24.04
+Codename:	noble
+
+=== HOSTNAMECTL ===
+ Static hostname: ubuntu-16gb-nbg1-1
+       Icon name: computer-vm
+         Chassis: vm 🖴
+      Machine ID: 51dc1b3ee4164ad591e6b9169cb52a23
+         Boot ID: 7deae11816f24506a8624d2a3682a316
+  Virtualization: kvm
+Operating System: Ubuntu 24.04.4 LTS
+          Kernel: Linux 6.8.0-101-generic
+    Architecture: x86-64
+ Hardware Vendor: Hetzner
+  Hardware Model: vServer
+Firmware Version: 20171111
+   Firmware Date: Sat 2017-11-11
+    Firmware Age: 8y 5month 2w 6d
+
+=== UPTIME ===
+ 12:54:22 up 53 days, 17:51,  1 user,  load average: 0.12, 0.05, 0.02
+
+ 12:54:22 up 53 days, 17:51,  1 user,  load average: 0.12, 0.05, 0.02
+USER     TTY      FROM             LOGIN@   IDLE   JCPU   PCPU  WHAT
+root              78.124.66.23     12:54   30:15m  0.00s  0.03s sshd: root@notty
+
+=== DISK USAGE ===
+Filesystem     Type      Size  Used Avail Use% Mounted on
+efivarfs       efivarfs  256K   21K  231K   9% /sys/firmware/efi/efivars
+/dev/sda1      ext4      301G  8.9G  280G   4% /
+/dev/sda15     vfat      253M  146K  252M   1% /boot/efi
+
+=== BLOCK DEVICES ===
+NAME    FSTYPE   FSVER LABEL UUID                                 FSAVAIL FSUSE% MOUNTPOINTS
+loop0   squashfs 4.0                                                    0   100% /snap/snapd/26382
+loop1   squashfs 4.0                                                    0   100% /snap/core24/1499
+loop2   squashfs 4.0                                                    0   100% /snap/bare/5
+loop3   squashfs 4.0                                                    0   100% /snap/core22/2411
+loop4   squashfs 4.0                                                    0   100% /snap/cups/1183
+loop5   squashfs 4.0                                                    0   100% /snap/core24/1587
+loop6   squashfs 4.0                                                    0   100% /snap/gtk-common-themes/1535
+loop7   squashfs 4.0                                                    0   100% /snap/mesa-2404/1165
+loop8   squashfs 4.0                                                    0   100% /snap/gnome-46-2404/153
+loop9   squashfs 4.0                                                    0   100% /snap/snapd/26865
+loop10  squashfs 4.0                                                    0   100% /snap/cups/1170
+loop12  squashfs 4.0                                                    0   100% /snap/chromium/3411
+loop13  squashfs 4.0                                                    0   100% /snap/chromium/3423
+sda                                                                              
+├─sda1  ext4     1.0         d7b6f3b2-8c16-446c-895d-7906b3371dbc  279.1G     3% /
+├─sda14                                                                          
+└─sda15 vfat     FAT32       D328-D0E0                             251.9M     0% /boot/efi
+sr0                                                                              
+
+=== MEM ===
+               total        used        free      shared  buff/cache   available
+Mem:            15Gi       733Mi        12Gi       4.4Mi       2.7Gi        14Gi
+Swap:          4.0Gi        26Mi       4.0Gi
+
+=== SWAP ===
+NAME      TYPE SIZE  USED PRIO
+/swapfile file   4G 26.8M   -2
+
+=== INTERFACES ===
+lo               UNKNOWN        127.0.0.1/8 ::1/128 
+eth0             UP             178.104.39.201/32 metric 100 2a01:4f8:1c19:72b0::1/64 fe80::9000:7ff:fe58:516/64 
+docker0          DOWN           172.17.0.1/16 fe80::2cd8:6aff:fe63:fba9/64 
+
+=== ROUTES ===
+default via 172.31.1.1 dev eth0 proto dhcp src 178.104.39.201 metric 100 
+172.17.0.0/16 dev docker0 proto kernel scope link src 172.17.0.1 linkdown 
+172.31.1.1 dev eth0 proto dhcp scope link src 178.104.39.201 metric 100 
+185.12.64.1 via 172.31.1.1 dev eth0 proto dhcp src 178.104.39.201 metric 100 
+185.12.64.2 via 172.31.1.1 dev eth0 proto dhcp src 178.104.39.201 metric 100 
+
+=== LISTENING PORTS (with PID) ===
+Netid State  Recv-Q Send-Q       Local Address:Port Peer Address:PortProcess                                                
+udp   UNCONN 0      0               127.0.0.54:53        0.0.0.0:*    users:(("systemd-resolve",pid=21264,fd=16))           
+udp   UNCONN 0      0            127.0.0.53%lo:53        0.0.0.0:*    users:(("systemd-resolve",pid=21264,fd=14))           
+udp   UNCONN 0      0      178.104.39.201%eth0:68        0.0.0.0:*    users:(("systemd-network",pid=21273,fd=23))           
+tcp   LISTEN 0      4096            127.0.0.54:53        0.0.0.0:*    users:(("systemd-resolve",pid=21264,fd=17))           
+tcp   LISTEN 0      4096         127.0.0.53%lo:53        0.0.0.0:*    users:(("systemd-resolve",pid=21264,fd=15))           
+tcp   LISTEN 0      4096               0.0.0.0:22        0.0.0.0:*    users:(("sshd",pid=8902,fd=3),("systemd",pid=1,fd=93))
+tcp   LISTEN 0      4096               0.0.0.0:631       0.0.0.0:*    users:(("cupsd",pid=3370409,fd=9))                    
+tcp   LISTEN 0      4096                  [::]:22           [::]:*    users:(("sshd",pid=8902,fd=4),("systemd",pid=1,fd=94))
+tcp   LISTEN 0      4096                  [::]:631          [::]:*    users:(("cupsd",pid=3370409,fd=10))                   
+
+=== UFW ===
+Status: active
+Logging: on (low)
+Default: deny (incoming), allow (outgoing), deny (routed)
+New profiles: skip
+
+To                         Action      From
+--                         ------      ----
+18789                      DENY IN     Anywhere                   # OpenClaw: only via nginx
+8080                       DENY IN     Anywhere                   # redundant safety
+5678                       DENY IN     Anywhere                   # n8n: only via nginx
+3000                       DENY IN     Anywhere                   # Langfuse: only via tunnel
+8001                       DENY IN     Anywhere                   # Nexus backend: only via nginx
+8005                       DENY IN     Anywhere                   # CRM: only via nginx
+16080                      DENY IN     Anywhere                   # websockify: only via nginx
+22                         ALLOW IN    192.168.1.0/24             # SSH LAN only
+443/tcp                    ALLOW IN    Anywhere                   # HTTPS public
+80/tcp                     ALLOW IN    Anywhere                   # HTTP letsencrypt
+22/tcp                     ALLOW IN    Anywhere                   # SSH
+18789 (v6)                 DENY IN     Anywhere (v6)              # OpenClaw: only via nginx
+8080 (v6)                  DENY IN     Anywhere (v6)              # redundant safety
+5678 (v6)                  DENY IN     Anywhere (v6)              # n8n: only via nginx
+3000 (v6)                  DENY IN     Anywhere (v6)              # Langfuse: only via tunnel
+8001 (v6)                  DENY IN     Anywhere (v6)              # Nexus backend: only via nginx
+8005 (v6)                  DENY IN     Anywhere (v6)              # CRM: only via nginx
+16080 (v6)                 DENY IN     Anywhere (v6)              # websockify: only via nginx
+443/tcp (v6)               ALLOW IN    Anywhere (v6)              # HTTPS public
+80/tcp (v6)                ALLOW IN    Anywhere (v6)              # HTTP letsencrypt
+22/tcp (v6)                ALLOW IN    Anywhere (v6)              # SSH
+
+
+=== IPTABLES (top 50) ===
+Chain INPUT (policy DROP 382K packets, 23M bytes)
+ pkts bytes target     prot opt in     out     source               destination         
+ 445M  949G ufw-before-logging-input  0    --  *      *       0.0.0.0/0            0.0.0.0/0           
+ 445M  949G ufw-before-input  0    --  *      *       0.0.0.0/0            0.0.0.0/0           
+1242K   68M ufw-after-input  0    --  *      *       0.0.0.0/0            0.0.0.0/0           
+1239K   68M ufw-after-logging-input  0    --  *      *       0.0.0.0/0            0.0.0.0/0           
+1239K   68M ufw-reject-input  0    --  *      *       0.0.0.0/0            0.0.0.0/0           
+1239K   68M ufw-track-input  0    --  *      *       0.0.0.0/0            0.0.0.0/0           
+
+Chain FORWARD (policy DROP 0 packets, 0 bytes)
+ pkts bytes target     prot opt in     out     source               destination         
+ 196K  145M DOCKER-USER  0    --  *      *       0.0.0.0/0            0.0.0.0/0           
+ 196K  145M DOCKER-FORWARD  0    --  *      *       0.0.0.0/0            0.0.0.0/0           
+    0     0 ufw-before-logging-forward  0    --  *      *       0.0.0.0/0            0.0.0.0/0           
+    0     0 ufw-before-forward  0    --  *      *       0.0.0.0/0            0.0.0.0/0           
+    0     0 ufw-after-forward  0    --  *      *       0.0.0.0/0            0.0.0.0/0           
+    0     0 ufw-after-logging-forward  0    --  *      *       0.0.0.0/0            0.0.0.0/0           
+    0     0 ufw-reject-forward  0    --  *      *       0.0.0.0/0            0.0.0.0/0           
+    0     0 ufw-track-forward  0    --  *      *       0.0.0.0/0            0.0.0.0/0           
+
+Chain OUTPUT (policy ACCEPT 10973 packets, 475K bytes)
+ pkts bytes target     prot opt in     out     source               destination         
+ 461M  896G ufw-before-logging-output  0    --  *      *       0.0.0.0/0            0.0.0.0/0           
+ 461M  896G ufw-before-output  0    --  *      *       0.0.0.0/0            0.0.0.0/0           
+ 707K   51M ufw-after-output  0    --  *      *       0.0.0.0/0            0.0.0.0/0           
+ 707K   51M ufw-after-logging-output  0    --  *      *       0.0.0.0/0            0.0.0.0/0           
+ 707K   51M ufw-reject-output  0    --  *      *       0.0.0.0/0            0.0.0.0/0           
+ 707K   51M ufw-track-output  0    --  *      *       0.0.0.0/0            0.0.0.0/0           
+
+Chain DOCKER (1 references)
+ pkts bytes target     prot opt in     out     source               destination         
+    0     0 DROP       0    --  !docker0 docker0  0.0.0.0/0            0.0.0.0/0           
+
+Chain DOCKER-BRIDGE (1 references)
+ pkts bytes target     prot opt in     out     source               destination         
+    0     0 DOCKER     0    --  *      docker0  0.0.0.0/0            0.0.0.0/0           
+
+Chain DOCKER-CT (1 references)
+ pkts bytes target     prot opt in     out     source               destination         
+ 102K  127M ACCEPT     0    --  *      docker0  0.0.0.0/0            0.0.0.0/0            ctstate RELATED,ESTABLISHED
+
+Chain DOCKER-FORWARD (1 references)
+ pkts bytes target     prot opt in     out     source               destination         
+ 196K  145M DOCKER-CT  0    --  *      *       0.0.0.0/0            0.0.0.0/0           
+92784   18M DOCKER-INTERNAL  0    --  *      *       0.0.0.0/0            0.0.0.0/0           
+92784   18M DOCKER-BRIDGE  0    --  *      *       0.0.0.0/0            0.0.0.0/0           
+91522   18M ACCEPT     0    --  docker0 *       0.0.0.0/0            0.0.0.0/0           
+
+Chain DOCKER-INTERNAL (1 references)
+ pkts bytes target     prot opt in     out     source               destination         
+
+=== USERS (real shells only) ===
+root:0:/root:/bin/bash
+
+=== SUDOERS.D ===
+total 16
+drwxr-x---   2 root root 4096 Apr 13 22:59 .
+drwxr-xr-x 112 root root 4096 May  2 06:21 ..
+-r--r-----   1 root root 1068 Jan 29  2024 README
+-r--r-----   1 root root   56 Apr 13 22:58 www-data-nginx-reload
+
+=== SSH AUTHORIZED_KEYS COUNT ===
+/root: 2 keys
+
+=== ACTIVE SERVICES ===
+  atd.service                    loaded active running Deferred execution scheduler
+  cron.service                   loaded active running Regular background program processing daemon
+  dbus.service                   loaded active running D-Bus System Message Bus
+  fail2ban.service               loaded active running Fail2Ban Service
+  getty@tty1.service             loaded active running Getty on tty1
+  multipathd.service             loaded active running Device-Mapper Multipath Device Controller
+  polkit.service                 loaded active running Authorization Manager
+  qemu-guest-agent.service       loaded active running QEMU Guest Agent
+  rsyslog.service                loaded active running System Logging Service
+  serial-getty@ttyS0.service     loaded active running Serial Getty on ttyS0
+  snap.cups.cups-browsed.service loaded active running Service for snap application cups.cups-browsed
+  snap.cups.cupsd.service        loaded active running Service for snap application cups.cupsd
+  snapd.service                  loaded active running Snap Daemon
+  ssh.service                    loaded active running OpenBSD Secure Shell server
+  systemd-hostnamed.service      loaded active running Hostname Service
+  systemd-journald.service       loaded active running Journal Service
+  systemd-logind.service         loaded active running User Login Management
+  systemd-networkd.service       loaded active running Network Configuration
+  systemd-resolved.service       loaded active running Network Name Resolution
+  systemd-timesyncd.service      loaded active running Network Time Synchronization
+  systemd-udevd.service          loaded active running Rule-based Manager for Device Events and Files
+  unattended-upgrades.service    loaded active running Unattended Upgrades Shutdown
+  user@0.service                 loaded active running User Manager for UID 0
+
+=== ENABLED SERVICES ===
+snap-bare-5.mount                       enabled enabled
+snap-chromium-3411.mount                enabled enabled
+snap-chromium-3423.mount                enabled enabled
+snap-core22-2411.mount                  enabled enabled
+snap-core24-1499.mount                  enabled enabled
+snap-core24-1587.mount                  enabled enabled
+snap-cups-1170.mount                    enabled enabled
+snap-cups-1183.mount                    enabled enabled
+snap-gnome\x2d46\x2d2404-153.mount      enabled enabled
+snap-gtk\x2dcommon\x2dthemes-1535.mount enabled enabled
+snap-mesa\x2d2404-1165.mount            enabled enabled
+snap-snapd-26382.mount                  enabled enabled
+snap-snapd-26865.mount                  enabled enabled
+acpid.path                              enabled enabled
+apport-autoreport.path                  enabled enabled
+tpm-udev.path                           enabled enabled
+apparmor.service                        enabled enabled
+apport.service                          enabled enabled
+atd.service                             enabled enabled
+blk-availability.service                enabled enabled
+console-setup.service                   enabled enabled
+cron.service                            enabled enabled
+dmesg.service                           enabled enabled
+e2scrub_reap.service                    enabled enabled
+fail2ban.service                        enabled enabled
+finalrd.service                         enabled enabled
+getty@.service                          enabled enabled
+gpu-manager.service                     enabled enabled
+grub-common.service                     enabled enabled
+grub-initrd-fallback.service            enabled enabled
+hc-net-scan.service                     enabled enabled
+keyboard-setup.service                  enabled enabled
+lvm2-monitor.service                    enabled enabled
+multipathd.service                      enabled enabled
+networkd-dispatcher.service             enabled enabled
+open-iscsi.service                      enabled enabled
+open-vm-tools.service                   enabled enabled
+pollinate.service                       enabled enabled
+rsyslog.service                         enabled enabled
+secureboot-db.service                   enabled enabled
+setvtrgb.service                        enabled enabled
+snap.cups.cups-browsed.service          enabled enabled
+snap.cups.cupsd.service                 enabled enabled
+snapd.apparmor.service                  enabled enabled
+snapd.autoimport.service                enabled enabled
+snapd.core-fixup.service                enabled enabled
+snapd.recovery-chooser-trigger.service  enabled enabled
+snapd.seeded.service                    enabled enabled
+snapd.service                           enabled enabled
+snapd.system-shutdown.service           enabled enabled
+sysstat.service                         enabled enabled
+systemd-networkd-wait-online.service    enabled enabled
+systemd-networkd.service                enabled enabled
+systemd-pstore.service                  enabled enabled
+systemd-resolved.service                enabled enabled
+systemd-timesyncd.service               enabled enabled
+ua-reboot-cmds.service                  enabled enabled
+ubuntu-advantage.service                enabled enabled
+ufw.service                             enabled enabled
+unattended-upgrades.service             enabled enabled
+
+=== FAILED SERVICES ===
+  UNIT                        LOAD   ACTIVE SUB    DESCRIPTION
+● cloud-init-hotplugd.service loaded failed failed Cloud-init: Hotplug Hook
+
+Legend: LOAD   → Reflects whether the unit definition was properly loaded.
+        ACTIVE → The high-level unit activation state, i.e. generalization of SUB.
+        SUB    → The low-level unit activation state, values depend on unit type.
+
+1 loaded units listed.
+
+=== DOCKER VERSION ===
+
+=== DOCKER COMPOSE VERSION ===
+
+=== DOCKER CONTAINERS ALL ===
+
+=== DOCKER VOLUMES ===
+
+=== DOCKER NETWORKS ===
+
+=== DOCKER DISK USAGE ===
+
+=== POSTGRES NATIVE ===
+inactive
+
+=== /opt ===
+total 8
+drwxr-xr-x  2 root root 4096 Apr 30 14:36 .
+drwxr-xr-x 23 root root 4096 Mar 13 12:24 ..
+
+=== /srv ===
+total 8
+drwxr-xr-x  2 root root 4096 Apr 30 14:55 .
+drwxr-xr-x 23 root root 4096 Mar 13 12:24 ..
+
+=== /home ===
+total 8
+drwxr-xr-x  2 root root 4096 Mar  1 04:24 .
+drwxr-xr-x 23 root root 4096 Mar 13 12:24 ..
+
+=== /root (top-level) ===
+total 28
+drwx------  4 root root 4096 Apr 30 14:55 .
+drwxr-xr-x 23 root root 4096 Mar 13 12:24 ..
+-rw-r--r--  1 root root    1 Apr 30 14:55 .bash_history
+-rw-------  1 root root 3334 Mar 10 22:00 .bashrc
+drwx------  2 root root 4096 Apr 30 14:55 .cache
+-rw-r--r--  1 root root  187 Mar  9 21:01 .profile
+drwx------  2 root root 4096 Apr 30 14:54 .ssh
+
+=== /var/lib top consumers ===
+16K	/var/lib/polkit-1
+16K	/var/lib/xml-core
+20K	/var/lib/update-notifier
+28K	/var/lib/pam
+36K	/var/lib/PackageKit
+116K	/var/lib/ucf
+232K	/var/lib/cloud
+284K	/var/lib/fail2ban
+736K	/var/lib/systemd
+4.0M	/var/lib/command-not-found
+4.7M	/var/lib/containerd
+5.9M	/var/lib/ubuntu-advantage
+33M	/var/lib/dpkg
+233M	/var/lib/apt
+1.9G	/var/lib/snapd
+
+=== /var/log size ===
+79M	/var/log
+
+=== ROOT CRONTAB ===
+(no root crontab)
+
+=== SYSTEMD TIMERS ===
+NEXT                             LEFT LAST                              PASSED UNIT                           ACTIVATES
+Sat 2026-05-02 13:00:00 UTC      5min Sat 2026-05-02 12:50:06 UTC 4min 16s ago sysstat-collect.timer          sysstat-collect.service
+Sat 2026-05-02 13:37:56 UTC     43min Fri 2026-05-01 22:54:46 UTC      13h ago apt-daily.timer                apt-daily.service
+Sat 2026-05-02 16:44:35 UTC  3h 50min Sat 2026-05-02 06:21:15 UTC       6h ago motd-news.timer                motd-news.service
+Sat 2026-05-02 19:14:46 UTC        6h Fri 2026-05-01 19:14:46 UTC      17h ago update-notifier-download.timer update-notifier-download.service
+Sat 2026-05-02 19:24:54 UTC        6h Fri 2026-05-01 19:24:54 UTC      17h ago systemd-tmpfiles-clean.timer   systemd-tmpfiles-clean.service
+Sun 2026-05-03 00:00:00 UTC       11h Sat 2026-05-02 00:00:13 UTC      12h ago dpkg-db-backup.timer           dpkg-db-backup.service
+Sun 2026-05-03 00:00:00 UTC       11h Sat 2026-05-02 00:00:13 UTC      12h ago logrotate.timer                logrotate.service
+Sun 2026-05-03 00:07:00 UTC       11h Sat 2026-05-02 00:07:14 UTC      12h ago sysstat-summary.timer          sysstat-summary.service
+Sun 2026-05-03 03:10:07 UTC       14h Sun 2026-04-26 03:11:03 UTC   6 days ago e2scrub_all.timer              e2scrub_all.service
+Sun 2026-05-03 04:09:15 UTC       15h Sat 2026-05-02 05:54:37 UTC       6h ago man-db.timer                   man-db.service
+Sun 2026-05-03 06:40:38 UTC       17h Sat 2026-05-02 06:21:02 UTC       6h ago apt-daily-upgrade.timer        apt-daily-upgrade.service
+Mon 2026-05-04 00:42:32 UTC 1 day 11h Mon 2026-04-27 00:06:52 UTC   5 days ago fstrim.timer                   fstrim.service
+Fri 2026-05-08 23:06:42 UTC    6 days Tue 2026-04-28 06:26:58 UTC   4 days ago update-notifier-motd.timer     update-notifier-motd.service
+
+13 timers listed.
+Pass --all to see loaded but inactive timers, too.
+
+=== /etc/cron.* ===
+/etc/cron.d/:
+total 20
+drwxr-xr-x   2 root root 4096 Apr 30 14:51 .
+drwxr-xr-x 112 root root 4096 May  2 06:21 ..
+-rw-r--r--   1 root root  201 Apr  8  2024 e2scrub_all
+-rw-r--r--   1 root root  102 Aug  5  2025 .placeholder
+-rw-r--r--   1 root root  396 Aug  5  2025 sysstat
+
+/etc/cron.daily/:
+total 36
+drwxr-xr-x   2 root root 4096 Apr 30 14:55 .
+drwxr-xr-x 112 root root 4096 May  2 06:21 ..
+-rwxr-xr-x   1 root root  376 Jul  8  2025 apport
+-rwxr-xr-x   1 root root 1478 Mar 22  2024 apt-compat
+-rwxr-xr-x   1 root root  123 Feb  5  2024 dpkg
+-rwxr-xr-x   1 root root  377 Aug  5  2025 logrotate
+-rwxr-xr-x   1 root root 1395 Aug  5  2025 man-db
+-rw-r--r--   1 root root  102 Aug  5  2025 .placeholder
+-rwxr-xr-x   1 root root  518 Aug  5  2025 sysstat
+
+/etc/cron.hourly/:
+total 12
+drwxr-xr-x   2 root root 4096 Aug  5  2025 .
+drwxr-xr-x 112 root root 4096 May  2 06:21 ..
+-rw-r--r--   1 root root  102 Aug  5  2025 .placeholder
+
+/etc/cron.monthly/:
+total 12
+drwxr-xr-x   2 root root 4096 Aug  5  2025 .
+drwxr-xr-x 112 root root 4096 May  2 06:21 ..
+-rw-r--r--   1 root root  102 Aug  5  2025 .placeholder
+
+/etc/cron.weekly/:
+total 16
+drwxr-xr-x   2 root root 4096 Aug  5  2025 .
+drwxr-xr-x 112 root root 4096 May  2 06:21 ..
+-rwxr-xr-x   1 root root 1055 Aug  5  2025 man-db
+-rw-r--r--   1 root root  102 Aug  5  2025 .placeholder
+
+=== NGINX SITES ===
+
+=== LETSENCRYPT LIVE ===
+
+=== SSHD CONFIG ACTIVE LINES ===
+Include /etc/ssh/sshd_config.d/*.conf
+PermitRootLogin prohibit-password
+MaxAuthTries 3
+PubkeyAuthentication yes
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+UsePAM yes
+X11Forwarding yes
+PrintMotd no
+AcceptEnv LANG LC_*
+Subsystem	sftp	/usr/lib/openssh/sftp-server
+ClientAliveInterval 15
+ClientAliveCountMax 2
+
+=== /etc/hosts ===
+# Your system has configured 'manage_etc_hosts' as True.
+# As a result, if you wish for changes to this file to persist
+# then you will need to either
+# a.) make changes to the master file in /etc/cloud/templates/hosts.debian.tmpl
+# b.) change or remove the value of 'manage_etc_hosts' in
+#     /etc/cloud/cloud.cfg or cloud-config from user-data
+#
+127.0.1.1 ubuntu-16gb-nbg1-1 ubuntu-16gb-nbg1-1
+127.0.0.1 localhost
+
+# The following lines are desirable for IPv6 capable hosts
+::1 localhost ip6-localhost ip6-loopback
+ff02::1 ip6-allnodes
+ff02::2 ip6-allrouters
+
+
+=== APT PACKAGES INSTALLED COUNT ===
+884
+
+=== APT MANUAL INSTALLS (top 80) ===
+acl
+acpid
+adduser
+apache2-utils
+apparmor
+apport
+apt
+apt-transport-https
+apt-utils
+at
+base-files
+bash
+bash-completion
+bcache-tools
+bind9-dnsutils
+bsdutils
+btrfs-progs
+build-essential
+busybox-static
+byobu
+ca-certificates
+chromium-browser
+cloud-guest-utils
+cloud-init
+cloud-initramfs-copymods
+cloud-initramfs-dyn-netconf
+cloudflared
+cmake
+command-not-found
+console-setup
+cpio
+cron
+cryptsetup
+cryptsetup-initramfs
+curl
+dash
+dbus
+debconf
+debconf-i18n
+dhcpcd-base
+diffutils
+dirmngr
+dmidecode
+docker-model-plugin
+dosfstools
+e2fsprogs
+eatmydata
+ed
+efibootmgr
+ethtool
+fail2ban
+fdisk
+ffmpeg
+findutils
+fonts-ubuntu-console
+friendly-recovery
+g++
+gdisk
+gh
+git
+gnupg
+gnupg2
+golang-go
+grep
+grub-efi-amd64
+grub-efi-amd64-bin
+grub-efi-amd64-signed
+grub-pc-bin
+gzip
+hc-utils
+hdparm
+hostname
+htop
+inetutils-telnet
+info
+init
+iproute2
+iptables
+iputils-ping
+iputils-tracepath
+
+=== TOP 15 PROCESSES BY MEM ===
+USER         PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND
+root       21260  0.0  0.2  73468 44644 ?        S<s  06:21   0:02 /usr/lib/systemd/systemd-journald
+root      601887  0.0  0.1 2295276 30108 ?       Ssl  Apr23   3:20 /snap/snapd/current/usr/lib/snapd/snapd
+root      594954  0.7  0.1 1002884 27816 ?       Ssl  Apr23 103:43 /usr/bin/python3 /usr/bin/fail2ban-server -xf start
+root      594084  0.0  0.1 289120 27456 ?        SLsl Apr23   1:29 /sbin/multipathd -d -s
+root           1  0.0  0.0  22516 13968 ?        Ss   Mar09  52:36 /usr/lib/systemd/systemd --system --deserialize=71
+systemd+   21264  0.0  0.0  21584 13340 ?        Ss   06:21   0:00 /usr/lib/systemd/systemd-resolved
+root       24325  1.7  0.0  15228 10992 ?        Ss   12:54   0:00 sshd: root@notty
+systemd+   21273  0.0  0.0  19016  9728 ?        Ss   06:21   0:00 /usr/lib/systemd/systemd-networkd
+root        8902  0.0  0.0  12024  8300 ?        Ss   May01   0:04 sshd: /usr/sbin/sshd -D [listener] 0 of 10-100 startups
+systemd+   21256  0.0  0.0  91028  8048 ?        Ssl  06:21   0:00 /usr/lib/systemd/systemd-timesyncd
+root       24399  4.9  0.0  17284  7896 ?        Ss   12:54   0:00 /usr/lib/systemd/systemd-hostnamed
+root        1172  0.0  0.0  20560  7468 ?        Ss   Mar09   0:03 /usr/lib/systemd/systemd --user --deserialize=10
+root         972  0.0  0.0  19136  7028 ?        Ss   Mar09  38:06 /usr/lib/systemd/systemd-logind
+root       21266  0.0  0.0  24792  6688 ?        Ss   06:21   0:00 /usr/lib/systemd/systemd-udevd
+polkitd   594078  0.0  0.0 308292  5332 ?        Ssl  Apr23   5:30 /usr/lib/polkit-1/polkitd --no-debug
+
+=== AUDIT END ===
+2026-05-02T12:54:23Z

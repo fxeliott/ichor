@@ -1,0 +1,46 @@
+# Ichor — Redis configuration
+# Managed by Ansible — do not edit by hand.
+
+# --- Network ---
+bind 127.0.0.1 -::1
+protected-mode yes
+port 6379
+tcp-backlog 511
+timeout 0
+tcp-keepalive 300
+
+# --- General ---
+daemonize no
+supervised systemd
+loglevel notice
+logfile ""
+databases 16
+
+# --- Persistence — AOF mode (durability per AUDIT_V3 §architecture) ---
+appendonly {{ redis_appendonly }}
+appendfsync {{ redis_appendfsync }}
+no-appendfsync-on-rewrite no
+auto-aof-rewrite-percentage 100
+auto-aof-rewrite-min-size 64mb
+aof-load-truncated yes
+aof-use-rdb-preamble yes
+
+# Snapshot RDB as secondary (every 1h if 100k writes)
+save 3600 100000
+stop-writes-on-bgsave-error yes
+rdbcompression yes
+rdbchecksum yes
+dbfilename dump.rdb
+dir /var/lib/redis
+
+# --- Memory ---
+maxmemory {{ redis_maxmemory }}
+maxmemory-policy {{ redis_maxmemory_policy }}
+
+# --- Slow log ---
+slowlog-log-slower-than 10000
+slowlog-max-len 128
+
+# --- Security ---
+# No requirepass (bound to localhost only). For Docker bridge access,
+# add `bind 172.17.0.1` and set requirepass via SOPS-managed secret.

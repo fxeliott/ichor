@@ -1,0 +1,36 @@
+---
+# Role: redis — Redis 7 with AOF (appendfsync everysec per AUDIT_V3)
+
+- name: Add Redis GPG key
+  ansible.builtin.get_url:
+    url: https://packages.redis.io/gpg
+    dest: /etc/apt/keyrings/redis.asc
+    mode: "0644"
+    force: false
+
+- name: Add Redis apt repository
+  ansible.builtin.apt_repository:
+    repo: "deb [signed-by=/etc/apt/keyrings/redis.asc] https://packages.redis.io/deb {{ ansible_distribution_release }} main"
+    filename: redis
+    state: present
+    update_cache: true
+
+- name: Install Redis {{ redis_version }}
+  ansible.builtin.apt:
+    name: redis
+    state: present
+
+- name: Configure Redis
+  ansible.builtin.template:
+    src: redis-ichor.conf.j2
+    dest: /etc/redis/redis.conf
+    owner: redis
+    group: redis
+    mode: "0640"
+  notify: Restart redis
+
+- name: Ensure Redis service is started and enabled
+  ansible.builtin.systemd:
+    name: redis-server
+    state: started
+    enabled: true

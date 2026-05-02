@@ -1,0 +1,31 @@
+---
+# Role: langfuse — LLM observability via docker-compose
+# Reverse-proxy via Cloudflare Tunnel only (no public port).
+
+- name: Ensure Langfuse dir exists
+  ansible.builtin.file:
+    path: /opt/ichor/langfuse
+    state: directory
+    mode: "0755"
+
+- name: Deploy Langfuse docker-compose
+  ansible.builtin.copy:
+    src: docker-compose.yml
+    dest: /opt/ichor/langfuse/docker-compose.yml
+    mode: "0644"
+
+- name: Ensure Langfuse volumes
+  ansible.builtin.file:
+    path: "/opt/ichor/langfuse/{{ item }}"
+    state: directory
+    mode: "0755"
+  loop:
+    - postgres-data
+    - clickhouse-data
+    - minio-data
+
+- name: Start Langfuse stack
+  community.docker.docker_compose_v2:
+    project_src: /opt/ichor/langfuse
+    state: present
+    pull: missing
