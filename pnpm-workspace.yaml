@@ -1,6 +1,10 @@
+# Only JS/TS workspaces are listed here.
+# Python workspaces (apps/api, apps/claude-runner, packages/agents,
+# packages/ml, packages/shared-types) use uv per-package and are not
+# part of pnpm.
 packages:
-  - "apps/*"
-  - "packages/*"
+  - "apps/web"
+  - "packages/ui"
 
 # Pin known-good versions across the workspace
 catalog:
