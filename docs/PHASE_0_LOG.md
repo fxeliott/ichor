@@ -96,11 +96,11 @@
 |---|------|--------|-------|
 | 1 | Achat domaine `ichor.app` Cloudflare Registrar | ⏸ | Deferred Phase 1+ — see [ADR-002](decisions/ADR-002-domain-deferred.md) |
 | 2 | Backup Hetzner pre-wipe (Langfuse + n8n + /etc + clés) | 🟢 | Reduced scope (no Langfuse/n8n on server) — see [ADR-003](decisions/ADR-003-cleanup-vs-wipe.md) |
-| 3 | Wipe + réinstall Ubuntu 24.04 LTS | 🟡 | Replaced by cleanup chirurgical (OS already 24.04.4 LTS) — pending snapshot |
+| 3 | Wipe + réinstall Ubuntu 24.04 LTS | 🟢 | Replaced by cleanup chirurgical (OS already 24.04.4 LTS), executed without snapshot per Eliot — see [ADR-003](decisions/ADR-003-cleanup-vs-wipe.md) |
 | 4 | Ansible playbook (Postgres 16 + TimescaleDB + Redis + Python 3.12 + uv + Node 22 + pnpm + Docker + Loki + Grafana + Prometheus + Langfuse + n8n) | 🟡 | **Foundation roles GREEN** (base+security+docker+python+node+postgres+redis ALL ran for real, AGE built from source). Observability + Langfuse + n8n + walg deferred until SOPS+age secrets are set up (step 7). |
 | 5 | Init repo `ichor/` GitHub privé Turborepo | 🟡 | Local git init done, GitHub push pending Eliot OK |
 | 6 | CI GitHub Actions stub vert + Dependabot + pip-audit + npm audit | 🟡 | Workflows written, not yet pushed |
-| 7 | SOPS+age secrets management | 🟡 | `.sops.yaml` placeholder written, age key generation pending |
+| 7 | SOPS+age secrets management | 🟢 | age 1.3.1 + sops live; keypair generated (`age1rgrexge5x3qvf8hns4dhrfhu92zsl9nyem5t6ge4nqn424lxefcsl08xaj`); private key backed up to USB E:\; `.sops.yaml` updated; round-trip OK; 8 `.env.example` templates committed |
 | 8 | Cloudflare Access zero-trust sur `*.ichor.app` + YubiKey MFA Cloudflare/Hetzner/GitHub/Anthropic | ⏸ | CF Access deferred (needs custom domain). YubiKey MFA in progress separately. |
 
 ### Semaine 2 — Couche 3 ML + Couche 2 LLM automation
