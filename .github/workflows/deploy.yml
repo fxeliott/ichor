@@ -1,0 +1,79 @@
+name: Deploy to Hetzner
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "infra/ansible/**"
+      - "apps/api/**"
+      - "packages/ml/**"
+      - "packages/agents/**"
+  workflow_dispatch:
+    inputs:
+      tags:
+        description: "Ansible tags to run (comma-separated). Empty = all."
+        required: false
+        default: ""
+
+# Only one deploy at a time; queue the rest
+concurrency:
+  group: deploy-hetzner
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Sync + run Ansible on Hetzner
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      SSH_PRIVATE_KEY: ${{ secrets.HETZNER_SSH_PRIVATE_KEY }}
+      SSH_HOST: 178.104.39.201
+      SSH_USER: root
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          # Verify connectivity
+          ssh -o BatchMode=yes -i ~/.ssh/id_ed25519 "$SSH_USER@$SSH_HOST" "echo SSH_OK; uname -r"
+
+      - name: Sync infra/ansible/ to Hetzner
+        run: |
+          # Use tar pipe (rsync may not be installed in all GHA runners; tar is universal)
+          tar -czf - -C infra ansible | \
+            ssh -i ~/.ssh/id_ed25519 "$SSH_USER@$SSH_HOST" \
+              "rm -rf /root/infra && mkdir -p /root/infra && tar -xzf - -C /root/infra/"
+
+      - name: Run Ansible
+        run: |
+          TAGS_ARG=""
+          if [ -n "${{ inputs.tags }}" ]; then
+            TAGS_ARG="--tags ${{ inputs.tags }}"
+          fi
+          ssh -i ~/.ssh/id_ed25519 "$SSH_USER@$SSH_HOST" 'bash -s' <<EOF
+          set -euo pipefail
+          cd /root/infra/ansible
+          cat > inventory/self.yml <<INV
+          all:
+            children:
+              ichor_prod:
+                hosts:
+                  localhost:
+                    ansible_connection: local
+                    ansible_python_interpreter: /usr/bin/python3
+          INV
+          ansible-playbook -i inventory/self.yml site.yml $TAGS_ARG --diff
+          EOF
+
+      - name: Cleanup SSH key
+        if: always()
+        run: rm -f ~/.ssh/id_ed25519
