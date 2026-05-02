@@ -7,9 +7,11 @@ dependencies = [
     "claude-agent-sdk>=0.1.71,<0.2",
     "pydantic-ai>=1.88,<2",
     "pydantic>=2.10.0",
-    "anthropic>=0.43.0",
     "httpx>=0.28.0",
     "structlog>=25.1.0",
+    # Voie D (ADR-009): no Anthropic SDK in production path. Kept commented
+    # for reference — uncomment only if Eliot ever switches to Voie C.
+    # "anthropic>=0.43.0",
 ]
 
 [project.optional-dependencies]
