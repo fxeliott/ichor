@@ -3,24 +3,24 @@
 # AUDIT_V3 §2 — replaces pgbackrest (archived 2026-04-27).
 # https://github.com/wal-g/wal-g/releases/tag/v{{ walg_version }}
 
-- name: Download wal-g binary
+- name: Download wal-g binary (Postgres flavour, Ubuntu 24.04 amd64) with SHA256 verify
   ansible.builtin.get_url:
-    url: "https://github.com/wal-g/wal-g/releases/download/v{{ walg_version }}/wal-g-pg-ubuntu-22.04-amd64.tar.gz"
+    url: "https://github.com/wal-g/wal-g/releases/download/v{{ walg_version }}/wal-g-pg-24.04-amd64.tar.gz"
     dest: "/tmp/wal-g-{{ walg_version }}.tar.gz"
     mode: "0644"
-    checksum: "sha256:placeholder_to_fill_with_real_hash_from_release_page"
-    # NOTE: replace checksum with real SHA256 from the GitHub release SHASUMS file before running.
+    checksum: "sha256:ce382535fb3a59f07fd3ae02e96a039764ac490de49abfb3564fec36d65fafbc"
+    # ^ from official .sha256 file at the same release, fetched 2026-05-02
 
 - name: Extract wal-g binary
   ansible.builtin.unarchive:
     src: "/tmp/wal-g-{{ walg_version }}.tar.gz"
     dest: /tmp/
     remote_src: true
-    creates: /tmp/wal-g-pg-ubuntu-22.04-amd64
+    creates: /tmp/wal-g-pg-24.04-amd64
 
 - name: Install wal-g binary to /usr/local/bin
   ansible.builtin.copy:
-    src: /tmp/wal-g-pg-ubuntu-22.04-amd64
+    src: /tmp/wal-g-pg-24.04-amd64
     dest: /usr/local/bin/wal-g
     mode: "0755"
     owner: root
@@ -61,8 +61,12 @@
     mode: "0755"
     content: |
       #!/usr/bin/env bash
+      # `source` alone defines shell vars; `set -a` exports them so wal-g
+      # subprocess sees them. See ADR-008 / PHASE_0_LOG bug-fix table.
       set -euo pipefail
+      set -a
       source /etc/wal-g.env
+      set +a
       exec /usr/local/bin/wal-g wal-push "$@"
 
 - name: Install systemd timer — daily basebackup at 03:00 Europe/Paris
