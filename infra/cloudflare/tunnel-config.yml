@@ -1,0 +1,49 @@
+# Cloudflare Tunnel — claude-runner local Win11
+#
+# Drop this file at %USERPROFILE%\.cloudflared\config.yml after running
+# `cloudflared tunnel create ichor-claude-runner`.
+#
+# Replace <TUNNEL-UUID> with the UUID printed by `cloudflared tunnel create`.
+
+tunnel: <TUNNEL-UUID>
+credentials-file: C:\Users\eliot\.cloudflared\<TUNNEL-UUID>.json
+
+# Auto-update the cloudflared binary on minor versions (safety patches).
+# Major version bumps require manual review.
+autoupdate-freq: 24h
+
+# Don't try to reach the local IPv4-only services over IPv6 — Win11 + tunnel
+# IPv6 stack can be flaky on residential networks.
+no-autoupdate: false
+protocol: quic
+
+# Ingress: route all traffic from the tunnel URL to local FastAPI :8765.
+# Cloudflare Access at the edge filters requests BEFORE they reach this rule.
+ingress:
+  # Health check passthrough (also gated by CF Access at edge)
+  - hostname: ""
+    path: /healthz
+    service: http://127.0.0.1:8765
+    originRequest:
+      connectTimeout: 5s
+      noTLSVerify: false
+
+  # Briefings + usage endpoints
+  - hostname: ""
+    service: http://127.0.0.1:8765
+    originRequest:
+      connectTimeout: 10s
+      # Briefings can take up to 6 min — bump idle timeout
+      tcpKeepAlive: 30s
+      keepAliveTimeout: 360s
+      keepAliveConnections: 4
+      noTLSVerify: false
+      httpHostHeader: localhost
+
+  # Catch-all (cloudflared requires a final 404 rule)
+  - service: http_status:404
+
+# Logging (will stream to local file; rotate via logrotate equivalent on Win)
+loglevel: info
+transport-loglevel: warn
+logfile: C:\Users\eliot\.cloudflared\cloudflared.log
