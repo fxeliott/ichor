@@ -14,9 +14,11 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
+    # No env_file: production loads from systemd EnvironmentFile=/etc/ichor/api.env
+    # which is exported into the process env BEFORE Python starts. This avoids the
+    # `.env` file lookup pydantic-settings does in CWD (which fails with PermissionError
+    # when the service user can't read CWD owner's files).
     model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
         env_prefix="ICHOR_API_",
         extra="ignore",
     )

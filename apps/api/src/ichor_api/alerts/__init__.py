@@ -10,6 +10,8 @@ from .catalog import (
     assert_catalog_complete,
     get_alert_def,
 )
+from .crisis_mode import CrisisAssessment, assess_crisis
+from .evaluator import AlertHit, evaluate_metric
 
 __all__ = [
     "ALL_ALERTS",
@@ -17,7 +19,11 @@ __all__ = [
     "BY_CODE",
     "CRISIS_TRIGGERS",
     "AlertDef",
+    "AlertHit",
+    "CrisisAssessment",
     "PLAN_ALERTS",
     "assert_catalog_complete",
+    "assess_crisis",
+    "evaluate_metric",
     "get_alert_def",
 ]

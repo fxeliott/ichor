@@ -38,6 +38,7 @@
     - { role: langfuse,       tags: [langfuse] }
     - { role: n8n,            tags: [n8n] }
     - { role: cloudflared,    tags: [cloudflared, tunnel] }
+    - { role: ichor_api,      tags: [api, ichor_api] }
 
   post_tasks:
     - name: Final health check — services must be running

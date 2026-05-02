@@ -1,0 +1,207 @@
+---
+# Role: ichor_api — install + run apps/api on Hetzner.
+# Depends on: postgres + redis + python + secrets (loaded earlier).
+#
+# Steps:
+#   1. Create dedicated user 'ichor' (no shell, no home password)
+#   2. Create Postgres role + database 'ichor' owned by it
+#   3. /opt/ichor/api venv (uv-managed) + sync source via tar from playbook
+#   4. uv pip install -e .[dev]
+#   5. Alembic upgrade head
+#   6. Write systemd service + EnvironmentFile from SOPS-decrypted facts
+#   7. Enable + start
+
+- name: Ensure ichor system user exists
+  ansible.builtin.user:
+    name: ichor
+    system: true
+    shell: /usr/sbin/nologin
+    home: /opt/ichor
+    create_home: true
+
+- name: Ensure /opt/ichor base dirs
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: ichor
+    group: ichor
+    mode: "0755"
+  loop:
+    - /opt/ichor
+    - /opt/ichor/api
+    - /opt/ichor/api/logs
+
+- name: Generate strong random Postgres password for ichor user (idempotent — file exists check)
+  ansible.builtin.shell: |
+    if [ ! -f /etc/ichor/db-password ]; then
+      mkdir -p /etc/ichor
+      chmod 700 /etc/ichor
+      openssl rand -base64 32 | tr -d '\n=+/' | head -c 40 > /etc/ichor/db-password
+      chmod 600 /etc/ichor/db-password
+    fi
+  args:
+    creates: /etc/ichor/db-password
+
+- name: Read ichor DB password
+  ansible.builtin.slurp:
+    src: /etc/ichor/db-password
+  register: _db_pw_b64
+  no_log: true
+
+- name: Set ichor_db_password fact
+  ansible.builtin.set_fact:
+    ichor_db_password: "{{ _db_pw_b64.content | b64decode | trim }}"
+  no_log: true
+
+- name: Create Postgres role 'ichor'
+  community.postgresql.postgresql_user:
+    name: ichor
+    password: "{{ ichor_db_password }}"
+    role_attr_flags: LOGIN
+    state: present
+  become: true
+  become_user: postgres
+  no_log: true
+
+- name: Create Postgres database 'ichor' owned by ichor user
+  community.postgresql.postgresql_db:
+    name: ichor
+    owner: ichor
+    encoding: UTF8
+    template: template0
+    state: present
+  become: true
+  become_user: postgres
+
+- name: Enable extensions in ichor database (timescaledb + age)
+  community.postgresql.postgresql_ext:
+    name: "{{ item }}"
+    login_db: ichor
+    state: present
+  become: true
+  become_user: postgres
+  loop:
+    - timescaledb
+    - age
+
+- name: Sync apps/api source from playbook (rsync from /root/infra/../apps/api)
+  ansible.builtin.synchronize:
+    src: "{{ playbook_dir }}/../../apps/api/"
+    dest: /opt/ichor/api/src/
+    recursive: true
+    delete: true
+    rsync_opts:
+      - "--exclude=.venv"
+      - "--exclude=__pycache__"
+      - "--exclude=.pytest_cache"
+      - "--exclude=*.egg-info"
+  delegate_to: "{{ inventory_hostname }}"
+
+- name: Fix ownership after sync
+  ansible.builtin.file:
+    path: /opt/ichor/api/src
+    state: directory
+    owner: ichor
+    group: ichor
+    recurse: true
+
+- name: Create venv via uv (Python 3.12)
+  ansible.builtin.command:
+    cmd: /usr/local/bin/uv venv --python 3.12 /opt/ichor/api/.venv
+    creates: /opt/ichor/api/.venv/bin/python
+
+- name: Install ichor-api editable into venv
+  ansible.builtin.shell: |
+    source /opt/ichor/api/.venv/bin/activate
+    /usr/local/bin/uv pip install -e /opt/ichor/api/src[dev]
+  args:
+    executable: /bin/bash
+  become: true
+  become_user: ichor
+
+- name: Write /etc/ichor/api.env (Postgres + Redis + claude-runner URL + secrets)
+  ansible.builtin.copy:
+    dest: /etc/ichor/api.env
+    owner: ichor
+    group: ichor
+    mode: "0640"
+    content: |
+      ICHOR_API_ENVIRONMENT=production
+      ICHOR_API_LOG_LEVEL=INFO
+      ICHOR_API_HOST=127.0.0.1
+      ICHOR_API_PORT=8000
+      ICHOR_API_DATABASE_URL=postgresql+asyncpg://ichor:{{ ichor_db_password }}@127.0.0.1:5432/ichor
+      ICHOR_API_REDIS_URL=redis://127.0.0.1:6379/0
+      ICHOR_API_CLAUDE_RUNNER_URL={{ CF_TUNNEL_UUID | default('placeholder') }}.cfargotunnel.com
+      ICHOR_API_CF_ACCESS_CLIENT_ID={{ CF_ACCESS_CLIENT_ID | default('') }}
+      ICHOR_API_CF_ACCESS_CLIENT_SECRET={{ CF_ACCESS_CLIENT_SECRET | default('') }}
+      ICHOR_API_CEREBRAS_API_KEY={{ CEREBRAS_API_KEY | default('') }}
+      ICHOR_API_GROQ_API_KEY={{ GROQ_API_KEY | default('') }}
+      ICHOR_API_FRED_API_KEY={{ FRED_API_KEY | default('') }}
+      ICHOR_API_OANDA_API_TOKEN={{ OANDA_API_TOKEN | default('') }}
+      ICHOR_API_OANDA_ACCOUNT_ID={{ OANDA_ACCOUNT_ID | default('') }}
+      ICHOR_API_AZURE_SPEECH_KEY={{ AZURE_SPEECH_KEY | default('') }}
+      ICHOR_API_LANGFUSE_PUBLIC_KEY={{ LANGFUSE_PUBLIC_KEY | default('') }}
+      ICHOR_API_LANGFUSE_SECRET_KEY={{ LANGFUSE_SECRET_KEY | default('') }}
+  no_log: true
+
+- name: Run alembic migrations
+  ansible.builtin.shell: |
+    source /opt/ichor/api/.venv/bin/activate
+    set -a; source /etc/ichor/api.env; set +a
+    cd /opt/ichor/api/src && alembic upgrade head
+  args:
+    executable: /bin/bash
+  become: true
+  become_user: ichor
+  register: alembic_out
+  changed_when: "'Running upgrade' in alembic_out.stdout or 'No new upgrade' not in alembic_out.stdout"
+
+- name: Install ichor-api systemd service
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/ichor-api.service
+    mode: "0644"
+    content: |
+      [Unit]
+      Description=Ichor FastAPI backend
+      After=network-online.target postgresql.service redis-server.service
+      Wants=network-online.target
+
+      [Service]
+      Type=exec
+      User=ichor
+      Group=ichor
+      WorkingDirectory=/opt/ichor/api/src
+      EnvironmentFile=/etc/ichor/api.env
+      ExecStart=/opt/ichor/api/.venv/bin/uvicorn ichor_api.main:app \
+                  --host 127.0.0.1 --port 8000 \
+                  --workers 2 --log-level info --no-access-log
+      Restart=always
+      RestartSec=5
+      StandardOutput=journal
+      StandardError=journal
+      LimitNOFILE=65536
+
+      [Install]
+      WantedBy=multi-user.target
+  notify: Restart ichor-api
+
+- name: Enable + start ichor-api
+  ansible.builtin.systemd:
+    name: ichor-api
+    state: started
+    enabled: true
+    daemon_reload: true
+
+- name: Healthz check
+  ansible.builtin.uri:
+    url: http://127.0.0.1:8000/healthz
+    timeout: 10
+  register: ichor_api_health
+  retries: 6
+  delay: 5
+  until: ichor_api_health.status == 200
+
+- name: Display health
+  ansible.builtin.debug:
+    msg: "ichor-api healthz: {{ ichor_api_health.json }}"

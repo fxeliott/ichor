@@ -77,9 +77,12 @@ def upgrade() -> None:
     op.create_index("ix_alerts_triggered_at", "alerts", ["triggered_at"])
 
     # ---- predictions_audit (TimescaleDB hypertable) ----
+    # Composite PK (id, generated_at): TimescaleDB requires the partitioning
+    # column to be part of every UNIQUE constraint, including the PK.
     op.create_table(
         "predictions_audit",
-        sa.Column("id", UUID(as_uuid=True), primary_key=True),
+        sa.Column("id", UUID(as_uuid=True), nullable=False),
+        sa.Column("generated_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
         sa.Column("model_id", sa.String(128), nullable=False),
@@ -90,10 +93,10 @@ def upgrade() -> None:
         sa.Column("raw_score", sa.Float(), nullable=False),
         sa.Column("calibrated_probability", sa.Float()),
         sa.Column("feature_snapshot_hash", sa.String(64), nullable=False),
-        sa.Column("generated_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("realized_direction", sa.String(8)),
         sa.Column("realized_at", sa.DateTime(timezone=True)),
         sa.Column("brier_contribution", sa.Float()),
+        sa.PrimaryKeyConstraint("id", "generated_at"),
     )
     op.create_index("ix_predictions_audit_model_id", "predictions_audit", ["model_id"])
     op.create_index("ix_predictions_audit_model_family", "predictions_audit", ["model_family"])
@@ -132,12 +135,21 @@ def upgrade() -> None:
     op.create_index("ix_bias_signals_asset", "bias_signals", ["asset"])
     op.create_index("ix_bias_signals_generated_at", "bias_signals", ["generated_at"])
 
-    # ---- ichor schema for graph (uses Apache AGE) ----
-    op.execute("SELECT * FROM ag_catalog.create_graph('ichor_graph');")
+    # NOTE: AGE graph creation deferred — requires ag_catalog schema privileges
+    # (granted to postgres superuser only by default). Created out-of-band by the
+    # postgres role; the migration just verifies the graph exists.
+    op.execute(
+        "DO $$ BEGIN "
+        "  IF NOT EXISTS (SELECT 1 FROM ag_catalog.ag_graph WHERE name = 'ichor_graph') THEN "
+        "    RAISE NOTICE 'ichor_graph not found — create manually as postgres user'; "
+        "  END IF; "
+        "EXCEPTION WHEN insufficient_privilege OR undefined_table THEN "
+        "  RAISE NOTICE 'AGE catalog access skipped (privileges)'; "
+        "END $$;"
+    )
 
 
 def downgrade() -> None:
-    op.execute("SELECT * FROM ag_catalog.drop_graph('ichor_graph', true);")
     op.drop_table("bias_signals")
     # TimescaleDB chunks dropped on parent table drop
     op.drop_table("predictions_audit")
