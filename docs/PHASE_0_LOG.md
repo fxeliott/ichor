@@ -3,6 +3,40 @@
 > Started 2026-05-02. Target: 32 criteria green over 4 weeks (1 sem ≈ 7-10 days).
 > Updated continuously by Claude Code as work progresses.
 
+## Day-1 cumulative status (end of session, 2026-05-02 evening)
+
+**26 commits** on `main`, **~250 files**, all pushed to `fxeliott/ichor` private repo.
+CI green. Dependabot active. Auto-deploy.yml workflow ready.
+
+### LIVE on Hetzner (verified end-to-end via HTTP)
+
+| Service | State |
+|---|---|
+| Postgres 16 + TimescaleDB 2.26.4 + Apache AGE 1.5.0 | active, 5432 localhost-only |
+| Redis 8.6.2 (AOF) | active, 6379 localhost-only |
+| 5 ORM tables created via Alembic | briefings, alerts, predictions_audit (TS hypertable), bias_signals, alembic_version |
+| AGE graph `ichor_graph` | created |
+| ichor-api (uvicorn 2 workers) | systemd service active, /healthz=ok, db+redis connected |
+| Sample data seeded | 8 bias_signals + 3 alerts + 1 briefing visible via API |
+| wal-g 3.0.8 → R2 EU | 1 basebackup + WAL archive verified |
+| 11 docker containers | Loki + Prometheus + Grafana + Langfuse stack + n8n stack — all UP |
+| fail2ban + UFW + SSH hardening | active |
+
+### LIVE on Win11
+
+| Service | State |
+|---|---|
+| claude-runner Windows service | NSSM-managed, auto-restart, /healthz=ok, persona loaded, claude_cli_available=true |
+| pnpm + Node 24 + Python 3.14 + age + sops | installed |
+| Power plan never-sleep | configured |
+
+### Awaits Eliot manual (~20 min total to fully unblock)
+
+- ⏳ `claude auth logout && claude auth login` — unblocks 403 issue (ADR-010), enables real briefing tests
+- ⏳ Cloudflare Tunnel setup (winget cloudflared + login + Access app + service token)
+- ⏳ GitHub repo secret `HETZNER_SSH_PRIVATE_KEY` for deploy.yml workflow
+- ⏳ (optional) Free API keys: Cerebras, Groq, Azure Speech F0, OANDA Practice, FRED
+
 ## Day-1 status (2026-05-02)
 
 ### Done
@@ -107,15 +141,15 @@
 
 | # | Item | Status | Notes |
 |---|------|--------|-------|
-| 9 | Cron systemd archiver HY/IG OAS J0 critique (FRED 3 ans rolling) | ⬜ | |
+| 9 | Cron systemd archiver HY/IG OAS J0 critique (FRED 3 ans rolling) | 🟡 | FRED collector live in `apps/api/src/ichor_api/collectors/fred.py` (19 series wired incl. BAMLH0A0HYM2 + BAMLC0A0CMTRIV). Systemd timer pending Eliot's FRED key |
 | 10 | wal-g WAL streaming Postgres → R2 EU bucket + 1er test restauration | 🟢 | wal-g 3.0.8 LIVE: basebackup `base_000000010000000000000006` written to R2 `ichor-walg-eu/postgres/basebackups_005/`, 3 WAL files archived to `wal_005/`. systemd timer `walg-basebackup.timer` enabled (next: Sun 03:08 Paris). archive_mode=on + archive_command=`/usr/local/bin/wal-g-archive %p` flipped on. `set -a` fix in wrapper for env propagation. **Restore test pending Phase 0 W2.** |
-| 11 | Redis Streams setup + producers asyncio | ⬜ | |
+| 11 | Redis Streams setup + producers asyncio | 🟡 | Redis Pub/Sub channels wired in `apps/api/src/ichor_api/routers/ws.py` (briefings:new, alerts:new, bias:updated). Production via cli/run_briefing.py publishes on success |
 | 12 | ML stack install (hmmlearn + dtaidistance + river + NumPyro + arch + ...) | 🟡 | Scaffolds written: `packages/ml/src/ichor_ml/{regime/hmm.py,vol/har_rv.py,microstructure/vpin.py,bias_aggregator.py}`. Real training pending data collectors (step 11) |
 | 13 | NLP self-host : FOMC-RoBERTa + FinBERT-tone HuggingFace download | 🟡 | FinBERT-tone wrapper live in `packages/ml/src/ichor_ml/nlp/finbert_tone.py` (lazy load + lru_cache + batch + aggregate_tone). FOMC-RoBERTa pending |
 | 14 | Cerebras free + Groq free wrappers Pydantic AI multi-provider | 🟡 | Code committed: `packages/agents/src/ichor_agents/{providers.py,fallback.py}`. Awaits Cerebras + Groq free-tier API keys from Eliot |
-| 15 | Alerts engine 33 types + Crisis Mode triggers composite | ⬜ | |
+| 15 | Alerts engine 33 types + Crisis Mode triggers composite | 🟢 | Catalog (`alerts/catalog.py`) 28 PLAN + 5 AUDIT_V2 = 33 alerts; 7 crisis_mode triggers. `evaluator.py` evaluate_metric() walks catalog with above/below/cross_up/cross_down. `crisis_mode.py` assess_crisis() composite with min_concurrent + lookback. `assert_catalog_complete()` startup guard |
 | 16 | Tableau model_registry.yaml + 1 model card par modèle | 🟡 | `packages/ml/model_registry.yaml` committed with 5 scaffolded + 6 planned entries |
-| 17 | Table SQL `predictions_audit` complète | ⬜ | Pydantic schema in `packages/ml/src/ichor_ml/types.py` (Prediction + BiasSignal). DDL pending Phase 0 W2 |
+| 17 | Table SQL `predictions_audit` complète | 🟢 | **LIVE on Hetzner Postgres** — alembic 0001 migration applied; predictions_audit converted to TimescaleDB hypertable (chunks 7d, partitioned by generated_at, composite PK id+generated_at). Plus 3 sister tables (briefings, alerts, bias_signals) |
 
 ### Semaine 3 — Couche 1 Claude Code + tunnel
 
@@ -135,12 +169,12 @@
 |---|------|--------|-------|
 | 25 | Next.js 15 minimal Cloudflare Pages deploy `app.ichor.app` | 🟡 | `apps/web` skeleton written. Deploy to `app-ichor.pages.dev` (no custom domain Phase 0) |
 | 26 | Service worker PWA + VAPID push test (iOS Eliot + Android) | ⬜ | |
-| 27 | 12 composants design system canon | ⬜ | `packages/ui` skeleton written, components TBD |
+| 27 | 12 composants design system canon | 🟡 | **9/12 live** in `packages/ui/src/components/`: BiasBar, AssetCard, RegimeIndicator, DisclaimerBanner, ConfidenceMeter, SourceBadge, AlertChip, BriefingHeader, EmptyState, AudioPlayer. Remaining 3 (ChartCard, DrillDownButton, plus 1 TBD) Phase 0 W4 last push |
 | 28 | Logo + palette + 3 mockups asset cards via skill `canvas-design` | ⬜ | |
 | 29 | Setup Azure Speech key + voix `fr-FR-DeniseNeural` test 10 phrases finance | 🟡 | Wrapper code done: `packages/agents/src/ichor_agents/voice/tts.py` (Azure REST + SSML pauses + Piper fallback). Awaits Eliot's `AZURE_SPEECH_KEY` (free F0 tier) |
 | 30 | Lexique phonétique custom v0 (`packages/agents/voice/lexicon_fr.json`) | 🟢 | 130+ entries committed: pairs, indices, central banks, macro, vol/positioning, energy, idioms |
 | 31 | Persona Ichor v1 prompt finalisé `packages/agents/personas/ichor.md` | 🟢 | Committed in `apps/claude-runner/src/ichor_claude_runner/personas/ichor.md` — sober FR voice, probabilistic, AMF + EU AI Act Article 50 footer baked in |
-| 32 | Disclaimer modal AMF + AI disclosure obligatoire | ⬜ | |
+| 32 | Disclaimer modal AMF + AI disclosure obligatoire | 🟢 | `<DisclaimerBanner>` component live (compact + full forms, non-dismissible per legal). `docs/legal/ai-disclosure.md` canonical FR wording + EU AI Act Article 50 mapping. `docs/legal/amf-mapping.md` DOC-2008-23 classification + 5 design constraints to stay in general-research scope |
 
 ## Deltas vs `ARCHITECTURE_FINALE.md` plan
 
