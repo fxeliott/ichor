@@ -15,6 +15,7 @@
 | [005](ADR-005-apache-age-built-from-source.md) | Accepted | Apache AGE built from source (no Ubuntu apt package) | 2026-05-02 |
 | [006](ADR-006-pnpm-via-official-installer.md) | Accepted | pnpm via official Win installer (Corepack fails) | 2026-05-02 |
 | [007](ADR-007-ansible-bootstrap-from-hetzner.md) | Accepted | Run Ansible from Hetzner itself, not local Win11 | 2026-05-02 |
+| [008](ADR-008-redis-8-not-7.md) | Accepted | Accept Redis 8.x (apt repo serves 8, not 7) | 2026-05-02 |
 
 ## How to write a new ADR
 

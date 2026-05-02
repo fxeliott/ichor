@@ -1,18 +1,24 @@
 ---
 # Role: python — Python 3.12 + uv (no system pip pollution)
+# Note: Ubuntu 24.04 (noble) ships Python 3.12 as the default `python3` —
+# no PPA needed. Older Ubuntu versions would need ppa:deadsnakes/ppa.
 
-- name: Add deadsnakes PPA (Python {{ python_version }})
-  ansible.builtin.apt_repository:
-    repo: "ppa:deadsnakes/ppa"
-    state: present
-    update_cache: true
+- name: Verify system Python is 3.12+ (Ubuntu 24.04 default)
+  ansible.builtin.command: "python3 --version"
+  register: python_version_check
+  changed_when: false
 
-- name: Install Python {{ python_version }} interpreter and tools
+- name: Fail if system Python is not 3.12+
+  ansible.builtin.assert:
+    that: "'Python 3.12' in python_version_check.stdout or 'Python 3.13' in python_version_check.stdout"
+    fail_msg: "Need Python 3.12+ (got {{ python_version_check.stdout }}). On older Ubuntu, add ppa:deadsnakes/ppa."
+
+- name: Install Python {{ python_version }} dev tools (interpreter already present)
   ansible.builtin.apt:
     name:
-      - "python{{ python_version }}"
-      - "python{{ python_version }}-dev"
-      - "python{{ python_version }}-venv"
+      - python3-dev
+      - python3-venv
+      - python3-pip
     state: present
 
 - name: Install uv (astral-sh/uv) — official installer per-user under /root

@@ -11,10 +11,10 @@ work_mem = {{ postgres_work_mem }}
 # --- Connections ---
 max_connections = {{ postgres_max_connections }}
 
-# --- WAL / replication / archive (required for wal-g) ---
+# --- WAL / replication / archive (required for wal-g, deferred until step 10) ---
 wal_level = {{ postgres_wal_level }}
 archive_mode = {{ postgres_archive_mode }}
-archive_command = '/usr/local/bin/wal-g wal-push %p'
+archive_command = '{{ postgres_archive_command }}'
 archive_timeout = {{ walg_archive_timeout }}s
 max_wal_senders = {{ postgres_max_wal_senders }}
 wal_compression = on

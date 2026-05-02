@@ -41,6 +41,51 @@
 - ✅ All JSON config files (7) validated.
 - ✅ SSH connectivity to Hetzner re-verified at 13:35 UTC.
 
+### Cleanup + Ansible foundation run (afternoon, 14:08-16:30 UTC)
+
+- ✅ **Hetzner cleanup chirurgical** done (no snapshot — Eliot waived it
+  saying "tu peux supprimer ce qu'il y a avant"). 1.6 Go freed (8.9 → 7.3),
+  4 snaps removed (chromium ×2, cups, gnome+gtk+mesa), UFW reset to 22+80+443,
+  orphan sudoers removed, cloud-init-hotplugd disabled. SSH still works.
+- ✅ **Ansible bootstrap on Hetzner** : ansible-core 2.20.5 in /opt/ansible-venv
+  (apt's 2.16.3 too old for current community.* collections). Galaxy collections
+  installed: ansible.posix 2.1.0, community.postgresql 4.2.0, community.docker 5.2.0,
+  community.general 12.6.0.
+- ✅ **Foundation roles GREEN** (run for real, not --check):
+  - `base`: timezone Europe/Paris, locale fr, kernel sysctl tuned (vm.swappiness=10,
+    vm.overcommit_memory=1, net.core.somaxconn=65535, fs.file-max=2097152),
+    unattended-upgrades configured (security only, no auto-reboot), apt safe upgrade
+    (41 packages including kernel 6.8.0-101 → 6.8.0-111).
+  - `security`: SSH hardening drop-in /etc/ssh/sshd_config.d/00-ichor-hardening.conf,
+    UFW propre (22 limit + 80 + 443), fail2ban jail.local for sshd.
+  - `docker`: Docker Engine + Compose plugin via official repo, daemon.json with
+    log rotation 100 MB × 5 + custom address pool 172.20.0.0/16.
+  - `python`: Ubuntu 24.04 default Python 3.12 + python3-dev/venv/pip + uv 0.11.8.
+  - `node`: Node.js 22 LTS via NodeSource (legacy nodesource.sources cleaned up
+    pre-install) + pnpm via Corepack.
+  - `postgres`: Postgres 16 + TimescaleDB 2.26.4 + python3-psycopg2 + custom
+    postgresql-ichor.conf (4 GB shared_buffers, 12 GB effective_cache_size, 200
+    max_connections) + restrictive pg_hba.conf (deny all except local + Docker
+    bridges 172.17/172.20). **Apache AGE 1.5.0 BUILT FROM SOURCE** against PG16
+    (no apt package). Both extensions enabled in `postgres` database.
+  - `redis`: Redis 8.6.2 with AOF (appendfsync everysec, maxmemory 2GB,
+    allkeys-lru). NB: apt serves 8.x not 7.x — see [ADR-008](decisions/ADR-008-redis-8-not-7.md).
+- ✅ **Verified live**: `psql SELECT version()` OK, `LOAD 'age'; create_graph('test_g')` OK,
+  `redis-cli PING` → PONG, listening ports localhost-only for DBs (5432, 6379).
+
+### Bugs found + fixed during Ansible run (committed)
+
+| Symptom | Root cause | Fix |
+|---------|-----------|-----|
+| `community.general.yaml` callback removed | Plugin moved to ansible-core 2.13+ | `stdout_callback = ansible.builtin.default` + `[callback_default] result_format = yaml` |
+| UFW `No closing quotation` on port 80 | Shell quoting broken by `'` in "Let's Encrypt" | Changed comment to "Lets Encrypt" |
+| `swapon: Device or resource busy` | Idempotence check matched wrong stderr substring | Use `swapon --show` to detect already-active before invoking |
+| `Failed to update apt cache` (deadsnakes PPA) | Ubuntu 24.04 ships Python 3.12 natively | Removed deadsnakes; just install python3-dev/venv/pip |
+| `Conflicting Signed-By` (NodeSource) | Pre-existing nodesource.sources DEB822 file | Pre-cleanup: remove legacy `/usr/share/keyrings/nodesource.gpg` + `nodesource.sources` |
+| `psycopg2 not found` (postgresql_ext) | Module dependency missing | Added `python3-psycopg2` to postgres apt list |
+| `server closed connection` (CREATE EXTENSION timescaledb) | shared_preload_libraries pending restart | `meta: flush_handlers` before extension enabling |
+| `db is deprecated` warning | community.postgresql 4.x renamed | Use `login_db` instead of `db` |
+
 ## Phase 0 — 32 criteria checklist
 
 > Status legend: ⬜ not started · 🟡 in progress · 🟢 done · ⏸ deferred (with link)
@@ -52,7 +97,7 @@
 | 1 | Achat domaine `ichor.app` Cloudflare Registrar | ⏸ | Deferred Phase 1+ — see [ADR-002](decisions/ADR-002-domain-deferred.md) |
 | 2 | Backup Hetzner pre-wipe (Langfuse + n8n + /etc + clés) | 🟢 | Reduced scope (no Langfuse/n8n on server) — see [ADR-003](decisions/ADR-003-cleanup-vs-wipe.md) |
 | 3 | Wipe + réinstall Ubuntu 24.04 LTS | 🟡 | Replaced by cleanup chirurgical (OS already 24.04.4 LTS) — pending snapshot |
-| 4 | Ansible playbook (Postgres 16 + TimescaleDB + Redis + Python 3.12 + uv + Node 22 + pnpm + Docker + Loki + Grafana + Prometheus + Langfuse + n8n) | 🟡 | Playbook **written**, not yet run |
+| 4 | Ansible playbook (Postgres 16 + TimescaleDB + Redis + Python 3.12 + uv + Node 22 + pnpm + Docker + Loki + Grafana + Prometheus + Langfuse + n8n) | 🟡 | **Foundation roles GREEN** (base+security+docker+python+node+postgres+redis ALL ran for real, AGE built from source). Observability + Langfuse + n8n + walg deferred until SOPS+age secrets are set up (step 7). |
 | 5 | Init repo `ichor/` GitHub privé Turborepo | 🟡 | Local git init done, GitHub push pending Eliot OK |
 | 6 | CI GitHub Actions stub vert + Dependabot + pip-audit + npm audit | 🟡 | Workflows written, not yet pushed |
 | 7 | SOPS+age secrets management | 🟡 | `.sops.yaml` placeholder written, age key generation pending |

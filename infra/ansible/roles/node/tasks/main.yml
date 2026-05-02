@@ -1,6 +1,17 @@
 ---
 # Role: node — Node.js {{ node_major_version }} LTS via NodeSource + pnpm via Corepack
 
+# Clean up any pre-existing NodeSource config that may conflict with ours
+- name: Remove legacy NodeSource DEB822 source (if present)
+  ansible.builtin.file:
+    path: /etc/apt/sources.list.d/nodesource.sources
+    state: absent
+
+- name: Remove legacy NodeSource keyring at /usr/share/keyrings (if present)
+  ansible.builtin.file:
+    path: /usr/share/keyrings/nodesource.gpg
+    state: absent
+
 - name: Add NodeSource GPG key
   ansible.builtin.get_url:
     url: https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key

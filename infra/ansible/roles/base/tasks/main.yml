@@ -87,11 +87,14 @@
         line: "/swapfile none swap sw 0 0"
         state: present
 
-    - name: Activate swap
+    - name: Detect currently-active swap
+      ansible.builtin.command: swapon --show=NAME --noheadings
+      register: active_swap
+      changed_when: false
+
+    - name: Activate swap (only if not already on)
       ansible.builtin.command: swapon /swapfile
-      register: swapon_result
-      changed_when: "'already' not in swapon_result.stderr | default('')"
-      failed_when: swapon_result.rc != 0 and 'already' not in swapon_result.stderr | default('')
+      when: '"/swapfile" not in active_swap.stdout'
 
 - name: Tune kernel for high-throughput services
   ansible.posix.sysctl:

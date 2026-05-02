@@ -11,7 +11,7 @@ ichor_locale: en_US.UTF-8
 postgres_version: "16"
 timescaledb_apt_version: "2.17.*"  # latest 2.17.x via timescale apt repo
 apache_age_version: "1.5.0"
-redis_version: "7"
+redis_version: "8"  # apt packages.redis.io serves 8.x current stable — see ADR-008
 walg_version: "3.0.8"  # AUDIT_V3 §2 — pgbackrest archived, switched to wal-g
 python_version: "3.12"
 node_major_version: "22"  # AUDIT_V3 §6 — Node 22 LTS (Node 20 LTS ended Apr 2026)
@@ -24,7 +24,11 @@ postgres_maintenance_work_mem: "1GB"
 postgres_work_mem: "32MB"
 postgres_max_connections: 200
 postgres_wal_level: "replica"
-postgres_archive_mode: "on"
+# archive_mode starts off; flipped to "on" by the walg role once R2 credentials
+# are loaded via SOPS (Phase 0 Week 2 step 10). This avoids WAL accumulation
+# while waiting for backup target to be wired.
+postgres_archive_mode: "off"
+postgres_archive_command: "/bin/true"
 postgres_max_wal_senders: 4
 
 # --- Redis tuning ---
@@ -37,7 +41,8 @@ redis_appendfsync: "everysec"  # AUDIT_V3 — durability vs perf balance
 # All internal services exposed via Cloudflare Tunnel (no public port)
 ufw_allowed_tcp:
   - { port: 22,  comment: "SSH" }
-  - { port: 80,  comment: "HTTP — Let's Encrypt challenges only" }
+  # No apostrophe in comment — community.general.ufw forwards to shell and breaks on quoting
+  - { port: 80,  comment: "HTTP - Lets Encrypt challenges" }
   - { port: 443, comment: "HTTPS public" }
 
 # --- SSH hardening ---
