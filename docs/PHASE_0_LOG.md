@@ -98,8 +98,8 @@
 | 2 | Backup Hetzner pre-wipe (Langfuse + n8n + /etc + clés) | 🟢 | Reduced scope (no Langfuse/n8n on server) — see [ADR-003](decisions/ADR-003-cleanup-vs-wipe.md) |
 | 3 | Wipe + réinstall Ubuntu 24.04 LTS | 🟢 | Replaced by cleanup chirurgical (OS already 24.04.4 LTS), executed without snapshot per Eliot — see [ADR-003](decisions/ADR-003-cleanup-vs-wipe.md) |
 | 4 | Ansible playbook (Postgres 16 + TimescaleDB + Redis + Python 3.12 + uv + Node 22 + pnpm + Docker + Loki + Grafana + Prometheus + Langfuse + n8n) | 🟢 | **ALL 11 ROLES GREEN** — base+security+docker+python+node+postgres+redis+walg+observability+langfuse+n8n+cloudflared. 11 containers UP (verified HTTP 200 langfuse/n8n/grafana/prometheus, Loki ready). Multi-recipient SOPS (Eliot + Hetzner age keys), secrets role decrypts at runtime with `no_log`. |
-| 5 | Init repo `ichor/` GitHub privé Turborepo | 🟡 | Local git init done, GitHub push pending Eliot OK |
-| 6 | CI GitHub Actions stub vert + Dependabot + pip-audit + npm audit | 🟡 | Workflows written, not yet pushed |
+| 5 | Init repo `ichor/` GitHub privé Turborepo | 🟢 | `fxeliott/ichor` private, 17 commits pushed, default branch `main` |
+| 6 | CI GitHub Actions stub vert + Dependabot + pip-audit + npm audit | 🟢 | CI green on commit 33b6033+; Dependabot weekly grouped updates active |
 | 7 | SOPS+age secrets management | 🟢 | age 1.3.1 + sops live; keypair generated (`age1rgrexge5x3qvf8hns4dhrfhu92zsl9nyem5t6ge4nqn424lxefcsl08xaj`); private key backed up to USB E:\; `.sops.yaml` updated; round-trip OK; 8 `.env.example` templates committed |
 | 8 | Cloudflare Access zero-trust sur `*.ichor.app` + YubiKey MFA Cloudflare/Hetzner/GitHub/Anthropic | ⏸ | CF Access deferred (needs custom domain). YubiKey MFA in progress separately. |
 
@@ -110,23 +110,23 @@
 | 9 | Cron systemd archiver HY/IG OAS J0 critique (FRED 3 ans rolling) | ⬜ | |
 | 10 | wal-g WAL streaming Postgres → R2 EU bucket + 1er test restauration | 🟢 | wal-g 3.0.8 LIVE: basebackup `base_000000010000000000000006` written to R2 `ichor-walg-eu/postgres/basebackups_005/`, 3 WAL files archived to `wal_005/`. systemd timer `walg-basebackup.timer` enabled (next: Sun 03:08 Paris). archive_mode=on + archive_command=`/usr/local/bin/wal-g-archive %p` flipped on. `set -a` fix in wrapper for env propagation. **Restore test pending Phase 0 W2.** |
 | 11 | Redis Streams setup + producers asyncio | ⬜ | |
-| 12 | ML stack install (hmmlearn + dtaidistance + river + NumPyro + arch + ...) | ⬜ | `pyproject.toml` for `packages/ml` written |
-| 13 | NLP self-host : FOMC-RoBERTa + FinBERT-tone HuggingFace download | ⬜ | |
-| 14 | Cerebras free + Groq free wrappers Pydantic AI multi-provider | ⬜ | |
+| 12 | ML stack install (hmmlearn + dtaidistance + river + NumPyro + arch + ...) | 🟡 | Scaffolds written: `packages/ml/src/ichor_ml/{regime/hmm.py,vol/har_rv.py,microstructure/vpin.py,bias_aggregator.py}`. Real training pending data collectors (step 11) |
+| 13 | NLP self-host : FOMC-RoBERTa + FinBERT-tone HuggingFace download | 🟡 | FinBERT-tone wrapper live in `packages/ml/src/ichor_ml/nlp/finbert_tone.py` (lazy load + lru_cache + batch + aggregate_tone). FOMC-RoBERTa pending |
+| 14 | Cerebras free + Groq free wrappers Pydantic AI multi-provider | 🟡 | Code committed: `packages/agents/src/ichor_agents/{providers.py,fallback.py}`. Awaits Cerebras + Groq free-tier API keys from Eliot |
 | 15 | Alerts engine 33 types + Crisis Mode triggers composite | ⬜ | |
-| 16 | Tableau model_registry.yaml + 1 model card par modèle | ⬜ | |
-| 17 | Table SQL `predictions_audit` complète | ⬜ | |
+| 16 | Tableau model_registry.yaml + 1 model card par modèle | 🟡 | `packages/ml/model_registry.yaml` committed with 5 scaffolded + 6 planned entries |
+| 17 | Table SQL `predictions_audit` complète | ⬜ | Pydantic schema in `packages/ml/src/ichor_ml/types.py` (Prediction + BiasSignal). DDL pending Phase 0 W2 |
 
 ### Semaine 3 — Couche 1 Claude Code + tunnel
 
 | # | Item | Status | Notes |
 |---|------|--------|-------|
-| 18 | Installation `cloudflared` Windows service ordi local Eliot | ⬜ | |
-| 19 | Setup Cloudflare Tunnel sortant `claude-runner.ichor.internal` + service-token Hetzner | ⬜ | (tunnel UUID-based, no custom domain needed) |
-| 20 | FastAPI local Win11 `:8765/briefing-task` + subprocess `claude -p` headless | ⬜ | `apps/claude-runner` skeleton written |
-| 21 | Power Plan never sleep + gpedit Windows Update + WoL | ⬜ | |
-| 22 | Test cron Task Scheduler 24h sur 4 timestamps Paris | ⬜ | |
-| 23 | Test consommation Max 20x : 1 semaine de runs réels via `/usage-stats` | ⬜ | |
+| 18 | Installation `cloudflared` Windows service ordi local Eliot | 🟡 | Runbook + config template ready: `infra/cloudflare/README.md` + `tunnel-config.yml`. Awaits Eliot to run `cloudflared tunnel login` (browser oauth, 5 min) |
+| 19 | Setup Cloudflare Tunnel sortant `claude-runner.ichor.internal` + service-token Hetzner | 🟡 | Step-by-step Eliot runbook in `infra/cloudflare/README.md`. Expected UUID-based URL: `<UUID>.cfargotunnel.com` |
+| 20 | FastAPI local Win11 `:8765/briefing-task` + subprocess `claude -p` headless | 🟢 | **Real implementation done** in `apps/claude-runner/`: FastAPI app + CF Access JWT verify + asyncio subprocess wrapper + sliding-hour rate limiter + persona Ichor v1. Tests for rate limiter + Pydantic models. Service installer at `scripts/windows/install-claude-runner-service.ps1` (NSSM-based, auto-restart) |
+| 21 | Power Plan never sleep + gpedit Windows Update + WoL | 🟡 | `scripts/windows/setup-power-plan.ps1` ready (run as admin). gpedit Windows Update active hours documented |
+| 22 | Test cron Task Scheduler 24h sur 4 timestamps Paris | 🟡 | `scripts/hetzner/register-cron-briefings.sh` registers 5 systemd timers (06h/12h/17h/22h Paris + Sun 18h weekly). Service shreds /dev/shm secrets after each run |
+| 23 | Test consommation Max 20x : 1 semaine de runs réels via `/usage-stats` | ⬜ | Pending real briefings (after step 18-22 deployment) |
 | 24 | Décision Voie D vs C selon résultats | 🟢 | **Voie D acted irrevocably 2026-05-02** — see [ADR-009](decisions/ADR-009-voie-d-no-api-consumption.md). No Anthropic API key. Production runs Max 20x via local subprocess. |
 
 ### Semaine 4 — Frontend + storytelling + audio
@@ -137,9 +137,9 @@
 | 26 | Service worker PWA + VAPID push test (iOS Eliot + Android) | ⬜ | |
 | 27 | 12 composants design system canon | ⬜ | `packages/ui` skeleton written, components TBD |
 | 28 | Logo + palette + 3 mockups asset cards via skill `canvas-design` | ⬜ | |
-| 29 | Setup Azure Speech key + voix `fr-FR-DeniseNeural` test 10 phrases finance | ⬜ | |
-| 30 | Lexique phonétique custom v0 (`packages/agents/voice/lexicon_fr.json`) | ⬜ | |
-| 31 | Persona Ichor v1 prompt finalisé `packages/agents/personas/ichor.md` | ⬜ | |
+| 29 | Setup Azure Speech key + voix `fr-FR-DeniseNeural` test 10 phrases finance | 🟡 | Wrapper code done: `packages/agents/src/ichor_agents/voice/tts.py` (Azure REST + SSML pauses + Piper fallback). Awaits Eliot's `AZURE_SPEECH_KEY` (free F0 tier) |
+| 30 | Lexique phonétique custom v0 (`packages/agents/voice/lexicon_fr.json`) | 🟢 | 130+ entries committed: pairs, indices, central banks, macro, vol/positioning, energy, idioms |
+| 31 | Persona Ichor v1 prompt finalisé `packages/agents/personas/ichor.md` | 🟢 | Committed in `apps/claude-runner/src/ichor_claude_runner/personas/ichor.md` — sober FR voice, probabilistic, AMF + EU AI Act Article 50 footer baked in |
 | 32 | Disclaimer modal AMF + AI disclosure obligatoire | ⬜ | |
 
 ## Deltas vs `ARCHITECTURE_FINALE.md` plan
@@ -155,6 +155,8 @@ These deltas are decisions made during execution, all documented as ADRs:
 | pnpm via official installer (not corepack) | Corepack fails on Windows w/o admin | [ADR-006](decisions/ADR-006-pnpm-via-official-installer.md) |
 | Ansible runs on Hetzner itself, not from Win11 | Ansible control node POSIX-only, WSL2 not installed | [ADR-007](decisions/ADR-007-ansible-bootstrap-from-hetzner.md) |
 | Apache AGE built from source (not apt) | No apt package exists for PG16 | [ADR-005](decisions/ADR-005-apache-age-built-from-source.md) |
+| Redis 8.x accepted (not 7) | apt repo serves 8 now, license + API OK | [ADR-008](decisions/ADR-008-redis-8-not-7.md) |
+| Voie D irrevocably acted (no API consumption) | Eliot's flat-cost preference | [ADR-009](decisions/ADR-009-voie-d-no-api-consumption.md) |
 
 ## Open questions for Eliot
 
