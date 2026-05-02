@@ -14,7 +14,7 @@
     dest: /opt/ichor/n8n/docker-compose.yml
     mode: "0644"
 
-- name: Ensure n8n volumes
+- name: Ensure n8n volumes + secrets dir
   ansible.builtin.file:
     path: "/opt/ichor/n8n/{{ item }}"
     state: directory
@@ -22,6 +22,16 @@
   loop:
     - n8n-data
     - postgres-data
+    - secrets
+
+- name: Write Docker secret (n8n Postgres password)
+  ansible.builtin.copy:
+    dest: /opt/ichor/n8n/secrets/n8n_postgres_password.txt
+    content: "{{ N8N_POSTGRES_PASSWORD }}"
+    mode: "0600"
+    owner: root
+    group: root
+  no_log: true
 
 - name: Start n8n stack
   community.docker.docker_compose_v2:

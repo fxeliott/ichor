@@ -13,7 +13,7 @@
     dest: /opt/ichor/observability/docker-compose.yml
     mode: "0644"
 
-- name: Ensure Loki/Grafana/Prometheus volumes
+- name: Ensure Loki/Grafana/Prometheus volumes + secrets dir
   ansible.builtin.file:
     path: "/opt/ichor/observability/{{ item }}"
     state: directory
@@ -23,6 +23,16 @@
     - grafana-data
     - prometheus-data
     - prometheus-config
+    - secrets
+
+- name: Write Docker secret (Grafana admin password)
+  ansible.builtin.copy:
+    dest: /opt/ichor/observability/secrets/grafana_admin_password.txt
+    content: "{{ GRAFANA_ADMIN_PASSWORD }}"
+    mode: "0600"
+    owner: root
+    group: root
+  no_log: true
 
 - name: Deploy Prometheus config
   ansible.builtin.copy:

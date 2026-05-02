@@ -36,21 +36,22 @@
   ansible.builtin.debug:
     msg: "{{ walg_version_check.stdout }}"
 
-- name: Create wal-g environment file (R2 credentials from SOPS)
+- name: Create wal-g environment file (R2 credentials from SOPS-decrypted facts)
   ansible.builtin.copy:
     dest: /etc/wal-g.env
     owner: postgres
     group: postgres
     mode: "0600"
     content: |
-      WALG_S3_PREFIX=s3://{{ walg_s3_bucket }}/postgres
-      AWS_ENDPOINT={{ walg_s3_endpoint }}
-      AWS_REGION={{ walg_s3_region }}
-      AWS_ACCESS_KEY_ID={{ walg_s3_access_key | default('SET_VIA_SOPS') }}
-      AWS_SECRET_ACCESS_KEY={{ walg_s3_secret_key | default('SET_VIA_SOPS') }}
+      WALG_S3_PREFIX=s3://{{ R2_BUCKET }}/postgres
+      AWS_ENDPOINT={{ R2_ENDPOINT }}
+      AWS_REGION={{ R2_REGION }}
+      AWS_ACCESS_KEY_ID={{ R2_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY={{ R2_SECRET_ACCESS_KEY }}
       AWS_S3_FORCE_PATH_STYLE=true
       WALG_COMPRESSION_METHOD=brotli
       WALG_DELTA_MAX_STEPS=6
+  no_log: true
 
 - name: Wrap wal-g for use as Postgres archive_command
   ansible.builtin.copy:
