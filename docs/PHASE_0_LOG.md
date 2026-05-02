@@ -127,7 +127,7 @@
 | 21 | Power Plan never sleep + gpedit Windows Update + WoL | ⬜ | |
 | 22 | Test cron Task Scheduler 24h sur 4 timestamps Paris | ⬜ | |
 | 23 | Test consommation Max 20x : 1 semaine de runs réels via `/usage-stats` | ⬜ | |
-| 24 | Décision Voie D vs C selon résultats | ⬜ | |
+| 24 | Décision Voie D vs C selon résultats | 🟢 | **Voie D acted irrevocably 2026-05-02** — see [ADR-009](decisions/ADR-009-voie-d-no-api-consumption.md). No Anthropic API key. Production runs Max 20x via local subprocess. |
 
 ### Semaine 4 — Frontend + storytelling + audio
 
@@ -159,7 +159,7 @@ These deltas are decisions made during execution, all documented as ADRs:
 ## Open questions for Eliot
 
 - LICENSE choice: currently `UNLICENSED`. If/when published — MIT, Apache-2.0, AGPLv3, or proprietary?
-- GitHub repo name: `ichor`? `ichor-platform`? Public or private (private recommended Phase 0)?
 - Domain final choice: revisit at Phase 1 start (ichor.fyi $15.18, getichor.com $10.46, or custom?)
-- Anthropic Workspace `ichor-prod` API key: when do we provision it (currently no API key, only Max 20x via local Claude Code)?
-- R2 bucket `ichor-walg-eu`: who creates it and when (manually before wal-g first basebackup, or part of automation)?
+- ~~Anthropic Workspace `ichor-prod` API key~~ — **resolved**: Voie D, no API key (ADR-009)
+- ~~R2 bucket~~ — **resolved**: created + creds encrypted (commit 7a0eb3b)
+- ~~GitHub repo~~ — **resolved**: `fxeliott/ichor` private, 12 commits pushed, CI green
