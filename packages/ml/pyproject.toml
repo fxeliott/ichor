@@ -10,7 +10,7 @@ dependencies = [
     "scikit-learn>=1.6.0",
     "pytorch-cpu>=2.5.0 ; sys_platform == 'linux'",
     # Numerical
-    "numpy>=1.26.0,<2.0",
+    "numpy>=1.26.0,<3.0",
     "pandas>=2.2.0",
     "scipy>=1.14.0",
     # Time series / regimes
