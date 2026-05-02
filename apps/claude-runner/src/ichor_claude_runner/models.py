@@ -25,11 +25,8 @@ class BriefingTaskRequest(BaseModel):
     model: Literal["opus", "sonnet", "haiku"] = "opus"
     """Claude model selection. Opus = top quality. Sonnet = faster + cheaper quota use."""
 
-    max_tokens_out: int = Field(default=4_000, ge=100, le=32_000)
-    """Output tokens budget. Briefing prose typically 2-4k tokens."""
-
-    temperature: float = Field(default=0.5, ge=0.0, le=1.0)
-    """0.5 = balance between consistency and natural prose."""
+    effort: Literal["low", "medium", "high", "xhigh", "max"] = "medium"
+    """Effort level — quality vs latency. high/xhigh for briefings, low for drill-downs."""
 
 
 class BriefingTaskResponse(BaseModel):
