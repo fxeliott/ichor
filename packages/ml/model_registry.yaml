@@ -1,0 +1,68 @@
+# Ichor ML model registry
+# Versioned source of truth for ALL models running in production.
+# Each entry must have a corresponding model card under model_cards/.
+
+version: "1.0.0"
+last_updated: "2026-05-02"
+
+models:
+  - id: lightgbm-bias-eurusd-1h-v0
+    family: lightgbm
+    asset: EUR_USD
+    horizon_hours: 1
+    status: planned  # not yet trained
+    target_phase: "Phase 0 W2 step 12"
+    expected_brier: 0.20
+
+  - id: hmm-regime-3state-v0
+    family: hmm
+    asset: "*"
+    horizon_hours: 24
+    status: scaffolded  # code exists, not yet trained on real data
+    impl: packages/ml/src/ichor_ml/regime/hmm.py
+
+  - id: har-rv-eurusd-v0
+    family: har_rv
+    asset: EUR_USD
+    horizon_hours: 24  # 1d-ahead realized vol
+    status: scaffolded
+    impl: packages/ml/src/ichor_ml/vol/har_rv.py
+    reference: "Corsi 2009, JFE 7(2):174-196"
+
+  - id: vpin-eurusd-v0
+    family: vpin
+    asset: EUR_USD
+    horizon_hours: 1
+    status: scaffolded
+    impl: packages/ml/src/ichor_ml/microstructure/vpin.py
+    reference: "Easley-LdP-O'Hara 2012, RFS 25(5):1457-1493"
+
+  - id: finbert-tone-news-v0
+    family: finbert_tone
+    asset: "*"
+    horizon_hours: 1
+    status: scaffolded  # wrapper exists, weights downloaded on first call
+    impl: packages/ml/src/ichor_ml/nlp/finbert_tone.py
+    upstream_model: yiyanghkust/finbert-tone
+    license: MIT
+
+  # ---- Models still to scaffold (Phase 0 W2) ----
+  - id: xgboost-bias-eurusd-1h-v0
+    family: xgboost
+    status: planned
+  - id: random-forest-bias-eurusd-1h-v0
+    family: random_forest
+    status: planned
+  - id: logistic-bias-eurusd-1h-v0
+    family: logistic_reg
+    status: planned
+  - id: bayesian-numpyro-bias-eurusd-1h-v0
+    family: bayesian_numpyro
+    status: planned
+  - id: mlp-torch-bias-eurusd-1h-v0
+    family: mlp_torch
+    status: planned
+  - id: fomc-roberta-v0
+    family: fomc_roberta
+    status: planned
+    upstream_model: gtfintechlab/fomc-roberta
