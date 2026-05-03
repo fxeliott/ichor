@@ -83,15 +83,24 @@ export default async function AlertsPage({ searchParams }: PageProps) {
           33 types d'alertes (28 PLAN + 5 AUDIT_V2) déclenchés par l'engine
           Hetzner. Crisis Mode = composite.
         </p>
-        <div className="mt-3 flex items-center gap-3 text-xs">
-          <span className="px-2 py-0.5 rounded bg-red-900/40 text-red-200 font-mono">
-            critical {counts.critical}
+        <div className="mt-3 flex items-center gap-3 text-xs" role="group" aria-label="Compteurs d'alertes par sévérité">
+          <span
+            className="px-2 py-0.5 rounded bg-red-900/40 text-red-200 font-mono"
+            aria-label={`${counts.critical} alerte${counts.critical !== 1 ? "s" : ""} critique${counts.critical !== 1 ? "s" : ""}`}
+          >
+            <span aria-hidden="true">critical {counts.critical}</span>
           </span>
-          <span className="px-2 py-0.5 rounded bg-amber-900/40 text-amber-200 font-mono">
-            warning {counts.warning}
+          <span
+            className="px-2 py-0.5 rounded bg-amber-900/40 text-amber-200 font-mono"
+            aria-label={`${counts.warning} alerte${counts.warning !== 1 ? "s" : ""} d'avertissement`}
+          >
+            <span aria-hidden="true">warning {counts.warning}</span>
           </span>
-          <span className="px-2 py-0.5 rounded bg-sky-900/40 text-sky-200 font-mono">
-            info {counts.info}
+          <span
+            className="px-2 py-0.5 rounded bg-sky-900/40 text-sky-200 font-mono"
+            aria-label={`${counts.info} alerte${counts.info !== 1 ? "s" : ""} informative${counts.info !== 1 ? "s" : ""}`}
+          >
+            <span aria-hidden="true">info {counts.info}</span>
           </span>
         </div>
       </header>
@@ -200,7 +209,7 @@ export default async function AlertsPage({ searchParams }: PageProps) {
                 <span>{fmtDirection(a.direction)}</span>
                 <span>{a.threshold}</span>
                 {a.acknowledged_at && (
-                  <span className="ml-auto text-neutral-600">
+                  <span className="ml-auto text-neutral-400">
                     ack {fmtAt(a.acknowledged_at)}
                   </span>
                 )}

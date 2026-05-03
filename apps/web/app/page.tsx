@@ -70,6 +70,14 @@ const TYPE_LABELS: Record<Briefing["briefing_type"], string> = {
   crisis: "Crisis Mode",
 };
 
+const STATUS_LABELS: Record<Briefing["status"], string> = {
+  pending: "en attente",
+  context_assembled: "contexte prêt",
+  claude_running: "Claude en cours",
+  completed: "terminé",
+  failed: "échoué",
+};
+
 const fmtAt = (iso: string) =>
   new Date(iso).toLocaleString("fr-FR", {
     weekday: "short",
@@ -143,8 +151,9 @@ export default async function HomePage() {
                             ? "bg-red-900/40 text-red-200"
                             : "bg-neutral-800 text-neutral-400")
                       }
+                      aria-label={`Statut : ${STATUS_LABELS[b.status]}`}
                     >
-                      {b.status}
+                      {STATUS_LABELS[b.status]}
                     </span>
                   </div>
                 </Link>
@@ -186,7 +195,7 @@ export default async function HomePage() {
             );
           })}
         </div>
-        <p className="mt-3 text-[11px] text-neutral-600">
+        <p className="mt-3 text-[11px] text-neutral-400">
           Prix temps réel non encore connectés (W2 OANDA pending). Les biais
           proviennent du dernier `bias_aggregator` run.
         </p>

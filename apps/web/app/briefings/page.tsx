@@ -20,6 +20,23 @@ const STATUS_COLORS: Record<Briefing["status"], string> = {
   failed: "bg-red-900/40 text-red-200",
 };
 
+const STATUS_LABELS: Record<Briefing["status"], string> = {
+  pending: "en attente",
+  context_assembled: "contexte prêt",
+  claude_running: "Claude en cours",
+  completed: "terminé",
+  failed: "échoué",
+};
+
+const TYPE_LABELS: Record<BriefingType, string> = {
+  pre_londres: "Pré-Londres",
+  pre_ny: "Pré-NY",
+  ny_mid: "NY mid",
+  ny_close: "NY close",
+  weekly: "Weekly",
+  crisis: "Crisis Mode",
+};
+
 const fmtAt = (iso: string) =>
   new Date(iso).toLocaleString("fr-FR", {
     weekday: "short",
@@ -147,16 +164,17 @@ export default async function BriefingsPage({ searchParams }: PageProps) {
                 className="block rounded border border-neutral-800 bg-neutral-900/40 px-4 py-3 hover:border-neutral-700 transition"
               >
                 <div className="flex items-baseline justify-between gap-3 mb-1">
-                  <span className="font-mono text-sm text-neutral-200">
-                    {b.briefing_type}
+                  <span className="text-sm text-neutral-200">
+                    {TYPE_LABELS[b.briefing_type]}
                   </span>
                   <span
                     className={
                       "text-[11px] font-mono px-1.5 py-0.5 rounded " +
                       STATUS_COLORS[b.status]
                     }
+                    aria-label={`Statut : ${STATUS_LABELS[b.status]}`}
                   >
-                    {b.status}
+                    {STATUS_LABELS[b.status]}
                   </span>
                 </div>
                 <div className="flex items-baseline gap-3 text-xs text-neutral-500">

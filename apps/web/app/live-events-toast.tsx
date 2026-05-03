@@ -9,7 +9,7 @@
  * health (gray = reconnecting).
  */
 
-import { useEffect } from "react";
+import { useCallback, useEffect } from "react";
 import Link from "next/link";
 import { useLiveEvents, type LiveEvent } from "../lib/useLiveEvents";
 
@@ -86,7 +86,8 @@ function ToastChip({
             onDismiss(event.localId);
           }}
           aria-label="Fermer la notification"
-          className="text-xs opacity-50 hover:opacity-100"
+          // WCAG 2.5.8 Target Size (Minimum) — 24x24 CSS px on touch.
+          className="inline-flex items-center justify-center min-w-[24px] min-h-[24px] -mr-1 text-xs opacity-60 hover:opacity-100 rounded"
         >
           ×
         </button>
@@ -95,44 +96,76 @@ function ToastChip({
     </>
   );
 
+  // Alerts use role="alert" (assertive) so SR users hear them right away.
+  // Briefings + bias updates use role="status" (polite) — they're informative,
+  // not interrupting.
+  const ariaRole: "alert" | "status" =
+    event.channel === "ichor:alerts:new" ? "alert" : "status";
+
   const cls =
     "block w-72 rounded border px-3 py-2 shadow-lg transition " +
     CHANNEL_COLORS[event.channel] +
     (href ? " hover:brightness-110" : "");
 
   return href ? (
-    <Link href={href} className={cls}>
+    <Link href={href} className={cls} role={ariaRole}>
       {Body}
     </Link>
   ) : (
-    <div className={cls}>{Body}</div>
+    <div className={cls} role={ariaRole}>
+      {Body}
+    </div>
   );
 }
 
 export function LiveEventsToast() {
-  const { events, connected, dismiss } = useLiveEvents();
+  const { events, connected, dismiss, dismissAll } = useLiveEvents();
+
+  // WCAG 2.1.2 Escape: dismissible toasts MUST support Escape to clear.
+  const handleEscape = useCallback(
+    (e: KeyboardEvent) => {
+      if (e.key === "Escape" && events.length > 0) {
+        dismissAll();
+      }
+    },
+    [events.length, dismissAll]
+  );
+  useEffect(() => {
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, [handleEscape]);
 
   return (
     <>
       <span
-        aria-label={connected ? "Live connecté" : "Live reconnecte…"}
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
         title={connected ? "Live connecté" : "Live reconnecte…"}
         className={
           "fixed top-2 right-3 z-20 inline-flex items-center gap-1 text-[10px] font-mono " +
-          (connected ? "text-emerald-400" : "text-neutral-500")
+          (connected ? "text-emerald-400" : "text-neutral-400")
         }
       >
         <span
+          aria-hidden="true"
           className={
             "w-1.5 h-1.5 rounded-full " +
-            (connected ? "bg-emerald-400 animate-pulse" : "bg-neutral-600")
+            (connected ? "bg-emerald-400 animate-pulse" : "bg-neutral-500")
           }
         />
-        live
+        <span className="sr-only">
+          {connected ? "Live connecté" : "Live en reconnexion"}
+        </span>
+        <span aria-hidden="true">live</span>
       </span>
 
       {events.length > 0 && (
-        <div className="fixed bottom-4 right-4 z-20 flex flex-col gap-2">
+        <div
+          role="region"
+          aria-label="Notifications temps réel"
+          className="fixed bottom-4 right-4 z-20 flex flex-col gap-2"
+        >
           {events.map((e) => (
             <ToastChip key={e.localId} event={e} onDismiss={dismiss} />
           ))}

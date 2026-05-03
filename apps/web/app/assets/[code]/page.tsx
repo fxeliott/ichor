@@ -210,7 +210,7 @@ export default async function AssetDetailPage({ params }: PageProps) {
           Régime HMM (placeholder Phase 0)
         </h2>
         <RegimeIndicator stateProbs={[0.6, 0.3, 0.1]} asset={meta.code} />
-        <p className="mt-2 text-[11px] text-neutral-600">
+        <p className="mt-2 text-[11px] text-neutral-400">
           Probabilités issues du dernier viterbi forward pass HMM 3-states.
           Données réelles connectées en Phase 0 W2.
         </p>

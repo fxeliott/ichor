@@ -36,6 +36,14 @@ export default function RootLayout({
   return (
     <html lang="fr">
       <body className="bg-neutral-950 text-neutral-100 antialiased min-h-screen flex flex-col">
+        {/* WCAG 2.4.1 — Skip to main content for keyboard users. The link is
+            visually hidden until it receives focus. */}
+        <a
+          href="#main"
+          className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:px-3 focus:py-1.5 focus:rounded focus:bg-emerald-600 focus:text-neutral-50"
+        >
+          Aller au contenu principal
+        </a>
         <ServiceWorkerRegister />
         <LiveEventsToast />
         <DisclaimerBanner compact />
@@ -81,13 +89,13 @@ export default function RootLayout({
                 </li>
               ))}
             </ul>
-            <span className="ml-auto text-[11px] text-neutral-600 font-mono">
+            <span className="ml-auto text-[11px] text-neutral-400 font-mono">
               Phase 0
             </span>
           </nav>
         </header>
 
-        <div className="flex-1">{children}</div>
+        <div id="main" className="flex-1">{children}</div>
 
         <footer className="border-t border-neutral-800 bg-neutral-950/80">
           <div className="max-w-6xl mx-auto px-4 py-4">
