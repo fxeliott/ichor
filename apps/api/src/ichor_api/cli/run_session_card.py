@@ -70,14 +70,35 @@ async def _run(asset: str, session_type: str, *, live: bool) -> int:
         # persistence + UI path can be validated without a Claude call.
         runner = InMemoryRunnerClient(_dry_run_responses(asset))
 
-    data_pool = (
-        "DXY 105.30; US10Y 4.18 (-12bps); VIX 18.2 (+4.1); "
-        "DFII10 1.85; BAMLH0A0HYM2 3.10; ECB Lagarde dovish on May 2."
-    )
-    asset_data = (
-        f"{asset} : DGS10=4.18 IRLTLT01DEM156N=2.45 COT MM_short=80th_pct "
-        "URL https://www.ecb.europa.eu/press/key/date/2026/html/ecb.sp260502.en.html"
-    )
+    sm = get_sessionmaker()
+    if live:
+        # Real DB-backed data pool : every numeric claim source-stamped
+        # so the Critic Agent can verify and Pass-2 mechanisms[].sources
+        # can cite back. See services/data_pool.py.
+        from ..services.data_pool import build_asset_data_only, build_data_pool
+
+        async with sm() as build_session:
+            pool = await build_data_pool(build_session, asset)
+            asset_data = await build_asset_data_only(build_session, asset)
+        data_pool = pool.markdown
+        log.info(
+            "data_pool.built",
+            asset=asset,
+            sections=pool.sections_emitted,
+            sources_count=len(pool.sources),
+            markdown_chars=len(pool.markdown),
+        )
+    else:
+        # Dry-run keeps the historical static pool for back-compat with
+        # the canned responses below.
+        data_pool = (
+            "DXY 105.30; US10Y 4.18 (-12bps); VIX 18.2 (+4.1); "
+            "DFII10 1.85; BAMLH0A0HYM2 3.10; ECB Lagarde dovish on May 2."
+        )
+        asset_data = (
+            f"{asset} : DGS10=4.18 IRLTLT01DEM156N=2.45 COT MM_short=80th_pct "
+            "URL https://www.ecb.europa.eu/press/key/date/2026/html/ecb.sp260502.en.html"
+        )
 
     orch = Orchestrator(runner=runner)
     result = await orch.run(
@@ -88,7 +109,6 @@ async def _run(asset: str, session_type: str, *, live: bool) -> int:
         now=datetime.now(timezone.utc),
     )
 
-    sm = get_sessionmaker()
     async with sm() as session:
         row = to_audit_row(result.card)
         session.add(row)
