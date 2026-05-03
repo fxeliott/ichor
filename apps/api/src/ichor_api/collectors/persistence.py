@@ -16,13 +16,25 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import date as date_type
 
 from ..models import (
+    CbSpeech,
+    CotPosition,
     FredObservation,
+    GdeltEvent,
+    GprObservation,
+    KalshiMarket,
+    ManifoldMarket,
     MarketDataBar,
     NewsItem,
     PolygonIntradayBar,
     PolymarketSnapshot,
 )
+from .ai_gpr import AiGprObservation
+from .central_bank_speeches import CentralBankSpeech
+from .cot import CotPosition as CotPositionData
 from .fred import FredObservation as FredObservationData
+from .gdelt import GdeltArticle
+from .kalshi import KalshiMarketSnapshot
+from .manifold import ManifoldSnapshot
 from .market_data import MarketDataPoint
 from .polygon import PolygonBar
 from .polymarket import PolymarketSnapshot as PolymarketSnapshotData
@@ -337,3 +349,221 @@ async def persist_polygon_bars(
         skipped=total_skipped,
     )
     return total_inserted
+
+
+async def persist_gdelt_articles(
+    session: AsyncSession, articles: Iterable[GdeltArticle]
+) -> int:
+    """Insert GDELT articles, skipping (url, query_label, seendate) dupes."""
+    articles = list(articles)
+    if not articles:
+        return 0
+    urls = {a.url for a in articles}
+    existing_rows = (
+        await session.execute(
+            select(GdeltEvent.url, GdeltEvent.query_label, GdeltEvent.seendate).where(
+                GdeltEvent.url.in_(urls)
+            )
+        )
+    ).all()
+    existing: set[tuple[str, str, datetime]] = {(r[0], r[1], r[2]) for r in existing_rows}
+    now = datetime.now(timezone.utc)
+    inserted = 0
+    for a in articles:
+        if (a.url, a.query_label, a.seendate) in existing:
+            continue
+        session.add(
+            GdeltEvent(
+                seendate=a.seendate,
+                created_at=now,
+                query_label=a.query_label[:64],
+                url=a.url[:1024],
+                title=a.title[:512],
+                domain=(a.domain or None) and a.domain[:128],
+                language=(a.language or None) and a.language[:32],
+                sourcecountry=(a.sourcecountry or None) and a.sourcecountry[:32],
+                tone=a.tone,
+                image_url=(a.image_url or None) and a.image_url[:1024],
+                fetched_at=a.fetched_at,
+            )
+        )
+        inserted += 1
+    if inserted:
+        await session.commit()
+    log.info("gdelt.persisted", total=len(articles), inserted=inserted)
+    return inserted
+
+
+async def persist_gpr_observations(
+    session: AsyncSession, obs: Iterable[AiGprObservation]
+) -> int:
+    """Insert AI-GPR daily observations, skipping existing dates."""
+    obs = list(obs)
+    if not obs:
+        return 0
+    dates = {o.observation_date for o in obs}
+    existing_rows = (
+        await session.execute(
+            select(GprObservation.observation_date).where(
+                GprObservation.observation_date.in_(dates)
+            )
+        )
+    ).all()
+    existing: set[date_type] = {r[0] for r in existing_rows}
+    now = datetime.now(timezone.utc)
+    inserted = 0
+    for o in obs:
+        if o.observation_date in existing:
+            continue
+        session.add(
+            GprObservation(
+                observation_date=o.observation_date,
+                created_at=now,
+                ai_gpr=o.ai_gpr,
+                fetched_at=o.fetched_at,
+            )
+        )
+        inserted += 1
+    if inserted:
+        await session.commit()
+    log.info("gpr.persisted", total=len(obs), inserted=inserted)
+    return inserted
+
+
+async def persist_cot_positions(
+    session: AsyncSession,
+    positions: Iterable[CotPositionData | None],
+) -> int:
+    """Insert COT weekly positions, skipping (market_code, report_date) dupes."""
+    positions = [p for p in positions if p is not None]
+    if not positions:
+        return 0
+    codes = {p.market_code for p in positions}
+    dates = {p.report_date for p in positions}
+    existing_rows = (
+        await session.execute(
+            select(CotPosition.market_code, CotPosition.report_date).where(
+                CotPosition.market_code.in_(codes),
+                CotPosition.report_date.in_(dates),
+            )
+        )
+    ).all()
+    existing: set[tuple[str, date_type]] = {(r[0], r[1]) for r in existing_rows}
+    now = datetime.now(timezone.utc)
+    inserted = 0
+    for p in positions:
+        if (p.market_code, p.report_date) in existing:
+            continue
+        session.add(
+            CotPosition(
+                report_date=p.report_date,
+                created_at=now,
+                market_code=p.market_code[:16],
+                market_name=(p.market_name or None) and p.market_name[:128],
+                producer_net=p.producer_net,
+                swap_dealer_net=p.swap_dealer_net,
+                managed_money_net=p.managed_money_net,
+                other_reportable_net=p.other_reportable_net,
+                non_reportable_net=p.non_reportable_net,
+                open_interest=p.open_interest,
+                fetched_at=p.fetched_at or now,
+            )
+        )
+        inserted += 1
+    if inserted:
+        await session.commit()
+    log.info("cot.persisted", total=len(positions), inserted=inserted)
+    return inserted
+
+
+async def persist_cb_speeches(
+    session: AsyncSession, speeches: Iterable[CentralBankSpeech]
+) -> int:
+    """Insert central-bank speeches, skipping URLs already known."""
+    speeches = list(speeches)
+    if not speeches:
+        return 0
+    urls = {s.url for s in speeches}
+    existing_rows = (
+        await session.execute(select(CbSpeech.url).where(CbSpeech.url.in_(urls)))
+    ).all()
+    existing: set[str] = {r[0] for r in existing_rows}
+    now = datetime.now(timezone.utc)
+    inserted = 0
+    for s in speeches:
+        if s.url in existing:
+            continue
+        session.add(
+            CbSpeech(
+                published_at=s.published_at,
+                created_at=now,
+                central_bank=s.central_bank[:32],
+                speaker=(s.speaker or None) and s.speaker[:128],
+                title=s.title[:512],
+                summary=s.summary or None,
+                url=s.url[:1024],
+                source_feed=s.central_bank[:64],
+                fetched_at=s.fetched_at,
+            )
+        )
+        inserted += 1
+    if inserted:
+        await session.commit()
+    log.info("cb_speeches.persisted", total=len(speeches), inserted=inserted)
+    return inserted
+
+
+async def persist_kalshi_snapshots(
+    session: AsyncSession, snaps: Iterable[KalshiMarketSnapshot]
+) -> int:
+    """Always insert (composite PK protects ; historical view is the goal)."""
+    snaps = list(snaps)
+    if not snaps:
+        return 0
+    now = datetime.now(timezone.utc)
+    for s in snaps:
+        session.add(
+            KalshiMarket(
+                fetched_at=s.fetched_at,
+                created_at=now,
+                ticker=s.ticker[:128],
+                title=s.title[:512],
+                yes_price=s.yes_price,
+                no_price=s.no_price,
+                volume_24h=s.volume_24h,
+                open_interest=s.open_interest,
+                expiration_time=s.expiration_time,
+                status=(s.status or None) and s.status[:32],
+            )
+        )
+    await session.commit()
+    log.info("kalshi.persisted", count=len(snaps))
+    return len(snaps)
+
+
+async def persist_manifold_snapshots(
+    session: AsyncSession, snaps: Iterable[ManifoldSnapshot]
+) -> int:
+    """Always insert ; composite PK + slug history."""
+    snaps = list(snaps)
+    if not snaps:
+        return 0
+    now = datetime.now(timezone.utc)
+    for s in snaps:
+        session.add(
+            ManifoldMarket(
+                fetched_at=s.fetched_at,
+                created_at=now,
+                slug=s.slug[:128],
+                market_id=s.market_id[:128],
+                question=s.question[:512],
+                probability=s.probability,
+                volume=s.volume,
+                closed=s.closed,
+                creator_username=(s.creator_username or None)
+                and s.creator_username[:128],
+            )
+        )
+    await session.commit()
+    log.info("manifold.persisted", count=len(snaps))
+    return len(snaps)
