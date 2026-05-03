@@ -363,3 +363,70 @@ export const listSessionsForAsset = (
     `/v1/sessions/${encodeURIComponent(asset)}?limit=${limit}`,
     30,
   );
+
+// ─────────────────────────── calibration (Phase 1) ───────────────────────────
+
+export interface ReliabilityBin {
+  bin_lower: number;
+  bin_upper: number;
+  count: number;
+  mean_predicted: number;
+  mean_realized: number;
+}
+
+export interface Calibration {
+  n_cards: number;
+  mean_brier: number;
+  skill_vs_naive: number;
+  hits: number;
+  misses: number;
+  window_days: number;
+  asset: string | null;
+  session_type: SessionType | null;
+  regime_quadrant: RegimeQuadrant | null;
+  reliability: ReliabilityBin[];
+}
+
+export interface CalibrationGroup {
+  group_key: string;
+  summary: Calibration;
+}
+
+export interface CalibrationGroups {
+  groups: CalibrationGroup[];
+}
+
+export interface CalibrationParams {
+  asset?: string;
+  sessionType?: SessionType;
+  regimeQuadrant?: RegimeQuadrant;
+  windowDays?: number;
+}
+
+export const getCalibrationOverall = (
+  params: CalibrationParams = {},
+): Promise<Calibration> => {
+  const q = new URLSearchParams();
+  if (params.asset) q.set("asset", params.asset);
+  if (params.sessionType) q.set("session_type", params.sessionType);
+  if (params.regimeQuadrant) q.set("regime_quadrant", params.regimeQuadrant);
+  if (params.windowDays) q.set("window_days", String(params.windowDays));
+  const qs = q.toString();
+  return get<Calibration>(`/v1/calibration${qs ? `?${qs}` : ""}`, 300);
+};
+
+export const getCalibrationByAsset = (
+  windowDays = 90,
+): Promise<CalibrationGroups> =>
+  get<CalibrationGroups>(
+    `/v1/calibration/by-asset?window_days=${windowDays}`,
+    300,
+  );
+
+export const getCalibrationByRegime = (
+  windowDays = 90,
+): Promise<CalibrationGroups> =>
+  get<CalibrationGroups>(
+    `/v1/calibration/by-regime?window_days=${windowDays}`,
+    300,
+  );
