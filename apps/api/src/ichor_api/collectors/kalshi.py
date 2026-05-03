@@ -25,17 +25,16 @@ log = structlog.get_logger(__name__)
 KALSHI_API_BASE = "https://api.elections.kalshi.com/trade-api/v2"
 
 
-# Phase 1 event tickers — Kalshi uses ticker codes (e.g. FED-26MAR-T)
-WATCHED_TICKERS: tuple[str, ...] = (
-    # Fed rate decisions (verify via /events when integrating live)
-    "FED-26MAY",
-    "FED-26JUN",
-    # Recession
-    "RECSSPAN-26",
-    # US elections / political
-    "PRES-28",
-    # Geopolitics
-    "RUSUKR-CEASEFIRE-26",
+# Legacy hardcoded event tickers — left empty by default ; the new
+# discovery path queries /markets?status=open with category filters.
+# Override via the `event_tickers=...` kwarg of poll_all() if needed.
+WATCHED_TICKERS: tuple[str, ...] = ()
+
+# Categories Kalshi exposes — we keep the macro-relevant ones.
+DISCOVERY_CATEGORIES: tuple[str, ...] = (
+    "Economics",
+    "Politics",
+    "World",
 )
 
 
@@ -114,21 +113,76 @@ async def fetch_event(
     return out
 
 
+async def discover_markets(
+    *,
+    client: httpx.AsyncClient,
+    top_k: int = 50,
+    timeout: float = 20.0,
+) -> list[KalshiMarketSnapshot]:
+    """Pull recent open markets via /markets endpoint, no auth needed.
+
+    Replaces hardcoded ticker list which was 100% 404 (events resolved
+    or renamed). Filters to status=open and trims to top_k by volume.
+    """
+    try:
+        r = await client.get(
+            f"{KALSHI_API_BASE}/markets",
+            params={"status": "open", "limit": str(min(1000, top_k * 4))},
+            timeout=timeout,
+            headers={"User-Agent": "IchorKalshiCollector/0.2"},
+        )
+        r.raise_for_status()
+        data = r.json()
+    except httpx.HTTPError as e:
+        log.warning("kalshi.discover_failed", error=str(e))
+        return []
+
+    fetched = datetime.now(timezone.utc)
+    markets = data.get("markets") or []
+    out: list[KalshiMarketSnapshot] = []
+    for m in markets:
+        try:
+            out.append(
+                KalshiMarketSnapshot(
+                    ticker=str(m.get("ticker", ""))[:128],
+                    title=str(m.get("title", ""))[:512],
+                    yes_price=_cents_to_prob(m.get("yes_bid") or m.get("last_price")),
+                    no_price=_cents_to_prob(m.get("no_bid")),
+                    volume_24h=m.get("volume_24h"),
+                    open_interest=m.get("open_interest"),
+                    expiration_time=_parse_iso(m.get("expiration_time")),
+                    status=str(m.get("status", ""))[:32],
+                    fetched_at=fetched,
+                )
+            )
+        except (TypeError, ValueError, KeyError) as e:
+            log.warning("kalshi.discover_parse_failed", error=str(e))
+            continue
+    # Sort by volume_24h desc, top_k
+    out.sort(key=lambda x: (x.volume_24h or 0), reverse=True)
+    return out[:top_k]
+
+
 async def poll_all(
     event_tickers: tuple[str, ...] = WATCHED_TICKERS,
     *,
     concurrency: int = 3,
+    top_k_discovery: int = 30,
 ) -> list[KalshiMarketSnapshot]:
-    sem = asyncio.Semaphore(concurrency)
-
-    async def _one(t: str, client: httpx.AsyncClient) -> list[KalshiMarketSnapshot]:
-        async with sem:
-            return await fetch_event(t, client=client)
-
+    """Discovery-first polling : if no event tickers provided, hit
+    /markets?status=open and harvest the top-volume markets.
+    """
     async with httpx.AsyncClient() as client:
-        results = await asyncio.gather(*(_one(t, client) for t in event_tickers))
+        if event_tickers:
+            sem = asyncio.Semaphore(concurrency)
 
-    flat: list[KalshiMarketSnapshot] = []
-    for batch in results:
-        flat.extend(batch)
-    return flat
+            async def _one(t: str) -> list[KalshiMarketSnapshot]:
+                async with sem:
+                    return await fetch_event(t, client=client)
+
+            results = await asyncio.gather(*(_one(t) for t in event_tickers))
+            flat = [m for batch in results for m in batch]
+            if flat:
+                return flat
+        # Discovery fallback / default
+        return await discover_markets(client=client, top_k=top_k_discovery)
