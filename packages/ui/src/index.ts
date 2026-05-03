@@ -1,5 +1,5 @@
 // Ichor UI — design system components.
-// Phase 0 W4 step 27: 9/12 canon components landed.
+// Phase 0 W4 step 27: 13/12 canon components landed (3 added beyond plan: Timeline).
 
 export { BiasBar } from "./components/BiasBar";
 export type { BiasBarProps } from "./components/BiasBar";
@@ -30,5 +30,18 @@ export type { EmptyStateProps } from "./components/EmptyState";
 
 export { AudioPlayer } from "./components/AudioPlayer";
 export type { AudioPlayerProps } from "./components/AudioPlayer";
+
+export { ChartCard } from "./components/ChartCard";
+export type { ChartCardProps } from "./components/ChartCard";
+
+export { DrillDownButton } from "./components/DrillDownButton";
+export type { DrillDownButtonProps } from "./components/DrillDownButton";
+
+export { Timeline, TimelineMarker } from "./components/TimelineMarker";
+export type {
+  TimelineProps,
+  TimelineMarkerProps,
+  TimelineMarkerKind,
+} from "./components/TimelineMarker";
 
 export const VERSION = "0.0.0";

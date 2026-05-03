@@ -80,11 +80,25 @@ export const AssetCard: React.FC<AssetCardProps> = ({
     change24hPct < 0 ? "text-red-400" :
     "text-neutral-400";
 
+  // When no onDrillDown is provided, render as <article> so the parent
+  // (e.g. Next.js <Link>) can wrap it without nesting interactive elements.
+  const interactive = typeof onDrillDown === "function";
+  const Wrapper: React.ElementType = interactive ? "button" : "article";
+  const wrapperProps = interactive
+    ? {
+        type: "button" as const,
+        onClick: onDrillDown,
+        className:
+          "text-left w-full rounded-lg border border-neutral-800 bg-neutral-900/40 p-4 transition hover:border-neutral-700 hover:bg-neutral-900/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500",
+      }
+    : {
+        className:
+          "block w-full rounded-lg border border-neutral-800 bg-neutral-900/40 p-4 transition hover:border-neutral-700 hover:bg-neutral-900/60",
+      };
+
   return (
-    <button
-      onClick={onDrillDown}
-      type="button"
-      className="text-left w-full rounded-lg border border-neutral-800 bg-neutral-900/40 p-4 transition hover:border-neutral-700 hover:bg-neutral-900/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+    <Wrapper
+      {...wrapperProps}
       aria-label={`${formatAsset(asset)}: bias ${bias.toFixed(2)}, ${alertsCount} alerts`}
     >
       <header className="flex items-baseline justify-between mb-3">
@@ -103,7 +117,11 @@ export const AssetCard: React.FC<AssetCardProps> = ({
         <span className={`text-sm font-mono ${changeColor}`}>{formatPct(change24hPct)}</span>
       </div>
 
-      <BiasBar bias={bias} credibleInterval={credibleInterval} width={220} />
+      <BiasBar
+        bias={bias}
+        {...(credibleInterval ? { credibleInterval } : {})}
+        width={220}
+      />
 
       {alertsCount > 0 && maxAlertSeverity && (
         <div className="mt-3 flex items-center gap-2">
@@ -112,6 +130,6 @@ export const AssetCard: React.FC<AssetCardProps> = ({
           </span>
         </div>
       )}
-    </button>
+    </Wrapper>
   );
 };

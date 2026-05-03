@@ -26,6 +26,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@ichor/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
       '@tanstack/react-query':
         specifier: 5.100.8
         version: 5.100.8(react@19.0.0)

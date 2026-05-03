@@ -1,68 +1,155 @@
 # Ichor ML model registry
 # Versioned source of truth for ALL models running in production.
 # Each entry must have a corresponding model card under model_cards/.
+#
+# Status taxonomy:
+#   planned    — design-doc only, no code, no weights
+#   scaffolded — code exists, lazy-loads or trains on demand, no validation yet
+#   trained    — fitted on real Ichor data, has cross-val Brier on hold-out
+#   live       — integrated into bias_aggregator with current weight > 0
+#   deprecated — kept in registry for reproducibility, weight = 0
 
-version: "1.0.0"
-last_updated: "2026-05-02"
+version: "1.1.0"
+last_updated: "2026-05-03"
 
 models:
-  - id: lightgbm-bias-eurusd-1h-v0
-    family: lightgbm
-    asset: EUR_USD
-    horizon_hours: 1
-    status: planned  # not yet trained
-    target_phase: "Phase 0 W2 step 12"
-    expected_brier: 0.20
-
+  # ──────────────────── Regime + drift ────────────────────
   - id: hmm-regime-3state-v0
     family: hmm
     asset: "*"
     horizon_hours: 24
-    status: scaffolded  # code exists, not yet trained on real data
+    status: scaffolded
     impl: packages/ml/src/ichor_ml/regime/hmm.py
+    model_card: packages/ml/model_cards/hmm-regime-3state-v0.md
+    intended_use: "Regime detection across all FX/commodity assets — drives weight downscaling on out-of-regime models"
 
+  - id: adwin-concept-drift-v0
+    family: adwin
+    asset: "*"
+    horizon_hours: 24
+    status: scaffolded
+    impl: packages/ml/src/ichor_ml/regime/concept_drift.py
+    model_card: packages/ml/model_cards/adwin-concept-drift-v0.md
+    intended_use: "Online concept-drift detector on rolling Brier — triggers RUNBOOK-007 retraining"
+
+  # ──────────────────── Volatility ────────────────────
   - id: har-rv-eurusd-v0
     family: har_rv
     asset: EUR_USD
-    horizon_hours: 24  # 1d-ahead realized vol
+    horizon_hours: 24
     status: scaffolded
     impl: packages/ml/src/ichor_ml/vol/har_rv.py
+    model_card: packages/ml/model_cards/har-rv-v0.md
     reference: "Corsi 2009, JFE 7(2):174-196"
+    intended_use: "1d-ahead realized vol forecast, used as conditioning variable in Bias Aggregator"
 
+  - id: sabr-svi-eurusd-v0
+    family: sabr_svi
+    asset: EUR_USD
+    horizon_hours: 24
+    status: scaffolded
+    impl: packages/ml/src/ichor_ml/vol/sabr_svi.py
+    model_card: packages/ml/model_cards/sabr-svi-v0.md
+    reference: "Hagan-Kumar-Lesniewski-Woodward 2002 + Gatheral-Jacquier 2014"
+    intended_use: "Implied-vol surface fit for skew-aware risk-reversal alerts (Phase 1+)"
+
+  # ──────────────────── Microstructure ────────────────────
   - id: vpin-eurusd-v0
     family: vpin
     asset: EUR_USD
     horizon_hours: 1
     status: scaffolded
     impl: packages/ml/src/ichor_ml/microstructure/vpin.py
+    model_card: packages/ml/model_cards/vpin-v0.md
     reference: "Easley-LdP-O'Hara 2012, RFS 25(5):1457-1493"
+    intended_use: "Order-flow toxicity proxy — drives PLAN_VPIN_SPIKE alert"
 
+  # ──────────────────── Analogues ────────────────────
+  - id: dtw-analogues-v0
+    family: dtw
+    asset: "*"
+    horizon_hours: 168
+    status: scaffolded
+    impl: packages/ml/src/ichor_ml/analogues/dtw.py
+    model_card: packages/ml/model_cards/dtw-analogues-v0.md
+    reference: "Sakoe-Chiba 1978, Berndt-Clifford 1994"
+    intended_use: "Find historical analogues in 7d windows to anchor narrative briefings"
+
+  # ──────────────────── NLP ────────────────────
   - id: finbert-tone-news-v0
     family: finbert_tone
     asset: "*"
     horizon_hours: 1
-    status: scaffolded  # wrapper exists, weights downloaded on first call
+    status: scaffolded
     impl: packages/ml/src/ichor_ml/nlp/finbert_tone.py
+    model_card: packages/ml/model_cards/finbert-tone-v0.md
     upstream_model: yiyanghkust/finbert-tone
-    license: MIT
+    license: Apache-2.0
+    intended_use: "Per-headline tone classification feeding NEWS_REGIME_SHIFT trigger"
 
-  # ---- Models still to scaffold (Phase 0 W2) ----
-  - id: xgboost-bias-eurusd-1h-v0
-    family: xgboost
-    status: planned
-  - id: random-forest-bias-eurusd-1h-v0
-    family: random_forest
-    status: planned
-  - id: logistic-bias-eurusd-1h-v0
-    family: logistic_reg
-    status: planned
-  - id: bayesian-numpyro-bias-eurusd-1h-v0
-    family: bayesian_numpyro
-    status: planned
-  - id: mlp-torch-bias-eurusd-1h-v0
-    family: mlp_torch
-    status: planned
   - id: fomc-roberta-v0
     family: fomc_roberta
+    asset: "*"
+    horizon_hours: 24
+    status: scaffolded  # promoted from `planned` 2026-05-03
+    impl: packages/ml/src/ichor_ml/nlp/fomc_roberta.py
+    model_card: packages/ml/model_cards/fomc-roberta-v0.md
+    upstream_model: gtfintechlab/fomc-roberta-large
+    license: "see HuggingFace model page"
+    intended_use: "FOMC statement / minutes hawkish-dovish scoring — drives Fed-tone bias signal"
+
+  # ──────────────────── Bias predictors per asset ────────────────────
+  # Phase 0 W2 step 12 — these all need real OANDA M1 OHLCV data first.
+  - id: lightgbm-bias-eurusd-1h-v0
+    family: lightgbm
+    asset: EUR_USD
+    horizon_hours: 1
     status: planned
-    upstream_model: gtfintechlab/fomc-roberta
+    target_phase: "Phase 0 W2 step 12"
+    expected_brier: 0.20
+    model_card: packages/ml/model_cards/lightgbm-bias-v0.md
+
+  - id: xgboost-bias-eurusd-1h-v0
+    family: xgboost
+    asset: EUR_USD
+    horizon_hours: 1
+    status: planned
+    target_phase: "Phase 0 W2 step 12"
+    expected_brier: 0.20
+    model_card: packages/ml/model_cards/xgboost-bias-v0.md
+
+  - id: random-forest-bias-eurusd-1h-v0
+    family: random_forest
+    asset: EUR_USD
+    horizon_hours: 1
+    status: planned
+    target_phase: "Phase 0 W2 step 12"
+    expected_brier: 0.21
+    model_card: packages/ml/model_cards/random-forest-bias-v0.md
+
+  - id: logistic-bias-eurusd-1h-v0
+    family: logistic_reg
+    asset: EUR_USD
+    horizon_hours: 1
+    status: planned
+    target_phase: "Phase 0 W2 step 12"
+    expected_brier: 0.22
+    model_card: packages/ml/model_cards/logistic-bias-v0.md
+
+  - id: bayesian-numpyro-bias-eurusd-1h-v0
+    family: bayesian_numpyro
+    asset: EUR_USD
+    horizon_hours: 1
+    status: planned
+    target_phase: "Phase 1"
+    expected_brier: 0.20
+    model_card: packages/ml/model_cards/bayesian-numpyro-bias-v0.md
+
+  - id: mlp-torch-bias-eurusd-1h-v0
+    family: mlp_torch
+    asset: EUR_USD
+    horizon_hours: 1
+    status: planned
+    target_phase: "Phase 1"
+    expected_brier: 0.21
+    model_card: packages/ml/model_cards/mlp-torch-bias-v0.md

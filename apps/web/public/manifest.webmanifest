@@ -1,0 +1,21 @@
+{
+  "name": "Ichor",
+  "short_name": "Ichor",
+  "description": "Autonomous market intelligence — Phase 0",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0a0a0b",
+  "theme_color": "#0a0a0b",
+  "lang": "fr",
+  "categories": ["finance", "news", "productivity"],
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "any maskable"
+    }
+  ]
+}

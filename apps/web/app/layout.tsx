@@ -1,11 +1,30 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
+import Link from "next/link";
+import { DisclaimerBanner } from "@ichor/ui";
+import { ServiceWorkerRegister } from "./service-worker-register";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Ichor",
+  title: { default: "Ichor", template: "%s · Ichor" },
   description: "Autonomous market intelligence — Phase 0",
+  applicationName: "Ichor",
   robots: { index: false, follow: false }, // pre-launch: keep out of search engines
+  manifest: "/manifest.webmanifest",
 };
+
+export const viewport: Viewport = {
+  themeColor: "#0a0a0b",
+  colorScheme: "dark",
+  width: "device-width",
+  initialScale: 1,
+};
+
+const NAV: { href: string; label: string }[] = [
+  { href: "/", label: "Aujourd'hui" },
+  { href: "/briefings", label: "Briefings" },
+  { href: "/assets", label: "Actifs" },
+  { href: "/alerts", label: "Alertes" },
+];
 
 export default function RootLayout({
   children,
@@ -14,8 +33,46 @@ export default function RootLayout({
 }) {
   return (
     <html lang="fr">
-      <body className="bg-neutral-950 text-neutral-100 antialiased">
-        {children}
+      <body className="bg-neutral-950 text-neutral-100 antialiased min-h-screen flex flex-col">
+        <ServiceWorkerRegister />
+        <DisclaimerBanner compact />
+
+        <header className="border-b border-neutral-800 bg-neutral-950/80 backdrop-blur sticky top-0 z-10">
+          <nav
+            className="max-w-6xl mx-auto px-4 py-3 flex items-center gap-6"
+            aria-label="Navigation principale"
+          >
+            <Link
+              href="/"
+              className="text-base font-semibold tracking-tight text-neutral-100 hover:text-emerald-300 transition"
+            >
+              Ichor
+            </Link>
+            <ul className="flex items-center gap-4 text-sm text-neutral-400">
+              {NAV.map((item) => (
+                <li key={item.href}>
+                  <Link
+                    href={item.href}
+                    className="hover:text-neutral-100 transition"
+                  >
+                    {item.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+            <span className="ml-auto text-[11px] text-neutral-600 font-mono">
+              Phase 0
+            </span>
+          </nav>
+        </header>
+
+        <div className="flex-1">{children}</div>
+
+        <footer className="border-t border-neutral-800 bg-neutral-950/80">
+          <div className="max-w-6xl mx-auto px-4 py-4">
+            <DisclaimerBanner />
+          </div>
+        </footer>
       </body>
     </html>
   );

@@ -7,9 +7,7 @@ const nextConfig: NextConfig = {
   //   - Cloudflare Pages (Phase 0/1) builds Next.js natively via Pages Functions
   //   - On Win11 dev, "standalone" requires symlink perms (admin) which we lack.
   //     Enable later if/when we add a Docker-based deploy target.
-  experimental: {
-    typedRoutes: true,
-  },
+  typedRoutes: true,
 };
 
 export default nextConfig;

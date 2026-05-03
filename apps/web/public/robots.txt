@@ -1,0 +1,3 @@
+# Phase 0 — keep Ichor out of search engines until persona/legal review.
+User-agent: *
+Disallow: /
