@@ -17,6 +17,7 @@ from .routers import (
     bias_signals_router,
     briefings_router,
     calibration_router,
+    counterfactual_router,
     geopolitics_router,
     graph_router,
     market_router,
@@ -88,6 +89,7 @@ app.include_router(calibration_router)
 app.include_router(narratives_router)
 app.include_router(graph_router)
 app.include_router(geopolitics_router)
+app.include_router(counterfactual_router)
 app.include_router(ws_router)
 
 

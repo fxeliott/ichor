@@ -10,6 +10,7 @@ import {
 } from "../../../lib/api";
 import { findAsset, isValidAssetCode } from "../../../lib/assets";
 import { LiveChartCard } from "../../../components/live-chart-card";
+import { CounterfactualButton } from "../../../components/counterfactual-button";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 30;
@@ -76,13 +77,18 @@ export default async function AssetSessionsPage({
             {total} carte(s) historiques · pipeline 4-pass
           </p>
         </div>
-        <Link
-          href={`/replay/${asset}`}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded border border-neutral-700 bg-neutral-900/60 text-sm text-neutral-200 hover:border-emerald-600 hover:text-emerald-200 transition"
-        >
-          <span aria-hidden="true">▶</span>
-          <span>Replay temporel</span>
-        </Link>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Link
+            href={`/replay/${asset}`}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded border border-neutral-700 bg-neutral-900/60 text-sm text-neutral-200 hover:border-emerald-600 hover:text-emerald-200 transition"
+          >
+            <span aria-hidden="true">▶</span>
+            <span>Replay temporel</span>
+          </Link>
+          {latest && (
+            <CounterfactualButton cardId={latest.id} asset={asset} />
+          )}
+        </div>
       </header>
 
       {error ? (
