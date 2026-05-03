@@ -218,3 +218,75 @@ export const signedCredibleInterval = (
   const hi = (s.credible_interval_high - 0.5) * 2 * sign;
   return sign > 0 ? { low: lo, high: hi } : { low: hi, high: lo };
 };
+
+// ─────────────────────────── market data ───────────────────────────
+
+export interface MarketBar {
+  bar_date: string;
+  asset: string;
+  source: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number | null;
+}
+
+export const assetMarketHistory = (
+  asset: string,
+  days = 180,
+): Promise<MarketBar[]> =>
+  get<MarketBar[]>(
+    `/v1/market/${encodeURIComponent(asset)}?days=${days}`,
+    60,
+  );
+
+// ─────────────────────────── predictions ───────────────────────────
+
+export interface PredictionRow {
+  id: string;
+  generated_at: string;
+  model_id: string;
+  model_family: string;
+  asset: string;
+  horizon_hours: number;
+  direction: "long" | "short" | "neutral";
+  raw_score: number;
+  calibrated_probability: number | null;
+  realized_direction: string | null;
+  brier_contribution: number | null;
+}
+
+export interface ModelSummary {
+  model_id: string;
+  n_predictions: number;
+  earliest: string | null;
+  latest: string | null;
+  asset: string | null;
+  avg_brier: number | null;
+}
+
+export interface ListPredictionsParams {
+  asset?: string;
+  modelId?: string;
+  sinceDays?: number;
+  limit?: number;
+}
+
+export const listPredictions = (
+  params: ListPredictionsParams = {},
+): Promise<PredictionRow[]> => {
+  const q = new URLSearchParams();
+  if (params.asset) q.set("asset", params.asset);
+  if (params.modelId) q.set("model_id", params.modelId);
+  if (params.sinceDays) q.set("since_days", String(params.sinceDays));
+  if (params.limit) q.set("limit", String(params.limit));
+  const qs = q.toString();
+  return get<PredictionRow[]>(
+    `/v1/predictions${qs ? `?${qs}` : ""}`,
+    60,
+  );
+};
+
+export const listModels = (): Promise<ModelSummary[]> =>
+  get<ModelSummary[]>(`/v1/predictions/models`, 60);

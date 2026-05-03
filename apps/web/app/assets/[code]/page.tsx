@@ -12,14 +12,18 @@ import {
 } from "@ichor/ui";
 import {
   ApiError,
+  assetMarketHistory,
   biasSignalHistory,
   listAlerts,
   listBriefings,
+  listPredictions,
   signedBias,
   signedCredibleInterval,
   type Alert,
   type BiasSignal,
   type Briefing,
+  type MarketBar,
+  type PredictionRow,
 } from "../../../lib/api";
 import { findAsset, type AssetMeta } from "../../../lib/assets";
 
@@ -41,17 +45,28 @@ interface AssetDetail {
   signals: BiasSignal[];
   alerts: Alert[];
   briefings: Briefing[];
+  bars: MarketBar[];
+  predictions: PredictionRow[];
   error?: string;
 }
 
 async function loadAssetDetail(meta: AssetMeta): Promise<AssetDetail> {
   try {
-    const [signals, alerts, briefingList] = await Promise.all([
+    const [signals, alerts, briefingList, bars, predictions] = await Promise.all([
       biasSignalHistory(meta.code, 24, 200),
       listAlerts({ asset: meta.code, limit: 50 }),
       listBriefings({ asset: meta.code, limit: 10 }),
+      assetMarketHistory(meta.code, 365),
+      listPredictions({ asset: meta.code, sinceDays: 365, limit: 365 }),
     ]);
-    return { meta, signals, alerts, briefings: briefingList.items };
+    return {
+      meta,
+      signals,
+      alerts,
+      briefings: briefingList.items,
+      bars,
+      predictions,
+    };
   } catch (err) {
     const reason =
       err instanceof ApiError
@@ -59,7 +74,11 @@ async function loadAssetDetail(meta: AssetMeta): Promise<AssetDetail> {
         : err instanceof Error
           ? err.message
           : "unknown error";
-    return { meta, signals: [], alerts: [], briefings: [], error: reason };
+    return {
+      meta, signals: [], alerts: [], briefings: [],
+      bars: [], predictions: [],
+      error: reason,
+    };
   }
 }
 
@@ -179,6 +198,78 @@ export default async function AssetDetailPage({ params }: PageProps) {
           </p>
         )}
       </section>
+
+      {detail.bars.length >= 2 && (
+        <section aria-labelledby="market-section">
+          <h2
+            id="market-section"
+            className="text-sm font-medium text-neutral-200 mb-3"
+          >
+            Prix daily — dernière année
+          </h2>
+          <ChartCard
+            title={`${meta.display} close`}
+            caption={`${detail.bars.length} bars · src ${detail.bars[detail.bars.length - 1]!.source}`}
+            data={detail.bars.map((b) => b.close)}
+            width={720}
+            height={140}
+            stroke="rgb(56 189 248)"
+            lastLabel={detail.bars[detail.bars.length - 1]!.close.toFixed(meta.precision)}
+          />
+          <p className="mt-2 text-[11px] text-neutral-500">
+            Source : {detail.bars[detail.bars.length - 1]!.source}. Données
+            free-tier (yfinance) — non destinées au trading exécuté en
+            l'état. Phase 1+ : OANDA M1 pour intraday.
+          </p>
+        </section>
+      )}
+
+      {detail.predictions.length > 0 && (
+        <section aria-labelledby="predictions-section">
+          <h2
+            id="predictions-section"
+            className="text-sm font-medium text-neutral-200 mb-3"
+          >
+            Predictions historiques (paper, audit only)
+          </h2>
+          <div className="rounded-lg border border-neutral-800 bg-neutral-900/30 p-3">
+            <p className="text-xs text-neutral-400 mb-2">
+              {detail.predictions.length} prédictions en base, modèle{" "}
+              <code className="px-1 rounded bg-neutral-800 text-emerald-200">
+                {detail.predictions[0]!.model_id}
+              </code>
+              . Hit rate + Brier consultable via{" "}
+              <code className="px-1 rounded bg-neutral-800 text-neutral-200">
+                /v1/predictions/models
+              </code>
+              .
+            </p>
+            <ul className="grid grid-cols-2 gap-1 text-[11px] font-mono text-neutral-300">
+              {detail.predictions.slice(0, 12).map((p) => (
+                <li key={p.id} className="flex items-center gap-2">
+                  <span className="text-neutral-500">
+                    {new Date(p.generated_at).toISOString().slice(0, 10)}
+                  </span>
+                  <span
+                    className={
+                      p.direction === "long"
+                        ? "text-emerald-300"
+                        : p.direction === "short"
+                          ? "text-red-300"
+                          : "text-neutral-400"
+                    }
+                  >
+                    {p.direction}
+                  </span>
+                  <span className="ml-auto">
+                    p={(p.calibrated_probability ?? p.raw_score).toFixed(3)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
+      )}
 
       {probSeries.length >= 2 && (
         <section aria-labelledby="history-section">

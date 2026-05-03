@@ -26,6 +26,7 @@ const NAV: { href: string; label: string }[] = [
   { href: "/assets", label: "Actifs" },
   { href: "/alerts", label: "Alertes" },
   { href: "/news", label: "News" },
+  { href: "/portfolio", label: "Portfolio" },
 ];
 
 export default function RootLayout({
