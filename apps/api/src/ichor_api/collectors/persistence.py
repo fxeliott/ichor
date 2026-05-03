@@ -13,12 +13,16 @@ import structlog
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from datetime import date as date_type
+
 from ..models import (
+    FredObservation,
     MarketDataBar,
     NewsItem,
     PolygonIntradayBar,
     PolymarketSnapshot,
 )
+from .fred import FredObservation as FredObservationData
 from .market_data import MarketDataPoint
 from .polygon import PolygonBar
 from .polymarket import PolymarketSnapshot as PolymarketSnapshotData
@@ -188,6 +192,73 @@ async def persist_market_data(
         skipped=total_skipped,
     )
     return total_inserted
+
+
+async def persist_fred_observations(
+    session: AsyncSession, obs: Iterable[FredObservationData]
+) -> int:
+    """Insert FRED observations, skipping (series_id, observation_date)
+    pairs already in the table.
+
+    The collector emits dataclasses with `observation_date: str` (ISO
+    "YYYY-MM-DD") — we parse to date here for the DB column.
+    """
+    obs = list(obs)
+    if not obs:
+        return 0
+
+    # Build the (series_id, parsed_date) set we'll need to check for dupes
+    parsed: list[tuple[FredObservationData, date_type]] = []
+    series_ids: set[str] = set()
+    dates: set[date_type] = set()
+    for o in obs:
+        try:
+            d = date_type.fromisoformat(o.observation_date)
+        except (TypeError, ValueError):
+            log.warning("fred.skip_bad_date", series=o.series_id, date=o.observation_date)
+            continue
+        parsed.append((o, d))
+        series_ids.add(o.series_id)
+        dates.add(d)
+
+    if not parsed:
+        return 0
+
+    existing_rows = (
+        await session.execute(
+            select(FredObservation.series_id, FredObservation.observation_date).where(
+                FredObservation.series_id.in_(series_ids),
+                FredObservation.observation_date.in_(dates),
+            )
+        )
+    ).all()
+    existing: set[tuple[str, date_type]] = {(r[0], r[1]) for r in existing_rows}
+
+    now = datetime.now(timezone.utc)
+    inserted = 0
+    for o, d in parsed:
+        if (o.series_id, d) in existing:
+            continue
+        session.add(
+            FredObservation(
+                observation_date=d,
+                created_at=now,
+                series_id=o.series_id,
+                value=o.value,
+                fetched_at=o.fetched_at,
+            )
+        )
+        inserted += 1
+
+    if inserted:
+        await session.commit()
+    log.info(
+        "fred.persisted",
+        total=len(obs),
+        inserted=inserted,
+        skipped=len(obs) - inserted,
+    )
+    return inserted
 
 
 async def persist_polygon_bars(

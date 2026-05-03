@@ -67,16 +67,19 @@ _RATE_DIFF_PAIRS: dict[str, tuple[str, str]] = {
     "USD_CAD": ("IRLTLT01CAM156N", "CA10Y"),
 }
 
-# COT market codes per Phase-1 asset (CFTC Disaggregated Futures Only).
+# COT CFTC market codes per Phase-1 asset (Disaggregated Futures Only).
+# Codes mirror collectors/cot.py:MARKET_CODE_TO_ASSET — the canonical
+# CFTC numeric identifiers, not the human-friendly 2-letter shorthands.
 _COT_MARKET_BY_ASSET: dict[str, str] = {
-    "EUR_USD": "EU",
-    "GBP_USD": "BP",
-    "USD_JPY": "JY",
-    "AUD_USD": "AD",
-    "USD_CAD": "CD",
-    "XAU_USD": "GC",
-    "NAS100_USD": "NQ",
-    "SPX500_USD": "ES",
+    "EUR_USD": "099741",   # EURO FX
+    "GBP_USD": "096742",   # BRITISH POUND STERLING
+    "USD_JPY": "097741",   # JAPANESE YEN (reverse polarity for USD/JPY)
+    "AUD_USD": "232741",   # AUSTRALIAN DOLLAR
+    "USD_CAD": "090741",   # CANADIAN DOLLAR (reverse polarity)
+    "XAU_USD": "088691",   # GOLD
+    "NAS100_USD": "209742",  # E-MINI NASDAQ-100
+    # SPX500 E-Mini code not in collectors/cot.py yet — when added there,
+    # mirror it here so the COT section auto-fills.
 }
 
 # Polygon ticker per asset (mirrors collectors/polygon.py).

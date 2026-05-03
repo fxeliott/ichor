@@ -21,6 +21,8 @@ from datetime import date, timedelta
 
 import httpx
 
+from ..collectors.fred import poll_all as poll_fred
+from ..collectors.fred_extended import merged_series as fred_merged_series
 from ..collectors.market_data import poll_all as poll_market_data
 from ..collectors.polygon import fetch_aggs, supported_assets as polygon_assets
 from ..collectors.polymarket import poll_all as poll_polymarket
@@ -90,6 +92,47 @@ async def _run_market_data(*, persist: bool) -> int:
     return 0 if total else 1
 
 
+async def _run_fred(*, persist: bool, extended: bool = True) -> int:
+    """Pull FRED observations (latest per series) and optionally persist.
+
+    `extended=True` polls the full set defined by `fred.SERIES_TO_POLL`
+    + `fred_extended.EXTENDED_SERIES_TO_POLL` deduped (~40 series). The
+    macro trinity (DXY broad, US10Y, VIX) and dollar smile inputs
+    (DFII10, HY OAS, IG OAS) are guaranteed to land in this set, which
+    is what `services/data_pool.py` queries for Pass 1 régime.
+    """
+    settings = get_settings()
+    if not settings.fred_api_key:
+        print(
+            "FRED · ICHOR_API_FRED_API_KEY is empty — skipping. "
+            "Set it in /etc/ichor/api.env to enable.",
+            file=sys.stderr,
+        )
+        return 0
+
+    series = fred_merged_series() if extended else None
+    obs = (
+        await poll_fred(settings.fred_api_key, series=series)
+        if series is not None
+        else await poll_fred(settings.fred_api_key)
+    )
+    print(f"FRED · {len(obs)} series fetched")
+    for o in obs[:5]:
+        v = f"{o.value:.4f}" if o.value is not None else "n/a"
+        print(f"  [{o.series_id:18s}] {o.observation_date} = {v}")
+    if len(obs) > 5:
+        print(f"  ... and {len(obs) - 5} more")
+
+    if persist:
+        from ..collectors.persistence import persist_fred_observations
+
+        sm = get_sessionmaker()
+        async with sm() as session:
+            inserted = await persist_fred_observations(session, obs)
+        print(f"FRED · persisted {inserted} new rows ({len(obs) - inserted} dedup)")
+    return 0 if obs else 1
+
+
 async def _run_polygon(*, persist: bool, lookback_days: int = 1) -> int:
     settings = get_settings()
     if not settings.polygon_api_key:
@@ -143,6 +186,8 @@ async def _main(target: str, *, persist: bool) -> int:
             return await _run_market_data(persist=persist)
         if target == "polygon":
             return await _run_polygon(persist=persist)
+        if target == "fred":
+            return await _run_fred(persist=persist)
         if target == "all":
             rc1 = await _run_rss(persist=persist)
             print()
@@ -151,10 +196,12 @@ async def _main(target: str, *, persist: bool) -> int:
             rc3 = await _run_market_data(persist=persist)
             print()
             rc4 = await _run_polygon(persist=persist)
-            return rc1 | rc2 | rc3 | rc4
+            print()
+            rc5 = await _run_fred(persist=persist)
+            return rc1 | rc2 | rc3 | rc4 | rc5
         print(
             f"unknown target: {target!r} "
-            "(expected: rss | polymarket | market_data | polygon | all)",
+            "(expected: rss | polymarket | market_data | polygon | fred | all)",
             file=sys.stderr,
         )
         return 2
