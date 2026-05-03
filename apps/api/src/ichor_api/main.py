@@ -16,6 +16,7 @@ from .routers import (
     alerts_router,
     bias_signals_router,
     briefings_router,
+    calibration_router,
     market_router,
     news_router,
     predictions_router,
@@ -80,6 +81,7 @@ app.include_router(news_router)
 app.include_router(market_router)
 app.include_router(predictions_router)
 app.include_router(sessions_router)
+app.include_router(calibration_router)
 app.include_router(ws_router)
 
 
