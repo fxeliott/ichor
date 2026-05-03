@@ -8,6 +8,8 @@ from .alerts import router as alerts_router
 from .bias_signals import router as bias_signals_router
 from .briefings import router as briefings_router
 from .calibration import router as calibration_router
+from .geopolitics import router as geopolitics_router
+from .graph import router as graph_router
 from .market import router as market_router
 from .narratives import router as narratives_router
 from .news import router as news_router
@@ -20,6 +22,8 @@ __all__ = [
     "bias_signals_router",
     "briefings_router",
     "calibration_router",
+    "geopolitics_router",
+    "graph_router",
     "market_router",
     "narratives_router",
     "news_router",
