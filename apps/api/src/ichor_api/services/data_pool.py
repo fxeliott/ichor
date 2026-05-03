@@ -42,6 +42,10 @@ from .funding_stress import (
     assess_funding_stress,
     render_funding_stress_block,
 )
+from .microstructure import (
+    assess_microstructure,
+    render_microstructure_block,
+)
 from .narrative_tracker import render_narrative_block, track_narratives
 
 
@@ -410,6 +414,14 @@ async def _section_cb_speeches(session: AsyncSession) -> tuple[str, list[str]]:
     return "\n".join(lines), sources
 
 
+async def _section_microstructure(
+    session: AsyncSession, asset: str
+) -> tuple[str, list[str]]:
+    """## Microstructure — Amihud / Kyle / RV / VWAP / value-area."""
+    reading = await assess_microstructure(session, asset, window_minutes=240)
+    return render_microstructure_block(reading)
+
+
 async def _section_funding_stress(session: AsyncSession) -> tuple[str, list[str]]:
     """## Funding stress — SOFR-IORB / SOFR-EFFR / RRP / HY OAS composite."""
     reading = await assess_funding_stress(session)
@@ -497,6 +509,9 @@ async def build_data_pool(session: AsyncSession, asset: str) -> DataPool:
 
     poly_md, poly_src = await _section_polygon_intraday(session, asset)
     sections.append(("polygon_intraday", poly_md, poly_src))
+
+    micro_md, micro_src = await _section_microstructure(session, asset)
+    sections.append(("microstructure", micro_md, micro_src))
 
     cot_md, cot_src = await _section_cot(session, asset)
     if cot_md:
