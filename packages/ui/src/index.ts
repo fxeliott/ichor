@@ -44,4 +44,13 @@ export type {
   TimelineMarkerKind,
 } from "./components/TimelineMarker";
 
+export { SessionCard } from "./components/SessionCard";
+export type {
+  SessionCardProps,
+  SessionType,
+  BiasDirection,
+  CriticVerdict,
+  RegimeQuadrant,
+} from "./components/SessionCard";
+
 export const VERSION = "0.0.0";

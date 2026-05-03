@@ -10,6 +10,7 @@ from .briefings import router as briefings_router
 from .market import router as market_router
 from .news import router as news_router
 from .predictions import router as predictions_router
+from .sessions import router as sessions_router
 from .ws import router as ws_router
 
 __all__ = [
@@ -19,5 +20,6 @@ __all__ = [
     "market_router",
     "news_router",
     "predictions_router",
+    "sessions_router",
     "ws_router",
 ]

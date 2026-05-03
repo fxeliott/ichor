@@ -97,11 +97,11 @@ Hetzner with the real Critic, 29/30 standalone.
 
 | # | Item | Status |
 |---|------|--------|
-| 1.0.47 | `/sessions` page (8 cards grid) | ⬜ |
-| 1.0.48 | `/sessions/[asset]` detail page (drill-down) | ⬜ |
-| 1.0.49 | `<SessionCard>` component | ⬜ |
-| 1.0.50 | Sources cliquables + cas comparables | ⬜ |
-| 1.0.51 | WebSocket live updates | ⬜ |
+| 1.0.47 | `/sessions` page (8 cards grid) | 🟢 |
+| 1.0.48 | `/sessions/[asset]` detail page (drill-down) | 🟢 |
+| 1.0.49 | `<SessionCard>` component (`packages/ui/src/components/SessionCard.tsx`) | 🟢 |
+| 1.0.50 | Sources cliquables + cas comparables | 🟡 sources rendered inline; cas comparables pending CHUNK 7 |
+| 1.0.51 | WebSocket live updates | ⬜ deferred to CHUNK 7 (server revalidate=30s for now) |
 
 ### CHUNK 6 — Polygon Starter integration (8 assets intraday)
 

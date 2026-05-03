@@ -74,6 +74,45 @@ class CollectorLag(BaseModel):
     minutes_stale: float | None
 
 
+class SessionCardOut(BaseModel):
+    """One row of `session_card_audit` projected for the dashboard."""
+
+    id: UUID
+    generated_at: datetime
+    session_type: Literal["pre_londres", "pre_ny", "event_driven"]
+    asset: str
+    model_id: str
+    regime_quadrant: str | None
+    bias_direction: Literal["long", "short", "neutral"]
+    conviction_pct: float
+    magnitude_pips_low: float | None
+    magnitude_pips_high: float | None
+    timing_window_start: datetime | None
+    timing_window_end: datetime | None
+    mechanisms: Any | None = None
+    invalidations: Any | None = None
+    catalysts: Any | None = None
+    correlations_snapshot: Any | None = None
+    polymarket_overlay: Any | None = None
+    source_pool_hash: str
+    critic_verdict: str | None
+    critic_findings: Any | None = None
+    claude_duration_ms: int | None
+    realized_close_session: float | None
+    realized_at: datetime | None
+    brier_contribution: float | None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class SessionCardListOut(BaseModel):
+    """Latest card per asset, ordered by generated_at DESC."""
+
+    total: int
+    items: list[SessionCardOut]
+
+
 class HealthDetailedOut(HealthOut):
     """Extended /healthz/detailed — used by Grafana + RUNBOOK-011."""
 

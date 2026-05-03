@@ -291,32 +291,75 @@ export const listPredictions = (
 export const listModels = (): Promise<ModelSummary[]> =>
   get<ModelSummary[]>(`/v1/predictions/models`, 60);
 
-// ─────────────────────────── backtests ───────────────────────────
+// ─────────────────────────── sessions (Phase 1) ───────────────────────────
 
-export interface BacktestRun {
+export type SessionType = "pre_londres" | "pre_ny" | "event_driven";
+export type BiasDirection = "long" | "short" | "neutral";
+export type CriticVerdict = "approved" | "amendments" | "blocked";
+export type RegimeQuadrant =
+  | "haven_bid"
+  | "funding_stress"
+  | "goldilocks"
+  | "usd_complacency";
+
+export interface SessionCard {
   id: string;
-  created_at: string;
-  model_id: string;
+  generated_at: string;
+  session_type: SessionType;
   asset: string;
-  started_at: string;
-  finished_at: string;
-  config: Record<string, unknown>;
-  metrics: Record<string, number>;
-  n_folds: number;
-  n_signals: number;
-  n_trades: number;
-  equity_curve_summary: { date: string; equity: number }[] | null;
-  notes: string[] | null;
-  paper_only: boolean;
+  model_id: string;
+  regime_quadrant: RegimeQuadrant | null;
+  bias_direction: BiasDirection;
+  conviction_pct: number;
+  magnitude_pips_low: number | null;
+  magnitude_pips_high: number | null;
+  timing_window_start: string | null;
+  timing_window_end: string | null;
+  mechanisms: { claim?: string; sources?: string[] }[] | null;
+  invalidations:
+    | { condition?: string; threshold?: string | number; source?: string }[]
+    | null;
+  catalysts:
+    | { time?: string; event?: string; expected_impact?: string }[]
+    | null;
+  correlations_snapshot: Record<string, number> | null;
+  polymarket_overlay:
+    | {
+        market?: string;
+        yes_price?: number;
+        divergence_vs_consensus?: number;
+      }[]
+    | null;
+  source_pool_hash: string;
+  critic_verdict: CriticVerdict | null;
+  critic_findings: { sentence?: string; reason?: string; severity?: string }[] | null;
+  claude_duration_ms: number | null;
+  realized_close_session: number | null;
+  realized_at: string | null;
+  brier_contribution: number | null;
+  created_at: string;
 }
 
-export const listBacktests = (
-  params: { asset?: string; modelId?: string; limit?: number } = {},
-): Promise<BacktestRun[]> => {
+export interface SessionCardList {
+  total: number;
+  items: SessionCard[];
+}
+
+export const listLatestSessions = (
+  sessionType?: SessionType,
+  limit = 8,
+): Promise<SessionCardList> => {
   const q = new URLSearchParams();
-  if (params.asset) q.set("asset", params.asset);
-  if (params.modelId) q.set("model_id", params.modelId);
-  if (params.limit) q.set("limit", String(params.limit));
-  const qs = q.toString();
-  return get<BacktestRun[]>(`/v1/backtests${qs ? `?${qs}` : ""}`, 60);
+  if (sessionType) q.set("session_type", sessionType);
+  q.set("limit", String(limit));
+  return get<SessionCardList>(`/v1/sessions?${q.toString()}`, 30);
 };
+
+export const listSessionsForAsset = (
+  asset: string,
+  limit = 20,
+): Promise<SessionCardList> =>
+  get<SessionCardList>(
+    `/v1/sessions/${encodeURIComponent(asset)}?limit=${limit}`,
+    30,
+  );

@@ -19,6 +19,7 @@ from .routers import (
     market_router,
     news_router,
     predictions_router,
+    sessions_router,
     ws_router,
 )
 from .schemas import CollectorLag, HealthDetailedOut, HealthOut
@@ -78,6 +79,7 @@ app.include_router(bias_signals_router)
 app.include_router(news_router)
 app.include_router(market_router)
 app.include_router(predictions_router)
+app.include_router(sessions_router)
 app.include_router(ws_router)
 
 
