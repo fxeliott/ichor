@@ -224,6 +224,108 @@ sudo -u postgres bash -c "set -a; source /etc/wal-g.env; set +a; wal-g backup-li
   encryption config + defensive whitelist
 - `infra/ansible/site.yml` — playbook orchestrating 12 roles
 
+## Continuation plan — 2026-05-03 evening
+
+> Plan written before any new code lands, per the user's process rules.
+> Will be ticked off chunk-by-chunk with checkpoint commits + ADRs.
+
+### Phase 0 — what's TRULY remaining (after re-eval)
+
+Most remaining items are Eliot-manual blockers (FRED key, Cerebras/Groq keys,
+Azure key, register-user-tasks, Cloudflare Access enable, GitHub
+HETZNER_SSH_PRIVATE_KEY secret) — all documented in
+[the manual guide](#manual-guide-2026-05-03). The autonomous-side closeouts :
+
+| # | Item | Effort | Notes |
+|---|------|--------|-------|
+| #25 | Cloudflare Pages deploy config | S | Wrangler + GHA workflow scaffold (deploy itself blocked on Eliot login) |
+| #26 | VAPID push server scaffold | S | Migration + ORM + endpoint, keys/subscription needs Eliot |
+| #12 | First trained ML model end-to-end | M | Synthetic-data path so we don't depend on OANDA |
+
+### Phase 1 — chosen scope for this autonomous burst
+
+Per `docs/ICHOR_PLAN.md:372` and `docs/ARCHITECTURE_FINALE.md:105`, full Phase 1
+is a 16-22 week MVP on 5 core assets. **NOT shippable in one session.** What I
+will deliver instead is the **load-bearing foundation** that future Phase 1
+work can stand on, with **paper-only + kill switch** baked in from day 1 :
+
+1. **Backtest framework** (`packages/backtest/`) — walk-forward harness,
+   leakage guard, fee + slippage model, equity curve, max-DD, OOS split,
+   synthetic OHLCV generator (so backtests run without OANDA today). ADR.
+2. **Risk engine** (`packages/risk/`) — Kelly-fraction position sizing
+   with hard cap, per-trade stop, daily DD stop, kill switch (file flag
+   `/etc/ichor/KILL_SWITCH` + env var, trip = halt all order generation).
+   ADR + tests.
+3. **Paper trading layer** (`packages/trading/`) — Order/Position/Trade
+   dataclasses + paper-only Broker stub + P&L. PAPER stamped on every
+   public surface. Integration with risk engine.
+4. **First trained bias model end-to-end** — LightGBM on synthetic data,
+   prediction persisted to `predictions_audit`, walk-forward Brier
+   computed via the new framework. Proves the Phase 0 #12 path.
+5. **Push notifications scaffold** — `0003_push_subscriptions.py`
+   migration, `/v1/push/subscribe` endpoint, SW push handler verified
+   (no real VAPID keys yet — Phase 1 Eliot action).
+6. **CI extensions** — `pip-audit` per Python pkg, ANSIBLE-lint stricter
+   profile, frontend a11y check via `pnpm dlx @axe-core/cli` against the
+   built `out/`.
+7. **Observability** — extend Grafana dashboard with backtest metrics
+   panels (equity curve, rolling Sharpe, drawdown, hit rate).
+8. **RUNBOOK-012** — kill switch trip + recovery procedure.
+9. **ADR for paper-only-by-default** — escalation to live trading
+   requires explicit Eliot ack in-session.
+
+### Items explicitly out of scope this session
+
+- Real OANDA / Polygon / Alpaca live data (needs Eliot keys + license).
+- Real capital (paper-only by ADR contract).
+- Anything past Phase 1 (Phase 2-7 scope undefined per docs).
+- python-jose → PyJWT migration (mitigated, deferred).
+- MinIO / ClickHouse bumps (low risk + needs Eliot deploy).
+
+### Risks + mitigations
+
+| Risk | Mitigation in this plan |
+|---|---|
+| Voie D fragility (single Win11 PC) | No new dependency on Win11 process — all new code runs on Hetzner |
+| 6 unbuilt bias models | Ship ONE end-to-end first (LightGBM), prove the path, defer the rest |
+| Free tier limits (Cerebras 30 RPM, Groq 1000 RPD, Azure 5M chars/mo) | Not consumed by this plan — pure code + synthetic data |
+| n8n / Grafana / MinIO rot | n8n + Grafana already bumped commit e89d93a, deploy needs Eliot |
+| python-jose abandoned | RS256 pin shipped; full migration tracked Phase 1 |
+| Backtest-driven overconfidence | Hard rules: paper-only by default, kill switch tested, no alpha promises |
+| Data leakage in backtest harness | `LeakageGuard` class enforces feature_t ⊥ price_t, asserts at every fold boundary |
+
+### Chunks (1-2 h each, dependency-ordered)
+
+1. **Chunk 1** — Plan committed (this), Phase 0 minor closeouts (Cloudflare Pages
+   wrangler config + GHA workflow stub).
+2. **Chunk 2** — Backtest framework foundation (synthetic generator + walk-forward
+   harness + leakage guard + fee/slippage + equity calc + tests + ADR-012).
+3. **Chunk 3** — Risk engine + kill switch (Kelly cap + per-trade stop + daily DD
+   stop + tests + ADR-013 + RUNBOOK-012).
+4. **Chunk 4** — Paper trading layer (Order/Position/Trade + Broker + P&L +
+   tests + ADR-014).
+5. **Chunk 5** — First end-to-end backtest (LightGBM on synthetic +
+   predictions_audit population + Brier/Sharpe report + smoke test).
+6. **Chunk 6** — Push notifications scaffold (migration + endpoint + SW handler).
+7. **Chunk 7** — CI + observability extensions (pip-audit, axe-core,
+   Grafana backtest panels).
+8. **Chunk 8** — Final SESSION_HANDOFF refresh + commit + push + summary.
+
+After each chunk : tests + lint + git diff review + verifier subagent on
+non-trivial chunks + checkpoint update here + atomic commit.
+
+### Trading rules respected throughout
+
+- **Paper-only by default** (ADR-014).
+- **No real capital** anywhere in this work.
+- **Kill switch tested end-to-end** before any chunk that touches order
+  generation lands (Chunk 3).
+- **No alpha promises** — engineering robustness only (backtests, monitoring,
+  resilience).
+- **Backtests** : walk-forward, fees + slippage, leakage assertion, OOS split.
+- **Live trading** : forbidden in this session, escalation requires explicit
+  Eliot ack in-session.
+
 ## After /clear: how to resume
 
 Paste in new session :
