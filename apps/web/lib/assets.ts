@@ -24,8 +24,8 @@ export const ASSETS: readonly AssetMeta[] = [
   { code: "AUD_USD", display: "AUD/USD", class: "fx_major", precision: 4 },
   { code: "USD_CAD", display: "USD/CAD", class: "fx_major", precision: 4 },
   { code: "XAU_USD", display: "XAU/USD", class: "metal", precision: 2 },
-  { code: "NAS100", display: "NAS100", class: "index", precision: 1 },
-  { code: "SPX500", display: "SPX500", class: "index", precision: 2 },
+  { code: "NAS100_USD", display: "NAS100", class: "index", precision: 1 },
+  { code: "SPX500_USD", display: "SPX500", class: "index", precision: 2 },
 ] as const;
 
 const BY_CODE: Map<string, AssetMeta> = new Map(ASSETS.map((a) => [a.code, a]));

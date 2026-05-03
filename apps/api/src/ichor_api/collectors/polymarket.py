@@ -130,6 +130,7 @@ async def fetch_market(
             f"{GAMMA_BASE}/markets",
             params={"slug": slug},
             timeout=timeout,
+            follow_redirects=True,
         )
         r.raise_for_status()
         data = r.json()
@@ -162,7 +163,7 @@ async def poll_all(
         async with sem:
             return await fetch_market(slug, client=client)
 
-    async with httpx.AsyncClient(http2=True) as client:
+    async with httpx.AsyncClient() as client:
         results = await asyncio.gather(*(_one(s, client) for s in slugs))
 
     return [r for r in results if r is not None]

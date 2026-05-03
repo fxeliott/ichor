@@ -57,11 +57,9 @@ DEFAULT_FEEDS: tuple[FeedSource, ...] = (
         "https://www.bankofengland.co.uk/rss/news",
         "central_bank",
     ),
-    FeedSource(
-        "treasury_press",
-        "https://home.treasury.gov/system/files/126/treasury-news.xml",
-        "regulator",
-    ),
+    # Treasury press historically had an XML feed at
+    # /system/files/126/treasury-news.xml but it now serves an HTML
+    # placeholder. Re-add when treasury.gov publishes a real feed URL.
     FeedSource(
         "sec_press",
         "https://www.sec.gov/news/pressreleases.rss",
@@ -228,7 +226,14 @@ async def fetch_feed(
         r = await client.get(
             source.url,
             timeout=timeout,
-            headers={"User-Agent": user_agent, "Accept": "application/rss+xml, application/atom+xml, application/xml;q=0.8, */*;q=0.5"},
+            follow_redirects=True,
+            headers={
+                "User-Agent": user_agent,
+                "Accept": (
+                    "application/rss+xml, application/atom+xml, "
+                    "application/xml;q=0.8, */*;q=0.5"
+                ),
+            },
         )
         r.raise_for_status()
     except httpx.HTTPError as e:
@@ -249,7 +254,7 @@ async def poll_all(
         async with sem:
             return await fetch_feed(src, client=client)
 
-    async with httpx.AsyncClient(http2=True) as client:
+    async with httpx.AsyncClient() as client:
         results = await asyncio.gather(*(_one(s, client) for s in feeds))
 
     seen: set[str] = set()
