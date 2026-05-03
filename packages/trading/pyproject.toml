@@ -1,0 +1,27 @@
+[project]
+name = "ichor-trading"
+version = "0.0.0"
+description = "Ichor — paper trading layer (Order/Position/Trade + paper Broker + P&L). PAPER-ONLY by ADR-016 contract — no live broker can be plugged in here."
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "structlog>=25.1.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3.0",
+    "ruff>=0.8.0",
+    "mypy>=1.14.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/ichor_trading"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-ra --strict-markers"
