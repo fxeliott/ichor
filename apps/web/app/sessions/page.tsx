@@ -6,6 +6,8 @@ import {
   type SessionCard,
 } from "../../lib/api";
 import { ASSETS } from "../../lib/assets";
+import { RegimeQuadrantWidget } from "../../components/regime-quadrant-widget";
+import { CrossAssetHeatmap } from "../../components/cross-asset-heatmap";
 
 export const metadata = {
   title: "Cartes de session",
@@ -62,6 +64,22 @@ export default async function SessionsPage() {
           Impossible de charger les cartes : {error}
         </div>
       ) : null}
+
+      <div className="mb-5 grid grid-cols-1 lg:grid-cols-[minmax(0,420px)_1fr] gap-3">
+        <RegimeQuadrantWidget
+          cards={cards.map((c) => ({ regime_quadrant: c.regime_quadrant }))}
+        />
+        <CrossAssetHeatmap
+          cards={cards.map((c) => ({
+            asset: c.asset,
+            bias_direction: c.bias_direction,
+            conviction_pct: c.conviction_pct,
+            regime_quadrant: c.regime_quadrant,
+            magnitude_pips_low: c.magnitude_pips_low,
+            magnitude_pips_high: c.magnitude_pips_high,
+          }))}
+        />
+      </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
         {ASSETS.map((meta) => {
