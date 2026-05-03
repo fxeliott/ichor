@@ -1,0 +1,170 @@
+"""Pydantic schemas for the 4-pass pipeline.
+
+The shapes here mirror the columns in `session_card_audit` (migration
+0005). Each pass produces one of these objects; the orchestrator stitches
+them into a `SessionCard`.
+
+Conviction is capped at 95 — anything above is treated as a red flag
+under the macro-frameworks doctrine ("100% conviction never exists").
+"""
+
+from __future__ import annotations
+
+from datetime import datetime
+from typing import Annotated, Any, Literal
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+# ────────────────────────────── enums ──────────────────────────────
+
+SessionType = Literal["pre_londres", "pre_ny", "event_driven"]
+BiasDirection = Literal["long", "short", "neutral"]
+RegimeQuadrant = Literal[
+    "haven_bid",
+    "funding_stress",
+    "goldilocks",
+    "usd_complacency",
+]
+CriticVerdict = Literal["approved", "amendments", "blocked"]
+
+
+# ─────────────────────── per-pass output models ────────────────────────
+
+
+class RegimeReading(BaseModel):
+    """Output of Pass 1 — Régime global.
+
+    Reads the macro trinity (DXY + 10Y yields + VIX) plus dollar smile
+    inputs (real yields, foreign rate diffs) and outputs which of the
+    four quadrants the market is currently in, with a 1-2 sentence
+    rationale.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    quadrant: RegimeQuadrant
+    rationale: str = Field(min_length=20, max_length=2000)
+    confidence_pct: float = Field(ge=0.0, le=100.0)
+    macro_trinity_snapshot: dict[str, float | None] = Field(
+        default_factory=dict,
+        description="DXY, US10Y, VIX, DFII10, BAMLH0A0HYM2 levels at read time.",
+    )
+
+
+class AssetSpecialization(BaseModel):
+    """Output of Pass 2 — Asset specialization for a single asset.
+
+    Applies the asset-specific framework (e.g. EUR/USD = US-DE 10Y diff
+    + ECB-Fed expectations) on top of the régime reading.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    asset: str
+    bias_direction: BiasDirection
+    conviction_pct: float = Field(ge=0.0, le=95.0)
+    magnitude_pips_low: float | None = None
+    magnitude_pips_high: float | None = None
+    timing_window_start: datetime | None = None
+    timing_window_end: datetime | None = None
+    mechanisms: list[dict[str, Any]] = Field(default_factory=list)
+    """Each entry: {claim: str, sources: list[str]}."""
+    catalysts: list[dict[str, Any]] = Field(default_factory=list)
+    """Each entry: {time: iso8601, event: str, expected_impact: str}."""
+    correlations_snapshot: dict[str, float] = Field(default_factory=dict)
+    polymarket_overlay: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class StressTest(BaseModel):
+    """Output of Pass 3 — Bull case stress-test (devil's advocate).
+
+    Asked to argue the OPPOSITE of Pass 2's bias and rate the strongest
+    counter-claims. Forces honest probability calibration.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    counter_claims: list[dict[str, Any]] = Field(default_factory=list)
+    """Each entry: {claim: str, strength_pct: float, sources: list[str]}."""
+    revised_conviction_pct: float = Field(ge=0.0, le=95.0)
+    """Pass 2 conviction adjusted after stress-testing. May be lower."""
+    notes: str = Field(default="", max_length=2000)
+
+
+class InvalidationConditions(BaseModel):
+    """Output of Pass 4 — Invalidation conditions.
+
+    The single most important section per Tetlock's superforecaster
+    research: explicit pre-commitment to "this thesis is wrong if X".
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    conditions: list[dict[str, Any]] = Field(min_length=1)
+    """Each entry: {condition: str, threshold: str|float, source: str}."""
+    review_window_hours: int = Field(default=8, ge=1, le=168)
+
+
+# ─────────────────────── final assembled card ────────────────────────
+
+
+class CriticDecision(BaseModel):
+    """Outcome of the Critic Agent gate."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    verdict: CriticVerdict
+    confidence: float = Field(ge=0.0, le=1.0)
+    n_findings: int = 0
+    findings: list[dict[str, Any]] = Field(default_factory=list)
+    suggested_footer: str = ""
+
+
+class SessionCard(BaseModel):
+    """Final structured output of the 4-pass pipeline for one asset.
+
+    Persisted into `session_card_audit` (one row per asset per session).
+    Brier-score outcome columns are filled later, after the session
+    closes (CHUNK 7 will add the realized-outcome reconciler).
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    session_type: SessionType
+    asset: str
+    model_id: str = "claude-opus-4-7"
+    generated_at: datetime
+    regime: RegimeReading
+    specialization: AssetSpecialization
+    stress: StressTest
+    invalidation: InvalidationConditions
+    critic: CriticDecision
+    source_pool_hash: str
+    """SHA-256 of the input data pool, used as a cache key + reproducibility anchor."""
+
+    claude_duration_ms: int = 0
+    """Sum of wall-times across the 4 runner calls (excludes critic)."""
+
+    @field_validator("asset")
+    @classmethod
+    def _normalize_asset(cls, v: str) -> str:
+        return v.strip().upper().replace("-", "_")
+
+
+__all__ = [
+    "SessionType",
+    "BiasDirection",
+    "RegimeQuadrant",
+    "CriticVerdict",
+    "RegimeReading",
+    "AssetSpecialization",
+    "StressTest",
+    "InvalidationConditions",
+    "CriticDecision",
+    "SessionCard",
+]
+
+
+# `Annotated` is imported for downstream consumers that want stricter
+# type narrowing. Suppress the unused-import warning in static analyzers.
+_ = Annotated

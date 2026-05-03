@@ -1,0 +1,37 @@
+[project]
+name = "ichor-brain"
+version = "0.0.0"
+description = "Ichor — 4-pass Claude orchestration that produces session cards (régime → asset → stress → invalidation) and routes them through the Critic Agent gate."
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "pydantic>=2.10.0",
+    "httpx>=0.28.0",
+    "structlog>=25.1.0",
+]
+
+[project.optional-dependencies]
+# `ichor-agents` is a soft runtime dep — the orchestrator's default
+# critic_fn lazy-imports it. In environments that don't need the Critic
+# gate (offline tests, prompt-prototyping), the dep is omitted.
+critic = [
+    "ichor-agents",
+]
+dev = [
+    "pytest>=8.3.0",
+    "pytest-asyncio>=0.25.0",
+    "ruff>=0.8.0",
+    "mypy>=1.14.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/ichor_brain"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+pythonpath = ["src"]
+addopts = "-ra --strict-markers"

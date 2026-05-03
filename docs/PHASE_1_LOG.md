@@ -74,17 +74,24 @@ finra_*) deferred to a later migration once their collectors land.
 
 ### CHUNK 4 — Pipeline Claude 4-pass skeleton
 
+Status: 🟢 skeleton shipped in `packages/ichor_brain/`. Orchestrator
+serializes the 4 passes through a `RunnerClient` interface
+(`HttpRunnerClient` for prod via Cloudflare Tunnel, `InMemoryRunnerClient`
+for tests). Critic Agent is wired through an injectable `critic_fn` so
+the package stays installable without `ichor_agents`. Tests : 30/30 on
+Hetzner with the real Critic, 29/30 standalone.
+
 | # | Item | Status |
 |---|------|--------|
-| 1.0.38 | New package `packages/ichor_brain/` | ⬜ |
-| 1.0.39 | Pass 1 — Régime global subagent | ⬜ |
-| 1.0.40 | Pass 2 — Asset specialization subagent (EUR/USD framework) | ⬜ |
-| 1.0.41 | Pass 3 — Bull case stress-test subagent | ⬜ |
-| 1.0.42 | Pass 4 — Invalidation conditions subagent | ⬜ |
-| 1.0.43 | Cache prompt setup (1h framework, 5min asset data) | ⬜ |
-| 1.0.44 | Critic Agent gate integration | ⬜ |
-| 1.0.45 | Output → `session_card_audit` table | ⬜ |
-| 1.0.46 | Tests + Brier tracking init | ⬜ |
+| 1.0.38 | New package `packages/ichor_brain/` | 🟢 |
+| 1.0.39 | Pass 1 — Régime global (`passes/regime.py`) | 🟢 |
+| 1.0.40 | Pass 2 — Asset specialization, EUR/USD framework (`passes/asset.py`) | 🟢 |
+| 1.0.41 | Pass 3 — Bull case stress-test (`passes/stress.py`) | 🟢 |
+| 1.0.42 | Pass 4 — Invalidation conditions (`passes/invalidation.py`) | 🟢 |
+| 1.0.43 | Cache prompt setup — TTL constants + per-pass cache_key | 🟢 |
+| 1.0.44 | Critic Agent gate integration via injectable `critic_fn` | 🟢 |
+| 1.0.45 | Output → `session_card_audit` (mapper `persistence.to_audit_row`) | 🟢 |
+| 1.0.46 | Tests : 30/30 (orch + per-pass + cache + persistence + critic-integration) | 🟢 |
 
 ### CHUNK 5 — Carte de session UI
 
