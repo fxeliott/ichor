@@ -54,4 +54,4 @@ try {
 }
 
 Write-Host ""
-Write-Host "DONE — tell Claude 'runner restart ok'"
+Write-Host "DONE - tell Claude 'runner restart ok'"
