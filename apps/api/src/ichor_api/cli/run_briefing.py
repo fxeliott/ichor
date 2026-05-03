@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import sys
 from datetime import datetime, timezone
 from typing import Any
@@ -36,6 +37,7 @@ from typing import Any
 import httpx
 import structlog
 
+from ..briefing.context_builder import build_rich_context
 from ..config import Settings, get_settings
 from ..db import get_engine, get_sessionmaker
 from ..models import Alert, BiasSignal, Briefing
@@ -58,7 +60,28 @@ async def _assemble_context(briefing_type: str, assets: list[str]) -> tuple[str,
     """Pull bias signals + alerts + news from Postgres into a markdown blob.
 
     Returns (markdown, approximate_token_estimate).
+
+    Two paths:
+      - Default (proven path) : the legacy in-this-function assembler, which
+        only pulls bias_signals + warning/critical alerts.
+      - `ICHOR_RICH_CONTEXT=1` (opt-in) : delegate to
+        `briefing.context_builder.build_rich_context` which adds news,
+        polymarket, and market_data with a token budget. See ADR-013.
     """
+    if os.environ.get("ICHOR_RICH_CONTEXT") == "1":
+        sm = get_sessionmaker()
+        async with sm() as session:
+            md, tok_est = await build_rich_context(
+                session, briefing_type, assets,
+            )
+        log.info(
+            "context.rich_used",
+            briefing_type=briefing_type,
+            chars=len(md),
+            tokens_est=tok_est,
+        )
+        return md, tok_est
+
     sm = get_sessionmaker()
     async with sm() as session:
         # Latest BiasSignal per asset, h=24
