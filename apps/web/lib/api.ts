@@ -430,3 +430,23 @@ export const getCalibrationByRegime = (
     `/v1/calibration/by-regime?window_days=${windowDays}`,
     300,
   );
+
+// ─────────────────────────── Intraday bars (Polygon) ───────────────────────────
+
+export interface IntradayBar {
+  time: number; // epoch seconds (UTC)
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number | null;
+}
+
+export const getIntradayBars = (
+  asset: string,
+  hours = 8,
+): Promise<IntradayBar[]> =>
+  get<IntradayBar[]>(
+    `/v1/market/intraday/${encodeURIComponent(asset)}?hours=${hours}`,
+    30,
+  );

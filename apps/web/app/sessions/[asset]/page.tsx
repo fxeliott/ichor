@@ -3,10 +3,13 @@ import { notFound } from "next/navigation";
 import { SessionCard as SessionCardUI } from "@ichor/ui";
 import {
   ApiError,
+  getIntradayBars,
   listSessionsForAsset,
+  type IntradayBar,
   type SessionCard,
 } from "../../../lib/api";
 import { findAsset, isValidAssetCode } from "../../../lib/assets";
+import { LiveChartCard } from "../../../components/live-chart-card";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 30;
@@ -31,6 +34,7 @@ export default async function AssetSessionsPage({
 
   let cards: SessionCard[] = [];
   let total = 0;
+  let bars: IntradayBar[] = [];
   let error: string | null = null;
   try {
     const out = await listSessionsForAsset(asset, 20);
@@ -43,6 +47,12 @@ export default async function AssetSessionsPage({
         : err instanceof Error
           ? err.message
           : "unknown error";
+  }
+  // Intraday bars are best-effort — the chart degrades gracefully on error.
+  try {
+    bars = await getIntradayBars(asset, 8);
+  } catch {
+    // ignore — LiveChartCard renders an empty-state when bars=[].
   }
 
   const latest = cards[0];
@@ -74,6 +84,10 @@ export default async function AssetSessionsPage({
           Impossible de charger l&apos;historique : {error}
         </div>
       ) : null}
+
+      <div className="mb-5">
+        <LiveChartCard asset={asset} bars={bars} />
+      </div>
 
       {latest ? <LatestDetail card={latest} /> : null}
 

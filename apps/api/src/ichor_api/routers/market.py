@@ -11,7 +11,7 @@ from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..db import get_session
-from ..models import MarketDataBar
+from ..models import MarketDataBar, PolygonIntradayBar
 
 router = APIRouter(prefix="/v1/market", tags=["market"])
 
@@ -67,3 +67,57 @@ async def asset_history(
             )
         )
     return out
+
+
+# ─────────────────────────── Intraday (Polygon) ────────────────────────
+
+
+class IntradayBarOut(BaseModel):
+    """One Polygon 1-min bar shaped for lightweight-charts.
+
+    `time` is epoch seconds (UTC) — matches the chart lib's expected
+    UTCTimestamp shape so the front-end can call setData() directly.
+    """
+
+    time: int
+    open: float
+    high: float
+    low: float
+    close: float
+    volume: float | None
+
+
+@router.get("/intraday/{asset}", response_model=list[IntradayBarOut])
+async def intraday_history(
+    asset: str,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    hours: int = Query(8, ge=1, le=72),
+    limit: int = Query(2000, ge=10, le=10000),
+) -> list[IntradayBarOut]:
+    """Polygon 1-min OHLCV bars over a recent window (oldest-first).
+
+    Powers the `<LiveChartCard>` in the dashboard. Time-axis uses
+    epoch seconds for direct ingest by lightweight-charts.
+    """
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
+    stmt = (
+        select(PolygonIntradayBar)
+        .where(
+            PolygonIntradayBar.asset == asset.upper(),
+            PolygonIntradayBar.bar_ts >= cutoff,
+        )
+        .order_by(PolygonIntradayBar.bar_ts)
+        .limit(limit)
+    )
+    rows = (await session.execute(stmt)).scalars().all()
+    return [
+        IntradayBarOut(
+            time=int(r.bar_ts.timestamp()),
+            open=float(r.open),
+            high=float(r.high),
+            low=float(r.low),
+            close=float(r.close),
+            volume=float(r.volume) if r.volume is not None else None,
+        )
+        for r in rows
+    ]
