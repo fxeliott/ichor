@@ -101,9 +101,13 @@ export default async function BriefingsPage({ searchParams }: PageProps) {
         method="get"
         className="flex flex-wrap items-end gap-3 mb-6 p-3 rounded border border-neutral-800 bg-neutral-900/30"
       >
-        <label className="flex flex-col text-xs text-neutral-400 gap-1">
+        <label
+          htmlFor="briefing-type"
+          className="flex flex-col text-xs text-neutral-400 gap-1"
+        >
           <span>Type</span>
           <select
+            id="briefing-type"
             name="type"
             defaultValue={params.type ?? "all"}
             className="bg-neutral-900 border border-neutral-700 rounded px-2 py-1 text-sm text-neutral-100"
@@ -115,16 +119,25 @@ export default async function BriefingsPage({ searchParams }: PageProps) {
             ))}
           </select>
         </label>
-        <label className="flex flex-col text-xs text-neutral-400 gap-1">
+        <label
+          htmlFor="briefing-asset"
+          className="flex flex-col text-xs text-neutral-400 gap-1"
+        >
           <span>Actif (code)</span>
           <input
+            id="briefing-asset"
             type="text"
             name="asset"
             defaultValue={params.asset ?? ""}
             placeholder="EUR_USD"
             pattern="[A-Z0-9_]{3,16}"
+            title="Code en majuscules, lettres / chiffres / souligné, 3 à 16 caractères. Exemple : EUR_USD"
+            aria-describedby="briefing-asset-help"
             className="bg-neutral-900 border border-neutral-700 rounded px-2 py-1 text-sm font-mono text-neutral-100 w-32"
           />
+          <span id="briefing-asset-help" className="text-[10px] text-neutral-400">
+            Format : 3–16 caractères majuscules, ex. EUR_USD
+          </span>
         </label>
         <button
           type="submit"

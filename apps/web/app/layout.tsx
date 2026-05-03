@@ -56,7 +56,6 @@ export default function RootLayout({
             <Link
               href="/"
               className="flex items-center gap-2 text-neutral-100 hover:text-emerald-300 transition"
-              aria-label="Ichor — accueil"
             >
               <svg
                 width="22"

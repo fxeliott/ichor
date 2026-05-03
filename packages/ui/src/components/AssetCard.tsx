@@ -51,7 +51,7 @@ const formatPrice = (p: number) =>
   p >= 1000 ? p.toLocaleString("fr-FR", { maximumFractionDigits: 2 }) : p.toFixed(4);
 
 const formatPct = (p: number) =>
-  `${p >= 0 ? "+" : ""}${p.toFixed(2)}%`;
+  `${p > 0 ? "+" : ""}${p.toFixed(2)}%`;
 
 export const AssetCard: React.FC<AssetCardProps> = ({
   asset,
@@ -99,7 +99,15 @@ export const AssetCard: React.FC<AssetCardProps> = ({
   return (
     <Wrapper
       {...wrapperProps}
-      aria-label={`${formatAsset(asset)}: bias ${bias.toFixed(2)}, ${alertsCount} alerts`}
+      // Only stamp aria-label on the article when it IS the interactive
+      // root. When wrapped by a Link (non-interactive article role), the
+      // outer link should provide the accessible name to avoid double-naming.
+      // See B4 in docs/audits/accessibility-2026-05-03.md.
+      {...(interactive
+        ? {
+            "aria-label": `${formatAsset(asset)} : biais ${bias.toFixed(2)}, ${alertsCount} alerte${alertsCount > 1 ? "s" : ""}`,
+          }
+        : {})}
     >
       <header className="flex items-baseline justify-between mb-3">
         <h3 className="text-base font-semibold text-neutral-100 tracking-tight">

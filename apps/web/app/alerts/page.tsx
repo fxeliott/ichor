@@ -109,9 +109,13 @@ export default async function AlertsPage({ searchParams }: PageProps) {
         method="get"
         className="flex flex-wrap items-end gap-3 mb-6 p-3 rounded border border-neutral-800 bg-neutral-900/30"
       >
-        <label className="flex flex-col text-xs text-neutral-400 gap-1">
+        <label
+          htmlFor="alert-severity"
+          className="flex flex-col text-xs text-neutral-400 gap-1"
+        >
           <span>Sévérité</span>
           <select
+            id="alert-severity"
             name="severity"
             defaultValue={params.severity ?? "all"}
             className="bg-neutral-900 border border-neutral-700 rounded px-2 py-1 text-sm text-neutral-100"
@@ -123,19 +127,32 @@ export default async function AlertsPage({ searchParams }: PageProps) {
             ))}
           </select>
         </label>
-        <label className="flex flex-col text-xs text-neutral-400 gap-1">
+        <label
+          htmlFor="alert-asset"
+          className="flex flex-col text-xs text-neutral-400 gap-1"
+        >
           <span>Actif</span>
           <input
+            id="alert-asset"
             type="text"
             name="asset"
             defaultValue={params.asset ?? ""}
             placeholder="EUR_USD"
             pattern="[A-Z0-9_]{3,16}"
+            title="Code en majuscules, lettres / chiffres / souligné, 3 à 16 caractères. Exemple : EUR_USD"
+            aria-describedby="alert-asset-help"
             className="bg-neutral-900 border border-neutral-700 rounded px-2 py-1 text-sm font-mono text-neutral-100 w-32"
           />
+          <span id="alert-asset-help" className="text-[10px] text-neutral-400">
+            Format : 3–16 caractères majuscules, ex. EUR_USD
+          </span>
         </label>
-        <label className="flex items-center gap-2 text-xs text-neutral-300 self-end pb-1">
+        <label
+          htmlFor="alert-unack"
+          className="flex items-center gap-2 text-xs text-neutral-300 self-end pb-1"
+        >
           <input
+            id="alert-unack"
             type="checkbox"
             name="unack"
             value="1"

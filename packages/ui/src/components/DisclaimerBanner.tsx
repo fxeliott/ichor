@@ -27,7 +27,7 @@ export const DisclaimerBanner: React.FC<DisclaimerBannerProps> = ({
 }) => (
   <aside
     role="note"
-    aria-label="Avis intelligence artificielle"
+    {...(compact ? {} : { "aria-labelledby": "disclaimer-title" })}
     className={
       className ??
       (compact
@@ -35,9 +35,11 @@ export const DisclaimerBanner: React.FC<DisclaimerBannerProps> = ({
         : "max-w-2xl mx-auto my-4 px-4 py-3 text-sm text-amber-200/90 leading-relaxed border border-amber-700/40 bg-amber-950/20 rounded-md")
     }
   >
-    <strong className={compact ? "" : "block mb-1 font-semibold"}>
-      {compact ? "" : "Avis IA — EU AI Act Article 50"}
-    </strong>
+    {!compact && (
+      <strong id="disclaimer-title" className="block mb-1 font-semibold">
+        Avis IA — EU AI Act Article 50
+      </strong>
+    )}
     {compact ? COMPACT_TEXT_FR : FULL_TEXT_FR}
   </aside>
 );

@@ -77,11 +77,14 @@ export const TimelineMarker: React.FC<TimelineMarkerProps> = ({
       aria-label={label}
       style={{ left: `${pct}%` }}
       className={
-        "absolute top-0 -translate-x-1/2 w-2.5 h-2.5 rounded-full border " +
+        "absolute top-0 -translate-x-1/2 rounded-full border " +
         colorCls +
+        // WCAG 2.5.8 Target Size — interactive markers grow the hit area
+        // to 24x24 via padding + bg-clip-content while keeping the visible
+        // dot at ~10 px.
         (onClick
-          ? " cursor-pointer hover:scale-125 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
-          : "")
+          ? " w-6 h-6 p-1.5 bg-clip-content cursor-pointer hover:scale-110 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+          : " w-2.5 h-2.5")
       }
     />
   );

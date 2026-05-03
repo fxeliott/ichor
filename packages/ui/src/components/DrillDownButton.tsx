@@ -82,8 +82,12 @@ export const DrillDownButton: React.FC<DrillDownButtonProps> = ({
       onClick={isDisabled ? undefined : onClick}
       disabled={isDisabled}
       title={disabled && disabledReason ? disabledReason : undefined}
-      aria-label={ariaLabel ?? label}
+      // When loading, swap accessible name to the loadingLabel so SR users
+      // hear the in-progress message; without this, aria-busy alone is
+      // silent on most screen readers.
+      aria-label={ariaLabel ?? (loading ? (loadingLabel ?? label) : label)}
       aria-busy={loading || undefined}
+      aria-live={loading ? "polite" : undefined}
       className={
         (className ?? "") +
         " inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-sm font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed " +

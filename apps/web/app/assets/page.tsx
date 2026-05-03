@@ -96,7 +96,12 @@ export default async function AssetsPage() {
                 const sig = sigByAsset.get(asset.code);
                 const al = alertsByAsset.get(asset.code) ?? [];
                 return (
-                  <Link key={asset.code} href={`/assets/${asset.code}`} prefetch={false}>
+                  <Link
+                    key={asset.code}
+                    href={`/assets/${asset.code}`}
+                    prefetch={false}
+                    aria-label={`Détails ${asset.code.replace("_", "/")}`}
+                  >
                     <AssetCard
                       asset={asset.code}
                       lastPrice={0}

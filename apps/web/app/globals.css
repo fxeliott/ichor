@@ -66,6 +66,14 @@ html, body {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+  /* Tailwind's `animate-pulse` uses `animation: pulse 2s` — the global
+     duration override only shortens it; explicitly cancel and pin opacity
+     so the visual reverts to a static state. (M2 in the 2026-05-03 a11y
+     audit.) */
+  .animate-pulse {
+    animation: none !important;
+    opacity: 1 !important;
+  }
 }
 
 /* Visible focus outline on every interactive element — keyboard a11y baseline */

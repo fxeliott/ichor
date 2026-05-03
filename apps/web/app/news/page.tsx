@@ -92,9 +92,13 @@ export default async function NewsPage({ searchParams }: PageProps) {
         method="get"
         className="flex flex-wrap items-end gap-3 mb-6 p-3 rounded border border-neutral-800 bg-neutral-900/30"
       >
-        <label className="flex flex-col text-xs text-neutral-400 gap-1">
+        <label
+          htmlFor="news-kind"
+          className="flex flex-col text-xs text-neutral-400 gap-1"
+        >
           <span>Type de source</span>
           <select
+            id="news-kind"
             name="kind"
             defaultValue={params.kind ?? "all"}
             className="bg-neutral-900 border border-neutral-700 rounded px-2 py-1 text-sm text-neutral-100"
@@ -106,20 +110,33 @@ export default async function NewsPage({ searchParams }: PageProps) {
             ))}
           </select>
         </label>
-        <label className="flex flex-col text-xs text-neutral-400 gap-1">
+        <label
+          htmlFor="news-source"
+          className="flex flex-col text-xs text-neutral-400 gap-1"
+        >
           <span>Source (slug)</span>
           <input
+            id="news-source"
             type="text"
             name="source"
             defaultValue={params.source ?? ""}
             placeholder="ecb_press"
             pattern="[a-z0-9_]{1,64}"
+            title="Slug en minuscules, lettres / chiffres / souligné, max 64 caractères. Exemple : ecb_press"
+            aria-describedby="news-source-help"
             className="bg-neutral-900 border border-neutral-700 rounded px-2 py-1 text-sm font-mono text-neutral-100 w-40"
           />
+          <span id="news-source-help" className="text-[10px] text-neutral-400">
+            Format : minuscules + chiffres + souligné, ex. ecb_press
+          </span>
         </label>
-        <label className="flex flex-col text-xs text-neutral-400 gap-1">
+        <label
+          htmlFor="news-tone"
+          className="flex flex-col text-xs text-neutral-400 gap-1"
+        >
           <span>Ton (FinBERT)</span>
           <select
+            id="news-tone"
             name="tone"
             defaultValue={params.tone ?? "all"}
             className="bg-neutral-900 border border-neutral-700 rounded px-2 py-1 text-sm text-neutral-100"

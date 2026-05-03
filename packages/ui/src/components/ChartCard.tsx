@@ -38,6 +38,23 @@ export interface ChartCardProps {
 const PAD_X = 4;
 const PAD_Y = 6;
 
+const trendDescription = (data: number[]): string => {
+  if (data.length < 2) return "données insuffisantes";
+  const first = data[0]!;
+  const last = data[data.length - 1]!;
+  const min = Math.min(...data);
+  const max = Math.max(...data);
+  const slope = last - first;
+  const range = max - min;
+  const dir =
+    range === 0 || Math.abs(slope) < range * 0.05
+      ? "stable"
+      : slope > 0
+        ? "haussier"
+        : "baissier";
+  return `${dir}, de ${first.toFixed(2)} à ${last.toFixed(2)}, plage ${min.toFixed(2)}–${max.toFixed(2)}`;
+};
+
 export const ChartCard: React.FC<ChartCardProps> = ({
   title,
   caption,
@@ -99,9 +116,7 @@ export const ChartCard: React.FC<ChartCardProps> = ({
         height={height}
         viewBox={`0 0 ${width} ${height}`}
         role="img"
-        aria-label={`${title} sparkline${
-          hasData ? `, last value ${data[data.length - 1]}` : ", no data"
-        }`}
+        aria-label={`${title}, sparkline ${hasData ? trendDescription(data) : "sans données"}`}
         style={{ display: "block" }}
       >
         {bandLowY !== null && bandHighY !== null && (

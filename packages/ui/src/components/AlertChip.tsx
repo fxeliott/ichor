@@ -48,10 +48,11 @@ export const AlertChip: React.FC<AlertChipProps> = ({
         <button
           type="button"
           onClick={(e) => { e.stopPropagation(); onAcknowledge(); }}
-          className="ml-1 text-[10px] opacity-60 hover:opacity-100"
-          aria-label="Acknowledge alert"
+          // WCAG 2.5.8 Target Size — 24x24 minimum.
+          className="ml-1 inline-flex items-center justify-center w-6 h-6 -my-1 -mr-1 rounded text-[10px] opacity-70 hover:opacity-100 focus-visible:opacity-100"
+          aria-label="Acquitter l'alerte"
         >
-          ✓
+          <span aria-hidden="true">✓</span>
         </button>
       )}
     </span>

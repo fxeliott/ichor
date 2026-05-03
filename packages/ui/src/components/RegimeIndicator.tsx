@@ -36,14 +36,18 @@ export const RegimeIndicator: React.FC<RegimeIndicatorProps> = ({
   // Normalize defensively
   const probs = total > 0 ? stateProbs.map((p) => p / total) : [1 / 3, 1 / 3, 1 / 3];
 
+  const fullDescription = asset
+    ? `${asset} : régime dominant ${STATE_LABELS[dominant]} (${(probs[dominant]! * 100).toFixed(0)} %), ` +
+      probs
+        .map((p, i) => (i !== dominant ? `${STATE_LABELS[i]} ${(p * 100).toFixed(0)} %` : null))
+        .filter(Boolean)
+        .join(", ")
+    : `Régime : ${STATE_LABELS[dominant]}`;
+
   return (
     <div
       role="img"
-      aria-label={
-        asset
-          ? `${asset} regime: ${STATE_LABELS[dominant]} (${(probs[dominant]! * 100).toFixed(0)}%)`
-          : `Regime: ${STATE_LABELS[dominant]}`
-      }
+      aria-label={fullDescription}
       className="inline-flex items-center gap-2"
     >
       <div className="flex h-3 w-24 rounded overflow-hidden border border-neutral-700">

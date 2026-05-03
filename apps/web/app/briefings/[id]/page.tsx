@@ -63,10 +63,10 @@ export default async function BriefingPage({ params }: { params: Promise<{ id: s
               ),
               p: ({ children }) => <p className="my-2">{children}</p>,
               ul: ({ children }) => (
-                <ul className="list-disc list-inside my-2 space-y-1">{children}</ul>
+                <ul className="list-disc list-outside pl-5 my-2 space-y-1">{children}</ul>
               ),
               ol: ({ children }) => (
-                <ol className="list-decimal list-inside my-2 space-y-1">{children}</ol>
+                <ol className="list-decimal list-outside pl-5 my-2 space-y-1">{children}</ol>
               ),
               strong: ({ children }) => (
                 <strong className="text-neutral-50 font-semibold">{children}</strong>
@@ -86,8 +86,16 @@ export default async function BriefingPage({ params }: { params: Promise<{ id: s
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-emerald-400 hover:text-emerald-300 underline-offset-2 hover:underline"
+                  aria-label={
+                    typeof children === "string"
+                      ? `${children} (nouvel onglet)`
+                      : undefined
+                  }
                 >
                   {children}
+                  <span aria-hidden="true" className="ml-0.5 text-[0.8em]">
+                    ↗
+                  </span>
                 </a>
               ),
               blockquote: ({ children }) => (

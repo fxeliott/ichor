@@ -29,6 +29,22 @@ export interface BiasBarProps {
 
 const clamp = (v: number, lo = -1, hi = 1) => Math.min(hi, Math.max(lo, v));
 
+const describeBias = (
+  b: number,
+  ci?: { low: number; high: number }
+): string => {
+  const dir =
+    b > 0.4 ? "long fort" :
+    b > 0.1 ? "long faible" :
+    b < -0.4 ? "short fort" :
+    b < -0.1 ? "short faible" :
+    "neutre";
+  const ciStr = ci
+    ? `, intervalle crédible 80 % de ${ci.low.toFixed(2)} à ${ci.high.toFixed(2)}`
+    : "";
+  return `Biais directionnel ${dir} (${b.toFixed(2)})${ciStr}`;
+};
+
 export const BiasBar: React.FC<BiasBarProps> = ({
   bias,
   credibleInterval,
@@ -50,7 +66,11 @@ export const BiasBar: React.FC<BiasBarProps> = ({
     "rgb(115 115 115)";           // neutral-500
 
   return (
-    <div className={className} role="img" aria-label={ariaLabel ?? `Directional bias ${b.toFixed(2)}`}>
+    <div
+      className={className}
+      role="img"
+      aria-label={ariaLabel ?? describeBias(b, credibleInterval)}
+    >
       <svg
         width={width}
         height={32}
@@ -91,6 +111,17 @@ export const BiasBar: React.FC<BiasBarProps> = ({
         <line x1={xOf(-0.5)} y1="22" x2={xOf(-0.5)} y2="26" stroke="rgb(115 115 115)" />
         <line x1={xOf(0.5)} y1="22" x2={xOf(0.5)} y2="26" stroke="rgb(115 115 115)" />
       </svg>
+      {/* WCAG SC 1.4.1 Use of Color — redundant non-color encoding so
+          users with red-green deficiency can still read direction. */}
+      <div
+        aria-hidden="true"
+        className="mt-1 text-[10px] font-mono text-neutral-400 flex justify-between"
+        style={{ width }}
+      >
+        <span>short</span>
+        <span>{b > 0.05 ? "▲" : b < -0.05 ? "▼" : "—"} {b.toFixed(2)}</span>
+        <span>long</span>
+      </div>
     </div>
   );
 };

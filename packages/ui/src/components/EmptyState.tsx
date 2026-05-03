@@ -21,7 +21,6 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   onAction,
 }) => (
   <div
-    role="status"
     className="flex flex-col items-center justify-center py-12 px-4 text-center text-neutral-400 border border-dashed border-neutral-800 rounded-lg"
   >
     <p className="text-base font-medium text-neutral-200 mb-2">{title}</p>

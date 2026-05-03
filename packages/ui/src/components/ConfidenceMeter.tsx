@@ -45,7 +45,13 @@ export const ConfidenceMeter: React.FC<ConfidenceMeterProps> = ({
         height={14}
         viewBox={`0 0 ${width} 14`}
         role="img"
-        aria-label={label ?? `Probability ${(p * 100).toFixed(0)}%`}
+        aria-label={
+          (label ?? "Probabilité") +
+          ` : ${(p * 100).toFixed(0)} %` +
+          (credibleInterval
+            ? `, intervalle crédible 80 % de ${(credibleInterval.low * 100).toFixed(0)} % à ${(credibleInterval.high * 100).toFixed(0)} %`
+            : "")
+        }
       >
         {/* Track */}
         <rect x="0" y="5" width={width} height="4" rx="2" fill="rgb(38 38 38)" />
