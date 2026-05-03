@@ -69,8 +69,15 @@ def test_regime_parse_rejects_invalid_quadrant() -> None:
 # ─────────────────────────── Pass 2 — asset ───────────────────────────
 
 
-def test_asset_supported_set_contains_eur_usd() -> None:
-    assert "EUR_USD" in supported_assets()
+def test_asset_supported_set_covers_all_phase1_assets() -> None:
+    """Phase 1.2 (CHUNK 8 2026-05-03) shipped the 7 missing frameworks
+    so no Phase-1 asset falls back to the generic rubric anymore."""
+    expected = {
+        "EUR_USD", "GBP_USD", "USD_JPY", "AUD_USD", "USD_CAD",
+        "XAU_USD", "NAS100_USD", "SPX500_USD",
+        "US100", "US30",  # ADR-017 ticker aliases
+    }
+    assert expected.issubset(set(supported_assets()))
 
 
 def test_asset_build_prompt_uses_dedicated_framework_for_eur_usd() -> None:
@@ -85,12 +92,40 @@ def test_asset_build_prompt_uses_dedicated_framework_for_eur_usd() -> None:
     assert "DGS10=4.18" in prompt
 
 
+@pytest.mark.parametrize(
+    "asset, expected_signature",
+    [
+        ("XAU_USD", "10Y TIPS real yield"),
+        ("USD_JPY", "BoJ YCC stance"),
+        ("NAS100_USD", "Mega-cap 7 earnings"),
+        ("SPX500_USD", "VIX term slope"),
+        ("GBP_USD", "BoE NLP hawk/dove"),
+        ("AUD_USD", "Iron ore"),
+        ("USD_CAD", "WTI crude"),
+        ("US30", "Cyclical earnings"),
+    ],
+)
+def test_asset_build_prompt_uses_dedicated_framework_for_each_asset(
+    asset: str, expected_signature: str
+) -> None:
+    p = AssetPass()
+    prompt = p.build_prompt(
+        asset=asset,
+        regime_block="Quadrant: goldilocks",
+        asset_data="...",
+    )
+    assert expected_signature in prompt, (
+        f"{asset} framework should mention {expected_signature!r} but didn't"
+    )
+    assert "Generic framework" not in prompt
+
+
 def test_asset_build_prompt_falls_back_for_unknown_asset() -> None:
     p = AssetPass()
     prompt = p.build_prompt(
-        asset="XAU_USD",
+        asset="BTC_USD",  # not part of Phase-1 universe — should hit fallback
         regime_block="Quadrant: goldilocks",
-        asset_data="real_yield=1.85",
+        asset_data="btc_funding=0.012",
     )
     assert "Generic framework" in prompt
 
