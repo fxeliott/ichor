@@ -25,9 +25,13 @@ def test_supported_assets_covers_all_phase1() -> None:
 
 
 def test_asset_to_ticker_uses_correct_namespaces() -> None:
-    assert ASSET_TO_TICKER["EUR_USD"].startswith("C:")  # forex
-    assert ASSET_TO_TICKER["XAU_USD"].startswith("X:")   # metal
-    assert ASSET_TO_TICKER["NAS100_USD"].startswith("I:")  # index
+    # Massive 2026 (ex-Polygon) Currencies plan covers FX + spot metals
+    # under the C: prefix. X: is crypto only. Verified against
+    # massive.com/blog/real-time-forex-data-plans (2026-05-03).
+    assert ASSET_TO_TICKER["EUR_USD"] == "C:EURUSD"
+    assert ASSET_TO_TICKER["XAU_USD"] == "C:XAUUSD"   # spot gold = currencies, not crypto
+    assert ASSET_TO_TICKER["NAS100_USD"] == "I:NDX"
+    assert ASSET_TO_TICKER["SPX500_USD"] == "I:SPX"
 
 
 def test_parse_aggs_returns_one_bar_per_result() -> None:

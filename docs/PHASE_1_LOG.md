@@ -50,10 +50,13 @@ Goal : ship the EUR/USD Pré-Londres carte de session end-to-end.
 
 ### CHUNK 3 — Migration TimescaleDB
 
-Status: 🟢 8/14 tables shipped in migration `0005_phase1_collector_tables.py`,
-applied on Hetzner (alembic at `0005`, all 8 hypertables registered).
-Remaining tables (treasury_dts, bls, ecb, eia, gex, polygon_intraday,
-finra_*) deferred to a later migration once their collectors land.
+Status: 🟢 9/14 tables shipped — 8 in migration `0005_phase1_collector_tables.py`
+(`fred_observations`, `gdelt_events`, `gpr_observations`, `cot_positions`,
+`cb_speeches`, `kalshi_markets`, `manifold_markets`, `session_card_audit`)
+applied at alembic `0005`, plus `polygon_intraday` shipped in migration `0006`
+applied at alembic `0006` (Hetzner currently at `0006 (head)`).
+Remaining tables (treasury_dts, bls, ecb, eia, gex, finra_short_interest,
+finra_ats_weekly) deferred to later migrations once their collectors land.
 
 | # | Table | Status |
 |---|-------|--------|
@@ -66,7 +69,7 @@ finra_*) deferred to a later migration once their collectors land.
 | 1.0.31 | `ecb_series` (varying frequency) | ⬜ |
 | 1.0.32 | `eia_series` (varying frequency) | ⬜ |
 | 1.0.33 | `gex_snapshots` (daily) | ⬜ |
-| 1.0.34 | `polygon_intraday` (1-min OHLCV, hypertable, 7d chunks) | ⬜ |
+| 1.0.34 | `polygon_intraday` (1-min OHLCV, hypertable, 7d chunks) — shipped in migration `0006` | 🟢 |
 | 1.0.35 | `kalshi_markets` + `manifold_markets` snapshots (30d chunks) | 🟢 |
 | 1.0.35b | `cb_speeches` (90d chunks) | 🟢 |
 | 1.0.36 | `finra_short_interest` + `finra_ats_weekly` | ⬜ |

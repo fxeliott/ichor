@@ -6,11 +6,17 @@ granularity with end-of-day delay (no realtime feed). Endpoint :
     GET /v2/aggs/ticker/{ticker}/range/1/minute/{from}/{to}
         ?adjusted=true&sort=asc&limit=50000
 
-Ticker conventions in Polygon's namespace :
+Ticker conventions in Polygon's (Massive 2026) namespace :
   C:EURUSD          forex pairs
-  X:XAUUSD          crypto/metals (XAUUSD via X: namespace)
+  C:XAUUSD          spot metals (gold, silver — Currencies namespace, NOT crypto)
+  X:BTCUSD          crypto pairs (X: prefix, distinct from forex)
   I:NDX / I:SPX     indices
   AAPL / SPY        equities (not used here)
+
+Source: massive.com/blog/real-time-forex-data-plans (Currencies plan covers
+forex pairs + XAU/XAG via the C: prefix). The X: prefix is reserved for
+cryptocurrencies. Earlier versions of this collector mistakenly mapped
+XAU_USD to "X:XAUUSD" — fixed 2026-05-03.
 
 The collector is pure-Python (httpx). The persistence layer lives in
 `collectors/persistence.py` (added separately).
@@ -36,7 +42,7 @@ ASSET_TO_TICKER: dict[str, str] = {
     "USD_JPY": "C:USDJPY",
     "AUD_USD": "C:AUDUSD",
     "USD_CAD": "C:USDCAD",
-    "XAU_USD": "X:XAUUSD",
+    "XAU_USD": "C:XAUUSD",
     "NAS100_USD": "I:NDX",
     "SPX500_USD": "I:SPX",
 }
