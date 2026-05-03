@@ -23,6 +23,7 @@ export const viewport: Viewport = {
 const NAV: { href: string; label: string }[] = [
   { href: "/", label: "Aujourd'hui" },
   { href: "/sessions", label: "Sessions" },
+  { href: "/narratives", label: "Narratives" },
   { href: "/briefings", label: "Briefings" },
   { href: "/assets", label: "Actifs" },
   { href: "/alerts", label: "Alertes" },

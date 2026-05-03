@@ -9,6 +9,7 @@ from .bias_signals import router as bias_signals_router
 from .briefings import router as briefings_router
 from .calibration import router as calibration_router
 from .market import router as market_router
+from .narratives import router as narratives_router
 from .news import router as news_router
 from .predictions import router as predictions_router
 from .sessions import router as sessions_router
@@ -20,6 +21,7 @@ __all__ = [
     "briefings_router",
     "calibration_router",
     "market_router",
+    "narratives_router",
     "news_router",
     "predictions_router",
     "sessions_router",

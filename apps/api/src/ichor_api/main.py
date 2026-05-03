@@ -18,6 +18,7 @@ from .routers import (
     briefings_router,
     calibration_router,
     market_router,
+    narratives_router,
     news_router,
     predictions_router,
     sessions_router,
@@ -82,6 +83,7 @@ app.include_router(market_router)
 app.include_router(predictions_router)
 app.include_router(sessions_router)
 app.include_router(calibration_router)
+app.include_router(narratives_router)
 app.include_router(ws_router)
 
 

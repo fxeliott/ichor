@@ -42,6 +42,7 @@ from .funding_stress import (
     assess_funding_stress,
     render_funding_stress_block,
 )
+from .narrative_tracker import render_narrative_block, track_narratives
 
 
 # ────────────────────────── Configuration ──────────────────────────────
@@ -415,6 +416,12 @@ async def _section_funding_stress(session: AsyncSession) -> tuple[str, list[str]
     return render_funding_stress_block(reading)
 
 
+async def _section_narrative(session: AsyncSession) -> tuple[str, list[str]]:
+    """## Narrative tracker — top keywords from cb_speeches + news 48h."""
+    report = await track_narratives(session, window_hours=48, top_k=10)
+    return render_narrative_block(report)
+
+
 async def _section_cb_intervention(
     session: AsyncSession, asset: str
 ) -> tuple[str, list[str]]:
@@ -500,6 +507,9 @@ async def build_data_pool(session: AsyncSession, asset: str) -> DataPool:
 
     fs_md, fs_src = await _section_funding_stress(session)
     sections.append(("funding_stress", fs_md, fs_src))
+
+    nar_md, nar_src = await _section_narrative(session)
+    sections.append(("narrative", nar_md, nar_src))
 
     cbi_md, cbi_src = await _section_cb_intervention(session, asset)
     if cbi_md:

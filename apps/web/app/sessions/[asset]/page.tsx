@@ -67,13 +67,22 @@ export default async function AssetSessionsPage({
         <span className="text-neutral-300">{meta?.display ?? asset}</span>
       </nav>
 
-      <header className="mb-5">
-        <h1 className="text-2xl font-semibold text-neutral-100">
-          {meta?.display ?? asset}
-        </h1>
-        <p className="text-sm text-neutral-400 mt-1">
-          {total} carte(s) historiques · pipeline 4-pass
-        </p>
+      <header className="mb-5 flex items-baseline justify-between gap-3 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-semibold text-neutral-100">
+            {meta?.display ?? asset}
+          </h1>
+          <p className="text-sm text-neutral-400 mt-1">
+            {total} carte(s) historiques · pipeline 4-pass
+          </p>
+        </div>
+        <Link
+          href={`/replay/${asset}`}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded border border-neutral-700 bg-neutral-900/60 text-sm text-neutral-200 hover:border-emerald-600 hover:text-emerald-200 transition"
+        >
+          <span aria-hidden="true">▶</span>
+          <span>Replay temporel</span>
+        </Link>
       </header>
 
       {error ? (
