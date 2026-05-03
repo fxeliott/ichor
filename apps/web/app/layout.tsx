@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import { DisclaimerBanner } from "@ichor/ui";
+import { LiveEventsToast } from "./live-events-toast";
 import { ServiceWorkerRegister } from "./service-worker-register";
 import "./globals.css";
 
@@ -35,6 +36,7 @@ export default function RootLayout({
     <html lang="fr">
       <body className="bg-neutral-950 text-neutral-100 antialiased min-h-screen flex flex-col">
         <ServiceWorkerRegister />
+        <LiveEventsToast />
         <DisclaimerBanner compact />
 
         <header className="border-b border-neutral-800 bg-neutral-950/80 backdrop-blur sticky top-0 z-10">

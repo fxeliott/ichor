@@ -1,0 +1,37 @@
+apiVersion: 1
+
+# Auto-provisioned at Grafana startup. Mounted read-only at
+# /etc/grafana/provisioning/datasources via docker-compose volumes.
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false
+    jsonData:
+      timeInterval: "15s"
+      httpMethod: POST
+
+  - name: Loki
+    type: loki
+    access: proxy
+    url: http://loki:3100
+    editable: false
+
+  - name: Postgres-Ichor
+    type: postgres
+    access: proxy
+    # Hetzner: postgres on host, container reaches it through the docker bridge
+    # gateway (172.20.0.1 by default for the obs network).
+    url: 172.20.0.1:5432
+    user: ichor
+    secureJsonData:
+      password: ${ICHOR_DB_PASSWORD}
+    jsonData:
+      database: ichor
+      sslmode: disable
+      postgresVersion: 1600
+      timescaledb: true
+    editable: false
