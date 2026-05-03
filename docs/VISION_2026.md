@@ -223,7 +223,17 @@ This file does NOT replace ADR-017. It lists the **17 deltas** Ichor needs on to
 
 - ADR-017 is the contract. This file proposes additions, not amendments.
 - Voie D (ADR-009) stays. No Anthropic API consumption ever.
-- Cost ceiling stays $249/mo (Polygon $29, not Massive Currencies $49 — clarification needed if Eliot wants the upgrade).
+- Cost ceiling **updated to $269/mo** (Massive Currencies $49/mo — the
+  correct plan ; ADR-017's original $29 was a mistake, the Stocks
+  Starter doesn't cover forex). $20 over the original ceiling, but
+  the Currencies key also unlocks 5 bonus endpoints free :
+  - News API (`/v2/reference/news`) — ticker-linked news, integrated
+    in `collectors/polygon_news.py` 2026-05-03
+  - Market Status (`/v1/marketstatus/now`) — live FX/crypto/exchanges
+  - Crypto snapshot (`/v2/snapshot/.../crypto/...`) — BTC proxy for
+    risk-on regime input (delta C extension)
+  - Currencies snapshot global — 1-call multi-pair refresh
+  - Reference Tickers — full FX catalog for narrative tracker
 - AMF DOC-2008-23 + EU AI Act Article 50 + Anthropic Usage Policy : all maintained.
 - Ichor never executes orders. Eliot trades on TradingView.
 

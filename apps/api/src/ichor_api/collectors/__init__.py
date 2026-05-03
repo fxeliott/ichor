@@ -16,6 +16,7 @@ Implemented modules (Phase 1 Step 1):
   manifold                 Manifold Markets REST (community prediction markets)
   polymarket               Polymarket Gamma REST (decentralized prediction markets)
   polygon                  Polygon.io / Massive v2/aggs (1-min OHLCV, 8 assets)
+  polygon_news             Massive /v2/reference/news — ticker-linked news flow
   persistence              Async upsert helpers (DB-backed, dedup-aware)
 
 Planned (Phase 1+):

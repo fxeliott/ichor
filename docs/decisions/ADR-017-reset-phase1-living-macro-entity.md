@@ -144,14 +144,23 @@ geopolitical flash).
 
 Total monthly :
 - Claude Max 20x : $200 (Voie D, fixed)
-- Polygon Starter (intraday for 8 assets) : $29 (NEW per Eliot's go)
+- **Massive Currencies (intraday for 6/8 assets)** : **$49** (CORRECTED
+  2026-05-03 — was wrongly listed as Polygon Starter $29 in the
+  original ADR. The Stocks Starter $29 plan does NOT cover forex/XAU.
+  The Currencies $49 plan covers EUR/USD, GBP/USD, USD/JPY, AUD/USD,
+  USD/CAD, XAU/USD with real-time WebSocket + REST unlimited. NAS100
+  + SPX500 stay on yfinance EOD until an Indices plan is decided.)
 - Hetzner CX32 : ~€20
 - Cloudflare R2 + Tunnel + Pages : $0
 - GitHub Actions (private) : $0
 - All other data sources : $0 (FRED, GDELT, Polymarket, COT, central bank RSS,
   AI-GPR, FlashAlpha GEX, Kalshi, Manifold, etc.)
+- Bonus from the Currencies key (no extra cost) : Massive News API,
+  Market Status, Crypto snapshots (BTC), Currencies snapshot global,
+  Reference Tickers — see `polygon_news.py` collector and
+  VISION_2026.md §1 delta J for the integration.
 
-**Total : ~$249/month flat.** No usage-based costs.
+**Total : ~$269/month flat.** No usage-based costs.
 
 ## Roll-out plan
 
