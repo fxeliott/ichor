@@ -1,354 +1,167 @@
-# Session handoff — Ichor Phase 0 + Phase 1 foundations (2026-05-02 → 2026-05-03 evening)
+# Session handoff — Ichor Phase 1 (Living Macro Entity)
 
-> Single document capturing the complete state at session end.
-> Read this first when resuming work after `/clear` or new session.
-> Authoritative timeline, current state, known issues, and next steps.
+> **AUTORITAIRE** — read this first when resuming work after `/clear`.
+> Reset commit `[CHUNK 1]` 2026-05-03 — see ADR-017 for context.
+> Pre-reset historical state in `SESSION_HANDOFF_pre-reset_2026-05-03.md`.
 
 ## TL;DR
 
-**Phase 0 cron pipeline LIVE end-to-end + Phase 1 foundations shipped paper-only.**
+**Ichor is being rebuilt as the Living Macro Entity** : an autonomous 24/7 agent
+that continuously ingests 25+ macro/geo/sentiment/positioning sources, synthesizes
+via Claude Max 20x at maximum power, and delivers per-asset per-session directional
+verdicts with public calibration track-record — through a living UI Eliot opens
+before each trading session.
 
-What runs autonomously today on Hetzner :
-- 5 briefing systemd timers (06h/12h/17h/22h Paris + Sun 18h)
-- 3 collector timers (RSS 15min, Polymarket 5min, market_data daily 23:10)
-- 20 556 daily OHLCV bars persisted (8 assets, 10 y of yfinance fallback)
-- 160+ real news headlines + 7+ Polymarket snapshots persisted continuously
-- First trained ML model end-to-end : 2 036 LightGBM predictions in
-  `predictions_audit`, 1 backtest_run in `backtest_runs`. Honest result :
-  Brier 0.45, hit rate 49.85 %, B&H beats strategy net of fees (this is the
-  scientific truth ; the framework now exists for Phase 2 work to improve)
-- 9-route Next.js dashboard (102 KB shared first-load JS) building clean
-- Critic Agent reviews briefings for hallucinations vs source pool
-- AGE knowledge graph populator extracts entities (assets + 11 institutions)
-- Kill switch (file flag + env var) wired across the trading layer
-- Backtest framework with walk-forward + leakage guard + fee/slippage
-- Paper trading layer with `paper=True` invariant enforced by ADR-016
+**It is NOT** :
+- A signal generator (Eliot trades discretionary on TradingView)
+- A backtest framework or paper trading layer (those were a wrong-direction drift,
+  archived 2026-05-03)
+- A ML model that predicts price (Claude does the analysis, no ML model trained)
+- A trader (Ichor never executes a single order)
 
-```
-~60 commits on main, ~330 files, 16 ADRs, 12 runbooks, 1 DR test record,
-3 audit reports (security/a11y/deps), 4 new packages
-(backtest/risk/trading/+ ml/training), repo: github.com/fxeliott/ichor (private)
-```
+## Vision contract
 
-## Timeline of the session (2026-05-02 → 2026-05-03)
+See **[ADR-017 — Reset Phase 1 : Living Macro Entity](decisions/ADR-017-reset-phase1-living-macro-entity.md)**
+for the full contract — 12 capabilities across 4 layers (perception → analysis →
+memory/calibration → expression).
 
-### Day 1 morning — read + plan + infra
-1. Read ARCHITECTURE_FINALE + AUDIT_V3
-2. Verified `ichor.app` taken → defer Phase 1 (ADR-002)
-3. SSH access to Hetzner established (ED25519 + RSA legacy from vault)
-4. Hetzner audit + backup tarball
-5. Cleanup chirurgical (no full wipe — OS already 24.04, ADR-003)
-6. Repo init Turborepo, 8 root config files, 12 packages structure
-7. SOPS+age keypair generated, USB backup
-8. Multi-recipient SOPS (Eliot's local key + Hetzner server key)
+## Asset universe (8 with session cards)
 
-### Day 1 afternoon — Ansible + first services
-9. Ansible foundation roles (base/security/docker/python/node/postgres/redis) GREEN
-10. Apache AGE 1.5.0 built from source for PG16 (ADR-005)
-11. wal-g 3.0.8 + R2 EU LIVE (basebackup + WAL archive verified)
-12. 11 docker containers (Loki/Prom/Grafana + Langfuse stack + n8n) UP
-13. Volume permission fixes for non-root container UIDs
-14. claude-runner FastAPI implementation (subprocess + CF Access JWT + rate limiter)
-15. Next.js 15 + first build green
-16. SOPS + 9 .env templates + R2 credentials encrypted
+| # | Asset | Type |
+|---|---|---|
+| 1 | EUR/USD | FX major |
+| 2 | GBP/USD | FX major |
+| 3 | USD/JPY | FX major |
+| 4 | AUD/USD | FX major |
+| 5 | USD/CAD | FX major |
+| 6 | XAU/USD | Gold |
+| 7 | US30 | Dow Jones futures |
+| 8 | US100 | NAS100 futures |
 
-### Day 2 — apps/api LIVE + tunnel + briefing test
-17. apps/api real implementation (4 routers + WebSocket + briefing CLI)
-18. Alembic migrations: 5 tables + TimescaleDB hypertable + AGE graph
-19. Sample data seeded (8 bias_signals + 3 alerts + 1 briefing)
-20. 33-alert engine (28 PLAN + 5 AUDIT_V2) + Crisis Mode composite
-21. FRED collector (19 series)
-22. Ichor-api uvicorn systemd service LIVE (verified /v1/briefings JSON)
-23. ML scaffold expansion (concept drift, DTW, SABR stub, FOMC-RoBERTa)
-24. 10 React+TS UI components (BiasBar, AssetCard, RegimeIndicator, DisclaimerBanner, ConfidenceMeter, SourceBadge, AlertChip, BriefingHeader, EmptyState, AudioPlayer)
-25. /briefings/[id] dynamic page
-26. 8 runbooks + 3 legal docs + 11 ADRs
-27. GitHub Actions deploy workflow
+**Tracked for context only (no session card)** : SPX500, DXY, VIX, 10Y/2Y yields,
+10Y TIPS real yields, WTI oil, BTC, EUR/GBP cross.
 
-### Day 2 — Cloudflare Tunnel saga (tricky)
-28. Initial tunnel created with config_src=local — `<UUID>.cfargotunnel.com` only resolves to IPv6 ULA, not publicly routable
-29. `cfut_` API token doesn't have scope to PUT /configurations (10405) — workaround via `cloudflared tunnel route dns` after Eliot did `cloudflared tunnel login`
-30. Eliot migrated `fxmilyapp.com` from Hover DNS to Cloudflare (free plan)
-31. CNAME `claude-runner.fxmilyapp.com` → tunnel UUID (proxied)
-32. **Tunnel reachable from Hetzner** : HTTP 200, 330ms latency
+## Sessions
 
-### Day 2 — Auth pipeline workaround
-33. claude -p returns 403 even after Eliot re-login: NSSM service runs as
-    LocalSystem which can't access user-keychain OAuth credentials
-34. Workaround: launch uvicorn AS USER on `:8766` (not the LocalSystem
-    service on :8765 which stays idle)
-35. Cloudflared ingress updated to point to :8766
-36. **Real briefing generated end-to-end**: 461 tokens, 17s, $0 (Max 20x flat),
-    French markdown respecting Ichor persona format
+- **Pré-Londres** : generated ~07:30 Paris, valid 09:00-12:00 Paris
+- **Pré-NY** : generated ~13:30 Paris, valid 14:30-22:00 Paris
+- Plus event-driven re-generation on régime changes / NFP/CPI surprises / geo flash
 
-## Current LIVE state (verifiable RIGHT NOW)
+## Cost ceiling
 
-### Hetzner (178.104.39.201)
+| Item | Monthly |
+|---|---|
+| Claude Max 20x | $200 (Voie D, fixed) |
+| Polygon Starter intraday | $29 (validated by Eliot 2026-05-03) |
+| Hetzner CX32 | ~€20 |
+| Cloudflare R2 + Tunnel + Pages | $0 |
+| GitHub Actions (private) | $0 |
+| All other data (FRED, GDELT, Polymarket, COT, etc.) | $0 |
+| **Total** | **~$249/mo flat** |
 
-| Service | Port | State | Auth |
-|---|---|---|---|
-| Postgres 16 + TimescaleDB 2.26.4 + Apache AGE 1.5.0 | 5432 (lo) | active | scram-sha-256 + Docker bridge |
-| Redis 8.6.2 | 6379 (lo) | active, AOF | bind localhost |
-| ichor-api uvicorn (systemd) | 8000 (lo) | active, `/healthz/detailed` returns DB+Redis+collector lag+briefing lag | none yet (HIGH-3) |
-| 5 briefing systemd timers (06/12/17/22 Paris + Sun 18) | — | enabled | — |
-| 2 collector systemd timers (rss every 15 min, polymarket every 5 min) | — | enabled | — |
-| Loki + Prometheus + Grafana (docker-compose) | 3001/9090/3100 | UP | grafana_admin in SOPS |
-| Langfuse v3 + ClickHouse + MinIO | 3000 | UP | langfuse_*_password in SOPS |
-| n8n 1.78.1 | 5678 | UP | n8n_postgres_password in SOPS |
-| wal-g 3.0.8 → R2 ichor-walg-eu | systemd timer 03h Paris | enabled | R2 keys in SOPS |
+## What's running LIVE on Hetzner today
 
-### DB content (verified 2026-05-03)
+| Service | State | Notes |
+|---|---|---|
+| Postgres 16 + TimescaleDB 2.26 + Apache AGE 1.5 | active | scram-sha-256 + Docker bridge |
+| Redis 8.6 (AOF) | active, localhost-only | |
+| ichor-api uvicorn (systemd) | active | `/healthz/detailed` returns full state |
+| 5 briefing systemd timers (06h/12h/17h/22h Paris + Sun 18h) | enabled | will be refactored toward session cards |
+| 3 collector systemd timers (rss 15min, polymarket 5min, market_data daily) | enabled | will be extended to 17 more sources in CHUNK 2 |
+| Loki + Prometheus + Grafana | UP | observability ready |
+| wal-g basebackup → R2 EU | systemd timer 03h Paris | enabled |
+
+## DB content (verified 2026-05-03)
 
 | Table | Rows | Notes |
 |---|---|---|
-| `news_items` | 160+ | TimescaleDB hypertable, 7d chunks, real news from Fed/ECB/BoE/BBC/SEC |
-| `polymarket_snapshots` | 7+ | TimescaleDB hypertable, 30d chunks, prediction-market snapshots |
-| `bias_signals` | 384 | 8 assets × 48 half-hourly points, seeded |
-| `alerts` | 8 | 3 global + 5 per-asset, seeded |
-| `briefings` | 3 | 1 real + 2 seed |
-| `predictions_audit` | 0 | TimescaleDB hypertable, 7d chunks, ready for Phase 0 W2 |
+| `news_items` | 160+ | TimescaleDB hypertable, 24/7 ingestion |
+| `polymarket_snapshots` | 7+ | TimescaleDB hypertable |
+| `market_data` | 20 556 | 8 assets × 10y daily yfinance |
+| `bias_signals` | 384 | seeded ; will be replaced by session cards |
+| `alerts` | 8 | 33-alert engine + Crisis Mode triggers |
+| `briefings` | 3 | will be refactored as session cards |
+| `predictions_audit` | 2 036 | will be repurposed as `session_card_audit` for Brier tracking |
 
-### Win11 (Eliot's PC)
+## What the reset removed (archived, not deleted)
 
-| Service | Port | State | How |
-|---|---|---|---|
-| **claude-runner uvicorn user-mode** | **8766** | **alive, claude_cli_available=true** | bash nohup |
-| cloudflared tunnel | (outbound 443) | 4 connections MRS edge | bash nohup |
-| OLD NSSM service IchorClaudeRunner | 8765 | running but idle (LocalSystem, can't access user OAuth) | NSSM |
-| age 1.3.1 + sops 3.12.2 | — | installed | local bin |
-| pnpm 10.33.2 + Node 24 + Python 3.14 | — | installed | local |
-| age private key | — | `%APPDATA%\sops\age\keys.txt` + USB backup | — |
+All under `archive/2026-05-03-pre-reset/` :
 
-### Cloudflare
+- `packages/backtest/` — wrong scope (we don't backtest)
+- `packages/risk/` — wrong scope (no order generation)
+- `packages/trading/` — wrong scope (TradingView is the broker UI)
+- `packages/ml/training/` — wrong scope (Claude does analysis)
+- `apps/web/app/portfolio/` — wrong scope
+- `apps/web/app/backtests/` — wrong scope
+- `apps/api/migrations/versions/0004_backtest_runs.py` — wrong table
+- `apps/api/src/ichor_api/models/backtest_run.py` — wrong model
+- `apps/api/src/ichor_api/routers/backtests.py` — wrong router
+- `decisions/ADR-014-backtest-framework-design.md` — superseded
+- `decisions/ADR-015-risk-engine-kill-switch.md` — superseded
+- `decisions/ADR-016-paper-only-default.md` — superseded
+- `runbooks/RUNBOOK-012-kill-switch-trip.md` — superseded
 
-| Resource | Value |
-|---|---|
-| Account ID | `6bc2ed8d6d675701a9a54f4f3d9b2499` |
-| Zone fxmilyapp.com | `f80b4469f67d1687211fd169a33258bf` (free plan, NS migrated from Hover) |
-| Tunnel ID | `97aab1f6-bd98-4743-8f65-78761388fe77` |
-| Tunnel name | `ichor-claude-runner` |
-| Public hostname | `claude-runner.fxmilyapp.com` (proxied CNAME → cfargotunnel) |
-| R2 bucket | `ichor-walg-eu` (EU jurisdiction) |
-| API token (in SOPS) | `cfut_...` — has Tunnel:Edit + Access:Edit + Zone:Read but NOT DNS records:Edit |
+## What's KEPT and load-bearing
 
-### GitHub
+- `apps/api/` skeleton (FastAPI + Alembic + ORM + 6 routers)
+- `apps/claude-runner/` Voie D wrapper Win11
+- `apps/web/` Next.js 15 + Tailwind 4 + design tokens + 7 working routes
+- `packages/ui/` 13-component design system
+- `packages/agents/critic/` Critic Agent skeleton (will be extended)
+- `apps/api/src/ichor_api/graph/` AGE knowledge graph populator
+- 17 ADRs (16 historic + ADR-017 reset)
+- 11 runbooks (RUNBOOK-001 to RUNBOOK-011)
+- 4 research reports : `docs/research/{macro-tools-landscape,data-sources,macro-frameworks,claude-orchestration-patterns}-2026.md`
+- DR drill record : `docs/dr-tests/2026-Q2-walg-drill.md`
+- SOPS+age + secrets infrastructure
+- DisclaimerBanner + AMF + EU AI Act compliance
 
-- Repo `fxeliott/ichor` (private)
-- 36 commits on `main`, CI green on latest
-- Dependabot active (10 ecosystems)
-- Auto-deploy.yml workflow ready (waits for `HETZNER_SSH_PRIVATE_KEY` secret)
+## Phase 1 plan (this session start point)
 
-## Pending blockers
+7 chunks to ship Phase 1 Step 1 ("EUR/USD Pré-Londres carte de session end-to-end") :
 
-### From Eliot (small, quick)
+1. ✅ **CHUNK 1** — Reset propre (this commit)
+2. ⏳ **CHUNK 2** — 17 new collectors (FRED extended, GDELT, AI-GPR, COT, BLS, ECB SDMX, EIA, BoE IADB, BIS speeches, FlashAlpha GEX, Polygon intraday, Kalshi, Manifold, VIX live, AAII, Reddit WSB, FINRA short interest, FINRA ATS)
+3. ⏳ **CHUNK 3** — Migration TimescaleDB for new tables
+4. ⏳ **CHUNK 4** — Pipeline Claude 4-pass skeleton (`packages/ichor_brain/`)
+5. ⏳ **CHUNK 5** — Carte de session UI (`/sessions` + `/sessions/[asset]`)
+6. ⏳ **CHUNK 6** — Polygon Starter integration (8 assets intraday)
+7. ⏳ **CHUNK 7** — Critic Agent gate + tests + final commit
 
-1. **Run `register-user-tasks.ps1`** (no admin) to make Win11 services persist across reboots
-2. **GitHub repo secret `HETZNER_SSH_PRIVATE_KEY`** for deploy.yml auto-deploy
-   (paste content of `~/.ssh/id_ed25519_ichor_hetzner` into Settings → Secrets → Actions → New)
-3. (Optional) Free API keys: Cerebras + Groq + Azure Speech + OANDA + FRED
+## Critical rules (non-negotiable)
 
-### Autonomy (no Eliot needed)
+- **Voie D** (ADR-009) : never any Anthropic API key, only Max 20x via local subprocess
+- **AMF DOC-2008-23** : briefings remain general research, never personalized advice
+- **EU AI Act Article 50** : AI-generated content disclosed everywhere (DisclaimerBanner)
+- **Anthropic Usage Policy** : every output is "research material to inform a human decision"
+- **Ichor never executes any order**, ever. Eliot trades on TradingView.
+- **Track-record + calibration must be public** on every session card (Brier 30/90j)
 
-- Activate 5 Hetzner systemd timers for cron briefings (06h/12h/17h/22h Paris + Sun 18h)
-- Trigger 1 manual briefing now to prove the timer-fired path works
-- Phase 0 W2 collectors implementations (OANDA WS, RSS, Polymarket WS)
-- Frontend pages /alerts + /assets/[code]
-- 3 last UI components (ChartCard, DrillDownButton, +1)
-
-## Known issues + workarounds discovered
-
-| Issue | Workaround | Permanent fix |
-|---|---|---|
-| Win11 NSSM service runs as LocalSystem → can't read user OAuth tokens → claude -p 403 | Launch uvicorn as user on :8766 instead | Use `nssm set ObjectName .\eliot <password>` (need Eliot password) |
-| `<UUID>.cfargotunnel.com` resolves to IPv6 ULA, unreachable | Use `cloudflared tunnel route dns` to bind hostname | none — by design |
-| Cloudflare API token (cfut_) lacks DNS records:Edit scope | Use `cloudflared tunnel route dns` (CLI w/ cert.pem) for CNAME ops | Create new token with `Zone DNS: Edit` scope |
-| PUT /configurations sometimes returns 10405 "Method not allowed" | Worked on retry — token may have transiently lacked perms during creation | always retry; verify scope via /user/tokens/verify |
-| PowerShell can't parse em-dash `—` in scripts | Use ASCII dashes only in .ps1 files | save scripts as UTF-8 with BOM (Out-File -Encoding utf8BOM) |
-| Eliot dismisses UAC prompts often | Avoid Start-Process -Verb RunAs, prefer scripts he runs once manually | n/a |
-| `cloudflared service install <token>` ignores ~/.cloudflared/config.yml | Don't use service install with token, use scheduled task + nohup | n/a |
-| TimescaleDB hypertable requires partitioning column in PK | Composite PK (id, generated_at) on predictions_audit | done in Alembic 0001 |
-| pydantic-settings reads `.env` from CWD → permission error for service users | Drop env_file from SettingsConfigDict, use systemd EnvironmentFile only | done in apps/api/config.py |
-| /etc/ichor mode 700 root-only blocks ichor user from reading files inside | chmod 750 + chown root:ichor | done |
-| Apache AGE create_graph requires ag_catalog privileges (postgres only) | Grant USAGE/EXECUTE on ag_catalog to ichor + create graph as postgres | done in role + Ansible task |
-
-## Critical commands ready to run
-
-### Resume Win11 user-mode services after reboot
-
-```powershell
-powershell -ExecutionPolicy Bypass -File D:\Ichor\scripts\windows\start-claude-runner-user.ps1
-powershell -ExecutionPolicy Bypass -File D:\Ichor\scripts\windows\start-cloudflared-user.ps1
-```
-
-### Run a manual briefing test from Hetzner
-
-```bash
-ssh ichor-hetzner 'curl -sS -X POST "https://claude-runner.fxmilyapp.com/v1/briefing-task" \
-  -H "Content-Type: application/json" \
-  -d "{\"briefing_type\":\"pre_londres\",\"assets\":[\"EUR_USD\"],\"context_markdown\":\"Briefing test\",\"model\":\"sonnet\",\"effort\":\"medium\"}" \
-  --max-time 180' | python -m json.tool
-```
-
-### Trigger a real cron-style briefing via the run_briefing CLI
-
-```bash
-ssh ichor-hetzner 'cd /opt/ichor/api/src && \
-  source /opt/ichor/api/.venv/bin/activate && \
-  set -a && source /etc/ichor/api.env && set +a && \
-  python -m ichor_api.cli.run_briefing pre_londres'
-```
-
-### Verify all services Hetzner-side
-
-```bash
-ssh ichor-hetzner '
-systemctl is-active postgresql redis-server docker fail2ban ichor-api walg-basebackup.timer
-docker ps --format "table {{.Names}}\t{{.Status}}" | head -15
-sudo -u postgres psql -d ichor -c "SELECT count(*) FROM briefings; SELECT count(*) FROM bias_signals; SELECT count(*) FROM alerts;"
-sudo -u postgres bash -c "set -a; source /etc/wal-g.env; set +a; wal-g backup-list"
-'
-```
-
-## Cost summary (real, verified)
-
-| Item | Cost | Status |
-|---|---|---|
-| Claude Max 20x | $200/mo flat | active (Eliot) |
-| Hetzner CX32 | ~€20/mo flat | active |
-| Cloudflare R2 (8.9 GB used) | $0/mo (free 10 GB) | active |
-| Cloudflare Tunnel + DNS + Pages | $0/mo (free) | active |
-| GitHub Actions (private repo) | $0/mo (within 2000 min/mo free) | active |
-| **Total monthly** | **~$220** | flat, no surprise |
-
-## Files of authority
-
-- `README.md` — top-level project overview + live state + quickstart
-- `CONTRIBUTING.md` — branching, commits, model + collector workflows
-- `SECURITY.md` — threat model + secrets handling + incident response
-- `docs/PHASE_0_LOG.md` — live status of 32 Phase 0 criteria
-- `docs/decisions/` — 11 ADRs documenting every delta vs plan
-- `docs/runbooks/` — 11 operational runbooks (DR, rotation, recovery, collectors)
-- `docs/dr-tests/` — quarterly DR drill records (first one 2026-Q2 PASSED)
-- `docs/audits/` — security + accessibility audit reports + applied findings
-- `docs/legal/` — AI disclosure + AMF mapping
-- `packages/ml/model_cards/` — 12 Mitchell-2019 model cards
-- `infra/secrets/.sops.yaml` + `infra/secrets/.gitignore` — multi-recipient
-  encryption config + defensive whitelist
-- `infra/ansible/site.yml` — playbook orchestrating 12 roles
-
-## Continuation plan — 2026-05-03 evening
-
-> Plan written before any new code lands, per the user's process rules.
-> Will be ticked off chunk-by-chunk with checkpoint commits + ADRs.
-
-### Phase 0 — what's TRULY remaining (after re-eval)
-
-Most remaining items are Eliot-manual blockers (FRED key, Cerebras/Groq keys,
-Azure key, register-user-tasks, Cloudflare Access enable, GitHub
-HETZNER_SSH_PRIVATE_KEY secret) — all documented in
-[the manual guide](#manual-guide-2026-05-03). The autonomous-side closeouts :
-
-| # | Item | Effort | Notes |
-|---|------|--------|-------|
-| #25 | Cloudflare Pages deploy config | S | Wrangler + GHA workflow scaffold (deploy itself blocked on Eliot login) |
-| #26 | VAPID push server scaffold | S | Migration + ORM + endpoint, keys/subscription needs Eliot |
-| #12 | First trained ML model end-to-end | M | Synthetic-data path so we don't depend on OANDA |
-
-### Phase 1 — chosen scope for this autonomous burst
-
-Per `docs/ICHOR_PLAN.md:372` and `docs/ARCHITECTURE_FINALE.md:105`, full Phase 1
-is a 16-22 week MVP on 5 core assets. **NOT shippable in one session.** What I
-will deliver instead is the **load-bearing foundation** that future Phase 1
-work can stand on, with **paper-only + kill switch** baked in from day 1 :
-
-1. **Backtest framework** (`packages/backtest/`) — walk-forward harness,
-   leakage guard, fee + slippage model, equity curve, max-DD, OOS split,
-   synthetic OHLCV generator (so backtests run without OANDA today). ADR.
-2. **Risk engine** (`packages/risk/`) — Kelly-fraction position sizing
-   with hard cap, per-trade stop, daily DD stop, kill switch (file flag
-   `/etc/ichor/KILL_SWITCH` + env var, trip = halt all order generation).
-   ADR + tests.
-3. **Paper trading layer** (`packages/trading/`) — Order/Position/Trade
-   dataclasses + paper-only Broker stub + P&L. PAPER stamped on every
-   public surface. Integration with risk engine.
-4. **First trained bias model end-to-end** — LightGBM on synthetic data,
-   prediction persisted to `predictions_audit`, walk-forward Brier
-   computed via the new framework. Proves the Phase 0 #12 path.
-5. **Push notifications scaffold** — `0003_push_subscriptions.py`
-   migration, `/v1/push/subscribe` endpoint, SW push handler verified
-   (no real VAPID keys yet — Phase 1 Eliot action).
-6. **CI extensions** — `pip-audit` per Python pkg, ANSIBLE-lint stricter
-   profile, frontend a11y check via `pnpm dlx @axe-core/cli` against the
-   built `out/`.
-7. **Observability** — extend Grafana dashboard with backtest metrics
-   panels (equity curve, rolling Sharpe, drawdown, hit rate).
-8. **RUNBOOK-012** — kill switch trip + recovery procedure.
-9. **ADR for paper-only-by-default** — escalation to live trading
-   requires explicit Eliot ack in-session.
-
-### Items explicitly out of scope this session
-
-- Real OANDA / Polygon / Alpaca live data (needs Eliot keys + license).
-- Real capital (paper-only by ADR contract).
-- Anything past Phase 1 (Phase 2-7 scope undefined per docs).
-- python-jose → PyJWT migration (mitigated, deferred).
-- MinIO / ClickHouse bumps (low risk + needs Eliot deploy).
-
-### Risks + mitigations
-
-| Risk | Mitigation in this plan |
-|---|---|
-| Voie D fragility (single Win11 PC) | No new dependency on Win11 process — all new code runs on Hetzner |
-| 6 unbuilt bias models | Ship ONE end-to-end first (LightGBM), prove the path, defer the rest |
-| Free tier limits (Cerebras 30 RPM, Groq 1000 RPD, Azure 5M chars/mo) | Not consumed by this plan — pure code + synthetic data |
-| n8n / Grafana / MinIO rot | n8n + Grafana already bumped commit e89d93a, deploy needs Eliot |
-| python-jose abandoned | RS256 pin shipped; full migration tracked Phase 1 |
-| Backtest-driven overconfidence | Hard rules: paper-only by default, kill switch tested, no alpha promises |
-| Data leakage in backtest harness | `LeakageGuard` class enforces feature_t ⊥ price_t, asserts at every fold boundary |
-
-### Chunks (1-2 h each, dependency-ordered)
-
-1. **Chunk 1** — Plan committed (this), Phase 0 minor closeouts (Cloudflare Pages
-   wrangler config + GHA workflow stub).
-2. **Chunk 2** — Backtest framework foundation (synthetic generator + walk-forward
-   harness + leakage guard + fee/slippage + equity calc + tests + ADR-012).
-3. **Chunk 3** — Risk engine + kill switch (Kelly cap + per-trade stop + daily DD
-   stop + tests + ADR-013 + RUNBOOK-012).
-4. **Chunk 4** — Paper trading layer (Order/Position/Trade + Broker + P&L +
-   tests + ADR-014).
-5. **Chunk 5** — First end-to-end backtest (LightGBM on synthetic +
-   predictions_audit population + Brier/Sharpe report + smoke test).
-6. **Chunk 6** — Push notifications scaffold (migration + endpoint + SW handler).
-7. **Chunk 7** — CI + observability extensions (pip-audit, axe-core,
-   Grafana backtest panels).
-8. **Chunk 8** — Final SESSION_HANDOFF refresh + commit + push + summary.
-
-After each chunk : tests + lint + git diff review + verifier subagent on
-non-trivial chunks + checkpoint update here + atomic commit.
-
-### Trading rules respected throughout
-
-- **Paper-only by default** (ADR-014).
-- **No real capital** anywhere in this work.
-- **Kill switch tested end-to-end** before any chunk that touches order
-  generation lands (Chunk 3).
-- **No alpha promises** — engineering robustness only (backtests, monitoring,
-  resilience).
-- **Backtests** : walk-forward, fees + slippage, leakage assertion, OOS split.
-- **Live trading** : forbidden in this session, escalation requires explicit
-  Eliot ack in-session.
-
-## After /clear: how to resume
+## How to resume after /clear
 
 Paste in new session :
 
 ```
-Reprends Ichor. Lis docs/SESSION_HANDOFF.md (autoritaire), docs/PHASE_0_LOG.md
-(checklist 32 critères), git log --oneline | head -10. Vérifie services live
-(curl http://127.0.0.1:8766/healthz, ssh ichor-hetzner systemctl is-active ichor-api).
-Continue selon priorité Phase 0. Rappel: Voie D actée (ADR-009), pas d'API
-consommation, Max 20x flat seul.
+Reprends Ichor. Lis docs/SESSION_HANDOFF.md (autoritaire), docs/decisions/ADR-017
+(la nouvelle vision Living Macro Entity), git log --oneline | head -10. Continue
+au CHUNK courant marqué dans SESSION_HANDOFF. Voie D maintenue, AMF + EU AI Act
+non-négociables.
 ```
 
-The 3 memories in `~/.claude/projects/D--Ichor/memory/` will auto-load critical
-context (URLs, UUIDs, constraints, pickup template).
+## Key files of authority
+
+- `README.md` — project overview (to be updated post-CHUNK 7)
+- `CONTRIBUTING.md` — branching, commits, model + collector workflows
+- `SECURITY.md` — threat model, secrets, incident response
+- **`docs/decisions/ADR-017-reset-phase1-living-macro-entity.md`** — the contract
+- `docs/PHASE_1_LOG.md` — live status of Phase 1 (this file's companion)
+- `docs/PHASE_0_LOG.md` — historic Phase 0 retrospective
+- `docs/research/` — 4 ground-truth research reports
+- `docs/runbooks/` — 11 operational runbooks
+- `infra/secrets/.sops.yaml` + `.gitignore` — secret management
+- `infra/ansible/site.yml` — playbook orchestrating 12 roles
+
+## Status tracker
+
+Phase 1 — CHUNK 1 (Reset propre) : **DONE** at commit `[reset]` 2026-05-03 evening.
+Next : CHUNK 2 (17 new collectors).

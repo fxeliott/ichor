@@ -2,6 +2,9 @@
 
 Naming: tables snake_case plural, columns snake_case, FKs `<table>_id`.
 All timestamps are TIMESTAMPTZ (UTC).
+
+Note : `BacktestRun` was archived in commit ADR-017 reset (2026-05-03).
+See `archive/2026-05-03-pre-reset/backtest_run_model.py`.
 """
 
 from .base import Base
@@ -12,7 +15,6 @@ from .bias_signal import BiasSignal
 from .news_item import NewsItem
 from .polymarket_snapshot import PolymarketSnapshot
 from .market_data import MarketDataBar
-from .backtest_run import BacktestRun
 
 __all__ = [
     "Base",
@@ -23,5 +25,4 @@ __all__ = [
     "NewsItem",
     "PolymarketSnapshot",
     "MarketDataBar",
-    "BacktestRun",
 ]
