@@ -290,3 +290,33 @@ export const listPredictions = (
 
 export const listModels = (): Promise<ModelSummary[]> =>
   get<ModelSummary[]>(`/v1/predictions/models`, 60);
+
+// ─────────────────────────── backtests ───────────────────────────
+
+export interface BacktestRun {
+  id: string;
+  created_at: string;
+  model_id: string;
+  asset: string;
+  started_at: string;
+  finished_at: string;
+  config: Record<string, unknown>;
+  metrics: Record<string, number>;
+  n_folds: number;
+  n_signals: number;
+  n_trades: number;
+  equity_curve_summary: { date: string; equity: number }[] | null;
+  notes: string[] | null;
+  paper_only: boolean;
+}
+
+export const listBacktests = (
+  params: { asset?: string; modelId?: string; limit?: number } = {},
+): Promise<BacktestRun[]> => {
+  const q = new URLSearchParams();
+  if (params.asset) q.set("asset", params.asset);
+  if (params.modelId) q.set("model_id", params.modelId);
+  if (params.limit) q.set("limit", String(params.limit));
+  const qs = q.toString();
+  return get<BacktestRun[]>(`/v1/backtests${qs ? `?${qs}` : ""}`, 60);
+};

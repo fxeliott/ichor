@@ -14,6 +14,7 @@ from .config import get_settings
 from .db import get_engine, get_session
 from .routers import (
     alerts_router,
+    backtests_router,
     bias_signals_router,
     briefings_router,
     market_router,
@@ -78,6 +79,7 @@ app.include_router(bias_signals_router)
 app.include_router(news_router)
 app.include_router(market_router)
 app.include_router(predictions_router)
+app.include_router(backtests_router)
 app.include_router(ws_router)
 
 

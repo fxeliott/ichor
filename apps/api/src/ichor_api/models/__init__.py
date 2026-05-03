@@ -12,6 +12,7 @@ from .bias_signal import BiasSignal
 from .news_item import NewsItem
 from .polymarket_snapshot import PolymarketSnapshot
 from .market_data import MarketDataBar
+from .backtest_run import BacktestRun
 
 __all__ = [
     "Base",
@@ -22,4 +23,5 @@ __all__ = [
     "NewsItem",
     "PolymarketSnapshot",
     "MarketDataBar",
+    "BacktestRun",
 ]
