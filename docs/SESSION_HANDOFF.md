@@ -116,17 +116,30 @@ All under `archive/2026-05-03-pre-reset/` :
 - SOPS+age + secrets infrastructure
 - DisclaimerBanner + AMF + EU AI Act compliance
 
-## Phase 1 plan (this session start point)
+## Phase 1 Step 1 — DONE
 
-7 chunks to ship Phase 1 Step 1 ("EUR/USD Pré-Londres carte de session end-to-end") :
+7 chunks shipped end-to-end (commits `b884943` → CHUNK 7) :
 
-1. ✅ **CHUNK 1** — Reset propre (this commit)
-2. ⏳ **CHUNK 2** — 17 new collectors (FRED extended, GDELT, AI-GPR, COT, BLS, ECB SDMX, EIA, BoE IADB, BIS speeches, FlashAlpha GEX, Polygon intraday, Kalshi, Manifold, VIX live, AAII, Reddit WSB, FINRA short interest, FINRA ATS)
-3. ⏳ **CHUNK 3** — Migration TimescaleDB for new tables
-4. ⏳ **CHUNK 4** — Pipeline Claude 4-pass skeleton (`packages/ichor_brain/`)
-5. ⏳ **CHUNK 5** — Carte de session UI (`/sessions` + `/sessions/[asset]`)
-6. ⏳ **CHUNK 6** — Polygon Starter integration (8 assets intraday)
-7. ⏳ **CHUNK 7** — Critic Agent gate + tests + final commit
+1. ✅ **CHUNK 1** — Reset propre (`b884943`)
+2. ✅ **CHUNK 2** — 6 new collectors (FRED extended, GDELT, AI-GPR, COT, CB speeches, Kalshi, Manifold), 108/108 tests (`b17baf1`)
+3. ✅ **CHUNK 3** — Migration `0005`, 8 ORM models, Hetzner alembic at `0005`, all hypertables registered (`95928aa`)
+4. ✅ **CHUNK 4** — `packages/ichor_brain/` 4-pass orchestrator with injectable Critic, 30/30 tests including real-Critic integration (`b91757b`)
+5. ✅ **CHUNK 5** — `<SessionCard>` UI + `/sessions` + `/sessions/[asset]` + `GET /v1/sessions[/{asset}]` API (`1c73159`)
+6. ✅ **CHUNK 6** — Polygon Starter REST client + `polygon_intraday` migration `0006` + 1-min systemd timer + 8 parser tests (`20deb40`)
+7. ✅ **CHUNK 7** — Cross-asset Critic extension + end-to-end CLI `run_session_card` writing into `session_card_audit` (this commit)
+
+**Verified end-to-end on Hetzner :**
+  `python -m ichor_api.cli.run_session_card EUR_USD pre_londres --dry-run`
+  → orchestrator runs 4 passes (canned LLM responses) → critic verdict
+  → `session_card_audit` row inserted → `GET /v1/sessions` returns it.
+
+Pending Eliot actions (paid stack + activation) :
+  - Set `ICHOR_API_POLYGON_API_KEY` in `/etc/ichor/api.env` once the
+    Polygon Starter ($29/mo) subscription is active.
+  - Run `bash /opt/ichor/scripts/hetzner/register-cron-collectors.sh`
+    on Hetzner to enable the 1-min Polygon timer.
+  - Run the CLI in `--live` mode to exercise the actual Voie D Claude
+    pipeline (requires the Win11 claude-runner up + CF Access creds).
 
 ## Critical rules (non-negotiable)
 

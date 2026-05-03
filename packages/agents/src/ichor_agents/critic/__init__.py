@@ -21,6 +21,13 @@ PAPER-friendly. The Critic itself does not generate orders. It only
 gates briefings before they reach the dashboard / TTS.
 """
 
+from .cross_asset import (
+    CardSnapshot,
+    CoherenceFinding,
+    CoherenceSeverity,
+    CrossAssetVerdict,
+    review_cards,
+)
 from .reviewer import (
     CriticVerdict,
     Verdict,
@@ -33,4 +40,9 @@ __all__ = [
     "Verdict",
     "review_briefing",
     "HallucinationFinding",
+    "CardSnapshot",
+    "CoherenceFinding",
+    "CoherenceSeverity",
+    "CrossAssetVerdict",
+    "review_cards",
 ]

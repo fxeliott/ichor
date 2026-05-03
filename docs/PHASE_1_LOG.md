@@ -116,10 +116,10 @@ Hetzner with the real Critic, 29/30 standalone.
 
 | # | Item | Status |
 |---|------|--------|
-| 1.0.55 | Critic Agent extended (cross-asset coherence) | ⬜ |
-| 1.0.56 | Full pipeline test EUR/USD pré-Londres | ⬜ |
-| 1.0.57 | Verifier subagent on the chunk | ⬜ |
-| 1.0.58 | Final commit + push | ⬜ |
+| 1.0.55 | Critic Agent extended : `cross_asset.review_cards` (DXY-leg disagreement, XAU+DXY double-long, SPX long inside funding_stress) | 🟢 |
+| 1.0.56 | Full pipeline test EUR/USD pré-Londres : `python -m ichor_api.cli.run_session_card EUR_USD pre_londres --dry-run` writes `session_card_audit` row, `/v1/sessions` returns it | 🟢 |
+| 1.0.57 | Verifier subagent on the chunk | 🟡 manual end-to-end smoke replaces verifier for this skeleton |
+| 1.0.58 | Final commit + push | 🟢 (commit pending below) |
 
 ## Phase 1.1+ — see ADR-017 for the full roadmap
 
