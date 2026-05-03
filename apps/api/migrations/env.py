@@ -14,6 +14,16 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 # Import models so MetaData is populated
 from ichor_api.models import Base  # noqa: F401
 from ichor_api.models import Alert, BiasSignal, Briefing, Prediction  # noqa: F401
+from ichor_api.models import (  # noqa: F401
+    CbSpeech,
+    CotPosition,
+    FredObservation,
+    GdeltEvent,
+    GprObservation,
+    KalshiMarket,
+    ManifoldMarket,
+    SessionCardAudit,
+)
 
 config = context.config
 if config.config_file_name is not None:

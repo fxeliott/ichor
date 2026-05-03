@@ -5,6 +5,10 @@ All timestamps are TIMESTAMPTZ (UTC).
 
 Note : `BacktestRun` was archived in commit ADR-017 reset (2026-05-03).
 See `archive/2026-05-03-pre-reset/backtest_run_model.py`.
+
+Phase 1 Living Macro Entity tables (migration 0005, 2026-05-03) :
+FredObservation, GdeltEvent, GprObservation, CotPosition, CbSpeech,
+KalshiMarket, ManifoldMarket, SessionCardAudit.
 """
 
 from .base import Base
@@ -16,6 +20,16 @@ from .news_item import NewsItem
 from .polymarket_snapshot import PolymarketSnapshot
 from .market_data import MarketDataBar
 
+# Phase 1 Living Macro Entity collectors
+from .fred_observation import FredObservation
+from .gdelt_event import GdeltEvent
+from .gpr_observation import GprObservation
+from .cot_position import CotPosition
+from .cb_speech import CbSpeech
+from .kalshi_market import KalshiMarket
+from .manifold_market import ManifoldMarket
+from .session_card_audit import SessionCardAudit
+
 __all__ = [
     "Base",
     "Briefing",
@@ -25,4 +39,13 @@ __all__ = [
     "NewsItem",
     "PolymarketSnapshot",
     "MarketDataBar",
+    # Phase 1
+    "FredObservation",
+    "GdeltEvent",
+    "GprObservation",
+    "CotPosition",
+    "CbSpeech",
+    "KalshiMarket",
+    "ManifoldMarket",
+    "SessionCardAudit",
 ]

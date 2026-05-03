@@ -50,21 +50,27 @@ Goal : ship the EUR/USD Pré-Londres carte de session end-to-end.
 
 ### CHUNK 3 — Migration TimescaleDB
 
+Status: 🟢 8/14 tables shipped in migration `0005_phase1_collector_tables.py`,
+applied on Hetzner (alembic at `0005`, all 8 hypertables registered).
+Remaining tables (treasury_dts, bls, ecb, eia, gex, polygon_intraday,
+finra_*) deferred to a later migration once their collectors land.
+
 | # | Table | Status |
 |---|-------|--------|
-| 1.0.25 | `fred_observations` (time-series, hypertable) | ⬜ |
-| 1.0.26 | `gdelt_events` (hypertable, 15-min chunks) | ⬜ |
-| 1.0.27 | `gpr_observations` (daily) | ⬜ |
-| 1.0.28 | `cot_positions` (weekly, hypertable) | ⬜ |
+| 1.0.25 | `fred_observations` (time-series, hypertable, 90d chunks) | 🟢 |
+| 1.0.26 | `gdelt_events` (hypertable, 7d chunks) | 🟢 |
+| 1.0.27 | `gpr_observations` (daily, 180d chunks) | 🟢 |
+| 1.0.28 | `cot_positions` (weekly, hypertable, 180d chunks) | 🟢 |
 | 1.0.29 | `treasury_dts_daily` (daily TGA balance) | ⬜ |
 | 1.0.30 | `bls_observations` (monthly) | ⬜ |
 | 1.0.31 | `ecb_series` (varying frequency) | ⬜ |
 | 1.0.32 | `eia_series` (varying frequency) | ⬜ |
 | 1.0.33 | `gex_snapshots` (daily) | ⬜ |
 | 1.0.34 | `polygon_intraday` (1-min OHLCV, hypertable, 7d chunks) | ⬜ |
-| 1.0.35 | `kalshi_markets` + `manifold_markets` snapshots | ⬜ |
+| 1.0.35 | `kalshi_markets` + `manifold_markets` snapshots (30d chunks) | 🟢 |
+| 1.0.35b | `cb_speeches` (90d chunks) | 🟢 |
 | 1.0.36 | `finra_short_interest` + `finra_ats_weekly` | ⬜ |
-| 1.0.37 | `session_card_audit` (replace `predictions_audit`, hypertable) | ⬜ |
+| 1.0.37 | `session_card_audit` (replace `predictions_audit`, 30d chunks) | 🟢 |
 
 ### CHUNK 4 — Pipeline Claude 4-pass skeleton
 
