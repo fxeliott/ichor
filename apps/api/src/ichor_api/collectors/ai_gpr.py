@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import csv
 import io
+import sys
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
 
@@ -52,7 +53,13 @@ class AiGprObservation:
 def _parse_csv(body: bytes) -> list[AiGprObservation]:
     """The recent CSV ships with header `date,GPR_DAILY,...`. We only need
     `date` + `GPR_DAILY` (or `AI_GPR` depending on file version).
+
+    Some vintages of the file embed long bibliographic citations in a
+    column, which crashes csv.DictReader's default 128 KB field limit.
+    We bump the limit to sys.maxsize before parsing — the file is small
+    enough overall (< 5 MB) that this is safe.
     """
+    csv.field_size_limit(sys.maxsize)
     text = body.decode("utf-8", errors="replace")
     reader = csv.DictReader(io.StringIO(text))
     fields = set(reader.fieldnames or [])

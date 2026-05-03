@@ -149,9 +149,18 @@ def _parse_response(query_label: str, payload: dict) -> list[GdeltArticle]:
 
 
 async def fetch_query(
-    q: GdeltQuery, *, client: httpx.AsyncClient, timeout: float = 20.0
+    q: GdeltQuery,
+    *,
+    client: httpx.AsyncClient,
+    timeout: float = 20.0,
+    max_retries: int = 3,
 ) -> list[GdeltArticle]:
-    """One bucket → JSON → parsed list. Returns [] on any error."""
+    """One bucket → JSON → parsed list. Returns [] on any error.
+
+    Retries with exponential backoff on 429 / 5xx. GDELT occasionally
+    rate-limits (no documented limit, but ~1 req/s observed) so we
+    sleep 1s / 3s / 9s between attempts.
+    """
     params = {
         "query": q.query,
         "mode": "ArtList",
@@ -159,23 +168,37 @@ async def fetch_query(
         "timespan": q.timespan,
         "maxrecords": str(q.max_records),
     }
-    try:
-        r = await client.get(
-            GDELT_DOC_BASE,
-            params=params,
-            timeout=timeout,
-            headers={"User-Agent": "IchorGdeltCollector/0.1"},
-        )
-        r.raise_for_status()
-        # GDELT sometimes returns text/plain instead of application/json on errors.
-        if "application/json" not in r.headers.get("content-type", ""):
-            log.warning("gdelt.non_json_response", query=q.label, ct=r.headers.get("content-type"))
+    backoff = 1.0
+    for attempt in range(max_retries + 1):
+        try:
+            r = await client.get(
+                GDELT_DOC_BASE,
+                params=params,
+                timeout=timeout,
+                headers={"User-Agent": "IchorGdeltCollector/0.1"},
+            )
+            if r.status_code in (429, 502, 503, 504) and attempt < max_retries:
+                await asyncio.sleep(backoff)
+                backoff *= 3
+                continue
+            r.raise_for_status()
+            if "application/json" not in r.headers.get("content-type", ""):
+                log.warning(
+                    "gdelt.non_json_response",
+                    query=q.label,
+                    ct=r.headers.get("content-type"),
+                )
+                return []
+            payload = r.json()
+            return _parse_response(q.label, payload)
+        except httpx.HTTPError as e:
+            if attempt < max_retries:
+                await asyncio.sleep(backoff)
+                backoff *= 3
+                continue
+            log.warning("gdelt.fetch_failed", query=q.label, error=str(e))
             return []
-        payload = r.json()
-    except httpx.HTTPError as e:
-        log.warning("gdelt.fetch_failed", query=q.label, error=str(e))
-        return []
-    return _parse_response(q.label, payload)
+    return []
 
 
 async def poll_all(
