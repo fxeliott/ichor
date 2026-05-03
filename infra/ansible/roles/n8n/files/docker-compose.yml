@@ -2,7 +2,12 @@ name: ichor-n8n
 
 services:
   n8n:
-    image: docker.n8n.io/n8nio/n8n:1.78.1
+    # SECURITY: pinned to a 1.x stable past CVE-2026-33660 (Merge-Node
+    # AlaSQL RCE, CVSS 9.4, fixed in 1.123.x). See deps audit
+    # docs/audits/dependencies-2026-05-03.md (CRITICAL-DEPS-1). Verify
+    # the digest at https://hub.docker.com/r/n8nio/n8n/tags before
+    # rolling forward.
+    image: docker.n8n.io/n8nio/n8n:1.123.27
     container_name: ichor-n8n
     restart: unless-stopped
     depends_on: [n8n-postgres]

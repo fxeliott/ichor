@@ -1,11 +1,20 @@
 [project]
 name = "ichor-agents"
 version = "0.0.0"
-description = "Ichor — Claude Agent SDK + Pydantic AI agent definitions (Orchestrator, Macro, Sentiment, Positioning, CB-NLP, News-NLP, Critic, Journalist)"
+description = "Ichor — Pydantic AI agent definitions (Orchestrator, Macro, Sentiment, Positioning, CB-NLP, News-NLP, Critic, Journalist)"
 requires-python = ">=3.12,<3.13"
 dependencies = [
-    "claude-agent-sdk>=0.1.71,<0.2",
-    "pydantic-ai>=1.88,<2",
+    # NOTE: `claude-agent-sdk` was previously listed but never imported —
+    # Voie D (ADR-009) runs Claude via subprocess `claude -p` from
+    # apps/claude-runner, not via the SDK. Dropping it removes a chunk
+    # of transitive dep weight. See deps audit
+    # docs/audits/dependencies-2026-05-03.md (bloat candidates).
+    #
+    # Voie D (ADR-009): use pydantic-ai-slim to AVOID transitively pulling
+    # the `anthropic` SDK that ships with the umbrella `pydantic-ai`.
+    # Cerebras + Groq are OpenAI-compatible, so the [openai] extra is
+    # sufficient for our 24/7 LLM automation. See deps audit HIGH-DEPS-Voie-D.
+    "pydantic-ai-slim[openai]>=1.88,<2",
     "pydantic>=2.10.0",
     "httpx>=0.28.0",
     "structlog>=25.1.0",

@@ -29,7 +29,11 @@ services:
     networks: [obs]
 
   grafana:
-    image: grafana/grafana:11.4.0
+    # SECURITY: pinned past CVE-2025-4123 (XSS), CVE-2025-3260
+    # (dashboard auth bypass /apis/dashboard.grafana.app/*),
+    # CVE-2025-6023 / CVE-2025-6197. See deps audit
+    # docs/audits/dependencies-2026-05-03.md (HIGH-DEPS-Grafana).
+    image: grafana/grafana:11.4.3
     container_name: ichor-grafana
     restart: unless-stopped
     environment:
