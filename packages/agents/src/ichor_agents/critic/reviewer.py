@@ -94,6 +94,43 @@ def _normalize(text: str) -> str:
     return re.sub(r"\s+", " ", text.lower())
 
 
+# Asset spellings that should all be considered equivalent during the
+# source-pool match. The LLM tends to emit the human-readable slash form
+# (EUR/USD, XAU/USD) while data_pool.py emits underscored codes (EUR_USD)
+# and Polygon-prefixed tickers (C:EURUSD, C:XAUUSD, I:NDX). Without this
+# mapping the Critic flags every asset mention as "not in pool" and the
+# entire pipeline blocks even when sources are perfectly tracked.
+_ASSET_ALIASES: dict[str, tuple[str, ...]] = {
+    "eur/usd":   ("eur/usd", "eur_usd", "eurusd", "c:eurusd"),
+    "eurusd":    ("eur/usd", "eur_usd", "eurusd", "c:eurusd"),
+    "gbp/usd":   ("gbp/usd", "gbp_usd", "gbpusd", "c:gbpusd"),
+    "usd/jpy":   ("usd/jpy", "usd_jpy", "usdjpy", "c:usdjpy"),
+    "aud/usd":   ("aud/usd", "aud_usd", "audusd", "c:audusd"),
+    "usd/cad":   ("usd/cad", "usd_cad", "usdcad", "c:usdcad"),
+    "xau/usd":   ("xau/usd", "xau_usd", "xauusd", "c:xauusd", "gold"),
+    "nas100":    ("nas100", "nas100_usd", "ndx", "i:ndx"),
+    "spx500":    ("spx500", "spx500_usd", "spx", "i:spx", "s&p 500", "s&p500"),
+    "s&p 500":   ("spx500", "spx500_usd", "spx", "i:spx", "s&p 500", "s&p500"),
+    "nasdaq":    ("nas100", "nas100_usd", "ndx", "i:ndx", "nasdaq"),
+    "ndx":       ("nas100", "nas100_usd", "ndx", "i:ndx"),
+    "vix":       ("vix", "vixcls", "vix9d", "vix3m"),
+    "dxy":       ("dxy", "dtwexbgs", "dollar index", "us dollar index"),
+    "hy oas":    ("hy oas", "bamlh0a0hym2", "hy spread"),
+    "ig oas":    ("ig oas", "bamlc0a0cm", "bamlc0a0cmtriv", "ig spread"),
+}
+
+
+def _asset_in_pool(asset_text: str, source_pool_norm: str) -> bool:
+    """Return True if any known alias of `asset_text` appears in the
+    normalized source pool. Falls back to direct substring check for
+    unknown assets so we stay conservative."""
+    key = _normalize(asset_text).strip()
+    aliases = _ASSET_ALIASES.get(key)
+    if aliases is None:
+        return key in source_pool_norm
+    return any(alias in source_pool_norm for alias in aliases)
+
+
 def _entity_present_in_sources(entity: str, source_pool: str) -> bool:
     return _normalize(entity) in _normalize(source_pool)
 
@@ -101,9 +138,10 @@ def _entity_present_in_sources(entity: str, source_pool: str) -> bool:
 def _check_sentence(sentence: str, source_pool_norm: str) -> HallucinationFinding | None:
     """Return a finding if the sentence references entities/numbers not
     present in the source pool."""
-    # 1. Asset codes — every mentioned asset MUST appear in sources.
+    # 1. Asset codes — every mentioned asset MUST appear in sources
+    #    via any of its known aliases (slash/underscore/Polygon-prefixed).
     for m in _ASSET_RE.finditer(sentence):
-        if _normalize(m.group(0)) not in source_pool_norm:
+        if not _asset_in_pool(m.group(0), source_pool_norm):
             return HallucinationFinding(
                 sentence=sentence,
                 reason=f"asset '{m.group(0)}' not in source pool",
