@@ -13,7 +13,8 @@ import structlog
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..models import NewsItem, PolymarketSnapshot
+from ..models import MarketDataBar, NewsItem, PolymarketSnapshot
+from .market_data import MarketDataPoint
 from .polymarket import PolymarketSnapshot as PolymarketSnapshotData
 from .rss import NewsItem as NewsItemData
 
@@ -103,3 +104,81 @@ async def persist_polymarket_snapshots(
     await session.commit()
     log.info("polymarket.persisted", count=len(snapshots))
     return len(snapshots)
+
+
+async def persist_market_data(
+    session: AsyncSession, bars: Iterable[MarketDataPoint]
+) -> int:
+    """Insert daily OHLCV bars, skipping ones already stored for the same
+    (asset, bar_date, source) tuple.
+
+    Commits per-asset so a single bad asset (e.g. OHLC constraint trip,
+    encoding) cannot rollback the rest of the batch.
+    """
+    bars = list(bars)
+    if not bars:
+        return 0
+
+    by_asset: dict[str, list[MarketDataPoint]] = {}
+    for b in bars:
+        by_asset.setdefault(b.asset, []).append(b)
+
+    now = datetime.now(timezone.utc)
+    total_inserted = 0
+    total_skipped = 0
+
+    for asset, asset_bars in by_asset.items():
+        dates = {b.bar_date for b in asset_bars}
+        sources = {b.source for b in asset_bars}
+        existing_rows = (
+            await session.execute(
+                select(MarketDataBar.bar_date, MarketDataBar.source).where(
+                    MarketDataBar.asset == asset,
+                    MarketDataBar.bar_date.in_(dates),
+                    MarketDataBar.source.in_(sources),
+                )
+            )
+        ).all()
+        existing: set[tuple[object, str]] = {(r[0], r[1]) for r in existing_rows}
+
+        new_rows = 0
+        for b in asset_bars:
+            if (b.bar_date, b.source) in existing:
+                total_skipped += 1
+                continue
+            session.add(
+                MarketDataBar(
+                    bar_date=b.bar_date,
+                    created_at=now,
+                    asset=b.asset,
+                    source=b.source,
+                    open=b.open,
+                    high=b.high,
+                    low=b.low,
+                    close=b.close,
+                    volume=b.volume,
+                    fetched_at=b.fetched_at,
+                )
+            )
+            new_rows += 1
+
+        if new_rows:
+            try:
+                await session.commit()
+                total_inserted += new_rows
+            except Exception as e:
+                await session.rollback()
+                log.error(
+                    "market_data.persist_asset_failed",
+                    asset=asset,
+                    rows=new_rows,
+                    error=str(e),
+                )
+
+    log.info(
+        "market_data.persisted",
+        total=len(bars),
+        inserted=total_inserted,
+        skipped=total_skipped,
+    )
+    return total_inserted

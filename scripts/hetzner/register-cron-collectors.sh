@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # Register the Ichor collector crons on Hetzner via systemd timers.
 #
-# Two collectors run on independent cadences:
-#   - rss          every 15 min    (news headlines, lightweight)
-#   - polymarket   every 5 min     (prediction-market price snapshots)
+# Three collectors run on independent cadences:
+#   - rss          every 15 min                  (news headlines, lightweight)
+#   - polymarket   every 5 min                   (prediction-market snapshots)
+#   - market_data  daily 23:10 Europe/Paris       (OHLCV bars, after NY close)
 #
 # Each timer triggers a oneshot service that runs the
 # `ichor_api.cli.run_collectors --persist` CLI under the `ichor` user.
@@ -25,7 +26,7 @@ Group=ichor
 WorkingDirectory=/opt/ichor/api
 EnvironmentFile=/etc/ichor/api.env
 ExecStart=/opt/ichor/api/.venv/bin/python -m ichor_api.cli.run_collectors %i --persist
-TimeoutStartSec=120
+TimeoutStartSec=300
 StandardOutput=journal
 StandardError=journal
 # Don't break when a transient HTTP error happens on a single feed
@@ -33,9 +34,13 @@ SuccessExitStatus=0 1
 EOF
 
 declare -A SCHEDULES=(
-  [rss]="*:0/15"          # every 15 min, on 0 / 15 / 30 / 45
-  [polymarket]="*:0/5"    # every 5 min
+  [rss]="*:0/15"                                  # every 15 min
+  [polymarket]="*:0/5"                            # every 5 min
+  [market_data]="*-*-* 23:10:00 Europe/Paris"      # daily after NY close
 )
+
+# market_data fetch can take 1-2 min for 8 assets — give the service a longer
+# timeout. Other collectors stay at the default 120 s.
 
 for collector in "${!SCHEDULES[@]}"; do
   cat > /etc/systemd/system/ichor-collector-${collector}.timer <<EOF

@@ -11,6 +11,7 @@ from .prediction import Prediction
 from .bias_signal import BiasSignal
 from .news_item import NewsItem
 from .polymarket_snapshot import PolymarketSnapshot
+from .market_data import MarketDataBar
 
 __all__ = [
     "Base",
@@ -20,4 +21,5 @@ __all__ = [
     "BiasSignal",
     "NewsItem",
     "PolymarketSnapshot",
+    "MarketDataBar",
 ]
