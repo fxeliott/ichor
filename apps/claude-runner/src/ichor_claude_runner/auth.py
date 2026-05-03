@@ -86,10 +86,15 @@ async def verify_cf_access(
                 detail=f"JWT key id '{kid}' not in Cloudflare JWKS",
             )
 
+        # SECURITY: pin algorithm server-side. Cloudflare Access ALWAYS signs
+        # with RS256; trusting the header `alg` enables CVE-2024-33663
+        # (algorithm confusion: attacker forges an HS256 token using the
+        # public key as HMAC secret). See docs/audits/security-2026-05-03.md
+        # HIGH-1.
         claims = jwt.decode(
             token,
             key,
-            algorithms=[header.get("alg", "RS256")],
+            algorithms=["RS256"],
             audience=settings.cf_access_aud_tag,
             issuer=f"https://{settings.cf_access_team_domain}.cloudflareaccess.com",
             options={"require_exp": True, "require_iat": True},

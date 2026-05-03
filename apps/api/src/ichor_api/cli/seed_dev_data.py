@@ -52,9 +52,25 @@ def _walk_probability(rng: random.Random, n: int, base: float = 0.55) -> list[fl
 
 
 async def _wipe(sm: object) -> None:
+    """Wipe sample-data tables. Refuses to run in production.
+
+    Statements are hardcoded — no f-string into `text()` — so neither
+    the table list nor the SQL is ever data-driven (see MED-3 in the
+    2026-05-03 security audit).
+    """
+    from ..config import get_settings
+
+    settings = get_settings()
+    if settings.environment == "production":
+        raise RuntimeError(
+            "seed_dev_data --clean refuses to run when environment=production. "
+            "Set ICHOR_API_ENVIRONMENT=development to override (DESTRUCTIVE)."
+        )
+
     async with sm() as session:  # type: ignore[attr-defined]
-        for table in ("alerts", "bias_signals", "briefings"):
-            await session.execute(text(f"DELETE FROM {table}"))
+        await session.execute(text("DELETE FROM alerts"))
+        await session.execute(text("DELETE FROM bias_signals"))
+        await session.execute(text("DELETE FROM briefings"))
         await session.commit()
     print("Wiped alerts + bias_signals + briefings tables")
 

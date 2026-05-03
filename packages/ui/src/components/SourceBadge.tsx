@@ -27,6 +27,12 @@ const KIND_COLORS: Record<NonNullable<SourceBadgeProps["kind"]>, string> = {
   internal: "bg-neutral-800/60 text-neutral-300 border-neutral-700/40",
 };
 
+// Reject `javascript:`, `data:`, `vbscript:`, etc. — React does NOT
+// strip these schemes from <a href>, so an attacker-controlled URL
+// (e.g. injected via a malicious RSS feed) would otherwise become a
+// click-required XSS. See LOW-4 in docs/audits/security-2026-05-03.md.
+const SAFE_URL_SCHEME = /^(https?:|mailto:)/i;
+
 export const SourceBadge: React.FC<SourceBadgeProps> = ({
   citedText,
   source,
@@ -34,6 +40,7 @@ export const SourceBadge: React.FC<SourceBadgeProps> = ({
   kind = "data",
 }) => {
   const cls = `inline-flex items-baseline gap-1 px-1.5 py-0.5 rounded text-xs border ${KIND_COLORS[kind]}`;
+  const safeUrl = url && SAFE_URL_SCHEME.test(url) ? url : undefined;
   const content = (
     <>
       <span className="leading-none">{citedText}</span>
@@ -42,10 +49,10 @@ export const SourceBadge: React.FC<SourceBadgeProps> = ({
     </>
   );
 
-  if (url) {
+  if (safeUrl) {
     return (
       <a
-        href={url}
+        href={safeUrl}
         target="_blank"
         rel="noopener noreferrer"
         className={cls + " hover:opacity-100 opacity-90 transition"}

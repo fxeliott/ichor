@@ -28,6 +28,12 @@ from email.utils import parsedate_to_datetime
 from typing import Iterable
 from xml.etree import ElementTree as ET
 
+# defusedxml is a drop-in for `ElementTree.fromstring` that disables
+# entity expansion attacks (billion-laughs, quadratic-blowup). The
+# stdlib parser still accepts those even with externals off in 3.12.
+# See HIGH/MED-1 in docs/audits/security-2026-05-03.md.
+from defusedxml.ElementTree import fromstring as defused_fromstring
+
 import httpx
 import structlog
 
@@ -67,7 +73,10 @@ DEFAULT_FEEDS: tuple[FeedSource, ...] = (
     ),
     FeedSource(
         "bbc_business",
-        "http://feeds.bbci.co.uk/news/business/rss.xml",
+        # SECURITY: HTTPS only — http feeds are MITM-injectable and the
+        # body flows into Claude's prompt context. See MED-2 in the
+        # 2026-05-03 security audit.
+        "https://feeds.bbci.co.uk/news/business/rss.xml",
         "news",
     ),
 )
@@ -146,7 +155,9 @@ def parse_feed(source: FeedSource, body: bytes) -> list[NewsItem]:
     Resilient to malformed feeds: on XML errors returns []. Logs the issue.
     """
     try:
-        root = ET.fromstring(body)
+        # defusedxml refuses entity-expansion attacks but is otherwise
+        # ElementTree API-compatible.
+        root = defused_fromstring(body)
     except ET.ParseError as e:
         log.warning("rss.parse_failed", source=source.name, error=str(e))
         return []

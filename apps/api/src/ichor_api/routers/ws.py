@@ -2,6 +2,11 @@
 
 Uses Redis Pub/Sub as the broker. Each FastAPI worker subscribes to channels
 on connection; messages from Redis are forwarded to the WS clients.
+
+Hardening (see docs/audits/security-2026-05-03.md HIGH-2):
+  - Origin header allowed-list (matches API CORS allow-list).
+  - Global concurrent-connection cap to prevent FD exhaustion DoS.
+  - Per-connection structured logging including remote IP.
 """
 
 from __future__ import annotations
@@ -11,12 +16,19 @@ import json
 import uuid
 
 import structlog
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, status
 
 from ..config import get_settings
 
 log = structlog.get_logger(__name__)
 router = APIRouter(prefix="/v1/ws", tags=["websocket"])
+
+# Hard cap on concurrent dashboard sockets. Sized for a single operator —
+# bump if/when the dashboard is shared. Tracked via a simple counter
+# protected by an asyncio.Lock so that increment + check is atomic.
+_MAX_CONCURRENT_WS = 50
+_ws_count_lock = asyncio.Lock()
+_ws_count = 0
 
 
 @router.websocket("/dashboard")
@@ -25,12 +37,32 @@ async def dashboard_ws(websocket: WebSocket) -> None:
       - new briefings (channel: ichor:briefings:new)
       - new alerts (channel: ichor:alerts:new)
       - bias signal updates (channel: ichor:bias:updated)
+
+    Refuses connections that don't carry an Origin header from
+    `cors_origins` (defends against random websocket scanners) and caps
+    total concurrent sockets to prevent FD exhaustion.
     """
+    global _ws_count
+    settings = get_settings()
+    origin = websocket.headers.get("origin")
+    remote = (websocket.client.host if websocket.client else "?")
+
+    if origin and origin not in settings.cors_origins:
+        log.warning("ws.reject_origin", origin=origin, remote=remote)
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+        return
+
+    async with _ws_count_lock:
+        if _ws_count >= _MAX_CONCURRENT_WS:
+            log.warning("ws.reject_capacity", current=_ws_count, remote=remote)
+            await websocket.close(code=status.WS_1013_TRY_AGAIN_LATER)
+            return
+        _ws_count += 1
+
     await websocket.accept()
     client_id = uuid.uuid4().hex[:8]
-    log.info("ws.connect", client_id=client_id)
+    log.info("ws.connect", client_id=client_id, remote=remote, current=_ws_count)
 
-    settings = get_settings()
     # Lazy-import to keep redis optional during tests
     from redis import asyncio as aioredis
 
@@ -68,3 +100,5 @@ async def dashboard_ws(websocket: WebSocket) -> None:
         await pubsub.unsubscribe()
         await pubsub.close()
         await redis.close()
+        async with _ws_count_lock:
+            _ws_count = max(0, _ws_count - 1)

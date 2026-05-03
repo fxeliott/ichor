@@ -19,7 +19,7 @@ from .routers import (
     news_router,
     ws_router,
 )
-from .schemas import HealthOut
+from .schemas import CollectorLag, HealthDetailedOut, HealthOut
 
 log = structlog.get_logger(__name__)
 
@@ -34,7 +34,19 @@ async def lifespan(app: FastAPI):
             structlog.processors.JSONRenderer(),
         ]
     )
-    log.info("api.startup", version=__version__, environment=settings.environment)
+    # SECURITY: refuse to start in production with a wildcard CORS list.
+    # See MED-5 in docs/audits/security-2026-05-03.md.
+    if settings.environment == "production" and "*" in settings.cors_origins:
+        raise RuntimeError(
+            "Refusing to start: CORS origins contains '*' in production. "
+            "Set ICHOR_API_CORS_ORIGINS to an explicit list of allowed origins."
+        )
+    log.info(
+        "api.startup",
+        version=__version__,
+        environment=settings.environment,
+        cors_origins=settings.cors_origins,
+    )
     yield
     await get_engine().dispose()
     log.info("api.shutdown")
@@ -94,4 +106,88 @@ async def healthz() -> HealthOut:
         version=__version__,
         db_connected=db_ok,
         redis_connected=redis_ok,
+    )
+
+
+@app.get("/healthz/detailed", response_model=HealthDetailedOut)
+async def healthz_detailed() -> HealthDetailedOut:
+    """Fuller probe used by Grafana + RUNBOOK-011 (collector stalled).
+
+    Adds : last briefing timestamp + lag, unack-alert counts by severity,
+    per-collector last-fetch timestamps. All read-only — safe to poll
+    every 30 s.
+    """
+    from datetime import datetime, timezone
+
+    # Reuse the cheap probe to get db/redis status
+    base = await healthz()
+
+    last_briefing_at: datetime | None = None
+    minutes_since_last_briefing: float | None = None
+    unack_critical = 0
+    unack_warning = 0
+    collectors: list[CollectorLag] = []
+    now = datetime.now(timezone.utc)
+
+    if base.db_connected:
+        try:
+            async for session in get_session():
+                # Last completed briefing
+                row = (
+                    await session.execute(
+                        text(
+                            "SELECT max(triggered_at) FROM briefings "
+                            "WHERE status = 'completed'"
+                        )
+                    )
+                ).first()
+                if row and row[0]:
+                    last_briefing_at = row[0]
+                    minutes_since_last_briefing = (now - row[0]).total_seconds() / 60
+
+                # Unack alerts by severity
+                rows = (
+                    await session.execute(
+                        text(
+                            "SELECT severity, count(*) FROM alerts "
+                            "WHERE acknowledged_at IS NULL GROUP BY severity"
+                        )
+                    )
+                ).all()
+                for sev, cnt in rows:
+                    if sev == "critical":
+                        unack_critical = cnt
+                    elif sev == "warning":
+                        unack_warning = cnt
+
+                # Per-collector lag
+                rows = (
+                    await session.execute(
+                        text(
+                            "SELECT source, max(fetched_at) FROM news_items "
+                            "GROUP BY source ORDER BY source"
+                        )
+                    )
+                ).all()
+                for src, last in rows:
+                    minutes_stale = (now - last).total_seconds() / 60 if last else None
+                    collectors.append(
+                        CollectorLag(
+                            source=src, last_fetched_at=last, minutes_stale=minutes_stale
+                        )
+                    )
+                break
+        except Exception:
+            pass
+
+    return HealthDetailedOut(
+        status=base.status,
+        version=base.version,
+        db_connected=base.db_connected,
+        redis_connected=base.redis_connected,
+        last_briefing_at=last_briefing_at,
+        minutes_since_last_briefing=minutes_since_last_briefing,
+        unack_alerts_critical=unack_critical,
+        unack_alerts_warning=unack_warning,
+        collectors=collectors,
     )

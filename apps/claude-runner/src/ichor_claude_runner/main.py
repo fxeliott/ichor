@@ -32,6 +32,11 @@ _rate_limiter: HourlyRateLimiter
 _in_flight = 0
 
 
+_PERSONAS_ROOT = (
+    __import__("pathlib").Path(__file__).resolve().parent / "personas"
+)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Initialize global state at startup, cleanup on shutdown."""
@@ -42,6 +47,29 @@ async def lifespan(app: FastAPI):
     _rate_limiter = HourlyRateLimiter(settings.rate_limit_per_hour)
 
     settings.workdir.mkdir(parents=True, exist_ok=True)
+
+    # SECURITY: refuse to start when persona_file is outside the package
+    # personas/ directory. Defends against env-var override pointing at
+    # arbitrary files on the host (e.g. ~/.aws/credentials). See MED-4 in
+    # docs/audits/security-2026-05-03.md.
+    persona_resolved = settings.persona_file.resolve()
+    try:
+        persona_resolved.relative_to(_PERSONAS_ROOT.resolve())
+    except ValueError as e:
+        raise RuntimeError(
+            f"persona_file ({persona_resolved}) is outside the package "
+            f"personas/ root ({_PERSONAS_ROOT}); refusing to start"
+        ) from e
+
+    # SECURITY: in production, refuse to start without CF Access enforcement.
+    # See CRT-1 in docs/audits/security-2026-05-03.md.
+    if settings.environment == "production" and not settings.require_cf_access:
+        raise RuntimeError(
+            "claude-runner refuses to start in production with "
+            "ICHOR_RUNNER_REQUIRE_CF_ACCESS=false. The runner is reachable "
+            "from the internet via the Cloudflare Tunnel; running without "
+            "JWT verification means anyone can drain the Max 20x quota."
+        )
 
     structlog.configure(
         processors=[

@@ -20,6 +20,9 @@ class Settings(BaseSettings):
     )
 
     # --- HTTP server ---
+    environment: Literal["development", "staging", "production"] = "production"
+    """Drives startup safety guards (CF Access required in production etc.)."""
+
     host: str = "127.0.0.1"
     port: int = 8765
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"

@@ -66,3 +66,19 @@ class HealthOut(BaseModel):
     db_connected: bool
     redis_connected: bool
     claude_runner_reachable: bool | None = None  # tested only when explicitly asked
+
+
+class CollectorLag(BaseModel):
+    source: str
+    last_fetched_at: datetime | None
+    minutes_stale: float | None
+
+
+class HealthDetailedOut(HealthOut):
+    """Extended /healthz/detailed — used by Grafana + RUNBOOK-011."""
+
+    last_briefing_at: datetime | None
+    minutes_since_last_briefing: float | None
+    unack_alerts_critical: int
+    unack_alerts_warning: int
+    collectors: list[CollectorLag]
