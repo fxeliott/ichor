@@ -1,4 +1,4 @@
-# Session handoff — Ichor Phase 0 (2026-05-02 → 2026-05-03)
+# Session handoff — Ichor Phase 0 + Phase 1 foundations (2026-05-02 → 2026-05-03 evening)
 
 > Single document capturing the complete state at session end.
 > Read this first when resuming work after `/clear` or new session.
@@ -6,16 +6,28 @@
 
 ## TL;DR
 
-**Phase 0 Voie D pipeline LIVE end-to-end + autonomous data collection running.**
-A real briefing was generated through the full chain (Hetzner → tunnel →
-Win11 → Claude Max 20x → Postgres). Collectors persist news and Polymarket
-snapshots every 5–15 min via systemd timers. Security + accessibility audits
-applied (1 CRITICAL acked, 4 HIGH + 6 MEDIUM + 2 LOW security; 4 BLOCKER +
-8 HIGH + 6 MEDIUM + 2 LOW a11y).
+**Phase 0 cron pipeline LIVE end-to-end + Phase 1 foundations shipped paper-only.**
+
+What runs autonomously today on Hetzner :
+- 5 briefing systemd timers (06h/12h/17h/22h Paris + Sun 18h)
+- 3 collector timers (RSS 15min, Polymarket 5min, market_data daily 23:10)
+- 20 556 daily OHLCV bars persisted (8 assets, 10 y of yfinance fallback)
+- 160+ real news headlines + 7+ Polymarket snapshots persisted continuously
+- First trained ML model end-to-end : 2 036 LightGBM predictions in
+  `predictions_audit`, 1 backtest_run in `backtest_runs`. Honest result :
+  Brier 0.45, hit rate 49.85 %, B&H beats strategy net of fees (this is the
+  scientific truth ; the framework now exists for Phase 2 work to improve)
+- 9-route Next.js dashboard (102 KB shared first-load JS) building clean
+- Critic Agent reviews briefings for hallucinations vs source pool
+- AGE knowledge graph populator extracts entities (assets + 11 institutions)
+- Kill switch (file flag + env var) wired across the trading layer
+- Backtest framework with walk-forward + leakage guard + fee/slippage
+- Paper trading layer with `paper=True` invariant enforced by ADR-016
 
 ```
-~45 commits on main, ~280 files, 11 ADRs, 11 runbooks, 1 DR test record,
-2 audit reports, repo: github.com/fxeliott/ichor (private)
+~60 commits on main, ~330 files, 16 ADRs, 12 runbooks, 1 DR test record,
+3 audit reports (security/a11y/deps), 4 new packages
+(backtest/risk/trading/+ ml/training), repo: github.com/fxeliott/ichor (private)
 ```
 
 ## Timeline of the session (2026-05-02 → 2026-05-03)

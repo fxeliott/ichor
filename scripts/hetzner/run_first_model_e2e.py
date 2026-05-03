@@ -115,6 +115,54 @@ async def _persist_predictions(predictions, model_id: str, asset: str):
     return inserted
 
 
+async def _persist_backtest_run(res, model_id: str, asset: str):
+    """Persist BacktestResult into backtest_runs for /backtests UI.
+
+    Equity curve compressed to ~100 points to keep JSONB tight.
+    """
+    from ichor_api.db import get_sessionmaker
+    from ichor_api.models import BacktestRun
+
+    sample_step = max(1, len(res.equity_curve) // 100)
+    summary = [
+        {"date": p.timestamp.isoformat(), "equity": round(p.equity, 4)}
+        for p in res.equity_curve[::sample_step]
+    ]
+    cfg_dict = {
+        "initial_equity": res.config.initial_equity,
+        "position_size_pct": res.config.position_size_pct,
+        "fee_bps": res.config.fee_bps,
+        "slippage_bps": res.config.slippage_bps,
+        "walk_forward_train_days": res.config.walk_forward_train_days,
+        "walk_forward_test_days": res.config.walk_forward_test_days,
+        "walk_forward_step_days": res.config.walk_forward_step_days,
+        "min_train_days": res.config.min_train_days,
+    }
+
+    sm = get_sessionmaker()
+    now = datetime.now(timezone.utc)
+    async with sm() as session:
+        row = BacktestRun(
+            id=uuid4(),
+            created_at=now,
+            model_id=model_id,
+            asset=asset,
+            started_at=res.started_at or now,
+            finished_at=res.finished_at or now,
+            config=cfg_dict,
+            metrics={k: float(v) for k, v in res.metrics.items()},
+            n_folds=len(res.folds),
+            n_signals=res.n_signals,
+            n_trades=res.n_trades,
+            equity_curve_summary=summary,
+            notes=res.notes or [],
+            paper_only=res.paper_only,
+        )
+        session.add(row)
+        await session.commit()
+        return row.id
+
+
 def _baseline_buy_and_hold(bars):
     """Compute B&H total return for comparison."""
     if not bars:
@@ -203,15 +251,19 @@ async def main(asset: str = "EUR_USD") -> int:
     print(f"  ✓ {len(res.folds)} folds, {res.n_signals} signals, {res.n_trades} trades")
     print(f"  ✓ paper_only={res.paper_only}")
 
-    print("[4/6] Persisting predictions to predictions_audit…")
+    print("[4/7] Persisting predictions to predictions_audit…")
     inserted = await _persist_predictions(all_predictions, model_id, asset)
     print(f"  ✓ {inserted} prediction rows persisted under model_id={model_id}")
 
-    print("[5/6] Computing baseline B&H…")
+    print("[5/7] Persisting backtest_run to backtest_runs…")
+    run_id = await _persist_backtest_run(res, model_id, asset)
+    print(f"  ✓ backtest_run row persisted (id={run_id})")
+
+    print("[6/7] Computing baseline B&H…")
     bh_pct = _baseline_buy_and_hold(backtest_bars)
     print(f"  ✓ B&H total return over full series: {bh_pct:+.2f} %")
 
-    print("[6/6] Summary")
+    print("[7/7] Summary")
     print("=" * 70)
     print(f"  Model: {model_id}")
     print(f"  Asset: {asset}")
