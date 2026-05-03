@@ -6,11 +6,16 @@
 
 ## TL;DR
 
-**Phase 0 Voie D pipeline LIVE end-to-end.** A real briefing was generated
-through the full chain (Hetzner → tunnel → Win11 → Claude Max 20x → Postgres).
+**Phase 0 Voie D pipeline LIVE end-to-end + autonomous data collection running.**
+A real briefing was generated through the full chain (Hetzner → tunnel →
+Win11 → Claude Max 20x → Postgres). Collectors persist news and Polymarket
+snapshots every 5–15 min via systemd timers. Security + accessibility audits
+applied (1 CRITICAL acked, 4 HIGH + 6 MEDIUM + 2 LOW security; 4 BLOCKER +
+8 HIGH + 6 MEDIUM + 2 LOW a11y).
 
 ```
-36 commits on main, ~250 files, 11 ADRs, 9 runbooks, repo: github.com/fxeliott/ichor (private)
+~45 commits on main, ~280 files, 11 ADRs, 11 runbooks, 1 DR test record,
+2 audit reports, repo: github.com/fxeliott/ichor (private)
 ```
 
 ## Timeline of the session (2026-05-02 → 2026-05-03)
@@ -72,11 +77,24 @@ through the full chain (Hetzner → tunnel → Win11 → Claude Max 20x → Post
 |---|---|---|---|
 | Postgres 16 + TimescaleDB 2.26.4 + Apache AGE 1.5.0 | 5432 (lo) | active | scram-sha-256 + Docker bridge |
 | Redis 8.6.2 | 6379 (lo) | active, AOF | bind localhost |
-| ichor-api uvicorn (systemd) | 8000 (lo) | active, /healthz=ok | none yet |
+| ichor-api uvicorn (systemd) | 8000 (lo) | active, `/healthz/detailed` returns DB+Redis+collector lag+briefing lag | none yet (HIGH-3) |
+| 5 briefing systemd timers (06/12/17/22 Paris + Sun 18) | — | enabled | — |
+| 2 collector systemd timers (rss every 15 min, polymarket every 5 min) | — | enabled | — |
 | Loki + Prometheus + Grafana (docker-compose) | 3001/9090/3100 | UP | grafana_admin in SOPS |
 | Langfuse v3 + ClickHouse + MinIO | 3000 | UP | langfuse_*_password in SOPS |
 | n8n 1.78.1 | 5678 | UP | n8n_postgres_password in SOPS |
 | wal-g 3.0.8 → R2 ichor-walg-eu | systemd timer 03h Paris | enabled | R2 keys in SOPS |
+
+### DB content (verified 2026-05-03)
+
+| Table | Rows | Notes |
+|---|---|---|
+| `news_items` | 160+ | TimescaleDB hypertable, 7d chunks, real news from Fed/ECB/BoE/BBC/SEC |
+| `polymarket_snapshots` | 7+ | TimescaleDB hypertable, 30d chunks, prediction-market snapshots |
+| `bias_signals` | 384 | 8 assets × 48 half-hourly points, seeded |
+| `alerts` | 8 | 3 global + 5 per-asset, seeded |
+| `briefings` | 3 | 1 real + 2 seed |
+| `predictions_audit` | 0 | TimescaleDB hypertable, 7d chunks, ready for Phase 0 W2 |
 
 ### Win11 (Eliot's PC)
 
@@ -192,11 +210,18 @@ sudo -u postgres bash -c "set -a; source /etc/wal-g.env; set +a; wal-g backup-li
 
 ## Files of authority
 
+- `README.md` — top-level project overview + live state + quickstart
+- `CONTRIBUTING.md` — branching, commits, model + collector workflows
+- `SECURITY.md` — threat model + secrets handling + incident response
 - `docs/PHASE_0_LOG.md` — live status of 32 Phase 0 criteria
 - `docs/decisions/` — 11 ADRs documenting every delta vs plan
-- `docs/runbooks/` — 9 operational runbooks
+- `docs/runbooks/` — 11 operational runbooks (DR, rotation, recovery, collectors)
+- `docs/dr-tests/` — quarterly DR drill records (first one 2026-Q2 PASSED)
+- `docs/audits/` — security + accessibility audit reports + applied findings
 - `docs/legal/` — AI disclosure + AMF mapping
-- `infra/secrets/.sops.yaml` — multi-recipient encryption config
+- `packages/ml/model_cards/` — 12 Mitchell-2019 model cards
+- `infra/secrets/.sops.yaml` + `infra/secrets/.gitignore` — multi-recipient
+  encryption config + defensive whitelist
 - `infra/ansible/site.yml` — playbook orchestrating 12 roles
 
 ## After /clear: how to resume
