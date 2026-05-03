@@ -37,6 +37,11 @@ from ..models import (
     PolygonIntradayBar,
     PolymarketSnapshot,
 )
+from . import cb_intervention as cb_intervention_svc
+from .funding_stress import (
+    assess_funding_stress,
+    render_funding_stress_block,
+)
 
 
 # ────────────────────────── Configuration ──────────────────────────────
@@ -404,6 +409,38 @@ async def _section_cb_speeches(session: AsyncSession) -> tuple[str, list[str]]:
     return "\n".join(lines), sources
 
 
+async def _section_funding_stress(session: AsyncSession) -> tuple[str, list[str]]:
+    """## Funding stress — SOFR-IORB / SOFR-EFFR / RRP / HY OAS composite."""
+    reading = await assess_funding_stress(session)
+    return render_funding_stress_block(reading)
+
+
+async def _section_cb_intervention(
+    session: AsyncSession, asset: str
+) -> tuple[str, list[str]]:
+    """## CB intervention risk — empirical model on the asset's spot.
+
+    Returns "" if the pair has no documented intervention history
+    (most G10 crosses fall here).
+    """
+    if asset not in cb_intervention_svc.supported_pairs():
+        return "", []
+    # Pull the last bar to know the spot
+    stmt = (
+        select(PolygonIntradayBar)
+        .where(PolygonIntradayBar.asset == asset)
+        .order_by(desc(PolygonIntradayBar.bar_ts))
+        .limit(1)
+    )
+    last = (await session.execute(stmt)).scalars().first()
+    if last is None:
+        return "", []
+    risk = cb_intervention_svc.assess(asset, float(last.close))
+    if risk is None:
+        return "", []
+    return cb_intervention_svc.render_intervention_block(risk)
+
+
 async def _section_news(session: AsyncSession) -> tuple[str, list[str]]:
     """## News — top 8 most-recent items in last 12h."""
     cutoff = datetime.now(timezone.utc) - timedelta(hours=12)
@@ -460,6 +497,13 @@ async def build_data_pool(session: AsyncSession, asset: str) -> DataPool:
 
     pm_md, pm_src = await _section_prediction_markets(session)
     sections.append(("prediction_markets", pm_md, pm_src))
+
+    fs_md, fs_src = await _section_funding_stress(session)
+    sections.append(("funding_stress", fs_md, fs_src))
+
+    cbi_md, cbi_src = await _section_cb_intervention(session, asset)
+    if cbi_md:
+        sections.append(("cb_intervention", cbi_md, cbi_src))
 
     geo_md, geo_src = await _section_geopolitics(session)
     sections.append(("geopolitics", geo_md, geo_src))
