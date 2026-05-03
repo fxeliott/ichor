@@ -1,0 +1,27 @@
+[project]
+name = "ichor-risk"
+version = "0.0.0"
+description = "Ichor — risk engine: position sizing, per-trade stop, daily drawdown stop, kill switch. PAPER-ONLY today; gates real-trade escalation."
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "structlog>=25.1.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3.0",
+    "ruff>=0.8.0",
+    "mypy>=1.14.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/ichor_risk"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-ra --strict-markers"
