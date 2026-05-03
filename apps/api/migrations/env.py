@@ -22,6 +22,7 @@ from ichor_api.models import (  # noqa: F401
     GprObservation,
     KalshiMarket,
     ManifoldMarket,
+    PolygonIntradayBar,
     SessionCardAudit,
 )
 

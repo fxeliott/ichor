@@ -13,8 +13,14 @@ import structlog
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..models import MarketDataBar, NewsItem, PolymarketSnapshot
+from ..models import (
+    MarketDataBar,
+    NewsItem,
+    PolygonIntradayBar,
+    PolymarketSnapshot,
+)
 from .market_data import MarketDataPoint
+from .polygon import PolygonBar
 from .polymarket import PolymarketSnapshot as PolymarketSnapshotData
 from .rss import NewsItem as NewsItemData
 
@@ -177,6 +183,84 @@ async def persist_market_data(
 
     log.info(
         "market_data.persisted",
+        total=len(bars),
+        inserted=total_inserted,
+        skipped=total_skipped,
+    )
+    return total_inserted
+
+
+async def persist_polygon_bars(
+    session: AsyncSession, bars: Iterable[PolygonBar]
+) -> int:
+    """Insert 1-min Polygon bars, skipping existing (asset, bar_ts) pairs.
+
+    Commits per-asset to keep the failure blast-radius small (a single
+    asset that violates an OHLC envelope check shouldn't roll back the
+    whole 8-asset poll).
+    """
+    bars = list(bars)
+    if not bars:
+        return 0
+
+    by_asset: dict[str, list[PolygonBar]] = {}
+    for b in bars:
+        by_asset.setdefault(b.asset, []).append(b)
+
+    now = datetime.now(timezone.utc)
+    total_inserted = 0
+    total_skipped = 0
+
+    for asset, asset_bars in by_asset.items():
+        ts_set = {b.bar_ts for b in asset_bars}
+        existing_rows = (
+            await session.execute(
+                select(PolygonIntradayBar.bar_ts).where(
+                    PolygonIntradayBar.asset == asset,
+                    PolygonIntradayBar.bar_ts.in_(ts_set),
+                )
+            )
+        ).all()
+        existing: set = {r[0] for r in existing_rows}
+
+        new_rows = 0
+        for b in asset_bars:
+            if b.bar_ts in existing:
+                total_skipped += 1
+                continue
+            session.add(
+                PolygonIntradayBar(
+                    bar_ts=b.bar_ts,
+                    created_at=now,
+                    asset=b.asset,
+                    ticker=b.ticker,
+                    open=b.open,
+                    high=b.high,
+                    low=b.low,
+                    close=b.close,
+                    volume=b.volume,
+                    vwap=b.vwap,
+                    transactions=b.transactions,
+                    fetched_at=now,
+                )
+            )
+            new_rows += 1
+
+        if new_rows:
+            try:
+                await session.commit()
+                total_inserted += new_rows
+            except Exception as e:
+                await session.rollback()
+                log.error(
+                    "polygon_intraday.persist_asset_failed",
+                    asset=asset,
+                    rows=new_rows,
+                    error=str(e),
+                )
+
+    log.info(
+        "polygon_intraday.persisted",
         total=len(bars),
         inserted=total_inserted,
         skipped=total_skipped,

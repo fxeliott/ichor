@@ -54,6 +54,11 @@ class Settings(BaseSettings):
     fred_api_key: str = ""
     oanda_api_token: str = ""
     oanda_account_id: str = ""
+    polygon_api_key: str = ""
+    """Polygon.io Starter ($29/mo). Used for 1-min intraday OHLCV on
+    the 8 Phase-1 assets (FX, indices, gold). REST endpoint :
+    https://api.polygon.io/v2/aggs/ticker/{ticker}/range/1/minute/...
+    """
 
     # --- Observability (Loki/Langfuse) ---
     loki_endpoint: str = "http://127.0.0.1:3100"

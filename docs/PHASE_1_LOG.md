@@ -107,9 +107,10 @@ Hetzner with the real Critic, 29/30 standalone.
 
 | # | Item | Status |
 |---|------|--------|
-| 1.0.52 | Polygon REST + WS client | ⬜ |
-| 1.0.53 | 1-min bars persistence (TimescaleDB) | ⬜ |
-| 1.0.54 | Cron systemd 1-min ingestion | ⬜ |
+| 1.0.52 | Polygon REST client (`collectors/polygon.py`, 8 assets via C:/X:/I: tickers) | 🟢 |
+| 1.0.53 | 1-min bars persistence (`polygon_intraday` hypertable, migration 0006, ORM model + persist_polygon_bars) | 🟢 |
+| 1.0.54 | Cron systemd 1-min ingestion (`*:*:00`, 8 calls/min = 8 % of Polygon Starter quota) | 🟢 |
+| 1.0.34 | `polygon_intraday` hypertable shipped in migration 0006 | 🟢 |
 
 ### CHUNK 7 — Critic Agent + tests + final commit
 

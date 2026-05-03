@@ -17,9 +17,15 @@ from __future__ import annotations
 import asyncio
 import sys
 
+from datetime import date, timedelta
+
+import httpx
+
 from ..collectors.market_data import poll_all as poll_market_data
+from ..collectors.polygon import fetch_aggs, supported_assets as polygon_assets
 from ..collectors.polymarket import poll_all as poll_polymarket
 from ..collectors.rss import poll_all as poll_rss
+from ..config import get_settings
 from ..db import get_engine, get_sessionmaker
 
 
@@ -84,6 +90,49 @@ async def _run_market_data(*, persist: bool) -> int:
     return 0 if total else 1
 
 
+async def _run_polygon(*, persist: bool, lookback_days: int = 1) -> int:
+    settings = get_settings()
+    if not settings.polygon_api_key:
+        print(
+            "Polygon · ICHOR_API_POLYGON_API_KEY is empty — skipping. "
+            "Set it in /etc/ichor/api.env to enable.",
+            file=sys.stderr,
+        )
+        return 0  # not a failure — just disabled
+
+    today = date.today()
+    from_date = today - timedelta(days=lookback_days)
+
+    all_bars = []
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        for asset in polygon_assets():
+            try:
+                bars = await fetch_aggs(
+                    asset,
+                    api_key=settings.polygon_api_key,
+                    from_date=from_date,
+                    to_date=today,
+                    client=client,
+                )
+            except Exception as e:
+                print(f"Polygon · [{asset:12s}] error: {e}", file=sys.stderr)
+                continue
+            print(
+                f"Polygon · [{asset:12s}] {len(bars):>5d} bars  "
+                f"{from_date} → {today}"
+            )
+            all_bars.extend(bars)
+
+    if persist and all_bars:
+        from ..collectors.persistence import persist_polygon_bars
+
+        sm = get_sessionmaker()
+        async with sm() as session:
+            inserted = await persist_polygon_bars(session, all_bars)
+        print(f"Polygon · persisted {inserted} new rows")
+    return 0 if all_bars else 1
+
+
 async def _main(target: str, *, persist: bool) -> int:
     try:
         if target == "rss":
@@ -92,16 +141,20 @@ async def _main(target: str, *, persist: bool) -> int:
             return await _run_polymarket(persist=persist)
         if target == "market_data":
             return await _run_market_data(persist=persist)
+        if target == "polygon":
+            return await _run_polygon(persist=persist)
         if target == "all":
             rc1 = await _run_rss(persist=persist)
             print()
             rc2 = await _run_polymarket(persist=persist)
             print()
             rc3 = await _run_market_data(persist=persist)
-            return rc1 | rc2 | rc3
+            print()
+            rc4 = await _run_polygon(persist=persist)
+            return rc1 | rc2 | rc3 | rc4
         print(
             f"unknown target: {target!r} "
-            "(expected: rss | polymarket | market_data | all)",
+            "(expected: rss | polymarket | market_data | polygon | all)",
             file=sys.stderr,
         )
         return 2

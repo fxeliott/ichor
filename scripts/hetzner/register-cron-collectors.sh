@@ -37,6 +37,10 @@ declare -A SCHEDULES=(
   [rss]="*:0/15"                                  # every 15 min
   [polymarket]="*:0/5"                            # every 5 min
   [market_data]="*-*-* 23:10:00 Europe/Paris"      # daily after NY close
+  # Polygon Starter : 100 calls/min ceiling. 8 assets × 1 call = 8 calls/min,
+  # 8% of quota. Each call fetches the day so far; persistence dedupes via
+  # uq_polygon_asset_ts so the cost is paid in network bytes only.
+  [polygon]="*:*:00"                               # every minute (1-min OHLCV)
 )
 
 # market_data fetch can take 1-2 min for 8 assets — give the service a longer
