@@ -9,5 +9,15 @@ from .briefing import Briefing
 from .alert import Alert
 from .prediction import Prediction
 from .bias_signal import BiasSignal
+from .news_item import NewsItem
+from .polymarket_snapshot import PolymarketSnapshot
 
-__all__ = ["Base", "Briefing", "Alert", "Prediction", "BiasSignal"]
+__all__ = [
+    "Base",
+    "Briefing",
+    "Alert",
+    "Prediction",
+    "BiasSignal",
+    "NewsItem",
+    "PolymarketSnapshot",
+]

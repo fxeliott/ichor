@@ -154,6 +154,47 @@ export const biasSignalHistory = (
     `/v1/bias-signals/history?asset=${encodeURIComponent(asset)}&horizon_hours=${horizonHours}&limit=${limit}`
   );
 
+export type NewsSourceKind =
+  | "news"
+  | "central_bank"
+  | "regulator"
+  | "social"
+  | "academic";
+
+export type NewsTone = "positive" | "neutral" | "negative";
+
+export interface NewsItem {
+  id: string;
+  fetched_at: string;
+  source: string;
+  source_kind: NewsSourceKind;
+  title: string;
+  summary: string | null;
+  url: string;
+  published_at: string;
+  tone_label: NewsTone | null;
+  tone_score: number | null;
+}
+
+export interface ListNewsParams {
+  sourceKind?: NewsSourceKind;
+  source?: string;
+  tone?: NewsTone;
+  sinceMinutes?: number;
+  limit?: number;
+}
+
+export const listNews = (params: ListNewsParams = {}): Promise<NewsItem[]> => {
+  const q = new URLSearchParams();
+  if (params.sourceKind) q.set("source_kind", params.sourceKind);
+  if (params.source) q.set("source", params.source);
+  if (params.tone) q.set("tone", params.tone);
+  if (params.sinceMinutes) q.set("since_minutes", String(params.sinceMinutes));
+  if (params.limit) q.set("limit", String(params.limit));
+  const qs = q.toString();
+  return get<NewsItem[]>(`/v1/news${qs ? `?${qs}` : ""}`, 60);
+};
+
 // ─────────────────────────── helpers for UI ───────────────────────────
 
 /**

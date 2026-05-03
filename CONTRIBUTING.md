@@ -102,3 +102,51 @@ diff before committing.
   `/spec` or planner first
 - Always announce destructive commands and ask for confirmation
 - Verify with `/verify-no-hallucinate` after non-trivial implementations
+
+## Adding a new model
+
+1. Implement under `packages/ml/src/ichor_ml/<family>/<model>.py`.
+2. Register in [`packages/ml/model_registry.yaml`](packages/ml/model_registry.yaml)
+   with status `scaffolded`.
+3. Write a [model card](packages/ml/model_cards/) (Mitchell 2019 format —
+   see [`packages/ml/model_cards/README.md`](packages/ml/model_cards/README.md)).
+4. Promote to `live` only after :
+   - Cross-validated Brier score on hold-out beats baseline.
+   - Calibration plot looks reasonable (95% of bins within ±0.05 of empirical).
+   - 30 days of out-of-sample shadow predictions in `predictions_audit`.
+5. Update aggregator weights in
+   `packages/ml/src/ichor_ml/bias_aggregator.py`.
+6. Trigger [RUNBOOK-007](docs/runbooks/RUNBOOK-007-brier-degradation.md) cadence
+   for the new model.
+
+## Adding a new collector
+
+1. Implement under `apps/api/src/ichor_api/collectors/<source>.py`.
+2. Pure-parse tests in `apps/api/tests/test_<source>_parser.py`.
+3. Add a persistence helper in
+   `apps/api/src/ichor_api/collectors/persistence.py`.
+4. Wire into the CLI
+   `apps/api/src/ichor_api/cli/run_collectors.py`.
+5. If a new table is needed, add an Alembic migration under
+   `apps/api/migrations/versions/000N_<slug>.py`.
+6. Register a systemd timer in
+   `scripts/hetzner/register-cron-collectors.sh` and run it on Hetzner.
+
+## Voie D — non-negotiable
+
+[ADR-009](docs/decisions/ADR-009-voie-d-no-api-consumption.md) :
+**no Anthropic API consumption, ever.** All Claude work goes through the
+Max 20x subscription via `apps/claude-runner` + Cloudflare Tunnel. No PR may
+introduce `anthropic` SDK code paths or ANTHROPIC_API_KEY environment access
+without amending ADR-009 first.
+
+## Legal floors (also non-negotiable)
+
+- **AMF DOC-2008-23** : briefings are research / not personalized advice.
+  See [`docs/legal/amf-mapping.md`](docs/legal/amf-mapping.md) for the 5
+  design constraints.
+- **EU AI Act Article 50** : every screen and every export carries the
+  AI-generated disclosure. The `<DisclaimerBanner>` component is
+  non-dismissible.
+- **Anthropic Usage Policy** : no high-risk decisions taken on behalf of
+  the user — every output is "research material to inform a human decision".

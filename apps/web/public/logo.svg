@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 56" width="200" height="56">
+  <title>Ichor</title>
+  <defs>
+    <linearGradient id="ichor-spark" x1="0" x2="1" y1="0" y2="0">
+      <stop offset="0" stop-color="#34d399"/>
+      <stop offset="1" stop-color="#a7f3d0"/>
+    </linearGradient>
+  </defs>
+  <g>
+    <path
+      d="M8 38 L20 18 L28 32 L36 14 L46 38"
+      stroke="url(#ichor-spark)"
+      stroke-width="2.5"
+      fill="none"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    />
+    <circle cx="46" cy="38" r="2.4" fill="#34d399"/>
+    <text
+      x="60"
+      y="38"
+      font-family="ui-sans-serif, system-ui, -apple-system, sans-serif"
+      font-size="28"
+      font-weight="600"
+      letter-spacing="1.5"
+      fill="#f5f5f5"
+    >ichor</text>
+  </g>
+</svg>

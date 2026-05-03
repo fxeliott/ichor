@@ -12,7 +12,13 @@ from sqlalchemy import text
 from . import __version__
 from .config import get_settings
 from .db import get_engine, get_session
-from .routers import alerts_router, bias_signals_router, briefings_router, ws_router
+from .routers import (
+    alerts_router,
+    bias_signals_router,
+    briefings_router,
+    news_router,
+    ws_router,
+)
 from .schemas import HealthOut
 
 log = structlog.get_logger(__name__)
@@ -55,6 +61,7 @@ app.add_middleware(
 app.include_router(briefings_router)
 app.include_router(alerts_router)
 app.include_router(bias_signals_router)
+app.include_router(news_router)
 app.include_router(ws_router)
 
 

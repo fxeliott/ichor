@@ -25,6 +25,7 @@ const NAV: { href: string; label: string }[] = [
   { href: "/briefings", label: "Briefings" },
   { href: "/assets", label: "Actifs" },
   { href: "/alerts", label: "Alertes" },
+  { href: "/news", label: "News" },
 ];
 
 export default function RootLayout({
@@ -46,9 +47,27 @@ export default function RootLayout({
           >
             <Link
               href="/"
-              className="text-base font-semibold tracking-tight text-neutral-100 hover:text-emerald-300 transition"
+              className="flex items-center gap-2 text-neutral-100 hover:text-emerald-300 transition"
+              aria-label="Ichor — accueil"
             >
-              Ichor
+              <svg
+                width="22"
+                height="14"
+                viewBox="0 0 50 28"
+                aria-hidden="true"
+                className="opacity-90"
+              >
+                <path
+                  d="M3 22 L13 6 L21 18 L29 4 L41 22"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  fill="none"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <circle cx="41" cy="22" r="2" fill="currentColor" />
+              </svg>
+              <span className="text-base font-semibold tracking-tight">Ichor</span>
             </Link>
             <ul className="flex items-center gap-4 text-sm text-neutral-400">
               {NAV.map((item) => (
