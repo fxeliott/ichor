@@ -44,6 +44,8 @@ const PAGES: Command[] = [
   { id: "kg", label: "Knowledge graph", hint: "/knowledge-graph", kind: "page", href: "/knowledge-graph", keywords: ["graph", "shock", "causal"] },
   { id: "geopol", label: "Géopolitique", hint: "/geopolitics", kind: "page", href: "/geopolitics" },
   { id: "calibration", label: "Calibration", hint: "/calibration", kind: "page", href: "/calibration", keywords: ["brier", "track-record"] },
+  { id: "sources", label: "Sources data", hint: "/sources", kind: "page", href: "/sources", keywords: ["feeds", "upstream", "providers"] },
+  { id: "admin", label: "Admin", hint: "/admin", kind: "page", href: "/admin", keywords: ["status", "ops", "health"] },
   { id: "briefings", label: "Briefings", hint: "/briefings", kind: "page", href: "/briefings" },
   { id: "alerts", label: "Alertes", hint: "/alerts", kind: "page", href: "/alerts" },
   { id: "news", label: "News", hint: "/news", kind: "page", href: "/news" },
