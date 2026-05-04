@@ -50,15 +50,44 @@ class AiGprObservation:
     fetched_at: datetime
 
 
+def _is_xls_binary(body: bytes) -> bool:
+    """Detect Microsoft CFB binary signature (D0CF11E0A1B11AE1) — the
+    legacy .xls format that csv.DictReader cannot parse."""
+    return body[:8] == b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1"
+
+
+def _is_xlsx_zip(body: bytes) -> bool:
+    """Detect ZIP signature (PK\x03\x04) — the .xlsx Office 2007+ format."""
+    return body[:4] == b"PK\x03\x04"
+
+
 def _parse_csv(body: bytes) -> list[AiGprObservation]:
     """The recent CSV ships with header `date,GPR_DAILY,...`. We only need
     `date` + `GPR_DAILY` (or `AI_GPR` depending on file version).
+
+    Detects upstream binary format mismatches (xls / xlsx) early and
+    logs a clear warning instead of crashing the parser.
 
     Some vintages of the file embed long bibliographic citations in a
     column, which crashes csv.DictReader's default 128 KB field limit.
     We bump the limit to sys.maxsize before parsing — the file is small
     enough overall (< 5 MB) that this is safe.
     """
+    if _is_xls_binary(body):
+        log.warning(
+            "ai_gpr.binary_xls_detected",
+            note="upstream serves .xls (CFB) — needs `pip install xlrd` "
+            "+ xls-aware parser. Skipping for now.",
+        )
+        return []
+    if _is_xlsx_zip(body):
+        log.warning(
+            "ai_gpr.xlsx_detected",
+            note="upstream serves .xlsx — needs `pip install openpyxl` "
+            "+ xlsx-aware parser. Skipping for now.",
+        )
+        return []
+
     csv.field_size_limit(sys.maxsize)
     text = body.decode("utf-8", errors="replace")
     reader = csv.DictReader(io.StringIO(text))
