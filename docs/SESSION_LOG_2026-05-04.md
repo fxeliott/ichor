@@ -1,30 +1,165 @@
 # Session log — 2026-05-04
 
-> **Durée** : ~15h en autonomie quasi-totale
+> **Durée totale** : ~22h cumulées (session-A + compaction + session-B)
 > **Mode** : `bypassPermissions`
 > **User** : Eliot (single user de la prod V1)
-> **Commits shippés** : 10 sur `origin/main` (`77d40dc` → `4fbc4e1`)
+> **Commits shippés sur la journée** : 11 (`77d40dc` → `3806744`)
 > **État final** : système live à
 > https://demonstrates-plc-ordering-attractive.trycloudflare.com
 
-Ce document conserve TOUT ce qui s'est passé pendant la session : chaque
-demande utilisateur, chaque action, chaque fichier touché, chaque bug
-trouvé et fixé. Référence pour reprendre la session ou auditer le travail.
+Ce document conserve TOUT ce qui s'est passé : chaque demande utilisateur,
+chaque action, chaque fichier touché, chaque bug trouvé et fixé.
+Référence pour reprendre la session ou auditer le travail.
+
+**⚠ Structure** : la journée a eu 2 phases — la session-A originale
+(31 prompts user, ~7-12h) qui a été ensuite **compactée** en résumé,
+puis la session-B (12 prompts user, ~10h) qui a continué sur la base
+du résumé. Les deux sont documentées séparément ci-dessous.
 
 ---
 
 ## 1. Demandes utilisateur (verbatim, ordre chrono)
 
-### Ouverture (continuation après compaction)
+### 1.A. Session-A (avant compaction) — 31 prompts user
 
-> Le contexte a été compacté. La session continue depuis un état où :
-> - 8 services trader-grade avaient été créés (daily_levels,
->   session_scenarios, rr_analysis) avec 19/19 tests passing
-> - L'AI Brain 4-pass tournait sur Hetzner avec verdict approved en 80s
-> - 32 commits avaient été poussés sur origin/main dans la session
->   précédente
+#### Prompt #1 — préambule (méta)
+> "je vais te donner mon prompt ma demande très longue et complexe
+> mais je sais pas si je la structure bien pour toi claude code donc
+> prend en compte ça et agis en tant qu'expert en claude et en expert
+> develloper et reformule bien toute ma demande organise toi au mieux
+> comprend bien tout etc"
 
-### Demande 1 — vision deep + push autonomie
+#### Prompt #2 — vision profonde + audit atomique
+> "on a pas mal avancé sur le projet ichor mais j'ai l'impression plus
+> la session à avancé plus t étais moins performant perdu et tu écouté
+> plus donc tu te mélange etc donc la je veux que tu sois à jour sur
+> tout ce projet que tu es tout le contexte fais un audit atomique sur
+> tout tout de A à Z sans rien oublier au plus profond puis après revoit
+> vraiment ce que je t'ai demandé en ultra profond : (alors déja je vais
+> t'expliquer comment techniquement juste sur trading view je
+> fonctionne. mon but c'est trader les momentum des sessions donc soit
+> à session de Londres sois session de New york. mes trades dure
+> quelques minutes à quelques heures je trade la volatilité de la
+> session sur le forex bourse us ou gold. j'analyse en H1 / m30 / m15
+> et m5 j'identifie les support et résistance ou du moins l'endroit
+> ou il y a eu une origine d'un mouvement sur les derniers jours si je
+> veux une baisse je cherche une origine vendeuse passé qui a créer
+> une poussé baissière clair marqué par des bougies pleins baissière.
+> pareille pour la hausse. je vais charcher des RR de 3 j'ai un bon
+> risk management et trade management je BE à RR de 1 puis à RR de 3
+> je cloture 90% et je laisse 10% avec trailing stop loss je peux aller
+> chercher des RR de 15 etc après. j'ajuste après l'analyse avec une
+> compréhension global du marché si mouvement baissier ou haussier on
+> est en tendance ou en range etc analyse de cloture de bougie beaucoup
+> d'analyse technique par expérience de compréhension des marchés aussi.
+> en bref je te donne la ma stratégie analyse technique qui va
+> représenter que 10% de mon analyse car toi je veux que tu créer le
+> 90% autres qui est le plus important, l'analyse fondamental
+> macroéconomique, géopolitique etc les corrélations le volume le
+> sentiment du marché les corrélations les analyses des devises des
+> indices etc etc. je veux créer donc tout un système une entité ultra
+> omniscient sur tout ce qui se passe dans le monde en temps réel sur
+> tout tout comme si toute les meilleurs institutions et hedge funds
+> étaient rassemblé en ce système. je veux aussi que tout soit montré
+> sur une app web ou tout tout est détaillé et ultra compréhensible et
+> expliqué avec des illustrations, des schémas, des fonctionnalité de
+> l'interactivité ultra design vivant. je veux que ça soit le meilleur
+> meilleur outil qui comble les 90% de mon analyse pour me donner tout
+> ce qu'il faut les % de hausse ou de baisse les bon moment à trader
+> les volume ce qui va se passer aussi se servir de polymarket je suis
+> sur que polymarket peu etre un gros outil d'analyse si on s'en sert
+> bien. la je te donne la vision de ce que je veux mais c'est seulement
+> 1% à toi en comprenant tout ça de pousser dans cette direction dans
+> cette vision et ces exigences. ce système la fera pas d'analyse
+> technique vu que c'est moi qui les fais sur trading view. après si
+> tu veux mettre certaine chose je dis oui. continue tout ce qui peut
+> être fais en autonomie fais le ne me sollicite pas appart si vraiment
+> tu peux pas et que tu as tout essayé fais en sorte de bosser la
+> dessus full en autonomie prendre les meilleurs décisions et faire le
+> meilleur possible)"
+
+C'est **LE** prompt qui a tout déclenché : la vision complète d'Eliot
+en 1 paragraphe. Il est cité ici verbatim car tout ce qui a été shippé
+ensuite découle de ce prompt.
+
+#### Prompt #3 — push origin + Polygon key
+> "Push origin/main OK si ça reste pv / pour la clé polygon dis moi
+> exactement suelle abonnement prendre il y en a plusieurs pour
+> diférent actif. pour le reste des bloqueurs guide moi de A à Z"
+
+#### Prompt #4 — Polygon API key
+> "voila la clé : Meaxr6y_W4MspeotMc3hRGtcoHjiMgXX je vois aussi que
+> gratuitement avec cette clé tu peux avoir des appels api sur d'autres
+> choses à toi de l'exploiter au maximum au mieux. le reste tu as
+> besoin de moi ou tu peux le faire en autonomie en contrôlant mon
+> ordi si besoin d'autorisation je te donne tout"
+
+#### Prompt #5 — `Continue from where you left off.`
+
+#### Prompts #6-#7 — debug Win11 claude-runner
+PowerShell outputs collés (Scheduled Tasks reset, taskkill claude.exe,
+auth status firstParty/eliott.pena@icloud.com)
+
+#### Prompt #8 — réponse claude -p success
+> Output JSON `{"type":"result","subtype":"success", ...}` confirmant
+> que claude-runner Win11 répond OK
+
+#### Prompt #9 — re-register Scheduled Tasks failure
+> Output `register-user-tasks.ps1 : Impossible de charger le fichier`
+> + execution policy issue
+
+#### Prompt #10 — autonomie request
+> "attend tout ça tu peux le faire en autonomie ?"
+
+#### Prompt #11 — push autonomy max
+> "continue sans rien oublier en faisant tout à la perfection en
+> poussant au maximum possible"
+
+#### Prompt #12 — FRED API key
+> "9088bbb349877c9d81e4d42e0b74a780"
+
+#### Prompts #13-#22 — 10× simple "continue"
+Variantes : "continue", "continue sans rien oublier en faisant tout
+à la perfection en poussant au maximum possible". Chaque "continue"
+déclenchait un nouveau push.
+
+#### Prompt #23 — final push autonomy
+> "continue sans rien oublier en faisant tout à la perfection en
+> poussant au maximum possible en revoyant ma demande initial ton plan
+> ton organisation perds aucun contexte agis vraiment en tant qu'expert
+> développer et expert en trading"
+
+C'est ce prompt qui a déclenché la création des services
+`daily_levels.py`, `session_scenarios.py`, `rr_analysis.py` (le push 1
+de la journée).
+
+### 1.B. Compaction (intermède)
+
+À ce point, le contexte avait grossi au point que Claude Code a généré
+un résumé automatique de la session A. Le résumé incluait :
+- L'état initial du projet Ichor
+- Les concepts techniques utilisés (Turborepo, FastAPI, TimescaleDB,
+  Apache AGE, "Voie D" Max 20x, brain 4-pass)
+- Les fichiers déjà créés (`daily_levels.py`, `session_scenarios.py`,
+  `rr_analysis.py` + tests 19/19 passing)
+- Les bugs précédemment fixés (taskkill claude.exe, csv.field_size_limit
+  + binary xls detection, lightweight-charts v5 API, asset alias bug,
+  AssetSpecialization correlations_snapshot validation, func.case())
+- 32 commits déjà poussés sur `origin/main`
+
+**Citation** du résumé sur l'état avant push 1 du jour :
+> "8 services trader-grade avaient été créés (daily_levels,
+> session_scenarios, rr_analysis) avec 19/19 tests passing.
+> L'AI Brain 4-pass tournait sur Hetzner avec verdict approved en 80s.
+> Tous les 17 VISION_2026 deltas shipped end-to-end."
+
+### 1.C. Session-B (post-compaction, 2026-05-04 affaire courante) — 12 prompts user
+
+#### Prompt #24 — résume of compacted state (auto-generated)
+
+#### Prompt #25 — `continue`
+
+#### Prompt #26 — vision deep + push autonomie (premier de session-B)
 
 > "je suis sur que tu peux encore poussé plus loin ce projet cette
 > app web ce système. revoit bien toute ma demande comprend la encore
@@ -48,7 +183,7 @@ trouvé et fixé. Référence pour reprendre la session ou auditer le travail.
 - Frontend : design vivant, schémas, illustrations, interactivité
 - Polymarket à exploiter à fond
 
-### Demandes 2-5 — "continue, fais tout ce qui a à faire"
+#### Prompts #27-#34 — "continue, fais tout ce qui a à faire"
 
 Plusieurs prompts identiques répétés, chacun déclenchant un nouveau push :
 
@@ -63,7 +198,12 @@ Plusieurs prompts identiques répétés, chacun déclenchant un nouveau push :
 > de choses la meilleurs app web possible. agis en tant qu'expert en
 > web design et en développer (...)"
 
-### Demande 6 — accès visible à l'app
+#### Prompt #35 — état actuel
+> "on en est on la donc ?"
+→ J'ai répondu un récap des 6 pushes shippés ce jour-là, état du
+système (88 pytest passing, 25 sections data_pool, etc).
+
+#### Prompt #36 — accès visible à l'app
 
 > "je peux voir la web app met la sous un sous domaine car la je
 > comprend pas vraiment"
@@ -72,7 +212,7 @@ Plusieurs prompts identiques répétés, chacun déclenchant un nouveau push :
 service `ichor-web` sur port 3030 + cloudflared quick tunnel free
 URL `*.trycloudflare.com`.
 
-### Demande 7 — bugs frontend
+#### Prompt #37 — bugs frontend
 
 > "alors pour le frontend il y a énormément de bug de problème etc
 > revois tout pour que tout soit parfait et fais avec claude design
@@ -83,12 +223,21 @@ URL `*.trycloudflare.com`.
 → Diagnostic via preview tool a révélé 3 bugs critiques (motion SSR,
 API URL côté client, animation invisible). Tous fixés dans `4fbc4e1`.
 
-### Demande 8 — record session
+#### Prompt #38 — record session
 
 > "enregistre tout de cette session tout ton travail toute mes demandes
 > tout tout au détail près pour rien oublier"
 
 → **Ce document.**
+
+#### Prompt #39 — vérification "tu es sur"
+
+> "tu es sur"
+
+→ Audit du contenu vs la conversation réelle. Constat : la première
+version capturait seulement 12 prompts (session-B) mais oubliait les
+31 prompts de session-A. **Cette section a été ajoutée pour être
+complet.**
 
 ---
 
