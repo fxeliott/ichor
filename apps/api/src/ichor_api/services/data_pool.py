@@ -47,9 +47,17 @@ from .confluence_engine import (
     assess_confluence,
     render_confluence_block,
 )
+from .correlations import (
+    assess_correlations,
+    render_correlations_block,
+)
 from .currency_strength import (
     assess_currency_strength,
     render_currency_strength_block,
+)
+from .hourly_volatility import (
+    assess_hourly_volatility,
+    render_hourly_volatility_block,
 )
 from .daily_levels import (
     DailyLevels,
@@ -561,6 +569,22 @@ async def _section_calendar(
     return render_calendar_block(report, asset=asset, max_items=10)
 
 
+async def _section_correlations(
+    session: AsyncSession,
+) -> tuple[str, list[str]]:
+    """## Cross-asset correlation matrix — rolling 30d hourly returns."""
+    m = await assess_correlations(session, window_days=30)
+    return render_correlations_block(m)
+
+
+async def _section_hourly_vol(
+    session: AsyncSession, asset: str
+) -> tuple[str, list[str]]:
+    """## Hourly volatility heatmap — when this asset moves."""
+    r = await assess_hourly_volatility(session, asset, window_days=30)
+    return render_hourly_volatility_block(r)
+
+
 async def _section_session_scenarios(
     levels_obj: DailyLevels,
     *,
@@ -642,6 +666,9 @@ async def build_data_pool(
     cs_md, cs_src = await _section_currency_strength(session)
     sections.append(("currency_strength", cs_md, cs_src))
 
+    corr_md, corr_src = await _section_correlations(session)
+    sections.append(("correlations", corr_md, corr_src))
+
     cal_md, cal_src = await _section_calendar(session, asset)
     sections.append(("calendar", cal_md, cal_src))
 
@@ -668,6 +695,9 @@ async def build_data_pool(
             conviction_pct=conviction_pct,
         )
         sections.append(("session_scenarios", scen_md, scen_src))
+
+    hv_md, hv_src = await _section_hourly_vol(session, asset)
+    sections.append(("hourly_volatility", hv_md, hv_src))
 
     micro_md, micro_src = await _section_microstructure(session, asset)
     sections.append(("microstructure", micro_md, micro_src))

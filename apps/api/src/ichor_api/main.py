@@ -16,15 +16,18 @@ from .routers import (
     admin_router,
     alerts_router,
     bias_signals_router,
+    brier_feedback_router,
     briefings_router,
     calendar_router,
     calibration_router,
     confluence_router,
+    correlations_router,
     counterfactual_router,
     currency_strength_router,
     data_pool_router,
     geopolitics_router,
     graph_router,
+    hourly_volatility_router,
     market_router,
     narratives_router,
     news_router,
@@ -102,6 +105,9 @@ app.include_router(trade_plan_router)
 app.include_router(confluence_router)
 app.include_router(currency_strength_router)
 app.include_router(calendar_router)
+app.include_router(correlations_router)
+app.include_router(hourly_volatility_router)
+app.include_router(brier_feedback_router)
 app.include_router(push_router)
 app.include_router(admin_router)
 app.include_router(ws_router)

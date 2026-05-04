@@ -604,3 +604,71 @@ export const getUpcomingCalendar = (
   const suffix = qs.toString() ? `?${qs.toString()}` : "";
   return get<CalendarUpcoming>(`/v1/calendar/upcoming${suffix}`, 60);
 };
+
+// ─────────────── cross-asset correlations ────────────────
+
+export interface CorrelationMatrix {
+  window_days: number;
+  assets: string[];
+  matrix: (number | null)[][];
+  n_returns_used: number;
+  generated_at: string;
+  flags: string[];
+}
+
+export const getCorrelations = (windowDays = 30): Promise<CorrelationMatrix> =>
+  get<CorrelationMatrix>(`/v1/correlations?window_days=${windowDays}`, 60);
+
+// ─────────────── hourly volatility heatmap ────────────────
+
+export interface HourlyVolEntry {
+  hour_utc: number;
+  median_bp: number;
+  p75_bp: number;
+  n_samples: number;
+}
+
+export interface HourlyVolReport {
+  asset: string;
+  window_days: number;
+  entries: HourlyVolEntry[];
+  best_hour_utc: number | null;
+  worst_hour_utc: number | null;
+  london_session_avg_bp: number | null;
+  asian_session_avg_bp: number | null;
+  generated_at: string;
+}
+
+export const getHourlyVol = (
+  asset: string,
+  windowDays = 30,
+): Promise<HourlyVolReport> =>
+  get<HourlyVolReport>(
+    `/v1/hourly-volatility/${encodeURIComponent(asset)}?window_days=${windowDays}`,
+    60,
+  );
+
+// ─────────────── brier feedback (auto-introspection) ────────────────
+
+export interface BrierGroupStat {
+  key: string;
+  n: number;
+  avg_brier: number;
+  win_rate: number | null;
+}
+
+export interface BrierFeedback {
+  n_cards_reconciled: number;
+  window_days: number;
+  overall_avg_brier: number | null;
+  by_asset: BrierGroupStat[];
+  by_session_type: BrierGroupStat[];
+  by_regime: BrierGroupStat[];
+  high_conviction_win_rate: number | null;
+  low_conviction_win_rate: number | null;
+  flags: string[];
+  generated_at: string;
+}
+
+export const getBrierFeedback = (windowDays = 30): Promise<BrierFeedback> =>
+  get<BrierFeedback>(`/v1/brier-feedback?window_days=${windowDays}`, 60);

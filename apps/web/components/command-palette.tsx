@@ -40,6 +40,8 @@ interface Command {
 const PAGES: Command[] = [
   { id: "home", label: "Accueil", hint: "/", kind: "page", href: "/" },
   { id: "sessions", label: "Cartes session", hint: "/sessions", kind: "page", href: "/sessions" },
+  { id: "confluence", label: "Confluence multi-actifs", hint: "/confluence", kind: "page", href: "/confluence", keywords: ["score", "synthese", "drivers", "trade strength"] },
+  { id: "correlations", label: "Corrélations cross-asset", hint: "/correlations", kind: "page", href: "/correlations", keywords: ["matrix", "pearson", "regime"] },
   { id: "narratives", label: "Narratives", hint: "/narratives", kind: "page", href: "/narratives" },
   { id: "kg", label: "Knowledge graph", hint: "/knowledge-graph", kind: "page", href: "/knowledge-graph", keywords: ["graph", "shock", "causal"] },
   { id: "geopol", label: "Géopolitique", hint: "/geopolitics", kind: "page", href: "/geopolitics" },
@@ -105,7 +107,22 @@ const SCENARIOS: Command[] = ASSET_LIST.map(([code, label]) => ({
   ],
 }));
 
-const ALL_COMMANDS: Command[] = [...PAGES, ...ASSETS, ...SCENARIOS, ...REPLAY];
+const HOURLY_VOL: Command[] = ASSET_LIST.map(([code, label]) => ({
+  id: `hvol-${code}`,
+  label: `Vol horaire ${label}`,
+  hint: `/hourly-volatility/${code}`,
+  kind: "action" as CommandKind,
+  href: `/hourly-volatility/${code}`,
+  keywords: ["volatility", "vol", "hour", "best", "moment", "heatmap", code],
+}));
+
+const ALL_COMMANDS: Command[] = [
+  ...PAGES,
+  ...ASSETS,
+  ...SCENARIOS,
+  ...HOURLY_VOL,
+  ...REPLAY,
+];
 
 const fuzzyMatch = (q: string, c: Command): number => {
   if (!q) return 1;
