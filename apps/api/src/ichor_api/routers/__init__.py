@@ -23,6 +23,7 @@ from .macro_pulse import router as macro_pulse_router
 from .market import router as market_router
 from .narratives import router as narratives_router
 from .news import router as news_router
+from .polymarket_impact import router as polymarket_impact_router
 from .predictions import router as predictions_router
 from .push import router as push_router
 from .sessions import router as sessions_router
@@ -49,6 +50,7 @@ __all__ = [
     "market_router",
     "narratives_router",
     "news_router",
+    "polymarket_impact_router",
     "predictions_router",
     "push_router",
     "sessions_router",

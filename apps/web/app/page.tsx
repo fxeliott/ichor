@@ -24,6 +24,7 @@ import {
 } from "../lib/api";
 import { CrossAssetHeatmap } from "../components/cross-asset-heatmap";
 import { CurrencyStrengthWidget } from "../components/currency-strength-widget";
+import { MacroPulseWidget } from "../components/macro-pulse-widget";
 import { RegimeQuadrantWidget } from "../components/regime-quadrant-widget";
 
 interface DashboardData {
@@ -145,6 +146,9 @@ export default async function HomePage() {
           }))}
         />
       </section>
+
+      {/* Macro pulse — 4-tile compact macro snapshot */}
+      <MacroPulseWidget />
 
       {/* Currency strength meter — basket-wide picture */}
       <CurrencyStrengthWidget />

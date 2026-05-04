@@ -750,3 +750,33 @@ export interface MacroPulse {
 
 export const getMacroPulse = (): Promise<MacroPulse> =>
   get<MacroPulse>(`/v1/macro-pulse`, 60);
+
+// ─────────────── polymarket impact ────────────────
+
+export interface PolymarketMarketHit {
+  slug: string;
+  question: string;
+  yes: number;
+  weight: number;
+}
+
+export interface PolymarketThemeHit {
+  theme_key: string;
+  label: string;
+  n_markets: number;
+  avg_yes: number;
+  markets: PolymarketMarketHit[];
+  impact_per_asset: Record<string, number>;
+}
+
+export interface PolymarketImpact {
+  generated_at: string;
+  n_markets_scanned: number;
+  themes: PolymarketThemeHit[];
+  asset_aggregate: Record<string, number>;
+}
+
+export const getPolymarketImpact = (
+  hours = 24,
+): Promise<PolymarketImpact> =>
+  get<PolymarketImpact>(`/v1/polymarket-impact?hours=${hours}`, 60);

@@ -89,6 +89,10 @@ from .microstructure import (
     render_microstructure_block,
 )
 from .narrative_tracker import render_narrative_block, track_narratives
+from .polymarket_impact import (
+    assess_polymarket_impact,
+    render_polymarket_impact_block,
+)
 from .session_scenarios import (
     SessionType,
     RegimeQuadrant,
@@ -601,6 +605,14 @@ async def _section_risk_appetite(
     return render_risk_appetite_block(r)
 
 
+async def _section_polymarket_impact(
+    session: AsyncSession,
+) -> tuple[str, list[str]]:
+    """## Polymarket themed clusters → directional impact per asset."""
+    r = await assess_polymarket_impact(session, hours=24, limit=100)
+    return render_polymarket_impact_block(r)
+
+
 async def _section_hourly_vol(
     session: AsyncSession, asset: str
 ) -> tuple[str, list[str]]:
@@ -742,6 +754,9 @@ async def build_data_pool(
 
     pm_md, pm_src = await _section_prediction_markets(session)
     sections.append(("prediction_markets", pm_md, pm_src))
+
+    pmi_md, pmi_src = await _section_polymarket_impact(session)
+    sections.append(("polymarket_impact", pmi_md, pmi_src))
 
     fs_md, fs_src = await _section_funding_stress(session)
     sections.append(("funding_stress", fs_md, fs_src))
