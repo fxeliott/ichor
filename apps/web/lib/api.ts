@@ -552,6 +552,31 @@ export interface Confluence {
 export const getConfluence = (asset: string): Promise<Confluence> =>
   get<Confluence>(`/v1/confluence/${encodeURIComponent(asset)}`, 30);
 
+export interface ConfluenceHistoryPoint {
+  captured_at: string;
+  score_long: number;
+  score_short: number;
+  score_neutral: number;
+  dominant_direction: Bias;
+  confluence_count: number;
+}
+
+export interface ConfluenceHistory {
+  asset: string;
+  window_days: number;
+  n_points: number;
+  points: ConfluenceHistoryPoint[];
+}
+
+export const getConfluenceHistory = (
+  asset: string,
+  windowDays = 30,
+): Promise<ConfluenceHistory> =>
+  get<ConfluenceHistory>(
+    `/v1/confluence/${encodeURIComponent(asset)}/history?window_days=${windowDays}`,
+    300,
+  );
+
 // ─────────────────── currency strength ────────────────────
 
 export interface CurrencyStrengthEntry {

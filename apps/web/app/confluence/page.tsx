@@ -12,9 +12,12 @@ import Link from "next/link";
 import {
   ApiError,
   getConfluence,
+  getConfluenceHistory,
   type Confluence,
+  type ConfluenceHistory,
 } from "../../lib/api";
 import { ASSETS } from "../../lib/assets";
+import { ConfluenceSparkline } from "../../components/confluence-sparkline";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 30;
@@ -25,33 +28,37 @@ interface AssetRow {
   code: string;
   display: string;
   data: Confluence | null;
+  history: ConfluenceHistory | null;
   error: string | null;
 }
 
 async function loadAll(): Promise<AssetRow[]> {
-  const settled = await Promise.allSettled(
-    ASSETS.map((a) => getConfluence(a.code)),
-  );
+  const [confluences, histories] = await Promise.all([
+    Promise.allSettled(ASSETS.map((a) => getConfluence(a.code))),
+    Promise.allSettled(ASSETS.map((a) => getConfluenceHistory(a.code, 30))),
+  ]);
   return ASSETS.map((meta, i) => {
-    const r = settled[i];
-    if (r.status === "fulfilled") {
-      return {
-        code: meta.code,
-        display: meta.display,
-        data: r.value,
-        error: null,
-      };
-    }
+    const cr = confluences[i];
+    const hr = histories[i];
     return {
       code: meta.code,
       display: meta.display,
-      data: null,
+      data:
+        cr.status === "fulfilled"
+          ? (cr as PromiseFulfilledResult<Confluence>).value
+          : null,
+      history:
+        hr.status === "fulfilled"
+          ? (hr as PromiseFulfilledResult<ConfluenceHistory>).value
+          : null,
       error:
-        r.reason instanceof ApiError
-          ? r.reason.message
-          : r.reason instanceof Error
-            ? r.reason.message
-            : "unknown error",
+        cr.status === "rejected"
+          ? cr.reason instanceof ApiError
+            ? cr.reason.message
+            : cr.reason instanceof Error
+              ? cr.reason.message
+              : "unknown error"
+          : null,
     };
   });
 }
@@ -90,6 +97,7 @@ export default async function ConfluencePage() {
               <th className="px-4 py-3 font-semibold text-right">Long</th>
               <th className="px-4 py-3 font-semibold text-right">Short</th>
               <th className="px-4 py-3 font-semibold text-right">Confluences</th>
+              <th className="px-4 py-3 font-semibold">30j</th>
               <th className="px-4 py-3 font-semibold">Top driver</th>
               <th className="px-4 py-3 font-semibold text-right">Action</th>
             </tr>
@@ -160,6 +168,9 @@ function AssetConfluenceRow({ row }: { row: AssetRow }) {
       </td>
       <td className="px-4 py-3 text-right font-mono text-neutral-200">
         {c.confluence_count} / {c.drivers.length}
+      </td>
+      <td className="px-4 py-3">
+        <ConfluenceSparkline history={row.history} />
       </td>
       <td className="px-4 py-3 text-xs text-neutral-300 max-w-md truncate">
         {topDriver ? (

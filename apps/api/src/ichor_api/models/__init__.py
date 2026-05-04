@@ -30,6 +30,7 @@ from .kalshi_market import KalshiMarket
 from .manifold_market import ManifoldMarket
 from .session_card_audit import SessionCardAudit
 from .polygon_intraday import PolygonIntradayBar
+from .confluence_history import ConfluenceHistory
 
 __all__ = [
     "Base",
@@ -50,4 +51,5 @@ __all__ = [
     "ManifoldMarket",
     "SessionCardAudit",
     "PolygonIntradayBar",
+    "ConfluenceHistory",
 ]
