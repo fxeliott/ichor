@@ -60,6 +60,11 @@ class Settings(BaseSettings):
     https://api.polygon.io/v2/aggs/ticker/{ticker}/range/1/minute/...
     """
 
+    flashalpha_api_key: str = ""
+    """FlashAlpha free-tier key (5 req/day). Used for SPX + NDX dealer
+    GEX, gamma_flip, call_wall, put_wall snapshots. Empty = collector
+    skipped silently."""
+
     # --- Observability (Loki/Langfuse) ---
     loki_endpoint: str = "http://127.0.0.1:3100"
     langfuse_public_key: str = ""

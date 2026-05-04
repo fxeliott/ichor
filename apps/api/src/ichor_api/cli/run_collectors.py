@@ -24,6 +24,7 @@ import httpx
 from ..collectors.ai_gpr import fetch_latest as fetch_ai_gpr
 from ..collectors.central_bank_speeches import poll_all as poll_cb_speeches
 from ..collectors.cot import poll_all_assets as poll_cot
+from ..collectors.flashalpha import poll_all as poll_flashalpha
 from ..collectors.fred import poll_all as poll_fred
 from ..collectors.fred_extended import merged_series as fred_merged_series
 from ..collectors.gdelt import poll_all as poll_gdelt
@@ -250,6 +251,39 @@ async def _run_manifold(*, persist: bool) -> int:
     return 0 if snaps else 1
 
 
+async def _run_flashalpha(*, persist: bool) -> int:
+    """Pull dealer GEX snapshots for SPX + NDX from FlashAlpha free tier."""
+    settings = get_settings()
+    if not settings.flashalpha_api_key:
+        print(
+            "FlashAlpha · ICHOR_API_FLASHALPHA_API_KEY is empty — skipping. "
+            "Free tier registration at flashalphalive.com (5 req/day).",
+            file=sys.stderr,
+        )
+        return 0
+    snaps = await poll_flashalpha(api_key=settings.flashalpha_api_key)
+    print(f"FlashAlpha · {len(snaps)} GEX snapshots fetched")
+    for s in snaps:
+        gex_str = (
+            f"{s.total_gex_usd / 1e9:+.2f}bn$" if s.total_gex_usd is not None else "n/a"
+        )
+        flip_str = f"{s.gamma_flip:.0f}" if s.gamma_flip is not None else "n/a"
+        print(
+            f"  [{s.ticker:6s}] spot={s.spot} gex={gex_str} flip={flip_str} "
+            f"call_wall={s.call_wall} put_wall={s.put_wall}"
+        )
+    if persist:
+        # Persistence helper not shipped yet — table needs migration.
+        # For V1 the pool reads directly via the collector when called
+        # by the brain ; storage layer is a Phase-2 follow-up.
+        print(
+            "FlashAlpha · persist not yet wired (no gex_snapshots table) — "
+            "data is fetched on each brain run.",
+            file=sys.stderr,
+        )
+    return 0 if snaps else 1
+
+
 async def _run_polygon(*, persist: bool, lookback_days: int = 1) -> int:
     settings = get_settings()
     if not settings.polygon_api_key:
@@ -309,6 +343,7 @@ async def _main(target: str, *, persist: bool) -> int:
         "cb_speeches": _run_cb_speeches,
         "kalshi": _run_kalshi,
         "manifold": _run_manifold,
+        "flashalpha": _run_flashalpha,
     }
     try:
         if target == "all":
