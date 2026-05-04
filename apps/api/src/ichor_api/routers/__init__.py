@@ -4,6 +4,7 @@ Note : `backtests_router` was archived in commit ADR-017 reset (2026-05-03).
 See `archive/2026-05-03-pre-reset/backtests_router.py`.
 """
 
+from .admin import router as admin_router
 from .alerts import router as alerts_router
 from .bias_signals import router as bias_signals_router
 from .briefings import router as briefings_router
@@ -21,6 +22,7 @@ from .sessions import router as sessions_router
 from .ws import router as ws_router
 
 __all__ = [
+    "admin_router",
     "alerts_router",
     "bias_signals_router",
     "briefings_router",

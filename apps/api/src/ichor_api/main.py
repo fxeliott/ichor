@@ -13,6 +13,7 @@ from . import __version__
 from .config import get_settings
 from .db import get_engine, get_session
 from .routers import (
+    admin_router,
     alerts_router,
     bias_signals_router,
     briefings_router,
@@ -94,6 +95,7 @@ app.include_router(geopolitics_router)
 app.include_router(counterfactual_router)
 app.include_router(data_pool_router)
 app.include_router(push_router)
+app.include_router(admin_router)
 app.include_router(ws_router)
 
 

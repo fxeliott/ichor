@@ -34,6 +34,7 @@ const NAV: { href: string; label: string }[] = [
   { href: "/alerts", label: "Alertes" },
   { href: "/news", label: "News" },
   { href: "/calibration", label: "Calibration" },
+  { href: "/admin", label: "Admin" },
 ];
 
 export default function RootLayout({
