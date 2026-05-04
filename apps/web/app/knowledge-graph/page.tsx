@@ -11,6 +11,7 @@ import {
   type GraphEdge,
   type GraphNode,
 } from "../../components/knowledge-graph-viz";
+import { ShockSimulator } from "../../components/shock-simulator";
 
 export const metadata = { title: "Knowledge graph" };
 export const dynamic = "force-dynamic";
@@ -32,14 +33,25 @@ async function fetchGraph(path: string): Promise<GraphOut> {
   return r.json() as Promise<GraphOut>;
 }
 
+async function fetchShockNodes(): Promise<string[]> {
+  const r = await fetch(
+    `${process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000"}/v1/graph/shock-nodes`,
+    { next: { revalidate: 3600 }, headers: { Accept: "application/json" } }
+  );
+  if (!r.ok) throw new ApiError(`shock-nodes ${r.status}`, r.status);
+  return r.json() as Promise<string[]>;
+}
+
 export default async function KnowledgeGraphPage() {
   let news: GraphOut | null = null;
   let causal: GraphOut | null = null;
+  let shockNodes: string[] = [];
   let error: string | null = null;
   try {
-    [news, causal] = await Promise.all([
+    [news, causal, shockNodes] = await Promise.all([
       fetchGraph("/v1/graph/news-network?hours=48"),
       fetchGraph("/v1/graph/causal-map"),
+      fetchShockNodes(),
     ]);
   } catch (e) {
     error = e instanceof Error ? e.message : "unknown";
@@ -110,6 +122,10 @@ export default async function KnowledgeGraphPage() {
               />
             )}
           </section>
+
+          {shockNodes.length > 0 && (
+            <ShockSimulator initialNodes={shockNodes} />
+          )}
         </>
       )}
     </div>
