@@ -116,30 +116,107 @@ All under `archive/2026-05-03-pre-reset/` :
 - SOPS+age + secrets infrastructure
 - DisclaimerBanner + AMF + EU AI Act compliance
 
-## Phase 1 Step 1 — DONE
+## Phase 1 Step 1 — DONE (CHUNK 1 → 7)
 
-7 chunks shipped end-to-end (commits `b884943` → CHUNK 7) :
+7 reset chunks shipped 2026-05-03 (commits `b884943` → `5c95982`) :
+ADR-017 reset, 6 collectors, migration 0005, 4-pass brain skeleton,
+SessionCard UI, Polygon collector + timer, cross-asset Critic.
 
-1. ✅ **CHUNK 1** — Reset propre (`b884943`)
-2. ✅ **CHUNK 2** — 6 new collectors (FRED extended, GDELT, AI-GPR, COT, CB speeches, Kalshi, Manifold), 108/108 tests (`b17baf1`)
-3. ✅ **CHUNK 3** — Migration `0005`, 8 ORM models, Hetzner alembic at `0005`, all hypertables registered (`95928aa`)
-4. ✅ **CHUNK 4** — `packages/ichor_brain/` 4-pass orchestrator with injectable Critic, 30/30 tests including real-Critic integration (`b91757b`)
-5. ✅ **CHUNK 5** — `<SessionCard>` UI + `/sessions` + `/sessions/[asset]` + `GET /v1/sessions[/{asset}]` API (`1c73159`)
-6. ✅ **CHUNK 6** — Polygon Starter REST client + `polygon_intraday` migration `0006` + 1-min systemd timer + 8 parser tests (`20deb40`)
-7. ✅ **CHUNK 7** — Cross-asset Critic extension + end-to-end CLI `run_session_card` writing into `session_card_audit` (this commit)
+## Phase 1 Step 2 — DONE (2026-05-04 marathon, 31 commits)
 
-**Verified end-to-end on Hetzner :**
-  `python -m ichor_api.cli.run_session_card EUR_USD pre_londres --dry-run`
-  → orchestrator runs 4 passes (canned LLM responses) → critic verdict
-  → `session_card_audit` row inserted → `GET /v1/sessions` returns it.
+Full VISION_2026 roadmap shipped end-to-end. **17/17 deltas in production**.
 
-Pending Eliot actions (paid stack + activation) :
-  - Set `ICHOR_API_POLYGON_API_KEY` in `/etc/ichor/api.env` once the
-    Polygon Starter ($29/mo) subscription is active.
-  - Run `bash /opt/ichor/scripts/hetzner/register-cron-collectors.sh`
-    on Hetzner to enable the 1-min Polygon timer.
-  - Run the CLI in `--live` mode to exercise the actual Voie D Claude
-    pipeline (requires the Win11 claude-runner up + CF Access creds).
+### What's LIVE on origin/main (head `d386e30`)
+
+**Brain pipeline** :
+- 4-pass orchestrator (regime → asset → stress → invalidation + Critic)
+- Pass 5 counterfactual (on-demand via UI button)
+- 8 frameworks asset-spécifiques (XAU + USDJPY + NAS100 + US30 + GBPUSD
+  + AUDUSD + USDCAD + EURUSD)
+- Critic Agent gate with asset alias matching robust
+- Brier reconciler nightly 23:15 Paris
+
+**Data pool** (14 sections per session run, ~9000 chars / 65 sources cited) :
+macro_trinity, dollar_smile, rate_diff, polygon_intraday, microstructure,
+asian_session (JPY-relevant only), cot, prediction_markets, funding_stress,
+surprise_index (z-score proxy), narrative, geopolitics, cb_speeches, news,
++ cb_intervention conditional (USD/JPY, EUR/CHF, USD/CNH).
+
+**Collectors câblés** (15 total, 9/10 tables peuplées) :
+fred, fred_extended, polygon, polygon_news, market_data, rss, polymarket,
+kalshi (discovery), manifold (discovery), cb_speeches, gdelt, ai_gpr (xls
+parser via xlrd), cot (Friday-only, expected empty Mon-Thu), flashalpha
+(scaffold awaiting key).
+
+**Services backend** (10) :
+brier, data_pool, funding_stress, cb_intervention, microstructure,
+asian_session, narrative_tracker, surprise_index, causal_propagation, push.
+
+**Endpoints API** (29 routes + 1 WS) :
+sessions, calibration, market[/intraday], narratives, graph, geopolitics,
+data-pool (debug), counterfactual, push, admin, news, alerts, briefings,
+predictions, bias-signals, ws.
+
+**Web pages** (13) :
+/, /sessions, /sessions/[asset], /replay/[asset], /narratives,
+/knowledge-graph, /geopolitics, /calibration, /admin, /briefings, /assets,
+/alerts, /news.
+
+**UI components** (9 nouveaux) :
+RegimeQuadrantWidget, CrossAssetHeatmap, ReliabilityDiagram, LiveChartCard,
+TimeMachineReplay, KnowledgeGraphViz, GeopoliticsGlobe, CounterfactualButton,
+ShockSimulator + Cmd+K palette + EventTicker + PushToggle.
+
+**Capacités UNIQUES vs concurrents** (8) :
+1. CB intervention probability empirical (BoJ/SNB/PBoC sigmoid)
+2. Polymarket↔Kalshi↔Manifold divergence detection
+3. Time-machine replay slider verdicts
+4. Counterfactual Pass 5 (brain + UI)
+5. Brier-score calibration publique + reliability diagram
+6. Régime-colored ambient UI (4 quadrants pulse)
+7. Critic Agent alias matching robust
+8. Causal shock simulator (Bayes-lite forward propagation + UI panel)
+
+### State Hetzner production (2026-05-04 12:43 UTC)
+
+Tables peuplées :
+  polygon_intraday    4771   (cron 1-min)
+  gpr_observations   15096   (full history loaded via xlrd)
+  gdelt_events         534   (cron 2h post-backoff fix)
+  polymarket           263   (cron 5-min)
+  news_items           176   (cron 15-min)
+  cb_speeches          126   (cron 6h)
+  manifold_markets      37   (discovery)
+  fred_observations     37   (cron 4h)
+  kalshi_markets        30   (discovery)
+  cot_positions          0   (Friday-only — expected)
+  session_card_audit    17   (13 approved = 76% rate)
+
+Cards approved breakdown :
+  EUR_USD: 9 (5 approved, 1 amendments, 3 blocked)
+  USD_JPY: 3 (3 approved)
+  XAU_USD: 2 (2 approved)
+  NAS100_USD: 1 (1 approved)
+  USD_CAD: 1 (1 approved)
+  GBP_USD: 1 (1 approved)
+
+17 systemd timers actifs sur Hetzner (autopilot 24/7) :
+  polygon (1-min), rss (15-min), polymarket (5-min), fred (4h),
+  gdelt (2h), cb_speeches (6h), market_data (daily), cot (Friday),
+  reconciler (nightly 23:15 Paris), session-cards × 4 (06/12/17/22 Paris),
+  briefings × 5 (06/12/17/22 + Sun 18:00 weekly).
+
+VAPID + push notifications opérationnels (clés persistées dans api.env).
+
+### What still requires Eliot action (all marginal)
+
+1. **FlashAlpha free key** (5 min) — registration on flashalphalive.com,
+   set `ICHOR_API_FLASHALPHA_API_KEY` in `/etc/ichor/api.env`. Unlocks
+   SPX + NDX dealer GEX collector (scaffold ready, skip path tested).
+2. **Domain decision** (ADR-002 / ADR-011) — keep `claude-runner.fxmilyapp.com`
+   tunnel hostname or migrate to `ichor.fyi` $15/yr. Current setup works.
+3. **GitHub HETZNER_SSH_PRIVATE_KEY secret** — for auto-deploy.yml
+   (currently deploys are manual via tar+ssh streaming).
 
 ## Critical rules (non-negotiable)
 
