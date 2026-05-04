@@ -18,7 +18,6 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { motion } from "motion/react";
 import type { BiasDirection, RegimeQuadrant } from "@ichor/ui";
 import { ASSETS } from "../lib/assets";
 import { useRegimeStore } from "../lib/store/regime";
@@ -143,15 +142,12 @@ export const CrossAssetHeatmap: React.FC<CrossAssetHeatmapProps> = ({
               ? `${card.magnitude_pips_low.toFixed(0)}-${card.magnitude_pips_high.toFixed(0)}p`
               : "—";
           return (
-            <motion.div
+            <div
               key={meta.code}
               role="listitem"
-              initial={{ opacity: 0, y: 4 }}
-              animate={{
-                opacity: matchesFocus ? 1 : 0.35,
-                y: 0,
-              }}
-              transition={{ delay: i * 0.04, duration: 0.22 }}
+              className="ichor-fade-in"
+              data-stagger={Math.min(6, i + 1)}
+              style={{ opacity: matchesFocus ? 1 : 0.35 }}
             >
               <Link
                 href={`/sessions/${meta.code}`}
@@ -178,7 +174,7 @@ export const CrossAssetHeatmap: React.FC<CrossAssetHeatmapProps> = ({
                   {magnitudeLabel}
                 </p>
               </Link>
-            </motion.div>
+            </div>
           );
         })}
       </div>

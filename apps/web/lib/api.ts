@@ -1,15 +1,24 @@
 /**
- * Ichor API client — server-side fetch utilities for Next.js Server Components.
+ * Ichor API client — fetch utilities for Server Components AND client.
  *
- * Reads `NEXT_PUBLIC_API_URL` (defaults to localhost during dev). All calls
- * use `next: { revalidate }` to participate in Next's request cache and
- * keep latency low while remaining fresh enough for a market dashboard.
+ * Strategy :
+ *   - Server-side : direct hit to NEXT_PUBLIC_API_URL (or 127.0.0.1:8000
+ *     fallback) — fast, in-process, no proxy hop.
+ *   - Client-side : empty origin → same-origin call → Next.js rewrites
+ *     in next.config.ts proxy /v1/* to the API. This makes the public
+ *     tunnel the only public surface ; the API stays bound to localhost.
  */
 
 const DEFAULT_REVALIDATE = 30; // seconds
 
-const apiUrl = (): string =>
-  process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
+const apiUrl = (): string => {
+  // Browser : use same-origin so Next.js rewrites can proxy to the API.
+  if (typeof window !== "undefined") {
+    return "";
+  }
+  // SSR : direct call to the local API (fast, no proxy).
+  return process.env["NEXT_PUBLIC_API_URL"] ?? "http://127.0.0.1:8000";
+};
 
 export class ApiError extends Error {
   status: number;

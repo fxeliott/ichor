@@ -79,11 +79,15 @@ export function useLiveEvents(options: UseLiveEventsOptions = {}) {
     if (typeof window === "undefined") return;
     cancelledRef.current = false;
 
-    const apiUrl =
+    // Same-origin WS so the public tunnel can proxy /v1/ws/dashboard
+    // through to the API (next.config.ts rewrites). This avoids the
+    // browser trying to reach 127.0.0.1:8000 directly which only works
+    // when the dev is running locally with the API on the same host.
+    const sameOriginWs =
+      window.location.protocol === "https:" ? "wss:" : "ws:";
+    const wsUrl =
       options.url ??
-      process.env.NEXT_PUBLIC_API_URL ??
-      "http://127.0.0.1:8000";
-    const wsUrl = options.url ?? wsUrlFromApi(apiUrl);
+      `${sameOriginWs}//${window.location.host}/v1/ws/dashboard`;
     const refreshOn = options.refreshOn ?? DEFAULT_REFRESH;
     const bufferSize = options.bufferSize ?? 5;
 

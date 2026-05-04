@@ -274,17 +274,22 @@ body {
 }
 
 /* ── Page-enter fade with stagger ──────────────────── */
+/* Failsafe : we animate translateY only, NOT opacity. Elements always
+ * visible. If animations are paused (background tab, prefers-reduced-
+ * motion, headless browser), the element still renders normally. */
 @keyframes ichor-fade-in {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
+  from { transform: translateY(6px); }
+  to { transform: translateY(0); }
 }
-.ichor-fade-in { animation: ichor-fade-in 360ms var(--ease-ichor-out) both; }
-.ichor-fade-in[data-stagger="1"] { animation-delay: 60ms; }
-.ichor-fade-in[data-stagger="2"] { animation-delay: 120ms; }
-.ichor-fade-in[data-stagger="3"] { animation-delay: 180ms; }
-.ichor-fade-in[data-stagger="4"] { animation-delay: 240ms; }
-.ichor-fade-in[data-stagger="5"] { animation-delay: 300ms; }
-.ichor-fade-in[data-stagger="6"] { animation-delay: 360ms; }
+.ichor-fade-in {
+  animation: ichor-fade-in 320ms var(--ease-ichor-out) both;
+}
+.ichor-fade-in[data-stagger="1"] { animation-delay: 40ms; }
+.ichor-fade-in[data-stagger="2"] { animation-delay: 80ms; }
+.ichor-fade-in[data-stagger="3"] { animation-delay: 120ms; }
+.ichor-fade-in[data-stagger="4"] { animation-delay: 160ms; }
+.ichor-fade-in[data-stagger="5"] { animation-delay: 200ms; }
+.ichor-fade-in[data-stagger="6"] { animation-delay: 240ms; }
 
 /* ── Subtle grid pattern (hero sections) ───────────── */
 .ichor-grid-bg {

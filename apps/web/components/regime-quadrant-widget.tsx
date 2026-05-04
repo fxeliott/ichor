@@ -23,7 +23,6 @@
 "use client";
 
 import * as React from "react";
-import { motion } from "motion/react";
 import type { RegimeQuadrant } from "@ichor/ui";
 import { useRegimeStore } from "../lib/store/regime";
 
@@ -129,41 +128,35 @@ export const RegimeQuadrantWidget: React.FC<RegimeQuadrantWidgetProps> = ({
           const isActive = current === q.id;
           const isFocused = focus === q.id;
           return (
-            <motion.button
+            <button
               key={q.id}
               type="button"
               onClick={() => setFocus(q.id)}
               aria-pressed={isFocused}
               aria-label={`Quadrant ${q.title} ${isActive ? "(régime courant)" : ""}`}
-              initial={{ opacity: 0, scale: 0.96 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: i * 0.05, duration: 0.25, ease: "easeOut" }}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
               className={[
-                "rounded-lg border p-3 text-left transition-colors min-h-[88px]",
+                "rounded-lg border p-3 text-left transition min-h-[88px] ichor-fade-in ichor-lift",
                 "focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-ichor-accent)]",
                 isActive ? q.active : q.inactive,
                 isFocused ? q.focused : "",
               ].join(" ")}
+              data-stagger={Math.min(4, i + 1)}
             >
               <div className="flex items-baseline justify-between gap-2">
                 <p className="text-sm font-semibold leading-tight">
                   {q.title}
                 </p>
                 {isActive && (
-                  <motion.span
+                  <span
                     aria-hidden="true"
-                    className="inline-block h-2 w-2 rounded-full bg-current"
-                    animate={{ opacity: [0.4, 1, 0.4] }}
-                    transition={{ duration: 1.6, repeat: Infinity }}
+                    className="inline-block h-2 w-2 rounded-full bg-current animate-pulse"
                   />
                 )}
               </div>
               <p className="mt-1 text-[11px] opacity-80 leading-snug">
                 {q.legend}
               </p>
-            </motion.button>
+            </button>
           );
         })}
       </div>
