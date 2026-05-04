@@ -9,6 +9,7 @@ from .bias_signals import router as bias_signals_router
 from .briefings import router as briefings_router
 from .calibration import router as calibration_router
 from .counterfactual import router as counterfactual_router
+from .data_pool import router as data_pool_router
 from .geopolitics import router as geopolitics_router
 from .graph import router as graph_router
 from .market import router as market_router
@@ -24,6 +25,7 @@ __all__ = [
     "briefings_router",
     "calibration_router",
     "counterfactual_router",
+    "data_pool_router",
     "geopolitics_router",
     "graph_router",
     "market_router",

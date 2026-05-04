@@ -61,32 +61,134 @@ def _is_xlsx_zip(body: bytes) -> bool:
     return body[:4] == b"PK\x03\x04"
 
 
+def _parse_xls(body: bytes) -> list[AiGprObservation]:
+    """Parse legacy .xls (CFB) via xlrd. Returns [] on any error."""
+    try:
+        import xlrd  # type: ignore[import-untyped]
+    except ImportError:
+        log.warning("ai_gpr.xlrd_unavailable")
+        return []
+    try:
+        wb = xlrd.open_workbook(file_contents=body)
+        sheet = wb.sheet_by_index(0)
+        header = [str(sheet.cell_value(0, c)).strip() for c in range(sheet.ncols)]
+        date_idx = next(
+            (i for i, h in enumerate(header) if h.lower() in {"date", "day"}),
+            None,
+        )
+        value_idx = next(
+            (i for i, h in enumerate(header)
+             if h.upper() in {"AI_GPR", "GPR_DAILY", "GPR", "GPRD"}),
+            None,
+        )
+        if date_idx is None or value_idx is None:
+            log.warning("ai_gpr.xls_header_unrecognized", header=header)
+            return []
+        fetched = datetime.now(timezone.utc)
+        out: list[AiGprObservation] = []
+        for row_idx in range(1, sheet.nrows):
+            try:
+                d_raw = sheet.cell_value(row_idx, date_idx)
+                v_raw = sheet.cell_value(row_idx, value_idx)
+                if v_raw == "" or v_raw is None:
+                    continue
+                if isinstance(d_raw, float):
+                    d_tuple = xlrd.xldate_as_tuple(d_raw, wb.datemode)
+                    bar_date = date(d_tuple[0], d_tuple[1], d_tuple[2])
+                elif isinstance(d_raw, str):
+                    s = d_raw.strip()
+                    try:
+                        bar_date = date.fromisoformat(s)
+                    except ValueError:
+                        bar_date = datetime.strptime(s, "%m/%d/%Y").date()
+                else:
+                    continue
+                out.append(
+                    AiGprObservation(
+                        observation_date=bar_date,
+                        ai_gpr=float(v_raw),
+                        fetched_at=fetched,
+                    )
+                )
+            except (TypeError, ValueError):
+                continue
+        return out
+    except Exception as e:
+        log.warning("ai_gpr.xls_parse_failed", error=str(e))
+        return []
+
+
+def _parse_xlsx(body: bytes) -> list[AiGprObservation]:
+    """Parse .xlsx via openpyxl. Returns [] on any error."""
+    try:
+        from openpyxl import load_workbook  # type: ignore[import-untyped]
+    except ImportError:
+        log.warning("ai_gpr.openpyxl_unavailable")
+        return []
+    try:
+        wb = load_workbook(filename=io.BytesIO(body), data_only=True, read_only=True)
+        sheet = wb.active
+        rows = sheet.iter_rows(values_only=True)
+        header = [str(c).strip() if c is not None else "" for c in next(rows)]
+        date_idx = next(
+            (i for i, h in enumerate(header) if h.lower() in {"date", "day"}),
+            None,
+        )
+        value_idx = next(
+            (i for i, h in enumerate(header)
+             if h.upper() in {"AI_GPR", "GPR_DAILY", "GPR", "GPRD"}),
+            None,
+        )
+        if date_idx is None or value_idx is None:
+            log.warning("ai_gpr.xlsx_header_unrecognized", header=header)
+            return []
+        fetched = datetime.now(timezone.utc)
+        out: list[AiGprObservation] = []
+        for row in rows:
+            try:
+                d_raw = row[date_idx]
+                v_raw = row[value_idx]
+                if v_raw is None or v_raw == "":
+                    continue
+                if isinstance(d_raw, datetime):
+                    bar_date = d_raw.date()
+                elif isinstance(d_raw, date):
+                    bar_date = d_raw
+                elif isinstance(d_raw, str):
+                    s = d_raw.strip()
+                    try:
+                        bar_date = date.fromisoformat(s)
+                    except ValueError:
+                        bar_date = datetime.strptime(s, "%m/%d/%Y").date()
+                else:
+                    continue
+                out.append(
+                    AiGprObservation(
+                        observation_date=bar_date,
+                        ai_gpr=float(v_raw),
+                        fetched_at=fetched,
+                    )
+                )
+            except (TypeError, ValueError):
+                continue
+        return out
+    except Exception as e:
+        log.warning("ai_gpr.xlsx_parse_failed", error=str(e))
+        return []
+
+
 def _parse_csv(body: bytes) -> list[AiGprObservation]:
-    """The recent CSV ships with header `date,GPR_DAILY,...`. We only need
-    `date` + `GPR_DAILY` (or `AI_GPR` depending on file version).
+    """Detect upstream format and dispatch ; falls back to CSV.
 
-    Detects upstream binary format mismatches (xls / xlsx) early and
-    logs a clear warning instead of crashing the parser.
-
-    Some vintages of the file embed long bibliographic citations in a
-    column, which crashes csv.DictReader's default 128 KB field limit.
-    We bump the limit to sys.maxsize before parsing — the file is small
-    enough overall (< 5 MB) that this is safe.
+    Order of magic-byte checks :
+      1. CFB (.xls vintage)        → xlrd
+      2. ZIP (.xlsx Office 2007+)  → openpyxl
+      3. text/csv                  → DictReader (canonical path)
     """
     if _is_xls_binary(body):
-        log.warning(
-            "ai_gpr.binary_xls_detected",
-            note="upstream serves .xls (CFB) — needs `pip install xlrd` "
-            "+ xls-aware parser. Skipping for now.",
-        )
-        return []
+        return _parse_xls(body)
     if _is_xlsx_zip(body):
-        log.warning(
-            "ai_gpr.xlsx_detected",
-            note="upstream serves .xlsx — needs `pip install openpyxl` "
-            "+ xlsx-aware parser. Skipping for now.",
-        )
-        return []
+        return _parse_xlsx(body)
 
     csv.field_size_limit(sys.maxsize)
     text = body.decode("utf-8", errors="replace")
