@@ -79,6 +79,13 @@ export default async function AssetSessionsPage({
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <Link
+            href={`/scenarios/${asset}`}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded border border-neutral-700 bg-neutral-900/60 text-sm text-neutral-200 hover:border-emerald-600 hover:text-emerald-200 transition"
+          >
+            <span aria-hidden="true">🎯</span>
+            <span>Scénarios + RR</span>
+          </Link>
+          <Link
             href={`/replay/${asset}`}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded border border-neutral-700 bg-neutral-900/60 text-sm text-neutral-200 hover:border-emerald-600 hover:text-emerald-200 transition"
           >

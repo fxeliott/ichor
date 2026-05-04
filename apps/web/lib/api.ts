@@ -450,3 +450,157 @@ export const getIntradayBars = (
     `/v1/market/intraday/${encodeURIComponent(asset)}?hours=${hours}`,
     30,
   );
+
+// ────────────────── data pool (debug + scenarios) ──────────────────
+
+export interface DataPoolResponse {
+  asset: string;
+  generated_at: string;
+  markdown_chars: number;
+  sections_emitted: string[];
+  sources_count: number;
+  sources: string[];
+  markdown: string;
+}
+
+export const getDataPool = (
+  asset: string,
+  opts?: {
+    session_type?:
+      | "pre_londres"
+      | "pre_ny"
+      | "ny_mid"
+      | "ny_close"
+      | "event_driven";
+    regime?:
+      | "haven_bid"
+      | "funding_stress"
+      | "goldilocks"
+      | "usd_complacency";
+    conviction_pct?: number;
+  },
+): Promise<DataPoolResponse> => {
+  const qs = new URLSearchParams();
+  if (opts?.session_type) qs.set("session_type", opts.session_type);
+  if (opts?.regime) qs.set("regime", opts.regime);
+  if (opts?.conviction_pct != null)
+    qs.set("conviction_pct", String(opts.conviction_pct));
+  const suffix = qs.toString() ? `?${qs.toString()}` : "";
+  return get<DataPoolResponse>(
+    `/v1/data-pool/${encodeURIComponent(asset)}${suffix}`,
+    30,
+  );
+};
+
+// ─────────────────── trade plan (RR analysis) ────────────────────
+
+export type Bias = "long" | "short" | "neutral";
+
+export interface TradePlan {
+  asset: string;
+  spot: number | null;
+  bias: Bias;
+  conviction_pct: number;
+  magnitude_pips_low: number | null;
+  magnitude_pips_high: number | null;
+
+  entry_zone_low: number | null;
+  entry_zone_high: number | null;
+  stop_loss: number | null;
+  tp1: number | null;
+  tp3: number | null;
+  tp_extended: number | null;
+  risk_pips: number | null;
+  reward_pips_tp3: number | null;
+  rr_target: number;
+
+  notes: string;
+  markdown: string;
+  sources: string[];
+  derived_from: Record<string, string | null> | null;
+}
+
+export const getTradePlan = (
+  asset: string,
+  rrTarget = 3.0,
+): Promise<TradePlan> =>
+  get<TradePlan>(
+    `/v1/trade-plan/${encodeURIComponent(asset)}?rr_target=${rrTarget}`,
+    30,
+  );
+
+// ─────────────────── confluence engine ────────────────────
+
+export interface ConfluenceDriver {
+  factor: string;
+  contribution: number;
+  evidence: string;
+  source: string | null;
+}
+
+export interface Confluence {
+  asset: string;
+  score_long: number;
+  score_short: number;
+  score_neutral: number;
+  dominant_direction: Bias;
+  confluence_count: number;
+  drivers: ConfluenceDriver[];
+  rationale: string;
+}
+
+export const getConfluence = (asset: string): Promise<Confluence> =>
+  get<Confluence>(`/v1/confluence/${encodeURIComponent(asset)}`, 30);
+
+// ─────────────────── currency strength ────────────────────
+
+export interface CurrencyStrengthEntry {
+  currency: string;
+  score: number;
+  rank: number;
+  n_pairs_contributing: number;
+  contributions: [string, number][];
+}
+
+export interface CurrencyStrength {
+  window_hours: number;
+  generated_at: string;
+  entries: CurrencyStrengthEntry[];
+}
+
+export const getCurrencyStrength = (
+  windowHours = 24,
+): Promise<CurrencyStrength> =>
+  get<CurrencyStrength>(
+    `/v1/currency-strength?window_hours=${windowHours}`,
+    30,
+  );
+
+// ─────────────────── economic calendar ────────────────────
+
+export interface CalendarEvent {
+  when: string;
+  when_time_utc: string | null;
+  region: string;
+  label: string;
+  impact: "high" | "medium" | "low";
+  affected_assets: string[];
+  note: string;
+  source: string | null;
+}
+
+export interface CalendarUpcoming {
+  generated_at: string;
+  horizon_days: number;
+  events: CalendarEvent[];
+}
+
+export const getUpcomingCalendar = (
+  opts: { horizonDays?: number; asset?: string } = {},
+): Promise<CalendarUpcoming> => {
+  const qs = new URLSearchParams();
+  if (opts.horizonDays != null) qs.set("horizon_days", String(opts.horizonDays));
+  if (opts.asset) qs.set("asset", opts.asset);
+  const suffix = qs.toString() ? `?${qs.toString()}` : "";
+  return get<CalendarUpcoming>(`/v1/calendar/upcoming${suffix}`, 60);
+};

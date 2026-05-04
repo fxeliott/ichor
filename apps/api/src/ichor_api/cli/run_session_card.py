@@ -78,7 +78,11 @@ async def _run(asset: str, session_type: str, *, live: bool) -> int:
         from ..services.data_pool import build_asset_data_only, build_data_pool
 
         async with sm() as build_session:
-            pool = await build_data_pool(build_session, asset)
+            pool = await build_data_pool(
+                build_session,
+                asset,
+                session_type=session_type,  # type: ignore[arg-type]
+            )
             asset_data = await build_asset_data_only(build_session, asset)
         data_pool = pool.markdown
         log.info(

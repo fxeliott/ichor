@@ -17,8 +17,11 @@ from .routers import (
     alerts_router,
     bias_signals_router,
     briefings_router,
+    calendar_router,
     calibration_router,
+    confluence_router,
     counterfactual_router,
+    currency_strength_router,
     data_pool_router,
     geopolitics_router,
     graph_router,
@@ -28,6 +31,7 @@ from .routers import (
     predictions_router,
     push_router,
     sessions_router,
+    trade_plan_router,
     ws_router,
 )
 from .schemas import CollectorLag, HealthDetailedOut, HealthOut
@@ -94,6 +98,10 @@ app.include_router(graph_router)
 app.include_router(geopolitics_router)
 app.include_router(counterfactual_router)
 app.include_router(data_pool_router)
+app.include_router(trade_plan_router)
+app.include_router(confluence_router)
+app.include_router(currency_strength_router)
+app.include_router(calendar_router)
 app.include_router(push_router)
 app.include_router(admin_router)
 app.include_router(ws_router)

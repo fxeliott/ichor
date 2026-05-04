@@ -38,19 +38,61 @@ _VALID_ASSET = {
 }
 
 
+_VALID_SESSION_TYPES = {
+    "pre_londres", "pre_ny", "ny_mid", "ny_close", "event_driven",
+}
+_VALID_REGIMES = {
+    "haven_bid", "funding_stress", "goldilocks", "usd_complacency",
+}
+
+
 @router.get("/{asset}", response_model=DataPoolOut)
 async def get_pool(
     asset: str,
     session: Annotated[AsyncSession, Depends(get_session)],
+    session_type: str | None = None,
+    regime: str | None = None,
+    conviction_pct: float = 50.0,
 ) -> DataPoolOut:
-    """Build the data pool for an asset and return its full payload."""
+    """Build the data pool for an asset and return its full payload.
+
+    Optional query params let the caller request the
+    `session_scenarios` preview block :
+      - `session_type` ∈ pre_londres / pre_ny / ny_mid / ny_close / event_driven
+      - `regime` ∈ haven_bid / funding_stress / goldilocks / usd_complacency
+      - `conviction_pct` (0-100) — defaults to 50 (neutral preview)
+
+    Without `session_type`, the scenarios block is skipped.
+    """
     asset_norm = asset.upper().replace("-", "_")
     if asset_norm not in _VALID_ASSET:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"unknown asset {asset_norm!r} (expected one of {sorted(_VALID_ASSET)})",
         )
-    pool = await build_data_pool(session, asset_norm)
+    if session_type is not None and session_type not in _VALID_SESSION_TYPES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                f"unknown session_type {session_type!r} "
+                f"(expected one of {sorted(_VALID_SESSION_TYPES)})"
+            ),
+        )
+    if regime is not None and regime not in _VALID_REGIMES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                f"unknown regime {regime!r} "
+                f"(expected one of {sorted(_VALID_REGIMES)})"
+            ),
+        )
+    pool = await build_data_pool(
+        session,
+        asset_norm,
+        session_type=session_type,  # type: ignore[arg-type]
+        regime=regime,  # type: ignore[arg-type]
+        conviction_pct=conviction_pct,
+    )
     return DataPoolOut(
         asset=pool.asset,
         generated_at=pool.generated_at,

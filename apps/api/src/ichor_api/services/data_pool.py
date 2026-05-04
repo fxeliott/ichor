@@ -43,6 +43,27 @@ from .asian_session import (
     render_asian_session_block,
     supported_pairs as asian_supported_pairs,
 )
+from .confluence_engine import (
+    assess_confluence,
+    render_confluence_block,
+)
+from .currency_strength import (
+    assess_currency_strength,
+    render_currency_strength_block,
+)
+from .daily_levels import (
+    DailyLevels,
+    assess_daily_levels,
+    render_daily_levels_block,
+)
+from .economic_calendar import (
+    assess_calendar,
+    render_calendar_block,
+)
+from .yield_curve import (
+    assess_yield_curve,
+    render_yield_curve_block,
+)
 from .funding_stress import (
     assess_funding_stress,
     render_funding_stress_block,
@@ -52,6 +73,12 @@ from .microstructure import (
     render_microstructure_block,
 )
 from .narrative_tracker import render_narrative_block, track_narratives
+from .session_scenarios import (
+    SessionType,
+    RegimeQuadrant,
+    assess_session_scenarios,
+    render_session_scenarios_block,
+)
 from .surprise_index import (
     assess_surprise_index,
     render_surprise_index_block,
@@ -488,6 +515,72 @@ async def _section_cb_intervention(
     return cb_intervention_svc.render_intervention_block(risk)
 
 
+async def _section_daily_levels(
+    session: AsyncSession, asset: str
+) -> tuple[str, list[str], DailyLevels]:
+    """## Daily levels — PDH/PDL, Asian range, Pivots, round numbers.
+
+    Returns the rendered markdown plus the underlying DailyLevels object
+    so a downstream section (session_scenarios) can reuse it without
+    re-querying.
+    """
+    levels = await assess_daily_levels(session, asset)
+    md, sources = render_daily_levels_block(levels)
+    return md, sources, levels
+
+
+async def _section_confluence(
+    session: AsyncSession, asset: str, levels_obj: DailyLevels
+) -> tuple[str, list[str]]:
+    """## Confluence engine — multi-factor synthesis."""
+    report = await assess_confluence(session, asset, levels=levels_obj)
+    return render_confluence_block(report)
+
+
+async def _section_currency_strength(
+    session: AsyncSession,
+) -> tuple[str, list[str]]:
+    """## Currency strength meter — 24h ranked basket."""
+    report = await assess_currency_strength(session, window_hours=24.0)
+    return render_currency_strength_block(report)
+
+
+async def _section_yield_curve(
+    session: AsyncSession,
+) -> tuple[str, list[str]]:
+    """## US Treasury yield curve — full term structure."""
+    reading = await assess_yield_curve(session)
+    return render_yield_curve_block(reading)
+
+
+async def _section_calendar(
+    session: AsyncSession, asset: str
+) -> tuple[str, list[str]]:
+    """## Economic calendar — next 14 days affecting `asset`."""
+    report = await assess_calendar(session, horizon_days=14)
+    return render_calendar_block(report, asset=asset, max_items=10)
+
+
+async def _section_session_scenarios(
+    levels_obj: DailyLevels,
+    *,
+    session_type: SessionType,
+    regime: RegimeQuadrant | None,
+    conviction_pct: float,
+) -> tuple[str, list[str]]:
+    """## Session scenarios — Continuation/Reversal/Sideways probabilities.
+
+    Reuses the DailyLevels already loaded by `_section_daily_levels`.
+    """
+    s = assess_session_scenarios(
+        levels_obj,
+        session_type=session_type,
+        regime=regime,
+        conviction_pct=conviction_pct,
+    )
+    return render_session_scenarios_block(s)
+
+
 async def _section_news(session: AsyncSession) -> tuple[str, list[str]]:
     """## News — top 8 most-recent items in last 12h."""
     cutoff = datetime.now(timezone.utc) - timedelta(hours=12)
@@ -513,7 +606,14 @@ async def _section_news(session: AsyncSession) -> tuple[str, list[str]]:
 # ────────────────────────── Orchestrator ──────────────────────────────
 
 
-async def build_data_pool(session: AsyncSession, asset: str) -> DataPool:
+async def build_data_pool(
+    session: AsyncSession,
+    asset: str,
+    *,
+    session_type: SessionType | None = None,
+    regime: RegimeQuadrant | None = None,
+    conviction_pct: float = 50.0,
+) -> DataPool:
     """Compose the full data pool markdown for one asset.
 
     Sections are ordered from "biggest macro context" → "asset-specific"
@@ -521,6 +621,11 @@ async def build_data_pool(session: AsyncSession, asset: str) -> DataPool:
     smile + geopolitics) gets clean signal at the top, and Pass-2
     (which sees the full pool) gets the asset-specific blocks at the
     bottom.
+
+    Optional kwargs (`session_type`, `regime`, `conviction_pct`) tune the
+    `session_scenarios` preview. When `session_type` is None, that
+    section is skipped (caller is in a context where the session window
+    isn't known yet, e.g. ad-hoc /v1/data-pool inspection).
     """
     asset = asset.upper()
     sections: list[tuple[str, str, list[str]]] = []
@@ -531,12 +636,38 @@ async def build_data_pool(session: AsyncSession, asset: str) -> DataPool:
     smile_md, smile_src = await _section_dollar_smile(session)
     sections.append(("dollar_smile", smile_md, smile_src))
 
+    yc_md, yc_src = await _section_yield_curve(session)
+    sections.append(("yield_curve", yc_md, yc_src))
+
+    cs_md, cs_src = await _section_currency_strength(session)
+    sections.append(("currency_strength", cs_md, cs_src))
+
+    cal_md, cal_src = await _section_calendar(session, asset)
+    sections.append(("calendar", cal_md, cal_src))
+
     diff_md, diff_src = await _section_rate_diff(session, asset)
     if diff_md:
         sections.append(("rate_diff", diff_md, diff_src))
 
     poly_md, poly_src = await _section_polygon_intraday(session, asset)
     sections.append(("polygon_intraday", poly_md, poly_src))
+
+    # Daily levels first (it loads the DailyLevels object) so session
+    # scenarios + confluence can reuse it without a second DB roundtrip.
+    daily_md, daily_src, daily_obj = await _section_daily_levels(session, asset)
+    sections.append(("daily_levels", daily_md, daily_src))
+
+    conf_md, conf_src = await _section_confluence(session, asset, daily_obj)
+    sections.append(("confluence", conf_md, conf_src))
+
+    if session_type is not None:
+        scen_md, scen_src = await _section_session_scenarios(
+            daily_obj,
+            session_type=session_type,
+            regime=regime,
+            conviction_pct=conviction_pct,
+        )
+        sections.append(("session_scenarios", scen_md, scen_src))
 
     micro_md, micro_src = await _section_microstructure(session, asset)
     sections.append(("microstructure", micro_md, micro_src))

@@ -23,6 +23,7 @@ import {
   type SessionCard,
 } from "../lib/api";
 import { CrossAssetHeatmap } from "../components/cross-asset-heatmap";
+import { CurrencyStrengthWidget } from "../components/currency-strength-widget";
 import { RegimeQuadrantWidget } from "../components/regime-quadrant-widget";
 
 interface DashboardData {
@@ -144,6 +145,9 @@ export default async function HomePage() {
           }))}
         />
       </section>
+
+      {/* Currency strength meter — basket-wide picture */}
+      <CurrencyStrengthWidget />
 
       {/* Critical alerts strip (only if any) */}
       {criticalAlerts.length > 0 && (

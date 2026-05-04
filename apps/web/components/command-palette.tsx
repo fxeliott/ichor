@@ -86,7 +86,26 @@ const REPLAY: Command[] = REPLAY_LIST.map(([code, label]) => ({
   keywords: ["replay", "time-machine", code],
 }));
 
-const ALL_COMMANDS: Command[] = [...PAGES, ...ASSETS, ...REPLAY];
+const SCENARIOS: Command[] = ASSET_LIST.map(([code, label]) => ({
+  id: `scen-${code}`,
+  label: `Scénarios ${label}`,
+  hint: `/scenarios/${code}`,
+  kind: "action" as CommandKind,
+  href: `/scenarios/${code}`,
+  keywords: [
+    "scenarios",
+    "scenario",
+    "rr",
+    "trade plan",
+    "smc",
+    "pivots",
+    "pdh",
+    "pdl",
+    code,
+  ],
+}));
+
+const ALL_COMMANDS: Command[] = [...PAGES, ...ASSETS, ...SCENARIOS, ...REPLAY];
 
 const fuzzyMatch = (q: string, c: Command): number => {
   if (!q) return 1;
