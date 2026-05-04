@@ -150,6 +150,22 @@ async def _run(asset: str, session_type: str, *, live: bool) -> int:
     except Exception as e:
         log.warning("session_card.publish_failed", error=str(e))
 
+    # Send PWA push notification on approved/amendments cards (best-effort
+    # — never fail the persistence). Skip blocked since not actionable.
+    if row.critic_verdict and row.critic_verdict != "blocked":
+        try:
+            from ..services.push import send_to_all
+
+            asset_pretty = row.asset.replace("_", "/")
+            title = f"Ichor · {asset_pretty} · {row.session_type.replace('_', ' ')}"
+            body = (
+                f"{row.bias_direction.upper()} {row.conviction_pct:.0f}% "
+                f"· {row.critic_verdict}"
+            )
+            await send_to_all(title, body, url=f"/sessions/{row.asset}")
+        except Exception as e:
+            log.warning("session_card.push_failed", error=str(e))
+
     print(
         f"OK · session_card_audit row written\n"
         f"  asset      : {row.asset}\n"

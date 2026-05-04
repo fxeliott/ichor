@@ -3,6 +3,7 @@ import Link from "next/link";
 import { DisclaimerBanner } from "@ichor/ui";
 import { CommandPalette } from "../components/command-palette";
 import { EventTicker } from "../components/event-ticker";
+import { PushToggle } from "../components/push-toggle";
 import { LiveEventsToast } from "./live-events-toast";
 import { ServiceWorkerRegister } from "./service-worker-register";
 import "./globals.css";
@@ -97,8 +98,11 @@ export default function RootLayout({
                 </li>
               ))}
             </ul>
-            <span className="ml-auto text-[11px] text-neutral-400 font-mono">
-              Phase 0
+            <span className="ml-auto flex items-center gap-3">
+              <PushToggle />
+              <span className="text-[11px] text-neutral-400 font-mono">
+                Phase 1
+              </span>
             </span>
           </nav>
         </header>

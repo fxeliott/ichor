@@ -25,6 +25,7 @@ from .routers import (
     narratives_router,
     news_router,
     predictions_router,
+    push_router,
     sessions_router,
     ws_router,
 )
@@ -92,6 +93,7 @@ app.include_router(graph_router)
 app.include_router(geopolitics_router)
 app.include_router(counterfactual_router)
 app.include_router(data_pool_router)
+app.include_router(push_router)
 app.include_router(ws_router)
 
 

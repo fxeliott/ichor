@@ -65,6 +65,17 @@ class Settings(BaseSettings):
     GEX, gamma_flip, call_wall, put_wall snapshots. Empty = collector
     skipped silently."""
 
+    # --- PWA push (VAPID) ---
+    vapid_public_key: str = ""
+    """Base64url-encoded VAPID public key. Exposed to the front-end
+    via GET /v1/push/public-key so the service worker can register
+    a Push subscription."""
+    vapid_private_key: str = ""
+    """Base64url-encoded VAPID private key. Used by pywebpush to sign
+    push notifications. NEVER expose to clients."""
+    vapid_contact: str = "mailto:admin@ichor.local"
+    """RFC 8292 audience claim — admin email or https URL."""
+
     # --- Observability (Loki/Langfuse) ---
     loki_endpoint: str = "http://127.0.0.1:3100"
     langfuse_public_key: str = ""
