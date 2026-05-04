@@ -68,7 +68,12 @@ async def dashboard_ws(websocket: WebSocket) -> None:
 
     redis = aioredis.from_url(settings.redis_url, decode_responses=True)
     pubsub = redis.pubsub()
-    await pubsub.subscribe("ichor:briefings:new", "ichor:alerts:new", "ichor:bias:updated")
+    await pubsub.subscribe(
+        "ichor:briefings:new",
+        "ichor:alerts:new",
+        "ichor:bias:updated",
+        "ichor:session_card:new",
+    )
 
     try:
         await websocket.send_json({"type": "ready", "client_id": client_id})

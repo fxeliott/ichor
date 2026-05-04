@@ -38,6 +38,11 @@ from ..models import (
     PolymarketSnapshot,
 )
 from . import cb_intervention as cb_intervention_svc
+from .asian_session import (
+    assess_asian_session,
+    render_asian_session_block,
+    supported_pairs as asian_supported_pairs,
+)
 from .funding_stress import (
     assess_funding_stress,
     render_funding_stress_block,
@@ -422,6 +427,19 @@ async def _section_microstructure(
     return render_microstructure_block(reading)
 
 
+async def _section_asian_session(
+    session: AsyncSession, asset: str
+) -> tuple[str, list[str]]:
+    """## Asian session — Tokyo fix + range + direction (JPY-relevant only).
+
+    Returns ("", []) for pairs not routed through the Asian session.
+    """
+    if asset not in asian_supported_pairs():
+        return "", []
+    reading = await assess_asian_session(session, asset)
+    return render_asian_session_block(reading)
+
+
 async def _section_funding_stress(session: AsyncSession) -> tuple[str, list[str]]:
     """## Funding stress — SOFR-IORB / SOFR-EFFR / RRP / HY OAS composite."""
     reading = await assess_funding_stress(session)
@@ -512,6 +530,10 @@ async def build_data_pool(session: AsyncSession, asset: str) -> DataPool:
 
     micro_md, micro_src = await _section_microstructure(session, asset)
     sections.append(("microstructure", micro_md, micro_src))
+
+    asian_md, asian_src = await _section_asian_session(session, asset)
+    if asian_md:
+        sections.append(("asian_session", asian_md, asian_src))
 
     cot_md, cot_src = await _section_cot(session, asset)
     if cot_md:

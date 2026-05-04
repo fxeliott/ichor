@@ -21,7 +21,8 @@ import { useRouter } from "next/navigation";
 export type LiveEventChannel =
   | "ichor:briefings:new"
   | "ichor:alerts:new"
-  | "ichor:bias:updated";
+  | "ichor:bias:updated"
+  | "ichor:session_card:new";
 
 export interface LiveEvent {
   /** Local-only id for React keys / dismissal. */
@@ -43,6 +44,7 @@ export interface UseLiveEventsOptions {
 const DEFAULT_REFRESH: LiveEventChannel[] = [
   "ichor:briefings:new",
   "ichor:alerts:new",
+  "ichor:session_card:new",
 ];
 
 const wsUrlFromApi = (apiUrl: string): string => {

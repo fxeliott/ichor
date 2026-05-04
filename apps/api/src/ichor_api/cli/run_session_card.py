@@ -122,6 +122,34 @@ async def _run(asset: str, session_type: str, *, live: bool) -> int:
             duration_ms=row.claude_duration_ms,
         )
 
+    # Publish a Redis pub/sub event so any open dashboard WS sees the
+    # new card in real-time (ichor:session_card:new). Best-effort —
+    # if Redis is unreachable we don't fail the persistence.
+    try:
+        import json as _json
+        from redis import asyncio as aioredis  # type: ignore[import]
+
+        redis = aioredis.from_url(
+            settings.redis_url, decode_responses=True
+        )
+        await redis.publish(
+            "ichor:session_card:new",
+            _json.dumps(
+                {
+                    "id": str(row.id),
+                    "asset": row.asset,
+                    "session_type": row.session_type,
+                    "bias": row.bias_direction,
+                    "conviction_pct": row.conviction_pct,
+                    "verdict": row.critic_verdict,
+                    "regime_quadrant": row.regime_quadrant,
+                }
+            ),
+        )
+        await redis.aclose()
+    except Exception as e:
+        log.warning("session_card.publish_failed", error=str(e))
+
     print(
         f"OK · session_card_audit row written\n"
         f"  asset      : {row.asset}\n"

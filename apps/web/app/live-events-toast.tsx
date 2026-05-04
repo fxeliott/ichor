@@ -17,12 +17,14 @@ const CHANNEL_LABELS: Record<LiveEvent["channel"], string> = {
   "ichor:briefings:new": "Nouveau briefing",
   "ichor:alerts:new": "Nouvelle alerte",
   "ichor:bias:updated": "Biais mis à jour",
+  "ichor:session_card:new": "Nouvelle carte session",
 };
 
 const CHANNEL_COLORS: Record<LiveEvent["channel"], string> = {
   "ichor:briefings:new": "border-emerald-700 bg-emerald-950/60 text-emerald-100",
   "ichor:alerts:new": "border-amber-700 bg-amber-950/60 text-amber-100",
   "ichor:bias:updated": "border-sky-700 bg-sky-950/60 text-sky-100",
+  "ichor:session_card:new": "border-violet-700 bg-violet-950/60 text-violet-100",
 };
 
 const AUTO_DISMISS_MS = 8000;
@@ -38,6 +40,10 @@ function eventHref(event: LiveEvent): string | null {
   if (event.channel === "ichor:bias:updated") {
     const asset = event.data["asset"] as string | undefined;
     return asset ? `/assets/${asset}` : "/assets";
+  }
+  if (event.channel === "ichor:session_card:new") {
+    const asset = event.data["asset"] as string | undefined;
+    return asset ? `/sessions/${asset}` : "/sessions";
   }
   return null;
 }
@@ -55,6 +61,18 @@ function eventSummary(event: LiveEvent): string {
   if (event.channel === "ichor:bias:updated") {
     const asset = event.data["asset"] as string | undefined;
     return asset ?? "Biais";
+  }
+  if (event.channel === "ichor:session_card:new") {
+    const asset = event.data["asset"] as string | undefined;
+    const verdict = event.data["verdict"] as string | undefined;
+    const bias = event.data["bias"] as string | undefined;
+    const conv = event.data["conviction_pct"] as number | undefined;
+    const parts = [
+      asset ? asset.replace("_", "/") : null,
+      bias && conv != null ? `${bias} ${conv.toFixed(0)}%` : null,
+      verdict,
+    ].filter(Boolean);
+    return parts.join(" · ") || "Nouvelle carte";
   }
   return "";
 }
