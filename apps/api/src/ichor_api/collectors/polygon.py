@@ -45,6 +45,8 @@ ASSET_TO_TICKER: dict[str, str] = {
     "XAU_USD": "C:XAUUSD",
     "NAS100_USD": "I:NDX",
     "SPX500_USD": "I:SPX",
+    # ── Cross-asset risk-on/off proxy (not a Phase-1 trading asset) ──
+    "BTC_USD": "X:BTCUSD",
 }
 
 

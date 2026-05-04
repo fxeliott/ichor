@@ -103,6 +103,8 @@ class CounterfactualPass(Pass[CounterfactualReading]):
 
     def parse(self, response_text: str) -> CounterfactualReading:
         obj = extract_json_block(response_text)
+        if isinstance(obj, dict):
+            obj = {k: v for k, v in obj.items() if not k.startswith("_")}
         try:
             return CounterfactualReading.model_validate(obj)
         except Exception as e:

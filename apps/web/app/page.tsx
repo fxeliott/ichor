@@ -22,6 +22,7 @@ import {
   type Briefing,
   type SessionCard,
 } from "../lib/api";
+import { BestOpportunityWidget } from "../components/best-opportunity-widget";
 import { CrossAssetHeatmap } from "../components/cross-asset-heatmap";
 import { CurrencyStrengthWidget } from "../components/currency-strength-widget";
 import { MacroPulseWidget } from "../components/macro-pulse-widget";
@@ -146,6 +147,9 @@ export default async function HomePage() {
           }))}
         />
       </section>
+
+      {/* Best opportunity callout — single setup of the day */}
+      <BestOpportunityWidget />
 
       {/* Macro pulse — 4-tile compact macro snapshot */}
       <MacroPulseWidget />

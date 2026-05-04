@@ -63,6 +63,8 @@ class InvalidationPass(Pass[InvalidationConditions]):
 
     def parse(self, response_text: str) -> InvalidationConditions:
         obj = extract_json_block(response_text)
+        if isinstance(obj, dict):
+            obj = {k: v for k, v in obj.items() if not k.startswith("_")}
         try:
             return InvalidationConditions.model_validate(obj)
         except Exception as e:

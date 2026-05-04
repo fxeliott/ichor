@@ -214,6 +214,12 @@ class AssetPass(Pass[AssetSpecialization]):
 
     def parse(self, response_text: str) -> AssetSpecialization:
         obj = extract_json_block(response_text)
+        # Strip any underscore-prefixed meta keys (Claude sometimes emits
+        # `_caveats`, `_notes`, etc. as commentary that shouldn't break the
+        # schema). The underscore prefix is the convention for "private /
+        # informational only" fields in JSON-LD style.
+        if isinstance(obj, dict):
+            obj = {k: v for k, v in obj.items() if not k.startswith("_")}
         try:
             return AssetSpecialization.model_validate(obj)
         except Exception as e:

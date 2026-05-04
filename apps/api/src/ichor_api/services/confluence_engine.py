@@ -463,6 +463,78 @@ async def _factor_vix_term(
     )
 
 
+async def _factor_btc_risk_proxy(
+    session: AsyncSession, asset: str
+) -> Driver | None:
+    """BTC/USD 24h % change as risk-on/off proxy.
+
+    BTC is a leading indicator of speculative risk appetite (esp. for
+    NAS100, AUD/USD, JPY carry). Strong BTC up = risk-on tailwind.
+    """
+    cutoff_now = datetime.now(timezone.utc)
+    cutoff_24h = cutoff_now - timedelta(hours=24)
+
+    last = (
+        await session.execute(
+            select(PolygonIntradayBar)
+            .where(PolygonIntradayBar.asset == "BTC_USD")
+            .order_by(desc(PolygonIntradayBar.bar_ts))
+            .limit(1)
+        )
+    ).scalars().first()
+    first = (
+        await session.execute(
+            select(PolygonIntradayBar)
+            .where(
+                PolygonIntradayBar.asset == "BTC_USD",
+                PolygonIntradayBar.bar_ts <= cutoff_24h,
+            )
+            .order_by(desc(PolygonIntradayBar.bar_ts))
+            .limit(1)
+        )
+    ).scalars().first()
+    # Fallback : use earliest bar if 24h window too narrow
+    if first is None:
+        first = (
+            await session.execute(
+                select(PolygonIntradayBar)
+                .where(PolygonIntradayBar.asset == "BTC_USD")
+                .order_by(PolygonIntradayBar.bar_ts.asc())
+                .limit(1)
+            )
+        ).scalars().first()
+    if last is None or first is None or first.close <= 0:
+        return None
+    pct_change = (float(last.close) / float(first.close) - 1.0) * 100.0
+    # Scale : ±10% wide → cap ±1.0 contribution
+    raw = max(-1.0, min(1.0, pct_change / 10.0))
+
+    # BTC up = risk-on. Map per asset :
+    if asset in {"NAS100_USD", "SPX500_USD"}:
+        contribution = raw * 0.5  # equity beta to risk
+    elif asset == "AUD_USD":
+        contribution = raw * 0.3  # commodity FX risk currency
+    elif asset == "USD_JPY":
+        contribution = raw * 0.3  # carry trade : long USD/JPY in risk-on
+    elif asset == "XAU_USD":
+        contribution = raw * 0.1  # weak link, BTC sometimes correlates with gold
+    elif asset in {"EUR_USD", "GBP_USD"}:
+        contribution = -raw * 0.2  # USD haven sells off in risk-on
+    else:
+        contribution = 0.0
+    if abs(contribution) < 0.05:
+        return None
+    return Driver(
+        factor="btc_risk_proxy",
+        contribution=round(contribution, 3),
+        evidence=(
+            f"BTC/USD 24h change = {pct_change:+.1f}% "
+            f"(spot {last.close:.0f}, t-24h {first.close:.0f})"
+        ),
+        source=f"polygon_intraday:BTC_USD@{last.bar_ts.isoformat()}",
+    )
+
+
 async def _factor_risk_appetite(
     session: AsyncSession, asset: str
 ) -> Driver | None:
@@ -539,6 +611,7 @@ async def assess_confluence(
         await _factor_surprise_index(session, asset),
         await _factor_vix_term(session, asset),
         await _factor_risk_appetite(session, asset),
+        await _factor_btc_risk_proxy(session, asset),
     ):
         if factor is not None:
             drivers.append(factor)

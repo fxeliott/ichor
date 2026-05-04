@@ -60,6 +60,8 @@ class RegimePass(Pass[RegimeReading]):
 
     def parse(self, response_text: str) -> RegimeReading:
         obj = extract_json_block(response_text)
+        if isinstance(obj, dict):
+            obj = {k: v for k, v in obj.items() if not k.startswith("_")}
         try:
             return RegimeReading.model_validate(obj)
         except Exception as e:

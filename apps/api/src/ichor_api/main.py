@@ -33,6 +33,7 @@ from .routers import (
     narratives_router,
     news_router,
     polymarket_impact_router,
+    portfolio_exposure_router,
     predictions_router,
     push_router,
     sessions_router,
@@ -112,6 +113,7 @@ app.include_router(hourly_volatility_router)
 app.include_router(brier_feedback_router)
 app.include_router(macro_pulse_router)
 app.include_router(polymarket_impact_router)
+app.include_router(portfolio_exposure_router)
 app.include_router(push_router)
 app.include_router(admin_router)
 app.include_router(ws_router)

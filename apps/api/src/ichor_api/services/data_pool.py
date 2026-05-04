@@ -93,6 +93,10 @@ from .polymarket_impact import (
     assess_polymarket_impact,
     render_polymarket_impact_block,
 )
+from .portfolio_exposure import (
+    assess_portfolio_exposure,
+    render_portfolio_exposure_block,
+)
 from .session_scenarios import (
     SessionType,
     RegimeQuadrant,
@@ -609,8 +613,16 @@ async def _section_polymarket_impact(
     session: AsyncSession,
 ) -> tuple[str, list[str]]:
     """## Polymarket themed clusters → directional impact per asset."""
-    r = await assess_polymarket_impact(session, hours=24, limit=100)
+    r = await assess_polymarket_impact(session, hours=24, limit=200)
     return render_polymarket_impact_block(r)
+
+
+async def _section_portfolio_exposure(
+    session: AsyncSession,
+) -> tuple[str, list[str]]:
+    """## Portfolio exposure — net basket aggregate."""
+    r = await assess_portfolio_exposure(session, max_age_hours=24)
+    return render_portfolio_exposure_block(r)
 
 
 async def _section_hourly_vol(
@@ -757,6 +769,9 @@ async def build_data_pool(
 
     pmi_md, pmi_src = await _section_polymarket_impact(session)
     sections.append(("polymarket_impact", pmi_md, pmi_src))
+
+    pe_md, pe_src = await _section_portfolio_exposure(session)
+    sections.append(("portfolio_exposure", pe_md, pe_src))
 
     fs_md, fs_src = await _section_funding_stress(session)
     sections.append(("funding_stress", fs_md, fs_src))
