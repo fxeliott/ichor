@@ -30,6 +30,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..db import get_session
 from ..graph.populator import extract_entities
 from ..models import NewsItem
+from ..services.causal_propagation import (
+    propagate_shock,
+    supported_shock_nodes,
+)
 
 router = APIRouter(prefix="/v1/graph", tags=["graph"])
 
@@ -215,4 +219,61 @@ async def causal_map() -> GraphOut:
         nodes=nodes,
         edges=edges,
         n_news=0,
+    )
+
+
+# ────────────────────────── Causal shock simulator ─────────────────────
+
+
+class ShockRequest(BaseModel):
+    shock_node: str
+    shock_probability: float = 1.0
+
+
+class NodeImpactOut(BaseModel):
+    node_id: str
+    probability: float
+    hops_from_shock: int
+
+
+class ShockResponse(BaseModel):
+    shock_node: str
+    shock_probability: float
+    impacts: list[NodeImpactOut]
+
+
+@router.get("/shock-nodes", response_model=list[str])
+async def shock_nodes() -> list[str]:
+    """All nodes that can originate a shock (have outgoing edges)."""
+    return supported_shock_nodes()
+
+
+@router.post("/shock", response_model=ShockResponse)
+async def shock(body: ShockRequest) -> ShockResponse:
+    """Forward-propagate a shock through the canonical causal map.
+
+    VISION_2026 delta L (proxy form, no observational CPT fitting yet).
+    """
+    try:
+        impacts = propagate_shock(
+            shock_node=body.shock_node,
+            shock_probability=body.shock_probability,
+        )
+    except ValueError as e:
+        from fastapi import HTTPException, status
+
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
+        )
+    return ShockResponse(
+        shock_node=body.shock_node,
+        shock_probability=body.shock_probability,
+        impacts=[
+            NodeImpactOut(
+                node_id=i.node_id,
+                probability=i.probability,
+                hops_from_shock=i.hops_from_shock,
+            )
+            for i in impacts
+        ],
     )
