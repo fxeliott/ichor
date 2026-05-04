@@ -1,14 +1,18 @@
 # Ichor
 
-> Autonomous market intelligence platform.
-> Phase 0 — infrastructure setup (32 criteria over 4 weeks).
+> Autonomous market intelligence platform — *Living Macro Entity*.
+> Pre-trade macro/geopolitical/sentiment context for one trader (Eliot)
+> who executes discretionary technical analysis on TradingView.
 
-**Status** : 🟢 Phase 0 cron pipeline LIVE end-to-end (started 2026-05-02).
+**Status** : 🟢 **Phase 1 Step 2 LIVE in production** (post-2026-05-04
+marathon — 32 commits, 17/17 VISION_2026 deltas shipped, 5/5 last
+session-card runs verdict=approved, 17 systemd timers autopilot 24/7).
 
 ## What is Ichor?
 
-Ichor produces 4 grouped multi-asset trading briefings per day (06h, 12h, 17h,
-22h Europe/Paris) on 8 instruments — EUR/USD, XAU/USD, NAS100, USD/JPY,
+Ichor produces 32 **session cards per day** (8 actifs × 4 sessions :
+06h00 pre-Londres, 12h00 pre-NY, 17h00 NY-mid, 22h00 NY-close, all
+Europe/Paris) on 8 instruments — EUR/USD, XAU/USD, NAS100, USD/JPY,
 SPX500, GBP/USD, AUD/USD, USD/CAD — using a 3-layer architecture:
 
 1. **Qualitative analysis** — Claude (Opus 4.7 + Sonnet 4.6) via the **Max 20x
@@ -21,21 +25,50 @@ SPX500, GBP/USD, AUD/USD, USD/CAD — using a 3-layer architecture:
    in [`packages/ml/model_registry.yaml`](packages/ml/model_registry.yaml)
    with [model cards](packages/ml/model_cards/).
 
-See [`docs/ARCHITECTURE_FINALE.md`](docs/ARCHITECTURE_FINALE.md) for the full
-design and [`docs/AUDIT_V3.md`](docs/AUDIT_V3.md) for the technical audit.
+**Pipeline 4-pass + Pass 5 counterfactual** — every session card flows
+through `regime → asset → stress → invalidation → critic` (with Pass 5
+counterfactual on-demand from the UI). The data pool feeding the brain
+is **14 sections / 65+ sources / ~9 000 chars** per run, all
+source-stamped (FRED series IDs, Polygon tickers, CFTC market codes,
+Polymarket slugs, etc.) so the Critic Agent can verify and reject
+unsourced claims.
 
-## Live state
+**8 capabilities UNIQUE vs concurrents premium** (Bloomberg, Aladdin,
+Permutable AI) :
+1. CB intervention probability empirical (BoJ/SNB/PBoC sigmoid)
+2. Polymarket↔Kalshi↔Manifold divergence detection
+3. Time-machine replay slider over verdict history
+4. Counterfactual Pass 5 ("what if event X hadn't happened?")
+5. Brier-score calibration publique + reliability diagram
+6. Régime-colored ambient UI (4-quadrant macro pulse)
+7. Critic Agent gate with asset alias matching robust
+8. Causal forward-propagation simulator (Bayes-lite shock)
+
+See [`docs/decisions/ADR-017-reset-phase1-living-macro-entity.md`](docs/decisions/ADR-017-reset-phase1-living-macro-entity.md)
+for the contractual vision, [`docs/VISION_2026.md`](docs/VISION_2026.md)
+for the 17 deltas roadmap, and [`docs/SESSION_HANDOFF.md`](docs/SESSION_HANDOFF.md)
+for the latest state. [`docs/USER_GUIDE.md`](docs/USER_GUIDE.md) is the
+operator manual.
+
+## Live state (post-2026-05-04 marathon)
 
 | Service | Where | State |
 |---|---|---|
 | `ichor-api` (uvicorn 2 workers) | Hetzner :8000 (lo) | active |
 | Postgres 16 + TimescaleDB 2.26 + Apache AGE 1.5 | Hetzner :5432 (lo) | active |
-| Redis 8 (AOF) | Hetzner :6379 (lo) | active |
+| Redis 8 (AOF) — push subs + pubsub | Hetzner :6379 (lo) | active |
 | `claude-runner` uvicorn user-mode | Win11 :8766 | alive (proven via cron) |
 | Cloudflare Tunnel `claude-runner.fxmilyapp.com` | Win11 → CF edge | 4 conns |
-| 5 systemd briefing timers (06h/12h/17h/22h + Sun 18h Paris) | Hetzner | enabled |
+| **17 systemd timers autopilot** | Hetzner | all enabled |
 | wal-g basebackup → R2 EU `ichor-walg-eu` | Hetzner systemd timer | enabled |
 | Loki + Prometheus + Grafana + Langfuse + n8n | Hetzner Docker | UP (11 ctrs) |
+| VAPID push notifications | Hetzner Redis subs | live (`/v1/push/test` OK) |
+| 9/10 collector tables peuplées | Hetzner Postgres | LIVE |
+
+**Data live** : polygon_intraday 4771+ bars, gpr_observations 15096
+historical, gdelt_events 534+, polymarket 263+, news_items 176+,
+cb_speeches 126, manifold 37, fred 37, kalshi 30, session_card_audit
+17 (76% approval rate). Only `cot_positions` empty (Friday-only).
 
 DR validated: see [`docs/dr-tests/2026-Q2-walg-drill.md`](docs/dr-tests/2026-Q2-walg-drill.md)
 (restored a 34 MB basebackup from R2 in 5 s, structure verified).
@@ -168,12 +201,26 @@ ssh ichor-hetzner 'sudo bash /usr/local/bin/walg-restore-drill.sh'
 
 No usage-based API costs by design.
 
-## Phase 0 — current status
+## Phase 1 Step 2 — current status
 
-See [`docs/PHASE_0_LOG.md`](docs/PHASE_0_LOG.md) for the live status of the
-32 Phase 0 criteria. The cron-fired briefing path is proven end-to-end
-(Hetzner → Cloudflare Tunnel → Win11 → Claude Max 20x → Postgres) — see
-[`docs/SESSION_HANDOFF.md`](docs/SESSION_HANDOFF.md).
+[`docs/SESSION_HANDOFF.md`](docs/SESSION_HANDOFF.md) is the single source
+of truth for the latest state. Quick numbers as of 2026-05-04 13:00 :
+
+- **32 commits** on origin/main since Phase 1 Step 1 close
+- **17 / 17 VISION_2026 deltas** shipped end-to-end
+- **5 / 5 last `--live` runs** verdict=approved (100% post fix)
+- **17 cards persisted** total (13 approved = 76%)
+- **9 / 10 collector tables** populated
+- **17 systemd timers** autopilot 24/7
+- **8 unique capabilities** vs concurrents premium
+
+The cron-fired session-card path is proven end-to-end. Auto-push iOS
+notifications operational. Daily batches at 06:00 / 12:00 / 17:00 /
+22:00 Paris generate 32 cards/day. Reconciler nightly fills realized_*
+columns at 23:15 Paris.
+
+See [`docs/PHASE_1_LOG.md`](docs/PHASE_1_LOG.md) for the chronological
+sprint log (all 24 sprint commits documented).
 
 ## Operational documents
 
