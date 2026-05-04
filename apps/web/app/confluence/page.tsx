@@ -45,15 +45,15 @@ async function loadAll(): Promise<AssetRow[]> {
       code: meta.code,
       display: meta.display,
       data:
-        cr.status === "fulfilled"
+        cr && cr.status === "fulfilled"
           ? (cr as PromiseFulfilledResult<Confluence>).value
           : null,
       history:
-        hr.status === "fulfilled"
+        hr && hr.status === "fulfilled"
           ? (hr as PromiseFulfilledResult<ConfluenceHistory>).value
           : null,
       error:
-        cr.status === "rejected"
+        cr && cr.status === "rejected"
           ? cr.reason instanceof ApiError
             ? cr.reason.message
             : cr.reason instanceof Error

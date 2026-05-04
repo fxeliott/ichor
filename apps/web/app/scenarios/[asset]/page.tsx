@@ -97,7 +97,7 @@ function parseScenarios(
     cont: Number(m[1]),
     rev: Number(m[2]),
     side: Number(m[3]),
-    rationale: rationaleMatch ? rationaleMatch[1].trim() : "",
+    rationale: rationaleMatch?.[1]?.trim() ?? "",
   };
 }
 
@@ -143,7 +143,9 @@ function extractDailyLevels(
   ] as const;
   for (const [k, re] of patterns) {
     const m = md.match(re);
-    if (m) out[k] = m.length > 2 ? `${m[1]} / ${m[2]}` : m[1];
+    if (m && m[1]) {
+      out[k] = m.length > 2 && m[2] ? `${m[1]} / ${m[2]}` : m[1];
+    }
   }
   return Object.keys(out).length > 0 ? out : null;
 }
@@ -170,12 +172,13 @@ export default async function ScenariosPage({
   let calendar: CalendarUpcoming | null = null;
   let error: string | null = null;
   try {
+    const dataPoolOpts: Parameters<typeof getDataPool>[1] = {
+      session_type: sessionType,
+      conviction_pct: conviction,
+    };
+    if (regime) dataPoolOpts.regime = regime;
     const [poolR, planR, confR, calR] = await Promise.allSettled([
-      getDataPool(asset, {
-        session_type: sessionType,
-        regime,
-        conviction_pct: conviction,
-      }),
+      getDataPool(asset, dataPoolOpts),
       getTradePlan(asset, 3.0),
       getConfluence(asset),
       getUpcomingCalendar({ horizonDays: 14, asset }),

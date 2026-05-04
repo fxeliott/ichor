@@ -26,14 +26,17 @@ export default async function ConfluenceHistoryPage() {
   const settled = await Promise.allSettled(
     ASSETS.map((a) => getConfluenceHistory(a.code, 30)),
   );
-  const rows = ASSETS.map((meta, i) => ({
-    code: meta.code,
-    display: meta.display,
-    history:
-      settled[i].status === "fulfilled"
-        ? (settled[i] as PromiseFulfilledResult<ConfluenceHistory>).value
-        : null,
-  }));
+  const rows = ASSETS.map((meta, i) => {
+    const r = settled[i];
+    return {
+      code: meta.code,
+      display: meta.display,
+      history:
+        r && r.status === "fulfilled"
+          ? (r as PromiseFulfilledResult<ConfluenceHistory>).value
+          : null,
+    };
+  });
 
   return (
     <div className="relative">
@@ -116,14 +119,13 @@ function AssetTimelineCard({
   history: ConfluenceHistory | null;
   stagger: number;
 }) {
-  const dom = history && history.points.length > 0
-    ? history.points[history.points.length - 1].dominant_direction
-    : "neutral";
-  const lastScore = history && history.points.length > 0
-    ? Math.max(
-        history.points[history.points.length - 1].score_long,
-        history.points[history.points.length - 1].score_short,
-      )
+  const lastPoint =
+    history && history.points.length > 0
+      ? history.points[history.points.length - 1]
+      : null;
+  const dom = lastPoint?.dominant_direction ?? "neutral";
+  const lastScore = lastPoint
+    ? Math.max(lastPoint.score_long, lastPoint.score_short)
     : null;
   const tone =
     dom === "long" ? "long" : dom === "short" ? "short" : "default";
@@ -201,8 +203,8 @@ function TimelineSvg({ history }: { history: ConfluenceHistory }) {
       .map((p, i) => `${i === 0 ? "M" : "L"}${xAt(i).toFixed(1)} ${yAt(p[key]).toFixed(1)}`)
       .join(" ");
 
-  const last = history.points[n - 1];
-  const first = history.points[0];
+  const last = history.points[n - 1]!;
+  const first = history.points[0]!;
 
   // Date axis labels (first + last)
   const fmtDate = (iso: string) => {

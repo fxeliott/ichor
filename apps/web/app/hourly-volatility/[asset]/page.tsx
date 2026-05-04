@@ -135,22 +135,22 @@ function HeatmapBars({ report }: { report: HourlyVolReport }) {
         })}
       </div>
       <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-[var(--color-ichor-text-muted)] mt-2">
-        {report.best_hour_utc != null ? (
+        {report.best_hour_utc != null && report.entries[report.best_hour_utc] ? (
           <p>
             <span className="ichor-text-long">●</span> Best hour :{" "}
             <span className="font-mono">
               {report.best_hour_utc.toString().padStart(2, "0")}:00 UTC
             </span>{" "}
-            ({report.entries[report.best_hour_utc].median_bp.toFixed(1)}bp median)
+            ({report.entries[report.best_hour_utc]!.median_bp.toFixed(1)}bp median)
           </p>
         ) : null}
-        {report.worst_hour_utc != null ? (
+        {report.worst_hour_utc != null && report.entries[report.worst_hour_utc] ? (
           <p>
             <span className="ichor-text-short">●</span> Worst hour :{" "}
             <span className="font-mono">
               {report.worst_hour_utc.toString().padStart(2, "0")}:00 UTC
             </span>{" "}
-            ({report.entries[report.worst_hour_utc].median_bp.toFixed(1)}bp median)
+            ({report.entries[report.worst_hour_utc]!.median_bp.toFixed(1)}bp median)
           </p>
         ) : null}
       </div>

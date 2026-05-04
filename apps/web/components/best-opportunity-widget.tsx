@@ -22,14 +22,17 @@ export async function BestOpportunityWidget() {
   const settled = await Promise.allSettled(
     ASSETS.map((a) => getConfluence(a.code)),
   );
-  const rows: AssetScore[] = ASSETS.map((meta, i) => ({
-    code: meta.code,
-    display: meta.display,
-    data:
-      settled[i].status === "fulfilled"
-        ? (settled[i] as PromiseFulfilledResult<Confluence>).value
-        : null,
-  }));
+  const rows: AssetScore[] = ASSETS.map((meta, i) => {
+    const r = settled[i];
+    return {
+      code: meta.code,
+      display: meta.display,
+      data:
+        r && r.status === "fulfilled"
+          ? (r as PromiseFulfilledResult<Confluence>).value
+          : null,
+    };
+  });
 
   const candidates = rows
     .filter((r) => r.data != null)

@@ -41,7 +41,7 @@ export function ConfluenceSparkline({
       })
       .join(" ");
 
-  const last = history.points[n - 1];
+  const last = history.points[n - 1]!;
   const latestColor =
     last.dominant_direction === "long"
       ? "#10b981"

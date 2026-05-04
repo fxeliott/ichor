@@ -87,7 +87,7 @@ function CorrelationHeatmap({ matrix }: { matrix: CorrelationMatrix }) {
                 {rowAsset.replace(/_/g, "/")}
               </th>
               {matrix.assets.map((colAsset, j) => {
-                const v = matrix.matrix[i][j];
+                const v = matrix.matrix[i]?.[j] ?? null;
                 return (
                   <td
                     key={colAsset}
