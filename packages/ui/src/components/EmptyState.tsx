@@ -21,11 +21,11 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   onAction,
 }) => (
   <div
-    className="flex flex-col items-center justify-center py-12 px-4 text-center text-neutral-400 border border-dashed border-neutral-800 rounded-lg"
+    className="flex flex-col items-center justify-center py-12 px-4 text-center text-[var(--color-ichor-text-muted)] border border-dashed border-[var(--color-ichor-border)] rounded-lg"
   >
-    <p className="text-base font-medium text-neutral-200 mb-2">{title}</p>
+    <p className="text-base font-medium text-[var(--color-ichor-text)] mb-2">{title}</p>
     {description && (
-      <p className="text-sm max-w-md text-neutral-400 mb-4 leading-relaxed">
+      <p className="text-sm max-w-md text-[var(--color-ichor-text-muted)] mb-4 leading-relaxed">
         {description}
       </p>
     )}
@@ -33,7 +33,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
       <button
         type="button"
         onClick={onAction}
-        className="text-sm px-3 py-1.5 rounded border border-neutral-700 hover:border-neutral-500 hover:bg-neutral-900/40 transition"
+        className="text-sm px-3 py-1.5 rounded border border-[var(--color-ichor-border-strong)] hover:border-neutral-500 hover:bg-[var(--color-ichor-surface)]/60 transition"
       >
         {actionLabel}
       </button>

@@ -107,7 +107,7 @@ export const SessionCard: React.FC<SessionCardProps> = ({
       <div
         role="status"
         aria-label={`${formatAsset(asset)} loading`}
-        className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-4 animate-pulse h-56"
+        className="rounded-lg border border-[var(--color-ichor-border)] bg-[var(--color-ichor-surface)]/60 p-4 animate-pulse h-56"
       />
     );
   }
@@ -126,19 +126,19 @@ export const SessionCard: React.FC<SessionCardProps> = ({
       onClick={onDrillDown}
       aria-label={`Carte de session ${formatAsset(asset)} — ${SESSION_LABEL[sessionType]}, biais ${biasDirection}, conviction ${convictionPct.toFixed(0)} pourcent`}
       className={[
-        "block w-full text-left rounded-lg border border-neutral-800",
-        "bg-neutral-900/40 p-4 transition",
+        "block w-full text-left rounded-lg border border-[var(--color-ichor-border)]",
+        "bg-[var(--color-ichor-surface)]/60 p-4 transition",
         onDrillDown
-          ? "hover:bg-neutral-900/70 hover:border-neutral-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+          ? "hover:bg-[var(--color-ichor-surface)]/70 hover:border-[var(--color-ichor-border-strong)] focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
           : "",
       ].join(" ")}
     >
       <header className="flex items-start justify-between gap-3 mb-3">
         <div>
-          <h3 className="text-lg font-semibold text-neutral-100 leading-tight">
+          <h3 className="text-lg font-semibold text-[var(--color-ichor-text)] leading-tight">
             {formatAsset(asset)}
           </h3>
-          <p className="text-xs text-neutral-400 mt-0.5">
+          <p className="text-xs text-[var(--color-ichor-text-muted)] mt-0.5">
             {SESSION_LABEL[sessionType]} · {formatTime(generatedAt)}
           </p>
         </div>
@@ -173,12 +173,12 @@ export const SessionCard: React.FC<SessionCardProps> = ({
       </div>
 
       <dl className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
-        <dt className="text-neutral-400">Conviction</dt>
-        <dd className="text-neutral-100 text-right font-medium">
+        <dt className="text-[var(--color-ichor-text-muted)]">Conviction</dt>
+        <dd className="text-[var(--color-ichor-text)] text-right font-medium">
           {convictionPct.toFixed(0)} %
         </dd>
-        <dt className="text-neutral-400">Magnitude</dt>
-        <dd className="text-neutral-100 text-right font-medium">
+        <dt className="text-[var(--color-ichor-text-muted)]">Magnitude</dt>
+        <dd className="text-[var(--color-ichor-text)] text-right font-medium">
           {magnitudeLabel}
         </dd>
       </dl>

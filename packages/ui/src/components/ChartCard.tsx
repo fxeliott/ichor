@@ -101,13 +101,13 @@ export const ChartCard: React.FC<ChartCardProps> = ({
 
   return (
     <section
-      className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-3"
+      className="rounded-lg border border-[var(--color-ichor-border)] bg-[var(--color-ichor-surface)]/60 p-3"
       aria-label={`${title} chart`}
     >
       <header className="flex items-baseline justify-between mb-2">
-        <h3 className="text-sm font-medium text-neutral-200">{title}</h3>
+        <h3 className="text-sm font-medium text-[var(--color-ichor-text)]">{title}</h3>
         {caption && (
-          <span className="text-[11px] text-neutral-500 font-mono">{caption}</span>
+          <span className="text-[11px] text-[var(--color-ichor-text-subtle)] font-mono">{caption}</span>
         )}
       </header>
 
@@ -172,7 +172,7 @@ export const ChartCard: React.FC<ChartCardProps> = ({
       </svg>
 
       {children && (
-        <footer className="mt-2 flex flex-wrap gap-1.5 text-xs text-neutral-400">
+        <footer className="mt-2 flex flex-wrap gap-1.5 text-xs text-[var(--color-ichor-text-muted)]">
           {children}
         </footer>
       )}

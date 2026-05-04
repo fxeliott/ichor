@@ -115,7 +115,7 @@ export const BiasBar: React.FC<BiasBarProps> = ({
           users with red-green deficiency can still read direction. */}
       <div
         aria-hidden="true"
-        className="mt-1 text-[10px] font-mono text-neutral-400 flex justify-between"
+        className="mt-1 text-[10px] font-mono text-[var(--color-ichor-text-muted)] flex justify-between"
         style={{ width }}
       >
         <span>short</span>

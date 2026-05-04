@@ -42,16 +42,16 @@ export default async function SessionsPage() {
     <div className="max-w-6xl mx-auto px-4 py-6">
       <header className="mb-5 flex items-baseline justify-between gap-3 flex-wrap">
         <div>
-          <h1 className="text-2xl font-semibold text-neutral-100">
+          <h1 className="text-2xl font-semibold text-[var(--color-ichor-text)]">
             Cartes de session
           </h1>
-          <p className="text-sm text-neutral-400 mt-1">
+          <p className="text-sm text-[var(--color-ichor-text-muted)] mt-1">
             Verdict structuré du pipeline 4-pass (régime → asset → stress →
             invalidation) — une carte par actif. Conviction affichée =
             post-stress (calibrée).
           </p>
         </div>
-        <p className="text-xs text-neutral-500">
+        <p className="text-xs text-[var(--color-ichor-text-subtle)]">
           {total} carte(s) actives
         </p>
       </header>
@@ -88,9 +88,9 @@ export default async function SessionsPage() {
             return (
               <div
                 key={meta.code}
-                className="rounded-lg border border-dashed border-neutral-800 bg-neutral-900/20 p-4 text-sm text-neutral-500"
+                className="rounded-lg border border-dashed border-[var(--color-ichor-border)] bg-[var(--color-ichor-surface)]/20 p-4 text-sm text-[var(--color-ichor-text-subtle)]"
               >
-                <p className="font-medium text-neutral-300">{meta.display}</p>
+                <p className="font-medium text-[var(--color-ichor-text-muted)]">{meta.display}</p>
                 <p className="mt-1">Aucune carte de session récente.</p>
                 <Link
                   href={`/sessions/${meta.code}`}

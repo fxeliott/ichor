@@ -33,10 +33,10 @@ export default async function CorrelationsPage() {
   return (
     <main className="max-w-5xl mx-auto px-4 py-6">
       <header className="mb-6">
-        <h1 className="text-2xl font-semibold text-neutral-100">
+        <h1 className="text-2xl font-semibold text-[var(--color-ichor-text)]">
           Corrélations cross-asset
         </h1>
-        <p className="text-sm text-neutral-400 mt-1">
+        <p className="text-sm text-[var(--color-ichor-text-muted)] mt-1">
           Pearson sur les rendements log horaires des 30 derniers jours.
           Le drapeau 🔔 marque les paires dont la corrélation diverge de plus
           de 0.30 du prior long-terme.
@@ -44,7 +44,7 @@ export default async function CorrelationsPage() {
       </header>
 
       {error || !m ? (
-        <p className="text-sm text-rose-300">
+        <p className="text-sm ichor-text-short">
           {error ?? "Indisponible : matrice vide."}
         </p>
       ) : m.n_returns_used < 30 ? (
@@ -64,15 +64,15 @@ export default async function CorrelationsPage() {
 
 function CorrelationHeatmap({ matrix }: { matrix: CorrelationMatrix }) {
   return (
-    <div className="overflow-x-auto rounded-lg border border-neutral-800 bg-neutral-900/40 mb-6">
+    <div className="overflow-x-auto rounded-lg border border-[var(--color-ichor-border)] bg-[var(--color-ichor-surface)]/60 mb-6">
       <table className="text-xs font-mono">
         <thead>
           <tr>
-            <th className="px-2 py-2 text-neutral-500"></th>
+            <th className="px-2 py-2 text-[var(--color-ichor-text-subtle)]"></th>
             {matrix.assets.map((a) => (
               <th
                 key={a}
-                className="px-2 py-2 text-neutral-300 font-semibold"
+                className="px-2 py-2 text-[var(--color-ichor-text-muted)] font-semibold"
                 style={{ writingMode: "vertical-rl" }}
               >
                 {a.replace(/_/g, "/")}
@@ -83,7 +83,7 @@ function CorrelationHeatmap({ matrix }: { matrix: CorrelationMatrix }) {
         <tbody>
           {matrix.assets.map((rowAsset, i) => (
             <tr key={rowAsset}>
-              <th className="px-2 py-1 text-left text-neutral-300 font-semibold whitespace-nowrap">
+              <th className="px-2 py-1 text-left text-[var(--color-ichor-text-muted)] font-semibold whitespace-nowrap">
                 {rowAsset.replace(/_/g, "/")}
               </th>
               {matrix.assets.map((colAsset, j) => {
@@ -117,7 +117,7 @@ function CorrelationHeatmap({ matrix }: { matrix: CorrelationMatrix }) {
 function FlagsPanel({ flags }: { flags: string[] }) {
   if (flags.length === 0) {
     return (
-      <p className="text-xs text-neutral-500">
+      <p className="text-xs text-[var(--color-ichor-text-subtle)]">
         Aucune divergence régime-significative vs prior long-terme.
       </p>
     );

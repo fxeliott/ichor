@@ -119,7 +119,7 @@ export const GeopoliticsGlobe: React.FC<GeopoliticsGlobeProps> = ({
   }, [countries, width, height]);
 
   return (
-    <div className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-3">
+    <div className="rounded-lg border border-[var(--color-ichor-border)] bg-[var(--color-ichor-surface)]/60 p-3">
       <div className="relative" style={{ height }}>
         <svg
           viewBox={`0 0 ${width} ${height}`}
@@ -203,17 +203,17 @@ export const GeopoliticsGlobe: React.FC<GeopoliticsGlobeProps> = ({
         <div className="flex items-center gap-3">
           <span className="inline-flex items-center gap-1">
             <span className="inline-block w-3 h-3 rounded-full bg-rose-400/80" />
-            <span className="text-neutral-400">tone négatif</span>
+            <span className="text-[var(--color-ichor-text-muted)]">tone négatif</span>
           </span>
           <span className="inline-flex items-center gap-1">
             <span className="inline-block w-3 h-3 rounded-full bg-neutral-400/60" />
-            <span className="text-neutral-400">neutre</span>
+            <span className="text-[var(--color-ichor-text-muted)]">neutre</span>
           </span>
           <span className="inline-flex items-center gap-1">
             <span className="inline-block w-3 h-3 rounded-full bg-emerald-400/80" />
-            <span className="text-neutral-400">positif</span>
+            <span className="text-[var(--color-ichor-text-muted)]">positif</span>
           </span>
-          <span className="text-neutral-500 italic">
+          <span className="text-[var(--color-ichor-text-subtle)] italic">
             taille = nb d&apos;événements
           </span>
         </div>
@@ -221,12 +221,12 @@ export const GeopoliticsGlobe: React.FC<GeopoliticsGlobeProps> = ({
           const c = countries.find((x) => x.country === focus);
           if (!c) return null;
           return (
-            <p className="text-neutral-300 max-w-md text-right">
+            <p className="text-[var(--color-ichor-text-muted)] max-w-md text-right">
               <span className="font-mono">{c.country}</span> · {c.count} évts ·
               tone {c.mean_tone >= 0 ? "+" : ""}
               {c.mean_tone.toFixed(2)}
               {c.most_negative_title && (
-                <span className="block text-neutral-500 italic line-clamp-1">
+                <span className="block text-[var(--color-ichor-text-subtle)] italic line-clamp-1">
                   “{c.most_negative_title}”
                 </span>
               )}

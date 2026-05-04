@@ -209,28 +209,28 @@ export default async function ScenariosPage({
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-6">
-      <nav aria-label="Fil d'Ariane" className="text-xs text-neutral-500 mb-4">
-        <Link href="/" className="hover:text-neutral-300 underline">
+      <nav aria-label="Fil d'Ariane" className="text-xs text-[var(--color-ichor-text-subtle)] mb-4">
+        <Link href="/" className="hover:text-[var(--color-ichor-text-muted)] underline">
           Accueil
         </Link>
         <span className="mx-2">/</span>
         <Link
           href={`/sessions/${asset}`}
-          className="hover:text-neutral-300 underline"
+          className="hover:text-[var(--color-ichor-text-muted)] underline"
         >
           Sessions
         </Link>
         <span className="mx-2">/</span>
-        <span className="text-neutral-300">
+        <span className="text-[var(--color-ichor-text-muted)]">
           Scénarios — {meta?.display ?? asset}
         </span>
       </nav>
 
       <header className="mb-6">
-        <h1 className="text-2xl font-semibold text-neutral-100">
+        <h1 className="text-2xl font-semibold text-[var(--color-ichor-text)]">
           Scénarios de session — {meta?.display ?? asset}
         </h1>
-        <p className="text-sm text-neutral-400 mt-1">
+        <p className="text-sm text-[var(--color-ichor-text-muted)] mt-1">
           SMC framework : Continuation / Reversal / Sideways pour la fenêtre
           de session sélectionnée. Ajusté par le régime macro et la conviction.
         </p>
@@ -239,12 +239,12 @@ export default async function ScenariosPage({
       {/* Filter form (server-rendered) */}
       <form
         method="GET"
-        className="mb-6 flex flex-wrap items-end gap-3 rounded border border-neutral-800 bg-neutral-900/40 p-3"
+        className="mb-6 flex flex-wrap items-end gap-3 rounded border border-[var(--color-ichor-border)] bg-[var(--color-ichor-surface)]/60 p-3"
       >
         <div className="flex flex-col">
           <label
             htmlFor="session_type"
-            className="text-[11px] uppercase tracking-wide text-neutral-400"
+            className="text-[11px] uppercase tracking-wide text-[var(--color-ichor-text-muted)]"
           >
             Session
           </label>
@@ -252,7 +252,7 @@ export default async function ScenariosPage({
             id="session_type"
             name="session_type"
             defaultValue={sessionType}
-            className="mt-1 rounded border border-neutral-700 bg-neutral-950 px-2 py-1 text-sm text-neutral-100"
+            className="mt-1 rounded border border-[var(--color-ichor-border-strong)] bg-[var(--color-ichor-deep)] px-2 py-1 text-sm text-[var(--color-ichor-text)]"
           >
             {VALID_SESSIONS.map(([code, label]) => (
               <option key={code} value={code}>
@@ -264,7 +264,7 @@ export default async function ScenariosPage({
         <div className="flex flex-col">
           <label
             htmlFor="regime"
-            className="text-[11px] uppercase tracking-wide text-neutral-400"
+            className="text-[11px] uppercase tracking-wide text-[var(--color-ichor-text-muted)]"
           >
             Régime
           </label>
@@ -272,7 +272,7 @@ export default async function ScenariosPage({
             id="regime"
             name="regime"
             defaultValue={regime ?? ""}
-            className="mt-1 rounded border border-neutral-700 bg-neutral-950 px-2 py-1 text-sm text-neutral-100"
+            className="mt-1 rounded border border-[var(--color-ichor-border-strong)] bg-[var(--color-ichor-deep)] px-2 py-1 text-sm text-[var(--color-ichor-text)]"
           >
             <option value="">(auto / inconnu)</option>
             {VALID_REGIMES.map((r) => (
@@ -285,7 +285,7 @@ export default async function ScenariosPage({
         <div className="flex flex-col">
           <label
             htmlFor="conviction"
-            className="text-[11px] uppercase tracking-wide text-neutral-400"
+            className="text-[11px] uppercase tracking-wide text-[var(--color-ichor-text-muted)]"
           >
             Conviction (%)
           </label>
@@ -297,7 +297,7 @@ export default async function ScenariosPage({
             max={100}
             step={5}
             defaultValue={conviction}
-            className="mt-1 w-24 rounded border border-neutral-700 bg-neutral-950 px-2 py-1 text-sm text-neutral-100"
+            className="mt-1 w-24 rounded border border-[var(--color-ichor-border-strong)] bg-[var(--color-ichor-deep)] px-2 py-1 text-sm text-[var(--color-ichor-text)]"
           />
         </div>
         <button
@@ -320,11 +320,11 @@ export default async function ScenariosPage({
       {/* Scenarios grid */}
       <section
         aria-labelledby="scenarios-heading"
-        className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-5 mb-6"
+        className="rounded-lg border border-[var(--color-ichor-border)] bg-[var(--color-ichor-surface)]/60 p-5 mb-6"
       >
         <h2
           id="scenarios-heading"
-          className="text-lg font-semibold text-neutral-100 mb-4"
+          className="text-lg font-semibold text-[var(--color-ichor-text)] mb-4"
         >
           Probabilités de scénario
         </h2>
@@ -347,13 +347,13 @@ export default async function ScenariosPage({
             />
           </div>
         ) : (
-          <p className="text-sm text-neutral-500">
+          <p className="text-sm text-[var(--color-ichor-text-subtle)]">
             Données insuffisantes (PDH/PDL manquants) — re-essayer après
             ingestion polygon.
           </p>
         )}
         {scenarios?.rationale ? (
-          <p className="text-xs text-neutral-400 mt-4">
+          <p className="text-xs text-[var(--color-ichor-text-muted)] mt-4">
             {scenarios.rationale}
           </p>
         ) : null}
@@ -383,21 +383,21 @@ export default async function ScenariosPage({
       {dailyLevels ? (
         <section
           aria-labelledby="levels-heading"
-          className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-5 mb-6"
+          className="rounded-lg border border-[var(--color-ichor-border)] bg-[var(--color-ichor-surface)]/60 p-5 mb-6"
         >
           <h2
             id="levels-heading"
-            className="text-lg font-semibold text-neutral-100 mb-3"
+            className="text-lg font-semibold text-[var(--color-ichor-text)] mb-3"
           >
             Niveaux journaliers (SMC toolbox)
           </h2>
           <dl className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2 text-sm">
             {Object.entries(dailyLevels).map(([k, v]) => (
               <div key={k}>
-                <dt className="text-xs uppercase tracking-wide text-neutral-500">
+                <dt className="text-xs uppercase tracking-wide text-[var(--color-ichor-text-subtle)]">
                   {k}
                 </dt>
-                <dd className="font-mono text-neutral-100">{v}</dd>
+                <dd className="font-mono text-[var(--color-ichor-text)]">{v}</dd>
               </div>
             ))}
           </dl>
@@ -422,20 +422,20 @@ function ScenarioBar({
   color: "emerald" | "rose" | "amber";
 }) {
   const colorMap: Record<typeof color, { bar: string; text: string }> = {
-    emerald: { bar: "bg-emerald-500", text: "text-emerald-300" },
-    rose: { bar: "bg-rose-500", text: "text-rose-300" },
+    emerald: { bar: "bg-emerald-500", text: "ichor-text-long" },
+    rose: { bar: "bg-rose-500", text: "ichor-text-short" },
     amber: { bar: "bg-amber-500", text: "text-amber-300" },
   };
   const styles = colorMap[color];
   return (
-    <div className="rounded border border-neutral-800 bg-neutral-950 p-3">
+    <div className="rounded border border-[var(--color-ichor-border)] bg-[var(--color-ichor-deep)] p-3">
       <div className="flex items-baseline justify-between">
-        <span className="text-xs uppercase tracking-wide text-neutral-400">
+        <span className="text-xs uppercase tracking-wide text-[var(--color-ichor-text-muted)]">
           {label}
         </span>
         <span className={`text-xl font-semibold ${styles.text}`}>{pct}%</span>
       </div>
-      <div className="mt-2 h-2 rounded bg-neutral-800 overflow-hidden">
+      <div className="mt-2 h-2 rounded bg-[var(--color-ichor-surface-2)] overflow-hidden">
         <div
           className={`h-full ${styles.bar}`}
           style={{ width: `${Math.min(100, Math.max(0, pct))}%` }}
@@ -458,13 +458,13 @@ function TriggerList({
     tone === "emerald" ? "border-emerald-800/50" : "border-rose-800/50";
   return (
     <div
-      className={`rounded-lg border ${borderClass} bg-neutral-900/40 p-4`}
+      className={`rounded-lg border ${borderClass} bg-[var(--color-ichor-surface)]/60 p-4`}
     >
-      <h3 className="text-sm font-semibold text-neutral-200 mb-2">{title}</h3>
+      <h3 className="text-sm font-semibold text-[var(--color-ichor-text)] mb-2">{title}</h3>
       {items.length === 0 ? (
-        <p className="text-xs text-neutral-500">Aucun trigger calculé.</p>
+        <p className="text-xs text-[var(--color-ichor-text-subtle)]">Aucun trigger calculé.</p>
       ) : (
-        <ul className="text-xs text-neutral-200 space-y-1.5">
+        <ul className="text-xs text-[var(--color-ichor-text)] space-y-1.5">
           {items.map((it, i) => (
             <li key={i} className="leading-snug">
               {it}
@@ -479,11 +479,11 @@ function TriggerList({
 function TradePlanCard({ plan }: { plan: TradePlan | null }) {
   if (!plan) {
     return (
-      <section className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-5">
-        <h2 className="text-lg font-semibold text-neutral-100 mb-2">
+      <section className="rounded-lg border border-[var(--color-ichor-border)] bg-[var(--color-ichor-surface)]/60 p-5">
+        <h2 className="text-lg font-semibold text-[var(--color-ichor-text)] mb-2">
           Plan RR
         </h2>
-        <p className="text-sm text-neutral-500">
+        <p className="text-sm text-[var(--color-ichor-text-subtle)]">
           Pas de plan disponible (API trade-plan indisponible).
         </p>
       </section>
@@ -491,14 +491,14 @@ function TradePlanCard({ plan }: { plan: TradePlan | null }) {
   }
   if (plan.bias === "neutral" || plan.entry_zone_low == null) {
     return (
-      <section className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-5">
-        <h2 className="text-lg font-semibold text-neutral-100 mb-2">
+      <section className="rounded-lg border border-[var(--color-ichor-border)] bg-[var(--color-ichor-surface)]/60 p-5">
+        <h2 className="text-lg font-semibold text-[var(--color-ichor-text)] mb-2">
           Plan RR — bias neutre
         </h2>
-        <p className="text-sm text-neutral-400">
+        <p className="text-sm text-[var(--color-ichor-text-muted)]">
           Pas de plan d&apos;entrée pour le moment — soit aucune carte
           n&apos;a encore été générée, soit le verdict est neutre. Lancer un{" "}
-          <code className="text-emerald-300">--live</code> pour rafraîchir.
+          <code className="ichor-text-long">--live</code> pour rafraîchir.
         </p>
       </section>
     );
@@ -506,16 +506,16 @@ function TradePlanCard({ plan }: { plan: TradePlan | null }) {
   const biasLabel = plan.bias === "long" ? "LONG" : "SHORT";
   const biasClass =
     plan.bias === "long"
-      ? "text-emerald-300 border-emerald-700/50"
-      : "text-rose-300 border-rose-700/50";
+      ? "ichor-text-long border-emerald-700/50"
+      : "ichor-text-short border-rose-700/50";
 
   return (
     <section
       aria-labelledby="rr-heading"
-      className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-5"
+      className="rounded-lg border border-[var(--color-ichor-border)] bg-[var(--color-ichor-surface)]/60 p-5"
     >
       <header className="flex flex-wrap items-baseline justify-between gap-2 mb-4">
-        <h2 id="rr-heading" className="text-lg font-semibold text-neutral-100">
+        <h2 id="rr-heading" className="text-lg font-semibold text-[var(--color-ichor-text)]">
           Plan RR (target {plan.rr_target.toFixed(0)})
         </h2>
         <span
@@ -585,20 +585,20 @@ function PlanLine({
 }) {
   const valueClass =
     tone === "emerald"
-      ? "text-emerald-300"
+      ? "ichor-text-long"
       : tone === "amber"
         ? "text-amber-300"
         : tone === "rose"
-          ? "text-rose-300"
-          : "text-neutral-100";
+          ? "ichor-text-short"
+          : "text-[var(--color-ichor-text)]";
   return (
     <div>
-      <div className="text-[11px] uppercase tracking-wide text-neutral-500">
+      <div className="text-[11px] uppercase tracking-wide text-[var(--color-ichor-text-subtle)]">
         {label}
       </div>
       <div className={`font-mono ${valueClass}`}>{value}</div>
       {subline ? (
-        <div className="text-[10px] text-neutral-500">{subline}</div>
+        <div className="text-[10px] text-[var(--color-ichor-text-subtle)]">{subline}</div>
       ) : null}
     </div>
   );
@@ -613,11 +613,11 @@ function fmt(n: number | null | undefined): string {
 function ConfluenceCard({ confluence }: { confluence: Confluence | null }) {
   if (!confluence) {
     return (
-      <section className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-5 mb-6">
-        <h2 className="text-lg font-semibold text-neutral-100 mb-2">
+      <section className="rounded-lg border border-[var(--color-ichor-border)] bg-[var(--color-ichor-surface)]/60 p-5 mb-6">
+        <h2 className="text-lg font-semibold text-[var(--color-ichor-text)] mb-2">
           Confluence engine
         </h2>
-        <p className="text-sm text-neutral-500">
+        <p className="text-sm text-[var(--color-ichor-text-subtle)]">
           Indisponible (endpoint /v1/confluence non joignable).
         </p>
       </section>
@@ -626,19 +626,19 @@ function ConfluenceCard({ confluence }: { confluence: Confluence | null }) {
   const dom = confluence.dominant_direction;
   const domClass =
     dom === "long"
-      ? "text-emerald-300 border-emerald-700/50"
+      ? "ichor-text-long border-emerald-700/50"
       : dom === "short"
-        ? "text-rose-300 border-rose-700/50"
-        : "text-neutral-300 border-neutral-700/50";
+        ? "ichor-text-short border-rose-700/50"
+        : "text-[var(--color-ichor-text-muted)] border-[var(--color-ichor-border-strong)]/50";
   return (
     <section
       aria-labelledby="confluence-heading"
-      className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-5 mb-6"
+      className="rounded-lg border border-[var(--color-ichor-border)] bg-[var(--color-ichor-surface)]/60 p-5 mb-6"
     >
       <header className="flex flex-wrap items-baseline justify-between gap-2 mb-4">
         <h2
           id="confluence-heading"
-          className="text-lg font-semibold text-neutral-100"
+          className="text-lg font-semibold text-[var(--color-ichor-text)]"
         >
           Confluence engine — {confluence.drivers.length} drivers
         </h2>
@@ -656,7 +656,7 @@ function ConfluenceCard({ confluence }: { confluence: Confluence | null }) {
       </div>
 
       {confluence.drivers.length === 0 ? (
-        <p className="text-xs text-neutral-500">
+        <p className="text-xs text-[var(--color-ichor-text-subtle)]">
           Aucun driver disponible — données insuffisantes.
         </p>
       ) : (
@@ -665,17 +665,17 @@ function ConfluenceCard({ confluence }: { confluence: Confluence | null }) {
             const sign = d.contribution >= 0 ? "+" : "";
             const tone =
               d.contribution > 0.2
-                ? "text-emerald-300"
+                ? "ichor-text-long"
                 : d.contribution < -0.2
-                  ? "text-rose-300"
-                  : "text-neutral-300";
+                  ? "ichor-text-short"
+                  : "text-[var(--color-ichor-text-muted)]";
             return (
               <li
                 key={i}
-                className="rounded border border-neutral-800 bg-neutral-950 p-2.5"
+                className="rounded border border-[var(--color-ichor-border)] bg-[var(--color-ichor-deep)] p-2.5"
               >
                 <div className="flex items-baseline justify-between gap-3">
-                  <span className="font-mono text-xs uppercase text-neutral-400">
+                  <span className="font-mono text-xs uppercase text-[var(--color-ichor-text-muted)]">
                     {d.factor}
                   </span>
                   <span className={`font-mono text-sm ${tone}`}>
@@ -683,11 +683,11 @@ function ConfluenceCard({ confluence }: { confluence: Confluence | null }) {
                     {d.contribution.toFixed(2)}
                   </span>
                 </div>
-                <p className="text-xs text-neutral-300 mt-1 leading-snug">
+                <p className="text-xs text-[var(--color-ichor-text-muted)] mt-1 leading-snug">
                   {d.evidence}
                 </p>
                 {d.source ? (
-                  <p className="text-[10px] text-neutral-500 mt-0.5 font-mono">
+                  <p className="text-[10px] text-[var(--color-ichor-text-subtle)] mt-0.5 font-mono">
                     {d.source}
                   </p>
                 ) : null}
@@ -703,39 +703,39 @@ function ConfluenceCard({ confluence }: { confluence: Confluence | null }) {
 function CalendarCard({ calendar }: { calendar: CalendarUpcoming | null }) {
   if (!calendar || calendar.events.length === 0) {
     return (
-      <section className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-5 mb-6">
-        <h2 className="text-lg font-semibold text-neutral-100 mb-2">
+      <section className="rounded-lg border border-[var(--color-ichor-border)] bg-[var(--color-ichor-surface)]/60 p-5 mb-6">
+        <h2 className="text-lg font-semibold text-[var(--color-ichor-text)] mb-2">
           Calendrier économique (14 jours)
         </h2>
-        <p className="text-sm text-neutral-500">
+        <p className="text-sm text-[var(--color-ichor-text-subtle)]">
           Aucun événement projeté pour cet actif sur la fenêtre.
         </p>
       </section>
     );
   }
   const impactClass: Record<CalendarUpcoming["events"][number]["impact"], string> = {
-    high: "text-rose-300 bg-rose-900/30 border-rose-800/50",
+    high: "ichor-text-short bg-rose-900/30 border-rose-800/50",
     medium: "text-amber-300 bg-amber-900/30 border-amber-800/50",
-    low: "text-neutral-300 bg-neutral-900/40 border-neutral-700/40",
+    low: "text-[var(--color-ichor-text-muted)] bg-[var(--color-ichor-surface)]/60 border-[var(--color-ichor-border-strong)]/40",
   };
   return (
     <section
       aria-labelledby="calendar-heading"
-      className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-5 mb-6"
+      className="rounded-lg border border-[var(--color-ichor-border)] bg-[var(--color-ichor-surface)]/60 p-5 mb-6"
     >
       <h2
         id="calendar-heading"
-        className="text-lg font-semibold text-neutral-100 mb-3"
+        className="text-lg font-semibold text-[var(--color-ichor-text)] mb-3"
       >
         Calendrier économique (14 jours)
       </h2>
-      <ul className="divide-y divide-neutral-800 text-sm">
+      <ul className="divide-y divide-[var(--color-ichor-border)] text-sm">
         {calendar.events.slice(0, 10).map((e, i) => (
           <li
             key={`${e.when}-${e.label}-${i}`}
             className="py-2 flex items-baseline gap-3"
           >
-            <span className="font-mono text-xs text-neutral-400 w-28 shrink-0">
+            <span className="font-mono text-xs text-[var(--color-ichor-text-muted)] w-28 shrink-0">
               {e.when}
               {e.when_time_utc ? ` ${e.when_time_utc}` : ""}
             </span>
@@ -744,10 +744,10 @@ function CalendarCard({ calendar }: { calendar: CalendarUpcoming | null }) {
             >
               {e.impact}
             </span>
-            <span className="text-xs text-neutral-400 w-12 shrink-0">
+            <span className="text-xs text-[var(--color-ichor-text-muted)] w-12 shrink-0">
               [{e.region}]
             </span>
-            <span className="text-neutral-100 leading-snug">{e.label}</span>
+            <span className="text-[var(--color-ichor-text)] leading-snug">{e.label}</span>
           </li>
         ))}
       </ul>

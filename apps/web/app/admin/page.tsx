@@ -72,7 +72,7 @@ const AGE_BADGE: Record<string, string> = {
   fresh: "bg-emerald-900/40 text-emerald-200",
   recent: "bg-emerald-950/40 text-emerald-300",
   today: "bg-amber-900/30 text-amber-300",
-  stale: "bg-neutral-800 text-neutral-500",
+  stale: "bg-[var(--color-ichor-surface-2)] text-[var(--color-ichor-text-subtle)]",
 };
 
 export default async function AdminPage() {
@@ -87,10 +87,10 @@ export default async function AdminPage() {
   return (
     <div className="max-w-6xl mx-auto px-4 py-6 space-y-6">
       <header>
-        <h1 className="text-2xl font-semibold text-neutral-100">
+        <h1 className="text-2xl font-semibold text-[var(--color-ichor-text)]">
           Admin · État opérationnel
         </h1>
-        <p className="text-sm text-neutral-400 mt-1">
+        <p className="text-sm text-[var(--color-ichor-text-muted)] mt-1">
           Compteurs DB live et stats des cartes récentes. Auto-refresh
           toutes les 30s.
         </p>
@@ -123,12 +123,12 @@ export default async function AdminPage() {
 
           {/* Tables */}
           <section>
-            <h2 className="text-lg font-semibold text-neutral-100 mb-3">
+            <h2 className="text-lg font-semibold text-[var(--color-ichor-text)] mb-3">
               Tables collectors ({s.tables.length})
             </h2>
-            <div className="overflow-x-auto rounded-lg border border-neutral-800">
+            <div className="overflow-x-auto rounded-lg border border-[var(--color-ichor-border)]">
               <table className="w-full text-sm">
-                <thead className="bg-neutral-900/40 text-neutral-400 text-xs">
+                <thead className="bg-[var(--color-ichor-surface)]/60 text-[var(--color-ichor-text-muted)] text-xs">
                   <tr>
                     <th className="px-3 py-2 text-left font-medium">Table</th>
                     <th className="px-3 py-2 text-right font-medium">
@@ -146,13 +146,13 @@ export default async function AdminPage() {
                     return (
                       <tr
                         key={t.table}
-                        className="border-t border-neutral-800 text-neutral-200"
+                        className="border-t border-[var(--color-ichor-border)] text-[var(--color-ichor-text)]"
                       >
                         <td className="px-3 py-2 font-mono">{t.table}</td>
                         <td className="px-3 py-2 text-right font-mono">
                           {t.rows.toLocaleString()}
                         </td>
-                        <td className="px-3 py-2 text-right font-mono text-neutral-400">
+                        <td className="px-3 py-2 text-right font-mono text-[var(--color-ichor-text-muted)]">
                           {fmtTime(t.most_recent_at)}
                         </td>
                         <td className="px-3 py-2">
@@ -172,17 +172,17 @@ export default async function AdminPage() {
 
           {/* Cards per asset */}
           <section>
-            <h2 className="text-lg font-semibold text-neutral-100 mb-3">
+            <h2 className="text-lg font-semibold text-[var(--color-ichor-text)] mb-3">
               Cartes session par actif ({s.cards.length})
             </h2>
             {s.cards.length === 0 ? (
-              <p className="text-sm text-neutral-500">
+              <p className="text-sm text-[var(--color-ichor-text-subtle)]">
                 Pas encore de carte persistée.
               </p>
             ) : (
-              <div className="overflow-x-auto rounded-lg border border-neutral-800">
+              <div className="overflow-x-auto rounded-lg border border-[var(--color-ichor-border)]">
                 <table className="w-full text-sm">
-                  <thead className="bg-neutral-900/40 text-neutral-400 text-xs">
+                  <thead className="bg-[var(--color-ichor-surface)]/60 text-[var(--color-ichor-text-muted)] text-xs">
                     <tr>
                       <th className="px-3 py-2 text-left font-medium">Actif</th>
                       <th className="px-3 py-2 text-right font-medium">Total</th>
@@ -210,7 +210,7 @@ export default async function AdminPage() {
                     {s.cards.map((c) => (
                       <tr
                         key={c.asset}
-                        className="border-t border-neutral-800 text-neutral-200"
+                        className="border-t border-[var(--color-ichor-border)] text-[var(--color-ichor-text)]"
                       >
                         <td className="px-3 py-2 font-mono">
                           {c.asset.replace(/_/g, "/")}
@@ -233,7 +233,7 @@ export default async function AdminPage() {
                         <td className="px-3 py-2 text-right font-mono">
                           {c.avg_conviction_pct.toFixed(1)}%
                         </td>
-                        <td className="px-3 py-2 text-right text-[11px] text-neutral-400">
+                        <td className="px-3 py-2 text-right text-[11px] text-[var(--color-ichor-text-muted)]">
                           {fmtTime(c.last_at)}
                         </td>
                       </tr>
@@ -244,7 +244,7 @@ export default async function AdminPage() {
             )}
           </section>
 
-          <p className="text-[11px] text-neutral-500 italic">
+          <p className="text-[11px] text-[var(--color-ichor-text-subtle)] italic">
             Snapshot généré {fmtTime(s.generated_at)}.
           </p>
         </>
@@ -263,11 +263,11 @@ function Stat({
   mono?: boolean;
 }) {
   return (
-    <div className="rounded-lg border border-neutral-800 bg-neutral-900/30 p-3">
-      <p className="text-[11px] text-neutral-500">{label}</p>
+    <div className="rounded-lg border border-[var(--color-ichor-border)] bg-[var(--color-ichor-surface)]/40 p-3">
+      <p className="text-[11px] text-[var(--color-ichor-text-subtle)]">{label}</p>
       <p
         className={[
-          "mt-1 text-lg font-semibold text-neutral-100",
+          "mt-1 text-lg font-semibold text-[var(--color-ichor-text)]",
           mono ? "font-mono" : "",
         ].join(" ")}
       >

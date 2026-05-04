@@ -26,7 +26,7 @@ const TYPE_LABELS: Record<BriefingHeaderProps["briefingType"], string> = {
 };
 
 const STATUS_COLORS: Record<BriefingHeaderProps["status"], string> = {
-  pending: "bg-neutral-800 text-neutral-400",
+  pending: "bg-[var(--color-ichor-surface-2)] text-[var(--color-ichor-text-muted)]",
   context_assembled: "bg-sky-900/40 text-sky-200",
   claude_running: "bg-amber-900/40 text-amber-200 animate-pulse",
   completed: "bg-emerald-900/40 text-emerald-200",
@@ -53,34 +53,34 @@ export const BriefingHeader: React.FC<BriefingHeaderProps> = ({
   audioUrl,
 }) => {
   return (
-    <header className="border-b border-neutral-800 pb-4 mb-6">
+    <header className="border-b border-[var(--color-ichor-border)] pb-4 mb-6">
       <div className="flex flex-wrap items-baseline gap-x-4 gap-y-2 mb-2">
-        <h1 className="text-xl font-semibold text-neutral-100">
+        <h1 className="text-xl font-semibold text-[var(--color-ichor-text)]">
           {TYPE_LABELS[briefingType]}
         </h1>
         <span className={`text-xs px-2 py-0.5 rounded font-mono ${STATUS_COLORS[status]}`}>
           {status}
         </span>
         {claudeDurationMs != null && status === "completed" && (
-          <span className="text-xs text-neutral-500 font-mono">
+          <span className="text-xs text-[var(--color-ichor-text-subtle)] font-mono">
             Claude: {fmtDuration(claudeDurationMs)}
           </span>
         )}
       </div>
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-neutral-400">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-[var(--color-ichor-text-muted)]">
         <time dateTime={triggeredAt.toISOString()} className="font-mono">
           {fmtDate(triggeredAt)}
         </time>
-        <span className="text-neutral-700">·</span>
+        <span className="text-[var(--color-ichor-text-faint)]">·</span>
         <span>
           {assets.length} actif{assets.length > 1 ? "s" : ""}:{" "}
-          <span className="font-mono text-neutral-300">
+          <span className="font-mono text-[var(--color-ichor-text-muted)]">
             {assets.map((a) => a.replace("_", "/")).join(", ")}
           </span>
         </span>
         {audioUrl && (
           <>
-            <span className="text-neutral-700">·</span>
+            <span className="text-[var(--color-ichor-text-faint)]">·</span>
             <a
               href={audioUrl}
               target="_blank"

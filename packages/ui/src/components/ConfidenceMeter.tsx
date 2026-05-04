@@ -31,11 +31,11 @@ export const ConfidenceMeter: React.FC<ConfidenceMeterProps> = ({
   const xOf = (v: number) => clamp01(v) * width;
 
   return (
-    <div className="text-xs text-neutral-300">
+    <div className="text-xs text-[var(--color-ichor-text-muted)]">
       {label && (
         <div className="flex justify-between mb-1">
-          <span className="text-neutral-400">{label}</span>
-          <span className="font-mono text-neutral-100">
+          <span className="text-[var(--color-ichor-text-muted)]">{label}</span>
+          <span className="font-mono text-[var(--color-ichor-text)]">
             {(p * 100).toFixed(0)}%
           </span>
         </div>

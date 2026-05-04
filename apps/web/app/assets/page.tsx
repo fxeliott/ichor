@@ -68,8 +68,8 @@ export default async function AssetsPage() {
   return (
     <main className="max-w-6xl mx-auto px-4 py-6">
       <header className="mb-6">
-        <h1 className="text-2xl font-semibold text-neutral-100 mb-1">Actifs</h1>
-        <p className="text-sm text-neutral-400">
+        <h1 className="text-2xl font-semibold text-[var(--color-ichor-text)] mb-1">Actifs</h1>
+        <p className="text-sm text-[var(--color-ichor-text-muted)]">
           8 actifs Phase 0. Cliquez pour voir l'historique des biais et alertes.
         </p>
         {error && (
@@ -87,7 +87,7 @@ export default async function AssetsPage() {
           <section key={cls} aria-labelledby={`class-${cls}`}>
             <h2
               id={`class-${cls}`}
-              className="text-sm font-medium text-neutral-400 mb-2 uppercase tracking-wider"
+              className="text-sm font-medium text-[var(--color-ichor-text-muted)] mb-2 uppercase tracking-wider"
             >
               {CLASS_LABELS[cls]}
             </h2>

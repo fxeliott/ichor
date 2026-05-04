@@ -13,6 +13,7 @@
 
 import Link from "next/link";
 import { ApiError, getMacroPulse, type MacroPulse } from "../../lib/api";
+import { AmbientOrbs } from "../../components/ui/ambient-orbs";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 60;
@@ -34,42 +35,49 @@ export default async function MacroPulsePage() {
   }
 
   return (
-    <main className="max-w-6xl mx-auto px-4 py-6">
-      <header className="mb-6 flex items-baseline justify-between flex-wrap gap-2">
-        <div>
-          <h1 className="text-2xl font-semibold text-neutral-100">
-            Macro Pulse — météo macro courante
-          </h1>
-          <p className="text-sm text-neutral-400 mt-1">
-            5 vues synthétiques en un écran : VIX term, appétit du risque,
-            courbe taux, stress funding, surprise eco. Source unique : FRED +
-            modèles empiriques internes.
-          </p>
-        </div>
-        <Link
-          href="/correlations"
-          className="text-xs text-neutral-400 hover:text-neutral-200"
-        >
-          → Cross-asset correlations
-        </Link>
-      </header>
+    <div className="relative">
+      <div className="absolute inset-x-0 top-0 h-[400px] pointer-events-none">
+        <AmbientOrbs variant="default" />
+      </div>
+      <main className="relative max-w-6xl mx-auto px-4 py-6">
+        <header className="mb-6 flex items-baseline justify-between flex-wrap gap-2 ichor-fade-in">
+          <div>
+            <p className="text-[11px] font-mono uppercase tracking-[0.2em] text-[var(--color-ichor-accent-bright)] mb-1">
+              Macro Pulse · 5 layers
+            </p>
+            <h1 className="text-3xl font-semibold tracking-tight text-[var(--color-ichor-text)]">
+              Météo <span className="bg-gradient-to-r from-[var(--color-ichor-accent-bright)] to-[var(--color-ichor-accent-muted)] bg-clip-text text-transparent">macro courante</span>
+            </h1>
+            <p className="text-sm text-[var(--color-ichor-text-muted)] mt-1.5 max-w-2xl">
+              VIX term, appétit du risque, courbe taux, stress funding,
+              surprise eco. Source : FRED + modèles empiriques internes.
+            </p>
+          </div>
+          <Link
+            href="/correlations"
+            className="text-xs text-[var(--color-ichor-text-muted)] hover:text-[var(--color-ichor-accent-bright)] transition"
+          >
+            → Cross-asset correlations
+          </Link>
+        </header>
 
       {error || !pulse ? (
-        <p className="text-sm text-rose-300">
-          {error ?? "Indisponible : /v1/macro-pulse non joignable."}
-        </p>
-      ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <VixCard pulse={pulse} />
-          <RiskAppetiteCard pulse={pulse} />
-          <YieldCurveCard pulse={pulse} />
-          <FundingStressCard pulse={pulse} />
-          <div className="lg:col-span-2">
-            <SurpriseCard pulse={pulse} />
+          <p className="text-sm ichor-text-short">
+            {error ?? "Indisponible : /v1/macro-pulse non joignable."}
+          </p>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 ichor-fade-in" data-stagger="2">
+            <VixCard pulse={pulse} />
+            <RiskAppetiteCard pulse={pulse} />
+            <YieldCurveCard pulse={pulse} />
+            <FundingStressCard pulse={pulse} />
+            <div className="lg:col-span-2">
+              <SurpriseCard pulse={pulse} />
+            </div>
           </div>
-        </div>
-      )}
-    </main>
+        )}
+      </main>
+    </div>
   );
 }
 
@@ -78,21 +86,21 @@ export default async function MacroPulsePage() {
 function VixCard({ pulse }: { pulse: MacroPulse }) {
   const v = pulse.vix_term;
   const regimeColor: Record<string, string> = {
-    extreme_backwardation: "text-rose-300 border-rose-700/50",
-    backwardation: "text-rose-300 border-rose-700/50",
-    flat: "text-neutral-300 border-neutral-700",
-    normal: "text-emerald-300 border-emerald-700/50",
-    contango: "text-emerald-300 border-emerald-700/50",
+    extreme_backwardation: "ichor-text-short border-rose-700/50",
+    backwardation: "ichor-text-short border-rose-700/50",
+    flat: "text-[var(--color-ichor-text-muted)] border-[var(--color-ichor-border-strong)]",
+    normal: "ichor-text-long border-emerald-700/50",
+    contango: "ichor-text-long border-emerald-700/50",
     stretched_contango: "text-amber-300 border-amber-700/50",
   };
-  const cls = regimeColor[v.regime] ?? "text-neutral-300";
+  const cls = regimeColor[v.regime] ?? "text-[var(--color-ichor-text-muted)]";
   return (
     <section
       aria-labelledby="vix-heading"
-      className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-5"
+      className="ichor-glass rounded-xl p-5 ichor-lift"
     >
       <header className="flex items-baseline justify-between mb-3">
-        <h2 id="vix-heading" className="text-lg font-semibold text-neutral-100">
+        <h2 id="vix-heading" className="text-lg font-semibold text-[var(--color-ichor-text)]">
           VIX term structure
         </h2>
         <span
@@ -106,7 +114,7 @@ function VixCard({ pulse }: { pulse: MacroPulse }) {
         <Metric label="VIX 3M" value={v.vix_3m} format="num2" />
         <Metric label="Ratio 1M/3M" value={v.ratio} format="num3" />
       </div>
-      <p className="text-xs text-neutral-300 leading-snug">{v.interpretation}</p>
+      <p className="text-xs text-[var(--color-ichor-text-muted)] leading-snug">{v.interpretation}</p>
     </section>
   );
 }
@@ -114,22 +122,22 @@ function VixCard({ pulse }: { pulse: MacroPulse }) {
 function RiskAppetiteCard({ pulse }: { pulse: MacroPulse }) {
   const r = pulse.risk_appetite;
   const bandColor: Record<string, string> = {
-    extreme_risk_on: "text-emerald-300 bg-emerald-900/30 border-emerald-700/50",
-    risk_on: "text-emerald-300 bg-emerald-900/20 border-emerald-700/40",
-    neutral: "text-neutral-300 bg-neutral-800 border-neutral-700",
-    risk_off: "text-rose-300 bg-rose-900/20 border-rose-700/40",
-    extreme_risk_off: "text-rose-300 bg-rose-900/30 border-rose-700/50",
+    extreme_risk_on: "ichor-text-long bg-emerald-900/30 border-emerald-700/50",
+    risk_on: "ichor-text-long bg-emerald-900/20 border-emerald-700/40",
+    neutral: "text-[var(--color-ichor-text-muted)] bg-[var(--color-ichor-surface-2)] border-[var(--color-ichor-border-strong)]",
+    risk_off: "ichor-text-short bg-rose-900/20 border-rose-700/40",
+    extreme_risk_off: "ichor-text-short bg-rose-900/30 border-rose-700/50",
   };
-  const cls = bandColor[r.band] ?? "text-neutral-300";
+  const cls = bandColor[r.band] ?? "text-[var(--color-ichor-text-muted)]";
   // composite is in [-1, +1]
   const pct = Math.min(100, Math.abs(r.composite) * 100);
   return (
     <section
       aria-labelledby="risk-heading"
-      className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-5"
+      className="ichor-glass rounded-xl p-5 ichor-lift"
     >
       <header className="flex items-baseline justify-between mb-3">
-        <h2 id="risk-heading" className="text-lg font-semibold text-neutral-100">
+        <h2 id="risk-heading" className="text-lg font-semibold text-[var(--color-ichor-text)]">
           Risk appetite composite
         </h2>
         <span
@@ -140,39 +148,39 @@ function RiskAppetiteCard({ pulse }: { pulse: MacroPulse }) {
       </header>
 
       <div className="mb-3">
-        <div className="text-xs uppercase tracking-wide text-neutral-400 mb-1">
+        <div className="text-xs uppercase tracking-wide text-[var(--color-ichor-text-muted)] mb-1">
           Composite
         </div>
-        <div className="relative h-3 rounded bg-neutral-950 border border-neutral-800 overflow-hidden">
+        <div className="relative h-3 rounded bg-[var(--color-ichor-deep)] border border-[var(--color-ichor-border)] overflow-hidden">
           <div
             className={`absolute top-0 bottom-0 ${r.composite >= 0 ? "left-1/2 bg-emerald-500/80" : "right-1/2 bg-rose-500/80"}`}
             style={{ width: `${pct / 2}%` }}
           />
-          <div className="absolute top-0 bottom-0 left-1/2 w-px bg-neutral-700" />
+          <div className="absolute top-0 bottom-0 left-1/2 w-px bg-[var(--color-ichor-border-strong)]" />
         </div>
-        <div className="text-xs font-mono mt-1 text-neutral-200">
+        <div className="text-xs font-mono mt-1 text-[var(--color-ichor-text)]">
           {r.composite >= 0 ? "+" : ""}
           {r.composite.toFixed(2)} (clamped à ±1)
         </div>
       </div>
 
-      <ul className="text-xs text-neutral-300 space-y-1.5">
+      <ul className="text-xs text-[var(--color-ichor-text-muted)] space-y-1.5">
         {r.components.map((c, i) => (
           <li
             key={i}
             className="flex items-start justify-between gap-3 leading-snug"
           >
             <span>
-              <span className="font-mono text-neutral-400">{c.name}</span>
-              <span className="ml-2 text-neutral-500">{c.rationale}</span>
+              <span className="font-mono text-[var(--color-ichor-text-muted)]">{c.name}</span>
+              <span className="ml-2 text-[var(--color-ichor-text-subtle)]">{c.rationale}</span>
             </span>
             <span
               className={`font-mono whitespace-nowrap ${
                 c.contribution > 0
-                  ? "text-emerald-300"
+                  ? "ichor-text-long"
                   : c.contribution < 0
-                    ? "text-rose-300"
-                    : "text-neutral-400"
+                    ? "ichor-text-short"
+                    : "text-[var(--color-ichor-text-muted)]"
               }`}
             >
               {c.contribution >= 0 ? "+" : ""}
@@ -194,15 +202,15 @@ function YieldCurveCard({ pulse }: { pulse: MacroPulse }) {
   return (
     <section
       aria-labelledby="yield-heading"
-      className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-5"
+      className="ichor-glass rounded-xl p-5 ichor-lift"
     >
       <header className="flex items-baseline justify-between mb-3">
-        <h2 id="yield-heading" className="text-lg font-semibold text-neutral-100">
-          Yield curve <span className="text-xs text-neutral-500">({yc.shape})</span>
+        <h2 id="yield-heading" className="text-lg font-semibold text-[var(--color-ichor-text)]">
+          Yield curve <span className="text-xs text-[var(--color-ichor-text-subtle)]">({yc.shape})</span>
         </h2>
         <Link
           href="/yield-curve"
-          className="text-xs text-neutral-400 hover:text-neutral-200"
+          className="text-xs text-[var(--color-ichor-text-muted)] hover:text-[var(--color-ichor-text)]"
         >
           Détail →
         </Link>
@@ -215,7 +223,7 @@ function YieldCurveCard({ pulse }: { pulse: MacroPulse }) {
             return (
               <div
                 key={p.label}
-                className="flex-1 flex flex-col items-center gap-1 text-neutral-500"
+                className="flex-1 flex flex-col items-center gap-1 text-[var(--color-ichor-text-subtle)]"
               >
                 <div className="flex-1 w-full" />
                 <span className="text-[9px] font-mono">{p.label}</span>
@@ -234,7 +242,7 @@ function YieldCurveCard({ pulse }: { pulse: MacroPulse }) {
                 className="w-full bg-emerald-600/70 rounded-sm"
                 style={{ height: `${pct}%` }}
               />
-              <span className="text-[9px] font-mono text-neutral-400">
+              <span className="text-[9px] font-mono text-[var(--color-ichor-text-muted)]">
                 {p.label}
               </span>
             </div>
@@ -260,19 +268,19 @@ function FundingStressCard({ pulse }: { pulse: MacroPulse }) {
   const fs = pulse.funding_stress;
   const tone =
     fs.stress_score >= 0.5
-      ? "text-rose-300 border-rose-700/50"
+      ? "ichor-text-short border-rose-700/50"
       : fs.stress_score >= 0.2
         ? "text-amber-300 border-amber-700/50"
-        : "text-emerald-300 border-emerald-700/50";
+        : "ichor-text-long border-emerald-700/50";
   return (
     <section
       aria-labelledby="funding-heading"
-      className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-5"
+      className="ichor-glass rounded-xl p-5 ichor-lift"
     >
       <header className="flex items-baseline justify-between mb-3">
         <h2
           id="funding-heading"
-          className="text-lg font-semibold text-neutral-100"
+          className="text-lg font-semibold text-[var(--color-ichor-text)]"
         >
           Funding stress
         </h2>
@@ -304,30 +312,30 @@ function SurpriseCard({ pulse }: { pulse: MacroPulse }) {
   return (
     <section
       aria-labelledby="surprise-heading"
-      className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-5"
+      className="ichor-glass rounded-xl p-5 ichor-lift"
     >
       <header className="flex items-baseline justify-between mb-3">
         <h2
           id="surprise-heading"
-          className="text-lg font-semibold text-neutral-100"
+          className="text-lg font-semibold text-[var(--color-ichor-text)]"
         >
           Surprise index ({si.region}, {si.band})
         </h2>
-        <span className="font-mono text-sm text-neutral-200">
+        <span className="font-mono text-sm text-[var(--color-ichor-text)]">
           {si.composite != null
             ? `composite ${si.composite >= 0 ? "+" : ""}${si.composite.toFixed(2)}`
             : "n/a"}
         </span>
       </header>
       {populated.length === 0 ? (
-        <p className="text-xs text-neutral-500">Aucune série exploitable.</p>
+        <p className="text-xs text-[var(--color-ichor-text-subtle)]">Aucune série exploitable.</p>
       ) : (
         <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
           {populated.slice(0, 8).map((s) => (
             <li key={s.series_id} className="flex justify-between">
-              <span className="text-neutral-300">{s.label}</span>
+              <span className="text-[var(--color-ichor-text-muted)]">{s.label}</span>
               <span
-                className={`font-mono ${(s.z_score ?? 0) > 0 ? "text-emerald-300" : "text-rose-300"}`}
+                className={`font-mono ${(s.z_score ?? 0) > 0 ? "ichor-text-long" : "ichor-text-short"}`}
               >
                 {(s.z_score ?? 0) >= 0 ? "+" : ""}
                 {(s.z_score ?? 0).toFixed(2)}
@@ -365,10 +373,10 @@ function Metric({
   };
   return (
     <div>
-      <div className="text-[10px] uppercase tracking-wide text-neutral-500">
+      <div className="text-[10px] uppercase tracking-wide text-[var(--color-ichor-text-subtle)]">
         {label}
       </div>
-      <div className="font-mono text-sm text-neutral-100">
+      <div className="font-mono text-sm text-[var(--color-ichor-text)]">
         {value == null ? "n/a" : fmt(value)}
       </div>
     </div>

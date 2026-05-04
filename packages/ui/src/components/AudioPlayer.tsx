@@ -25,9 +25,9 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
   transcriptHref,
 }) => {
   return (
-    <div className="flex flex-col gap-2 p-3 bg-neutral-900/40 border border-neutral-800 rounded-md">
+    <div className="flex flex-col gap-2 p-3 bg-[var(--color-ichor-surface)]/60 border border-[var(--color-ichor-border)] rounded-md">
       {label && (
-        <span className="text-xs text-neutral-400 font-medium">{label}</span>
+        <span className="text-xs text-[var(--color-ichor-text-muted)] font-medium">{label}</span>
       )}
       <audio
         controls

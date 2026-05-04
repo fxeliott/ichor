@@ -47,7 +47,7 @@ const VERDICT_COLOR: Record<CriticVerdict, string> = {
 const BIAS_COLOR: Record<BiasDirection, string> = {
   long: "text-emerald-300",
   short: "text-rose-300",
-  neutral: "text-neutral-300",
+  neutral: "text-[var(--color-ichor-text-muted)]",
 };
 
 const BIAS_ARROW: Record<BiasDirection, string> = {
@@ -98,7 +98,7 @@ export const TimeMachineReplay: React.FC<TimeMachineReplayProps> = ({
 
   if (sorted.length === 0) {
     return (
-      <div className="rounded-lg border border-neutral-800 bg-neutral-900/30 p-4 text-sm text-neutral-400">
+      <div className="rounded-lg border border-[var(--color-ichor-border)] bg-[var(--color-ichor-surface)]/40 p-4 text-sm text-[var(--color-ichor-text-muted)]">
         Pas encore d&apos;historique pour replay.
       </div>
     );
@@ -118,17 +118,17 @@ export const TimeMachineReplay: React.FC<TimeMachineReplayProps> = ({
   return (
     <section
       aria-label="Time-machine replay des cartes session"
-      className="rounded-lg border border-neutral-800 bg-neutral-900/30 p-4"
+      className="rounded-lg border border-[var(--color-ichor-border)] bg-[var(--color-ichor-surface)]/40 p-4"
     >
       <header className="mb-3 flex items-baseline justify-between gap-3 flex-wrap">
-        <h2 className="text-sm font-semibold text-neutral-100">
+        <h2 className="text-sm font-semibold text-[var(--color-ichor-text)]">
           Time-machine · replay {sorted.length} cartes
         </h2>
         <div className="flex items-center gap-2 text-[11px]">
           <button
             type="button"
             onClick={() => setIdx(0)}
-            className="px-2 py-0.5 rounded border border-neutral-700 text-neutral-300 hover:bg-neutral-800"
+            className="px-2 py-0.5 rounded border border-[var(--color-ichor-border-strong)] text-[var(--color-ichor-text-muted)] hover:bg-[var(--color-ichor-surface-2)]"
             aria-label="Aller au début"
           >
             ⏮
@@ -136,7 +136,7 @@ export const TimeMachineReplay: React.FC<TimeMachineReplayProps> = ({
           <button
             type="button"
             onClick={() => setIdx((i) => Math.max(0, i - 1))}
-            className="px-2 py-0.5 rounded border border-neutral-700 text-neutral-300 hover:bg-neutral-800"
+            className="px-2 py-0.5 rounded border border-[var(--color-ichor-border-strong)] text-[var(--color-ichor-text-muted)] hover:bg-[var(--color-ichor-surface-2)]"
             aria-label="Précédent"
             disabled={idx === 0}
           >
@@ -149,7 +149,7 @@ export const TimeMachineReplay: React.FC<TimeMachineReplayProps> = ({
               "px-2 py-0.5 rounded border font-mono",
               autoplay
                 ? "border-emerald-700 bg-emerald-900/40 text-emerald-200"
-                : "border-neutral-700 text-neutral-300 hover:bg-neutral-800",
+                : "border-[var(--color-ichor-border-strong)] text-[var(--color-ichor-text-muted)] hover:bg-[var(--color-ichor-surface-2)]",
             ].join(" ")}
             aria-label={autoplay ? "Pause autoplay" : "Démarrer autoplay"}
           >
@@ -158,7 +158,7 @@ export const TimeMachineReplay: React.FC<TimeMachineReplayProps> = ({
           <button
             type="button"
             onClick={() => setIdx((i) => Math.min(sorted.length - 1, i + 1))}
-            className="px-2 py-0.5 rounded border border-neutral-700 text-neutral-300 hover:bg-neutral-800"
+            className="px-2 py-0.5 rounded border border-[var(--color-ichor-border-strong)] text-[var(--color-ichor-text-muted)] hover:bg-[var(--color-ichor-surface-2)]"
             aria-label="Suivant"
             disabled={idx === sorted.length - 1}
           >
@@ -167,7 +167,7 @@ export const TimeMachineReplay: React.FC<TimeMachineReplayProps> = ({
           <button
             type="button"
             onClick={() => setIdx(sorted.length - 1)}
-            className="px-2 py-0.5 rounded border border-neutral-700 text-neutral-300 hover:bg-neutral-800"
+            className="px-2 py-0.5 rounded border border-[var(--color-ichor-border-strong)] text-[var(--color-ichor-text-muted)] hover:bg-[var(--color-ichor-surface-2)]"
             aria-label="Aller à la fin"
           >
             ⏭
@@ -175,7 +175,7 @@ export const TimeMachineReplay: React.FC<TimeMachineReplayProps> = ({
           <select
             value={speed}
             onChange={(e) => setSpeed(parseInt(e.target.value, 10))}
-            className="ml-1 px-1.5 py-0.5 rounded border border-neutral-700 bg-neutral-900 text-neutral-300 text-[11px] font-mono"
+            className="ml-1 px-1.5 py-0.5 rounded border border-[var(--color-ichor-border-strong)] bg-[var(--color-ichor-surface)] text-[var(--color-ichor-text-muted)] text-[11px] font-mono"
             aria-label="Vitesse de lecture"
           >
             <option value={3000}>0.5×</option>
@@ -207,14 +207,14 @@ export const TimeMachineReplay: React.FC<TimeMachineReplayProps> = ({
           transition={{ duration: 0.2 }}
           className="grid grid-cols-1 sm:grid-cols-2 gap-3"
         >
-          <div className="rounded border border-neutral-800 bg-neutral-900/40 p-3">
-            <p className="text-[11px] text-neutral-500 mb-1">
+          <div className="rounded border border-[var(--color-ichor-border)] bg-[var(--color-ichor-surface)]/60 p-3">
+            <p className="text-[11px] text-[var(--color-ichor-text-subtle)] mb-1">
               Carte #{idx + 1} / {sorted.length}
             </p>
-            <p className="font-mono text-sm text-neutral-300">
+            <p className="font-mono text-sm text-[var(--color-ichor-text-muted)]">
               {fmtTime(current.generated_at)}
             </p>
-            <p className="text-[11px] text-neutral-500 mt-1">
+            <p className="text-[11px] text-[var(--color-ichor-text-subtle)] mt-1">
               session : {current.session_type.replace(/_/g, " ")}
             </p>
             {current.regime_quadrant && (
@@ -231,8 +231,8 @@ export const TimeMachineReplay: React.FC<TimeMachineReplayProps> = ({
             )}
           </div>
 
-          <div className="rounded border border-neutral-800 bg-neutral-900/40 p-3">
-            <p className="text-[11px] text-neutral-500 mb-1">Verdict pipeline</p>
+          <div className="rounded border border-[var(--color-ichor-border)] bg-[var(--color-ichor-surface)]/60 p-3">
+            <p className="text-[11px] text-[var(--color-ichor-text-subtle)] mb-1">Verdict pipeline</p>
             <p
               className={[
                 "text-2xl font-bold",
@@ -276,9 +276,9 @@ export const TimeMachineReplay: React.FC<TimeMachineReplayProps> = ({
 
       {/* Mechanisms preview */}
       {current.mechanisms && current.mechanisms.length > 0 && (
-        <div className="mt-3 rounded border border-neutral-800/60 bg-neutral-950/40 p-3 text-xs">
-          <p className="text-neutral-500 mb-1">Mécanismes invoqués :</p>
-          <ul className="list-disc list-inside text-neutral-300 space-y-1">
+        <div className="mt-3 rounded border border-[var(--color-ichor-border)] bg-[var(--color-ichor-deep)]/40 p-3 text-xs">
+          <p className="text-[var(--color-ichor-text-subtle)] mb-1">Mécanismes invoqués :</p>
+          <ul className="list-disc list-inside text-[var(--color-ichor-text-muted)] space-y-1">
             {current.mechanisms.slice(0, 3).map((m, i) => (
               <li key={i}>{m.claim ?? "—"}</li>
             ))}

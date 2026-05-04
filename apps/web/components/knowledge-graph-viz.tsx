@@ -158,7 +158,7 @@ export const KnowledgeGraphViz: React.FC<KnowledgeGraphVizProps> = ({
   const maxEdgeWeight = Math.max(1, ...edges.map((e) => e.weight));
 
   return (
-    <div className="rounded-lg border border-neutral-800 bg-neutral-900/30 p-3">
+    <div className="rounded-lg border border-[var(--color-ichor-border)] bg-[var(--color-ichor-surface)]/40 p-3">
       <div className="relative overflow-hidden" style={{ height }}>
         <svg
           viewBox={`0 0 ${width} ${height}`}
@@ -277,7 +277,7 @@ export const KnowledgeGraphViz: React.FC<KnowledgeGraphVizProps> = ({
             <Legend kind="narrative" label="Narratives" />
           )}
         </div>
-        <p className="text-neutral-500 italic">
+        <p className="text-[var(--color-ichor-text-subtle)] italic">
           {focus
             ? `Focus : ${byId.get(focus)?.label ?? focus} (${focusNeighbors.size - 1} voisins)`
             : "Survole ou clique un nœud pour isoler son voisinage"}
@@ -296,7 +296,7 @@ function Legend({ kind, label }: { kind: NodeKind; label: string }) {
         style={{ backgroundColor: c.fill, borderColor: c.stroke }}
         aria-hidden="true"
       />
-      <span className="text-neutral-400">{label}</span>
+      <span className="text-[var(--color-ichor-text-muted)]">{label}</span>
     </span>
   );
 }

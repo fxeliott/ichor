@@ -230,10 +230,10 @@ export const CommandPalette: React.FC = () => {
             transition={{ duration: 0.15 }}
             role="dialog"
             aria-label="Command palette"
-            className="w-full max-w-xl mx-4 rounded-lg border border-neutral-700 bg-neutral-900 shadow-2xl overflow-hidden"
+            className="w-full max-w-xl mx-4 rounded-lg border border-[var(--color-ichor-border-strong)] bg-[var(--color-ichor-surface)] shadow-2xl overflow-hidden"
           >
-            <div className="flex items-center gap-2 px-3 py-2 border-b border-neutral-800">
-              <span className="text-neutral-500 text-sm" aria-hidden="true">⌘</span>
+            <div className="flex items-center gap-2 px-3 py-2 border-b border-[var(--color-ichor-border)]">
+              <span className="text-[var(--color-ichor-text-subtle)] text-sm" aria-hidden="true">⌘</span>
               <input
                 ref={inputRef}
                 type="text"
@@ -244,17 +244,17 @@ export const CommandPalette: React.FC = () => {
                 }}
                 onKeyDown={onKeyDown}
                 placeholder="Tape pour chercher (page, actif, action)…"
-                className="flex-1 bg-transparent text-neutral-100 placeholder:text-neutral-500 focus:outline-none text-sm"
+                className="flex-1 bg-transparent text-[var(--color-ichor-text)] placeholder:text-[var(--color-ichor-text-subtle)] focus:outline-none text-sm"
                 aria-label="Rechercher dans Ichor"
               />
-              <kbd className="text-[10px] text-neutral-500 font-mono border border-neutral-700 rounded px-1 py-0.5">
+              <kbd className="text-[10px] text-[var(--color-ichor-text-subtle)] font-mono border border-[var(--color-ichor-border-strong)] rounded px-1 py-0.5">
                 Esc
               </kbd>
             </div>
 
             <ul role="listbox" className="max-h-[320px] overflow-y-auto">
               {matches.length === 0 ? (
-                <li className="px-3 py-4 text-sm text-neutral-500">
+                <li className="px-3 py-4 text-sm text-[var(--color-ichor-text-subtle)]">
                   Aucun résultat. Essaye « sessions », « EUR/USD », « replay »…
                 </li>
               ) : (
@@ -268,8 +268,8 @@ export const CommandPalette: React.FC = () => {
                     className={[
                       "flex items-center justify-between gap-2 px-3 py-2 cursor-pointer text-sm",
                       i === activeIdx
-                        ? "bg-neutral-800 text-neutral-100"
-                        : "text-neutral-300 hover:bg-neutral-800/60",
+                        ? "bg-[var(--color-ichor-surface-2)] text-[var(--color-ichor-text)]"
+                        : "text-[var(--color-ichor-text-muted)] hover:bg-[var(--color-ichor-surface-2)]",
                     ].join(" ")}
                   >
                     <div className="flex items-center gap-2 min-w-0">
@@ -281,7 +281,7 @@ export const CommandPalette: React.FC = () => {
                       <span className="truncate">{c.label}</span>
                     </div>
                     {c.hint && (
-                      <span className="text-[11px] text-neutral-500 font-mono truncate">
+                      <span className="text-[11px] text-[var(--color-ichor-text-subtle)] font-mono truncate">
                         {c.hint}
                       </span>
                     )}
@@ -290,18 +290,18 @@ export const CommandPalette: React.FC = () => {
               )}
             </ul>
 
-            <footer className="flex items-center justify-between border-t border-neutral-800 bg-neutral-950/40 px-3 py-1.5 text-[10px] text-neutral-500">
+            <footer className="flex items-center justify-between border-t border-[var(--color-ichor-border)] bg-[var(--color-ichor-deep)]/40 px-3 py-1.5 text-[10px] text-[var(--color-ichor-text-subtle)]">
               <span className="font-mono">
-                <kbd className="border border-neutral-700 rounded px-1">↑</kbd>{" "}
-                <kbd className="border border-neutral-700 rounded px-1">↓</kbd>{" "}
+                <kbd className="border border-[var(--color-ichor-border-strong)] rounded px-1">↑</kbd>{" "}
+                <kbd className="border border-[var(--color-ichor-border-strong)] rounded px-1">↓</kbd>{" "}
                 naviguer
               </span>
               <span className="font-mono">
-                <kbd className="border border-neutral-700 rounded px-1">↵</kbd>{" "}
+                <kbd className="border border-[var(--color-ichor-border-strong)] rounded px-1">↵</kbd>{" "}
                 ouvrir
               </span>
               <span className="font-mono">
-                <kbd className="border border-neutral-700 rounded px-1">⌘K</kbd>{" "}
+                <kbd className="border border-[var(--color-ichor-border-strong)] rounded px-1">⌘K</kbd>{" "}
                 toggle
               </span>
             </footer>

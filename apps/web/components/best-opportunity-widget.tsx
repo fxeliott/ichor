@@ -1,19 +1,14 @@
 /**
  * BestOpportunityWidget — surfaces the single strongest setup of the day.
  *
- * Server component fans out /v1/confluence for the 8 phase-1 assets in
- * parallel, then picks :
- *   1. The asset with the highest dominant-direction score AND
- *      ≥ 60 score AND ≥ 3 confluences aligned.
- *   2. If none qualifies, falls back to the highest-score asset, with
- *      a "no high-conviction setup right now" framing.
- *
- * VISION_2026 — closes the "give me the call of the day in one glance" gap.
+ * Hero card with cobalt glow when qualified (≥60 score + ≥3 confluences).
+ * Always-visible drill link. Top driver evidence inline.
  */
 
 import Link from "next/link";
 import { ApiError, getConfluence, type Confluence } from "../lib/api";
 import { ASSETS } from "../lib/assets";
+import { GlassCard } from "./ui/glass-card";
 
 export const revalidate = 60;
 
@@ -36,7 +31,6 @@ export async function BestOpportunityWidget() {
         : null,
   }));
 
-  // Compute "best" = highest dominant-direction score with ≥3 confluences
   const candidates = rows
     .filter((r) => r.data != null)
     .map((r) => {
@@ -65,34 +59,21 @@ export async function BestOpportunityWidget() {
 
   if (!best || !best.conf) {
     return (
-      <section className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-4">
-        <h2 className="text-sm font-semibold text-neutral-200 mb-2">
+      <GlassCard variant="glass" className="p-4">
+        <h2 className="text-sm font-semibold text-[var(--color-ichor-text)] mb-2">
           Setup du jour
         </h2>
-        <p className="text-xs text-neutral-500">
-          /v1/confluence indisponible.
+        <p className="text-xs text-[var(--color-ichor-text-subtle)]">
+          Données indisponibles.
         </p>
-      </section>
+      </GlassCard>
     );
   }
 
   const c = best.conf;
   const dom = c.dominant_direction;
   const isQualified = qualified.length > 0 && best === qualified[0];
-  const tone =
-    dom === "long"
-      ? "border-emerald-700/40 bg-emerald-900/15"
-      : dom === "short"
-        ? "border-rose-700/40 bg-rose-900/15"
-        : "border-neutral-700 bg-neutral-900/40";
-  const textTone =
-    dom === "long"
-      ? "text-emerald-300"
-      : dom === "short"
-        ? "text-rose-300"
-        : "text-neutral-300";
 
-  // Top driver
   const sortedDrivers = [...c.drivers].sort((a, b) => {
     if (dom === "long") return b.contribution - a.contribution;
     if (dom === "short") return a.contribution - b.contribution;
@@ -100,55 +81,108 @@ export async function BestOpportunityWidget() {
   });
   const topDriver = sortedDrivers[0];
 
+  const tone =
+    dom === "long" ? "long" : dom === "short" ? "short" : "default";
+  const ringClass = isQualified
+    ? dom === "long"
+      ? "ichor-glow-emerald"
+      : "ichor-glow-rose"
+    : "";
+
   return (
     <Link
       href={`/scenarios/${best.row.code}`}
-      className={`block rounded-lg border p-4 transition hover:bg-neutral-900/60 ${tone}`}
+      className={`group relative block rounded-xl ichor-lift ichor-glass ${ringClass} overflow-hidden`}
     >
-      <header className="flex items-baseline justify-between mb-2">
-        <h2 className="text-sm font-semibold text-neutral-200">
-          {isQualified
-            ? "🎯 Setup du jour"
-            : "Top score (faible conviction)"}
-        </h2>
-        <span className="text-[10px] uppercase font-mono text-neutral-500">
-          drill →
-        </span>
-      </header>
-      <div className="flex items-baseline justify-between gap-3 mb-2">
-        <div className="flex items-baseline gap-3">
-          <span className="text-2xl font-mono text-neutral-100">
-            {best.row.display}
+      {/* Subtle directional gradient overlay */}
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 pointer-events-none opacity-30"
+        style={{
+          background:
+            dom === "long"
+              ? "radial-gradient(circle at 80% 20%, rgba(52, 211, 153, 0.18) 0%, transparent 60%)"
+              : dom === "short"
+                ? "radial-gradient(circle at 80% 20%, rgba(248, 113, 113, 0.18) 0%, transparent 60%)"
+                : "radial-gradient(circle at 80% 20%, rgba(96, 165, 250, 0.12) 0%, transparent 60%)",
+        }}
+      />
+
+      <div className="relative p-5">
+        <header className="flex items-baseline justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <span className="ichor-pulse-dot" />
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-ichor-text-muted)]">
+              {isQualified ? "Setup du jour" : "Top score"}
+            </h2>
+          </div>
+          <span className="text-[10px] uppercase font-mono text-[var(--color-ichor-text-subtle)] group-hover:text-[var(--color-ichor-accent-bright)] transition-colors">
+            drill →
           </span>
-          <span
-            className={`inline-flex rounded border px-2 py-0.5 text-xs uppercase font-mono ${textTone}`}
-          >
-            {dom}
-          </span>
+        </header>
+
+        <div className="flex items-baseline justify-between gap-3 mb-3">
+          <div className="flex flex-col">
+            <span className="text-3xl sm:text-4xl font-mono font-semibold text-[var(--color-ichor-text)] leading-none">
+              {best.row.display}
+            </span>
+            <span
+              className={`mt-2 inline-flex w-fit rounded-full border px-2 py-0.5 text-[10px] uppercase font-mono tracking-widest ${
+                tone === "long"
+                  ? "ichor-bg-long ichor-text-long"
+                  : tone === "short"
+                    ? "ichor-bg-short ichor-text-short"
+                    : "ichor-bg-accent ichor-text-accent"
+              }`}
+            >
+              {dom}
+            </span>
+          </div>
+          <div className="text-right">
+            <div
+              className={`text-3xl font-mono font-semibold leading-none ${
+                tone === "long"
+                  ? "ichor-text-long"
+                  : tone === "short"
+                    ? "ichor-text-short"
+                    : "text-[var(--color-ichor-text)]"
+              }`}
+            >
+              {best.score.toFixed(0)}
+              <span className="text-base text-[var(--color-ichor-text-subtle)]">/100</span>
+            </div>
+            <div className="text-[10px] text-[var(--color-ichor-text-muted)] mt-2 font-mono">
+              {c.confluence_count}/{c.drivers.length} confluences
+            </div>
+          </div>
         </div>
-        <span className={`text-xl font-mono ${textTone}`}>
-          {best.score.toFixed(0)}/100
-        </span>
+
+        {topDriver ? (
+          <div className="rounded-lg bg-[var(--color-ichor-deep)]/40 border border-[var(--color-ichor-border)] px-3 py-2">
+            <div className="flex items-baseline justify-between gap-2 mb-0.5">
+              <span className="text-[10px] uppercase font-mono tracking-wider text-[var(--color-ichor-text-faint)]">
+                Top driver
+              </span>
+              <span className="font-mono text-[11px] text-[var(--color-ichor-text-muted)]">
+                {topDriver.factor}
+              </span>
+            </div>
+            <p className="text-xs text-[var(--color-ichor-text-muted)] leading-snug">
+              <span
+                className={
+                  topDriver.contribution > 0
+                    ? "ichor-text-long font-mono"
+                    : "ichor-text-short font-mono"
+                }
+              >
+                {topDriver.contribution >= 0 ? "+" : ""}
+                {topDriver.contribution.toFixed(2)}
+              </span>{" "}
+              — {topDriver.evidence}
+            </p>
+          </div>
+        ) : null}
       </div>
-      <div className="text-xs text-neutral-400 mb-2">
-        {c.confluence_count}/{c.drivers.length} confluences alignées
-      </div>
-      {topDriver ? (
-        <p className="text-xs text-neutral-300 leading-snug">
-          <span className="font-mono text-neutral-400">{topDriver.factor}</span>{" "}
-          <span
-            className={
-              topDriver.contribution > 0
-                ? "text-emerald-300"
-                : "text-rose-300"
-            }
-          >
-            {topDriver.contribution >= 0 ? "+" : ""}
-            {topDriver.contribution.toFixed(2)}
-          </span>{" "}
-          — <span className="text-neutral-400">{topDriver.evidence}</span>
-        </p>
-      ) : null}
     </Link>
   );
 }

@@ -53,28 +53,28 @@ export default async function HourlyVolPage({
 
   return (
     <main className="max-w-5xl mx-auto px-4 py-6">
-      <nav aria-label="Fil d'Ariane" className="text-xs text-neutral-500 mb-4">
-        <Link href="/" className="hover:text-neutral-300 underline">
+      <nav aria-label="Fil d'Ariane" className="text-xs text-[var(--color-ichor-text-subtle)] mb-4">
+        <Link href="/" className="hover:text-[var(--color-ichor-text-muted)] underline">
           Accueil
         </Link>
         <span className="mx-2">/</span>
-        <span className="text-neutral-300">
+        <span className="text-[var(--color-ichor-text-muted)]">
           Vol horaire — {meta?.display ?? asset}
         </span>
       </nav>
 
       <header className="mb-6">
-        <h1 className="text-2xl font-semibold text-neutral-100">
+        <h1 className="text-2xl font-semibold text-[var(--color-ichor-text)]">
           Volatilité horaire — {meta?.display ?? asset}
         </h1>
-        <p className="text-sm text-neutral-400 mt-1">
+        <p className="text-sm text-[var(--color-ichor-text-muted)] mt-1">
           Médiane du |log-rendement| par heure UTC sur 30 jours. Te montre
           quand cet actif bouge vraiment vs quand il dort.
         </p>
       </header>
 
       {error || !report ? (
-        <p className="text-sm text-rose-300">{error ?? "Indisponible."}</p>
+        <p className="text-sm ichor-text-short">{error ?? "Indisponible."}</p>
       ) : (
         <>
           <HeatmapBars report={report} />
@@ -99,9 +99,9 @@ function HeatmapBars({ report }: { report: HourlyVolReport }) {
   return (
     <section
       aria-labelledby="heatmap-heading"
-      className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-5 mb-6"
+      className="rounded-lg border border-[var(--color-ichor-border)] bg-[var(--color-ichor-surface)]/60 p-5 mb-6"
     >
-      <h2 id="heatmap-heading" className="text-lg font-semibold text-neutral-100 mb-4">
+      <h2 id="heatmap-heading" className="text-lg font-semibold text-[var(--color-ichor-text)] mb-4">
         Heatmap 24h (UTC)
       </h2>
       <div className="grid grid-cols-24 gap-0.5 mb-3" style={{ gridTemplateColumns: "repeat(24, minmax(0, 1fr))" }}>
@@ -127,17 +127,17 @@ function HeatmapBars({ report }: { report: HourlyVolReport }) {
                   style={{ height: `${Math.max(2, pct)}%` }}
                 />
               </div>
-              <span className="text-[9px] text-neutral-500 font-mono text-center mt-1">
+              <span className="text-[9px] text-[var(--color-ichor-text-subtle)] font-mono text-center mt-1">
                 {e.hour_utc.toString().padStart(2, "0")}
               </span>
             </div>
           );
         })}
       </div>
-      <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-neutral-300 mt-2">
+      <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-[var(--color-ichor-text-muted)] mt-2">
         {report.best_hour_utc != null ? (
           <p>
-            <span className="text-emerald-300">●</span> Best hour :{" "}
+            <span className="ichor-text-long">●</span> Best hour :{" "}
             <span className="font-mono">
               {report.best_hour_utc.toString().padStart(2, "0")}:00 UTC
             </span>{" "}
@@ -146,7 +146,7 @@ function HeatmapBars({ report }: { report: HourlyVolReport }) {
         ) : null}
         {report.worst_hour_utc != null ? (
           <p>
-            <span className="text-rose-300">●</span> Worst hour :{" "}
+            <span className="ichor-text-short">●</span> Worst hour :{" "}
             <span className="font-mono">
               {report.worst_hour_utc.toString().padStart(2, "0")}:00 UTC
             </span>{" "}
@@ -166,11 +166,11 @@ function SessionAverages({ report }: { report: HourlyVolReport }) {
   return (
     <section
       aria-labelledby="session-avg-heading"
-      className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-5"
+      className="rounded-lg border border-[var(--color-ichor-border)] bg-[var(--color-ichor-surface)]/60 p-5"
     >
       <h2
         id="session-avg-heading"
-        className="text-lg font-semibold text-neutral-100 mb-3"
+        className="text-lg font-semibold text-[var(--color-ichor-text)] mb-3"
       >
         Moyennes par session
       </h2>
@@ -178,14 +178,14 @@ function SessionAverages({ report }: { report: HourlyVolReport }) {
         {stats.map(([label, val, tone]) => (
           <div
             key={label}
-            className="rounded border border-neutral-800 bg-neutral-950 p-3"
+            className="rounded border border-[var(--color-ichor-border)] bg-[var(--color-ichor-deep)] p-3"
           >
-            <div className="text-xs uppercase tracking-wide text-neutral-400">
+            <div className="text-xs uppercase tracking-wide text-[var(--color-ichor-text-muted)]">
               {label}
             </div>
             <div
               className={`mt-1 font-mono text-xl ${
-                tone === "emerald" ? "text-emerald-300" : "text-amber-300"
+                tone === "emerald" ? "ichor-text-long" : "text-amber-300"
               }`}
             >
               {val != null ? `${val.toFixed(1)} bp` : "n/a"}
@@ -193,7 +193,7 @@ function SessionAverages({ report }: { report: HourlyVolReport }) {
           </div>
         ))}
       </div>
-      <p className="text-[11px] text-neutral-500 mt-3">
+      <p className="text-[11px] text-[var(--color-ichor-text-subtle)] mt-3">
         1 bp = 0.01% de variation moyenne par bar 1-min. Des moyennes
         élevées sur la session Londres/NY confirment qu&apos;il faut trader
         pendant ces heures, pas pendant l&apos;Asia.

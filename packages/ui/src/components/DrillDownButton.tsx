@@ -34,7 +34,7 @@ const VARIANT_CLS: Record<NonNullable<DrillDownButtonProps["variant"]>, string> 
   primary:
     "border border-emerald-700/60 bg-emerald-950/40 text-emerald-200 hover:border-emerald-500 hover:bg-emerald-900/40",
   ghost:
-    "border border-neutral-800 bg-transparent text-neutral-300 hover:border-neutral-700 hover:bg-neutral-900/40",
+    "border border-[var(--color-ichor-border)] bg-transparent text-[var(--color-ichor-text-muted)] hover:border-[var(--color-ichor-border-strong)] hover:bg-[var(--color-ichor-surface)]/60",
 };
 
 const Spinner: React.FC = () => (

@@ -60,34 +60,34 @@ export default async function AssetSessionsPage({
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-6">
-      <nav aria-label="Fil d'Ariane" className="text-xs text-neutral-500 mb-4">
-        <Link href="/sessions" className="hover:text-neutral-300 underline">
+      <nav aria-label="Fil d'Ariane" className="text-xs text-[var(--color-ichor-text-subtle)] mb-4">
+        <Link href="/sessions" className="hover:text-[var(--color-ichor-text-muted)] underline">
           Sessions
         </Link>
         <span className="mx-2">/</span>
-        <span className="text-neutral-300">{meta?.display ?? asset}</span>
+        <span className="text-[var(--color-ichor-text-muted)]">{meta?.display ?? asset}</span>
       </nav>
 
       <header className="mb-5 flex items-baseline justify-between gap-3 flex-wrap">
         <div>
-          <h1 className="text-2xl font-semibold text-neutral-100">
+          <h1 className="text-2xl font-semibold text-[var(--color-ichor-text)]">
             {meta?.display ?? asset}
           </h1>
-          <p className="text-sm text-neutral-400 mt-1">
+          <p className="text-sm text-[var(--color-ichor-text-muted)] mt-1">
             {total} carte(s) historiques · pipeline 4-pass
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <Link
             href={`/scenarios/${asset}`}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded border border-neutral-700 bg-neutral-900/60 text-sm text-neutral-200 hover:border-emerald-600 hover:text-emerald-200 transition"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded border border-[var(--color-ichor-border-strong)] bg-[var(--color-ichor-surface)]/80 text-sm text-[var(--color-ichor-text)] hover:border-emerald-600 hover:text-emerald-200 transition"
           >
             <span aria-hidden="true">🎯</span>
             <span>Scénarios + RR</span>
           </Link>
           <Link
             href={`/replay/${asset}`}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded border border-neutral-700 bg-neutral-900/60 text-sm text-neutral-200 hover:border-emerald-600 hover:text-emerald-200 transition"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded border border-[var(--color-ichor-border-strong)] bg-[var(--color-ichor-surface)]/80 text-sm text-[var(--color-ichor-text)] hover:border-emerald-600 hover:text-emerald-200 transition"
           >
             <span aria-hidden="true">▶</span>
             <span>Replay temporel</span>
@@ -114,7 +114,7 @@ export default async function AssetSessionsPage({
       {latest ? <LatestDetail card={latest} /> : null}
 
       <section className="mt-8">
-        <h2 className="text-lg font-semibold text-neutral-200 mb-3">
+        <h2 className="text-lg font-semibold text-[var(--color-ichor-text)] mb-3">
           Historique
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -133,7 +133,7 @@ export default async function AssetSessionsPage({
             />
           ))}
           {cards.length === 0 && !error ? (
-            <p className="text-sm text-neutral-500 col-span-full">
+            <p className="text-sm text-[var(--color-ichor-text-subtle)] col-span-full">
               Aucune carte générée pour cet actif. Le pipeline 4-pass démarre
               à la prochaine fenêtre de session.
             </p>
@@ -148,22 +148,22 @@ export default async function AssetSessionsPage({
 function LatestDetail({ card }: { card: SessionCard }) {
   return (
     <section
-      className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-5"
+      className="rounded-lg border border-[var(--color-ichor-border)] bg-[var(--color-ichor-surface)]/60 p-5"
       aria-labelledby="latest-heading"
     >
-      <h2 id="latest-heading" className="text-lg font-semibold text-neutral-100 mb-4">
+      <h2 id="latest-heading" className="text-lg font-semibold text-[var(--color-ichor-text)] mb-4">
         Carte la plus récente
       </h2>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <DetailBlock title="Mécanismes">
           {card.mechanisms?.length ? (
-            <ol className="list-decimal list-inside space-y-2 text-sm text-neutral-200">
+            <ol className="list-decimal list-inside space-y-2 text-sm text-[var(--color-ichor-text)]">
               {card.mechanisms.map((m, i) => (
                 <li key={i}>
                   <span>{m.claim}</span>
                   {m.sources?.length ? (
-                    <span className="ml-1 text-xs text-neutral-500">
+                    <span className="ml-1 text-xs text-[var(--color-ichor-text-subtle)]">
                       [{m.sources.join(", ")}]
                     </span>
                   ) : null}
@@ -177,10 +177,10 @@ function LatestDetail({ card }: { card: SessionCard }) {
 
         <DetailBlock title="Catalystes">
           {card.catalysts?.length ? (
-            <ul className="space-y-2 text-sm text-neutral-200">
+            <ul className="space-y-2 text-sm text-[var(--color-ichor-text)]">
               {card.catalysts.map((c, i) => (
                 <li key={i}>
-                  <span className="text-xs text-neutral-500">{c.time}</span>
+                  <span className="text-xs text-[var(--color-ichor-text-subtle)]">{c.time}</span>
                   <br />
                   <span>{c.event}</span>
                   {c.expected_impact ? (
@@ -198,17 +198,17 @@ function LatestDetail({ card }: { card: SessionCard }) {
 
         <DetailBlock title="Conditions d'invalidation">
           {card.invalidations?.length ? (
-            <ul className="space-y-2 text-sm text-neutral-200">
+            <ul className="space-y-2 text-sm text-[var(--color-ichor-text)]">
               {card.invalidations.map((iv, i) => (
                 <li key={i}>
                   <span>{iv.condition}</span>
                   {iv.threshold != null ? (
-                    <span className="ml-1 text-xs text-neutral-400">
+                    <span className="ml-1 text-xs text-[var(--color-ichor-text-muted)]">
                       (seuil {String(iv.threshold)})
                     </span>
                   ) : null}
                   {iv.source ? (
-                    <span className="ml-1 text-xs text-neutral-500">
+                    <span className="ml-1 text-xs text-[var(--color-ichor-text-subtle)]">
                       — {iv.source}
                     </span>
                   ) : null}
@@ -223,10 +223,10 @@ function LatestDetail({ card }: { card: SessionCard }) {
 
       {card.polymarket_overlay?.length ? (
         <div className="mt-5">
-          <h3 className="text-sm font-semibold text-neutral-200 mb-2">
+          <h3 className="text-sm font-semibold text-[var(--color-ichor-text)] mb-2">
             Overlay Polymarket
           </h3>
-          <ul className="text-xs text-neutral-300 space-y-1">
+          <ul className="text-xs text-[var(--color-ichor-text-muted)] space-y-1">
             {card.polymarket_overlay.map((p, i) => (
               <li key={i}>
                 <span className="font-mono text-emerald-300">{p.market}</span>
@@ -273,7 +273,7 @@ function DetailBlock({
 }) {
   return (
     <div>
-      <h3 className="text-sm font-semibold text-neutral-200 mb-2">{title}</h3>
+      <h3 className="text-sm font-semibold text-[var(--color-ichor-text)] mb-2">{title}</h3>
       {children}
     </div>
   );
@@ -281,5 +281,5 @@ function DetailBlock({
 
 
 function Empty() {
-  return <p className="text-xs text-neutral-500">Aucune entrée.</p>;
+  return <p className="text-xs text-[var(--color-ichor-text-subtle)]">Aucune entrée.</p>;
 }

@@ -78,8 +78,8 @@ export default async function AlertsPage({ searchParams }: PageProps) {
   return (
     <main className="max-w-4xl mx-auto px-4 py-6">
       <header className="mb-6">
-        <h1 className="text-2xl font-semibold text-neutral-100 mb-1">Alertes</h1>
-        <p className="text-sm text-neutral-400">
+        <h1 className="text-2xl font-semibold text-[var(--color-ichor-text)] mb-1">Alertes</h1>
+        <p className="text-sm text-[var(--color-ichor-text-muted)]">
           33 types d'alertes (28 PLAN + 5 AUDIT_V2) déclenchés par l'engine
           Hetzner. Crisis Mode = composite.
         </p>
@@ -107,18 +107,18 @@ export default async function AlertsPage({ searchParams }: PageProps) {
 
       <form
         method="get"
-        className="flex flex-wrap items-end gap-3 mb-6 p-3 rounded border border-neutral-800 bg-neutral-900/30"
+        className="flex flex-wrap items-end gap-3 mb-6 p-3 rounded border border-[var(--color-ichor-border)] bg-[var(--color-ichor-surface)]/40"
       >
         <label
           htmlFor="alert-severity"
-          className="flex flex-col text-xs text-neutral-400 gap-1"
+          className="flex flex-col text-xs text-[var(--color-ichor-text-muted)] gap-1"
         >
           <span>Sévérité</span>
           <select
             id="alert-severity"
             name="severity"
             defaultValue={params.severity ?? "all"}
-            className="bg-neutral-900 border border-neutral-700 rounded px-2 py-1 text-sm text-neutral-100"
+            className="bg-[var(--color-ichor-surface)] border border-[var(--color-ichor-border-strong)] rounded px-2 py-1 text-sm text-[var(--color-ichor-text)]"
           >
             {SEVERITY_OPTIONS.map((opt) => (
               <option key={opt.value} value={opt.value}>
@@ -129,7 +129,7 @@ export default async function AlertsPage({ searchParams }: PageProps) {
         </label>
         <label
           htmlFor="alert-asset"
-          className="flex flex-col text-xs text-neutral-400 gap-1"
+          className="flex flex-col text-xs text-[var(--color-ichor-text-muted)] gap-1"
         >
           <span>Actif</span>
           <input
@@ -141,15 +141,15 @@ export default async function AlertsPage({ searchParams }: PageProps) {
             pattern="[A-Z0-9_]{3,16}"
             title="Code en majuscules, lettres / chiffres / souligné, 3 à 16 caractères. Exemple : EUR_USD"
             aria-describedby="alert-asset-help"
-            className="bg-neutral-900 border border-neutral-700 rounded px-2 py-1 text-sm font-mono text-neutral-100 w-32"
+            className="bg-[var(--color-ichor-surface)] border border-[var(--color-ichor-border-strong)] rounded px-2 py-1 text-sm font-mono text-[var(--color-ichor-text)] w-32"
           />
-          <span id="alert-asset-help" className="text-[10px] text-neutral-400">
+          <span id="alert-asset-help" className="text-[10px] text-[var(--color-ichor-text-muted)]">
             Format : 3–16 caractères majuscules, ex. EUR_USD
           </span>
         </label>
         <label
           htmlFor="alert-unack"
-          className="flex items-center gap-2 text-xs text-neutral-300 self-end pb-1"
+          className="flex items-center gap-2 text-xs text-[var(--color-ichor-text-muted)] self-end pb-1"
         >
           <input
             id="alert-unack"
@@ -170,7 +170,7 @@ export default async function AlertsPage({ searchParams }: PageProps) {
         {(severity || asset || unacknowledgedOnly) && (
           <Link
             href="/alerts"
-            className="text-xs text-neutral-500 hover:text-neutral-300"
+            className="text-xs text-[var(--color-ichor-text-subtle)] hover:text-[var(--color-ichor-text-muted)]"
           >
             Réinitialiser
           </Link>
@@ -192,7 +192,7 @@ export default async function AlertsPage({ searchParams }: PageProps) {
           {items.map((a) => (
             <li
               key={a.id}
-              className="rounded border border-neutral-800 bg-neutral-900/40 px-4 py-3 flex flex-col gap-1"
+              className="rounded border border-[var(--color-ichor-border)] bg-[var(--color-ichor-surface)]/60 px-4 py-3 flex flex-col gap-1"
             >
               <div className="flex items-baseline justify-between gap-3">
                 <div className="flex items-center gap-2">
@@ -200,7 +200,7 @@ export default async function AlertsPage({ searchParams }: PageProps) {
                   {a.asset && (
                     <Link
                       href={`/assets/${a.asset}`}
-                      className="text-xs font-mono text-neutral-300 hover:text-emerald-300 transition"
+                      className="text-xs font-mono text-[var(--color-ichor-text-muted)] hover:text-emerald-300 transition"
                     >
                       {a.asset.replace("_", "/")}
                     </Link>
@@ -208,25 +208,25 @@ export default async function AlertsPage({ searchParams }: PageProps) {
                 </div>
                 <time
                   dateTime={a.triggered_at}
-                  className="text-[11px] text-neutral-500 font-mono"
+                  className="text-[11px] text-[var(--color-ichor-text-subtle)] font-mono"
                 >
                   {fmtAt(a.triggered_at)}
                 </time>
               </div>
-              <p className="text-sm text-neutral-200">{a.title}</p>
+              <p className="text-sm text-[var(--color-ichor-text)]">{a.title}</p>
               {a.description && (
-                <p className="text-xs text-neutral-500 leading-relaxed">
+                <p className="text-xs text-[var(--color-ichor-text-subtle)] leading-relaxed">
                   {a.description}
                 </p>
               )}
-              <div className="flex items-center gap-3 text-[11px] text-neutral-500 font-mono">
+              <div className="flex items-center gap-3 text-[11px] text-[var(--color-ichor-text-subtle)] font-mono">
                 <span>{a.metric_name}</span>
                 <span>=</span>
-                <span className="text-neutral-300">{a.metric_value}</span>
+                <span className="text-[var(--color-ichor-text-muted)]">{a.metric_value}</span>
                 <span>{fmtDirection(a.direction)}</span>
                 <span>{a.threshold}</span>
                 {a.acknowledged_at && (
-                  <span className="ml-auto text-neutral-400">
+                  <span className="ml-auto text-[var(--color-ichor-text-muted)]">
                     ack {fmtAt(a.acknowledged_at)}
                   </span>
                 )}

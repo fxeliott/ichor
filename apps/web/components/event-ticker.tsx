@@ -76,7 +76,7 @@ export const EventTicker: React.FC = () => {
       role="status"
       aria-live="polite"
       aria-atomic="true"
-      className="fixed bottom-0 inset-x-0 z-10 border-t border-neutral-800 bg-neutral-950/95 backdrop-blur-sm"
+      className="fixed bottom-0 inset-x-0 z-10 border-t border-[var(--color-ichor-border)] bg-[var(--color-ichor-deep)]/95 backdrop-blur-sm"
     >
       <div className="max-w-6xl mx-auto px-4 py-1.5 flex items-center gap-3 text-[11px] font-mono">
         <span
@@ -85,7 +85,7 @@ export const EventTicker: React.FC = () => {
           }`}
           aria-hidden="true"
         />
-        <span className="text-neutral-500 hidden sm:inline">ICHOR-TAPE</span>
+        <span className="text-[var(--color-ichor-text-subtle)] hidden sm:inline">ICHOR-TAPE</span>
         <div className="flex-1 overflow-hidden">
           <AnimatePresence mode="wait">
             {current ? (
@@ -101,7 +101,7 @@ export const EventTicker: React.FC = () => {
                   className={`inline-block w-1.5 h-1.5 rounded-full ${KIND_DOT[current.channel]}`}
                   aria-hidden="true"
                 />
-                <span className="truncate text-neutral-300">
+                <span className="truncate text-[var(--color-ichor-text-muted)]">
                   {summarize(current)}
                 </span>
               </motion.div>
@@ -111,7 +111,7 @@ export const EventTicker: React.FC = () => {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 0.5 }}
                 exit={{ opacity: 0 }}
-                className="text-neutral-600"
+                className="text-[var(--color-ichor-text-faint)]"
               >
                 en attente d&apos;événements live…
               </motion.span>
@@ -119,7 +119,7 @@ export const EventTicker: React.FC = () => {
           </AnimatePresence>
         </div>
         {events.length > 0 && (
-          <span className="text-[10px] text-neutral-500">
+          <span className="text-[10px] text-[var(--color-ichor-text-subtle)]">
             {activeIdx + 1} / {events.length}
           </span>
         )}

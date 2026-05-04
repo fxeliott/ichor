@@ -13,7 +13,7 @@ const TYPE_OPTIONS: { value: BriefingType | "all"; label: string }[] = [
 ];
 
 const STATUS_COLORS: Record<Briefing["status"], string> = {
-  pending: "bg-neutral-800 text-neutral-400",
+  pending: "bg-[var(--color-ichor-surface-2)] text-[var(--color-ichor-text-muted)]",
   context_assembled: "bg-sky-900/40 text-sky-200",
   claude_running: "bg-amber-900/40 text-amber-200",
   completed: "bg-emerald-900/40 text-emerald-200",
@@ -89,28 +89,28 @@ export default async function BriefingsPage({ searchParams }: PageProps) {
   return (
     <main className="max-w-4xl mx-auto px-4 py-6">
       <header className="mb-6">
-        <h1 className="text-2xl font-semibold text-neutral-100 mb-1">
+        <h1 className="text-2xl font-semibold text-[var(--color-ichor-text)] mb-1">
           Briefings
         </h1>
-        <p className="text-sm text-neutral-400">
+        <p className="text-sm text-[var(--color-ichor-text-muted)]">
           Historique complet des analyses générées par la chaîne Ichor.
         </p>
       </header>
 
       <form
         method="get"
-        className="flex flex-wrap items-end gap-3 mb-6 p-3 rounded border border-neutral-800 bg-neutral-900/30"
+        className="flex flex-wrap items-end gap-3 mb-6 p-3 rounded border border-[var(--color-ichor-border)] bg-[var(--color-ichor-surface)]/40"
       >
         <label
           htmlFor="briefing-type"
-          className="flex flex-col text-xs text-neutral-400 gap-1"
+          className="flex flex-col text-xs text-[var(--color-ichor-text-muted)] gap-1"
         >
           <span>Type</span>
           <select
             id="briefing-type"
             name="type"
             defaultValue={params.type ?? "all"}
-            className="bg-neutral-900 border border-neutral-700 rounded px-2 py-1 text-sm text-neutral-100"
+            className="bg-[var(--color-ichor-surface)] border border-[var(--color-ichor-border-strong)] rounded px-2 py-1 text-sm text-[var(--color-ichor-text)]"
           >
             {TYPE_OPTIONS.map((opt) => (
               <option key={opt.value} value={opt.value}>
@@ -121,7 +121,7 @@ export default async function BriefingsPage({ searchParams }: PageProps) {
         </label>
         <label
           htmlFor="briefing-asset"
-          className="flex flex-col text-xs text-neutral-400 gap-1"
+          className="flex flex-col text-xs text-[var(--color-ichor-text-muted)] gap-1"
         >
           <span>Actif (code)</span>
           <input
@@ -133,9 +133,9 @@ export default async function BriefingsPage({ searchParams }: PageProps) {
             pattern="[A-Z0-9_]{3,16}"
             title="Code en majuscules, lettres / chiffres / souligné, 3 à 16 caractères. Exemple : EUR_USD"
             aria-describedby="briefing-asset-help"
-            className="bg-neutral-900 border border-neutral-700 rounded px-2 py-1 text-sm font-mono text-neutral-100 w-32"
+            className="bg-[var(--color-ichor-surface)] border border-[var(--color-ichor-border-strong)] rounded px-2 py-1 text-sm font-mono text-[var(--color-ichor-text)] w-32"
           />
-          <span id="briefing-asset-help" className="text-[10px] text-neutral-400">
+          <span id="briefing-asset-help" className="text-[10px] text-[var(--color-ichor-text-muted)]">
             Format : 3–16 caractères majuscules, ex. EUR_USD
           </span>
         </label>
@@ -148,12 +148,12 @@ export default async function BriefingsPage({ searchParams }: PageProps) {
         {(briefingType || asset) && (
           <Link
             href="/briefings"
-            className="text-xs text-neutral-500 hover:text-neutral-300"
+            className="text-xs text-[var(--color-ichor-text-subtle)] hover:text-[var(--color-ichor-text-muted)]"
           >
             Réinitialiser
           </Link>
         )}
-        <span className="ml-auto text-[11px] text-neutral-500 font-mono">
+        <span className="ml-auto text-[11px] text-[var(--color-ichor-text-subtle)] font-mono">
           {total} résultat{total > 1 ? "s" : ""}
         </span>
       </form>
@@ -174,10 +174,10 @@ export default async function BriefingsPage({ searchParams }: PageProps) {
             <li key={b.id}>
               <Link
                 href={`/briefings/${b.id}`}
-                className="block rounded border border-neutral-800 bg-neutral-900/40 px-4 py-3 hover:border-neutral-700 transition"
+                className="block rounded border border-[var(--color-ichor-border)] bg-[var(--color-ichor-surface)]/60 px-4 py-3 hover:border-[var(--color-ichor-border-strong)] transition"
               >
                 <div className="flex items-baseline justify-between gap-3 mb-1">
-                  <span className="text-sm text-neutral-200">
+                  <span className="text-sm text-[var(--color-ichor-text)]">
                     {TYPE_LABELS[b.briefing_type]}
                   </span>
                   <span
@@ -190,7 +190,7 @@ export default async function BriefingsPage({ searchParams }: PageProps) {
                     {STATUS_LABELS[b.status]}
                   </span>
                 </div>
-                <div className="flex items-baseline gap-3 text-xs text-neutral-500">
+                <div className="flex items-baseline gap-3 text-xs text-[var(--color-ichor-text-subtle)]">
                   <time dateTime={b.triggered_at} className="font-mono">
                     {fmtAt(b.triggered_at)}
                   </time>

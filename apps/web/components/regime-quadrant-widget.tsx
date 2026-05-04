@@ -102,18 +102,21 @@ export const RegimeQuadrantWidget: React.FC<RegimeQuadrantWidgetProps> = ({
   return (
     <section
       aria-label="Carte des régimes macro — cliquer un quadrant pour filtrer"
-      className="rounded-lg border border-neutral-800 bg-neutral-900/30 p-3"
+      className="ichor-glass rounded-xl p-4 relative overflow-hidden"
     >
-      <header className="mb-2 flex items-baseline justify-between gap-2">
-        <h2 className="text-sm font-semibold text-neutral-100">
-          Régime macro
-        </h2>
-        <p className="text-[11px] text-neutral-500">
+      <header className="mb-3 flex items-baseline justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <h2 className="text-sm font-semibold text-[var(--color-ichor-text)]">
+            Régime macro
+          </h2>
+          <span className="text-[10px] uppercase tracking-wider font-mono text-[var(--color-ichor-text-faint)]">
+            consensus 4-quadrant
+          </span>
+        </div>
+        <p className="text-[10px] text-[var(--color-ichor-text-subtle)]">
           {current
-            ? `Consensus actuel : ${
-                QUADRANTS.find((q) => q.id === current)?.title ?? current
-              }`
-            : "En attente de la première carte"}
+            ? QUADRANTS.find((q) => q.id === current)?.title ?? current
+            : "En attente"}
           {focus ? ` · filtre : ${QUADRANTS.find((q) => q.id === focus)?.title}` : ""}
         </p>
       </header>
@@ -138,8 +141,8 @@ export const RegimeQuadrantWidget: React.FC<RegimeQuadrantWidgetProps> = ({
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               className={[
-                "rounded-md border p-3 text-left transition-colors",
-                "focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500",
+                "rounded-lg border p-3 text-left transition-colors min-h-[88px]",
+                "focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-ichor-accent)]",
                 isActive ? q.active : q.inactive,
                 isFocused ? q.focused : "",
               ].join(" ")}

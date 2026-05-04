@@ -133,18 +133,18 @@ export const Timeline: React.FC<TimelineProps> = ({
       aria-label={`Timeline ${fmtTime(start)} → ${fmtTime(end)}`}
     >
       <div className="relative w-full" style={{ height }}>
-        <div className="absolute top-1/2 left-0 right-0 h-px bg-neutral-800 -translate-y-1/2" />
+        <div className="absolute top-1/2 left-0 right-0 h-px bg-[var(--color-ichor-surface-2)] -translate-y-1/2" />
         {children}
       </div>
       {ticks && ticks.length > 0 && (
-        <div className="flex justify-between mt-1 text-[10px] font-mono text-neutral-500">
+        <div className="flex justify-between mt-1 text-[10px] font-mono text-[var(--color-ichor-text-subtle)]">
           {ticks.map((t, i) => (
             <span key={i}>{t}</span>
           ))}
         </div>
       )}
       {!ticks && (
-        <div className="flex justify-between mt-1 text-[10px] font-mono text-neutral-500">
+        <div className="flex justify-between mt-1 text-[10px] font-mono text-[var(--color-ichor-text-subtle)]">
           <span>{fmtTime(start)}</span>
           <span>{fmtTime(end)}</span>
         </div>

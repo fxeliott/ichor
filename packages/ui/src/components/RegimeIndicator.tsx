@@ -50,7 +50,7 @@ export const RegimeIndicator: React.FC<RegimeIndicatorProps> = ({
       aria-label={fullDescription}
       className="inline-flex items-center gap-2"
     >
-      <div className="flex h-3 w-24 rounded overflow-hidden border border-neutral-700">
+      <div className="flex h-3 w-24 rounded overflow-hidden border border-[var(--color-ichor-border-strong)]">
         {probs.map((p, i) => (
           <div
             key={i}
@@ -59,7 +59,7 @@ export const RegimeIndicator: React.FC<RegimeIndicatorProps> = ({
           />
         ))}
       </div>
-      <span className="text-xs text-neutral-300 font-mono">
+      <span className="text-xs text-[var(--color-ichor-text-muted)] font-mono">
         {STATE_LABELS[dominant]}
       </span>
     </div>

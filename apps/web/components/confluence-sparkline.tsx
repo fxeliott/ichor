@@ -20,7 +20,7 @@ export function ConfluenceSparkline({
   if (!history || history.n_points < 2) {
     return (
       <span
-        className="text-[10px] text-neutral-500 italic"
+        className="text-[10px] text-[var(--color-ichor-text-subtle)] italic"
         title="Pas encore assez de snapshots — la sparkline apparaîtra après 2+ snapshots du cron nightly."
       >
         — sparkline en cours

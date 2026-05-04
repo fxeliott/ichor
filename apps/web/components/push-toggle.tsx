@@ -143,7 +143,7 @@ export const PushToggle: React.FC = () => {
         <button
           type="button"
           onClick={enable}
-          className="px-2 py-1 rounded border border-neutral-700 text-neutral-300 hover:bg-neutral-800"
+          className="px-2 py-1 rounded border border-[var(--color-ichor-border-strong)] text-[var(--color-ichor-text-muted)] hover:bg-[var(--color-ichor-surface-2)]"
           title="Activer les push notifications quand une carte approved est générée"
         >
           🔔 activer push

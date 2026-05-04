@@ -44,9 +44,9 @@ const directionTone = (
   const c = Math.min(95, Math.max(0, convictionPct));
   if (direction === "neutral" || c < 25) {
     return {
-      bg: "bg-neutral-800/60",
-      text: "text-neutral-300",
-      ring: "ring-neutral-700/60",
+      bg: "bg-[var(--color-ichor-surface-2)]",
+      text: "text-[var(--color-ichor-text-muted)]",
+      ring: "ring-[var(--color-ichor-border-strong)]",
       arrow: "→",
     };
   }
@@ -96,14 +96,19 @@ export const CrossAssetHeatmap: React.FC<CrossAssetHeatmapProps> = ({
   return (
     <section
       aria-label="Vue cross-asset : 8 actifs en un coup d'œil"
-      className="rounded-lg border border-neutral-800 bg-neutral-900/30 p-3"
+      className="ichor-glass rounded-xl p-4 relative overflow-hidden"
     >
-      <header className="mb-2 flex items-baseline justify-between gap-2">
-        <h2 className="text-sm font-semibold text-neutral-100">
-          Cross-asset · biais & conviction
-        </h2>
-        <p className="text-[11px] text-neutral-500">
-          Couleur = direction · intensité = conviction post-stress
+      <header className="mb-3 flex items-baseline justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <h2 className="text-sm font-semibold text-[var(--color-ichor-text)]">
+            Cross-asset
+          </h2>
+          <span className="text-[10px] uppercase tracking-wider font-mono text-[var(--color-ichor-text-faint)]">
+            biais × conviction
+          </span>
+        </div>
+        <p className="text-[10px] text-[var(--color-ichor-text-subtle)]">
+          couleur = direction · intensité = conviction
         </p>
       </header>
       <div
@@ -121,12 +126,12 @@ export const CrossAssetHeatmap: React.FC<CrossAssetHeatmapProps> = ({
                 key={meta.code}
                 role="listitem"
                 aria-label={`${meta.display} : pas de carte`}
-                className="rounded border border-dashed border-neutral-800 bg-neutral-900/20 p-2 text-center min-h-[78px] flex flex-col justify-center"
+                className="rounded-lg border border-dashed border-[var(--color-ichor-border)] bg-[var(--color-ichor-deep)]/40 p-2 text-center min-h-[78px] flex flex-col justify-center"
               >
-                <p className="text-[11px] font-mono text-neutral-300">
+                <p className="text-[11px] font-mono text-[var(--color-ichor-text-muted)]">
                   {meta.display}
                 </p>
-                <p className="mt-0.5 text-[10px] text-neutral-600">
+                <p className="mt-0.5 text-[10px] text-[var(--color-ichor-text-faint)]">
                   n/c
                 </p>
               </div>
@@ -152,11 +157,11 @@ export const CrossAssetHeatmap: React.FC<CrossAssetHeatmapProps> = ({
                 href={`/sessions/${meta.code}`}
                 aria-label={`${meta.display} biais ${card.bias_direction} conviction ${card.conviction_pct.toFixed(0)} pourcent`}
                 className={[
-                  "block rounded p-2 text-center min-h-[78px] flex flex-col justify-center ring-1 transition",
+                  "block rounded-lg p-2 text-center min-h-[78px] flex flex-col justify-center ring-1 ichor-lift",
                   tone.bg,
                   tone.text,
                   tone.ring,
-                  "hover:scale-[1.03] focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300",
+                  "focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-ichor-accent)]",
                 ].join(" ")}
               >
                 <p className="text-[11px] font-mono opacity-90">

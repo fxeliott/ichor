@@ -1,62 +1,111 @@
 @import "tailwindcss";
 
 /*
- * Ichor design tokens — single source of truth for color, type, and motion.
+ * Ichor design tokens — bleu cobalt sur noir profond.
  *
- * Naming convention:
- *   --color-ichor-{role}    semantic role (bg, text, accent, danger, …)
- *   --color-ichor-{scale}-{N}   scale step where applicable (subtle gradations)
- *
- * Stay close to neutral-950 → neutral-50 for surfaces. Reserve emerald for
- * "long bias" + healthy state, red for "short bias" + critical state, amber
- * for warning + caution. No brand magenta/blue — Ichor is a sober tool.
+ * Inspiré : Bloomberg Terminal (densité), Linear (typo + motion), Vercel
+ * (dark glass), TradingView (palette signal). Le bleu cobalt est l'accent
+ * unique pour focus + actions ; émeraude/rose restent réservés aux bias
+ * (long/short) ; ambré pour warning ; cyan pour info.
  */
 
 @theme {
-  /* Surfaces */
-  --color-ichor-bg: #0a0a0b;             /* neutral-950 */
-  --color-ichor-bg-elev-1: #18181b;      /* neutral-900 */
-  --color-ichor-bg-elev-2: #27272a;      /* neutral-800 */
+  /* ── Surfaces (du plus profond au plus élevé) ───────── */
+  --color-ichor-deep: #04070C;
+  --color-ichor-bg: #070B14;
+  --color-ichor-surface: #0B1220;
+  --color-ichor-surface-2: #0F1828;
+  --color-ichor-surface-3: #16223A;
 
-  /* Text */
-  --color-ichor-text: #f5f5f5;           /* neutral-100 */
-  --color-ichor-text-muted: #a3a3a3;     /* neutral-400 */
-  --color-ichor-text-subtle: #737373;    /* neutral-500 */
+  /* ── Borders ────────────────────────────────────────── */
+  --color-ichor-border: #1A2435;
+  --color-ichor-border-strong: #2A3854;
+  --color-ichor-border-accent: #3B82F6;
 
-  /* Borders */
-  --color-ichor-border: #27272a;         /* neutral-800 */
-  --color-ichor-border-strong: #404040;  /* neutral-700 */
+  /* ── Text ───────────────────────────────────────────── */
+  --color-ichor-text: #F0F4FA;
+  --color-ichor-text-muted: #8FA3BF;
+  --color-ichor-text-subtle: #5A6E89;
+  --color-ichor-text-faint: #3F526E;
 
-  /* Bias direction */
-  --color-ichor-long: #34d399;           /* emerald-400 */
-  --color-ichor-long-deep: #047857;      /* emerald-700 */
-  --color-ichor-short: #f87171;          /* red-400 */
-  --color-ichor-short-deep: #b91c1c;     /* red-700 */
-  --color-ichor-neutral: #a3a3a3;        /* neutral-400 */
+  /* ── Accent cobalt ──────────────────────────────────── */
+  --color-ichor-accent: #3B82F6;
+  --color-ichor-accent-bright: #60A5FA;
+  --color-ichor-accent-deep: #1E40AF;
+  --color-ichor-accent-muted: #93C5FD;
 
-  /* Severity */
-  --color-ichor-info: #38bdf8;           /* sky-400 */
-  --color-ichor-warning: #fbbf24;        /* amber-400 */
-  --color-ichor-critical: #f87171;       /* red-400 */
+  /* ── Bias direction ─────────────────────────────────── */
+  --color-ichor-long: #34D399;
+  --color-ichor-long-deep: #047857;
+  --color-ichor-short: #F87171;
+  --color-ichor-short-deep: #B91C1C;
+  --color-ichor-neutral: #94A3B8;
 
-  /* Accent (single accent, used sparingly) */
-  --color-ichor-accent: #34d399;         /* emerald-400 — never red, never blue */
+  /* ── Severity ───────────────────────────────────────── */
+  --color-ichor-info: #06B6D4;
+  --color-ichor-warning: #F59E0B;
+  --color-ichor-critical: #EF4444;
 
-  /* Type */
-  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  /* ── Type ───────────────────────────────────────────── */
+  --font-sans: "Inter", "InterVariable", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", "SF Mono", Menlo, monospace;
 
-  /* Motion */
+  /* ── Motion ─────────────────────────────────────────── */
   --ease-ichor-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-ichor-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
   --duration-ichor-fast: 120ms;
-  --duration-ichor-normal: 200ms;
+  --duration-ichor-normal: 220ms;
+  --duration-ichor-slow: 420ms;
 }
+
+/* ── Base ──────────────────────────────────────────── */
 
 html, body {
   height: 100%;
+  background: var(--color-ichor-bg);
+  color: var(--color-ichor-text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* Respect users who prefer reduced motion (a11y, EU + WCAG 2.2 AA) */
+body {
+  scrollbar-gutter: stable;
+  background:
+    radial-gradient(ellipse 100% 60% at 50% -10%, rgba(59, 130, 246, 0.10) 0%, transparent 60%),
+    radial-gradient(ellipse 80% 50% at 100% 100%, rgba(96, 165, 250, 0.05) 0%, transparent 50%),
+    var(--color-ichor-bg);
+  background-attachment: fixed;
+}
+
+::selection {
+  background: rgba(59, 130, 246, 0.30);
+  color: var(--color-ichor-text);
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb {
+  background: rgba(59, 130, 246, 0.18);
+  border-radius: 5px;
+  transition: background 220ms;
+}
+*::-webkit-scrollbar-thumb:hover { background: rgba(96, 165, 250, 0.32); }
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(59, 130, 246, 0.18) transparent;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-ichor-accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ── A11y : prefers-reduced-motion ─────────────────── */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -66,24 +115,201 @@ html, body {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
-  /* Tailwind's `animate-pulse` uses `animation: pulse 2s` — the global
-     duration override only shortens it; explicitly cancel and pin opacity
-     so the visual reverts to a static state. (M2 in the 2026-05-03 a11y
-     audit.) */
-  .animate-pulse {
+  .animate-pulse,
+  .ichor-orb,
+  .ichor-shimmer,
+  .ichor-pulse-dot,
+  .ichor-fade-in,
+  .ichor-ticker-in {
     animation: none !important;
     opacity: 1 !important;
   }
 }
 
-/* Visible focus outline on every interactive element — keyboard a11y baseline */
-:focus-visible {
-  outline: 2px solid var(--color-ichor-accent);
-  outline-offset: 2px;
-  border-radius: 2px;
+/* ── Glass card ────────────────────────────────────── */
+.ichor-glass {
+  background: linear-gradient(180deg, rgba(15, 24, 40, 0.85) 0%, rgba(11, 18, 32, 0.85) 100%);
+  border: 1px solid var(--color-ichor-border);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.03),
+    0 4px 24px -8px rgba(0, 0, 0, 0.4);
+  transition: border-color 220ms, box-shadow 220ms;
+}
+.ichor-glass:hover { border-color: var(--color-ichor-border-strong); }
+
+/* ── Glow rings ────────────────────────────────────── */
+.ichor-glow {
+  box-shadow:
+    0 0 0 1px rgba(59, 130, 246, 0.30),
+    0 0 24px -4px rgba(96, 165, 250, 0.40),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+.ichor-glow-emerald {
+  box-shadow:
+    0 0 0 1px rgba(16, 185, 129, 0.30),
+    0 0 24px -4px rgba(52, 211, 153, 0.30);
+}
+.ichor-glow-rose {
+  box-shadow:
+    0 0 0 1px rgba(244, 63, 94, 0.30),
+    0 0 24px -4px rgba(244, 114, 128, 0.30);
 }
 
-/* Hide overlay scrollbars on the body but keep behavior */
-body {
-  scrollbar-gutter: stable;
+/* ── Gradient border (Linear-style 1px stroke) ─────── */
+.ichor-gradient-border {
+  position: relative;
+  background: var(--color-ichor-surface);
+  border: 1px solid transparent;
+  background-clip: padding-box;
+}
+.ichor-gradient-border::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.45), rgba(59, 130, 246, 0.05) 50%, transparent);
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* ── Floating orbs ─────────────────────────────────── */
+.ichor-orb {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(80px);
+  opacity: 0.5;
+  pointer-events: none;
+  animation: ichor-orb-float 18s ease-in-out infinite;
+  will-change: transform;
+}
+@keyframes ichor-orb-float {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(20px, -30px, 0) scale(1.08); }
+}
+
+/* ── Shimmer (skeleton loading) ────────────────────── */
+.ichor-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--color-ichor-surface) 0%,
+    var(--color-ichor-surface-2) 40%,
+    var(--color-ichor-surface) 80%
+  );
+  background-size: 200% 100%;
+  animation: ichor-shimmer 1.5s ease-in-out infinite;
+}
+@keyframes ichor-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ── Pulse dot (live indicator) ────────────────────── */
+.ichor-pulse-dot {
+  position: relative;
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-ichor-accent-bright);
+  box-shadow: 0 0 0 0 rgba(96, 165, 250, 0.6);
+  animation: ichor-pulse 1.8s ease-in-out infinite;
+}
+@keyframes ichor-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(96, 165, 250, 0.55); }
+  50% { box-shadow: 0 0 0 7px rgba(96, 165, 250, 0); }
+}
+
+/* ── Animated nav link underline ───────────────────── */
+.ichor-nav-link {
+  position: relative;
+  padding-bottom: 2px;
+  transition: color 220ms;
+  color: var(--color-ichor-text-muted);
+}
+.ichor-nav-link:hover {
+  color: var(--color-ichor-text);
+}
+.ichor-nav-link::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 100%;
+  bottom: -3px;
+  height: 1.5px;
+  background: linear-gradient(90deg, var(--color-ichor-accent-bright), transparent);
+  transition: right 220ms var(--ease-ichor-out);
+}
+.ichor-nav-link:hover::after,
+.ichor-nav-link[aria-current="page"]::after {
+  right: 0;
+}
+.ichor-nav-link[aria-current="page"] { color: var(--color-ichor-text); }
+
+/* ── Card lift on hover ────────────────────────────── */
+.ichor-lift {
+  transition: transform 220ms var(--ease-ichor-out), box-shadow 220ms;
+  will-change: transform;
+}
+.ichor-lift:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 8px 32px -12px rgba(0, 0, 0, 0.6),
+    0 0 0 1px rgba(59, 130, 246, 0.25);
+}
+
+/* ── Number ticker entrance ────────────────────────── */
+@keyframes ichor-ticker-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.ichor-ticker-in {
+  animation: ichor-ticker-in 360ms var(--ease-ichor-out) both;
+}
+
+/* ── Page-enter fade with stagger ──────────────────── */
+@keyframes ichor-fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.ichor-fade-in { animation: ichor-fade-in 360ms var(--ease-ichor-out) both; }
+.ichor-fade-in[data-stagger="1"] { animation-delay: 60ms; }
+.ichor-fade-in[data-stagger="2"] { animation-delay: 120ms; }
+.ichor-fade-in[data-stagger="3"] { animation-delay: 180ms; }
+.ichor-fade-in[data-stagger="4"] { animation-delay: 240ms; }
+.ichor-fade-in[data-stagger="5"] { animation-delay: 300ms; }
+.ichor-fade-in[data-stagger="6"] { animation-delay: 360ms; }
+
+/* ── Subtle grid pattern (hero sections) ───────────── */
+.ichor-grid-bg {
+  background-image:
+    linear-gradient(rgba(59, 130, 246, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(59, 130, 246, 0.05) 1px, transparent 1px);
+  background-size: 32px 32px;
+  background-position: -1px -1px;
+  mask-image: radial-gradient(ellipse 70% 60% at 50% 0%, black 0%, transparent 80%);
+  -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 0%, black 0%, transparent 80%);
+}
+
+/* ── Bias semantic colors ──────────────────────────── */
+.ichor-text-long { color: var(--color-ichor-long); }
+.ichor-text-short { color: var(--color-ichor-short); }
+.ichor-text-accent { color: var(--color-ichor-accent-bright); }
+.ichor-bg-long { background: rgba(52, 211, 153, 0.12); border-color: rgba(52, 211, 153, 0.35); }
+.ichor-bg-short { background: rgba(248, 113, 113, 0.12); border-color: rgba(248, 113, 113, 0.35); }
+.ichor-bg-accent { background: rgba(59, 130, 246, 0.12); border-color: rgba(59, 130, 246, 0.35); }
+
+/* ── Marquee for ticker ───────────────────────────── */
+@keyframes ichor-marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+.ichor-marquee {
+  animation: ichor-marquee 60s linear infinite;
 }

@@ -107,12 +107,12 @@ export const ShockSimulator: React.FC<ShockSimulatorProps> = ({
   }, [shockNode, probability]);
 
   return (
-    <section className="rounded-lg border border-neutral-800 bg-neutral-900/30 p-4">
+    <section className="rounded-lg border border-[var(--color-ichor-border)] bg-[var(--color-ichor-surface)]/40 p-4">
       <header className="mb-3">
-        <h2 className="text-sm font-semibold text-neutral-100">
+        <h2 className="text-sm font-semibold text-[var(--color-ichor-text)]">
           Simulateur de choc causal
         </h2>
-        <p className="text-[11px] text-neutral-400 mt-1 max-w-2xl">
+        <p className="text-[11px] text-[var(--color-ichor-text-muted)] mt-1 max-w-2xl">
           Choisis un nœud, fixe la probabilité du choc (0-1), et clique
           Propage — la chaîne de transmission canonique propage l&apos;impact
           via noisy-OR sur les arêtes pondérées du causal map.
@@ -120,12 +120,12 @@ export const ShockSimulator: React.FC<ShockSimulatorProps> = ({
       </header>
 
       <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto] gap-2 mb-3 items-end">
-        <label className="text-xs text-neutral-300">
+        <label className="text-xs text-[var(--color-ichor-text-muted)]">
           Nœud de choc
           <select
             value={shockNode}
             onChange={(e) => setShockNode(e.target.value)}
-            className="mt-1 w-full rounded border border-neutral-700 bg-neutral-950 px-2 py-1.5 text-sm text-neutral-100"
+            className="mt-1 w-full rounded border border-[var(--color-ichor-border-strong)] bg-[var(--color-ichor-deep)] px-2 py-1.5 text-sm text-[var(--color-ichor-text)]"
           >
             {initialNodes.map((n) => (
               <option key={n} value={n}>
@@ -134,7 +134,7 @@ export const ShockSimulator: React.FC<ShockSimulatorProps> = ({
             ))}
           </select>
         </label>
-        <label className="text-xs text-neutral-300">
+        <label className="text-xs text-[var(--color-ichor-text-muted)]">
           P(choc)
           <input
             type="number"
@@ -145,7 +145,7 @@ export const ShockSimulator: React.FC<ShockSimulatorProps> = ({
             onChange={(e) =>
               setProbability(Math.max(0, Math.min(1, parseFloat(e.target.value) || 0)))
             }
-            className="mt-1 w-24 rounded border border-neutral-700 bg-neutral-950 px-2 py-1.5 text-sm text-neutral-100 font-mono"
+            className="mt-1 w-24 rounded border border-[var(--color-ichor-border-strong)] bg-[var(--color-ichor-deep)] px-2 py-1.5 text-sm text-[var(--color-ichor-text)] font-mono"
           />
         </label>
         <button
@@ -174,9 +174,9 @@ export const ShockSimulator: React.FC<ShockSimulatorProps> = ({
             transition={{ duration: 0.2 }}
             className="space-y-1"
           >
-            <p className="text-[11px] text-neutral-500 mb-2">
+            <p className="text-[11px] text-[var(--color-ichor-text-subtle)] mb-2">
               {result.impacts.length} impacts depuis{" "}
-              <span className="font-mono text-neutral-300">
+              <span className="font-mono text-[var(--color-ichor-text-muted)]">
                 {NODE_LABEL[result.shock_node] ?? result.shock_node}
               </span>{" "}
               (P={result.shock_probability.toFixed(2)})
@@ -189,10 +189,10 @@ export const ShockSimulator: React.FC<ShockSimulatorProps> = ({
                 transition={{ delay: idx * 0.03 }}
                 className="flex items-center gap-2 text-sm"
               >
-                <span className="w-32 sm:w-40 truncate font-mono text-neutral-200">
+                <span className="w-32 sm:w-40 truncate font-mono text-[var(--color-ichor-text)]">
                   {NODE_LABEL[i.node_id] ?? i.node_id.replace("_USD", "/USD")}
                 </span>
-                <div className="flex-1 h-2 rounded bg-neutral-800 overflow-hidden">
+                <div className="flex-1 h-2 rounded bg-[var(--color-ichor-surface-2)] overflow-hidden">
                   <motion.div
                     initial={{ width: 0 }}
                     animate={{ width: `${i.probability * 100}%` }}
@@ -200,10 +200,10 @@ export const ShockSimulator: React.FC<ShockSimulatorProps> = ({
                     className={`h-full ${probColor(i.probability)}`}
                   />
                 </div>
-                <span className="font-mono text-xs text-neutral-300 w-20 text-right">
+                <span className="font-mono text-xs text-[var(--color-ichor-text-muted)] w-20 text-right">
                   {(i.probability * 100).toFixed(1)}%
                 </span>
-                <span className="font-mono text-[10px] text-neutral-500 w-12 text-right">
+                <span className="font-mono text-[10px] text-[var(--color-ichor-text-subtle)] w-12 text-right">
                   hop {i.hops_from_shock}
                 </span>
               </motion.div>

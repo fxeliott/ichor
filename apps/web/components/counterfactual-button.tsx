@@ -102,13 +102,13 @@ export const CounterfactualButton: React.FC<CounterfactualButtonProps> = ({
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="w-full max-w-xl rounded-lg border border-neutral-700 bg-neutral-900 p-5"
+              className="w-full max-w-xl rounded-lg border border-[var(--color-ichor-border-strong)] bg-[var(--color-ichor-surface)] p-5"
             >
               <header className="mb-3">
-                <h2 className="text-lg font-semibold text-neutral-100">
+                <h2 className="text-lg font-semibold text-[var(--color-ichor-text)]">
                   Counterfactual · {asset.replace(/_/g, "/")}
                 </h2>
-                <p className="text-xs text-neutral-400 mt-1">
+                <p className="text-xs text-[var(--color-ichor-text-muted)] mt-1">
                   Si un événement n&apos;avait pas eu lieu, quel serait le
                   biais ? Décris l&apos;événement à mentalement scrub.
                 </p>
@@ -119,7 +119,7 @@ export const CounterfactualButton: React.FC<CounterfactualButtonProps> = ({
                 onChange={(e) => setEvent(e.target.value)}
                 disabled={loading}
                 placeholder="Ex: Powell hawkish surprise on May 2 / NFP +250k surprise / ECB Lagarde dovish line"
-                className="w-full h-24 rounded border border-neutral-700 bg-neutral-950 p-2 text-sm text-neutral-100 placeholder:text-neutral-600 focus:outline-none focus:border-amber-500"
+                className="w-full h-24 rounded border border-[var(--color-ichor-border-strong)] bg-[var(--color-ichor-deep)] p-2 text-sm text-[var(--color-ichor-text)] placeholder:text-[var(--color-ichor-text-faint)] focus:outline-none focus:border-amber-500"
                 aria-label="Événement à scrub"
               />
 
@@ -132,35 +132,35 @@ export const CounterfactualButton: React.FC<CounterfactualButtonProps> = ({
               {result && (
                 <div className="mt-3 rounded border border-amber-700/40 bg-amber-900/15 p-3 space-y-2 text-sm">
                   <div className="flex items-baseline justify-between gap-2">
-                    <span className="text-neutral-400 text-xs">
+                    <span className="text-[var(--color-ichor-text-muted)] text-xs">
                       Original :{" "}
-                      <span className="font-mono text-neutral-200">
+                      <span className="font-mono text-[var(--color-ichor-text)]">
                         {result.original_bias} {result.original_conviction_pct.toFixed(0)}%
                       </span>
                     </span>
-                    <span className="text-neutral-400 text-xs">
+                    <span className="text-[var(--color-ichor-text-muted)] text-xs">
                       Counterfactual :{" "}
                       <span className="font-mono text-amber-200">
                         {result.counterfactual_bias} {result.counterfactual_conviction_pct.toFixed(0)}%
                       </span>
                     </span>
                   </div>
-                  <p className="text-neutral-200 leading-snug">
+                  <p className="text-[var(--color-ichor-text)] leading-snug">
                     {result.delta_narrative}
                   </p>
                   {result.new_dominant_drivers.length > 0 && (
                     <div className="text-xs">
-                      <p className="text-neutral-400 mb-1">
+                      <p className="text-[var(--color-ichor-text-muted)] mb-1">
                         Drivers dominants si scrub :
                       </p>
-                      <ul className="list-disc list-inside text-neutral-300">
+                      <ul className="list-disc list-inside text-[var(--color-ichor-text-muted)]">
                         {result.new_dominant_drivers.map((d, i) => (
                           <li key={i}>{d}</li>
                         ))}
                       </ul>
                     </div>
                   )}
-                  <p className="text-[11px] text-neutral-500">
+                  <p className="text-[11px] text-[var(--color-ichor-text-subtle)]">
                     Δ confiance :{" "}
                     <span
                       className={
@@ -168,7 +168,7 @@ export const CounterfactualButton: React.FC<CounterfactualButtonProps> = ({
                           ? "text-emerald-400"
                           : result.confidence_delta < 0
                             ? "text-rose-400"
-                            : "text-neutral-400"
+                            : "text-[var(--color-ichor-text-muted)]"
                       }
                     >
                       {result.confidence_delta >= 0 ? "+" : ""}
@@ -183,7 +183,7 @@ export const CounterfactualButton: React.FC<CounterfactualButtonProps> = ({
                   type="button"
                   onClick={reset}
                   disabled={loading}
-                  className="px-3 py-1.5 rounded text-sm text-neutral-400 hover:text-neutral-200"
+                  className="px-3 py-1.5 rounded text-sm text-[var(--color-ichor-text-muted)] hover:text-[var(--color-ichor-text)]"
                 >
                   Fermer
                 </button>

@@ -31,23 +31,23 @@ export default async function YieldCurvePage() {
 
   return (
     <main className="max-w-5xl mx-auto px-4 py-6">
-      <nav className="text-xs text-neutral-500 mb-4">
-        <Link href="/" className="hover:text-neutral-300 underline">
+      <nav className="text-xs text-[var(--color-ichor-text-subtle)] mb-4">
+        <Link href="/" className="hover:text-[var(--color-ichor-text-muted)] underline">
           Accueil
         </Link>
         <span className="mx-2">/</span>
-        <Link href="/macro-pulse" className="hover:text-neutral-300 underline">
+        <Link href="/macro-pulse" className="hover:text-[var(--color-ichor-text-muted)] underline">
           Macro pulse
         </Link>
         <span className="mx-2">/</span>
-        <span className="text-neutral-300">Yield curve</span>
+        <span className="text-[var(--color-ichor-text-muted)]">Yield curve</span>
       </nav>
 
       <header className="mb-6">
-        <h1 className="text-2xl font-semibold text-neutral-100">
+        <h1 className="text-2xl font-semibold text-[var(--color-ichor-text)]">
           US Treasury yield curve
         </h1>
-        <p className="text-sm text-neutral-400 mt-1">
+        <p className="text-sm text-[var(--color-ichor-text-muted)] mt-1">
           Term structure complète 3M-30Y. La pente 3M-10Y est le proxy de
           récession le plus précis (NY Fed) — quand inversée ≥ 1 trimestre,
           elle a précédé chaque récession depuis 1960.
@@ -55,7 +55,7 @@ export default async function YieldCurvePage() {
       </header>
 
       {error || !yc ? (
-        <p className="text-sm text-rose-300">
+        <p className="text-sm ichor-text-short">
           {error ?? "Indisponible : /v1/macro-pulse non joignable."}
         </p>
       ) : (
@@ -86,7 +86,7 @@ function CurveChart({ yc }: { yc: YieldCurvePulse }) {
   return (
     <section
       aria-labelledby="curve-heading"
-      className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-5 mb-6"
+      className="rounded-lg border border-[var(--color-ichor-border)] bg-[var(--color-ichor-surface)]/60 p-5 mb-6"
     >
       <h2 id="curve-heading" className="sr-only">
         Curve chart
@@ -98,7 +98,7 @@ function CurveChart({ yc }: { yc: YieldCurvePulse }) {
             return (
               <div
                 key={p.label}
-                className="flex-1 flex flex-col items-center gap-1 text-neutral-600"
+                className="flex-1 flex flex-col items-center gap-1 text-[var(--color-ichor-text-faint)]"
               >
                 <span className="text-[10px] font-mono">·</span>
                 <div className="flex-1 w-full" />
@@ -113,22 +113,22 @@ function CurveChart({ yc }: { yc: YieldCurvePulse }) {
               className="flex-1 flex flex-col items-center gap-1.5"
               title={`${p.label} : ${y.toFixed(2)}% (tenor ${p.tenor_years}y)`}
             >
-              <span className="text-[10px] font-mono text-neutral-300">
+              <span className="text-[10px] font-mono text-[var(--color-ichor-text-muted)]">
                 {y.toFixed(2)}%
               </span>
               <div
                 className="w-full bg-emerald-600/70 rounded-sm transition-all"
                 style={{ height: `${heightPct}%` }}
               />
-              <span className="text-[10px] font-mono text-neutral-400">
+              <span className="text-[10px] font-mono text-[var(--color-ichor-text-muted)]">
                 {p.label}
               </span>
             </div>
           );
         })}
       </div>
-      <p className="text-[11px] text-neutral-500">
-        Forme : <span className="text-neutral-200 font-mono">{yc.shape}</span> ·
+      <p className="text-[11px] text-[var(--color-ichor-text-subtle)]">
+        Forme : <span className="text-[var(--color-ichor-text)] font-mono">{yc.shape}</span> ·
         segments inversés : {yc.inverted_segments}
       </p>
     </section>
@@ -163,14 +163,14 @@ function SlopeGrid({ yc }: { yc: YieldCurvePulse }) {
       {slopes.map(([label, val, note]) => {
         const tone =
           val == null
-            ? "text-neutral-300"
+            ? "text-[var(--color-ichor-text-muted)]"
             : label.includes("Real yield")
               ? val < 1
                 ? "text-amber-300"
-                : "text-emerald-300"
+                : "ichor-text-long"
               : val < 0
-                ? "text-rose-300"
-                : "text-emerald-300";
+                ? "ichor-text-short"
+                : "ichor-text-long";
         const display =
           val == null
             ? "n/a"
@@ -180,13 +180,13 @@ function SlopeGrid({ yc }: { yc: YieldCurvePulse }) {
         return (
           <div
             key={label}
-            className="rounded border border-neutral-800 bg-neutral-950 p-3"
+            className="rounded border border-[var(--color-ichor-border)] bg-[var(--color-ichor-deep)] p-3"
           >
-            <div className="text-xs uppercase tracking-wide text-neutral-400">
+            <div className="text-xs uppercase tracking-wide text-[var(--color-ichor-text-muted)]">
               {label}
             </div>
             <div className={`mt-1 font-mono text-2xl ${tone}`}>{display}</div>
-            <p className="text-[11px] text-neutral-500 mt-1 leading-snug">
+            <p className="text-[11px] text-[var(--color-ichor-text-subtle)] mt-1 leading-snug">
               {note}
             </p>
           </div>

@@ -36,7 +36,7 @@ const REGIME_LABELS: Record<0 | 1 | 2, string> = {
 const REGIME_COLORS: Record<0 | 1 | 2, string> = {
   0: "bg-emerald-900/40 text-emerald-200 border-emerald-700/40",
   1: "bg-amber-900/40 text-amber-200 border-amber-700/40",
-  2: "bg-neutral-800/60 text-neutral-300 border-neutral-700/40",
+  2: "bg-[var(--color-ichor-surface-2)] text-[var(--color-ichor-text-muted)] border-[var(--color-ichor-border-strong)]/40",
 };
 
 const SEVERITY_COLORS: Record<string, string> = {
@@ -70,7 +70,7 @@ export const AssetCard: React.FC<AssetCardProps> = ({
       <div
         role="status"
         aria-label={`${formatAsset(asset)} loading`}
-        className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-4 animate-pulse h-48"
+        className="rounded-lg border border-[var(--color-ichor-border)] bg-[var(--color-ichor-surface)]/60 p-4 animate-pulse h-48"
       />
     );
   }
@@ -78,7 +78,7 @@ export const AssetCard: React.FC<AssetCardProps> = ({
   const changeColor =
     change24hPct > 0 ? "text-emerald-400" :
     change24hPct < 0 ? "text-red-400" :
-    "text-neutral-400";
+    "text-[var(--color-ichor-text-muted)]";
 
   // When no onDrillDown is provided, render as <article> so the parent
   // (e.g. Next.js <Link>) can wrap it without nesting interactive elements.
@@ -89,11 +89,11 @@ export const AssetCard: React.FC<AssetCardProps> = ({
         type: "button" as const,
         onClick: onDrillDown,
         className:
-          "text-left w-full rounded-lg border border-neutral-800 bg-neutral-900/40 p-4 transition hover:border-neutral-700 hover:bg-neutral-900/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500",
+          "text-left w-full rounded-lg border border-[var(--color-ichor-border)] bg-[var(--color-ichor-surface)]/60 p-4 transition hover:border-[var(--color-ichor-border-strong)] hover:bg-[var(--color-ichor-surface)]/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500",
       }
     : {
         className:
-          "block w-full rounded-lg border border-neutral-800 bg-neutral-900/40 p-4 transition hover:border-neutral-700 hover:bg-neutral-900/60",
+          "block w-full rounded-lg border border-[var(--color-ichor-border)] bg-[var(--color-ichor-surface)]/60 p-4 transition hover:border-[var(--color-ichor-border-strong)] hover:bg-[var(--color-ichor-surface)]/80",
       };
 
   return (
@@ -110,7 +110,7 @@ export const AssetCard: React.FC<AssetCardProps> = ({
         : {})}
     >
       <header className="flex items-baseline justify-between mb-3">
-        <h3 className="text-base font-semibold text-neutral-100 tracking-tight">
+        <h3 className="text-base font-semibold text-[var(--color-ichor-text)] tracking-tight">
           {formatAsset(asset)}
         </h3>
         {regimeState !== undefined && (

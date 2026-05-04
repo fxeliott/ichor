@@ -1,20 +1,13 @@
 /**
- * CurrencyStrengthWidget — ranked basket strength widget for the home page.
+ * CurrencyStrengthWidget — ranked basket strength with diverging bars.
  *
- * Server component : pulls /v1/currency-strength?window_hours=24 and renders
- * a ranked horizontal bar list (strongest at top). Each bar has the
- * currency code, the % score (signed), and a colored fill.
- *
- * Color encoding :
- *   - score > 0  → emerald (strong)
- *   - score < 0  → rose (weak)
- *   - magnitude scales bar length, capped at ±2%.
- *
- * VISION_2026 — closes the "what's the basket picture?" gap. Critical
- * for FX traders who watch one pair at a time.
+ * Each currency rendered as a centered diverging bar : positive →
+ * emerald right of the axis, negative → rose left. Magnitude is the
+ * fraction of the largest |score| in the basket.
  */
 
 import { ApiError, getCurrencyStrength, type CurrencyStrength } from "../lib/api";
+import { GlassCard } from "./ui/glass-card";
 
 export const revalidate = 60;
 
@@ -45,40 +38,33 @@ export async function CurrencyStrengthWidget() {
 
   if (error || !report || report.entries.length === 0) {
     return (
-      <section
-        aria-labelledby="currency-strength-heading"
-        className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-4"
-      >
-        <h2
-          id="currency-strength-heading"
-          className="text-sm font-semibold text-neutral-200 mb-2"
-        >
+      <GlassCard variant="glass" className="p-4">
+        <h2 className="text-sm font-semibold text-[var(--color-ichor-text)] mb-2">
           Force des devises (24h)
         </h2>
-        <p className="text-xs text-neutral-500">
+        <p className="text-xs text-[var(--color-ichor-text-subtle)]">
           {error
             ? `Indisponible : ${error}`
-            : "En attente de bars polygon suffisamment longs."}
+            : "En attente de bars polygon."}
         </p>
-      </section>
+      </GlassCard>
     );
   }
 
   const maxAbs = Math.max(0.5, ...report.entries.map((e) => Math.abs(e.score)));
 
   return (
-    <section
-      aria-labelledby="currency-strength-heading"
-      className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-4"
-    >
+    <GlassCard variant="glass" className="p-4">
       <header className="mb-3 flex items-baseline justify-between">
-        <h2
-          id="currency-strength-heading"
-          className="text-sm font-semibold text-neutral-200"
-        >
-          Force des devises (24h)
-        </h2>
-        <span className="text-[10px] text-neutral-500 font-mono">
+        <div className="flex items-center gap-2">
+          <h2 className="text-sm font-semibold text-[var(--color-ichor-text)]">
+            Force des devises
+          </h2>
+          <span className="text-[10px] uppercase tracking-wider text-[var(--color-ichor-text-faint)] font-mono">
+            24h · basket
+          </span>
+        </div>
+        <span className="text-[10px] text-[var(--color-ichor-text-subtle)] font-mono">
           {new Date(report.generated_at).toLocaleTimeString("fr-FR", {
             hour: "2-digit",
             minute: "2-digit",
@@ -86,30 +72,36 @@ export async function CurrencyStrengthWidget() {
           })}
         </span>
       </header>
-      <ul className="space-y-1.5">
-        {report.entries.map((e) => {
+
+      <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2">
+        {report.entries.map((e, i) => {
           const pct = (Math.abs(e.score) / maxAbs) * 100;
           const positive = e.score >= 0;
           return (
             <li
               key={e.currency}
-              className="flex items-center gap-2 text-xs"
+              className="flex items-center gap-2 text-xs ichor-fade-in"
+              data-stagger={Math.min(6, i + 1)}
             >
-              <span className="w-12 font-mono text-neutral-300">
-                <span className="mr-1" aria-hidden="true">
+              <span className="w-12 font-mono text-[var(--color-ichor-text)] flex items-center gap-1">
+                <span className="text-base" aria-hidden="true">
                   {FX_FLAGS[e.currency] ?? "·"}
                 </span>
                 {e.currency}
               </span>
-              <div className="flex-1 h-3 rounded bg-neutral-950 relative overflow-hidden border border-neutral-800">
+              <div className="flex-1 h-2.5 rounded bg-[var(--color-ichor-deep)] relative overflow-hidden border border-[var(--color-ichor-border)]">
                 <div
-                  className={`absolute top-0 bottom-0 ${positive ? "left-1/2 bg-emerald-500/80" : "right-1/2 bg-rose-500/80"}`}
+                  className={`absolute top-0 bottom-0 ${
+                    positive
+                      ? "left-1/2 bg-gradient-to-r from-[var(--color-ichor-long-deep)] to-[var(--color-ichor-long)]"
+                      : "right-1/2 bg-gradient-to-l from-[var(--color-ichor-short-deep)] to-[var(--color-ichor-short)]"
+                  }`}
                   style={{ width: `${pct / 2}%` }}
                 />
-                <div className="absolute top-0 bottom-0 left-1/2 w-px bg-neutral-700" />
+                <div className="absolute top-0 bottom-0 left-1/2 w-px bg-[var(--color-ichor-border-strong)]" />
               </div>
               <span
-                className={`font-mono w-16 text-right ${positive ? "text-emerald-300" : "text-rose-300"}`}
+                className={`w-16 text-right font-mono ${positive ? "ichor-text-long" : "ichor-text-short"}`}
               >
                 {positive ? "+" : ""}
                 {e.score.toFixed(2)}%
@@ -118,10 +110,10 @@ export async function CurrencyStrengthWidget() {
           );
         })}
       </ul>
-      <p className="mt-3 text-[10px] text-neutral-500 leading-snug">
-        Scores moyens des % de variation 24h des paires USD-quotées.
-        Positif = devise forte, négatif = faible.
+      <p className="mt-3 text-[10px] text-[var(--color-ichor-text-subtle)] leading-snug">
+        Moyenne des % de variation 24h des paires USD-quotées. Positif =
+        devise forte, négatif = faible.
       </p>
-    </section>
+    </GlassCard>
   );
 }

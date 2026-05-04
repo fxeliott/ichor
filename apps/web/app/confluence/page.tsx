@@ -18,6 +18,7 @@ import {
 } from "../../lib/api";
 import { ASSETS } from "../../lib/assets";
 import { ConfluenceSparkline } from "../../components/confluence-sparkline";
+import { AmbientOrbs } from "../../components/ui/ambient-orbs";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 30;
@@ -76,22 +77,29 @@ export default async function ConfluencePage() {
   });
 
   return (
-    <main className="max-w-6xl mx-auto px-4 py-6">
-      <header className="mb-6">
-        <h1 className="text-2xl font-semibold text-neutral-100">
-          Confluence — synthèse multi-actifs
-        </h1>
-        <p className="text-sm text-neutral-400 mt-1">
-          Score 0-100 par direction synthétisé sur 7 facteurs : rate diff,
-          COT, OFI Lee-Ready, daily levels, Polymarket impact, funding stress,
-          surprise index. Trier par signal le plus fort en haut.
-        </p>
-      </header>
+    <div className="relative">
+      <div className="absolute inset-x-0 top-0 h-[400px] pointer-events-none">
+        <AmbientOrbs variant="default" />
+      </div>
+      <main className="relative max-w-6xl mx-auto px-4 py-6">
+        <header className="mb-6 ichor-fade-in">
+          <p className="text-[11px] font-mono uppercase tracking-[0.2em] text-[var(--color-ichor-accent-bright)] mb-1">
+            Confluence engine · 10 facteurs
+          </p>
+          <h1 className="text-3xl font-semibold tracking-tight text-[var(--color-ichor-text)]">
+            Synthèse <span className="bg-gradient-to-r from-[var(--color-ichor-accent-bright)] to-[var(--color-ichor-accent-muted)] bg-clip-text text-transparent">multi-actifs</span>
+          </h1>
+          <p className="text-sm text-[var(--color-ichor-text-muted)] mt-1.5">
+            Score 0-100 par direction · 10 facteurs (rate diff, COT, OFI,
+            daily levels, polymarket, funding stress, surprise index, VIX
+            term, risk appetite, BTC risk-proxy) · sparkline 30j à droite.
+          </p>
+        </header>
 
-      <div className="overflow-x-auto rounded-lg border border-neutral-800 bg-neutral-900/40">
+      <div className="overflow-x-auto ichor-glass rounded-xl ichor-fade-in" data-stagger="2">
         <table className="w-full text-sm">
           <thead>
-            <tr className="text-left text-xs uppercase text-neutral-400 border-b border-neutral-800 bg-neutral-950/40">
+            <tr className="text-left text-xs uppercase text-[var(--color-ichor-text-muted)] border-b border-[var(--color-ichor-border)]">
               <th className="px-4 py-3 font-semibold">Actif</th>
               <th className="px-4 py-3 font-semibold">Dominante</th>
               <th className="px-4 py-3 font-semibold text-right">Long</th>
@@ -102,29 +110,38 @@ export default async function ConfluencePage() {
               <th className="px-4 py-3 font-semibold text-right">Action</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-neutral-800">
-            {sorted.map((row) => (
-              <AssetConfluenceRow key={row.code} row={row} />
+          <tbody className="divide-y divide-[var(--color-ichor-border)]">
+            {sorted.map((row, i) => (
+              <AssetConfluenceRow key={row.code} row={row} stagger={i + 1} />
             ))}
           </tbody>
         </table>
       </div>
 
-      <p className="mt-4 text-xs text-neutral-500 leading-snug">
+      <p className="mt-4 text-xs text-[var(--color-ichor-text-subtle)] leading-snug">
         Les scores ≥ 60 + écart ≥ 5pts vs l&apos;autre direction donnent une
         dominante non-neutre. Le nombre de confluences est le nombre de
         drivers contribuant {`>|0.2|`} dans la direction dominante.
       </p>
-    </main>
+      </main>
+    </div>
   );
 }
 
-function AssetConfluenceRow({ row }: { row: AssetRow }) {
+function AssetConfluenceRow({
+  row,
+  stagger,
+}: {
+  row: AssetRow;
+  stagger: number;
+}) {
   if (!row.data) {
     return (
       <tr>
-        <td className="px-4 py-3 font-mono text-neutral-200">{row.display}</td>
-        <td colSpan={6} className="px-4 py-3 text-xs text-rose-300">
+        <td className="px-4 py-3 font-mono text-[var(--color-ichor-text)]">
+          {row.display}
+        </td>
+        <td colSpan={6} className="px-4 py-3 text-xs ichor-text-short">
           {row.error ?? "indisponible"}
         </td>
       </tr>
@@ -134,10 +151,10 @@ function AssetConfluenceRow({ row }: { row: AssetRow }) {
   const dom = c.dominant_direction;
   const domClass =
     dom === "long"
-      ? "bg-emerald-900/30 text-emerald-300 border-emerald-800/50"
+      ? "ichor-bg-long ichor-text-long"
       : dom === "short"
-        ? "bg-rose-900/30 text-rose-300 border-rose-800/50"
-        : "bg-neutral-800 text-neutral-300 border-neutral-700";
+        ? "ichor-bg-short ichor-text-short"
+        : "ichor-bg-accent ichor-text-accent";
 
   // Find the driver with the largest contribution magnitude in dominant direction
   let topDriver = null;
@@ -151,8 +168,13 @@ function AssetConfluenceRow({ row }: { row: AssetRow }) {
   }
 
   return (
-    <tr className="hover:bg-neutral-900/60 transition">
-      <td className="px-4 py-3 font-mono text-neutral-100">{row.display}</td>
+    <tr
+      className="hover:bg-[var(--color-ichor-surface-2)]/40 transition ichor-fade-in"
+      data-stagger={Math.min(6, stagger)}
+    >
+      <td className="px-4 py-3 font-mono text-[var(--color-ichor-text)]">
+        {row.display}
+      </td>
       <td className="px-4 py-3">
         <span
           className={`inline-flex rounded border px-2 py-0.5 text-[10px] uppercase font-mono ${domClass}`}
@@ -166,40 +188,40 @@ function AssetConfluenceRow({ row }: { row: AssetRow }) {
       <td className="px-4 py-3 text-right">
         <ScorePill score={c.score_short} kind="short" />
       </td>
-      <td className="px-4 py-3 text-right font-mono text-neutral-200">
-        {c.confluence_count} / {c.drivers.length}
+      <td className="px-4 py-3 text-right font-mono text-[var(--color-ichor-text-muted)]">
+        {c.confluence_count} <span className="text-[var(--color-ichor-text-faint)]">/ {c.drivers.length}</span>
       </td>
       <td className="px-4 py-3">
         <ConfluenceSparkline history={row.history} />
       </td>
-      <td className="px-4 py-3 text-xs text-neutral-300 max-w-md truncate">
+      <td className="px-4 py-3 text-xs text-[var(--color-ichor-text-muted)] max-w-md truncate">
         {topDriver ? (
           <>
-            <span className="font-mono text-neutral-400">
+            <span className="font-mono text-[var(--color-ichor-text-faint)]">
               {topDriver.factor}
             </span>{" "}
             <span
               className={
                 topDriver.contribution > 0
-                  ? "text-emerald-300"
+                  ? "ichor-text-long font-mono"
                   : topDriver.contribution < 0
-                    ? "text-rose-300"
-                    : "text-neutral-400"
+                    ? "ichor-text-short font-mono"
+                    : "text-[var(--color-ichor-text-muted)] font-mono"
               }
             >
               {topDriver.contribution > 0 ? "+" : ""}
               {topDriver.contribution.toFixed(2)}
             </span>{" "}
-            <span className="text-neutral-500">— {topDriver.evidence}</span>
+            <span className="text-[var(--color-ichor-text-subtle)]">— {topDriver.evidence}</span>
           </>
         ) : (
-          <span className="text-neutral-500">—</span>
+          <span className="text-[var(--color-ichor-text-faint)]">—</span>
         )}
       </td>
       <td className="px-4 py-3 text-right">
         <Link
           href={`/scenarios/${row.code}`}
-          className="inline-flex items-center gap-1 text-xs text-emerald-300 hover:text-emerald-200"
+          className="inline-flex items-center gap-1 text-xs ichor-text-accent hover:text-[var(--color-ichor-text)] transition"
         >
           Drill →
         </Link>

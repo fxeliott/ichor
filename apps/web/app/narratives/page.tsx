@@ -52,10 +52,10 @@ export default async function NarrativesPage() {
   return (
     <div className="max-w-5xl mx-auto px-4 py-6 space-y-6">
       <header>
-        <h1 className="text-2xl font-semibold text-neutral-100">
+        <h1 className="text-2xl font-semibold text-[var(--color-ichor-text)]">
           Narratives macro
         </h1>
-        <p className="text-sm text-neutral-400 mt-1 max-w-2xl">
+        <p className="text-sm text-[var(--color-ichor-text-muted)] mt-1 max-w-2xl">
           Mots-clés dominants extraits des discours banques centrales et
           des news des 24h / 7j. Chaque keyword affiche son nombre de
           documents et sa part du corpus. Doublons (24h dans 7j) =
@@ -83,15 +83,15 @@ export default async function NarrativesPage() {
 function Panel({ report, title }: { report: NarrativeOut; title: string }) {
   const maxShare = Math.max(0.0001, ...report.topics.map((t) => t.share));
   return (
-    <section className="rounded-lg border border-neutral-800 bg-neutral-900/30 p-4">
+    <section className="rounded-lg border border-[var(--color-ichor-border)] bg-[var(--color-ichor-surface)]/40 p-4">
       <header className="mb-3 flex items-baseline justify-between">
-        <h2 className="text-sm font-semibold text-neutral-100">{title}</h2>
-        <p className="text-[11px] text-neutral-500">
+        <h2 className="text-sm font-semibold text-[var(--color-ichor-text)]">{title}</h2>
+        <p className="text-[11px] text-[var(--color-ichor-text-subtle)]">
           {report.n_documents} docs · {report.n_tokens} tokens
         </p>
       </header>
       {report.topics.length === 0 ? (
-        <p className="text-sm text-neutral-500">
+        <p className="text-sm text-[var(--color-ichor-text-subtle)]">
           Pas assez de documents dans la fenêtre.
         </p>
       ) : (
@@ -101,21 +101,21 @@ function Panel({ report, title }: { report: NarrativeOut; title: string }) {
             return (
               <li key={t.keyword} className="group">
                 <div className="flex items-baseline justify-between gap-2 text-sm">
-                  <span className="font-mono text-neutral-100 capitalize">
+                  <span className="font-mono text-[var(--color-ichor-text)] capitalize">
                     {t.keyword}
                   </span>
-                  <span className="text-[11px] text-neutral-500 font-mono whitespace-nowrap">
+                  <span className="text-[11px] text-[var(--color-ichor-text-subtle)] font-mono whitespace-nowrap">
                     {t.count} doc · {(t.share * 100).toFixed(1)}%
                   </span>
                 </div>
-                <div className="h-1.5 rounded bg-neutral-800 overflow-hidden mt-1">
+                <div className="h-1.5 rounded bg-[var(--color-ichor-surface-2)] overflow-hidden mt-1">
                   <div
                     className="h-full bg-gradient-to-r from-emerald-500/70 to-sky-400/70 transition-all"
                     style={{ width: `${Math.max(2, pct)}%` }}
                   />
                 </div>
                 {t.sample_title && (
-                  <p className="text-[11px] text-neutral-500 mt-1 line-clamp-1 italic">
+                  <p className="text-[11px] text-[var(--color-ichor-text-subtle)] mt-1 line-clamp-1 italic">
                     “{t.sample_title}”
                   </p>
                 )}

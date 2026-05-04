@@ -4,38 +4,49 @@ import { DisclaimerBanner } from "@ichor/ui";
 import { CommandPalette } from "../components/command-palette";
 import { EventTicker } from "../components/event-ticker";
 import { PushToggle } from "../components/push-toggle";
+import { StatusDot } from "../components/ui/status-dot";
 import { LiveEventsToast } from "./live-events-toast";
 import { ServiceWorkerRegister } from "./service-worker-register";
 import "./globals.css";
 
 export const metadata: Metadata = {
   title: { default: "Ichor", template: "%s · Ichor" },
-  description: "Autonomous market intelligence — Phase 0",
+  description:
+    "Autonomous market intelligence — macro, sentiment, geopol, scénarios SMC sur 8 actifs.",
   applicationName: "Ichor",
-  robots: { index: false, follow: false }, // pre-launch: keep out of search engines
+  robots: { index: false, follow: false },
   manifest: "/manifest.webmanifest",
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0a0a0b",
+  themeColor: "#070B14",
   colorScheme: "dark",
   width: "device-width",
   initialScale: 1,
 };
 
-const NAV: { href: string; label: string }[] = [
-  { href: "/", label: "Aujourd'hui" },
-  { href: "/sessions", label: "Sessions" },
-  { href: "/narratives", label: "Narratives" },
-  { href: "/knowledge-graph", label: "Graph" },
-  { href: "/geopolitics", label: "Geopol" },
-  { href: "/briefings", label: "Briefings" },
-  { href: "/assets", label: "Actifs" },
-  { href: "/alerts", label: "Alertes" },
-  { href: "/news", label: "News" },
-  { href: "/calibration", label: "Calibration" },
-  { href: "/sources", label: "Sources" },
-  { href: "/admin", label: "Admin" },
+interface NavItem {
+  href: string;
+  label: string;
+  group: "core" | "macro" | "ops";
+}
+
+const NAV: NavItem[] = [
+  // Core (everyday)
+  { href: "/", label: "Aujourd'hui", group: "core" },
+  { href: "/sessions", label: "Sessions", group: "core" },
+  { href: "/confluence", label: "Confluence", group: "core" },
+  // Macro layer
+  { href: "/macro-pulse", label: "Macro pulse", group: "macro" },
+  { href: "/yield-curve", label: "Curve", group: "macro" },
+  { href: "/correlations", label: "Corrélations", group: "macro" },
+  { href: "/polymarket-impact", label: "Polymarket", group: "macro" },
+  { href: "/narratives", label: "Narratives", group: "macro" },
+  { href: "/geopolitics", label: "Geopol", group: "macro" },
+  { href: "/knowledge-graph", label: "Graph", group: "macro" },
+  // Ops
+  { href: "/calibration", label: "Calibration", group: "ops" },
+  { href: "/admin", label: "Admin", group: "ops" },
 ];
 
 export default function RootLayout({
@@ -43,14 +54,17 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const coreNav = NAV.filter((n) => n.group === "core");
+  const macroNav = NAV.filter((n) => n.group === "macro");
+  const opsNav = NAV.filter((n) => n.group === "ops");
+
   return (
     <html lang="fr">
-      <body className="bg-neutral-950 text-neutral-100 antialiased min-h-screen flex flex-col">
-        {/* WCAG 2.4.1 — Skip to main content for keyboard users. The link is
-            visually hidden until it receives focus. */}
+      <body className="text-[var(--color-ichor-text)] antialiased min-h-screen flex flex-col">
+        {/* WCAG 2.4.1 — Skip link */}
         <a
           href="#main"
-          className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:px-3 focus:py-1.5 focus:rounded focus:bg-emerald-600 focus:text-neutral-50"
+          className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:px-3 focus:py-1.5 focus:rounded focus:bg-[var(--color-ichor-accent)] focus:text-white"
         >
           Aller au contenu principal
         </a>
@@ -60,60 +74,125 @@ export default function RootLayout({
         <EventTicker />
         <DisclaimerBanner compact />
 
-        <header className="border-b border-neutral-800 bg-neutral-950/80 backdrop-blur sticky top-0 z-10">
-          <nav
-            className="max-w-6xl mx-auto px-4 py-3 flex items-center gap-6"
+        <header className="sticky top-0 z-20 border-b border-[var(--color-ichor-border)] bg-[var(--color-ichor-deep)]/80 backdrop-blur-xl">
+          <div
+            className="max-w-7xl mx-auto px-4 py-3"
             aria-label="Navigation principale"
           >
-            <Link
-              href="/"
-              className="flex items-center gap-2 text-neutral-100 hover:text-emerald-300 transition"
-            >
-              <svg
-                width="22"
-                height="14"
-                viewBox="0 0 50 28"
-                aria-hidden="true"
-                className="opacity-90"
+            <nav className="flex items-center gap-5">
+              <Link
+                href="/"
+                className="group flex items-center gap-2.5 transition"
               >
-                <path
-                  d="M3 22 L13 6 L21 18 L29 4 L41 22"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  fill="none"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-                <circle cx="41" cy="22" r="2" fill="currentColor" />
-              </svg>
-              <span className="text-base font-semibold tracking-tight">Ichor</span>
-            </Link>
-            <ul className="flex items-center gap-4 text-sm text-neutral-400">
-              {NAV.map((item) => (
-                <li key={item.href}>
-                  <Link
-                    href={item.href}
-                    className="hover:text-neutral-100 transition"
+                {/* Animated I-mark with cobalt glow */}
+                <span className="relative inline-flex items-center justify-center w-8 h-8 rounded-md bg-gradient-to-br from-[var(--color-ichor-accent-deep)] to-[var(--color-ichor-accent)] ichor-glow">
+                  <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                    className="text-white"
                   >
-                    {item.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-            <span className="ml-auto flex items-center gap-3">
-              <PushToggle />
-              <span className="text-[11px] text-neutral-400 font-mono">
-                Phase 1
-              </span>
-            </span>
-          </nav>
+                    <path
+                      d="M3 18 L9 6 L13 14 L17 4 L21 18"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      fill="none"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                    <circle
+                      cx="21"
+                      cy="18"
+                      r="1.5"
+                      fill="currentColor"
+                    />
+                  </svg>
+                </span>
+                <div className="flex flex-col leading-tight">
+                  <span className="text-base font-semibold tracking-tight bg-gradient-to-br from-white to-[var(--color-ichor-accent-bright)] bg-clip-text text-transparent">
+                    Ichor
+                  </span>
+                  <span className="text-[9px] uppercase tracking-[0.18em] text-[var(--color-ichor-text-faint)] -mt-0.5">
+                    Macro intel
+                  </span>
+                </div>
+              </Link>
+
+              {/* Core nav (always visible) */}
+              <ul className="hidden lg:flex items-center gap-4 text-sm">
+                {coreNav.map((item) => (
+                  <li key={item.href}>
+                    <Link href={item.href} className="ichor-nav-link">
+                      {item.label}
+                    </Link>
+                  </li>
+                ))}
+                <li
+                  aria-hidden="true"
+                  className="w-px h-4 bg-[var(--color-ichor-border)]"
+                />
+                {macroNav.map((item) => (
+                  <li key={item.href}>
+                    <Link
+                      href={item.href}
+                      className="ichor-nav-link text-xs"
+                    >
+                      {item.label}
+                    </Link>
+                  </li>
+                ))}
+                <li
+                  aria-hidden="true"
+                  className="w-px h-4 bg-[var(--color-ichor-border)]"
+                />
+                {opsNav.map((item) => (
+                  <li key={item.href}>
+                    <Link
+                      href={item.href}
+                      className="ichor-nav-link text-xs text-[var(--color-ichor-text-faint)]"
+                    >
+                      {item.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+
+              {/* Mobile : compact menu */}
+              <ul className="flex lg:hidden items-center gap-3 text-xs overflow-x-auto">
+                {coreNav.map((item) => (
+                  <li key={item.href} className="whitespace-nowrap">
+                    <Link href={item.href} className="ichor-nav-link">
+                      {item.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+
+              {/* Right cluster : status + push + cmd-K hint */}
+              <div className="ml-auto flex items-center gap-3">
+                <div className="hidden md:inline-flex items-center gap-1.5 text-[11px] font-mono text-[var(--color-ichor-text-muted)]">
+                  <StatusDot tone="live" pulse label="LIVE" />
+                </div>
+                <kbd className="hidden md:inline-flex items-center gap-1 rounded border border-[var(--color-ichor-border)] bg-[var(--color-ichor-surface)] px-1.5 py-0.5 text-[10px] font-mono text-[var(--color-ichor-text-muted)]">
+                  ⌘K
+                </kbd>
+                <PushToggle />
+              </div>
+            </nav>
+          </div>
         </header>
 
-        <div id="main" className="flex-1">{children}</div>
+        <main id="main" className="flex-1 relative">
+          {children}
+        </main>
 
-        <footer className="border-t border-neutral-800 bg-neutral-950/80">
-          <div className="max-w-6xl mx-auto px-4 py-4">
+        <footer className="border-t border-[var(--color-ichor-border)] bg-[var(--color-ichor-deep)]/60 backdrop-blur">
+          <div className="max-w-7xl mx-auto px-4 py-4 flex flex-wrap items-baseline justify-between gap-3">
             <DisclaimerBanner />
+            <span className="text-[10px] font-mono text-[var(--color-ichor-text-faint)]">
+              ICHOR · Phase 1 · Voie D · Max 20x
+            </span>
           </div>
         </footer>
       </body>

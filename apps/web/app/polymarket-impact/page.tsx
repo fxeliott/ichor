@@ -40,10 +40,10 @@ export default async function PolymarketImpactPage() {
   return (
     <main className="max-w-6xl mx-auto px-4 py-6">
       <header className="mb-6">
-        <h1 className="text-2xl font-semibold text-neutral-100">
+        <h1 className="text-2xl font-semibold text-[var(--color-ichor-text)]">
           Polymarket impact mapping
         </h1>
-        <p className="text-sm text-neutral-400 mt-1">
+        <p className="text-sm text-[var(--color-ichor-text-muted)] mt-1">
           Clusters thématiques des prediction-markets actifs (24h) ramenés à
           un impact directionnel signé par actif. Chaque thème agrège les
           marchés qui matchent ses keyphrases et pondère leur YES par
@@ -52,11 +52,11 @@ export default async function PolymarketImpactPage() {
       </header>
 
       {error || !r ? (
-        <p className="text-sm text-rose-300">
+        <p className="text-sm ichor-text-short">
           {error ?? "Indisponible : /v1/polymarket-impact non joignable."}
         </p>
       ) : r.themes.length === 0 ? (
-        <p className="text-sm text-neutral-500">
+        <p className="text-sm text-[var(--color-ichor-text-subtle)]">
           Aucun thème identifié dans les {r.n_markets_scanned} markets
           analysés (24h). Polymarket peut être pauvre côté FX/macro pour le
           moment.
@@ -69,7 +69,7 @@ export default async function PolymarketImpactPage() {
               <ThemeCard key={t.theme_key} theme={t} />
             ))}
           </section>
-          <p className="mt-6 text-xs text-neutral-500">
+          <p className="mt-6 text-xs text-[var(--color-ichor-text-subtle)]">
             Source : /v1/polymarket-impact · {r.n_markets_scanned} markets
             scannés sur 24h · clusters thématiques + magnitudes empiriques
             (FX desk standard).
@@ -93,11 +93,11 @@ function AssetAggregate({
   return (
     <section
       aria-labelledby="agg-heading"
-      className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-5 mb-6"
+      className="rounded-lg border border-[var(--color-ichor-border)] bg-[var(--color-ichor-surface)]/60 p-5 mb-6"
     >
       <h2
         id="agg-heading"
-        className="text-lg font-semibold text-neutral-100 mb-3"
+        className="text-lg font-semibold text-[var(--color-ichor-text)] mb-3"
       >
         Impact agrégé par actif
       </h2>
@@ -107,18 +107,18 @@ function AssetAggregate({
           const positive = val >= 0;
           return (
             <li key={asset} className="flex items-center gap-3 text-sm">
-              <span className="w-20 font-mono text-neutral-300">
+              <span className="w-20 font-mono text-[var(--color-ichor-text-muted)]">
                 {asset.replace(/_/g, "/")}
               </span>
-              <div className="flex-1 h-3 rounded bg-neutral-950 relative overflow-hidden border border-neutral-800">
+              <div className="flex-1 h-3 rounded bg-[var(--color-ichor-deep)] relative overflow-hidden border border-[var(--color-ichor-border)]">
                 <div
                   className={`absolute top-0 bottom-0 ${positive ? "left-1/2 bg-emerald-500/80" : "right-1/2 bg-rose-500/80"}`}
                   style={{ width: `${pct / 2}%` }}
                 />
-                <div className="absolute top-0 bottom-0 left-1/2 w-px bg-neutral-700" />
+                <div className="absolute top-0 bottom-0 left-1/2 w-px bg-[var(--color-ichor-border-strong)]" />
               </div>
               <span
-                className={`w-16 text-right font-mono ${positive ? "text-emerald-300" : "text-rose-300"}`}
+                className={`w-16 text-right font-mono ${positive ? "ichor-text-long" : "ichor-text-short"}`}
               >
                 {positive ? "+" : ""}
                 {val.toFixed(2)}
@@ -136,12 +136,12 @@ function ThemeCard({ theme }: { theme: PolymarketThemeHit }) {
     ([, a], [, b]) => Math.abs(b) - Math.abs(a),
   );
   return (
-    <article className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-4">
+    <article className="rounded-lg border border-[var(--color-ichor-border)] bg-[var(--color-ichor-surface)]/60 p-4">
       <header className="flex items-baseline justify-between mb-3">
-        <h3 className="text-base font-semibold text-neutral-100">
+        <h3 className="text-base font-semibold text-[var(--color-ichor-text)]">
           {theme.label}
         </h3>
-        <span className="text-xs text-neutral-400 font-mono">
+        <span className="text-xs text-[var(--color-ichor-text-muted)] font-mono">
           n={theme.n_markets} · avg YES={(theme.avg_yes * 100).toFixed(0)}%
         </span>
       </header>
@@ -150,18 +150,18 @@ function ThemeCard({ theme }: { theme: PolymarketThemeHit }) {
         {impacts.map(([asset, val]) => (
           <div
             key={asset}
-            className="flex justify-between border-b border-neutral-800/60 py-0.5"
+            className="flex justify-between border-b border-[var(--color-ichor-border)] py-0.5"
           >
-            <span className="font-mono text-neutral-400">
+            <span className="font-mono text-[var(--color-ichor-text-muted)]">
               {asset.replace(/_/g, "/")}
             </span>
             <span
               className={`font-mono ${
                 val > 0
-                  ? "text-emerald-300"
+                  ? "ichor-text-long"
                   : val < 0
-                    ? "text-rose-300"
-                    : "text-neutral-400"
+                    ? "ichor-text-short"
+                    : "text-[var(--color-ichor-text-muted)]"
               }`}
             >
               {val >= 0 ? "+" : ""}
@@ -172,13 +172,13 @@ function ThemeCard({ theme }: { theme: PolymarketThemeHit }) {
       </div>
 
       <div>
-        <h4 className="text-[11px] uppercase tracking-wide text-neutral-500 mb-1">
+        <h4 className="text-[11px] uppercase tracking-wide text-[var(--color-ichor-text-subtle)] mb-1">
           Top markets
         </h4>
-        <ul className="text-xs text-neutral-200 space-y-1">
+        <ul className="text-xs text-[var(--color-ichor-text)] space-y-1">
           {theme.markets.map((m) => (
             <li key={m.slug} className="leading-snug">
-              <span className="font-mono text-neutral-400">
+              <span className="font-mono text-[var(--color-ichor-text-muted)]">
                 YES={(m.yes * 100).toFixed(0)}%
               </span>{" "}
               · {m.question}

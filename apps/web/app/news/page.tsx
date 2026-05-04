@@ -81,8 +81,8 @@ export default async function NewsPage({ searchParams }: PageProps) {
   return (
     <main className="max-w-4xl mx-auto px-4 py-6">
       <header className="mb-6">
-        <h1 className="text-2xl font-semibold text-neutral-100 mb-1">News</h1>
-        <p className="text-sm text-neutral-400">
+        <h1 className="text-2xl font-semibold text-[var(--color-ichor-text)] mb-1">News</h1>
+        <p className="text-sm text-[var(--color-ichor-text-muted)]">
           Dépêches collectées en continu (Fed, ECB, BoE, BBC, SEC) — refresh
           toutes les 15 min.
         </p>
@@ -90,18 +90,18 @@ export default async function NewsPage({ searchParams }: PageProps) {
 
       <form
         method="get"
-        className="flex flex-wrap items-end gap-3 mb-6 p-3 rounded border border-neutral-800 bg-neutral-900/30"
+        className="flex flex-wrap items-end gap-3 mb-6 p-3 rounded border border-[var(--color-ichor-border)] bg-[var(--color-ichor-surface)]/40"
       >
         <label
           htmlFor="news-kind"
-          className="flex flex-col text-xs text-neutral-400 gap-1"
+          className="flex flex-col text-xs text-[var(--color-ichor-text-muted)] gap-1"
         >
           <span>Type de source</span>
           <select
             id="news-kind"
             name="kind"
             defaultValue={params.kind ?? "all"}
-            className="bg-neutral-900 border border-neutral-700 rounded px-2 py-1 text-sm text-neutral-100"
+            className="bg-[var(--color-ichor-surface)] border border-[var(--color-ichor-border-strong)] rounded px-2 py-1 text-sm text-[var(--color-ichor-text)]"
           >
             {KIND_OPTIONS.map((o) => (
               <option key={o.value} value={o.value}>
@@ -112,7 +112,7 @@ export default async function NewsPage({ searchParams }: PageProps) {
         </label>
         <label
           htmlFor="news-source"
-          className="flex flex-col text-xs text-neutral-400 gap-1"
+          className="flex flex-col text-xs text-[var(--color-ichor-text-muted)] gap-1"
         >
           <span>Source (slug)</span>
           <input
@@ -124,22 +124,22 @@ export default async function NewsPage({ searchParams }: PageProps) {
             pattern="[a-z0-9_]{1,64}"
             title="Slug en minuscules, lettres / chiffres / souligné, max 64 caractères. Exemple : ecb_press"
             aria-describedby="news-source-help"
-            className="bg-neutral-900 border border-neutral-700 rounded px-2 py-1 text-sm font-mono text-neutral-100 w-40"
+            className="bg-[var(--color-ichor-surface)] border border-[var(--color-ichor-border-strong)] rounded px-2 py-1 text-sm font-mono text-[var(--color-ichor-text)] w-40"
           />
-          <span id="news-source-help" className="text-[10px] text-neutral-400">
+          <span id="news-source-help" className="text-[10px] text-[var(--color-ichor-text-muted)]">
             Format : minuscules + chiffres + souligné, ex. ecb_press
           </span>
         </label>
         <label
           htmlFor="news-tone"
-          className="flex flex-col text-xs text-neutral-400 gap-1"
+          className="flex flex-col text-xs text-[var(--color-ichor-text-muted)] gap-1"
         >
           <span>Ton (FinBERT)</span>
           <select
             id="news-tone"
             name="tone"
             defaultValue={params.tone ?? "all"}
-            className="bg-neutral-900 border border-neutral-700 rounded px-2 py-1 text-sm text-neutral-100"
+            className="bg-[var(--color-ichor-surface)] border border-[var(--color-ichor-border-strong)] rounded px-2 py-1 text-sm text-[var(--color-ichor-text)]"
           >
             {TONE_OPTIONS.map((o) => (
               <option key={o.value} value={o.value}>
@@ -157,12 +157,12 @@ export default async function NewsPage({ searchParams }: PageProps) {
         {(sourceKind || source || tone) && (
           <Link
             href="/news"
-            className="text-xs text-neutral-500 hover:text-neutral-300"
+            className="text-xs text-[var(--color-ichor-text-subtle)] hover:text-[var(--color-ichor-text-muted)]"
           >
             Réinitialiser
           </Link>
         )}
-        <span className="ml-auto text-[11px] text-neutral-500 font-mono">
+        <span className="ml-auto text-[11px] text-[var(--color-ichor-text-subtle)] font-mono">
           {items.length} dépêches
         </span>
       </form>
@@ -182,7 +182,7 @@ export default async function NewsPage({ searchParams }: PageProps) {
           {items.map((it) => (
             <li
               key={it.id}
-              className="rounded border border-neutral-800 bg-neutral-900/40 p-3"
+              className="rounded border border-[var(--color-ichor-border)] bg-[var(--color-ichor-surface)]/60 p-3"
             >
               <div className="flex items-baseline justify-between gap-3 mb-2">
                 <SourceBadge
@@ -193,7 +193,7 @@ export default async function NewsPage({ searchParams }: PageProps) {
                 />
                 <time
                   dateTime={it.published_at}
-                  className="text-[11px] text-neutral-500 font-mono"
+                  className="text-[11px] text-[var(--color-ichor-text-subtle)] font-mono"
                 >
                   {fmtAt(it.published_at)}
                 </time>
@@ -202,12 +202,12 @@ export default async function NewsPage({ searchParams }: PageProps) {
                 href={it.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-base font-medium text-neutral-100 hover:text-emerald-300"
+                className="text-base font-medium text-[var(--color-ichor-text)] hover:text-emerald-300"
               >
                 {it.title}
               </a>
               {it.summary && (
-                <p className="mt-1 text-sm text-neutral-400 leading-relaxed line-clamp-3">
+                <p className="mt-1 text-sm text-[var(--color-ichor-text-muted)] leading-relaxed line-clamp-3">
                   {it.summary}
                 </p>
               )}
@@ -219,7 +219,7 @@ export default async function NewsPage({ searchParams }: PageProps) {
                       ? "bg-emerald-900/40 text-emerald-200"
                       : it.tone_label === "negative"
                         ? "bg-red-900/40 text-red-200"
-                        : "bg-neutral-800 text-neutral-400")
+                        : "bg-[var(--color-ichor-surface-2)] text-[var(--color-ichor-text-muted)]")
                   }
                 >
                   ton {it.tone_label}

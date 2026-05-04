@@ -135,12 +135,12 @@ export const LiveChartCard: React.FC<LiveChartCardProps> = ({
   }, [asset, reloadIntervalMs]);
 
   return (
-    <div className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-3">
+    <div className="rounded-lg border border-[var(--color-ichor-border)] bg-[var(--color-ichor-surface)]/60 p-3">
       <header className="mb-2 flex items-baseline justify-between gap-2">
-        <h3 className="text-sm font-semibold text-neutral-100">
+        <h3 className="text-sm font-semibold text-[var(--color-ichor-text)]">
           {asset.replace(/_/g, "/")} · 1-min intraday
         </h3>
-        <p className="text-[11px] text-neutral-500">
+        <p className="text-[11px] text-[var(--color-ichor-text-subtle)]">
           {bars.length} bars · refresh {Math.round(reloadIntervalMs / 1000)}s
         </p>
       </header>
@@ -151,7 +151,7 @@ export const LiveChartCard: React.FC<LiveChartCardProps> = ({
       )}
       {bars.length === 0 ? (
         <div
-          className="flex items-center justify-center text-xs text-neutral-500"
+          className="flex items-center justify-center text-xs text-[var(--color-ichor-text-subtle)]"
           style={{ height }}
         >
           Aucune bar récente (marché fermé ?).
@@ -159,13 +159,13 @@ export const LiveChartCard: React.FC<LiveChartCardProps> = ({
       ) : (
         <div ref={containerRef} style={{ height }} />
       )}
-      <p className="mt-2 text-[10px] text-neutral-600">
+      <p className="mt-2 text-[10px] text-[var(--color-ichor-text-faint)]">
         Charts by{" "}
         <a
           href="https://www.tradingview.com/"
           target="_blank"
           rel="noopener noreferrer"
-          className="hover:text-neutral-400 underline"
+          className="hover:text-[var(--color-ichor-text-muted)] underline"
         >
           TradingView
         </a>{" "}

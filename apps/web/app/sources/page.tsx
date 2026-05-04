@@ -225,7 +225,7 @@ const SOURCES: Source[] = [
 const STATUS_COLOR: Record<Source["status"], string> = {
   live: "bg-emerald-900/40 text-emerald-200 border-emerald-700/40",
   scaffold: "bg-amber-900/40 text-amber-200 border-amber-700/40",
-  deferred: "bg-neutral-800 text-neutral-400 border-neutral-700/40",
+  deferred: "bg-[var(--color-ichor-surface-2)] text-[var(--color-ichor-text-muted)] border-[var(--color-ichor-border-strong)]/40",
 };
 
 const CATEGORIES = Array.from(new Set(SOURCES.map((s) => s.category)));
@@ -234,8 +234,8 @@ export default function SourcesPage() {
   return (
     <div className="max-w-5xl mx-auto px-4 py-6 space-y-6">
       <header>
-        <h1 className="text-2xl font-semibold text-neutral-100">Sources data</h1>
-        <p className="text-sm text-neutral-400 mt-1 max-w-2xl">
+        <h1 className="text-2xl font-semibold text-[var(--color-ichor-text)]">Sources data</h1>
+        <p className="text-sm text-[var(--color-ichor-text-muted)] mt-1 max-w-2xl">
           Liste exhaustive des feeds upstream que Ichor poll. Chaque carte
           session cite explicitement les sources qu&apos;elle utilise (FRED
           series IDs, Polygon tickers, CFTC market codes, Polymarket slugs,
@@ -244,7 +244,7 @@ export default function SourcesPage() {
         </p>
       </header>
 
-      <p className="text-[11px] text-neutral-500 italic">
+      <p className="text-[11px] text-[var(--color-ichor-text-subtle)] italic">
         🟢 live · 🟡 scaffold (prêt à activer) · ⚪ deferred
       </p>
 
@@ -252,21 +252,21 @@ export default function SourcesPage() {
         const items = SOURCES.filter((s) => s.category === cat);
         return (
           <section key={cat}>
-            <h2 className="text-lg font-semibold text-neutral-100 mb-3">
-              {cat} <span className="text-neutral-500 text-sm">({items.length})</span>
+            <h2 className="text-lg font-semibold text-[var(--color-ichor-text)] mb-3">
+              {cat} <span className="text-[var(--color-ichor-text-subtle)] text-sm">({items.length})</span>
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {items.map((s) => (
                 <article
                   key={s.id}
-                  className="rounded-lg border border-neutral-800 bg-neutral-900/30 p-4 flex flex-col gap-2"
+                  className="rounded-lg border border-[var(--color-ichor-border)] bg-[var(--color-ichor-surface)]/40 p-4 flex flex-col gap-2"
                 >
                   <header className="flex items-baseline justify-between gap-2">
                     <a
                       href={s.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-sm font-semibold text-neutral-100 hover:text-emerald-300 truncate"
+                      className="text-sm font-semibold text-[var(--color-ichor-text)] hover:text-emerald-300 truncate"
                     >
                       {s.name} ↗
                     </a>
@@ -276,26 +276,26 @@ export default function SourcesPage() {
                       {s.status}
                     </span>
                   </header>
-                  <p className="text-xs text-neutral-300 leading-snug">
+                  <p className="text-xs text-[var(--color-ichor-text-muted)] leading-snug">
                     {s.description}
                   </p>
-                  <dl className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-[11px] text-neutral-400 mt-1">
+                  <dl className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-[11px] text-[var(--color-ichor-text-muted)] mt-1">
                     {s.collector && (
                       <>
                         <dt>Collector</dt>
-                        <dd className="font-mono text-neutral-300">
+                        <dd className="font-mono text-[var(--color-ichor-text-muted)]">
                           {s.collector}
                         </dd>
                       </>
                     )}
                     <dt>Cadence</dt>
-                    <dd className="font-mono text-neutral-300">{s.cadence}</dd>
+                    <dd className="font-mono text-[var(--color-ichor-text-muted)]">{s.cadence}</dd>
                     <dt>Pricing</dt>
-                    <dd className="text-neutral-300">{s.pricing}</dd>
+                    <dd className="text-[var(--color-ichor-text-muted)]">{s.pricing}</dd>
                     {s.tableSlot && (
                       <>
                         <dt>Table</dt>
-                        <dd className="font-mono text-neutral-300 truncate">
+                        <dd className="font-mono text-[var(--color-ichor-text-muted)] truncate">
                           {s.tableSlot}
                         </dd>
                       </>
@@ -308,27 +308,27 @@ export default function SourcesPage() {
         );
       })}
 
-      <footer className="border-t border-neutral-800 pt-4">
-        <p className="text-[11px] text-neutral-500">
+      <footer className="border-t border-[var(--color-ichor-border)] pt-4">
+        <p className="text-[11px] text-[var(--color-ichor-text-subtle)]">
           Les sources hors upstream (modèles empiriques code-internes :
           CB intervention probability, causal map canonique, surprise
           index z-score proxy) sont documentées dans{" "}
           <a
             href="/knowledge-graph"
-            className="text-neutral-300 hover:text-emerald-300 underline"
+            className="text-[var(--color-ichor-text-muted)] hover:text-emerald-300 underline"
           >
             /knowledge-graph
           </a>{" "}
           (carte causale) et{" "}
           <a
             href="/admin"
-            className="text-neutral-300 hover:text-emerald-300 underline"
+            className="text-[var(--color-ichor-text-muted)] hover:text-emerald-300 underline"
           >
             /admin
           </a>{" "}
           (compteurs DB live).
         </p>
-        <p className="text-[11px] text-neutral-500 italic mt-2">
+        <p className="text-[11px] text-[var(--color-ichor-text-subtle)] italic mt-2">
           Sprint pending : audit FlashAlpha key activation, snapshot du
           data_pool per session_card pour reproductibilité, KalshiCategory
           filter macro/politics only (drop sport markets).
