@@ -52,6 +52,10 @@ from .microstructure import (
     render_microstructure_block,
 )
 from .narrative_tracker import render_narrative_block, track_narratives
+from .surprise_index import (
+    assess_surprise_index,
+    render_surprise_index_block,
+)
 
 
 # ────────────────────────── Configuration ──────────────────────────────
@@ -446,6 +450,12 @@ async def _section_funding_stress(session: AsyncSession) -> tuple[str, list[str]
     return render_funding_stress_block(reading)
 
 
+async def _section_surprise_index(session: AsyncSession) -> tuple[str, list[str]]:
+    """## Eco Surprise Index — z-score proxy on FRED macro hard data."""
+    reading = await assess_surprise_index(session)
+    return render_surprise_index_block(reading)
+
+
 async def _section_narrative(session: AsyncSession) -> tuple[str, list[str]]:
     """## Narrative tracker — top keywords from cb_speeches + news 48h."""
     report = await track_narratives(session, window_hours=48, top_k=10)
@@ -544,6 +554,9 @@ async def build_data_pool(session: AsyncSession, asset: str) -> DataPool:
 
     fs_md, fs_src = await _section_funding_stress(session)
     sections.append(("funding_stress", fs_md, fs_src))
+
+    si_md, si_src = await _section_surprise_index(session)
+    sections.append(("surprise_index", si_md, si_src))
 
     nar_md, nar_src = await _section_narrative(session)
     sections.append(("narrative", nar_md, nar_src))

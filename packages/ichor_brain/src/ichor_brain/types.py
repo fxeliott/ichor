@@ -71,7 +71,8 @@ class AssetSpecialization(BaseModel):
     """Each entry: {claim: str, sources: list[str]}."""
     catalysts: list[dict[str, Any]] = Field(default_factory=list)
     """Each entry: {time: iso8601, event: str, expected_impact: str}."""
-    correlations_snapshot: dict[str, float] = Field(default_factory=dict)
+    correlations_snapshot: dict[str, float | None] = Field(default_factory=dict)
+    """Each value is the rolling correlation. None when unavailable."""
     polymarket_overlay: list[dict[str, Any]] = Field(default_factory=list)
 
 
