@@ -50,6 +50,7 @@ const PAGES: Command[] = [
   { id: "geopol", label: "Géopolitique", hint: "/geopolitics", kind: "page", href: "/geopolitics" },
   { id: "calibration", label: "Calibration", hint: "/calibration", kind: "page", href: "/calibration", keywords: ["brier", "track-record"] },
   { id: "sources", label: "Sources data", hint: "/sources", kind: "page", href: "/sources", keywords: ["feeds", "upstream", "providers"] },
+  { id: "learn", label: "Apprendre · concepts illustrés", hint: "/learn", kind: "page", href: "/learn", keywords: ["learn", "education", "smc", "rr", "diagrams", "schemas"] },
   { id: "admin", label: "Admin", hint: "/admin", kind: "page", href: "/admin", keywords: ["status", "ops", "health"] },
   { id: "briefings", label: "Briefings", hint: "/briefings", kind: "page", href: "/briefings" },
   { id: "alerts", label: "Alertes", hint: "/alerts", kind: "page", href: "/alerts" },
@@ -146,8 +147,8 @@ const fuzzyMatch = (q: string, c: Command): number => {
 };
 
 const KIND_BADGE: Record<CommandKind, { label: string; cls: string }> = {
-  page: { label: "page", cls: "bg-sky-900/40 text-sky-300 border-sky-700/40" },
-  asset: { label: "actif", cls: "bg-emerald-900/40 text-emerald-300 border-emerald-700/40" },
+  page: { label: "page", cls: "ichor-bg-accent ichor-text-accent" },
+  asset: { label: "actif", cls: "ichor-bg-long ichor-text-long" },
   action: { label: "action", cls: "bg-amber-900/40 text-amber-300 border-amber-700/40" },
 };
 

@@ -313,3 +313,28 @@ body {
 .ichor-marquee {
   animation: ichor-marquee 60s linear infinite;
 }
+
+/* ── KBD style ─────────────────────────────────────── */
+.ichor-kbd, kbd.ichor-kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.25rem;
+  height: 1.1rem;
+  padding: 0 5px;
+  border-radius: 3px;
+  border: 1px solid var(--color-ichor-border-strong);
+  background: var(--color-ichor-deep);
+  color: var(--color-ichor-text-muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 1;
+  box-shadow: 0 1px 0 0 rgba(0, 0, 0, 0.4);
+}
+
+/* ── Mobile drawer animation ────────────────────────── */
+@keyframes ichor-drawer-in {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+.ichor-drawer-in { animation: ichor-drawer-in 220ms var(--ease-ichor-out); }

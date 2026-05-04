@@ -21,10 +21,14 @@ const CHANNEL_LABELS: Record<LiveEvent["channel"], string> = {
 };
 
 const CHANNEL_COLORS: Record<LiveEvent["channel"], string> = {
-  "ichor:briefings:new": "border-emerald-700 bg-emerald-950/60 text-emerald-100",
-  "ichor:alerts:new": "border-amber-700 bg-amber-950/60 text-amber-100",
-  "ichor:bias:updated": "border-sky-700 bg-sky-950/60 text-sky-100",
-  "ichor:session_card:new": "border-violet-700 bg-violet-950/60 text-violet-100",
+  "ichor:briefings:new":
+    "ichor-glass border-emerald-700/40 ichor-glow-emerald text-emerald-100",
+  "ichor:alerts:new":
+    "ichor-glass border-amber-700/40 text-amber-100",
+  "ichor:bias:updated":
+    "ichor-glass border-[var(--color-ichor-accent)]/40 ichor-glow text-[var(--color-ichor-text)]",
+  "ichor:session_card:new":
+    "ichor-glass border-[var(--color-ichor-accent-bright)]/50 ichor-glow text-[var(--color-ichor-text)]",
 };
 
 const AUTO_DISMISS_MS = 8000;
@@ -121,9 +125,9 @@ function ToastChip({
     event.channel === "ichor:alerts:new" ? "alert" : "status";
 
   const cls =
-    "block w-72 rounded border px-3 py-2 shadow-lg transition " +
+    "block w-72 rounded-lg border px-3 py-2 shadow-lg transition ichor-fade-in " +
     CHANNEL_COLORS[event.channel] +
-    (href ? " hover:brightness-110" : "");
+    (href ? " hover:brightness-110 ichor-lift" : "");
 
   return href ? (
     <Link href={href} className={cls} role={ariaRole}>
@@ -155,27 +159,14 @@ export function LiveEventsToast() {
 
   return (
     <>
+      {/* Connection status moved into header via StatusDot — keep this hidden status for accessibility only */}
       <span
         role="status"
         aria-live="polite"
         aria-atomic="true"
-        title={connected ? "Live connecté" : "Live reconnecte…"}
-        className={
-          "fixed top-2 right-3 z-20 inline-flex items-center gap-1 text-[10px] font-mono " +
-          (connected ? "text-emerald-400" : "text-neutral-400")
-        }
+        className="sr-only"
       >
-        <span
-          aria-hidden="true"
-          className={
-            "w-1.5 h-1.5 rounded-full " +
-            (connected ? "bg-emerald-400 animate-pulse" : "bg-neutral-500")
-          }
-        />
-        <span className="sr-only">
-          {connected ? "Live connecté" : "Live en reconnexion"}
-        </span>
-        <span aria-hidden="true">live</span>
+        {connected ? "Live connecté" : "Live en reconnexion"}
       </span>
 
       {events.length > 0 && (

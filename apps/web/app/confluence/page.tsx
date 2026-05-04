@@ -82,18 +82,26 @@ export default async function ConfluencePage() {
         <AmbientOrbs variant="default" />
       </div>
       <main className="relative max-w-6xl mx-auto px-4 py-6">
-        <header className="mb-6 ichor-fade-in">
-          <p className="text-[11px] font-mono uppercase tracking-[0.2em] text-[var(--color-ichor-accent-bright)] mb-1">
-            Confluence engine · 10 facteurs
-          </p>
-          <h1 className="text-3xl font-semibold tracking-tight text-[var(--color-ichor-text)]">
-            Synthèse <span className="bg-gradient-to-r from-[var(--color-ichor-accent-bright)] to-[var(--color-ichor-accent-muted)] bg-clip-text text-transparent">multi-actifs</span>
-          </h1>
-          <p className="text-sm text-[var(--color-ichor-text-muted)] mt-1.5">
-            Score 0-100 par direction · 10 facteurs (rate diff, COT, OFI,
-            daily levels, polymarket, funding stress, surprise index, VIX
-            term, risk appetite, BTC risk-proxy) · sparkline 30j à droite.
-          </p>
+        <header className="mb-6 ichor-fade-in flex items-baseline justify-between flex-wrap gap-3">
+          <div>
+            <p className="text-[11px] font-mono uppercase tracking-[0.2em] text-[var(--color-ichor-accent-bright)] mb-1">
+              Confluence engine · 10 facteurs
+            </p>
+            <h1 className="text-3xl font-semibold tracking-tight text-[var(--color-ichor-text)]">
+              Synthèse <span className="bg-gradient-to-r from-[var(--color-ichor-accent-bright)] to-[var(--color-ichor-accent-muted)] bg-clip-text text-transparent">multi-actifs</span>
+            </h1>
+            <p className="text-sm text-[var(--color-ichor-text-muted)] mt-1.5 max-w-2xl">
+              Score 0-100 par direction · 10 facteurs (rate diff, COT, OFI,
+              daily levels, polymarket, funding stress, surprise index, VIX
+              term, risk appetite, BTC risk-proxy) · sparkline 30j à droite.
+            </p>
+          </div>
+          <Link
+            href="/confluence/history"
+            className="inline-flex items-center gap-1.5 text-xs text-[var(--color-ichor-accent-bright)] hover:text-[var(--color-ichor-text)] border border-[var(--color-ichor-border)] rounded px-3 py-1.5 hover:border-[var(--color-ichor-accent)] transition"
+          >
+            <span aria-hidden="true">📈</span> Historique 30j détaillé →
+          </Link>
         </header>
 
       <div className="overflow-x-auto ichor-glass rounded-xl ichor-fade-in" data-stagger="2">

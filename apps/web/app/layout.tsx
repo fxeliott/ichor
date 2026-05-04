@@ -3,6 +3,8 @@ import Link from "next/link";
 import { DisclaimerBanner } from "@ichor/ui";
 import { CommandPalette } from "../components/command-palette";
 import { EventTicker } from "../components/event-ticker";
+import { KeyboardShortcutsModal } from "../components/keyboard-shortcuts";
+import { MobileNav } from "../components/mobile-nav";
 import { PushToggle } from "../components/push-toggle";
 import { StatusDot } from "../components/ui/status-dot";
 import { LiveEventsToast } from "./live-events-toast";
@@ -47,6 +49,7 @@ const NAV: NavItem[] = [
   // Ops
   { href: "/calibration", label: "Calibration", group: "ops" },
   { href: "/admin", label: "Admin", group: "ops" },
+  { href: "/learn", label: "Apprendre", group: "ops" },
 ];
 
 export default function RootLayout({
@@ -70,6 +73,7 @@ export default function RootLayout({
         </a>
         <ServiceWorkerRegister />
         <CommandPalette />
+        <KeyboardShortcutsModal />
         <LiveEventsToast />
         <EventTicker />
         <DisclaimerBanner compact />
@@ -158,25 +162,23 @@ export default function RootLayout({
                 ))}
               </ul>
 
-              {/* Mobile : compact menu */}
-              <ul className="flex lg:hidden items-center gap-3 text-xs overflow-x-auto">
-                {coreNav.map((item) => (
-                  <li key={item.href} className="whitespace-nowrap">
-                    <Link href={item.href} className="ichor-nav-link">
-                      {item.label}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
+              {/* Mobile : drawer trigger */}
+              <div className="lg:hidden">
+                <MobileNav items={NAV} />
+              </div>
 
               {/* Right cluster : status + push + cmd-K hint */}
               <div className="ml-auto flex items-center gap-3">
                 <div className="hidden md:inline-flex items-center gap-1.5 text-[11px] font-mono text-[var(--color-ichor-text-muted)]">
                   <StatusDot tone="live" pulse label="LIVE" />
                 </div>
-                <kbd className="hidden md:inline-flex items-center gap-1 rounded border border-[var(--color-ichor-border)] bg-[var(--color-ichor-surface)] px-1.5 py-0.5 text-[10px] font-mono text-[var(--color-ichor-text-muted)]">
-                  ⌘K
-                </kbd>
+                <span
+                  className="hidden md:inline-flex items-center gap-1 text-[10px] text-[var(--color-ichor-text-faint)]"
+                  title="? pour les raccourcis · Cmd+K pour la palette"
+                >
+                  <kbd className="ichor-kbd">⌘K</kbd>
+                  <kbd className="ichor-kbd">?</kbd>
+                </span>
                 <PushToggle />
               </div>
             </nav>
