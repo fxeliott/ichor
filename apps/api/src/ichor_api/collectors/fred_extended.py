@@ -53,6 +53,10 @@ EXTENDED_SERIES_TO_POLL: tuple[str, ...] = (
     # ─── Vol ───
     "VIXCLS",       # VIX
     "VXVCLS",       # VIX 3-month (term structure with VIXCLS)
+    # ─── Sentiment / risk appetite ───
+    "UMCSENT",      # U Michigan Consumer Sentiment (monthly)
+    "CSCICP03USM665S",  # OECD US Composite Consumer Confidence Index
+    "DRTSCILM",     # Bank lending standards : tighter for C&I loans (qoq)
     # ─── Energy ───
     "DCOILWTICO",   # WTI (already)
     "DCOILBRENTEU", # Brent

@@ -52,7 +52,9 @@ from ..models import (
 )
 from .daily_levels import DailyLevels, assess_daily_levels
 from .funding_stress import assess_funding_stress
+from .risk_appetite import assess_risk_appetite
 from .surprise_index import assess_surprise_index
+from .vix_term_structure import assess_vix_term
 
 Direction = Literal["long", "short", "neutral"]
 
@@ -430,6 +432,65 @@ async def _factor_funding_stress(
     )
 
 
+async def _factor_vix_term(
+    session: AsyncSession, asset: str
+) -> Driver | None:
+    """VIX term structure : backwardation = mean-revert friendly equity-long."""
+    r = await assess_vix_term(session)
+    if r.ratio is None:
+        return None
+    # Backwardation (>1.0) → bullish equities short-term, bearish gold mean-revert
+    # Stretched contango (<0.80) → late-cycle warning, mild bearish equities
+    raw = (r.ratio - 0.95) * 2.0  # ratio 1.0 → +0.10, 1.15 → +0.40
+    raw = max(-0.6, min(0.6, raw))
+
+    if asset in {"NAS100_USD", "SPX500_USD"}:
+        contribution = raw  # backwardation good for equities
+    elif asset == "XAU_USD":
+        contribution = -raw * 0.5  # backwardation slightly bearish gold (mean-revert risk-off)
+    elif asset in _USD_IS_BASE:
+        contribution = -raw * 0.3  # USD/JPY: backwardation = haven JPY bid, USD weak
+    else:
+        contribution = raw * 0.3  # X/USD : risk-on long pair
+    return Driver(
+        factor="vix_term",
+        contribution=round(contribution, 3),
+        evidence=(
+            f"VIX 1M={r.vix_1m:.1f} / 3M={r.vix_3m:.1f} ratio={r.ratio:.2f} "
+            f"({r.regime})"
+        ),
+        source="FRED:VIXCLS|FRED:VXVCLS",
+    )
+
+
+async def _factor_risk_appetite(
+    session: AsyncSession, asset: str
+) -> Driver | None:
+    """Composite risk-on/off score → tilts equities + commodity FX."""
+    r = await assess_risk_appetite(session)
+    if not r.components:
+        return None
+    raw = r.composite  # already in [-1, +1]
+    if asset in {"NAS100_USD", "SPX500_USD"}:
+        contribution = raw * 0.5  # equity beta to risk
+    elif asset == "AUD_USD":
+        contribution = raw * 0.4  # commodity risk currency
+    elif asset == "XAU_USD":
+        contribution = -raw * 0.2  # gold haven (slight)
+    elif asset == "USD_JPY":
+        contribution = raw * 0.3  # carry trade : long USD/JPY in risk-on
+    elif asset == "USD_CAD":
+        contribution = -raw * 0.2  # CAD oil-linked → risk-on hurts USD/CAD
+    else:
+        contribution = -raw * 0.2  # EUR/USD, GBP/USD : risk-on hurts USD haven
+    return Driver(
+        factor="risk_appetite",
+        contribution=round(contribution, 3),
+        evidence=f"composite {r.composite:+.2f} ({r.band}, n={len(r.components)} components)",
+        source="empirical_model:risk_appetite",
+    )
+
+
 async def _factor_surprise_index(
     session: AsyncSession, asset: str
 ) -> Driver | None:
@@ -476,6 +537,8 @@ async def assess_confluence(
         await _factor_polymarket(session, asset),
         await _factor_funding_stress(session, asset),
         await _factor_surprise_index(session, asset),
+        await _factor_vix_term(session, asset),
+        await _factor_risk_appetite(session, asset),
     ):
         if factor is not None:
             drivers.append(factor)

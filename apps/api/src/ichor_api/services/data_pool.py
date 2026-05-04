@@ -68,6 +68,14 @@ from .economic_calendar import (
     assess_calendar,
     render_calendar_block,
 )
+from .risk_appetite import (
+    assess_risk_appetite,
+    render_risk_appetite_block,
+)
+from .vix_term_structure import (
+    assess_vix_term,
+    render_vix_term_block,
+)
 from .yield_curve import (
     assess_yield_curve,
     render_yield_curve_block,
@@ -577,6 +585,22 @@ async def _section_correlations(
     return render_correlations_block(m)
 
 
+async def _section_vix_term(
+    session: AsyncSession,
+) -> tuple[str, list[str]]:
+    """## VIX term structure — contango / backwardation."""
+    r = await assess_vix_term(session)
+    return render_vix_term_block(r)
+
+
+async def _section_risk_appetite(
+    session: AsyncSession,
+) -> tuple[str, list[str]]:
+    """## Risk appetite composite — VIX + OAS + curve + UMCSENT."""
+    r = await assess_risk_appetite(session)
+    return render_risk_appetite_block(r)
+
+
 async def _section_hourly_vol(
     session: AsyncSession, asset: str
 ) -> tuple[str, list[str]]:
@@ -659,6 +683,12 @@ async def build_data_pool(
 
     smile_md, smile_src = await _section_dollar_smile(session)
     sections.append(("dollar_smile", smile_md, smile_src))
+
+    vix_md, vix_src = await _section_vix_term(session)
+    sections.append(("vix_term", vix_md, vix_src))
+
+    ra_md, ra_src = await _section_risk_appetite(session)
+    sections.append(("risk_appetite", ra_md, ra_src))
 
     yc_md, yc_src = await _section_yield_curve(session)
     sections.append(("yield_curve", yc_md, yc_src))

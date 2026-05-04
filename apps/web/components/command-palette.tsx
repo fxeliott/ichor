@@ -42,6 +42,8 @@ const PAGES: Command[] = [
   { id: "sessions", label: "Cartes session", hint: "/sessions", kind: "page", href: "/sessions" },
   { id: "confluence", label: "Confluence multi-actifs", hint: "/confluence", kind: "page", href: "/confluence", keywords: ["score", "synthese", "drivers", "trade strength"] },
   { id: "correlations", label: "Corrélations cross-asset", hint: "/correlations", kind: "page", href: "/correlations", keywords: ["matrix", "pearson", "regime"] },
+  { id: "macro-pulse", label: "Macro pulse", hint: "/macro-pulse", kind: "page", href: "/macro-pulse", keywords: ["vix", "risk appetite", "yield curve", "stress", "surprise", "weather"] },
+  { id: "yield-curve", label: "Yield curve", hint: "/yield-curve", kind: "page", href: "/yield-curve", keywords: ["term structure", "tips", "real yield", "recession", "inverted"] },
   { id: "narratives", label: "Narratives", hint: "/narratives", kind: "page", href: "/narratives" },
   { id: "kg", label: "Knowledge graph", hint: "/knowledge-graph", kind: "page", href: "/knowledge-graph", keywords: ["graph", "shock", "causal"] },
   { id: "geopol", label: "Géopolitique", hint: "/geopolitics", kind: "page", href: "/geopolitics" },

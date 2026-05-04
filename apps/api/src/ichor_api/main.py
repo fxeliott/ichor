@@ -28,6 +28,7 @@ from .routers import (
     geopolitics_router,
     graph_router,
     hourly_volatility_router,
+    macro_pulse_router,
     market_router,
     narratives_router,
     news_router,
@@ -108,6 +109,7 @@ app.include_router(calendar_router)
 app.include_router(correlations_router)
 app.include_router(hourly_volatility_router)
 app.include_router(brier_feedback_router)
+app.include_router(macro_pulse_router)
 app.include_router(push_router)
 app.include_router(admin_router)
 app.include_router(ws_router)

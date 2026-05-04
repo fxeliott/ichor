@@ -672,3 +672,81 @@ export interface BrierFeedback {
 
 export const getBrierFeedback = (windowDays = 30): Promise<BrierFeedback> =>
   get<BrierFeedback>(`/v1/brier-feedback?window_days=${windowDays}`, 60);
+
+// ─────────────── macro pulse (bundled snapshot) ────────────────
+
+export interface VixTermPulse {
+  vix_1m: number | null;
+  vix_3m: number | null;
+  ratio: number | null;
+  spread: number | null;
+  regime: string;
+  interpretation: string;
+}
+
+export interface RiskComponent {
+  name: string;
+  series_id: string;
+  value: number | null;
+  contribution: number;
+  rationale: string;
+}
+
+export interface RiskAppetitePulse {
+  composite: number;
+  band: string;
+  components: RiskComponent[];
+}
+
+export interface YieldPoint {
+  label: string;
+  tenor_years: number;
+  yield_pct: number | null;
+}
+
+export interface YieldCurvePulse {
+  points: YieldPoint[];
+  slope_3m_10y: number | null;
+  slope_2y_10y: number | null;
+  slope_5y_30y: number | null;
+  real_yield_10y: number | null;
+  inverted_segments: number;
+  shape: string;
+  note: string;
+}
+
+export interface FundingStressPulse {
+  sofr: number | null;
+  iorb: number | null;
+  sofr_iorb_spread: number | null;
+  sofr_effr_spread: number | null;
+  rrp_usage: number | null;
+  hy_oas: number | null;
+  stress_score: number;
+}
+
+export interface SurpriseSeries {
+  series_id: string;
+  label: string;
+  last_value: number | null;
+  z_score: number | null;
+}
+
+export interface SurprisePulse {
+  region: string;
+  composite: number | null;
+  band: string;
+  series: SurpriseSeries[];
+}
+
+export interface MacroPulse {
+  generated_at: string;
+  vix_term: VixTermPulse;
+  risk_appetite: RiskAppetitePulse;
+  yield_curve: YieldCurvePulse;
+  funding_stress: FundingStressPulse;
+  surprise_index: SurprisePulse;
+}
+
+export const getMacroPulse = (): Promise<MacroPulse> =>
+  get<MacroPulse>(`/v1/macro-pulse`, 60);
