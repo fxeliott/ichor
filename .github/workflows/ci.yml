@@ -105,9 +105,15 @@ jobs:
           uv venv
           uv pip install -e ".[dev]" || true  # tolerate empty optional deps in skeleton
 
-      - name: Ruff check
+      - name: Ruff check (Phase 1 — blocking)
         working-directory: ${{ matrix.package }}
-        run: uv run ruff check . || true  # warn-only during Phase 0 skeleton
+        # 2026-05-05 ramp : ruff check is now blocking on all 5 packages.
+        # All packages were verified clean at this commit (apps/api +
+        # apps/claude-runner + packages/{agents,ml,shared-types}). The
+        # legacy noisy rules (S110/S112/S608/S311/B904/E741/RUF001-003/
+        # ASYNC109/DTZ007/DTZ011/RUF012/RUF100/B008) are silenced via
+        # [tool.ruff.lint.ignore] in root pyproject.toml.
+        run: uv run ruff check .
 
       - name: Mypy (lenient in Phase 0)
         working-directory: ${{ matrix.package }}
