@@ -68,8 +68,17 @@ async def _last_crisis_resolved(session, *, after: datetime) -> Alert | None:
     return (await session.execute(stmt)).scalars().first()
 
 
-async def _emit_active(session, *, codes: list[str], score: float) -> None:
+async def _emit_active(
+    session, *, codes: list[str], total_alerts: int, score: float
+) -> None:
+    """codes = deduplicated list of triggering alert codes ;
+    total_alerts = raw count (one code can fire on multiple assets)."""
     now = datetime.now(UTC)
+    unique_codes = sorted(set(codes))
+    title = (
+        f"Crisis Mode actif — {total_alerts} alerts sur {len(unique_codes)} "
+        f"types : {', '.join(unique_codes[:5])}"
+    )
     session.add(
         Alert(
             id=uuid4(),
@@ -80,11 +89,15 @@ async def _emit_active(session, *, codes: list[str], score: float) -> None:
             asset=None,
             triggered_at=now,
             metric_name="crisis_concurrent_count",
-            metric_value=float(len(codes)),
+            metric_value=float(total_alerts),
             threshold=2.0,
             direction="above",
-            source_payload={"triggering_codes": codes, "severity_score": score},
-            title=f"Crisis Mode actif — {len(codes)} déclencheurs : {', '.join(codes[:5])}",
+            source_payload={
+                "triggering_codes": unique_codes,
+                "total_alerts": total_alerts,
+                "severity_score": score,
+            },
+            title=title[:256],
             description=(
                 "Composite Crisis Mode triggered : ≥2 crisis_mode alerts "
                 "un-acknowledged in the trailing 60min window."
@@ -196,10 +209,15 @@ async def run(*, persist: bool, min_concurrent: int = 2, lookback_min: int = 60)
                 await _emit_active(
                     session,
                     codes=list(set(assessment.triggering_codes)),
+                    total_alerts=len(assessment.triggering_codes),
                     score=assessment.severity_score,
                 )
                 await session.commit()
-                print("Crisis check · emitted CRISIS_MODE_ACTIVE")
+                print(
+                    f"Crisis check · emitted CRISIS_MODE_ACTIVE "
+                    f"({len(assessment.triggering_codes)} alerts on "
+                    f"{len(set(assessment.triggering_codes))} unique codes)"
+                )
             elif not assessment.is_active and currently_active_in_db:
                 # Pull prior_codes from the last ACTIVE row's payload
                 prior_codes: list[str] = []
