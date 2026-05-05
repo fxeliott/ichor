@@ -188,3 +188,169 @@ async def status(
         last_card_at=last_card_at,
         claude_runner_url=settings.claude_runner_url or None,
     )
+
+
+# ── Pipeline health snapshot (Sprint 17) ────────────────────────────
+
+
+class PipelineHealth(BaseModel):
+    pipeline: str
+    """Symbolic name : 'fred', 'vpin_fx', 'binance_funding', etc."""
+
+    series_count: int
+    """Distinct series_id rows currently observed."""
+
+    last_observation_at: datetime | None
+    minutes_since_last: int | None
+    """Stale = > 1500min (25h) for daily pipelines, > 60min for live."""
+
+    is_stale: bool
+
+
+class AlertSummary(BaseModel):
+    alert_code: str
+    severity: str
+    count_24h: int
+    count_7d: int
+    last_triggered_at: datetime
+
+
+class PipelineHealthOut(BaseModel):
+    generated_at: datetime
+    pipelines: list[PipelineHealth]
+    alerts_24h: list[AlertSummary]
+    n_session_cards_7d: int
+    n_couche2_outputs_7d: int
+    crisis_mode_active: bool
+    """True when an unacknowledged CRISIS_MODE_ACTIVE row exists in
+    the trailing 60min — same logic as the dashboard banner."""
+
+
+# series_id pattern → pipeline label + freshness expectation (minutes)
+_PIPELINE_PATTERNS: tuple[tuple[str, str, int], ...] = (
+    ("VPIN_FX_%", "vpin_fx", 90),                 # 30min cron + buffer
+    ("BA_SPREAD_%", "bidask_spread", 30),         # 10min cron
+    ("VIX_LIVE", "vix_live", 30),                 # 5min cron
+    ("CRYPTO_FNG", "crypto_fng", 1500),           # daily
+    ("BINANCE_FUNDING_%", "binance_funding", 1500),
+    ("DEFILLAMA_%", "defillama", 1500),
+    ("WIKI_PV_%", "wikipedia_pageviews", 1500),
+    ("HAR_RV_%", "har_rv_forecast", 1500),
+    ("HMM_REGIME_%", "hmm_regime", 1500),
+    ("DTW_DIST_MIN", "dtw_analogue", 1500),
+    ("AAII_%", "aaii", 10080),                    # weekly
+    ("BOE_%", "boe_iadb", 1500),
+    ("ECB_%", "ecb_sdmx", 1500),
+    ("BLS_%", "bls", 10080),
+    ("EIA_%", "eia_petroleum", 1500),
+    ("DTS_TGA_CLOSE", "dts_treasury", 1500),
+    ("TREASURY_AUC_%", "treasury_auction", 1500),
+    ("BRIER_%", "brier_drift", 1500),
+)
+
+
+@router.get("/pipeline-health", response_model=PipelineHealthOut)
+async def pipeline_health(
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> PipelineHealthOut:
+    """One-shot snapshot of every running pipeline + alerts + Crisis state.
+
+    Designed as the dashboard's "is the system alive" probe : a single
+    GET returns enough to color-code each pipeline pill (live / stale)
+    + the recent alerts breakdown + the Crisis Mode banner state.
+    """
+    from sqlalchemy import text as sa_text
+
+    from ..models import Alert, Couche2Output
+
+    now = datetime.now(UTC)
+
+    # Pipelines
+    pipelines: list[PipelineHealth] = []
+    for like_pattern, label, stale_min in _PIPELINE_PATTERNS:
+        sql = sa_text(
+            "SELECT count(distinct series_id) AS n, max(fetched_at) AS last "
+            "FROM fred_observations WHERE series_id LIKE :pat"
+        )
+        row = (await session.execute(sql, {"pat": like_pattern})).first()
+        n = int(row[0] or 0) if row else 0
+        last = row[1] if row else None
+        mins = None
+        if isinstance(last, datetime):
+            mins = max(0, int((now - last).total_seconds() / 60))
+        pipelines.append(
+            PipelineHealth(
+                pipeline=label,
+                series_count=n,
+                last_observation_at=last if isinstance(last, datetime) else None,
+                minutes_since_last=mins,
+                is_stale=(mins is None) if n == 0 else (mins > stale_min),
+            )
+        )
+
+    # Alerts breakdown — last 7d, grouped by code
+    alerts_stmt = sa_text(
+        """
+        SELECT alert_code, severity,
+               count(*) FILTER (WHERE triggered_at >= :h24) AS c24,
+               count(*) AS c7,
+               max(triggered_at) AS last_at
+        FROM alerts
+        WHERE triggered_at >= :h7d
+        GROUP BY alert_code, severity
+        ORDER BY c24 DESC, c7 DESC
+        LIMIT 30
+        """
+    )
+    alert_rows = (
+        await session.execute(
+            alerts_stmt, {"h24": now - timedelta(hours=24), "h7d": now - timedelta(days=7)}
+        )
+    ).all()
+    alerts_24h = [
+        AlertSummary(
+            alert_code=str(r[0]),
+            severity=str(r[1]),
+            count_24h=int(r[2] or 0),
+            count_7d=int(r[3] or 0),
+            last_triggered_at=r[4],
+        )
+        for r in alert_rows
+    ]
+
+    # Session cards / Couche-2 outputs counts
+    n_cards_7d = (
+        await session.execute(
+            select(func.count())
+            .select_from(SessionCardAudit)
+            .where(SessionCardAudit.generated_at >= now - timedelta(days=7))
+        )
+    ).scalar_one()
+    n_couche2_7d = (
+        await session.execute(
+            select(func.count())
+            .select_from(Couche2Output)
+            .where(Couche2Output.ran_at >= now - timedelta(days=7))
+        )
+    ).scalar_one()
+
+    # Crisis Mode active : unacknowledged CRISIS_MODE_ACTIVE in last 60min
+    crisis_stmt = (
+        select(func.count())
+        .select_from(Alert)
+        .where(
+            Alert.alert_code == "CRISIS_MODE_ACTIVE",
+            Alert.acknowledged_at.is_(None),
+            Alert.triggered_at >= now - timedelta(minutes=60),
+        )
+    )
+    crisis_active = bool((await session.execute(crisis_stmt)).scalar_one() or 0)
+
+    return PipelineHealthOut(
+        generated_at=now,
+        pipelines=pipelines,
+        alerts_24h=alerts_24h,
+        n_session_cards_7d=int(n_cards_7d or 0),
+        n_couche2_outputs_7d=int(n_couche2_7d or 0),
+        crisis_mode_active=crisis_active,
+    )
