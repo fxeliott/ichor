@@ -119,26 +119,30 @@ async def _seed_baseline_weights_if_missing(
 
     weights = _equal_weights()
     now = datetime.now(UTC)
+    # Schema (migration 0014) : id, created_at, asset, regime, weights,
+    # brier_30d, ece_30d, optimizer_run_id, is_active, notes.
+    # No `source` column — we embed the seed signal in `notes`.
     await session.execute(
         sa_text(
             """
             INSERT INTO confluence_weights_history
-                (id, created_at, asset, regime, weights, is_active, source, notes)
+                (id, created_at, asset, regime, weights, is_active, notes)
             VALUES
                 (:id, :created_at, :asset, :regime, CAST(:weights AS jsonb),
-                 TRUE, :source, :notes)
+                 TRUE, :notes)
             """
         ),
         {
             "id": str(uuid4()),
             "created_at": now,
             "asset": asset,
-            "regime": regime,
+            # Schema is String(16) — truncate defensively. Common Ichor
+            # regime tags (haven_bid, risk_on, etc.) all fit.
+            "regime": regime[:16],
             "weights": json.dumps(weights),
-            "source": "brier_optimizer_seed",
             "notes": (
-                f"Equal-weight baseline seeded by run_brier_optimizer "
-                f"(no prior active row for {asset}/{regime})."
+                f"[brier_optimizer_seed] Equal-weight baseline "
+                f"({asset}/{regime}) — no prior active row."
             ),
         },
     )
