@@ -913,16 +913,21 @@ async def _run_defillama(*, persist: bool) -> int:
 
 
 async def _run_binance_funding(*, persist: bool) -> int:
-    """Binance USDⓈ-M perpetual funding rates → fred_observations
-    BINANCE_FUNDING_{symbol}. The annualized rate is also stored as
-    BINANCE_FUNDING_ANN_{symbol} for direct trader-friendly reads."""
+    """Binance USDⓈ-M perpetual funding rates aggregated to one row
+    per (symbol, day). Each day has 3 settlements (8h cadence) ; we
+    store the daily mean to fit the fred_observations UNIQUE
+    (series_id, observation_date) constraint.
+
+    Series stored : BINANCE_FUNDING_{symbol} (raw mean of the 3 ticks),
+    BINANCE_FUNDING_ANN_{symbol} (linearly annualized)."""
     from datetime import UTC as _UTC
     from datetime import datetime as _dt
+    from sqlalchemy.dialects.postgresql import insert as pg_insert
 
     from ..collectors.binance_funding import annualize_rate
 
     records = await poll_binance_funding(limit=200)
-    print(f"Binance funding · {len(records)} records across symbols")
+    print(f"Binance funding · {len(records)} settlements across symbols")
     for r in records[:3]:
         ann = annualize_rate(r.funding_rate)
         print(
@@ -932,33 +937,48 @@ async def _run_binance_funding(*, persist: bool) -> int:
     if persist and records:
         from ..models import FredObservation
 
+        # Aggregate per (symbol, day) — mean funding rate.
+        from collections import defaultdict
+
+        bucket: dict[tuple[str, object], list[float]] = defaultdict(list)
+        fetched: dict[tuple[str, object], _dt] = {}
+        for r in records:
+            day = r.funding_time.astimezone(_UTC).date()
+            key = (r.symbol, day)
+            bucket[key].append(r.funding_rate)
+            fetched[key] = r.fetched_at
+
         sm = get_sessionmaker()
-        n = 0
+        n_rows = 0
         async with sm() as session:
-            for r in records:
-                # Each settlement is a 8h tick — store both the raw rate
-                # AND the annualized so consumers can pick.
-                session.add(
-                    FredObservation(
-                        observation_date=r.funding_time.astimezone(_UTC).date(),
+            for (symbol, day), rates in bucket.items():
+                mean_rate = sum(rates) / len(rates)
+                ann = annualize_rate(mean_rate)
+                # ON CONFLICT DO UPDATE — idempotent on cron retries.
+                # The composite uniqueness is on (series_id, observation_date).
+                for sid, val in (
+                    (f"BINANCE_FUNDING_{symbol}"[:64], float(mean_rate)),
+                    (f"BINANCE_FUNDING_ANN_{symbol}"[:64], float(ann)),
+                ):
+                    stmt = pg_insert(FredObservation).values(
+                        id=__import__("uuid").uuid4(),
+                        observation_date=day,
                         created_at=_dt.now(_UTC),
-                        series_id=f"BINANCE_FUNDING_{r.symbol}"[:64],
-                        value=float(r.funding_rate),
-                        fetched_at=r.fetched_at,
+                        series_id=sid,
+                        value=val,
+                        fetched_at=fetched[(symbol, day)],
                     )
-                )
-                session.add(
-                    FredObservation(
-                        observation_date=r.funding_time.astimezone(_UTC).date(),
-                        created_at=_dt.now(_UTC),
-                        series_id=f"BINANCE_FUNDING_ANN_{r.symbol}"[:64],
-                        value=float(annualize_rate(r.funding_rate)),
-                        fetched_at=r.fetched_at,
+                    stmt = stmt.on_conflict_do_update(
+                        constraint="uq_fred_series_date",
+                        set_={"value": stmt.excluded.value, "fetched_at": stmt.excluded.fetched_at},
                     )
-                )
-                n += 2
+                    await session.execute(stmt)
+                    n_rows += 1
             await session.commit()
-        print(f"Binance funding · persisted {n} rows")
+        print(
+            f"Binance funding · upserted {n_rows} rows "
+            f"({len(bucket)} (symbol, day) buckets × 2 series)"
+        )
     return 0 if records else 1
 
 
