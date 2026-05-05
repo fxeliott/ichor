@@ -1,8 +1,14 @@
 name: Security audit
 
+# Strict-mode S4 audit (SPEC §3.10 ramp).
+#
+# All jobs below are blocking on Push-to-main and on dependency-changing PRs.
+# A CRITICAL/HIGH dependency vuln, a Trivy fs finding, or a problematic
+# migration (squawk warn) will fail the workflow and gate the merge.
+
 on:
   schedule:
-    - cron: "0 6 * * 1"  # every Monday 06:00 UTC
+    - cron: "0 6 * * 1" # every Monday 06:00 UTC
   workflow_dispatch:
   push:
     branches: [main]
@@ -11,6 +17,14 @@ on:
       - "**/uv.lock"
       - "**/package.json"
       - "**/pnpm-lock.yaml"
+      - "apps/api/migrations/versions/**"
+  pull_request:
+    paths:
+      - "**/pyproject.toml"
+      - "**/uv.lock"
+      - "**/package.json"
+      - "**/pnpm-lock.yaml"
+      - "apps/api/migrations/versions/**"
 
 permissions:
   contents: read
@@ -41,16 +55,21 @@ jobs:
       - name: Install pip-audit
         run: pip install pip-audit==2.8.1
 
-      - name: Run pip-audit
+      - name: Extract requirements from pyproject
         working-directory: ${{ matrix.package }}
+        shell: bash
         run: |
-          pip-audit -r <(python -c "
-          import tomllib, sys
+          python -c "
+          import tomllib
           with open('pyproject.toml','rb') as f:
               data = tomllib.load(f)
           deps = data.get('project',{}).get('dependencies',[])
           print('\n'.join(deps))
-          ") --vulnerability-service osv --strict || echo "::warning::pip-audit found issues (warn-only Phase 0)"
+          " > /tmp/requirements.txt
+          cat /tmp/requirements.txt
+
+      - name: Run pip-audit (strict, OSV)
+        run: pip-audit -r /tmp/requirements.txt --vulnerability-service osv --strict
 
   pnpm-audit:
     name: pnpm audit (Node/TS)
@@ -70,10 +89,10 @@ jobs:
           corepack prepare pnpm@10.33.2 --activate
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile || pnpm install  # lockfile may not exist yet in Phase 0
+        run: pnpm install --frozen-lockfile
 
-      - name: Run pnpm audit
-        run: pnpm audit --audit-level=high || echo "::warning::pnpm audit found issues (warn-only Phase 0)"
+      - name: Run pnpm audit (strict, level=high)
+        run: pnpm audit --audit-level=high
 
   trivy-fs:
     name: Trivy filesystem scan
@@ -82,13 +101,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@0.28.0
+      - name: Run Trivy vulnerability scanner (blocking)
+        # SECURITY (2026-05-05): trivy-action 0.0.1–0.34.2 was compromised
+        # in the March 2026 supply-chain attack (credential stealer
+        # injected via force-pushed tags). v0.28.0 was in the affected
+        # range. Bumped to v0.36.0 (post-attack stable, April 2026).
+        # Future hardening: pin to commit SHA per aquasec.com advisory.
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: fs
           scan-ref: .
           severity: CRITICAL,HIGH
-          exit-code: "0"  # warn-only Phase 0
+          exit-code: "1"
           ignore-unfixed: true
           format: sarif
           output: trivy-results.sarif
@@ -98,3 +122,112 @@ jobs:
         if: always()
         with:
           sarif_file: trivy-results.sarif
+
+  sbom:
+    name: SBOM (syft) + grype scan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate SBOM (syft → SPDX-JSON)
+        uses: anchore/sbom-action@v0
+        with:
+          path: .
+          format: spdx-json
+          output-file: sbom.spdx.json
+
+      - name: Upload SBOM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-spdx
+          path: sbom.spdx.json
+          retention-days: 90
+
+      - name: Grype scan (severity-cutoff=high)
+        uses: anchore/scan-action@v6
+        with:
+          sbom: sbom.spdx.json
+          severity-cutoff: high
+          fail-build: true
+          output-format: sarif
+
+      - name: Upload Grype SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: results.sarif
+
+  alembic-chain-lint:
+    name: Alembic chain integrity + offline-SQL squawk
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validate migration chain (static)
+        run: |
+          python <<'PY'
+          import pathlib, re, sys
+          versions = pathlib.Path("apps/api/migrations/versions")
+          revs = {}
+          for f in sorted(versions.glob("*.py")):
+              text = f.read_text(encoding="utf-8")
+              rev = re.search(r'^revision[^=]*=\s*["\']([^"\']+)["\']', text, re.M)
+              dr  = re.search(r'^down_revision[^=]*=\s*(["\']([^"\']+)["\']|None)', text, re.M)
+              if not rev:
+                  print(f"::error file={f}::missing revision id")
+                  sys.exit(2)
+              revs[rev.group(1)] = (f.name, dr.group(2) if dr and dr.group(2) else None)
+          # Verify each down_revision points to an existing revision (or None for root).
+          roots = [r for r,(_,d) in revs.items() if d is None]
+          if len(roots) != 1:
+              print(f"::error::Expected exactly 1 root migration, found {len(roots)}: {roots}")
+              sys.exit(2)
+          for r,(fname,d) in revs.items():
+              if d is not None and d not in revs:
+                  print(f"::error file=apps/api/migrations/versions/{fname}::down_revision '{d}' not found")
+                  sys.exit(2)
+          # Check no orphan branches (should be linear).
+          children = {}
+          for r,(_,d) in revs.items():
+              if d is not None:
+                  children.setdefault(d, []).append(r)
+          forks = {p:cs for p,cs in children.items() if len(cs) > 1}
+          if forks:
+              print(f"::warning::Migration forks detected: {forks}")
+          print(f"OK — {len(revs)} migrations, root={roots[0]}, linear chain.")
+          PY
+
+      - name: Install apps/api (for offline SQL emission)
+        run: |
+          pip install -e apps/api
+
+      - name: Emit offline SQL via alembic
+        working-directory: apps/api
+        env:
+          ICHOR_API_DATABASE_URL: postgresql+asyncpg://stub:stub@localhost:5432/stub
+        run: |
+          alembic upgrade head --sql > /tmp/migrations.sql
+          wc -l /tmp/migrations.sql
+
+      - name: Install squawk-cli
+        run: |
+          curl -L https://github.com/sbdchd/squawk/releases/download/v2.20.4/squawk-linux-x86_64.tar.gz \
+            | tar xz -C /tmp
+          sudo mv /tmp/squawk-linux-x86_64 /usr/local/bin/squawk
+          squawk --version
+
+      - name: Run squawk on emitted SQL
+        run: |
+          # Excluded rules that don't fit our greenfield context :
+          #   - prefer-text-field        (we use VARCHAR(N) intentionally)
+          #   - prefer-bigint-over-int   (we don't always need bigint)
+          #   - ban-drop-column          (false positive on initial schema)
+          squawk /tmp/migrations.sql \
+            --exclude prefer-text-field,prefer-bigint-over-int,ban-drop-column,prefer-identity
