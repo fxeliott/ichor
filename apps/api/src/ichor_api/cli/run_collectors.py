@@ -16,7 +16,6 @@ from __future__ import annotations
 
 import asyncio
 import sys
-
 from datetime import date, timedelta
 
 import httpx
@@ -25,13 +24,18 @@ from ..collectors.ai_gpr import fetch_latest as fetch_ai_gpr
 from ..collectors.central_bank_speeches import poll_all as poll_cb_speeches
 from ..collectors.cot import poll_all_assets as poll_cot
 from ..collectors.flashalpha import poll_all as poll_flashalpha
+from ..collectors.forex_factory import (
+    fetch_ff_calendar,
+    persist_events as persist_forex_events,
+)
 from ..collectors.fred import poll_all as poll_fred
 from ..collectors.fred_extended import merged_series as fred_merged_series
 from ..collectors.gdelt import poll_all as poll_gdelt
 from ..collectors.kalshi import poll_all as poll_kalshi
 from ..collectors.manifold import poll_all as poll_manifold
 from ..collectors.market_data import poll_all as poll_market_data
-from ..collectors.polygon import fetch_aggs, supported_assets as polygon_assets
+from ..collectors.polygon import fetch_aggs
+from ..collectors.polygon import supported_assets as polygon_assets
 from ..collectors.polymarket import poll_all as poll_polymarket
 from ..collectors.rss import poll_all as poll_rss
 from ..config import get_settings
@@ -151,6 +155,7 @@ async def _run_gdelt(*, persist: bool) -> int:
         print(f"  [{label:30s}] {n:>3d} articles")
     if persist:
         from ..collectors.persistence import persist_gdelt_articles
+
         sm = get_sessionmaker()
         async with sm() as session:
             inserted = await persist_gdelt_articles(session, articles)
@@ -167,6 +172,7 @@ async def _run_ai_gpr(*, persist: bool) -> int:
         print(f"  latest: {latest.observation_date} = {latest.ai_gpr:.2f}")
     if persist:
         from ..collectors.persistence import persist_gpr_observations
+
         sm = get_sessionmaker()
         async with sm() as session:
             inserted = await persist_gpr_observations(session, obs)
@@ -188,6 +194,7 @@ async def _run_cot(*, persist: bool) -> int:
         )
     if persist:
         from ..collectors.persistence import persist_cot_positions
+
         sm = get_sessionmaker()
         async with sm() as session:
             inserted = await persist_cot_positions(session, by_code.values())
@@ -201,13 +208,12 @@ async def _run_cb_speeches(*, persist: bool) -> int:
     speeches = await poll_cb_speeches()
     print(f"CB speeches · {len(speeches)} items pulled")
     for s in speeches[:5]:
-        print(
-            f"  [{s.central_bank:6s}] {s.published_at:%Y-%m-%d} {s.title[:80]}"
-        )
+        print(f"  [{s.central_bank:6s}] {s.published_at:%Y-%m-%d} {s.title[:80]}")
     if len(speeches) > 5:
         print(f"  ... and {len(speeches) - 5} more")
     if persist:
         from ..collectors.persistence import persist_cb_speeches
+
         sm = get_sessionmaker()
         async with sm() as session:
             inserted = await persist_cb_speeches(session, speeches)
@@ -226,6 +232,7 @@ async def _run_kalshi(*, persist: bool) -> int:
         print(f"  ... and {len(snaps) - 5} more")
     if persist:
         from ..collectors.persistence import persist_kalshi_snapshots
+
         sm = get_sessionmaker()
         async with sm() as session:
             inserted = await persist_kalshi_snapshots(session, snaps)
@@ -244,6 +251,7 @@ async def _run_manifold(*, persist: bool) -> int:
         print(f"  ... and {len(snaps) - 5} more")
     if persist:
         from ..collectors.persistence import persist_manifold_snapshots
+
         sm = get_sessionmaker()
         async with sm() as session:
             inserted = await persist_manifold_snapshots(session, snaps)
@@ -264,9 +272,7 @@ async def _run_flashalpha(*, persist: bool) -> int:
     snaps = await poll_flashalpha(api_key=settings.flashalpha_api_key)
     print(f"FlashAlpha · {len(snaps)} GEX snapshots fetched")
     for s in snaps:
-        gex_str = (
-            f"{s.total_gex_usd / 1e9:+.2f}bn$" if s.total_gex_usd is not None else "n/a"
-        )
+        gex_str = f"{s.total_gex_usd / 1e9:+.2f}bn$" if s.total_gex_usd is not None else "n/a"
         flip_str = f"{s.gamma_flip:.0f}" if s.gamma_flip is not None else "n/a"
         print(
             f"  [{s.ticker:6s}] spot={s.spot} gex={gex_str} flip={flip_str} "
@@ -282,6 +288,99 @@ async def _run_flashalpha(*, persist: bool) -> int:
             file=sys.stderr,
         )
     return 0 if snaps else 1
+
+
+async def _run_mastodon(*, persist: bool) -> int:
+    """Pull configured Mastodon ATOM feeds and optionally persist as news_items.
+
+    Feeds are read from `settings.mastodon_followed_feeds` — a CSV of
+    `kind:instance:handle` triples. Empty config = collector no-ops.
+    """
+    from ..collectors.mastodon import (
+        fetch_mastodon_atom,
+        persist_to_news_items,
+        tag_feed_url,
+        user_feed_url,
+    )
+
+    settings = get_settings()
+    raw = (settings.mastodon_followed_feeds or "").strip()
+    if not raw:
+        print(
+            "Mastodon · ICHOR_API_MASTODON_FOLLOWED_FEEDS is empty — skipping. "
+            "Format: 'kind:instance:handle' triples, comma-separated.",
+            file=sys.stderr,
+        )
+        return 0
+
+    triples = [t.strip() for t in raw.split(",") if t.strip()]
+    all_statuses: list = []
+    async with httpx.AsyncClient(timeout=20.0) as client:
+        for triple in triples:
+            parts = triple.split(":")
+            if len(parts) != 3:
+                print(f"Mastodon · skipping malformed triple {triple!r}", file=sys.stderr)
+                continue
+            kind, instance, handle = parts
+            if kind not in ("user", "tag"):
+                print(f"Mastodon · skipping unknown kind {kind!r}", file=sys.stderr)
+                continue
+            url = (
+                user_feed_url(instance, handle)
+                if kind == "user"
+                else tag_feed_url(instance, handle)
+            )
+            try:
+                statuses = await fetch_mastodon_atom(
+                    url, instance=instance, feed_kind=kind, client=client
+                )
+            except Exception as e:
+                print(f"Mastodon · [{kind} {instance}/{handle}] error: {e}", file=sys.stderr)
+                continue
+            print(f"Mastodon · [{kind} {instance}/{handle}] {len(statuses)} statuses")
+            all_statuses.extend(statuses)
+
+    if persist and all_statuses:
+        sm = get_sessionmaker()
+        async with sm() as session:
+            inserted = await persist_to_news_items(session, all_statuses)
+            await session.commit()
+        print(f"Mastodon · persisted {inserted} new rows ({len(all_statuses) - inserted} dedup)")
+    return 0 if all_statuses else 1
+
+
+async def _run_forex_factory(*, persist: bool) -> int:
+    """Pull the FairEconomy/ForexFactory weekly XML calendar.
+
+    The feed publishes the *current* week's events with consensus
+    forecast and previous values ; ForexFactory revises forecast /
+    previous through the week as economists update their numbers, so
+    the cron schedules 4 fetches/day (03/09/15/21h Paris). The natural
+    key (currency, scheduled_at, title) makes upserts idempotent.
+    """
+    try:
+        events = await fetch_ff_calendar()
+    except Exception as e:
+        print(f"ForexFactory · error: {e}", file=sys.stderr)
+        return 1
+    print(f"ForexFactory · {len(events)} events parsed")
+    for ev in events[:5]:
+        ts = ev.scheduled_at.strftime("%Y-%m-%d %H:%MZ") if ev.scheduled_at else "TBD"
+        forecast = ev.forecast or "—"
+        previous = ev.previous or "—"
+        print(
+            f"  [{ev.currency:3s}] {ts}  {ev.impact:8s}  "
+            f"{ev.title[:60]}  fcst={forecast} prev={previous}"
+        )
+    if len(events) > 5:
+        print(f"  ... and {len(events) - 5} more")
+    if persist:
+        sm = get_sessionmaker()
+        async with sm() as session:
+            touched = await persist_forex_events(session, events)
+            await session.commit()
+        print(f"ForexFactory · persisted {touched} rows (insert+update)")
+    return 0 if events else 1
 
 
 async def _run_polygon(*, persist: bool, lookback_days: int = 1) -> int:
@@ -311,10 +410,7 @@ async def _run_polygon(*, persist: bool, lookback_days: int = 1) -> int:
             except Exception as e:
                 print(f"Polygon · [{asset:12s}] error: {e}", file=sys.stderr)
                 continue
-            print(
-                f"Polygon · [{asset:12s}] {len(bars):>5d} bars  "
-                f"{from_date} → {today}"
-            )
+            print(f"Polygon · [{asset:12s}] {len(bars):>5d} bars  {from_date} → {today}")
             all_bars.extend(bars)
 
     if persist and all_bars:
@@ -327,7 +423,7 @@ async def _run_polygon(*, persist: bool, lookback_days: int = 1) -> int:
     return 0 if all_bars else 1
 
 
-_HANDLERS: dict[str, "asyncio.Coroutine"] = {}
+_HANDLERS: dict[str, asyncio.Coroutine] = {}
 
 
 async def _main(target: str, *, persist: bool) -> int:
@@ -344,6 +440,8 @@ async def _main(target: str, *, persist: bool) -> int:
         "kalshi": _run_kalshi,
         "manifold": _run_manifold,
         "flashalpha": _run_flashalpha,
+        "forex_factory": _run_forex_factory,
+        "mastodon": _run_mastodon,
     }
     try:
         if target == "all":
@@ -359,8 +457,7 @@ async def _main(target: str, *, persist: bool) -> int:
         if target in handlers:
             return await handlers[target](persist=persist)
         print(
-            f"unknown target: {target!r}\n"
-            f"expected one of: {' | '.join(handlers.keys())} | all",
+            f"unknown target: {target!r}\nexpected one of: {' | '.join(handlers.keys())} | all",
             file=sys.stderr,
         )
         return 2

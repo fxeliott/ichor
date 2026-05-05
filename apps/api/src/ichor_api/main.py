@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+from datetime import UTC
 
 import structlog
 from fastapi import FastAPI
@@ -16,8 +17,8 @@ from .routers import (
     admin_router,
     alerts_router,
     bias_signals_router,
-    brier_feedback_router,
     briefings_router,
+    brier_feedback_router,
     calendar_router,
     calibration_router,
     confluence_router,
@@ -25,6 +26,8 @@ from .routers import (
     counterfactual_router,
     currency_strength_router,
     data_pool_router,
+    divergence_router,
+    economic_events_router,
     geopolitics_router,
     graph_router,
     hourly_volatility_router,
@@ -34,11 +37,16 @@ from .routers import (
     news_router,
     polymarket_impact_router,
     portfolio_exposure_router,
+    post_mortems_router,
     predictions_router,
     push_router,
+    scenarios_router,
     sessions_router,
+    sources_router,
+    today_router,
     trade_plan_router,
     ws_router,
+    yield_curve_router,
 )
 from .schemas import CollectorLag, HealthDetailedOut, HealthOut
 
@@ -68,7 +76,22 @@ async def lifespan(app: FastAPI):
         environment=settings.environment,
         cors_origins=settings.cors_origins,
     )
+    # Start the cross-worker feature_flags invalidation subscriber so
+    # kill-switches propagate in ms instead of waiting for the 60s TTL.
+    from .services.feature_flags import (
+        start_invalidation_subscriber,
+        stop_invalidation_subscriber,
+    )
+
+    try:
+        start_invalidation_subscriber(settings.redis_url)
+    except Exception as exc:  # noqa: BLE001 — best-effort
+        log.warning("api.feature_flags.subscriber_start_failed", error=str(exc))
     yield
+    try:
+        await stop_invalidation_subscriber()
+    except Exception as exc:  # noqa: BLE001
+        log.warning("api.feature_flags.subscriber_stop_failed", error=str(exc))
     await get_engine().dispose()
     log.info("api.shutdown")
 
@@ -104,19 +127,120 @@ app.include_router(graph_router)
 app.include_router(geopolitics_router)
 app.include_router(counterfactual_router)
 app.include_router(data_pool_router)
+app.include_router(divergence_router)
 app.include_router(trade_plan_router)
 app.include_router(confluence_router)
 app.include_router(currency_strength_router)
 app.include_router(calendar_router)
+app.include_router(economic_events_router)
 app.include_router(correlations_router)
 app.include_router(hourly_volatility_router)
 app.include_router(brier_feedback_router)
 app.include_router(macro_pulse_router)
 app.include_router(polymarket_impact_router)
 app.include_router(portfolio_exposure_router)
+app.include_router(post_mortems_router)
+app.include_router(scenarios_router)
+app.include_router(sources_router)
+app.include_router(today_router)
 app.include_router(push_router)
 app.include_router(admin_router)
+app.include_router(yield_curve_router)
 app.include_router(ws_router)
+
+
+# ── Health probes split (HARDENING §3) ─────────────────────────────────
+# /livez     — process alive (cheap, no I/O). For Kubernetes-style
+#              liveness probe + nginx upstream health check.
+# /readyz    — ready to serve traffic (DB + Redis + alembic head).
+# /startupz  — boot complete (extensions loaded, e.g. pgvector).
+# /healthz   — kept for backward compat; aliases /readyz.
+
+
+@app.get("/livez", include_in_schema=False)
+async def livez() -> dict[str, str]:
+    """Process alive — no I/O, always 200 unless event loop is wedged."""
+    return {"status": "ok", "version": __version__}
+
+
+@app.get("/readyz", include_in_schema=False)
+async def readyz() -> dict[str, object]:
+    """Ready to serve: DB + Redis reachable, alembic up to date.
+
+    Returns 200 with status=ok when fully ready, 503 with structured
+    body otherwise. Used by nginx blue-green upstream switch (cf
+    HARDENING §3).
+    """
+    from fastapi import Response
+
+    db_ok = False
+    redis_ok = False
+    alembic_ok = False
+    try:
+        async for s in get_session():
+            await s.execute(text("SELECT 1"))
+            db_ok = True
+            try:
+                head = (
+                    await s.execute(text("SELECT version_num FROM alembic_version LIMIT 1"))
+                ).scalar()
+                alembic_ok = head is not None
+            except Exception:
+                alembic_ok = False
+            break
+    except Exception:
+        pass
+    try:
+        from redis import asyncio as aioredis
+
+        r = aioredis.from_url(_settings.redis_url)
+        await r.ping()
+        redis_ok = True
+        await r.close()
+    except Exception:
+        pass
+
+    ready = db_ok and redis_ok and alembic_ok
+    body: dict[str, object] = {
+        "status": "ok" if ready else "not_ready",
+        "checks": {
+            "db": db_ok,
+            "redis": redis_ok,
+            "alembic_head": alembic_ok,
+        },
+    }
+    return Response(  # type: ignore[return-value]
+        content=__import__("json").dumps(body),
+        media_type="application/json",
+        status_code=200 if ready else 503,
+    )
+
+
+@app.get("/startupz", include_in_schema=False)
+async def startupz() -> dict[str, object]:
+    """Startup complete: pgvector extension installed (Phase 2 RAG)."""
+    from fastapi import Response
+
+    pgvector_ok = False
+    try:
+        async for s in get_session():
+            row = (
+                await s.execute(text("SELECT 1 FROM pg_extension WHERE extname = 'vector'"))
+            ).scalar()
+            pgvector_ok = bool(row)
+            break
+    except Exception:
+        pass
+
+    body = {
+        "status": "ok" if pgvector_ok else "starting",
+        "checks": {"pgvector": pgvector_ok},
+    }
+    return Response(  # type: ignore[return-value]
+        content=__import__("json").dumps(body),
+        media_type="application/json",
+        status_code=200 if pgvector_ok else 503,
+    )
 
 
 @app.get("/healthz", response_model=HealthOut)
@@ -135,6 +259,7 @@ async def healthz() -> HealthOut:
 
     try:
         from redis import asyncio as aioredis
+
         r = aioredis.from_url(_settings.redis_url)
         await r.ping()
         redis_ok = True
@@ -159,7 +284,7 @@ async def healthz_detailed() -> HealthDetailedOut:
     per-collector last-fetch timestamps. All read-only — safe to poll
     every 30 s.
     """
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     # Reuse the cheap probe to get db/redis status
     base = await healthz()
@@ -169,7 +294,7 @@ async def healthz_detailed() -> HealthDetailedOut:
     unack_critical = 0
     unack_warning = 0
     collectors: list[CollectorLag] = []
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     if base.db_connected:
         try:
@@ -177,10 +302,7 @@ async def healthz_detailed() -> HealthDetailedOut:
                 # Last completed briefing
                 row = (
                     await session.execute(
-                        text(
-                            "SELECT max(triggered_at) FROM briefings "
-                            "WHERE status = 'completed'"
-                        )
+                        text("SELECT max(triggered_at) FROM briefings WHERE status = 'completed'")
                     )
                 ).first()
                 if row and row[0]:
@@ -214,9 +336,7 @@ async def healthz_detailed() -> HealthDetailedOut:
                 for src, last in rows:
                     minutes_stale = (now - last).total_seconds() / 60 if last else None
                     collectors.append(
-                        CollectorLag(
-                            source=src, last_fetched_at=last, minutes_stale=minutes_stale
-                        )
+                        CollectorLag(source=src, last_fetched_at=last, minutes_stale=minutes_stale)
                     )
                 break
         except Exception:

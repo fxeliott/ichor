@@ -23,7 +23,9 @@ from ..db import get_session
 from ..models import (
     CbSpeech,
     CotPosition,
+    EconomicEvent,
     FredObservation,
+    FxTick,
     GdeltEvent,
     GprObservation,
     KalshiMarket,
@@ -31,6 +33,7 @@ from ..models import (
     NewsItem,
     PolygonIntradayBar,
     PolymarketSnapshot,
+    PostMortem,
     SessionCardAudit,
 )
 
@@ -100,6 +103,10 @@ async def status(
         await _table_count(session, "kalshi_markets", KalshiMarket, "fetched_at"),
         await _table_count(session, "cot_positions", CotPosition, "report_date"),
         await _table_count(session, "session_card_audit", SessionCardAudit, "generated_at"),
+        # Phase 2 additions
+        await _table_count(session, "economic_events", EconomicEvent, "fetched_at"),
+        await _table_count(session, "post_mortems", PostMortem, "generated_at"),
+        await _table_count(session, "fx_ticks", FxTick, "ts"),
     ]
 
     # Card stats per asset
@@ -150,8 +157,7 @@ async def status(
                 func.avg(SessionCardAudit.claude_duration_ms).label("avg_dur"),
                 func.avg(SessionCardAudit.conviction_pct).label("avg_conv"),
                 func.max(SessionCardAudit.generated_at).label("last_at"),
-            )
-            .group_by(SessionCardAudit.asset)
+            ).group_by(SessionCardAudit.asset)
         )
     ).all()
 

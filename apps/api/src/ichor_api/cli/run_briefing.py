@@ -31,7 +31,7 @@ import asyncio
 import json
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import httpx
@@ -40,8 +40,16 @@ import structlog
 from ..briefing.context_builder import build_rich_context
 from ..config import Settings, get_settings
 from ..db import get_engine, get_sessionmaker
-from ..models import Alert, BiasSignal, Briefing
-from sqlalchemy import desc, select
+from ..models import (
+    Alert,
+    BiasSignal,
+    Briefing,
+    CotPosition,
+    EconomicEvent,
+    FredObservation,
+    NewsItem,
+)
+from sqlalchemy import and_, desc, func, select
 
 log = structlog.get_logger(__name__)
 
@@ -135,11 +143,184 @@ async def _assemble_context(briefing_type: str, assets: list[str]) -> tuple[str,
         parts.append("*(no active alerts — system nominal)*")
     parts.append("")
 
-    parts.append("## TODO Phase 0 W2 — context expansion")
-    parts.append("- Macro calendar next 6h (FRED + ECB)")
-    parts.append("- News-NLP aggregate (Reuters/AP/FT, last 24h)")
-    parts.append("- COT positioning shifts (weekly)")
-    parts.append("- Vol surface anomalies (vollib)")
+    # Macro calendar next 6h, news-NLP, COT shifts, vol surface — all wired
+    # to live tables ; defensive empty-state messages preserve briefing
+    # quality when a section has no data this window.
+    sm2 = get_sessionmaker()
+    async with sm2() as session2:
+        now = datetime.now(timezone.utc)
+        horizon_6h = now + timedelta(hours=6)
+        cutoff_24h = now - timedelta(hours=24)
+        cutoff_7d = now - timedelta(days=7)
+        cutoff_14d = now - timedelta(days=14)
+
+        # 1. Macro calendar — high-impact events in the next 6h
+        cal_rows = (
+            await session2.execute(
+                select(EconomicEvent)
+                .where(
+                    EconomicEvent.scheduled_at.is_not(None),
+                    EconomicEvent.scheduled_at >= now,
+                    EconomicEvent.scheduled_at <= horizon_6h,
+                    EconomicEvent.impact.in_(["high", "medium"]),
+                )
+                .order_by(EconomicEvent.scheduled_at)
+                .limit(15)
+            )
+        ).scalars().all()
+
+        # 2. News-NLP aggregate — last 24h tone-tagged headlines
+        nlp_counts_rows = (
+            await session2.execute(
+                select(NewsItem.tone_label, func.count())
+                .where(
+                    NewsItem.published_at >= cutoff_24h,
+                    NewsItem.tone_label.is_not(None),
+                )
+                .group_by(NewsItem.tone_label)
+            )
+        ).all()
+        top_news = (
+            await session2.execute(
+                select(NewsItem)
+                .where(
+                    NewsItem.published_at >= cutoff_24h,
+                    NewsItem.tone_label.is_not(None),
+                )
+                .order_by(desc(NewsItem.tone_score), desc(NewsItem.published_at))
+                .limit(5)
+            )
+        ).scalars().all()
+
+        # 3. COT shifts — current vs 7d-ago managed-money net per market
+        cot_now = (
+            await session2.execute(
+                select(CotPosition)
+                .where(CotPosition.report_date >= cutoff_7d.date())
+                .order_by(desc(CotPosition.report_date))
+                .limit(20)
+            )
+        ).scalars().all()
+        cot_prev_map: dict[str, int] = {}
+        prev_rows = (
+            await session2.execute(
+                select(CotPosition)
+                .where(
+                    and_(
+                        CotPosition.report_date >= cutoff_14d.date(),
+                        CotPosition.report_date < cutoff_7d.date(),
+                    )
+                )
+                .order_by(desc(CotPosition.report_date))
+            )
+        ).scalars().all()
+        for r in prev_rows:
+            cot_prev_map.setdefault(r.market_code, r.managed_money_net)
+
+        # 4. Vol surface — VIX term structure (VIX9D / VIX / VIX3M / VIX6M)
+        vol_term: dict[str, float | None] = {}
+        for sid in ("VIXCLS", "VXVCLS", "VIX9DCLS", "VIX3MCLS", "VIX6MCLS"):
+            row = (
+                await session2.execute(
+                    select(FredObservation.value, FredObservation.observation_date)
+                    .where(
+                        FredObservation.series_id == sid,
+                        FredObservation.value.is_not(None),
+                    )
+                    .order_by(desc(FredObservation.observation_date))
+                    .limit(1)
+                )
+            ).first()
+            vol_term[sid] = float(row[0]) if row else None
+
+    # ── 1. Macro calendar (next 6h) ──────────────────────────────────────
+    parts.append("## Macro calendar (next 6h, high+medium impact)")
+    if cal_rows:
+        parts.append("| Time UTC | Cur | Impact | Title | Forecast | Previous |")
+        parts.append("|----------|-----|--------|-------|----------|----------|")
+        for ev in cal_rows:
+            ts = ev.scheduled_at.strftime("%H:%M") if ev.scheduled_at else "TBD"
+            parts.append(
+                f"| {ts} | {ev.currency} | {ev.impact} | {ev.title[:60]} | "
+                f"{ev.forecast or '—'} | {ev.previous or '—'} |"
+            )
+    else:
+        parts.append("*(no high/medium-impact events scheduled in the next 6h)*")
+    parts.append("")
+
+    # ── 2. News-NLP aggregate (last 24h) ─────────────────────────────────
+    parts.append("## News-NLP aggregate (last 24h, FinBERT-tone)")
+    if nlp_counts_rows:
+        tone_summary = ", ".join(
+            f"{label}: {count}" for label, count in sorted(nlp_counts_rows)
+        )
+        parts.append(f"- Tone distribution : {tone_summary}")
+    if top_news:
+        parts.append("- Top 5 by |tone_score| :")
+        for n in top_news:
+            score = f"{n.tone_score:+.2f}" if n.tone_score is not None else "—"
+            parts.append(
+                f"  - **{n.source}** · `{n.tone_label}` ({score}) · {n.title[:90]}"
+            )
+    if not nlp_counts_rows and not top_news:
+        parts.append("*(no tone-tagged news in the last 24h — FinBERT worker may be offline)*")
+    parts.append("")
+
+    # ── 3. COT positioning shifts (week-over-week) ───────────────────────
+    parts.append("## COT positioning shifts (managed money, WoW)")
+    if cot_now:
+        shifts: list[tuple[str, int, int, int]] = []
+        for r in cot_now:
+            prev = cot_prev_map.get(r.market_code)
+            if prev is None:
+                continue
+            delta = r.managed_money_net - prev
+            shifts.append((r.market_code, r.managed_money_net, prev, delta))
+        shifts.sort(key=lambda x: abs(x[3]), reverse=True)
+        if shifts:
+            parts.append("| Market | Net (now) | Net (prev) | Δ WoW |")
+            parts.append("|--------|-----------|------------|-------|")
+            for code, net, prev, delta in shifts[:8]:
+                parts.append(f"| {code} | {net:+,} | {prev:+,} | {delta:+,} |")
+        else:
+            parts.append("*(no week-over-week comparison available — need 2 reports)*")
+    else:
+        parts.append("*(no COT report in the last 7 days — Friday CFTC release may be late)*")
+    parts.append("")
+
+    # ── 4. Vol surface (VIX term structure) ──────────────────────────────
+    parts.append("## Vol surface anomalies (VIX term structure)")
+    vix_9d = vol_term.get("VIX9DCLS")
+    vix_spot = vol_term.get("VIXCLS")
+    vix_3m = vol_term.get("VIX3MCLS")
+    vix_6m = vol_term.get("VIX6MCLS")
+    if vix_spot is not None:
+        line_parts: list[str] = []
+        if vix_9d is not None:
+            line_parts.append(f"9D={vix_9d:.2f}")
+        line_parts.append(f"Spot={vix_spot:.2f}")
+        if vix_3m is not None:
+            line_parts.append(f"3M={vix_3m:.2f}")
+        if vix_6m is not None:
+            line_parts.append(f"6M={vix_6m:.2f}")
+        parts.append(f"- Term : {' · '.join(line_parts)}")
+        # Backwardation flag : 9D > spot > 3M signals near-term stress repricing
+        if (
+            vix_9d is not None
+            and vix_3m is not None
+            and vix_9d > vix_spot > vix_3m
+        ):
+            parts.append(
+                "- **Backwardation** : 9D > Spot > 3M — near-term stress, "
+                "vol-mean-revert tactical setup"
+            )
+        elif vix_3m is not None and vix_spot is not None and vix_3m > vix_spot * 1.05:
+            parts.append(
+                "- Contango steep : 3M > Spot by >5% — calm regime, "
+                "carry-friendly conditions"
+            )
+    else:
+        parts.append("*(VIX series not available — FRED collector may be lagging)*")
     parts.append("")
 
     text = "\n".join(parts)

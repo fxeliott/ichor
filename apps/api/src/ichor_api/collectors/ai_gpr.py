@@ -190,7 +190,10 @@ def _parse_csv(body: bytes) -> list[AiGprObservation]:
     if _is_xlsx_zip(body):
         return _parse_xlsx(body)
 
-    csv.field_size_limit(sys.maxsize)
+    # Windows ctypes.c_long is 32-bit even on 64-bit Python ; sys.maxsize
+    # (2^63-1) overflows. Use INT_MAX explicitly so Linux + Windows both
+    # accept the call.
+    csv.field_size_limit(2**31 - 1)
     text = body.decode("utf-8", errors="replace")
     reader = csv.DictReader(io.StringIO(text))
     fields = set(reader.fieldnames or [])

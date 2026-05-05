@@ -1,0 +1,134 @@
+#!/usr/bin/env bash
+# Register extended Phase 2 collectors as systemd timers on Hetzner.
+#
+# Phase 1 timers stay (rss/polymarket/market_data/polygon — registered
+# by register-cron-collectors.sh).
+#
+# Phase 2 adds:
+#   - flashalpha (GEX SPX/NDX, twice daily within free-tier 5/d budget)
+#   - vix_live (VIX yfinance, every 5 min during US session)
+#   - aaii (AAII sentiment weekly, Thursdays 16:00 ET)
+#   - bls (BLS labor stats, daily 05:00 Paris)
+#   - ecb_sdmx (ECB macro series, daily 05:30 Paris)
+#   - dts_treasury (US Treasury cash daily, 04:00 Paris)
+#   - boe_iadb (BoE rates, daily 05:00 Paris)
+#   - eia_petroleum (oil stocks weekly Wed + STEO monthly)
+#   - finra_short (short interest semi-monthly + daily volume)
+#   - bluesky (CB officials feed, every 30 min)
+#   - yfinance_options (options chains, twice daily)
+#
+# Phase 2 sweep also formalizes timers for Phase 1 collectors that
+# previously had implementations but no dedicated schedule:
+#   - fred / fred_extended (FRED REST, 2x/day staggered)
+#   - gdelt (GDELT 2.0 DOC, every 30 min — upstream cadence is 15 min)
+#   - ai_gpr (Caldara-Iacoviello daily, 23:00 Paris)
+#   - cot (CFTC weekly, Sat 02:00 Paris after Fri 15:30 ET release)
+#   - central_bank_speeches (BIS + per-CB feeds, every 4h offset +15 min)
+#   - kalshi / manifold (prediction markets, every 15 min)
+#   - polygon_news (Polygon /v2/reference/news, every 30 min)
+#   - forex_factory (FairEconomy weekly XML, 4× per day to catch consensus
+#                    revisions ; persists into economic_events table)
+#   - mastodon (ATOM feeds for instances/handles/tags listed in
+#               ICHOR_API_MASTODON_FOLLOWED_FEEDS env ; persists into
+#               news_items with source_kind="social" ; 30-min cadence)
+#
+# Each timer triggers a oneshot service that decrypts secrets, runs the
+# collector via `python -m ichor_api.cli.run_collector <name>`, persists,
+# then shreds the secret bundle.
+
+set -euo pipefail
+
+# Service template (single binary, collector name passed as arg).
+cat > /etc/systemd/system/ichor-collector@.service <<'EOF'
+[Unit]
+Description=Ichor collector runner (%i)
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=ichor
+Group=ichor
+WorkingDirectory=/opt/ichor/api
+EnvironmentFile=/dev/shm/ichor-secrets.env
+ExecStartPre=/usr/local/bin/ichor-decrypt-secrets
+ExecStart=/opt/ichor/api/.venv/bin/python -m ichor_api.cli.run_collectors %i --persist
+ExecStartPost=/usr/bin/shred -u /dev/shm/ichor-secrets.env
+TimeoutStartSec=600
+StandardOutput=journal
+StandardError=journal
+EOF
+
+# Timers — staggered to avoid CPU bursts and respect free-tier rate limits.
+#
+# Cadence rationale (validated against upstream publishing schedules) :
+#   - GDELT 2.0 publishes every 15 min → poll 30 min (we don't need realtime)
+#   - CFTC COT releases Fri ~15:30 ET ≈ 21:30 Paris (winter) → fetch Sat 02h
+#   - AI-GPR daily file updated in late afternoon US → fetch 23h Paris
+#   - FRED series mostly daily → 2× per day (06h + 18h Paris) with random delay
+#   - BIS / CB speeches feed every few hours → 4h cadence is enough
+#   - Kalshi/Manifold odds shift continuously → 15 min is the sweet spot
+#   - Polygon news API is real-time but quota-limited → 30 min batch
+declare -A SCHEDULES=(
+  # Phase 2 capabilities (existing)
+  [flashalpha]="*-*-* 13,21:00:00 Europe/Paris"
+  [vix_live]="*:0/5"
+  [aaii]="Thu *-*-* 22:30:00 Europe/Paris"
+  [bls]="*-*-* 05:00:00 Europe/Paris"
+  [ecb_sdmx]="*-*-* 05:30:00 Europe/Paris"
+  [dts_treasury]="*-*-* 04:00:00 Europe/Paris"
+  [boe_iadb]="*-*-* 05:15:00 Europe/Paris"
+  [eia_petroleum]="*-*-* 18:00:00 Europe/Paris"
+  [finra_short]="Mon,Tue,Wed,Thu,Fri *-*-* 23:30:00 Europe/Paris"
+  [bluesky]="*:0/30"
+  [yfinance_options]="*-*-* 14,21:30:00 Europe/Paris"
+  # Phase 1 collectors that lacked dedicated timers (added Phase 2 sweep)
+  [fred]="*-*-* 06,18:00:00 Europe/Paris"
+  [fred_extended]="*-*-* 06,18:30:00 Europe/Paris"
+  [gdelt]="*:0/30"
+  [ai_gpr]="*-*-* 23:00:00 Europe/Paris"
+  [cot]="Sat *-*-* 02:00:00 Europe/Paris"
+  [central_bank_speeches]="*-*-* 00,04,08,12,16,20:15:00 Europe/Paris"
+  [kalshi]="*:0/15"
+  [manifold]="*:0/15"
+  [polygon_news]="*:0/30"
+  # ForexFactory weekly XML — refresh 4×/day to catch consensus revisions
+  # (forecast/previous columns change as economists update their numbers).
+  [forex_factory]="*-*-* 03,09,15,21:30:00 Europe/Paris"
+  # Mastodon ATOM feeds — config-driven via ICHOR_API_MASTODON_FOLLOWED_FEEDS.
+  # No-ops silently if env is empty. 30-min cadence is enough for social
+  # signal aggregation (decentralized macro commentary, not high-frequency).
+  [mastodon]="*:0/30"
+)
+
+for name in "${!SCHEDULES[@]}"; do
+  cat > /etc/systemd/system/ichor-collector-${name}.timer <<EOF
+[Unit]
+Description=Ichor collector trigger (${name})
+
+[Timer]
+OnCalendar=${SCHEDULES[$name]}
+Unit=ichor-collector@${name}.service
+RandomizedDelaySec=60
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+EOF
+done
+
+systemctl daemon-reload
+
+# Enable + start
+for name in "${!SCHEDULES[@]}"; do
+  systemctl enable --now ichor-collector-${name}.timer
+done
+
+echo "=== Installed Phase 2 collector timers (${#SCHEDULES[@]}) ==="
+systemctl list-timers --no-pager | grep ichor-collector
+
+echo ""
+echo "Next runs:"
+for name in "${!SCHEDULES[@]}"; do
+  systemctl list-timers ichor-collector-${name}.timer --no-pager 2>&1 | tail -2 | head -1
+done
