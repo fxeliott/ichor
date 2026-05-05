@@ -11,10 +11,17 @@ from ichor_api.collectors.flashalpha import (
 )
 
 
-def test_supported_tickers_includes_spx_ndx() -> None:
+def test_supported_tickers_returns_single_name_set() -> None:
+    """Free-tier WATCHED_TICKERS — index/ETF tickers (SPX/NDX/SPY/QQQ)
+    require Basic+ on FlashAlpha as of 2026-05-05, so the watch list
+    falls back to single-name large-caps (AAPL/MSFT). The actual GEX
+    market signal is computed via collectors.gex_yfinance instead.
+    """
     tickers = supported_tickers()
-    assert "SPX" in tickers
-    assert "NDX" in tickers
+    assert len(tickers) >= 1
+    # Single names only on free tier
+    for t in tickers:
+        assert t not in ("SPX", "NDX", "SPY", "QQQ")
 
 
 def test_parse_canonical_response() -> None:

@@ -1,30 +1,29 @@
-"""FlashAlpha free-tier GEX (Gamma Exposure) collector.
+"""FlashAlpha GEX (Gamma Exposure) collector.
 
-FlashAlpha exposes options-derived dealer positioning data on the
-free tier (5 requests / day). For a 8-asset universe Ichor wants
-NDX + SPX gamma flip + call-wall + put-wall + total GEX → 2 calls/day,
-8% of the daily quota.
+FlashAlpha exposes options-derived dealer positioning data via its
+Lab API. Free tier = 5 req/day, individual stocks only (ETFs/indexes
+like SPY/QQQ/SPX/NDX require Basic+ paid plan). VISION_2026 delta C —
+options flow / dealer gamma.
 
-VISION_2026 delta C — options flow / dealer gamma.
+API endpoint (verified 2026-05-05 — old `flashalphalive.com` domain
+was retired ; the product moved to `lab.flashalpha.com` with a new
+path scheme and lowercase `X-Api-Key` header) :
 
-API endpoint shape (per public docs, verify on first --persist run) :
-    GET https://flashalphalive.com/api/v1/options/gex/{ticker}
-        Headers: X-API-Key: <key>
-    Response (best-guess shape — adapt on first call) :
+    GET https://lab.flashalpha.com/v1/exposure/gex/{symbol}
+        Headers: X-Api-Key: <key>
+    Response (per https://flashalpha.com/docs/lab-api-reference) :
         {
-          "ticker": "SPX",
-          "as_of": "2026-05-04T20:00:00Z",
-          "spot": 5187.0,
-          "total_gex_usd": 1.35e9,
-          "gamma_flip": 5160.0,
-          "call_wall": 5250.0,
-          "put_wall": 5100.0,
-          "zero_gamma": 5180.0
+          "symbol": "AAPL",
+          "underlying_price": 187.45,
+          "gamma_flip": 185.0,
+          "net_gex": 1.35e9,
+          "call_wall": {"strike": 195.0, "gex": ...},
+          "put_wall": {"strike": 180.0, "gex": ...},
+          ...
         }
 
 Fail-soft : if `flashalpha_api_key` is empty, the collector skips
-silently with a stderr line. If the API responds 4xx/5xx we log
-the body and return [] — never crash the brain pipeline.
+silently. 4xx/5xx → log + return [] (never crash the brain pipeline).
 """
 
 from __future__ import annotations
@@ -38,10 +37,13 @@ import structlog
 
 log = structlog.get_logger(__name__)
 
-FLASHALPHA_BASE = "https://flashalphalive.com/api/v1"
+FLASHALPHA_BASE = "https://lab.flashalpha.com/v1"
 
-# Tickers we poll on the free tier — sized for 5 req/day budget.
-WATCHED_TICKERS: tuple[str, ...] = ("SPX", "NDX")
+# Tickers we poll. Free tier covers individual stocks (5 req/day).
+# ETFs/indexes (SPY, QQQ, SPX, NDX) require Basic+ paid plan.
+# When upgraded, swap WATCHED_TICKERS to ("SPY", "QQQ") for the
+# market-wide dealer GEX signal that drives Ichor's regime detection.
+WATCHED_TICKERS: tuple[str, ...] = ("AAPL", "MSFT")
 
 
 @dataclass(frozen=True)
@@ -96,16 +98,26 @@ def parse_gex_response(ticker: str, body: dict) -> GexSnapshot | None:
     if not isinstance(body, dict):
         return None
     fetched = datetime.now(UTC)
+
+    # call_wall / put_wall may be either a scalar strike OR a nested
+    # object {strike, gex} per the 2026 lab.flashalpha.com schema.
+    def _wall_strike(v: object) -> float | None:
+        if isinstance(v, dict):
+            return _safe_float(v.get("strike"))
+        return _safe_float(v)
+
     return GexSnapshot(
         ticker=ticker,
         as_of=_parse_iso(body.get("as_of") or body.get("timestamp")),
-        spot=_safe_float(body.get("spot") or body.get("underlying")),
+        spot=_safe_float(
+            body.get("underlying_price") or body.get("spot") or body.get("underlying")
+        ),
         total_gex_usd=_safe_float(
-            body.get("total_gex_usd") or body.get("net_gex") or body.get("totalGEX")
+            body.get("net_gex") or body.get("total_gex_usd") or body.get("totalGEX")
         ),
         gamma_flip=_safe_float(body.get("gamma_flip") or body.get("gammaFlip") or body.get("flip")),
-        call_wall=_safe_float(body.get("call_wall") or body.get("callWall")),
-        put_wall=_safe_float(body.get("put_wall") or body.get("putWall")),
+        call_wall=_wall_strike(body.get("call_wall") or body.get("callWall")),
+        put_wall=_wall_strike(body.get("put_wall") or body.get("putWall")),
         zero_gamma=_safe_float(
             body.get("zero_gamma") or body.get("zeroGamma") or body.get("zero-gamma")
         ),
@@ -126,10 +138,11 @@ async def fetch_gex(
         return None
     try:
         r = await client.get(
-            f"{FLASHALPHA_BASE}/options/gex/{ticker}",
+            f"{FLASHALPHA_BASE}/exposure/gex/{ticker}",
             headers={
-                "X-API-Key": api_key,
-                "User-Agent": "IchorFlashalphaCollector/0.1",
+                # Canonical case per https://flashalpha.com/docs/quick-start
+                "X-Api-Key": api_key,
+                "User-Agent": "IchorFlashalphaCollector/0.2",
             },
             timeout=timeout_s,
         )

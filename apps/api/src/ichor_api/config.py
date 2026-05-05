@@ -67,9 +67,22 @@ class Settings(BaseSettings):
     """
 
     flashalpha_api_key: str = ""
-    """FlashAlpha free-tier key (5 req/day). Used for SPX + NDX dealer
-    GEX, gamma_flip, call_wall, put_wall snapshots. Empty = collector
-    skipped silently."""
+    """FlashAlpha API key. Free tier = 5 req/day, single-name stocks
+    only with `?expiration=YYYY-MM-DD` filter. Index/ETF GEX (SPX/NDX/
+    SPY/QQQ — what Ichor actually wants) requires Basic+ paid plan.
+    Empty = collector skipped silently. See ADR-022 for the GEX strategy
+    fallback (yfinance-derived dealer GEX estimator)."""
+
+    finra_api_token: str = ""
+    """FINRA Data API Bearer token. Optional — public endpoints work
+    without auth for our daily polling cadence. Token raises rate
+    limits on the otcMarket/regShoDaily + consolidatedShortInterest
+    datasets when we eventually hit the unauth ceiling."""
+
+    bls_api_key: str = ""
+    """BLS Public Data API key. Optional — free tier is 25 q/day
+    no-key, 500 q/day with a registered key. Empty means we use the
+    no-key endpoint (sufficient for our 5-series daily poll = ~5/day)."""
 
     # --- PWA push (VAPID) ---
     vapid_public_key: str = ""

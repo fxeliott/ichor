@@ -24,6 +24,7 @@ from ..models import (
     ManifoldMarket,
     MarketDataBar,
     NewsItem,
+    PolygonGexSnapshot,
     PolygonIntradayBar,
     PolymarketSnapshot,
 )
@@ -32,6 +33,7 @@ from .central_bank_speeches import CentralBankSpeech
 from .cot import CotPosition as CotPositionData
 from .fred import FredObservation as FredObservationData
 from .gdelt import GdeltArticle
+from .gex_yfinance import DealerGexSnapshot
 from .kalshi import KalshiMarketSnapshot
 from .manifold import ManifoldSnapshot
 from .market_data import MarketDataPoint
@@ -552,4 +554,42 @@ async def persist_manifold_snapshots(
         )
     await session.commit()
     log.info("manifold.persisted", count=len(snaps))
+    return len(snaps)
+
+
+async def persist_gex_snapshots(
+    session: AsyncSession, snaps: Iterable[DealerGexSnapshot]
+) -> int:
+    """Persist dealer GEX snapshots into the gex_snapshots table.
+
+    Source-agnostic — accepts snapshots from gex_yfinance or any future
+    provider that emits the same dataclass shape. Always inserts (the
+    composite PK on `(id, captured_at)` makes duplicates harmless ; the
+    history is the goal).
+
+    Wires the previously-DORMANT GEX persistence (cf
+    `cli/run_collectors.py:_run_flashalpha:286-292` STUB).
+    """
+    snaps = list(snaps)
+    if not snaps:
+        return 0
+    now = datetime.now(UTC)
+    for s in snaps:
+        session.add(
+            PolygonGexSnapshot(
+                captured_at=s.captured_at,
+                created_at=now,
+                asset=s.asset[:16],
+                dealer_gex_total=s.dealer_gex_total,
+                gamma_flip=s.gamma_flip,
+                call_wall=s.call_wall,
+                put_wall=s.put_wall,
+                vol_trigger=None,  # Not computed by yfinance estimator
+                spot_at_capture=s.spot,
+                source=s.source[:32],
+                raw=s.raw,
+            )
+        )
+    await session.commit()
+    log.info("gex.persisted", count=len(snaps), source=snaps[0].source if snaps else None)
     return len(snaps)

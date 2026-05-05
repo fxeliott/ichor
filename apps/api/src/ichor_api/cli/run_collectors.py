@@ -23,7 +23,15 @@ import httpx
 from ..collectors.ai_gpr import fetch_latest as fetch_ai_gpr
 from ..collectors.central_bank_speeches import poll_all as poll_cb_speeches
 from ..collectors.cot import poll_all_assets as poll_cot
+from ..collectors.bls import SERIES_TO_POLL as _BLS_SERIES
+from ..collectors.bls import fetch_series as fetch_bls_series
+from ..collectors.dts_treasury import fetch_operating_cash, latest_tga_close
+from ..collectors.ecb_sdmx import SERIES_TO_POLL as _ECB_SERIES
+from ..collectors.ecb_sdmx import fetch_series as fetch_ecb_series
+from ..collectors.finra_short import fetch_daily_short_volume
 from ..collectors.flashalpha import poll_all as poll_flashalpha
+from ..collectors.gex_yfinance import poll_all as poll_gex_yfinance
+from ..collectors.vix_live import fetch_vix
 from ..collectors.forex_factory import (
     fetch_ff_calendar,
 )
@@ -281,14 +289,289 @@ async def _run_flashalpha(*, persist: bool) -> int:
             f"call_wall={s.call_wall} put_wall={s.put_wall}"
         )
     if persist:
-        # Persistence helper not shipped yet — table needs migration.
-        # For V1 the pool reads directly via the collector when called
-        # by the brain ; storage layer is a Phase-2 follow-up.
+        # 2026-05-05 : table gex_snapshots exists (migration 0008) and
+        # persist_gex_snapshots is wired in collectors/persistence.py.
+        # Convert FlashAlpha's GexSnapshot → DealerGexSnapshot then persist.
+        from ..collectors.gex_yfinance import DealerGexSnapshot
+        from ..collectors.persistence import persist_gex_snapshots
+
+        adapted = [
+            DealerGexSnapshot(
+                asset=s.ticker,
+                captured_at=s.fetched_at,
+                spot=s.spot or 0.0,
+                dealer_gex_total=s.total_gex_usd or 0.0,
+                gamma_flip=s.gamma_flip,
+                call_wall=s.call_wall,
+                put_wall=s.put_wall,
+                source="flashalpha",
+                raw=s.raw,
+            )
+            for s in snaps
+        ]
+        sm = get_sessionmaker()
+        async with sm() as session:
+            inserted = await persist_gex_snapshots(session, adapted)
+        print(f"FlashAlpha · persisted {inserted} GEX rows")
+    return 0 if snaps else 1
+
+
+async def _run_vix_live(*, persist: bool) -> int:
+    """Fetch the current ^VIX value from yfinance and persist as a
+    fred_observations row with series_id='VIX_LIVE' so the brain's
+    Crisis-mode detector can compare current vs prior tick.
+    """
+    from datetime import UTC as _UTC
+    from datetime import datetime as _dt
+
+    snap = await fetch_vix()
+    if snap is None:
+        print("VIX live · fetch failed (yahoo unreachable or rate-limited) — skipping")
+        return 1
+    print(
+        f"VIX live · {snap.value:.2f} (Δ {snap.change_pct:+.2%} state={snap.market_state} "
+        f"at {snap.fetched_at.isoformat()})"
+    )
+    if persist:
+        from ..models import FredObservation
+
+        sm = get_sessionmaker()
+        async with sm() as session:
+            session.add(
+                FredObservation(
+                    observation_date=snap.fetched_at.astimezone(_UTC).date(),
+                    created_at=_dt.now(_UTC),
+                    series_id="VIX_LIVE",
+                    value=float(snap.value),
+                    fetched_at=snap.fetched_at,
+                )
+            )
+            await session.commit()
+        print("VIX live · persisted 1 observation row (series_id=VIX_LIVE)")
+    return 0
+
+
+async def _run_dts_treasury(*, persist: bool) -> int:
+    """Treasury DTS daily Operating Cash Balance — TGA close persists as
+    fred_observations rows with series_id='DTS_TGA_CLOSE'.
+    """
+    from datetime import UTC as _UTC
+    from datetime import datetime as _dt
+
+    rows = await fetch_operating_cash(days=14)
+    print(f"Treasury DTS · {len(rows)} cash-balance rows pulled")
+    tga = latest_tga_close(rows)
+    if tga and tga.closing_balance_usd_mn is not None:
         print(
-            "FlashAlpha · persist not yet wired (no gex_snapshots table) — "
-            "data is fetched on each brain run.",
+            f"  latest TGA close: ${float(tga.closing_balance_usd_mn) / 1000:.1f}bn "
+            f"on {tga.record_date.isoformat()}"
+        )
+    if persist and rows:
+        from ..models import FredObservation
+
+        sm = get_sessionmaker()
+        # Persist only the TGA close series — that's the load-bearing one.
+        # Other account types are stored in raw form via the brain's
+        # data_pool tooling.
+        n = 0
+        async with sm() as session:
+            for r in rows:
+                if "TGA" not in (r.account_type or "").upper():
+                    continue
+                if r.closing_balance_usd_mn is None:
+                    continue
+                session.add(
+                    FredObservation(
+                        observation_date=r.record_date,
+                        created_at=_dt.now(_UTC),
+                        series_id="DTS_TGA_CLOSE",
+                        value=float(r.closing_balance_usd_mn),
+                        fetched_at=_dt.now(_UTC),
+                    )
+                )
+                n += 1
+            await session.commit()
+        print(f"Treasury DTS · persisted {n} TGA close rows (series_id=DTS_TGA_CLOSE)")
+    return 0 if rows else 1
+
+
+async def _run_bls(*, persist: bool) -> int:
+    """BLS public API — pulls each watched series and persists as
+    fred_observations with series_id='BLS_<id>'.
+    """
+    from datetime import UTC as _UTC
+    from datetime import date as _date
+    from datetime import datetime as _dt
+
+    settings = get_settings()
+    bls_key = getattr(settings, "bls_api_key", "") or ""
+    total = 0
+    persisted = 0
+    sm = get_sessionmaker() if persist else None
+
+    for series_id in _BLS_SERIES:
+        try:
+            obs = await fetch_bls_series(series_id, api_key=bls_key)
+        except Exception as e:
+            print(f"BLS · [{series_id}] fetch error: {e}")
+            continue
+        total += len(obs)
+        print(f"BLS · [{series_id}] {len(obs)} observations")
+        if persist and obs and sm is not None:
+            from ..models import FredObservation
+
+            async with sm() as session:
+                for o in obs:
+                    if o.value is None or o.observation_date is None:
+                        continue
+                    session.add(
+                        FredObservation(
+                            observation_date=o.observation_date,
+                            created_at=_dt.now(_UTC),
+                            series_id=f"BLS_{o.series_id}"[:64],
+                            value=float(o.value),
+                            fetched_at=o.fetched_at,
+                        )
+                    )
+                    persisted += 1
+                await session.commit()
+    if persist:
+        print(f"BLS · persisted {persisted} rows")
+    return 0 if total else 1
+
+
+async def _run_ecb_sdmx(*, persist: bool) -> int:
+    """ECB SDMX series — HICP, M3, MRO. Persists as fred_observations
+    with series_id='ECB_<flow>_<key_short>'.
+    """
+    from datetime import UTC as _UTC
+    from datetime import date as _date
+    from datetime import datetime as _dt
+
+    total = 0
+    persisted = 0
+    sm = get_sessionmaker() if persist else None
+
+    for flow, series_key in _ECB_SERIES:
+        try:
+            obs = await fetch_ecb_series(flow, series_key)
+        except Exception as e:
+            print(f"ECB · [{flow}] fetch error: {e}")
+            continue
+        total += len(obs)
+        print(f"ECB · [{flow}] {len(obs)} observations")
+        if persist and obs and sm is not None:
+            from ..models import FredObservation
+
+            # Synthetic series_id : flow only (key is too long for our
+            # 64-char index). Drop the second-half of the key after the
+            # rate type prefix.
+            synth_id = f"ECB_{flow}"
+            async with sm() as session:
+                for o in obs:
+                    period = o.observation_period
+                    try:
+                        if "-" in period:
+                            year, mp = period.split("-", 1)
+                            if mp.startswith("Q"):
+                                month = (int(mp[1:]) - 1) * 3 + 1
+                            else:
+                                month = int(mp)
+                            obs_date = _date(int(year), month, 1)
+                        else:
+                            obs_date = _date(int(period), 1, 1)
+                    except (ValueError, AttributeError):
+                        continue
+                    if o.value is None:
+                        continue
+                    session.add(
+                        FredObservation(
+                            observation_date=obs_date,
+                            created_at=_dt.now(_UTC),
+                            series_id=synth_id[:64],
+                            value=float(o.value),
+                            fetched_at=_dt.now(_UTC),
+                        )
+                    )
+                    persisted += 1
+                await session.commit()
+    if persist:
+        print(f"ECB · persisted {persisted} rows")
+    return 0 if total else 1
+
+
+async def _run_finra_short(*, persist: bool) -> int:
+    """FINRA daily short volume — dry-run only for now (dedicated table
+    not yet shipped ; the schema needs per-symbol per-day rows that
+    don't fit fred_observations).
+
+    Pull is rate-limited to a sample of 8 symbols (Ichor's tracked
+    universe proxy via SPY/QQQ + 6 mega-caps) so we don't hit the
+    public endpoint ceiling.
+    """
+    settings = get_settings()
+    token = getattr(settings, "finra_api_token", "") or None
+    sample_symbols: tuple[str, ...] = (
+        "SPY",
+        "QQQ",
+        "AAPL",
+        "MSFT",
+        "NVDA",
+        "TSLA",
+        "AMZN",
+        "META",
+    )
+    try:
+        rows = await fetch_daily_short_volume(sample_symbols, api_token=token)
+    except Exception as e:
+        print(f"FINRA short · fetch error: {e}")
+        return 1
+    print(f"FINRA short · {len(rows)} daily rows for {len(sample_symbols)} symbols")
+    for r in rows[:8]:
+        sv = r.short_volume or 0
+        tv = r.total_volume or 0
+        ratio = sv / tv if tv else 0.0
+        print(
+            f"  [{r.symbol:6s}] {r.trade_date.isoformat()} short={sv:,} "
+            f"total={tv:,} ratio={ratio:.1%}"
+        )
+    if persist:
+        # TODO(P3) : add finra_short_volume table + persistence.
+        # The shape (per-symbol per-day) doesn't fit fred_observations
+        # which is one-value-per-(series_id, date).
+        print(
+            "FINRA short · persistence DEFERRED (needs dedicated table) — "
+            "data printed above for verification only.",
             file=sys.stderr,
         )
+    return 0 if rows else 1
+
+
+async def _run_yfinance_options(*, persist: bool) -> int:
+    """Pull dealer GEX from yfinance options chains for SPY + QQQ.
+
+    Free, full-chain replacement for FlashAlpha (whose free tier requires
+    Basic+ for index/ETF GEX — single-name only on free, capped at 5/day).
+    Convention : SqueezeMetrics dealer net (short calls, long puts).
+    """
+    from ..collectors.persistence import persist_gex_snapshots
+
+    snaps = await poll_gex_yfinance()
+    print(f"yfinance options · {len(snaps)} GEX snapshots computed")
+    for s in snaps:
+        gex_str = (
+            f"{s.dealer_gex_total / 1e9:+.2f}bn$" if s.dealer_gex_total is not None else "n/a"
+        )
+        flip_str = f"{s.gamma_flip:.0f}" if s.gamma_flip is not None else "n/a"
+        print(
+            f"  [{s.asset:6s}] spot={s.spot:.2f} gex={gex_str} flip={flip_str} "
+            f"call_wall={s.call_wall} put_wall={s.put_wall}"
+        )
+    if persist and snaps:
+        sm = get_sessionmaker()
+        async with sm() as session:
+            inserted = await persist_gex_snapshots(session, snaps)
+        print(f"yfinance options · persisted {inserted} GEX rows")
     return 0 if snaps else 1
 
 
@@ -442,6 +725,12 @@ async def _main(target: str, *, persist: bool) -> int:
         "kalshi": _run_kalshi,
         "manifold": _run_manifold,
         "flashalpha": _run_flashalpha,
+        "yfinance_options": _run_yfinance_options,
+        "vix_live": _run_vix_live,
+        "dts_treasury": _run_dts_treasury,
+        "bls": _run_bls,
+        "ecb_sdmx": _run_ecb_sdmx,
+        "finra_short": _run_finra_short,
         "forex_factory": _run_forex_factory,
         "mastodon": _run_mastodon,
     }
