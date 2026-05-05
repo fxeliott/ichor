@@ -40,6 +40,7 @@ from .polymarket_snapshot import PolymarketSnapshot
 from .post_mortem import PostMortem
 from .prediction import Prediction
 from .session_card_audit import SessionCardAudit
+from .session_card_counterfactual import SessionCardCounterfactual
 
 __all__ = [
     "Alert",
@@ -68,4 +69,5 @@ __all__ = [
     "PostMortem",
     "Prediction",
     "SessionCardAudit",
+    "SessionCardCounterfactual",
 ]

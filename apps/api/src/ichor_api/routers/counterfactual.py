@@ -7,10 +7,11 @@ generated_at + critic_verdict for context.
 
 VISION_2026 delta I — Pass 5 wiring.
 
-Side-effects : NONE in V1. Counterfactuals are exploratory ; we
-don't persist them yet. Phase 2 will add a sibling table
-`session_card_counterfactuals(session_card_id, asked_at, scrubbed_event,
-result_json)` if Eliot uses the feature regularly.
+2026-05-05 : counterfactual results are now persisted to
+`session_card_counterfactuals` (migration 0022) so the post-mortem
+can compute robustness deltas over time. The robustness_score is
+1 - abs(confidence_delta) clamped to [0, 1] — stable verdicts
+score near 1, brittle ones near 0.
 """
 
 from __future__ import annotations
@@ -26,7 +27,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..config import get_settings
 from ..db import get_session
-from ..models import SessionCardAudit
+from ..models import SessionCardAudit, SessionCardCounterfactual
 
 router = APIRouter(prefix="/v1/sessions", tags=["counterfactual"])
 
@@ -130,8 +131,43 @@ async def run_counterfactual(
         scrubbed_event=body.scrubbed_event,
     )
     rcall = RunnerCall(prompt=prompt, system=pass5.system_prompt, model="haiku", effort="low")
+    started = datetime.now(UTC)
     rresp = await runner.run(rcall)
     parsed = pass5.parse(rresp.text)
+    asked_at = datetime.now(UTC)
+    duration_ms = int((asked_at - started).total_seconds() * 1000)
+
+    # Robustness score : 1 - |confidence_delta|, clamped to [0, 1].
+    # confidence_delta is signed (negative = brittle), so abs gives the
+    # magnitude of disagreement between original and counterfactual.
+    robustness = max(0.0, min(1.0, 1.0 - abs(parsed.confidence_delta)))
+
+    # Persist for post-mortem robustness analytics.
+    try:
+        session.add(
+            SessionCardCounterfactual(
+                asked_at=asked_at,
+                created_at=asked_at,
+                session_card_id=card.id,
+                asset=card.asset,
+                scrubbed_event=body.scrubbed_event[:500],
+                original_bias=card.bias_direction,
+                original_conviction_pct=card.conviction_pct,
+                counterfactual_bias=parsed.counterfactual_bias,
+                counterfactual_conviction_pct=parsed.counterfactual_conviction_pct,
+                delta_narrative=parsed.delta_narrative,
+                new_dominant_drivers=list(parsed.new_dominant_drivers),
+                confidence_delta=parsed.confidence_delta,
+                robustness_score=robustness,
+                model_used="haiku",
+                duration_ms=duration_ms,
+            )
+        )
+        await session.commit()
+    except Exception:
+        # Persistence is best-effort — do NOT fail the user-facing
+        # response if the table is missing or write fails.
+        await session.rollback()
 
     return CounterfactualResponse(
         session_card_id=str(card.id),
@@ -139,7 +175,7 @@ async def run_counterfactual(
         original_generated_at=card.generated_at,
         original_bias=card.bias_direction,
         original_conviction_pct=card.conviction_pct,
-        asked_at=datetime.now(UTC),
+        asked_at=asked_at,
         scrubbed_event=body.scrubbed_event,
         counterfactual_bias=parsed.counterfactual_bias,
         counterfactual_conviction_pct=parsed.counterfactual_conviction_pct,
