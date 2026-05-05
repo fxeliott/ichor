@@ -39,6 +39,7 @@ from .polygon_intraday import PolygonIntradayBar
 from .polymarket_snapshot import PolymarketSnapshot
 from .post_mortem import PostMortem
 from .prediction import Prediction
+from .finra_short_volume import FinraShortVolume
 from .session_card_audit import SessionCardAudit
 from .session_card_counterfactual import SessionCardCounterfactual
 
@@ -53,6 +54,8 @@ __all__ = [
     # Phase 2
     "Couche2Output",
     "EconomicEvent",
+    # Phase 2 — FINRA Reg SHO daily short volume
+    "FinraShortVolume",
     # Phase 1
     "FredObservation",
     # Phase 2 — VPIN microstructure
