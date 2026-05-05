@@ -62,34 +62,48 @@ async def _baseline_stats(
     session, *, now: datetime, slice_minutes: int = _BURST_WINDOW_MIN
 ) -> tuple[float, float, int]:
     """Compute mean + std of negative-news counts per `slice_minutes`
-    over the trailing _BASELINE_HOURS. Returns (mean, std, n_slices)."""
+    over the trailing _BASELINE_HOURS.
+
+    Implementation : bucket each event by floor((event - start) / slice)
+    in a single GROUP BY pass, then back-fill empty buckets in Python.
+    Faster than generate_series + correlated subquery, and avoids the
+    make_interval(mins => :slc) parameter-typing quirk that broke the
+    initial smoke run.
+    """
     baseline_start = now - timedelta(hours=_BASELINE_HOURS)
-    # Use generate_series to slice ; one query is faster than N round-trips.
+    slice_seconds = slice_minutes * 60
     sql = sa_text(
         """
-        WITH slices AS (
-          SELECT generate_series(:bs, :now - make_interval(mins => :slc),
-                                 make_interval(mins => :slc)) AS slot_start
-        )
-        SELECT s.slot_start,
-               (SELECT count(*) FROM news_items n
-                WHERE n.tone_label = 'negative'
-                  AND n.tone_score < :floor
-                  AND n.fetched_at >= s.slot_start
-                  AND n.fetched_at < s.slot_start + make_interval(mins => :slc))
-               AS neg_count
-        FROM slices s
+        SELECT bucket, count(*)::bigint AS n
+        FROM (
+          SELECT floor(extract(epoch from fetched_at - :bs) / :secs)::int AS bucket
+          FROM news_items
+          WHERE tone_label = 'negative'
+            AND tone_score < :floor
+            AND fetched_at >= :bs
+            AND fetched_at < :now
+        ) sub
+        GROUP BY bucket
+        ORDER BY bucket
         """
     )
     rows = (
         await session.execute(
             sql,
-            {"bs": baseline_start, "now": now, "slc": slice_minutes, "floor": _NEG_TONE_FLOOR},
+            {
+                "bs": baseline_start,
+                "now": now,
+                "secs": slice_seconds,
+                "floor": _NEG_TONE_FLOOR,
+            },
         )
     ).all()
-    counts = [int(r[1] or 0) for r in rows]
-    if not counts:
-        return 0.0, 0.0, 0
+    total_slices = max(1, (_BASELINE_HOURS * 60) // slice_minutes)
+    counts: list[int] = [0] * total_slices
+    for bucket, n in rows:
+        if 0 <= int(bucket) < total_slices:
+            counts[int(bucket)] = int(n)
+
     mean = sum(counts) / len(counts)
     var = sum((c - mean) ** 2 for c in counts) / max(1, len(counts) - 1)
     std = var**0.5
