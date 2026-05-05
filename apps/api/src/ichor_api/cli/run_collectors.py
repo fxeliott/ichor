@@ -24,6 +24,7 @@ from ..collectors.ai_gpr import fetch_latest as fetch_ai_gpr
 from ..collectors.central_bank_speeches import poll_all as poll_cb_speeches
 from ..collectors.cot import poll_all_assets as poll_cot
 from ..collectors.aaii import fetch_latest_aaii
+from ..collectors.arxiv_qfin import fetch_qfin_recent
 from ..collectors.binance_funding import poll_all as poll_binance_funding
 from ..collectors.bls import SERIES_TO_POLL as _BLS_SERIES
 from ..collectors.bls import fetch_series as fetch_bls_series
@@ -45,6 +46,7 @@ from ..collectors.reddit import fetch_subreddit
 from ..collectors.reddit import persist_to_news_items as persist_reddit_news
 from ..collectors.treasury_auction import fetch_recent_auctions
 from ..collectors.vix_live import fetch_vix
+from ..collectors.wikipedia_pageviews import poll_all as poll_wikipedia_pageviews
 from ..collectors.forex_factory import (
     fetch_ff_calendar,
 )
@@ -1165,6 +1167,84 @@ async def _run_crypto_fng(*, persist: bool) -> int:
     return 0 if readings else 1
 
 
+async def _run_wikipedia_pageviews(*, persist: bool) -> int:
+    """Wikipedia pageviews on macro/geopolitical articles → fred_observations
+    WIKI_PAGEVIEWS_<article>. Public attention proxy."""
+    from datetime import UTC as _UTC
+    from datetime import datetime as _dt
+
+    from sqlalchemy.dialects.postgresql import insert as pg_insert
+
+    obs = await poll_wikipedia_pageviews(days=30)
+    print(f"Wikipedia pageviews · {len(obs)} (article, day) observations")
+    if persist and obs:
+        from ..models import FredObservation
+
+        sm = get_sessionmaker()
+        n = 0
+        async with sm() as session:
+            for o in obs:
+                # Truncate article to fit String(64) series_id
+                short_art = o.article.replace(" ", "_")[:48]
+                sid = f"WIKI_PV_{short_art}"[:64]
+                stmt = pg_insert(FredObservation).values(
+                    id=__import__("uuid").uuid4(),
+                    observation_date=o.observation_date,
+                    created_at=_dt.now(_UTC),
+                    series_id=sid,
+                    value=float(o.views),
+                    fetched_at=o.fetched_at,
+                ).on_conflict_do_update(
+                    constraint="uq_fred_series_date",
+                    set_={"value": float(o.views), "fetched_at": o.fetched_at},
+                )
+                await session.execute(stmt)
+                n += 1
+            await session.commit()
+        print(f"Wikipedia pageviews · upserted {n} rows")
+    return 0 if obs else 1
+
+
+async def _run_arxiv_qfin(*, persist: bool) -> int:
+    """arXiv q-fin papers → news_items (source_kind='academic')."""
+    from datetime import UTC as _UTC
+    from datetime import datetime as _dt
+    from hashlib import sha256
+
+    papers = await fetch_qfin_recent(max_results=50)
+    print(f"arXiv q-fin · {len(papers)} papers fetched")
+    for p in papers[:3]:
+        authors = ", ".join(p.authors[:2])
+        print(f"  [{p.primary_category:8s}] {p.title[:80]} ({authors})")
+
+    if persist and papers:
+        from ..models import NewsItem
+
+        sm = get_sessionmaker()
+        n = 0
+        async with sm() as session:
+            for p in papers:
+                guid_hash = sha256(p.arxiv_id.encode("utf-8")).hexdigest()[:32]
+                session.add(
+                    NewsItem(
+                        fetched_at=p.fetched_at,
+                        created_at=_dt.now(_UTC),
+                        source=f"arxiv:{p.primary_category}"[:64],
+                        source_kind="academic",
+                        title=p.title[:512],
+                        summary=p.summary[:2000] if p.summary else None,
+                        url=p.abs_url[:1024],
+                        published_at=p.published_at,
+                        guid_hash=guid_hash,
+                        raw_categories=[p.primary_category],
+                    )
+                )
+                n += 1
+            await session.commit()
+        print(f"arXiv q-fin · persisted {n} news_items rows (source_kind=academic)")
+    return 0 if papers else 1
+
+
 async def _run_treasury_auction(*, persist: bool) -> int:
     """US Treasury auction results — fires TREASURY_AUCTION_TAIL when
     high-vs-median yield gap ≥ 2 bps for the latest auction.
@@ -1585,6 +1665,8 @@ async def _main(target: str, *, persist: bool) -> int:
         "crypto_fng": _run_crypto_fng,
         "reddit": _run_reddit,
         "treasury_auction": _run_treasury_auction,
+        "wikipedia_pageviews": _run_wikipedia_pageviews,
+        "arxiv_qfin": _run_arxiv_qfin,
         "forex_factory": _run_forex_factory,
         "mastodon": _run_mastodon,
     }
