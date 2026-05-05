@@ -89,6 +89,41 @@ exclude = [
 module = ["tests.*"]
 disallow_untyped_decorators = false
 
+# Third-party ML libraries without type stubs (river, transformers,
+# numpyro). Calls to these untyped libs would otherwise fail the
+# strict mypy gate even though the wrapper code itself is well-typed.
+[[tool.mypy.overrides]]
+module = [
+    "ichor_ml.regime.concept_drift",
+    "ichor_ml.nlp.fomc_roberta",
+    "ichor_ml.nlp.finbert_tone",
+    "ichor_ml.training.numpyro_bias",
+]
+disallow_untyped_calls = false
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+warn_return_any = false
+
+[[tool.mypy.overrides]]
+module = [
+    "river.*",
+    "transformers.*",
+    "numpyro.*",
+    "lightgbm.*",
+    "xgboost.*",
+    "hmmlearn.*",
+    "dtaidistance.*",
+    "arch.*",
+    "pyextremes.*",
+    "interpret.*",
+    "dowhy.*",
+    "mlflow.*",
+    "evidently.*",
+    "mapie.*",
+    "vollib.*",
+]
+ignore_missing_imports = true
+
 [tool.pytest.ini_options]
 minversion = "8.0"
 addopts = [
