@@ -118,6 +118,7 @@ app.add_middleware(
 # stays up. Audit log path is best-effort — production observability
 # falls back to journal logs if the table is unreachable.
 from .services.audit_log import AuditLogMiddleware  # noqa: E402
+from .services.csp_middleware import CSPSecurityHeadersMiddleware  # noqa: E402
 from .services.rate_limiter import RateLimitMiddleware, make_redis_client  # noqa: E402
 
 app.add_middleware(AuditLogMiddleware, get_session=get_session)
@@ -126,6 +127,9 @@ app.add_middleware(
     redis_client=make_redis_client(_settings.redis_url),
     budget_per_min=120,
 )
+# CSP + security headers — outermost layer so every response (even
+# rate-limited 429s) carries the policy.
+app.add_middleware(CSPSecurityHeadersMiddleware)
 
 # Routers
 app.include_router(briefings_router)
