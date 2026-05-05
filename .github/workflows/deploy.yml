@@ -46,12 +46,20 @@ jobs:
           # Verify connectivity
           ssh -o BatchMode=yes -i ~/.ssh/id_ed25519 "$SSH_USER@$SSH_HOST" "echo SSH_OK; uname -r"
 
-      - name: Sync infra/ansible/ to Hetzner
+      - name: Sync infra/ + apps/ + packages/ to Hetzner
+        # Ansible roles synchronize source code from {{ playbook_dir }}/../../apps/api/
+        # which on the Hetzner side maps to /root/apps/api/. The 'secrets' role
+        # also reads SOPS-encrypted files from {{ playbook_dir }}/../secrets/.
+        # With only infra/ansible/ uploaded, both paths resolved to non-existent
+        # directories and the playbook failed.
         run: |
-          # Use tar pipe (rsync may not be installed in all GHA runners; tar is universal)
-          tar -czf - -C infra ansible | \
+          tar -czf - \
+              --exclude='.venv' --exclude='node_modules' --exclude='.next' \
+              --exclude='__pycache__' --exclude='.pytest_cache' --exclude='.ruff_cache' \
+              infra apps packages | \
             ssh -i ~/.ssh/id_ed25519 "$SSH_USER@$SSH_HOST" \
-              "rm -rf /root/infra && mkdir -p /root/infra && tar -xzf - -C /root/infra/"
+              "rm -rf /root/infra /root/apps /root/packages && \
+               mkdir -p /root && tar -xzf - -C /root/"
 
       - name: Run Ansible
         run: |
