@@ -24,11 +24,14 @@ from ..collectors.ai_gpr import fetch_latest as fetch_ai_gpr
 from ..collectors.central_bank_speeches import poll_all as poll_cb_speeches
 from ..collectors.cot import poll_all_assets as poll_cot
 from ..collectors.aaii import fetch_latest_aaii
+from ..collectors.binance_funding import poll_all as poll_binance_funding
 from ..collectors.bls import SERIES_TO_POLL as _BLS_SERIES
 from ..collectors.bls import fetch_series as fetch_bls_series
 from ..collectors.bluesky import poll_watchlist as poll_bluesky
 from ..collectors.boe_iadb import SERIES_TO_POLL as _BOE_SERIES
 from ..collectors.boe_iadb import fetch_series as fetch_boe_series
+from ..collectors.crypto_fear_greed import fetch_fng_history
+from ..collectors.defillama import poll_all as poll_defillama
 from ..collectors.dts_treasury import fetch_operating_cash, latest_tga_close
 from ..collectors.ecb_sdmx import SERIES_TO_POLL as _ECB_SERIES
 from ..collectors.ecb_sdmx import fetch_series as fetch_ecb_series
@@ -153,11 +156,42 @@ async def _run_fred(*, persist: bool, extended: bool = True) -> int:
 
     if persist:
         from ..collectors.persistence import persist_fred_observations
+        from ..services.alerts_runner import check_fred_alerts
+
+        # Series the catalog tracks (level + delta thresholds). Adding
+        # a new alert for an additional series only requires extending
+        # this set ; the runner walks the catalog itself.
+        ALERT_TRIGGER_SERIES = {
+            "BAMLH0A0HYM2",  # HY_OAS_WIDEN, HY_OAS_CRISIS
+            "VIXCLS",  # VIX_SPIKE, VIX_PANIC (also fired by VIX_LIVE intraday)
+            "SOFR",  # SOFR_SPIKE (delta)
+            "DFF",  # FED_FUNDS_REPRICE
+            "MOVE",  # MOVE_SPIKE
+        }
 
         sm = get_sessionmaker()
         async with sm() as session:
             inserted = await persist_fred_observations(session, obs)
-        print(f"FRED · persisted {inserted} new rows ({len(obs) - inserted} dedup)")
+
+            # Run the alert evaluator on the latest value per
+            # alert-tracked series. We use the most recent obs per
+            # series (collector returns a list — the iteration order
+            # may include older bars from a backfill window).
+            latest_by_sid: dict[str, float] = {}
+            for o in obs:
+                if o.series_id in ALERT_TRIGGER_SERIES and o.value is not None:
+                    latest_by_sid[o.series_id] = float(o.value)
+
+            n_alerts = 0
+            for sid, val in latest_by_sid.items():
+                hits = await check_fred_alerts(session, series_id=sid, current_value=val)
+                n_alerts += len(hits)
+            if n_alerts:
+                await session.commit()
+        print(
+            f"FRED · persisted {inserted} new rows ({len(obs) - inserted} dedup), "
+            f"{n_alerts} alerts triggered"
+        )
     return 0 if obs else 1
 
 
@@ -341,9 +375,20 @@ async def _run_vix_live(*, persist: bool) -> int:
     )
     if persist:
         from ..models import FredObservation
+        from ..services.alerts_runner import check_metric
+        from sqlalchemy import select, desc
 
         sm = get_sessionmaker()
         async with sm() as session:
+            # Fetch previous VIX_LIVE BEFORE inserting the new row, so
+            # the cross detection in evaluate_metric has clean prev.
+            prev_stmt = (
+                select(FredObservation.value)
+                .where(FredObservation.series_id == "VIX_LIVE")
+                .order_by(desc(FredObservation.created_at))
+                .limit(1)
+            )
+            prev = (await session.execute(prev_stmt)).scalar_one_or_none()
             session.add(
                 FredObservation(
                     observation_date=snap.fetched_at.astimezone(_UTC).date(),
@@ -353,8 +398,22 @@ async def _run_vix_live(*, persist: bool) -> int:
                     fetched_at=snap.fetched_at,
                 )
             )
+            # The alert catalog uses metric_name='VIXCLS' (standard FRED
+            # series id). VIX_LIVE intraday is semantically the same
+            # measurement, just lower-latency. Feed it as VIXCLS so
+            # VIX_SPIKE/VIX_PANIC fire on intraday spikes.
+            hits = await check_metric(
+                session,
+                metric_name="VIXCLS",
+                current_value=float(snap.value),
+                previous_value=float(prev) if prev is not None else None,
+                asset=None,
+            )
             await session.commit()
-        print("VIX live · persisted 1 observation row (series_id=VIX_LIVE)")
+        print(
+            f"VIX live · persisted 1 observation row (series_id=VIX_LIVE), "
+            f"{len(hits)} alerts triggered"
+        )
     return 0
 
 
@@ -542,14 +601,49 @@ async def _run_finra_short(*, persist: bool) -> int:
             f"  [{r.symbol:6s}] {r.trade_date.isoformat()} short={sv:,} "
             f"total={tv:,} ratio={ratio:.1%}"
         )
-    if persist:
-        # TODO(P3) : add finra_short_volume table + persistence.
-        # The shape (per-symbol per-day) doesn't fit fred_observations
-        # which is one-value-per-(series_id, date).
+    if persist and rows:
+        from datetime import UTC as _UTC
+        from datetime import datetime as _dt
+        from sqlalchemy import select
+
+        from ..models import FinraShortVolume
+
+        sm = get_sessionmaker()
+        n_inserted = 0
+        async with sm() as session:
+            # Idempotency : the (symbol, trade_date) UNIQUE constraint
+            # prevents duplicate rows on cron retries. Pre-filter here
+            # for cleaner counts + to avoid swallowing IntegrityErrors.
+            existing_stmt = (
+                select(FinraShortVolume.symbol, FinraShortVolume.trade_date)
+                .where(
+                    FinraShortVolume.symbol.in_({r.symbol for r in rows}),
+                    FinraShortVolume.trade_date.in_({r.trade_date for r in rows}),
+                )
+            )
+            existing = {
+                (s, d) for s, d in (await session.execute(existing_stmt)).all()
+            }
+            for r in rows:
+                if (r.symbol, r.trade_date) in existing:
+                    continue
+                session.add(
+                    FinraShortVolume(
+                        trade_date=r.trade_date,
+                        created_at=_dt.now(_UTC),
+                        symbol=r.symbol[:16],
+                        short_volume=r.short_volume,
+                        short_exempt_volume=r.short_exempt_volume,
+                        total_volume=r.total_volume,
+                        short_pct=r.short_pct,
+                        fetched_at=r.fetched_at,
+                    )
+                )
+                n_inserted += 1
+            await session.commit()
         print(
-            "FINRA short · persistence DEFERRED (needs dedicated table) — "
-            "data printed above for verification only.",
-            file=sys.stderr,
+            f"FINRA short · persisted {n_inserted} new rows "
+            f"({len(rows) - n_inserted} dedup)"
         )
     return 0 if rows else 1
 
@@ -769,6 +863,136 @@ async def _run_polygon_news(*, persist: bool) -> int:
     return 0 if items else 1
 
 
+async def _run_defillama(*, persist: bool) -> int:
+    """DeFiLlama TVL by chain + aggregate stablecoin supply.
+
+    Persists series_id format :
+      DEFILLAMA_TVL_{chain}      (TVL per chain, USD)
+      DEFILLAMA_STABLECOIN_TOTAL (aggregate peggedUSD supply, USD)
+    Both into fred_observations for unified macro context loading.
+    """
+    from datetime import UTC as _UTC
+    from datetime import datetime as _dt
+
+    tvl_obs, stables = await poll_defillama(last_n_days=60)
+    print(
+        f"DeFiLlama · {len(tvl_obs)} TVL points across chains, "
+        f"{len(stables)} stablecoin supply points"
+    )
+    if persist and (tvl_obs or stables):
+        from ..models import FredObservation
+
+        sm = get_sessionmaker()
+        n = 0
+        async with sm() as session:
+            for o in tvl_obs:
+                session.add(
+                    FredObservation(
+                        observation_date=o.observation_date,
+                        created_at=_dt.now(_UTC),
+                        series_id=f"DEFILLAMA_TVL_{o.chain.upper()[:42]}"[:64],
+                        value=float(o.tvl_usd),
+                        fetched_at=o.fetched_at,
+                    )
+                )
+                n += 1
+            for s in stables:
+                session.add(
+                    FredObservation(
+                        observation_date=s.observation_date,
+                        created_at=_dt.now(_UTC),
+                        series_id="DEFILLAMA_STABLECOIN_TOTAL",
+                        value=float(s.total_circulating_usd),
+                        fetched_at=s.fetched_at,
+                    )
+                )
+                n += 1
+            await session.commit()
+        print(f"DeFiLlama · persisted {n} rows")
+    return 0 if (tvl_obs or stables) else 1
+
+
+async def _run_binance_funding(*, persist: bool) -> int:
+    """Binance USDⓈ-M perpetual funding rates → fred_observations
+    BINANCE_FUNDING_{symbol}. The annualized rate is also stored as
+    BINANCE_FUNDING_ANN_{symbol} for direct trader-friendly reads."""
+    from datetime import UTC as _UTC
+    from datetime import datetime as _dt
+
+    from ..collectors.binance_funding import annualize_rate
+
+    records = await poll_binance_funding(limit=200)
+    print(f"Binance funding · {len(records)} records across symbols")
+    for r in records[:3]:
+        ann = annualize_rate(r.funding_rate)
+        print(
+            f"  [{r.symbol:8s}] {r.funding_time.isoformat()} rate={r.funding_rate:+.4%} "
+            f"(ann ≈ {ann:+.1%})"
+        )
+    if persist and records:
+        from ..models import FredObservation
+
+        sm = get_sessionmaker()
+        n = 0
+        async with sm() as session:
+            for r in records:
+                # Each settlement is a 8h tick — store both the raw rate
+                # AND the annualized so consumers can pick.
+                session.add(
+                    FredObservation(
+                        observation_date=r.funding_time.astimezone(_UTC).date(),
+                        created_at=_dt.now(_UTC),
+                        series_id=f"BINANCE_FUNDING_{r.symbol}"[:64],
+                        value=float(r.funding_rate),
+                        fetched_at=r.fetched_at,
+                    )
+                )
+                session.add(
+                    FredObservation(
+                        observation_date=r.funding_time.astimezone(_UTC).date(),
+                        created_at=_dt.now(_UTC),
+                        series_id=f"BINANCE_FUNDING_ANN_{r.symbol}"[:64],
+                        value=float(annualize_rate(r.funding_rate)),
+                        fetched_at=r.fetched_at,
+                    )
+                )
+                n += 2
+            await session.commit()
+        print(f"Binance funding · persisted {n} rows")
+    return 0 if records else 1
+
+
+async def _run_crypto_fng(*, persist: bool) -> int:
+    """Crypto Fear & Greed Index (alternative.me) → fred_observations
+    series_id=CRYPTO_FNG. The index is 0-100 ; extremes (≤20 or ≥80)
+    are conventional contrarian thresholds."""
+    from datetime import UTC as _UTC
+    from datetime import datetime as _dt
+
+    readings = await fetch_fng_history(limit=30)
+    print(f"Crypto F&G · {len(readings)} daily readings")
+    for r in readings[:3]:
+        print(f"  {r.observation_date.isoformat()} value={r.value} ({r.classification})")
+    if persist and readings:
+        from ..models import FredObservation
+
+        sm = get_sessionmaker()
+        async with sm() as session:
+            for r in readings:
+                session.add(
+                    FredObservation(
+                        observation_date=r.observation_date,
+                        created_at=_dt.now(_UTC),
+                        series_id="CRYPTO_FNG",
+                        value=float(r.value),
+                        fetched_at=r.fetched_at,
+                    )
+                )
+            await session.commit()
+        print(f"Crypto F&G · persisted {len(readings)} rows")
+    return 0 if readings else 1
+
+
 async def _run_yfinance_options(*, persist: bool) -> int:
     """Pull dealer GEX from yfinance options chains for SPY + QQQ.
 
@@ -793,7 +1017,20 @@ async def _run_yfinance_options(*, persist: bool) -> int:
         sm = get_sessionmaker()
         async with sm() as session:
             inserted = await persist_gex_snapshots(session, snaps)
-        print(f"yfinance options · persisted {inserted} GEX rows")
+            # Trigger GEX_FLIP / DEALER_GAMMA_FLIP alerts on sign cross.
+            # We fetch prev INSIDE the session so the just-inserted
+            # snapshot is excluded from the previous-value lookup.
+            from ..services.alerts_runner import check_gex_alerts
+
+            n_alerts = 0
+            for s in snaps:
+                hits = await check_gex_alerts(
+                    session, asset=s.asset, dealer_gex_total=s.dealer_gex_total
+                )
+                n_alerts += len(hits)
+            if n_alerts:
+                await session.commit()
+        print(f"yfinance options · persisted {inserted} GEX rows, {n_alerts} alerts triggered")
     return 0 if snaps else 1
 
 
@@ -963,6 +1200,10 @@ async def _main(target: str, *, persist: bool) -> int:
         # collectors.fred_extended.merged_series. Aliasing prevents the
         # silent "unknown target" exit.
         "fred_extended": _run_fred,
+        # Crypto sources (free-tier, no auth)
+        "defillama": _run_defillama,
+        "binance_funding": _run_binance_funding,
+        "crypto_fng": _run_crypto_fng,
         "forex_factory": _run_forex_factory,
         "mastodon": _run_mastodon,
     }
