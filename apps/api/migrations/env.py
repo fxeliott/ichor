@@ -7,14 +7,13 @@ import os
 from logging.config import fileConfig
 
 from alembic import context
-from sqlalchemy import pool
-from sqlalchemy.engine import Connection
-from sqlalchemy.ext.asyncio import async_engine_from_config
 
 # Import models so MetaData is populated
-from ichor_api.models import Base  # noqa: F401
-from ichor_api.models import Alert, BiasSignal, Briefing, Prediction  # noqa: F401
-from ichor_api.models import (  # noqa: F401
+from ichor_api.models import (  # noqa: F401  # noqa: F401
+    Alert,
+    Base,
+    BiasSignal,
+    Briefing,
     CbSpeech,
     CotPosition,
     FredObservation,
@@ -23,8 +22,12 @@ from ichor_api.models import (  # noqa: F401
     KalshiMarket,
     ManifoldMarket,
     PolygonIntradayBar,
+    Prediction,
     SessionCardAudit,
 )
+from sqlalchemy import pool
+from sqlalchemy.engine import Connection
+from sqlalchemy.ext.asyncio import async_engine_from_config
 
 config = context.config
 if config.config_file_name is not None:

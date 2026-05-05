@@ -9,7 +9,6 @@ from __future__ import annotations
 
 from ichor_agents.critic import review_briefing
 
-
 SOURCE_POOL_FULL = """
 Bias signals: EUR/USD long 0.62, XAU/USD short 0.58, NAS100 long 0.55.
 Active alerts: VIX_SPIKE warning, HY_OAS_CRISIS critical.
@@ -20,11 +19,7 @@ Models: lightgbm-bias-eur_usd-1d-v0
 
 
 def test_approved_when_briefing_strictly_uses_sources() -> None:
-    md = (
-        "EUR/USD shows a long bias at 0.62. "
-        "VIX_SPIKE alert is active. "
-        "ECB held rates."
-    )
+    md = "EUR/USD shows a long bias at 0.62. VIX_SPIKE alert is active. ECB held rates."
     v = review_briefing(md, SOURCE_POOL_FULL)
     assert v.verdict == "approved"
     assert v.confidence == 1.0
@@ -60,11 +55,7 @@ def test_amendments_when_asset_not_in_pool() -> None:
 
 def test_low_confidence_blocks() -> None:
     """A briefing where every evidence sentence is unsourced gets blocked."""
-    md = (
-        "DXY up 2.5%. "
-        "BoJ intervened at 158. "
-        "GBP/USD broke 1.30."
-    )
+    md = "DXY up 2.5%. BoJ intervened at 158. GBP/USD broke 1.30."
     pool = "EUR/USD bias 0.55."
     v = review_briefing(md, pool)
     assert v.verdict == "blocked"

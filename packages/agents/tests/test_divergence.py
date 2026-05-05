@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-
 from ichor_agents.predictions import (
     DivergenceAlert,
     PredictionMarket,
@@ -13,7 +12,6 @@ from ichor_agents.predictions import (
     normalize_question,
     tokenize,
 )
-
 
 # ─────────────────────────── Normalization / tokenize ──────────────────
 
@@ -25,9 +23,7 @@ def test_normalize_lowercases_and_drops_punctuation() -> None:
 
 
 def test_normalize_collapses_whitespace_and_dashes() -> None:
-    assert normalize_question(
-        "  US-CHINA  trade   deal  by   Q3?  "
-    ) == "us china trade deal by q3"
+    assert normalize_question("  US-CHINA  trade   deal  by   Q3?  ") == "us china trade deal by q3"
 
 
 def test_tokenize_removes_stopwords() -> None:
@@ -64,9 +60,7 @@ def test_jaccard_zero_overlap() -> None:
 
 def test_jaccard_partial_overlap() -> None:
     # {fed, cut, rate} ∩ {fed, cut} = {fed, cut} ; ∪ = {fed, cut, rate} → 2/3
-    assert jaccard_similarity(["fed", "cut", "rate"], ["fed", "cut"]) == pytest.approx(
-        2 / 3
-    )
+    assert jaccard_similarity(["fed", "cut", "rate"], ["fed", "cut"]) == pytest.approx(2 / 3)
 
 
 def test_jaccard_empty_returns_zero() -> None:
@@ -100,9 +94,7 @@ def test_match_polymarket_only_no_match_dropped() -> None:
     man = [_pm("manifold", "m1", "Recession before 2027 ?", 0.3)]
     out = match_across_venues(poly, kal, man, threshold=0.55)
     # Polymarket bitcoin solo : not in output (orphans aren't surfaced)
-    assert all(
-        "bitcoin" not in m.representative_question.lower() for m in out
-    )
+    assert all("bitcoin" not in m.representative_question.lower() for m in out)
 
 
 def test_match_kalshi_manifold_orphan_when_polymarket_absent() -> None:

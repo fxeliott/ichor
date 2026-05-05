@@ -3,9 +3,8 @@
 from __future__ import annotations
 
 import pytest
-from pydantic import ValidationError
-
 from ichor_claude_runner.models import BriefingTaskRequest
+from pydantic import ValidationError
 
 
 def test_briefing_request_accepts_typical_payload() -> None:

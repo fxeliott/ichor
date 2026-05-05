@@ -27,26 +27,20 @@ def test_single_card_no_cross_check_possible() -> None:
 
 def test_dxy_legs_disagree_when_eur_long_and_usdjpy_short() -> None:
     """EUR/USD long ⇒ USD↓ ; USD/JPY short ⇒ USD↓ — coherent."""
-    v = review_cards(
-        [_snap("EUR_USD", "long", 60), _snap("USD_JPY", "short", 60)]
-    )
+    v = review_cards([_snap("EUR_USD", "long", 60), _snap("USD_JPY", "short", 60)])
     assert v.is_coherent
 
 
 def test_dxy_legs_disagree_when_eur_long_and_usdjpy_long() -> None:
     """EUR/USD long ⇒ USD↓ ; USD/JPY long ⇒ USD↑ — contradictory."""
-    v = review_cards(
-        [_snap("EUR_USD", "long", 60), _snap("USD_JPY", "long", 60)]
-    )
+    v = review_cards([_snap("EUR_USD", "long", 60), _snap("USD_JPY", "long", 60)])
     assert not v.is_coherent
     assert any(f.rule == "dxy_legs_disagree" for f in v.findings)
 
 
 def test_dxy_disagreement_ignores_low_conviction() -> None:
     """Convictions <40 % should not trigger the rule."""
-    v = review_cards(
-        [_snap("EUR_USD", "long", 30), _snap("USD_JPY", "long", 30)]
-    )
+    v = review_cards([_snap("EUR_USD", "long", 30), _snap("USD_JPY", "long", 30)])
     assert v.is_coherent
 
 
@@ -66,14 +60,10 @@ def test_xau_and_dxy_double_long_flagged_as_info() -> None:
 
 
 def test_spx_long_in_funding_stress_flagged_as_warning() -> None:
-    v = review_cards(
-        [_snap("SPX500_USD", "long", 65, regime="funding_stress")]
-    )
+    v = review_cards([_snap("SPX500_USD", "long", 65, regime="funding_stress")])
     assert any(f.rule == "risk_long_in_funding_stress" for f in v.findings)
 
 
 def test_spx_long_outside_funding_stress_is_fine() -> None:
-    v = review_cards(
-        [_snap("SPX500_USD", "long", 65, regime="goldilocks")]
-    )
+    v = review_cards([_snap("SPX500_USD", "long", 65, regime="goldilocks")])
     assert v.is_coherent
