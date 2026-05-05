@@ -11,45 +11,61 @@ FredObservation, GdeltEvent, GprObservation, CotPosition, CbSpeech,
 KalshiMarket, ManifoldMarket, SessionCardAudit.
 """
 
-from .base import Base
-from .briefing import Briefing
 from .alert import Alert
-from .prediction import Prediction
+from .base import Base
 from .bias_signal import BiasSignal
-from .news_item import NewsItem
-from .polymarket_snapshot import PolymarketSnapshot
-from .market_data import MarketDataBar
+from .briefing import Briefing
+from .cb_speech import CbSpeech
+from .confluence_history import ConfluenceHistory
+from .cot_position import CotPosition
+
+# Phase 2
+from .couche2_output import Couche2Output
+from .economic_event import EconomicEvent
+
+# Phase 2 — VPIN microstructure (migration 0020)
+from .fx_tick import FxTick
 
 # Phase 1 Living Macro Entity collectors
 from .fred_observation import FredObservation
 from .gdelt_event import GdeltEvent
 from .gpr_observation import GprObservation
-from .cot_position import CotPosition
-from .cb_speech import CbSpeech
 from .kalshi_market import KalshiMarket
 from .manifold_market import ManifoldMarket
-from .session_card_audit import SessionCardAudit
+from .market_data import MarketDataBar
+from .news_item import NewsItem
+from .polygon_gex_snapshot import PolygonGexSnapshot
 from .polygon_intraday import PolygonIntradayBar
-from .confluence_history import ConfluenceHistory
+from .polymarket_snapshot import PolymarketSnapshot
+from .post_mortem import PostMortem
+from .prediction import Prediction
+from .session_card_audit import SessionCardAudit
 
 __all__ = [
-    "Base",
-    "Briefing",
     "Alert",
-    "Prediction",
+    "Base",
     "BiasSignal",
-    "NewsItem",
-    "PolymarketSnapshot",
-    "MarketDataBar",
+    "Briefing",
+    "CbSpeech",
+    "ConfluenceHistory",
+    "CotPosition",
+    # Phase 2
+    "Couche2Output",
+    "EconomicEvent",
+    # Phase 2 — VPIN microstructure
+    "FxTick",
     # Phase 1
     "FredObservation",
     "GdeltEvent",
     "GprObservation",
-    "CotPosition",
-    "CbSpeech",
     "KalshiMarket",
     "ManifoldMarket",
-    "SessionCardAudit",
+    "MarketDataBar",
+    "NewsItem",
+    "PolygonGexSnapshot",
     "PolygonIntradayBar",
-    "ConfluenceHistory",
+    "PolymarketSnapshot",
+    "PostMortem",
+    "Prediction",
+    "SessionCardAudit",
 ]

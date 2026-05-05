@@ -18,6 +18,12 @@ dependencies = [
     "opentelemetry-api>=1.30.0",
     "opentelemetry-sdk>=1.30.0",
     "opentelemetry-instrumentation-fastapi>=0.51b0",
+    # Phase 2: Couche-2 agents lib (path-resolved via uv workspace below).
+    "ichor-agents",
+    # Phase 2: numerical stack (Brier optimizer, DTW analogues, RAG embedding).
+    "numpy>=1.26.0",
+    # Phase 2: Polygon Forex WebSocket subscriber (VPIN microstructure feed).
+    "websockets>=14.0",
 ]
 
 [project.optional-dependencies]
@@ -29,6 +35,14 @@ dev = [
     "ruff>=0.8.0",
     "mypy>=1.14.0",
 ]
+# Phase 2 RAG stack — install via `uv pip install -e ".[ml]"` on the
+# Hetzner box that runs the embedding worker. Kept out of the core deps
+# so apps/api can boot without optimum/transformers when RAG is disabled
+# via feature_flags.is_enabled('rag_pass1_enabled').
+ml = [
+    "optimum[onnxruntime]>=1.23.0",
+    "transformers>=4.45.0",
+]
 
 [build-system]
 requires = ["hatchling"]
@@ -36,6 +50,11 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/ichor_api"]
+
+# uv workspace resolution — points `ichor-agents` to the local package.
+# Cf https://docs.astral.sh/uv/reference/settings/#sources
+[tool.uv.sources]
+ichor-agents = { path = "../../packages/agents", editable = true }
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
