@@ -31,7 +31,9 @@ from typing import Any
 import httpx
 
 TREASURY_BASE = "https://api.fiscaldata.treasury.gov/services/api/fiscal_service"
-AUCTIONS_ENDPOINT = "/v1/accounting/od/securities_auctions"
+# Verified 2026-05-05 : the correct path is `/v1/accounting/od/auctions_query`
+# (not `securities_auctions` as the dataset URL slug suggests).
+AUCTIONS_ENDPOINT = "/v1/accounting/od/auctions_query"
 
 
 @dataclass(frozen=True)
@@ -44,13 +46,17 @@ class AuctionResult:
     security_term: str
     high_yield: float | None
     median_yield: float | None
+    """Note: fiscaldata exposes this field as `avg_med_yield`
+    (average median yield). We map it to `median_yield` here for
+    code clarity."""
+
     low_yield: float | None
     bid_to_cover_ratio: float | None
     fetched_at: datetime
 
     @property
     def tail_bps(self) -> float | None:
-        """Approximate auction tail = (high - median) × 10000.
+        """Approximate auction tail = (high - median) × 100 (bps).
 
         The proper tail is (high - when_issued) but when_issued isn't
         published in this dataset. high - median is a reasonable proxy
@@ -94,6 +100,9 @@ def parse_auctions_response(body: dict[str, Any]) -> list[AuctionResult]:
         issue_date = _parse_date(r.get("issue_date"))
         if record_date is None or issue_date is None:
             continue
+        # fiscaldata exposes "avg_med_yield" — accept both that name and
+        # the legacy "median_yield" for forward-compat.
+        median = _parse_float(r.get("avg_med_yield") or r.get("median_yield"))
         out.append(
             AuctionResult(
                 record_date=record_date,
@@ -101,7 +110,7 @@ def parse_auctions_response(body: dict[str, Any]) -> list[AuctionResult]:
                 security_type=str(r.get("security_type") or "").strip(),
                 security_term=str(r.get("security_term") or "").strip(),
                 high_yield=_parse_float(r.get("high_yield")),
-                median_yield=_parse_float(r.get("median_yield")),
+                median_yield=median,
                 low_yield=_parse_float(r.get("low_yield")),
                 bid_to_cover_ratio=_parse_float(r.get("bid_to_cover_ratio")),
                 fetched_at=now,
@@ -121,7 +130,7 @@ async def fetch_recent_auctions(
     params = {
         "fields": (
             "record_date,issue_date,security_type,security_term,"
-            "high_yield,median_yield,low_yield,bid_to_cover_ratio"
+            "high_yield,avg_med_yield,low_yield,bid_to_cover_ratio"
         ),
         "filter": f"issue_date:gte:{cutoff}",
         "sort": "-issue_date",

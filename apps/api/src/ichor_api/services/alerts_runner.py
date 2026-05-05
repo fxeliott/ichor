@@ -95,10 +95,39 @@ async def _is_recent_duplicate(
     return row is not None
 
 
+def _format_title_safe(template: str, *, value: float, payload: dict[str, Any] | None) -> str:
+    """Render the title_template with `value` + any source_payload key.
+
+    Catalog templates may reference {tenor}, {asset}, {pair}, {model_id},
+    {market}, {match_event}, etc. — all live in source_payload. Missing
+    placeholders fall back to '?' to keep the title human-readable
+    instead of raising KeyError.
+    """
+
+    class _SafeDict(dict):
+        def __missing__(self, key: str) -> str:
+            return "?"
+
+    fmt = _SafeDict(value=value)
+    if payload:
+        for k, v in payload.items():
+            fmt[k] = v
+    try:
+        # str.format_map ignores extra fields; uses _SafeDict for missing.
+        return template.format_map(fmt)
+    except (IndexError, ValueError):
+        # Defensive : malformed template falls back to the raw code.
+        return template
+
+
 def _persist_hit(session: AsyncSession, hit: AlertHit, *, asset: str | None) -> None:
     """Add the Alert ORM row; commit is the caller's responsibility."""
     now = datetime.now(UTC)
-    title = hit.alert_def.title_template.format(value=hit.metric_value)
+    title = _format_title_safe(
+        hit.alert_def.title_template,
+        value=hit.metric_value,
+        payload=hit.source_payload,
+    )
     session.add(
         Alert(
             id=uuid4(),
