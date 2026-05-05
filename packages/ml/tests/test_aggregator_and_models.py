@@ -33,9 +33,18 @@ def test_hmm_fits_synthetic_regime_data() -> None:
 
     assert res.states.shape == (200,)
     assert res.state_probs.shape == (200, 2)
-    # State assignment in second half should be mostly state 1 (high vol)
-    high_assign_pct = (res.states[100:] == 1).mean()
-    assert high_assign_pct > 0.6
+    # State labels (0 vs 1) are arbitrary — HMM doesn't preserve order
+    # across runs/initializations. The test asserts the *separation* :
+    # the second half (high-vol) must concentrate on ONE state, and
+    # that state must differ from the dominant state of the first half.
+    first_half_dominant = int(np.bincount(res.states[:100]).argmax())
+    second_half_dominant = int(np.bincount(res.states[100:]).argmax())
+    assert first_half_dominant != second_half_dominant, (
+        f"HMM didn't separate regimes : both halves assigned to state "
+        f"{first_half_dominant}"
+    )
+    second_half_concentration = (res.states[100:] == second_half_dominant).mean()
+    assert second_half_concentration > 0.6
 
 
 def test_har_rv_fits_and_predicts() -> None:
