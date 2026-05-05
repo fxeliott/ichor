@@ -15,8 +15,14 @@ from ..services.hourly_volatility import assess_hourly_volatility
 router = APIRouter(prefix="/v1/hourly-volatility", tags=["hourly-volatility"])
 
 _VALID_ASSET = {
-    "EUR_USD", "GBP_USD", "USD_JPY", "AUD_USD", "USD_CAD",
-    "XAU_USD", "NAS100_USD", "SPX500_USD",
+    "EUR_USD",
+    "GBP_USD",
+    "USD_JPY",
+    "AUD_USD",
+    "USD_CAD",
+    "XAU_USD",
+    "NAS100_USD",
+    "SPX500_USD",
 }
 
 
@@ -50,9 +56,7 @@ async def get_hourly_volatility(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"unknown asset {asset_norm!r}",
         )
-    r = await assess_hourly_volatility(
-        session, asset_norm, window_days=window_days
-    )
+    r = await assess_hourly_volatility(session, asset_norm, window_days=window_days)
     return HourlyVolOut(
         asset=r.asset,
         window_days=r.window_days,

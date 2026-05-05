@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
-import pytest
-
 from ichor_ml.bias_aggregator import AggregatorConfig, BiasAggregator
 from ichor_ml.regime import HMMRegimeDetector
 from ichor_ml.types import Prediction
@@ -60,14 +58,22 @@ def test_har_rv_fits_and_predicts() -> None:
 def test_aggregator_combines_two_models() -> None:
     preds = [
         Prediction(
-            model_id="m1", model_family="lightgbm", asset="EUR_USD",
-            horizon_hours=24, direction="long", raw_score=0.7,
+            model_id="m1",
+            model_family="lightgbm",
+            asset="EUR_USD",
+            horizon_hours=24,
+            direction="long",
+            raw_score=0.7,
             calibrated_probability=0.65,
             feature_snapshot_hash="h1",
         ),
         Prediction(
-            model_id="m2", model_family="xgboost", asset="EUR_USD",
-            horizon_hours=24, direction="long", raw_score=0.6,
+            model_id="m2",
+            model_family="xgboost",
+            asset="EUR_USD",
+            horizon_hours=24,
+            direction="long",
+            raw_score=0.6,
             calibrated_probability=0.60,
             feature_snapshot_hash="h2",
         ),
@@ -86,8 +92,12 @@ def test_aggregator_combines_two_models() -> None:
 def test_aggregator_returns_none_when_too_few_models() -> None:
     preds = [
         Prediction(
-            model_id="m1", model_family="lightgbm", asset="EUR_USD",
-            horizon_hours=24, direction="long", raw_score=0.6,
+            model_id="m1",
+            model_family="lightgbm",
+            asset="EUR_USD",
+            horizon_hours=24,
+            direction="long",
+            raw_score=0.6,
             calibrated_probability=0.55,
             feature_snapshot_hash="h",
         ),

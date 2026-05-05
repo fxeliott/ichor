@@ -65,10 +65,16 @@ def evaluate_metric(
         elif ad.default_direction == "below" and current_value <= ad.default_threshold:
             observed = "below"
         elif ad.default_direction == "cross_up":
-            if previous_value is not None and previous_value < ad.default_threshold <= current_value:
+            if (
+                previous_value is not None
+                and previous_value < ad.default_threshold <= current_value
+            ):
                 observed = "cross_up"
         elif ad.default_direction == "cross_down":
-            if previous_value is not None and previous_value > ad.default_threshold >= current_value:
+            if (
+                previous_value is not None
+                and previous_value > ad.default_threshold >= current_value
+            ):
                 observed = "cross_down"
 
         if observed is None:

@@ -30,7 +30,7 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import desc, func, select
+from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models import (
@@ -38,7 +38,6 @@ from ..models import (
     FxTick,
     MarketDataBar,
     NewsItem,
-    PolygonIntradayBar,
     Prediction,
 )
 
@@ -223,10 +222,7 @@ def _vpin_compute(rows: list[tuple[datetime, float, float]]) -> tuple[float, int
         return None
 
     quotes = pd.DataFrame(
-        [
-            {"timestamp": ts, "bid": float(bid), "ask": float(ask)}
-            for ts, bid, ask in rows
-        ]
+        [{"timestamp": ts, "bid": float(bid), "ask": float(ask)} for ts, bid, ask in rows]
     )
     try:
         result = compute_vpin_from_fx_quotes(
@@ -448,10 +444,7 @@ async def fomc_roberta_signal(session: AsyncSession) -> MlSignal:
     direction = "hawkish" if score > 0.05 else "dovish" if score < -0.05 else "neutral"
     return MlSignal(
         name="FOMC-RoBERTa",
-        value=(
-            f"{direction} (score={score:+.2f}, n={n_speeches} speeches "
-            f"/ {n_chunks} chunks)"
-        ),
+        value=(f"{direction} (score={score:+.2f}, n={n_speeches} speeches / {n_chunks} chunks)"),
         status="ok",
     )
 

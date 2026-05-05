@@ -9,18 +9,23 @@ in the api integration suite which Phase 1 doesn't ship yet.
 from __future__ import annotations
 
 from ichor_api.services.data_pool import (
-    DataPool,
     _ASSET_TO_POLYGON,
     _COT_MARKET_BY_ASSET,
     _DOLLAR_SMILE_SERIES,
     _MACRO_TRINITY_SERIES,
     _RATE_DIFF_PAIRS,
+    DataPool,
 )
 
-
 PHASE1_ASSETS = {
-    "EUR_USD", "GBP_USD", "USD_JPY", "AUD_USD", "USD_CAD",
-    "XAU_USD", "NAS100_USD", "SPX500_USD",
+    "EUR_USD",
+    "GBP_USD",
+    "USD_JPY",
+    "AUD_USD",
+    "USD_CAD",
+    "XAU_USD",
+    "NAS100_USD",
+    "SPX500_USD",
 }
 
 
@@ -66,9 +71,7 @@ def test_cot_market_codes_are_known_disaggregated_codes() -> None:
 def test_rate_diff_pairs_cover_all_fx_majors() -> None:
     """All FX pairs (5 majors) must have a foreign 10Y series for the
     rate differential computation. XAU + indices are excluded by design."""
-    assert set(_RATE_DIFF_PAIRS.keys()) == {
-        "EUR_USD", "GBP_USD", "USD_JPY", "AUD_USD", "USD_CAD"
-    }
+    assert set(_RATE_DIFF_PAIRS.keys()) == {"EUR_USD", "GBP_USD", "USD_JPY", "AUD_USD", "USD_CAD"}
 
 
 def test_macro_trinity_includes_dxy_us10y_vix() -> None:
@@ -88,8 +91,15 @@ def test_dollar_smile_includes_real_yields_and_oas() -> None:
 
 def test_data_pool_dataclass_is_frozen() -> None:
     """Mutability would let downstream code corrupt the audit trail."""
-    pool = DataPool(asset="EUR_USD", generated_at=__import__("datetime").datetime.now(__import__("datetime").timezone.utc), markdown="", sources=[], sections_emitted=[])
+    pool = DataPool(
+        asset="EUR_USD",
+        generated_at=__import__("datetime").datetime.now(__import__("datetime").timezone.utc),
+        markdown="",
+        sources=[],
+        sections_emitted=[],
+    )
     import dataclasses
+
     assert dataclasses.is_dataclass(pool)
     # frozen=True attempt to mutate raises
     try:
@@ -102,7 +112,7 @@ def test_data_pool_dataclass_is_frozen() -> None:
 
 def test_format_specs_are_valid_python_format_strings() -> None:
     """All format strings in the series dicts must accept a float."""
-    for series_id, (label, fmt) in {
+    for series_id, (_label, fmt) in {
         **_MACRO_TRINITY_SERIES,
         **_DOLLAR_SMILE_SERIES,
     }.items():

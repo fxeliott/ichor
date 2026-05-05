@@ -25,8 +25,6 @@ class _StubSession:
     """Minimal AsyncSession placeholder ; suggestion builder doesn't query
     the DB itself — it delegates to mocked `detect_rollback`."""
 
-    pass
-
 
 @pytest.mark.asyncio
 async def test_clean_week_emits_info_only() -> None:
@@ -131,9 +129,7 @@ async def test_rollback_fires_for_each_pass_scope_when_degraded() -> None:
             return (True, "Brier degraded by 0.0150 on 7d window")
         return (False, "ok")
 
-    with patch(
-        "ichor_api.services.meta_prompt_tuner.detect_rollback", new=_mock_rollback
-    ):
+    with patch("ichor_api.services.meta_prompt_tuner.detect_rollback", new=_mock_rollback):
         out = await _build_suggestions(session, top_miss=[], drift_detected=[])  # type: ignore[arg-type]
     rollbacks = [s for s in out if s["kind"] == "rollback"]
     assert len(rollbacks) == 1
@@ -172,11 +168,11 @@ async def test_combined_signals_emit_multiple_suggestions() -> None:
     async def _mock_rollback(_session: Any, *, pass_index: int, scope: str) -> tuple[bool, str]:
         return (pass_index == 2, "Brier delta 0.020")
 
-    with patch(
-        "ichor_api.services.meta_prompt_tuner.detect_rollback", new=_mock_rollback
-    ):
+    with patch("ichor_api.services.meta_prompt_tuner.detect_rollback", new=_mock_rollback):
         out = await _build_suggestions(
-            session, top_miss=top_miss, drift_detected=drift  # type: ignore[arg-type]
+            session,
+            top_miss=top_miss,
+            drift_detected=drift,  # type: ignore[arg-type]
         )
     kinds = {s["kind"] for s in out}
     assert "reweight" in kinds

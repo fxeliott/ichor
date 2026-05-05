@@ -21,15 +21,9 @@ class CotPosition(Base):
 
     __tablename__ = "cot_positions"
 
-    id: Mapped[UUID] = mapped_column(
-        PG_UUID(as_uuid=True), primary_key=True, default=uuid4
-    )
-    report_date: Mapped[date] = mapped_column(
-        Date, primary_key=True, index=True
-    )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
+    id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
+    report_date: Mapped[date] = mapped_column(Date, primary_key=True, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
     market_code: Mapped[str] = mapped_column(String(16), nullable=False, index=True)
     market_name: Mapped[str | None] = mapped_column(String(128))
@@ -39,6 +33,4 @@ class CotPosition(Base):
     other_reportable_net: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     non_reportable_net: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     open_interest: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    fetched_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
+    fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

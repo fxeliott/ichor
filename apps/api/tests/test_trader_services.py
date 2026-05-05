@@ -3,28 +3,26 @@
 from __future__ import annotations
 
 import pytest
-
 from ichor_api.services.daily_levels import (
     DailyLevels,
     _classic_pivots,
     _round_levels_near,
     render_daily_levels_block,
 )
-from ichor_api.services.session_scenarios import (
-    assess_session_scenarios,
-    render_session_scenarios_block,
-)
 from ichor_api.services.rr_analysis import (
     assess_rr_plan,
     render_rr_block,
 )
-
+from ichor_api.services.session_scenarios import (
+    assess_session_scenarios,
+    render_session_scenarios_block,
+)
 
 # ─────────────────────── daily_levels math ────────────────────────────
 
 
 def test_classic_pivots_eur_usd_typical() -> None:
-    pp, r1, r2, r3, s1, s2, s3 = _classic_pivots(1.0750, 1.0700, 1.0735)
+    pp, r1, r2, _r3, s1, s2, _s3 = _classic_pivots(1.0750, 1.0700, 1.0735)
     assert pp is not None and 1.07 < pp < 1.08
     assert r1 is not None and r1 > pp
     assert s1 is not None and s1 < pp
@@ -55,9 +53,21 @@ def test_round_levels_usd_jpy_step_50_basis_points() -> None:
 def test_render_daily_levels_no_data() -> None:
     r = DailyLevels(
         asset="EUR_USD",
-        spot=None, pdh=None, pdl=None, pd_close=None,
-        asian_high=None, asian_low=None, weekly_high=None, weekly_low=None,
-        pivot=None, r1=None, r2=None, r3=None, s1=None, s2=None, s3=None,
+        spot=None,
+        pdh=None,
+        pdl=None,
+        pd_close=None,
+        asian_high=None,
+        asian_low=None,
+        weekly_high=None,
+        weekly_low=None,
+        pivot=None,
+        r1=None,
+        r2=None,
+        r3=None,
+        s1=None,
+        s2=None,
+        s3=None,
         round_levels=[],
     )
     md, sources = render_daily_levels_block(r)
@@ -68,10 +78,21 @@ def test_render_daily_levels_no_data() -> None:
 def test_render_daily_levels_full_payload() -> None:
     r = DailyLevels(
         asset="EUR_USD",
-        spot=1.0734, pdh=1.0750, pdl=1.0700, pd_close=1.0735,
-        asian_high=1.0740, asian_low=1.0720, weekly_high=1.0780, weekly_low=1.0680,
-        pivot=1.0728, r1=1.0756, r2=1.0778, r3=1.0805,
-        s1=1.0706, s2=1.0678, s3=1.0656,
+        spot=1.0734,
+        pdh=1.0750,
+        pdl=1.0700,
+        pd_close=1.0735,
+        asian_high=1.0740,
+        asian_low=1.0720,
+        weekly_high=1.0780,
+        weekly_low=1.0680,
+        pivot=1.0728,
+        r1=1.0756,
+        r2=1.0778,
+        r3=1.0805,
+        s1=1.0706,
+        s2=1.0678,
+        s3=1.0656,
         round_levels=[1.07, 1.0725, 1.0750, 1.0775, 1.08],
     )
     md, sources = render_daily_levels_block(r)
@@ -88,11 +109,21 @@ def test_render_daily_levels_full_payload() -> None:
 def _levels_eur_at(spot: float, pdh: float = 1.0750, pdl: float = 1.0700) -> DailyLevels:
     return DailyLevels(
         asset="EUR_USD",
-        spot=spot, pdh=pdh, pdl=pdl, pd_close=(pdh + pdl) / 2,
-        asian_high=pdh - 0.0005, asian_low=pdl + 0.0005,
-        weekly_high=pdh + 0.005, weekly_low=pdl - 0.005,
-        pivot=(pdh + pdl) / 2, r1=pdh + 0.0010, r2=pdh + 0.0020, r3=pdh + 0.0040,
-        s1=pdl - 0.0010, s2=pdl - 0.0020, s3=pdl - 0.0040,
+        spot=spot,
+        pdh=pdh,
+        pdl=pdl,
+        pd_close=(pdh + pdl) / 2,
+        asian_high=pdh - 0.0005,
+        asian_low=pdl + 0.0005,
+        weekly_high=pdh + 0.005,
+        weekly_low=pdl - 0.005,
+        pivot=(pdh + pdl) / 2,
+        r1=pdh + 0.0010,
+        r2=pdh + 0.0020,
+        r3=pdh + 0.0040,
+        s1=pdl - 0.0010,
+        s2=pdl - 0.0020,
+        s3=pdl - 0.0040,
         round_levels=[],
     )
 
@@ -145,14 +176,24 @@ def test_session_scenarios_low_conviction_mid_range_tilts_sideways() -> None:
 def test_session_scenarios_returns_neutral_on_missing_levels() -> None:
     levels = DailyLevels(
         asset="EUR_USD",
-        spot=None, pdh=None, pdl=None, pd_close=None,
-        asian_high=None, asian_low=None, weekly_high=None, weekly_low=None,
-        pivot=None, r1=None, r2=None, r3=None, s1=None, s2=None, s3=None,
+        spot=None,
+        pdh=None,
+        pdl=None,
+        pd_close=None,
+        asian_high=None,
+        asian_low=None,
+        weekly_high=None,
+        weekly_low=None,
+        pivot=None,
+        r1=None,
+        r2=None,
+        r3=None,
+        s1=None,
+        s2=None,
+        s3=None,
         round_levels=[],
     )
-    s = assess_session_scenarios(
-        levels, session_type="pre_londres", regime=None, conviction_pct=50
-    )
+    s = assess_session_scenarios(levels, session_type="pre_londres", regime=None, conviction_pct=50)
     assert s.p_continuation == pytest.approx(0.34, abs=0.01)
     assert s.p_reversal == pytest.approx(0.33, abs=0.01)
     assert s.p_sideways == pytest.approx(0.33, abs=0.01)

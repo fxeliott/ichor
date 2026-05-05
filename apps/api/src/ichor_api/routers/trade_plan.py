@@ -20,7 +20,6 @@ needs the operational plan one click away.
 
 from __future__ import annotations
 
-from datetime import datetime
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -37,8 +36,16 @@ router = APIRouter(prefix="/v1/trade-plan", tags=["trade-plan"])
 
 
 _VALID_ASSET = {
-    "EUR_USD", "GBP_USD", "USD_JPY", "AUD_USD", "USD_CAD",
-    "XAU_USD", "NAS100_USD", "SPX500_USD", "US100", "US30",
+    "EUR_USD",
+    "GBP_USD",
+    "USD_JPY",
+    "AUD_USD",
+    "USD_CAD",
+    "XAU_USD",
+    "NAS100_USD",
+    "SPX500_USD",
+    "US100",
+    "US30",
 }
 
 
@@ -128,24 +135,32 @@ async def get_trade_plan_from_latest_card(
 
     # 1. Latest spot
     last_bar = (
-        await session.execute(
-            select(PolygonIntradayBar)
-            .where(PolygonIntradayBar.asset == asset_norm)
-            .order_by(desc(PolygonIntradayBar.bar_ts))
-            .limit(1)
+        (
+            await session.execute(
+                select(PolygonIntradayBar)
+                .where(PolygonIntradayBar.asset == asset_norm)
+                .order_by(desc(PolygonIntradayBar.bar_ts))
+                .limit(1)
+            )
         )
-    ).scalars().first()
+        .scalars()
+        .first()
+    )
     spot = float(last_bar.close) if last_bar is not None else None
 
     # 2. Latest verdict for the asset (any session_type)
     card = (
-        await session.execute(
-            select(SessionCardAudit)
-            .where(SessionCardAudit.asset == asset_norm)
-            .order_by(desc(SessionCardAudit.created_at))
-            .limit(1)
+        (
+            await session.execute(
+                select(SessionCardAudit)
+                .where(SessionCardAudit.asset == asset_norm)
+                .order_by(desc(SessionCardAudit.created_at))
+                .limit(1)
+            )
         )
-    ).scalars().first()
+        .scalars()
+        .first()
+    )
 
     if card is None:
         # No verdict → neutral plan
@@ -236,13 +251,17 @@ async def post_trade_plan_manual(
             detail=f"unknown asset {asset_norm!r}",
         )
     last_bar = (
-        await session.execute(
-            select(PolygonIntradayBar)
-            .where(PolygonIntradayBar.asset == asset_norm)
-            .order_by(desc(PolygonIntradayBar.bar_ts))
-            .limit(1)
+        (
+            await session.execute(
+                select(PolygonIntradayBar)
+                .where(PolygonIntradayBar.asset == asset_norm)
+                .order_by(desc(PolygonIntradayBar.bar_ts))
+                .limit(1)
+            )
         )
-    ).scalars().first()
+        .scalars()
+        .first()
+    )
     spot = float(last_bar.close) if last_bar is not None else None
     levels = await assess_daily_levels(session, asset_norm)
 

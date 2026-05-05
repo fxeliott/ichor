@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import httpx
 import structlog
@@ -23,30 +23,31 @@ FRED_BASE = "https://api.stlouisfed.org/fred"
 # Series Ichor cares about (per ARCHITECTURE_FINALE + AUDIT_V3)
 SERIES_TO_POLL: tuple[str, ...] = (
     # Credit
-    "BAMLH0A0HYM2",      # HY OAS spread
-    "BAMLC0A0CMTRIV",    # IG OAS spread
+    "BAMLH0A0HYM2",  # HY OAS spread
+    "BAMLC0A0CMTRIV",  # IG OAS spread
     # Vol
-    "VIXCLS",            # VIX
+    "VIXCLS",  # VIX
     # Rates
-    "SOFR",              # secured overnight financing
-    "DFF",               # Federal funds effective
-    "DGS2", "DGS10",     # Treasury 2y and 10y
+    "SOFR",  # secured overnight financing
+    "DFF",  # Federal funds effective
+    "DGS2",
+    "DGS10",  # Treasury 2y and 10y
     # Macro
-    "CPIAUCSL",          # CPI all urban
-    "PCEPI",             # PCE price index
-    "PAYEMS",            # NFP total
-    "UNRATE",            # Unemployment rate
-    "GDPC1",             # Real GDP
-    "INDPRO",            # Industrial production
+    "CPIAUCSL",  # CPI all urban
+    "PCEPI",  # PCE price index
+    "PAYEMS",  # NFP total
+    "UNRATE",  # Unemployment rate
+    "GDPC1",  # Real GDP
+    "INDPRO",  # Industrial production
     # Money
-    "M2SL",              # M2
-    "WALCL",             # Fed balance sheet
-    "RRPONTSYD",         # Reverse repo overnight
-    "WTREGEN",           # Treasury General Account
+    "M2SL",  # M2
+    "WALCL",  # Fed balance sheet
+    "RRPONTSYD",  # Reverse repo overnight
+    "WTREGEN",  # Treasury General Account
     # FX
-    "DTWEXBGS",          # Trade-weighted dollar (broad)
+    "DTWEXBGS",  # Trade-weighted dollar (broad)
     # Commodities
-    "DCOILWTICO",        # WTI crude
+    "DCOILWTICO",  # WTI crude
     "GOLDAMGBD228NLBM",  # Gold London PM fix
 )
 
@@ -59,7 +60,9 @@ class FredObservation:
     fetched_at: datetime
 
 
-async def fetch_latest(series_id: str, api_key: str, *, client: httpx.AsyncClient) -> FredObservation | None:
+async def fetch_latest(
+    series_id: str, api_key: str, *, client: httpx.AsyncClient
+) -> FredObservation | None:
     """One series, latest observation. Returns None if unavailable."""
     params = {
         "series_id": series_id,
@@ -83,7 +86,7 @@ async def fetch_latest(series_id: str, api_key: str, *, client: httpx.AsyncClien
             series_id=series_id,
             observation_date=o["date"],
             value=value,
-            fetched_at=datetime.now(timezone.utc),
+            fetched_at=datetime.now(UTC),
         )
     except Exception as e:
         log.warning("fred.fetch_failed", series=series_id, error=str(e))

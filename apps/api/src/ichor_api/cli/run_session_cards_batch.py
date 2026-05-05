@@ -34,8 +34,8 @@ import time
 
 import structlog
 
-from .run_session_card import _run as run_one_card
 from ..db import get_engine
+from .run_session_card import _run as run_one_card
 
 log = structlog.get_logger(__name__)
 
@@ -63,17 +63,12 @@ async def _run_batch(
 ) -> int:
     if session_type not in _VALID_SESSIONS:
         print(
-            f"unknown session_type {session_type!r} "
-            f"(expected one of {sorted(_VALID_SESSIONS)})",
+            f"unknown session_type {session_type!r} (expected one of {sorted(_VALID_SESSIONS)})",
             file=sys.stderr,
         )
         return 2
 
-    print(
-        f"== batch {session_type} · "
-        f"{len(assets)} cards · "
-        f"{'LIVE' if live else 'DRY-RUN'} =="
-    )
+    print(f"== batch {session_type} · {len(assets)} cards · {'LIVE' if live else 'DRY-RUN'} ==")
     successes = 0
     failures = 0
     started = time.time()
@@ -96,10 +91,7 @@ async def _run_batch(
             await asyncio.sleep(inter_card_sleep_s)
 
     elapsed = time.time() - started
-    print(
-        f"\n== batch done · {successes} ok / {failures} failed · "
-        f"elapsed {elapsed:.1f}s =="
-    )
+    print(f"\n== batch done · {successes} ok / {failures} failed · elapsed {elapsed:.1f}s ==")
     return 0 if failures == 0 else 1
 
 

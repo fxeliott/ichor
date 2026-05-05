@@ -8,7 +8,7 @@ Provider chain: Cerebras → Groq → static fallback.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -42,7 +42,7 @@ class MacroAgentOutput(BaseModel):
     overall_bias: Literal["risk_on", "risk_off", "neutral"]
     overall_confidence: float = Field(ge=0.0, le=1.0)
     horizon_hours: int = Field(default=6, ge=1, le=72)
-    generated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    generated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     notes: str | None = Field(default=None, max_length=1000)
 
 

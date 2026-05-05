@@ -20,9 +20,8 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Literal
-
 
 Verdict = Literal["approved", "amendments", "blocked"]
 
@@ -101,22 +100,22 @@ def _normalize(text: str) -> str:
 # mapping the Critic flags every asset mention as "not in pool" and the
 # entire pipeline blocks even when sources are perfectly tracked.
 _ASSET_ALIASES: dict[str, tuple[str, ...]] = {
-    "eur/usd":   ("eur/usd", "eur_usd", "eurusd", "c:eurusd"),
-    "eurusd":    ("eur/usd", "eur_usd", "eurusd", "c:eurusd"),
-    "gbp/usd":   ("gbp/usd", "gbp_usd", "gbpusd", "c:gbpusd"),
-    "usd/jpy":   ("usd/jpy", "usd_jpy", "usdjpy", "c:usdjpy"),
-    "aud/usd":   ("aud/usd", "aud_usd", "audusd", "c:audusd"),
-    "usd/cad":   ("usd/cad", "usd_cad", "usdcad", "c:usdcad"),
-    "xau/usd":   ("xau/usd", "xau_usd", "xauusd", "c:xauusd", "gold"),
-    "nas100":    ("nas100", "nas100_usd", "ndx", "i:ndx"),
-    "spx500":    ("spx500", "spx500_usd", "spx", "i:spx", "s&p 500", "s&p500"),
-    "s&p 500":   ("spx500", "spx500_usd", "spx", "i:spx", "s&p 500", "s&p500"),
-    "nasdaq":    ("nas100", "nas100_usd", "ndx", "i:ndx", "nasdaq"),
-    "ndx":       ("nas100", "nas100_usd", "ndx", "i:ndx"),
-    "vix":       ("vix", "vixcls", "vix9d", "vix3m"),
-    "dxy":       ("dxy", "dtwexbgs", "dollar index", "us dollar index"),
-    "hy oas":    ("hy oas", "bamlh0a0hym2", "hy spread"),
-    "ig oas":    ("ig oas", "bamlc0a0cm", "bamlc0a0cmtriv", "ig spread"),
+    "eur/usd": ("eur/usd", "eur_usd", "eurusd", "c:eurusd"),
+    "eurusd": ("eur/usd", "eur_usd", "eurusd", "c:eurusd"),
+    "gbp/usd": ("gbp/usd", "gbp_usd", "gbpusd", "c:gbpusd"),
+    "usd/jpy": ("usd/jpy", "usd_jpy", "usdjpy", "c:usdjpy"),
+    "aud/usd": ("aud/usd", "aud_usd", "audusd", "c:audusd"),
+    "usd/cad": ("usd/cad", "usd_cad", "usdcad", "c:usdcad"),
+    "xau/usd": ("xau/usd", "xau_usd", "xauusd", "c:xauusd", "gold"),
+    "nas100": ("nas100", "nas100_usd", "ndx", "i:ndx"),
+    "spx500": ("spx500", "spx500_usd", "spx", "i:spx", "s&p 500", "s&p500"),
+    "s&p 500": ("spx500", "spx500_usd", "spx", "i:spx", "s&p 500", "s&p500"),
+    "nasdaq": ("nas100", "nas100_usd", "ndx", "i:ndx", "nasdaq"),
+    "ndx": ("nas100", "nas100_usd", "ndx", "i:ndx"),
+    "vix": ("vix", "vixcls", "vix9d", "vix3m"),
+    "dxy": ("dxy", "dtwexbgs", "dollar index", "us dollar index"),
+    "hy oas": ("hy oas", "bamlh0a0hym2", "hy spread"),
+    "ig oas": ("ig oas", "bamlc0a0cm", "bamlc0a0cmtriv", "ig spread"),
 }
 
 
@@ -215,11 +214,7 @@ def review_briefing(
         if f is not None:
             findings.append(f)
 
-    confidence = (
-        1.0 - (len(findings) / len(evidence))
-        if evidence
-        else 1.0
-    )
+    confidence = 1.0 - (len(findings) / len(evidence)) if evidence else 1.0
 
     verdict = _decide(confidence, findings)
     footer = ""
@@ -239,5 +234,5 @@ def review_briefing(
         suggested_footer=footer,
         n_evidence_sentences=len(evidence),
         n_unsourced=len(findings),
-        reviewed_at=datetime.now(timezone.utc),
+        reviewed_at=datetime.now(UTC),
     )

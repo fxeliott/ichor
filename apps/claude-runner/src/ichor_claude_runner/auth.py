@@ -20,7 +20,6 @@ from jose.exceptions import JWTError
 
 from .config import Settings, get_settings
 
-
 # JWKS cache: {(team_domain, fetched_at): keys}
 _jwks_cache: dict[str, tuple[float, dict[str, Any]]] = {}
 _JWKS_TTL_SEC = 3600  # refresh hourly

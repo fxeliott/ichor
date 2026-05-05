@@ -12,11 +12,12 @@ import sys
 
 import pytest
 
-
 # Import fomc_roberta directly without going through ichor_ml.__init__,
 # which eagerly imports finbert_tone (numpy + transformers). The aggregate
 # function only depends on the standard library, so we keep this test light.
-_FOMC_PATH = pathlib.Path(__file__).resolve().parents[1] / "src" / "ichor_ml" / "nlp" / "fomc_roberta.py"
+_FOMC_PATH = (
+    pathlib.Path(__file__).resolve().parents[1] / "src" / "ichor_ml" / "nlp" / "fomc_roberta.py"
+)
 _spec = importlib.util.spec_from_file_location("ichor_ml_fomc_roberta_test", _FOMC_PATH)
 assert _spec is not None and _spec.loader is not None
 _mod = importlib.util.module_from_spec(_spec)

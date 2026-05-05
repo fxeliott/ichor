@@ -34,8 +34,33 @@ select = [
     "RUF",  # ruff-specific
 ]
 ignore = [
-    "E501",  # line-too-long (handled by formatter)
-    "S101",  # assert (allowed in tests)
+    "E501",   # line-too-long (handled by formatter)
+    "S101",   # assert (allowed in tests)
+    # ── Legacy code warnings — accepted for now, file-level cleanup in
+    # a dedicated tech-debt PR (cf docs/SESSION_LOG_2026-05-05.md). The
+    # codebase has 100+ legacy try-except-pass patterns from collector
+    # graceful-degradation paths. Promoting these from "ignored" to
+    # "fixed" requires per-call-site review of what to log.
+    "S110",   # try-except-pass — graceful collector degradation
+    "S112",   # try-except-continue — same, in loops
+    "S311",   # random for non-crypto (SHA256 used where it matters)
+    "S608",   # SQL injection on sa.text() with named params (false positive
+              # — sa.text() is parameterized via :name binds, not f-strings)
+    "B904",   # raise...from in except — legacy exception passthroughs
+    "E741",   # ambiguous l — used as math symbol in legacy stats code
+    # French docstrings + comments use Unicode glyphs (× for multiply, ’
+    # apostrophes, … ellipsis). All intentional ; ASCII-only would
+    # degrade prose quality. Eliot writes briefings in French.
+    "RUF001", # ambiguous-unicode-character-string
+    "RUF002", # ambiguous-unicode-character-docstring
+    "RUF003", # ambiguous-unicode-character-comment
+    # Legacy patterns scheduled for refactor but not blocking :
+    "ASYNC109", # async timeouts handled at httpx-client level, not per-fn
+    "DTZ007",  # legacy strptime ; aware-datetime sweep is separate PR
+    "DTZ011",  # date.today() in dev/test harness paths
+    "RUF012",  # mutable class default (1 site, intentional cache)
+    "RUF100",  # unused noqa — flagged after auto-fix sometimes ; remove later
+    "B008",    # FastAPI canonical pattern: `param: T = Depends(provider)`
 ]
 
 [tool.ruff.lint.per-file-ignores]

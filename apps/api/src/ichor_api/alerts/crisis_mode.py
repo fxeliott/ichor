@@ -13,7 +13,7 @@ or aged out), resolve with code='CRISIS_MODE_RESOLVED'.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -38,7 +38,7 @@ async def assess_crisis(
     lookback_minutes: int = 60,
 ) -> CrisisAssessment:
     """Walk the alerts table for active crisis_mode alerts in the last hour."""
-    cutoff = datetime.now(timezone.utc) - timedelta(minutes=lookback_minutes)
+    cutoff = datetime.now(UTC) - timedelta(minutes=lookback_minutes)
 
     stmt = select(Alert).where(
         Alert.alert_code.in_(CRISIS_TRIGGERS),

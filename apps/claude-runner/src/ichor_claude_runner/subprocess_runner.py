@@ -14,9 +14,7 @@ from __future__ import annotations
 
 import asyncio
 import json
-import subprocess
 import time
-from pathlib import Path
 from typing import Any
 
 import structlog
@@ -79,12 +77,17 @@ async def run_claude(
 
     cmd = [
         settings.claude_binary,
-        "-p", prompt,
-        "--output-format", "json",
-        "--model", model,
-        "--effort", effort,
+        "-p",
+        prompt,
+        "--output-format",
+        "json",
+        "--model",
+        model,
+        "--effort",
+        effort,
         "--no-session-persistence",
-        "--append-system-prompt", persona_text,
+        "--append-system-prompt",
+        persona_text,
     ]
 
     log.info("claude.subprocess.start", model=model, effort=effort, prompt_len=len(prompt))
@@ -100,7 +103,7 @@ async def run_claude(
         stdout, stderr = await asyncio.wait_for(
             proc.communicate(), timeout=settings.claude_timeout_sec
         )
-    except asyncio.TimeoutError:
+    except TimeoutError:
         proc.kill()
         await proc.wait()
         raise

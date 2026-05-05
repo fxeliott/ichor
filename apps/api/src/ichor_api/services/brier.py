@@ -87,7 +87,7 @@ def reconcile_card(
     close_px: float,
     high_px: float,
     low_px: float,
-) -> "ReconciliationOutcome":
+) -> ReconciliationOutcome:
     """End-to-end reconciliation of a single session card.
 
     Combines the helpers above into one record ready to be written
@@ -158,7 +158,7 @@ def summarize(brier_contributions: list[float], outcomes: list[int]) -> Calibrat
 
 def reliability_buckets(
     p_ups: list[float], ys: list[int], n_bins: int = 10
-) -> list["ReliabilityBucket"]:
+) -> list[ReliabilityBucket]:
     """Reliability diagram input — bins (P_up) vs mean(y) per bin.
 
     A well-calibrated model has `mean_p ≈ mean_y` per bucket.
@@ -170,7 +170,7 @@ def reliability_buckets(
         raise ValueError("need at least 2 bins")
     edges = [i / n_bins for i in range(n_bins + 1)]
     buckets: list[list[tuple[float, int]]] = [[] for _ in range(n_bins)]
-    for p, y in zip(p_ups, ys):
+    for p, y in zip(p_ups, ys, strict=False):
         # right-inclusive edge so p=1.0 lands in the last bucket
         idx = min(n_bins - 1, max(0, int(p * n_bins)))
         buckets[idx].append((p, y))

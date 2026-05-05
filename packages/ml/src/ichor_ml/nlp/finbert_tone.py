@@ -48,9 +48,7 @@ def score_tone(text: str) -> ToneScore:
     raw = pipe(text)[0]  # list of dicts with "label" + "score"
 
     # Normalize labels to lowercase
-    dist: dict[ToneLabel, float] = {
-        item["label"].lower(): float(item["score"]) for item in raw
-    }
+    dist: dict[ToneLabel, float] = {item["label"].lower(): float(item["score"]) for item in raw}
     label = max(dist, key=dist.get)
     return ToneScore(
         label=label,  # type: ignore[arg-type]
@@ -64,7 +62,7 @@ def score_tones_batch(texts: list[str], *, batch_size: int = 32) -> list[ToneSco
     pipe = _load_pipeline()
     results: list[ToneScore] = []
     for i in range(0, len(texts), batch_size):
-        chunk = texts[i: i + batch_size]
+        chunk = texts[i : i + batch_size]
         raws = pipe(chunk)
         for raw in raws:
             dist = {item["label"].lower(): float(item["score"]) for item in raw}

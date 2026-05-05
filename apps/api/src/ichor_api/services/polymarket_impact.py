@@ -27,13 +27,12 @@ turns the raw snapshot feed into actionable directional signals.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models import PolymarketSnapshot
-
 
 # ─────────────────────── theme catalog ────────────────────────────────
 
@@ -247,7 +246,7 @@ def _matches_phrase(text_lower: str, phrase: list[str]) -> bool:
 async def assess_polymarket_impact(
     session: AsyncSession, *, hours: int = 24, limit: int = 200
 ) -> ImpactReport:
-    cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
+    cutoff = datetime.now(UTC) - timedelta(hours=hours)
     raw_rows = list(
         (
             await session.execute(
@@ -256,7 +255,9 @@ async def assess_polymarket_impact(
                 .order_by(desc(PolymarketSnapshot.fetched_at))
                 .limit(limit)
             )
-        ).scalars().all()
+        )
+        .scalars()
+        .all()
     )
     # Dedupe by slug : keep only the most recent snapshot per market.
     seen_slugs: set[str] = set()
@@ -276,11 +277,7 @@ async def assess_polymarket_impact(
             q = (r.question or "").lower()
             if not any(_matches_phrase(q, p) for p in theme.keyword_phrases):
                 continue
-            yes = (
-                r.last_prices[0]
-                if r.last_prices and len(r.last_prices) > 0
-                else None
-            )
+            yes = r.last_prices[0] if r.last_prices and len(r.last_prices) > 0 else None
             if yes is None:
                 continue
             weight = (yes - 0.5) * 2.0  # in [-1, +1]
@@ -317,9 +314,7 @@ async def assess_polymarket_impact(
 
     # Clamp aggregate to [-1, +1] per asset
     for k in list(asset_aggregate.keys()):
-        asset_aggregate[k] = round(
-            max(-1.0, min(1.0, asset_aggregate[k])), 3
-        )
+        asset_aggregate[k] = round(max(-1.0, min(1.0, asset_aggregate[k])), 3)
 
     # Sort themes by total impact magnitude
     theme_hits.sort(
@@ -328,7 +323,7 @@ async def assess_polymarket_impact(
     )
 
     return ImpactReport(
-        generated_at=datetime.now(timezone.utc),
+        generated_at=datetime.now(UTC),
         n_markets_scanned=len(rows),
         themes=theme_hits,
         asset_aggregate=asset_aggregate,
@@ -351,20 +346,16 @@ def render_polymarket_impact_block(
     ]
     sources: list[str] = []
     for th in r.themes[:5]:
-        lines.append(
-            f"- **{th.label}** : n={th.n_markets} avg YES={th.avg_yes*100:.0f}%"
-        )
+        lines.append(f"- **{th.label}** : n={th.n_markets} avg YES={th.avg_yes * 100:.0f}%")
         impacts = sorted(
             th.impact_per_asset.items(),
             key=lambda kv: abs(kv[1]),
             reverse=True,
         )[:5]
-        impact_str = " · ".join(
-            f"{a} {v:+.2f}" for a, v in impacts
-        )
+        impact_str = " · ".join(f"{a} {v:+.2f}" for a, v in impacts)
         lines.append(f"  · impacts : {impact_str}")
         for m in th.markets[:2]:
-            lines.append(f"  · '{m.question[:70]}' YES={m.yes*100:.0f}%")
+            lines.append(f"  · '{m.question[:70]}' YES={m.yes * 100:.0f}%")
             sources.append(f"polymarket:{m.slug}")
 
     if r.asset_aggregate:

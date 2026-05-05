@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
@@ -34,9 +34,7 @@ class NewsItemOut(BaseModel):
 @router.get("", response_model=list[NewsItemOut])
 async def list_news(
     session: Annotated[AsyncSession, Depends(get_session)],
-    source_kind: str | None = Query(
-        None, regex=r"^(news|central_bank|regulator|social|academic)$"
-    ),
+    source_kind: str | None = Query(None, regex=r"^(news|central_bank|regulator|social|academic)$"),
     source: str | None = Query(None, max_length=64),
     tone: str | None = Query(None, regex=r"^(positive|neutral|negative)$"),
     since_minutes: int = Query(1440, ge=1, le=10080),  # 1 min .. 7 days
@@ -44,7 +42,7 @@ async def list_news(
 ) -> list[NewsItemOut]:
     """Newest-first listing, default last 24h. Filterable by source kind /
     source / tone. `since_minutes` caps the lookback (defaults 1 day)."""
-    cutoff = datetime.now(timezone.utc) - timedelta(minutes=since_minutes)
+    cutoff = datetime.now(UTC) - timedelta(minutes=since_minutes)
     stmt = (
         select(NewsItem)
         .where(NewsItem.published_at >= cutoff)

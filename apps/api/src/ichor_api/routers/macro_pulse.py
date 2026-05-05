@@ -7,7 +7,7 @@ dashboard makes a single fetch.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
@@ -127,7 +127,7 @@ async def get_macro_pulse(
     si = await assess_surprise_index(session)
 
     return MacroPulseOut(
-        generated_at=datetime.now(timezone.utc),
+        generated_at=datetime.now(UTC),
         vix_term=VixTermOut(
             vix_1m=vix.vix_1m,
             vix_3m=vix.vix_3m,

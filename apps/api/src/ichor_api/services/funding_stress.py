@@ -25,7 +25,7 @@ borrow cash, which is the textbook signal of a funding squeeze.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -61,7 +61,7 @@ class FundingStressReading:
 
 
 async def _latest(session: AsyncSession, series: str) -> float | None:
-    cutoff = datetime.now(timezone.utc).date() - timedelta(days=14)
+    cutoff = datetime.now(UTC).date() - timedelta(days=14)
     stmt = (
         select(FredObservation.value)
         .where(
@@ -84,12 +84,8 @@ async def assess_funding_stress(session: AsyncSession) -> FundingStressReading:
     rrp = await _latest(session, "RRPONTSYD")
     hy_oas = await _latest(session, "BAMLH0A0HYM2")
 
-    sofr_iorb = (
-        round(sofr - iorb, 4) if (sofr is not None and iorb is not None) else None
-    )
-    sofr_effr = (
-        round(sofr - effr, 4) if (sofr is not None and effr is not None) else None
-    )
+    sofr_iorb = round(sofr - iorb, 4) if (sofr is not None and iorb is not None) else None
+    sofr_effr = round(sofr - effr, 4) if (sofr is not None and effr is not None) else None
 
     score = 0.0
     notes: list[str] = []
@@ -140,18 +136,14 @@ def render_funding_stress_block(r: FundingStressReading) -> tuple[str, list[str]
     lines.append(f"- EFFR (eff. fed funds)    = {fmt(r.effr, '%')} (FRED:DFF)")
     sources.append("FRED:DFF")
     lines.append(
-        f"- SOFR-IORB spread         = {fmt(r.sofr_iorb_spread, '%')} "
-        "(positive = funding squeeze)"
+        f"- SOFR-IORB spread         = {fmt(r.sofr_iorb_spread, '%')} (positive = funding squeeze)"
     )
     lines.append(
-        f"- SOFR-EFFR spread         = {fmt(r.sofr_effr_spread, '%')} "
-        "(positive = repo dislocation)"
+        f"- SOFR-EFFR spread         = {fmt(r.sofr_effr_spread, '%')} (positive = repo dislocation)"
     )
     lines.append(f"- RRP overnight usage      = {fmt(r.rrp_usage, ' $bn')} (FRED:RRPONTSYD)")
     sources.append("FRED:RRPONTSYD")
     lines.append(f"- HY OAS                   = {fmt(r.hy_oas, '%')} (FRED:BAMLH0A0HYM2)")
     sources.append("FRED:BAMLH0A0HYM2")
-    lines.append(
-        f"- Composite stress score   = **{r.stress_score:+.2f}** ({r.note})"
-    )
+    lines.append(f"- Composite stress score   = **{r.stress_score:+.2f}** ({r.note})")
     return "\n".join(lines), sources

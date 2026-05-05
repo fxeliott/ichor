@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Annotated
 from uuid import UUID
 
@@ -45,6 +45,6 @@ async def acknowledge_alert(
     row = await session.get(Alert, alert_id)
     if row is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Alert not found")
-    row.acknowledged_at = datetime.now(timezone.utc)
+    row.acknowledged_at = datetime.now(UTC)
     await session.flush()
     return AlertOut.model_validate(row)

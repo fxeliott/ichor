@@ -6,12 +6,12 @@ structured JSON form so the frontend can render bars + driver lists.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
-from sqlalchemy import select, desc
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..db import get_session
@@ -22,8 +22,14 @@ router = APIRouter(prefix="/v1/confluence", tags=["confluence"])
 
 
 _VALID_ASSET = {
-    "EUR_USD", "GBP_USD", "USD_JPY", "AUD_USD", "USD_CAD",
-    "XAU_USD", "NAS100_USD", "SPX500_USD",
+    "EUR_USD",
+    "GBP_USD",
+    "USD_JPY",
+    "AUD_USD",
+    "USD_CAD",
+    "XAU_USD",
+    "NAS100_USD",
+    "SPX500_USD",
 }
 
 
@@ -74,7 +80,7 @@ async def get_confluence_history(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"unknown asset {asset_norm!r}",
         )
-    cutoff = datetime.now(timezone.utc) - timedelta(days=window_days)
+    cutoff = datetime.now(UTC) - timedelta(days=window_days)
     rows = list(
         (
             await session.execute(
@@ -85,7 +91,9 @@ async def get_confluence_history(
                 )
                 .order_by(ConfluenceHistory.captured_at.asc())
             )
-        ).scalars().all()
+        )
+        .scalars()
+        .all()
     )
     points = [
         HistoryPointOut(

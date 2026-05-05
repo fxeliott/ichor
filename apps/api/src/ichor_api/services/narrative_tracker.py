@@ -22,13 +22,12 @@ from __future__ import annotations
 import re
 from collections import Counter
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import desc, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models import CbSpeech, NewsItem
-
 
 # Lowercased, accent-stripped tokens we drop. English-only V1 — the FR
 # RSS feeds we follow (Reuters, Fed/ECB/BoE/BoJ) are English-first.
@@ -47,20 +46,54 @@ _STOPWORDS: frozenset[str] = frozenset(
     cannot couldn doesn don hadn hasn haven isn shan shouldn wasn weren
     won wouldn 's 'd 'll 'm 'o 're 've 't ago around new news inc bank
     via said also told report reports said-during like really already
-    last made much etc news today yesterday tomorrow week month year"""
-    .split()
+    last made much etc news today yesterday tomorrow week month year""".split()
 )
 
 # Finance-specific stopwords — remove generic markers that pollute TF
 _FINANCE_STOPWORDS: frozenset[str] = frozenset(
     {
-        "market", "markets", "rate", "rates", "data", "report", "reuters",
-        "bloomberg", "ap", "wsj", "ft", "stocks", "stock", "shares",
-        "trading", "trader", "traders", "investor", "investors",
-        "analyst", "analysts", "session", "monetary", "policy", "policies",
-        "economy", "economic", "economist", "economists", "growth",
-        "outlook", "view", "comments", "speech", "speeches", "interview",
-        "press", "release", "statement", "minutes", "decision", "meeting",
+        "market",
+        "markets",
+        "rate",
+        "rates",
+        "data",
+        "report",
+        "reuters",
+        "bloomberg",
+        "ap",
+        "wsj",
+        "ft",
+        "stocks",
+        "stock",
+        "shares",
+        "trading",
+        "trader",
+        "traders",
+        "investor",
+        "investors",
+        "analyst",
+        "analysts",
+        "session",
+        "monetary",
+        "policy",
+        "policies",
+        "economy",
+        "economic",
+        "economist",
+        "economists",
+        "growth",
+        "outlook",
+        "view",
+        "comments",
+        "speech",
+        "speeches",
+        "interview",
+        "press",
+        "release",
+        "statement",
+        "minutes",
+        "decision",
+        "meeting",
     }
 )
 
@@ -117,17 +150,11 @@ async def track_narratives(
     stopwords + finance noise, counts global frequency, and emits the
     top-K topics with one sample title each.
     """
-    cutoff = datetime.now(timezone.utc) - timedelta(hours=window_hours)
+    cutoff = datetime.now(UTC) - timedelta(hours=window_hours)
 
     # Pull both sources in parallel
-    cb_stmt = (
-        select(CbSpeech.title, CbSpeech.summary)
-        .where(CbSpeech.published_at >= cutoff)
-    )
-    news_stmt = (
-        select(NewsItem.title, NewsItem.summary)
-        .where(NewsItem.published_at >= cutoff)
-    )
+    cb_stmt = select(CbSpeech.title, CbSpeech.summary).where(CbSpeech.published_at >= cutoff)
+    news_stmt = select(NewsItem.title, NewsItem.summary).where(NewsItem.published_at >= cutoff)
 
     cb_rows = list((await session.execute(cb_stmt)).all())
     news_rows = list((await session.execute(news_stmt)).all())
@@ -185,15 +212,8 @@ def render_narrative_block(report: NarrativeReport) -> tuple[str, list[str]]:
         f"top {len(report.topics)} keywords below"
     )
     for t in report.topics:
-        sample = (
-            f' (e.g. "{t.sample_titles[0][:60]}")'
-            if t.sample_titles
-            else ""
-        )
-        lines.append(
-            f"- **{t.keyword}** · {t.count} doc(s) · "
-            f"{t.share * 100:.1f}% share{sample}"
-        )
+        sample = f' (e.g. "{t.sample_titles[0][:60]}")' if t.sample_titles else ""
+        lines.append(f"- **{t.keyword}** · {t.count} doc(s) · {t.share * 100:.1f}% share{sample}")
     return "\n".join(lines), [
         f"narrative:{report.window_hours}h:{t.keyword}" for t in report.topics
     ]

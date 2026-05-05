@@ -15,7 +15,7 @@ result_json)` if Eliot uses the feature regularly.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Annotated
 from uuid import UUID
 
@@ -139,7 +139,7 @@ async def run_counterfactual(
         original_generated_at=card.generated_at,
         original_bias=card.bias_direction,
         original_conviction_pct=card.conviction_pct,
-        asked_at=datetime.now(timezone.utc),
+        asked_at=datetime.now(UTC),
         scrubbed_event=body.scrubbed_event,
         counterfactual_bias=parsed.counterfactual_bias,
         counterfactual_conviction_pct=parsed.counterfactual_conviction_pct,

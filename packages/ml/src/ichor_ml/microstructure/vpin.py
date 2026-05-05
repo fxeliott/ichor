@@ -64,7 +64,7 @@ class VPINResult:
 
     @property
     def n_buckets(self) -> int:
-        return int(len(self.vpin))
+        return len(self.vpin)
 
 
 class VPINEstimator:
@@ -116,16 +116,13 @@ class VPINEstimator:
         """
         required = {"timestamp", "price", "volume"}
         if not required.issubset(trades.columns):
-            raise ValueError(
-                f"trades must have columns {required}, got {set(trades.columns)}"
-            )
+            raise ValueError(f"trades must have columns {required}, got {set(trades.columns)}")
 
         df = trades.sort_values("timestamp").reset_index(drop=True)
         n_trades = len(df)
         if n_trades < self._sigma_lb + 100:
             raise ValueError(
-                f"Need at least {self._sigma_lb + 100} trades to bootstrap VPIN, "
-                f"got {n_trades}"
+                f"Need at least {self._sigma_lb + 100} trades to bootstrap VPIN, got {n_trades}"
             )
 
         # Compute log price changes
@@ -196,9 +193,7 @@ def quotes_to_synthetic_trades(quotes: pd.DataFrame) -> pd.DataFrame:
         raise ValueError("quotes must have a 'timestamp' column")
     if "mid" not in quotes.columns:
         if not {"bid", "ask"}.issubset(quotes.columns):
-            raise ValueError(
-                "quotes must have either a 'mid' column or both 'bid' + 'ask' columns"
-            )
+            raise ValueError("quotes must have either a 'mid' column or both 'bid' + 'ask' columns")
         mid = (quotes["bid"].astype(float) + quotes["ask"].astype(float)) / 2.0
     else:
         mid = quotes["mid"].astype(float)
@@ -214,9 +209,7 @@ def quotes_to_synthetic_trades(quotes: pd.DataFrame) -> pd.DataFrame:
     valid = out["price"].notna() & (out["price"] > 0)
     out = out[valid].reset_index(drop=True)
     if out.empty:
-        raise ValueError(
-            "All quote rows had invalid mid-price (≤ 0 or NaN) ; cannot compute VPIN"
-        )
+        raise ValueError("All quote rows had invalid mid-price (≤ 0 or NaN) ; cannot compute VPIN")
     return out
 
 

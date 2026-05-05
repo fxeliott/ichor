@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from ichor_api.collectors.kalshi import _cents_to_prob, _parse_iso, WATCHED_TICKERS
+from ichor_api.collectors.kalshi import WATCHED_TICKERS, _cents_to_prob, _parse_iso
 from ichor_api.collectors.manifold import WATCHED_SLUGS
 
 

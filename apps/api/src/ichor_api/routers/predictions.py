@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Annotated, Literal
 from uuid import UUID
 
@@ -50,7 +50,7 @@ async def list_predictions(
     since_days: int = Query(30, ge=1, le=3650),
     limit: int = Query(100, ge=1, le=2000),
 ) -> list[PredictionOut]:
-    cutoff = datetime.now(timezone.utc) - timedelta(days=since_days)
+    cutoff = datetime.now(UTC) - timedelta(days=since_days)
     stmt = (
         select(Prediction)
         .where(Prediction.generated_at >= cutoff)

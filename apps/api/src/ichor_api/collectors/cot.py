@@ -28,9 +28,9 @@ from __future__ import annotations
 
 import csv
 import io
+from collections.abc import Iterable
 from dataclasses import dataclass
-from datetime import date, datetime, timezone
-from typing import Iterable
+from datetime import UTC, date, datetime
 
 import httpx
 import structlog
@@ -39,9 +39,7 @@ log = structlog.get_logger(__name__)
 
 # CFTC publishes a "current week" CSV that's updated each Friday with last
 # Tuesday's positions. For historical, see the annual ZIP files.
-CFTC_DISAGG_FUT_CSV = (
-    "https://www.cftc.gov/dea/newcot/f_disagg.txt"
-)
+CFTC_DISAGG_FUT_CSV = "https://www.cftc.gov/dea/newcot/f_disagg.txt"
 
 
 @dataclass(frozen=True)
@@ -73,14 +71,14 @@ class CotPosition:
 # Mapping CFTC market codes → our asset codes for the markets we track.
 # Codes verified against CFTC reference list.
 MARKET_CODE_TO_ASSET: dict[str, str] = {
-    "099741": "EUR_USD",   # EURO FX
-    "096742": "GBP_USD",   # BRITISH POUND STERLING
-    "097741": "USD_JPY",   # JAPANESE YEN  (note : reverse — long JPY = short USD/JPY)
-    "232741": "AUD_USD",   # AUSTRALIAN DOLLAR
-    "090741": "USD_CAD",   # CANADIAN DOLLAR (long CAD = short USD/CAD)
-    "088691": "XAU_USD",   # GOLD
-    "13874A": "US30",      # E-MINI DJIA ($5)  — verify
-    "209742": "US100",     # E-MINI NASDAQ-100 — verify
+    "099741": "EUR_USD",  # EURO FX
+    "096742": "GBP_USD",  # BRITISH POUND STERLING
+    "097741": "USD_JPY",  # JAPANESE YEN  (note : reverse — long JPY = short USD/JPY)
+    "232741": "AUD_USD",  # AUSTRALIAN DOLLAR
+    "090741": "USD_CAD",  # CANADIAN DOLLAR (long CAD = short USD/CAD)
+    "088691": "XAU_USD",  # GOLD
+    "13874A": "US30",  # E-MINI DJIA ($5)  — verify
+    "209742": "US100",  # E-MINI NASDAQ-100 — verify
 }
 
 
@@ -126,15 +124,21 @@ def _parse_disagg_csv(body: bytes) -> list[CotPosition]:
         return []
     text = body.decode("utf-8", errors="replace")
     reader = csv.DictReader(io.StringIO(text))
-    fetched = datetime.now(timezone.utc)
+    fetched = datetime.now(UTC)
     out: list[CotPosition] = []
     for row in reader:
         try:
-            code = (row.get("CFTC Contract Market Code") or row.get("CFTC_Contract_Market_Code") or "").strip()
+            code = (
+                row.get("CFTC Contract Market Code") or row.get("CFTC_Contract_Market_Code") or ""
+            ).strip()
             if not code:
                 continue
-            name = (row.get("Market and Exchange Names") or row.get("Market_and_Exchange_Names") or "").strip()
-            d = (row.get("Report Date as YYYY-MM-DD") or row.get("Report_Date_as_YYYY-MM-DD") or "").strip()
+            name = (
+                row.get("Market and Exchange Names") or row.get("Market_and_Exchange_Names") or ""
+            ).strip()
+            d = (
+                row.get("Report Date as YYYY-MM-DD") or row.get("Report_Date_as_YYYY-MM-DD") or ""
+            ).strip()
             if not d:
                 continue
             try:

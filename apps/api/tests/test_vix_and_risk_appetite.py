@@ -5,7 +5,7 @@ Tests the bucket / classifier logic without a live DB.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from ichor_api.services.risk_appetite import (
     RiskAppetiteComponent,
@@ -24,7 +24,6 @@ from ichor_api.services.vix_term_structure import (
     _interpretation,
     render_vix_term_block,
 )
-
 
 # ─────────────────── vix_term_structure ────────────────────
 
@@ -93,7 +92,7 @@ def test_render_vix_term_full_payload() -> None:
         spread=-2.7,
         regime="normal",
         interpretation="Contango normal — risk-on.",
-        observation_date=datetime(2026, 5, 4, tzinfo=timezone.utc),
+        observation_date=datetime(2026, 5, 4, tzinfo=UTC),
         sources=["FRED:VIXCLS", "FRED:VXVCLS"],
     )
     md, sources = render_vix_term_block(r)

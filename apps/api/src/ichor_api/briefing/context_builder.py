@@ -17,9 +17,9 @@ sample.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
-from typing import Sequence
+from datetime import UTC, datetime, timedelta
 
 import structlog
 from sqlalchemy import desc, select
@@ -100,10 +100,7 @@ def _format_market_data(bars: Sequence[MarketDataBar]) -> str:
         ordered = sorted(asset_bars, key=lambda x: x.bar_date)
         latest = ordered[-1]
         prior = ordered[-2] if len(ordered) >= 2 else None
-        chg = (
-            (latest.close - prior.close) / prior.close * 100 if prior and prior.close
-            else None
-        )
+        chg = (latest.close - prior.close) / prior.close * 100 if prior and prior.close else None
         rows.append((asset, latest, chg))
 
     rows.sort(key=lambda r: abs(r[2]) if r[2] is not None else 0, reverse=True)
@@ -141,9 +138,7 @@ def _format_news(items: Sequence[NewsItem]) -> str:
         parts.append(f"### {kind_labels.get(kind, kind)}")
         for n in bucket[:8]:
             ts = n.published_at.strftime("%Y-%m-%d %H:%M")
-            tone = (
-                f" _[{n.tone_label}]_" if n.tone_label else ""
-            )
+            tone = f" _[{n.tone_label}]_" if n.tone_label else ""
             parts.append(f"- {ts} **{n.source}** — {n.title}{tone}")
         parts.append("")
     return "\n".join(parts).rstrip()
@@ -162,7 +157,7 @@ def _format_polymarket(snaps: Sequence[PolymarketSnapshot]) -> str:
         "| Marché | Yes | Volume USD |",
         "|--------|-----|------------|",
     ]
-    for slug, s in by_slug.items():
+    for _slug, s in by_slug.items():
         yes = s.last_prices[0] if s.last_prices else None
         yes_s = f"{yes:.2f}" if yes is not None else "n/a"
         vol_s = f"${s.volume_usd:,.0f}" if s.volume_usd is not None else "n/a"
@@ -170,9 +165,7 @@ def _format_polymarket(snaps: Sequence[PolymarketSnapshot]) -> str:
     return "\n".join(lines)
 
 
-async def _fetch_bias_signals(
-    session: AsyncSession, assets: Sequence[str]
-) -> list[BiasSignal]:
+async def _fetch_bias_signals(session: AsyncSession, assets: Sequence[str]) -> list[BiasSignal]:
     stmt = (
         select(BiasSignal)
         .where(BiasSignal.asset.in_(assets), BiasSignal.horizon_hours == 24)
@@ -182,10 +175,8 @@ async def _fetch_bias_signals(
     return list((await session.execute(stmt)).scalars().all())
 
 
-async def _fetch_recent_alerts(
-    session: AsyncSession, *, hours: int
-) -> list[Alert]:
-    cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
+async def _fetch_recent_alerts(session: AsyncSession, *, hours: int) -> list[Alert]:
+    cutoff = datetime.now(UTC) - timedelta(hours=hours)
     stmt = (
         select(Alert)
         .where(
@@ -202,7 +193,7 @@ async def _fetch_market_bars(
     session: AsyncSession, assets: Sequence[str], *, lookback_days: int = 5
 ) -> list[MarketDataBar]:
     """Last N sessions per asset (so we can compute D/D)."""
-    cutoff = datetime.now(timezone.utc).date() - timedelta(days=lookback_days)
+    cutoff = datetime.now(UTC).date() - timedelta(days=lookback_days)
     stmt = (
         select(MarketDataBar)
         .where(MarketDataBar.asset.in_(assets), MarketDataBar.bar_date >= cutoff)
@@ -211,10 +202,8 @@ async def _fetch_market_bars(
     return list((await session.execute(stmt)).scalars().all())
 
 
-async def _fetch_recent_news(
-    session: AsyncSession, *, hours: int
-) -> list[NewsItem]:
-    cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
+async def _fetch_recent_news(session: AsyncSession, *, hours: int) -> list[NewsItem]:
+    cutoff = datetime.now(UTC) - timedelta(hours=hours)
     stmt = (
         select(NewsItem)
         .where(NewsItem.published_at >= cutoff)
@@ -224,10 +213,8 @@ async def _fetch_recent_news(
     return list((await session.execute(stmt)).scalars().all())
 
 
-async def _fetch_polymarket(
-    session: AsyncSession, *, hours: int
-) -> list[PolymarketSnapshot]:
-    cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
+async def _fetch_polymarket(session: AsyncSession, *, hours: int) -> list[PolymarketSnapshot]:
+    cutoff = datetime.now(UTC) - timedelta(hours=hours)
     stmt = (
         select(PolymarketSnapshot)
         .where(PolymarketSnapshot.fetched_at >= cutoff)
@@ -287,7 +274,7 @@ async def build_rich_context(
 
     header = (
         f"# Briefing context — {briefing_type}\n"
-        f"Generated at {datetime.now(timezone.utc).isoformat(timespec='seconds')}\n"
+        f"Generated at {datetime.now(UTC).isoformat(timespec='seconds')}\n"
         f"Assets: {', '.join(assets)}\n"
     )
 

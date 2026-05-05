@@ -85,12 +85,12 @@ async def lifespan(app: FastAPI):
 
     try:
         start_invalidation_subscriber(settings.redis_url)
-    except Exception as exc:  # noqa: BLE001 — best-effort
+    except Exception as exc:
         log.warning("api.feature_flags.subscriber_start_failed", error=str(exc))
     yield
     try:
         await stop_invalidation_subscriber()
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         log.warning("api.feature_flags.subscriber_stop_failed", error=str(exc))
     await get_engine().dispose()
     log.info("api.shutdown")

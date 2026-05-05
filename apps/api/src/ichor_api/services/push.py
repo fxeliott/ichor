@@ -42,7 +42,7 @@ class PushSubscription:
         }
 
     @classmethod
-    def from_browser_payload(cls, payload: dict) -> "PushSubscription | None":
+    def from_browser_payload(cls, payload: dict) -> PushSubscription | None:
         endpoint = payload.get("endpoint")
         keys = payload.get("keys") or {}
         p256dh = keys.get("p256dh")
@@ -129,9 +129,7 @@ async def send_to_all(title: str, body: str, *, url: str = "/") -> int:
 
     # Service worker (apps/web/public/sw.js) reads payload.title +
     # payload.body + payload.data.url. Match that shape here.
-    payload = json.dumps(
-        {"title": title, "body": body, "data": {"url": url}}
-    )
+    payload = json.dumps({"title": title, "body": body, "data": {"url": url}})
     delivered = 0
     for sub in subs:
         try:
@@ -146,9 +144,7 @@ async def send_to_all(title: str, body: str, *, url: str = "/") -> int:
             )
             delivered += 1
         except WebPushException as e:
-            status_code = (
-                getattr(e, "response", None) and e.response.status_code
-            ) or 0
+            status_code = (getattr(e, "response", None) and e.response.status_code) or 0
             log.warning(
                 "push.delivery_failed",
                 endpoint=sub.endpoint[:80],

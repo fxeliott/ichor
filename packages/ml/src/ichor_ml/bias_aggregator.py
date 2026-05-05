@@ -66,7 +66,8 @@ class BiasAggregator:
             BiasSignal if >= min_models_required matched, else None.
         """
         cohort = [
-            p for p in predictions
+            p
+            for p in predictions
             if p.asset == asset
             and p.horizon_hours == horizon_hours
             and p.calibrated_probability is not None
@@ -89,7 +90,8 @@ class BiasAggregator:
 
             # Use probability of LONG direction consistently
             p_long = (
-                p.calibrated_probability if p.direction == "long"
+                p.calibrated_probability
+                if p.direction == "long"
                 else 1.0 - p.calibrated_probability
             )
             probs.append(float(p_long))

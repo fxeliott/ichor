@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Literal
 from uuid import UUID, uuid4
 
@@ -43,7 +43,7 @@ class BriefingTaskResponse(BaseModel):
     duration_ms: int
     """Wall time of the subprocess run."""
 
-    completed_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    completed_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 class HealthResponse(BaseModel):

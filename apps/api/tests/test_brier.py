@@ -5,10 +5,7 @@ No DB / no I/O. Tests the math + edge cases.
 
 from __future__ import annotations
 
-import math
-
 import pytest
-
 from ichor_api.services.brier import (
     brier_score,
     conviction_to_p_up,
@@ -17,7 +14,6 @@ from ichor_api.services.brier import (
     reliability_buckets,
     summarize,
 )
-
 
 # ────────────────────────── conviction_to_p_up ─────────────────────────
 

@@ -31,7 +31,7 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import httpx
 import structlog
@@ -80,11 +80,11 @@ def _safe_float(v) -> float | None:
 
 def _parse_iso(s: str | None) -> datetime:
     if not s:
-        return datetime.now(timezone.utc)
+        return datetime.now(UTC)
     try:
         return datetime.fromisoformat(s.replace("Z", "+00:00"))
     except (TypeError, ValueError):
-        return datetime.now(timezone.utc)
+        return datetime.now(UTC)
 
 
 def parse_gex_response(ticker: str, body: dict) -> GexSnapshot | None:
@@ -95,7 +95,7 @@ def parse_gex_response(ticker: str, body: dict) -> GexSnapshot | None:
     """
     if not isinstance(body, dict):
         return None
-    fetched = datetime.now(timezone.utc)
+    fetched = datetime.now(UTC)
     return GexSnapshot(
         ticker=ticker,
         as_of=_parse_iso(body.get("as_of") or body.get("timestamp")),
@@ -103,9 +103,7 @@ def parse_gex_response(ticker: str, body: dict) -> GexSnapshot | None:
         total_gex_usd=_safe_float(
             body.get("total_gex_usd") or body.get("net_gex") or body.get("totalGEX")
         ),
-        gamma_flip=_safe_float(
-            body.get("gamma_flip") or body.get("gammaFlip") or body.get("flip")
-        ),
+        gamma_flip=_safe_float(body.get("gamma_flip") or body.get("gammaFlip") or body.get("flip")),
         call_wall=_safe_float(body.get("call_wall") or body.get("callWall")),
         put_wall=_safe_float(body.get("put_wall") or body.get("putWall")),
         zero_gamma=_safe_float(
@@ -136,9 +134,7 @@ async def fetch_gex(
             timeout=timeout_s,
         )
         if r.status_code in (401, 403):
-            log.warning(
-                "flashalpha.auth_failed", ticker=ticker, status=r.status_code
-            )
+            log.warning("flashalpha.auth_failed", ticker=ticker, status=r.status_code)
             return None
         if r.status_code == 429:
             log.warning("flashalpha.rate_limited", ticker=ticker)

@@ -24,7 +24,7 @@ from __future__ import annotations
 from collections import defaultdict
 from collections.abc import Iterable
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Literal
 
 from sqlalchemy import select
@@ -75,15 +75,15 @@ _RISK_SIGN: dict[str, int] = {
 
 # Series fetched in one batched query each call.
 _FRED_SERIES = (
-    "VIXCLS",       # VIX level
-    "DTWEXBGS",     # Broad dollar (DXY proxy)
-    "DGS10",        # US 10Y yield
-    "DGS2",         # US 2Y yield
-    "DFII10",       # TIPS 10Y real yield
-    "BAMLH0A0HYM2", # HY OAS (pct → ×100 = bps)
-    "BAMLC0A0CM",   # IG OAS
-    "BAMLEMCBPIOAS",# EM OAS
-    "MOVE",         # MOVE index level
+    "VIXCLS",  # VIX level
+    "DTWEXBGS",  # Broad dollar (DXY proxy)
+    "DGS10",  # US 10Y yield
+    "DGS2",  # US 2Y yield
+    "DFII10",  # TIPS 10Y real yield
+    "BAMLH0A0HYM2",  # HY OAS (pct → ×100 = bps)
+    "BAMLC0A0CM",  # IG OAS
+    "BAMLEMCBPIOAS",  # EM OAS
+    "MOVE",  # MOVE index level
 )
 
 _MARKET_ASSETS = (
@@ -126,7 +126,7 @@ async def _fetch_fred_latest_two(
     Implementation : pull all rows in the last `lookback_days` for the
     series set, sort desc by observation_date in Python, take 2 per series.
     """
-    cutoff = datetime.now(timezone.utc).date() - timedelta(days=lookback_days)
+    cutoff = datetime.now(UTC).date() - timedelta(days=lookback_days)
     rows = (
         await session.execute(
             select(
@@ -162,7 +162,7 @@ async def _fetch_market_latest_two(
     """One query → for each requested asset, return up to 2 most-recent
     closes (today + yesterday) so we can compute 1d pct change.
     """
-    cutoff = datetime.now(timezone.utc).date() - timedelta(days=lookback_days)
+    cutoff = datetime.now(UTC).date() - timedelta(days=lookback_days)
     rows = (
         await session.execute(
             select(
@@ -221,9 +221,7 @@ async def assess_cross_asset_heatmap(session: AsyncSession) -> CrossAssetHeatmap
     ):
         v = _pct_change(market.get(asset))
         risk_on_cells.append(
-            HeatmapCell(
-                sym=sym, value=v, bias=_bias_from_signed_value(asset, v), unit="%"
-            )
+            HeatmapCell(sym=sym, value=v, bias=_bias_from_signed_value(asset, v), unit="%")
         )
         if v is not None:
             sources.append(f"market_data:{asset}")
@@ -272,57 +270,31 @@ async def assess_cross_asset_heatmap(session: AsyncSession) -> CrossAssetHeatmap
     # ── Row 3: Rates (yield levels — bias = "bear for risk" if rising). ─
     us10y = _level(fred.get("DGS10"))
     us2y = _level(fred.get("DGS2"))
-    spread_2s10s = (
-        round((us10y - us2y), 2) if us10y is not None and us2y is not None else None
-    )
+    spread_2s10s = round((us10y - us2y), 2) if us10y is not None and us2y is not None else None
     tips10y = _level(fred.get("DFII10"))
     rates_cells = [
         HeatmapCell(
             sym="US10Y",
             value=us10y,
-            bias=(
-                "neutral"
-                if us10y is None
-                else "bear"
-                if us10y > 4.0
-                else "bull"
-            ),
+            bias=("neutral" if us10y is None else "bear" if us10y > 4.0 else "bull"),
             unit="%",
         ),
         HeatmapCell(
             sym="US2Y",
             value=us2y,
-            bias=(
-                "neutral"
-                if us2y is None
-                else "bear"
-                if us2y > 4.0
-                else "bull"
-            ),
+            bias=("neutral" if us2y is None else "bear" if us2y > 4.0 else "bull"),
             unit="%",
         ),
         HeatmapCell(
             sym="10Y-2Y",
             value=spread_2s10s,
-            bias=(
-                "neutral"
-                if spread_2s10s is None
-                else "bear"
-                if spread_2s10s < 0
-                else "bull"
-            ),
+            bias=("neutral" if spread_2s10s is None else "bear" if spread_2s10s < 0 else "bull"),
             unit="%",
         ),
         HeatmapCell(
             sym="TIPS 10Y",
             value=tips10y,
-            bias=(
-                "neutral"
-                if tips10y is None
-                else "bear"
-                if tips10y > 1.5
-                else "bull"
-            ),
+            bias=("neutral" if tips10y is None else "bear" if tips10y > 1.5 else "bull"),
             unit="%",
         ),
     ]
@@ -342,33 +314,25 @@ async def assess_cross_asset_heatmap(session: AsyncSession) -> CrossAssetHeatmap
         HeatmapCell(
             sym="HY OAS",
             value=hy_bps,
-            bias=(
-                "neutral" if hy_bps is None else "bull" if hy_bps < 400 else "bear"
-            ),
+            bias=("neutral" if hy_bps is None else "bull" if hy_bps < 400 else "bear"),
             unit="bps",
         ),
         HeatmapCell(
             sym="IG OAS",
             value=ig_bps,
-            bias=(
-                "neutral" if ig_bps is None else "bull" if ig_bps < 130 else "bear"
-            ),
+            bias=("neutral" if ig_bps is None else "bull" if ig_bps < 130 else "bear"),
             unit="bps",
         ),
         HeatmapCell(
             sym="EM OAS",
             value=em_bps,
-            bias=(
-                "neutral" if em_bps is None else "bull" if em_bps < 350 else "bear"
-            ),
+            bias=("neutral" if em_bps is None else "bull" if em_bps < 350 else "bear"),
             unit="bps",
         ),
         HeatmapCell(
             sym="MOVE",
             value=move,
-            bias=(
-                "neutral" if move is None else "bull" if move < 100 else "bear"
-            ),
+            bias=("neutral" if move is None else "bull" if move < 100 else "bear"),
             unit="level",
         ),
     ]
@@ -382,7 +346,7 @@ async def assess_cross_asset_heatmap(session: AsyncSession) -> CrossAssetHeatmap
             sources.append(f"FRED:{sid}")
 
     return CrossAssetHeatmap(
-        generated_at=datetime.now(timezone.utc),
+        generated_at=datetime.now(UTC),
         rows=[
             HeatmapRow(row="Risk-on", cells=risk_on_cells),
             HeatmapRow(row="Defensive", cells=defensive_cells),

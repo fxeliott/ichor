@@ -58,14 +58,16 @@ class HARRVModel:
         for t in range(22, T):
             X[t - 22, 0] = 1.0  # intercept
             X[t - 22, 1] = rv[t - 1]
-            X[t - 22, 2] = rv[t - 5: t].mean()
-            X[t - 22, 3] = rv[t - 22: t].mean()
+            X[t - 22, 2] = rv[t - 5 : t].mean()
+            X[t - 22, 3] = rv[t - 22 : t].mean()
 
         # OLS via lstsq
         self._betas, residuals, rank, _ = np.linalg.lstsq(X, y, rcond=None)
         if rank < 4:
             raise RuntimeError(f"HAR-RV regression rank-deficient (rank={rank})")
-        residual_var = (residuals[0] / (len(y) - 4)) if residuals.size else np.var(y - X @ self._betas)
+        residual_var = (
+            (residuals[0] / (len(y) - 4)) if residuals.size else np.var(y - X @ self._betas)
+        )
         self._sigma = float(np.sqrt(residual_var))
 
         # Snapshot last 22 RVs for prediction

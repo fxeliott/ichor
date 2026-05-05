@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
-from sqlalchemy import desc, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..db import get_session
@@ -35,7 +35,7 @@ async def asset_history(
     source: str | None = Query(None, regex=r"^[a-z_]{2,32}$"),
 ) -> list[MarketBarOut]:
     """Daily OHLCV history for one asset, oldest-first."""
-    cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).date()
+    cutoff = (datetime.now(UTC) - timedelta(days=days)).date()
     stmt = (
         select(MarketDataBar)
         .where(
@@ -99,7 +99,7 @@ async def intraday_history(
     Powers the `<LiveChartCard>` in the dashboard. Time-axis uses
     epoch seconds for direct ingest by lightweight-charts.
     """
-    cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
+    cutoff = datetime.now(UTC) - timedelta(hours=hours)
     stmt = (
         select(PolygonIntradayBar)
         .where(

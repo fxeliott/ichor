@@ -29,7 +29,7 @@ import hashlib
 import logging
 import time
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import text
@@ -77,16 +77,22 @@ def _user_in_rollout(user_id: str | None, rollout_pct: int) -> bool:
 
 
 async def _read_from_db(session: AsyncSession, key: str) -> FeatureFlag | None:
-    row = (await session.execute(
-        text(
-            """
+    row = (
+        (
+            await session.execute(
+                text(
+                    """
             SELECT key, enabled, rollout_pct, description, updated_at
             FROM feature_flags
             WHERE key = :key
             """
-        ),
-        {"key": key},
-    )).mappings().first()
+                ),
+                {"key": key},
+            )
+        )
+        .mappings()
+        .first()
+    )
     if row is None:
         return None
     return FeatureFlag(
@@ -166,7 +172,7 @@ async def _publish_invalidation(redis_url: str | None, key: str) -> None:
             await r.publish(INVALIDATION_CHANNEL, key)
         finally:
             await r.close()
-    except Exception as exc:  # noqa: BLE001 — best-effort
+    except Exception as exc:
         log.debug("feature_flags: invalidation publish failed (%s)", exc)
 
 
@@ -189,7 +195,7 @@ async def set_flag(
     """
     if not 0 <= rollout_pct <= 100:
         raise ValueError("rollout_pct must be in [0, 100]")
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     await session.execute(
         text(
             """
@@ -268,7 +274,7 @@ async def _invalidation_loop(redis_url: str) -> None:
                     await r.close()
         except asyncio.CancelledError:
             return
-        except Exception as exc:  # noqa: BLE001 — long-running supervisor
+        except Exception as exc:
             log.warning(
                 "feature_flags: invalidation subscriber error (retry in %.1fs): %s",
                 backoff,
@@ -308,15 +314,21 @@ async def stop_invalidation_subscriber() -> None:
 
 async def list_all(session: AsyncSession) -> list[FeatureFlag]:
     """Used by /admin UI to surface all flags."""
-    rows = (await session.execute(
-        text(
-            """
+    rows = (
+        (
+            await session.execute(
+                text(
+                    """
             SELECT key, enabled, rollout_pct, description, updated_at
             FROM feature_flags
             ORDER BY key
             """
+                )
+            )
         )
-    )).mappings().all()
+        .mappings()
+        .all()
+    )
     return [
         FeatureFlag(
             key=str(r["key"]),

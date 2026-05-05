@@ -25,9 +25,9 @@ from __future__ import annotations
 import asyncio
 import csv
 import io
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
-from datetime import date, datetime, timezone
-from typing import Iterable, Sequence
+from datetime import UTC, date, datetime
 
 import httpx
 import structlog
@@ -91,7 +91,7 @@ def parse_stooq_csv(asset: str, body: bytes) -> list[MarketDataPoint]:
         log.warning("stooq.no_data", asset=asset)
         return []
 
-    fetched = datetime.now(timezone.utc)
+    fetched = datetime.now(UTC)
     rows: list[MarketDataPoint] = []
 
     reader = csv.DictReader(io.StringIO(text))
@@ -182,7 +182,7 @@ async def fetch_yfinance(
         df = ticker.history(period=period, interval=interval, auto_adjust=False)
         if df.empty:
             return []
-        fetched = datetime.now(timezone.utc)
+        fetched = datetime.now(UTC)
         out: list[MarketDataPoint] = []
         for ts, row in df.iterrows():
             try:
@@ -225,9 +225,7 @@ async def fetch_yfinance(
     return await asyncio.to_thread(_blocking)
 
 
-async def fetch_one(
-    asset: str, *, client: httpx.AsyncClient
-) -> list[MarketDataPoint]:
+async def fetch_one(asset: str, *, client: httpx.AsyncClient) -> list[MarketDataPoint]:
     """Try Stooq first, fall back to yfinance on empty / transient failure."""
     rows = await fetch_stooq(asset, client=client)
     if rows:

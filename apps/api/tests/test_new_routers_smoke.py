@@ -56,8 +56,7 @@ async def test_new_routers_respond_structured(
     async with AsyncClient(transport=transport, base_url="http://test") as c:
         resp = await c.get(path)
     assert resp.status_code in expected, (
-        f"{path} returned {resp.status_code} (expected {expected}): "
-        f"body={resp.text[:200]}"
+        f"{path} returned {resp.status_code} (expected {expected}): body={resp.text[:200]}"
     )
 
 

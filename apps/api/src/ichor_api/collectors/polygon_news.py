@@ -129,9 +129,7 @@ async def fetch_news(
     if ticker:
         params["ticker"] = ticker
     if published_after:
-        params["published_utc.gte"] = published_after.strftime(
-            "%Y-%m-%dT%H:%M:%SZ"
-        )
+        params["published_utc.gte"] = published_after.strftime("%Y-%m-%dT%H:%M:%SZ")
     url = f"{POLYGON_BASE_URL}/v2/reference/news"
     async with httpx.AsyncClient(timeout=timeout_s) as client:
         resp = await client.get(url, params=params)
@@ -157,15 +155,39 @@ def relevant_to_ichor_universe(item: PolygonNewsItem) -> bool:
         return True  # macro / geopolitical without ticker = keep
     universe = {
         # mega-cap 7 (AI capex narrative for NAS100 framework)
-        "AAPL", "MSFT", "GOOGL", "GOOG", "AMZN", "META", "NVDA", "TSLA",
+        "AAPL",
+        "MSFT",
+        "GOOGL",
+        "GOOG",
+        "AMZN",
+        "META",
+        "NVDA",
+        "TSLA",
         # XAU proxies
-        "GLD", "IAU", "SPDR", "GDX",
+        "GLD",
+        "IAU",
+        "SPDR",
+        "GDX",
         # broad indices
-        "SPY", "QQQ", "DIA", "IWM",
+        "SPY",
+        "QQQ",
+        "DIA",
+        "IWM",
         # USD index
-        "DXY", "UUP",
+        "DXY",
+        "UUP",
         # FX direct (rare but happens)
-        "EURUSD", "GBPUSD", "USDJPY", "AUDUSD", "USDCAD", "XAUUSD",
-        "C:EURUSD", "C:GBPUSD", "C:USDJPY", "C:AUDUSD", "C:USDCAD", "C:XAUUSD",
+        "EURUSD",
+        "GBPUSD",
+        "USDJPY",
+        "AUDUSD",
+        "USDCAD",
+        "XAUUSD",
+        "C:EURUSD",
+        "C:GBPUSD",
+        "C:USDJPY",
+        "C:AUDUSD",
+        "C:USDCAD",
+        "C:XAUUSD",
     }
     return any(t.upper() in universe for t in item.tickers)

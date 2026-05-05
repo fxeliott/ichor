@@ -10,7 +10,7 @@ near-instant).
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
@@ -110,7 +110,7 @@ async def status(
     ]
 
     # Card stats per asset
-    cutoff_24h = datetime.now(timezone.utc) - timedelta(hours=24)
+    cutoff_24h = datetime.now(UTC) - timedelta(hours=24)
     n_cards_24h = (
         await session.execute(
             select(func.count())
@@ -180,7 +180,7 @@ async def status(
     )
 
     return StatusOut(
-        generated_at=datetime.now(timezone.utc),
+        generated_at=datetime.now(UTC),
         tables=tables,
         cards=cards,
         n_cards_24h=int(n_cards_24h or 0),

@@ -11,7 +11,7 @@ Usage :
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import structlog
 
@@ -36,7 +36,7 @@ _PHASE1_ASSETS = (
 
 async def _run() -> int:
     sm = get_sessionmaker()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     n_persisted = 0
     async with sm() as session:
         for asset in _PHASE1_ASSETS:

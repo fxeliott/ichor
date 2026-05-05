@@ -27,13 +27,12 @@ A trader staring at one pair misses the cross-currency picture.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models import PolygonIntradayBar
-
 
 # Pair → (base, quote). USD quote pairs : base strength = +pct_change.
 # USD base pairs : USD strength = +pct_change, quote strength = -pct_change.
@@ -84,9 +83,7 @@ async def _bar_at_or_before(
     return (await session.execute(stmt)).scalars().first()
 
 
-async def _earliest_bar(
-    session: AsyncSession, asset: str
-) -> PolygonIntradayBar | None:
+async def _earliest_bar(session: AsyncSession, asset: str) -> PolygonIntradayBar | None:
     """Fallback when polygon_intraday hasn't been backfilled long enough."""
     stmt = (
         select(PolygonIntradayBar)
@@ -97,9 +94,7 @@ async def _earliest_bar(
     return (await session.execute(stmt)).scalars().first()
 
 
-async def _latest_bar(
-    session: AsyncSession, asset: str
-) -> PolygonIntradayBar | None:
+async def _latest_bar(session: AsyncSession, asset: str) -> PolygonIntradayBar | None:
     stmt = (
         select(PolygonIntradayBar)
         .where(PolygonIntradayBar.asset == asset)
@@ -113,15 +108,12 @@ async def assess_currency_strength(
     session: AsyncSession, *, window_hours: float = 24.0
 ) -> CurrencyStrengthReport:
     """Compute % change of every USD pair over the window, rank currencies."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     window_ago = now - timedelta(hours=window_hours)
 
-    contributions: dict[str, list[tuple[str, float]]] = {
-        c: [] for c in _CURRENCIES
-    }
+    contributions: dict[str, list[tuple[str, float]]] = {c: [] for c in _CURRENCIES}
     sources: list[str] = []
 
-    fallback_used = False
     for asset, base, quote in _PAIRS:
         last = await _latest_bar(session, asset)
         first = await _bar_at_or_before(session, asset, window_ago)
@@ -130,7 +122,7 @@ async def assess_currency_strength(
             # gracefully to whatever earliest bar we have.
             first = await _earliest_bar(session, asset)
             if first is not None:
-                fallback_used = True
+                pass
         if last is None or first is None:
             continue
         if first.close <= 0:
@@ -139,9 +131,7 @@ async def assess_currency_strength(
         # Base currency moves +pct when pair rises ; quote moves -pct.
         contributions[base].append((asset, +pct))
         contributions[quote].append((asset, -pct))
-        sources.append(
-            f"polygon:{asset}@{first.bar_ts.isoformat()}-{last.bar_ts.isoformat()}"
-        )
+        sources.append(f"polygon:{asset}@{first.bar_ts.isoformat()}-{last.bar_ts.isoformat()}")
 
     # Average per currency. Normalize so the magnitude is comparable.
     raw_scores: dict[str, float] = {}
@@ -162,9 +152,7 @@ async def assess_currency_strength(
                 score=round(score, 3),
                 rank=rank,
                 n_pairs_contributing=len(contributions[ccy]),
-                contributions=[
-                    (a, round(c, 3)) for a, c in contributions[ccy]
-                ],
+                contributions=[(a, round(c, 3)) for a, c in contributions[ccy]],
             )
         )
 

@@ -22,13 +22,9 @@ class MarketDataBar(Base):
 
     __tablename__ = "market_data"
 
-    id: Mapped[UUID] = mapped_column(
-        PG_UUID(as_uuid=True), primary_key=True, default=uuid4
-    )
+    id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
     bar_date: Mapped[date] = mapped_column(Date, primary_key=True, index=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
     asset: Mapped[str] = mapped_column(String(16), nullable=False, index=True)
     source: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
@@ -39,6 +35,4 @@ class MarketDataBar(Base):
     close: Mapped[float] = mapped_column(Float, nullable=False)
     volume: Mapped[float | None] = mapped_column(Float)
 
-    fetched_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
+    fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

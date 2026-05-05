@@ -128,7 +128,7 @@ def hagan_lognormal_vol(
 
     # ATM branch (stable closed form)
     if abs(log_FK) < 1e-7:
-        f_pow = F ** one_minus_beta
+        f_pow = F**one_minus_beta
         return (alpha / f_pow) * (
             1.0
             + (
@@ -148,17 +148,20 @@ def hagan_lognormal_vol(
         return float("nan")
 
     correction = 1.0 + (
-        (one_minus_beta**2 / 24.0) * (log_FK**2)
-        + (one_minus_beta**4 / 1920.0) * (log_FK**4)
+        (one_minus_beta**2 / 24.0) * (log_FK**2) + (one_minus_beta**4 / 1920.0) * (log_FK**4)
     )
     first = alpha / (FK_beta * correction)
     z_over_x = z / x_z
 
-    higher_order = 1.0 + (
-        (one_minus_beta**2 / 24.0) * (alpha**2) / (FK_beta**2)
-        + (rho * beta * nu * alpha) / (4.0 * FK_beta)
-        + ((2.0 - 3.0 * rho**2) / 24.0) * nu**2
-    ) * T
+    higher_order = (
+        1.0
+        + (
+            (one_minus_beta**2 / 24.0) * (alpha**2) / (FK_beta**2)
+            + (rho * beta * nu * alpha) / (4.0 * FK_beta)
+            + ((2.0 - 3.0 * rho**2) / 24.0) * nu**2
+        )
+        * T
+    )
 
     return first * z_over_x * higher_order
 
@@ -210,8 +213,7 @@ def fit_sabr_smile(
         alpha, rho, nu = theta
         return np.array(
             [
-                hagan_lognormal_vol(forward, k, tenor_years, alpha, beta, rho, nu)
-                - iv_k
+                hagan_lognormal_vol(forward, k, tenor_years, alpha, beta, rho, nu) - iv_k
                 for k, iv_k in zip(K, iv, strict=False)
             ]
         )
@@ -289,15 +291,10 @@ def fit_svi_smile(
     def residuals(theta: np.ndarray) -> np.ndarray:
         a, b, rho, m, sigma = theta
         return np.array(
-            [
-                svi_total_variance(ki, a, b, rho, m, sigma) - wi
-                for ki, wi in zip(k, w, strict=False)
-            ]
+            [svi_total_variance(ki, a, b, rho, m, sigma) - wi for ki, wi in zip(k, w, strict=False)]
         )
 
-    x0 = np.array(
-        [initial_a, initial_b, initial_rho, initial_m, initial_sigma]
-    )
+    x0 = np.array([initial_a, initial_b, initial_rho, initial_m, initial_sigma])
     bounds = (
         [-1.0, 1e-6, -0.999, -2.0, 1e-6],
         [5.0, 5.0, 0.999, 2.0, 5.0],

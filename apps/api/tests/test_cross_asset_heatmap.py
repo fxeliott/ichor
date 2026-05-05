@@ -16,7 +16,6 @@ canned (asset/series_id, date, value) tuples directly.
 
 from __future__ import annotations
 
-from collections.abc import Iterable
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
@@ -30,7 +29,6 @@ from ichor_api.services.cross_asset_heatmap import (
     _unique_sources,
     assess_cross_asset_heatmap,
 )
-
 
 # ─────────────────────── pure helpers ───────────────────────
 
@@ -159,9 +157,7 @@ async def test_assess_with_no_data_returns_neutral_cells() -> None:
 
 @pytest.mark.asyncio
 async def test_assess_computes_2s10s_spread_when_both_yields_present() -> None:
-    session = _StubSession(
-        fred_rows=[_fred_row("DGS10", 0, 4.18), _fred_row("DGS2", 0, 4.62)]
-    )
+    session = _StubSession(fred_rows=[_fred_row("DGS10", 0, 4.18), _fred_row("DGS2", 0, 4.62)])
     h = await assess_cross_asset_heatmap(session)
     rates_row = next(r for r in h.rows if r.row == "Rates")
     spread_cell = next(c for c in rates_row.cells if c.sym == "10Y-2Y")

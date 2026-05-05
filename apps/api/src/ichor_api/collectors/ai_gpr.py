@@ -24,9 +24,8 @@ from __future__ import annotations
 
 import csv
 import io
-import sys
 from dataclasses import dataclass
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 import httpx
 import structlog
@@ -77,14 +76,17 @@ def _parse_xls(body: bytes) -> list[AiGprObservation]:
             None,
         )
         value_idx = next(
-            (i for i, h in enumerate(header)
-             if h.upper() in {"AI_GPR", "GPR_DAILY", "GPR", "GPRD"}),
+            (
+                i
+                for i, h in enumerate(header)
+                if h.upper() in {"AI_GPR", "GPR_DAILY", "GPR", "GPRD"}
+            ),
             None,
         )
         if date_idx is None or value_idx is None:
             log.warning("ai_gpr.xls_header_unrecognized", header=header)
             return []
-        fetched = datetime.now(timezone.utc)
+        fetched = datetime.now(UTC)
         out: list[AiGprObservation] = []
         for row_idx in range(1, sheet.nrows):
             try:
@@ -135,14 +137,17 @@ def _parse_xlsx(body: bytes) -> list[AiGprObservation]:
             None,
         )
         value_idx = next(
-            (i for i, h in enumerate(header)
-             if h.upper() in {"AI_GPR", "GPR_DAILY", "GPR", "GPRD"}),
+            (
+                i
+                for i, h in enumerate(header)
+                if h.upper() in {"AI_GPR", "GPR_DAILY", "GPR", "GPRD"}
+            ),
             None,
         )
         if date_idx is None or value_idx is None:
             log.warning("ai_gpr.xlsx_header_unrecognized", header=header)
             return []
-        fetched = datetime.now(timezone.utc)
+        fetched = datetime.now(UTC)
         out: list[AiGprObservation] = []
         for row in rows:
             try:
@@ -199,21 +204,13 @@ def _parse_csv(body: bytes) -> list[AiGprObservation]:
     fields = set(reader.fieldnames or [])
 
     # Accept either historical naming (`GPR_DAILY`) or the newer `AI_GPR`.
-    value_col = (
-        "AI_GPR" if "AI_GPR" in fields
-        else "GPR_DAILY" if "GPR_DAILY" in fields
-        else None
-    )
-    date_col = (
-        "date" if "date" in fields
-        else "DATE" if "DATE" in fields
-        else None
-    )
+    value_col = "AI_GPR" if "AI_GPR" in fields else "GPR_DAILY" if "GPR_DAILY" in fields else None
+    date_col = "date" if "date" in fields else "DATE" if "DATE" in fields else None
     if value_col is None or date_col is None:
         log.warning("ai_gpr.unexpected_header", header=reader.fieldnames)
         return []
 
-    fetched = datetime.now(timezone.utc)
+    fetched = datetime.now(UTC)
     out: list[AiGprObservation] = []
     for row in reader:
         try:
@@ -272,6 +269,7 @@ def latest_n_days(rows: list[AiGprObservation], n: int = 30) -> list[AiGprObserv
 def delta_30d(rows: list[AiGprObservation]) -> float | None:
     """Z-score-style delta : current - mean(last 30) / std(last 30)."""
     import statistics
+
     if len(rows) < 30:
         return None
     window = [r.ai_gpr for r in rows[-30:]]

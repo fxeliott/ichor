@@ -20,7 +20,7 @@ gap surfaced by the first --live run on 2026-05-04 (id 93903a14).
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -38,9 +38,14 @@ from ..models import (
     PolymarketSnapshot,
 )
 from . import cb_intervention as cb_intervention_svc
+
+# Phase 2 — gisement existant câblé + ML adapters
+from .analogues import render_analogues_block
 from .asian_session import (
     assess_asian_session,
     render_asian_session_block,
+)
+from .asian_session import (
     supported_pairs as asian_supported_pairs,
 )
 from .confluence_engine import (
@@ -51,43 +56,35 @@ from .correlations import (
     assess_correlations,
     render_correlations_block,
 )
+from .couche2_persistence import render_couche2_block
 from .currency_strength import (
     assess_currency_strength,
     render_currency_strength_block,
-)
-from .hourly_volatility import (
-    assess_hourly_volatility,
-    render_hourly_volatility_block,
 )
 from .daily_levels import (
     DailyLevels,
     assess_daily_levels,
     render_daily_levels_block,
 )
+from .divergence import render_divergence_block
 from .economic_calendar import (
     assess_calendar,
     render_calendar_block,
-)
-from .risk_appetite import (
-    assess_risk_appetite,
-    render_risk_appetite_block,
-)
-from .vix_term_structure import (
-    assess_vix_term,
-    render_vix_term_block,
-)
-from .yield_curve import (
-    assess_yield_curve,
-    render_yield_curve_block,
 )
 from .funding_stress import (
     assess_funding_stress,
     render_funding_stress_block,
 )
+from .gex_persistence import render_gex_block
+from .hourly_volatility import (
+    assess_hourly_volatility,
+    render_hourly_volatility_block,
+)
 from .microstructure import (
     assess_microstructure,
     render_microstructure_block,
 )
+from .ml_signals import render_ml_signals_block
 from .narrative_tracker import render_narrative_block, track_narratives
 from .polymarket_impact import (
     assess_polymarket_impact,
@@ -97,9 +94,13 @@ from .portfolio_exposure import (
     assess_portfolio_exposure,
     render_portfolio_exposure_block,
 )
+from .risk_appetite import (
+    assess_risk_appetite,
+    render_risk_appetite_block,
+)
 from .session_scenarios import (
-    SessionType,
     RegimeQuadrant,
+    SessionType,
     assess_session_scenarios,
     render_session_scenarios_block,
 )
@@ -107,7 +108,14 @@ from .surprise_index import (
     assess_surprise_index,
     render_surprise_index_block,
 )
-
+from .vix_term_structure import (
+    assess_vix_term,
+    render_vix_term_block,
+)
+from .yield_curve import (
+    assess_yield_curve,
+    render_yield_curve_block,
+)
 
 # ────────────────────────── Configuration ──────────────────────────────
 
@@ -141,12 +149,12 @@ _RATE_DIFF_PAIRS: dict[str, tuple[str, str]] = {
 # Codes mirror collectors/cot.py:MARKET_CODE_TO_ASSET — the canonical
 # CFTC numeric identifiers, not the human-friendly 2-letter shorthands.
 _COT_MARKET_BY_ASSET: dict[str, str] = {
-    "EUR_USD": "099741",   # EURO FX
-    "GBP_USD": "096742",   # BRITISH POUND STERLING
-    "USD_JPY": "097741",   # JAPANESE YEN (reverse polarity for USD/JPY)
-    "AUD_USD": "232741",   # AUSTRALIAN DOLLAR
-    "USD_CAD": "090741",   # CANADIAN DOLLAR (reverse polarity)
-    "XAU_USD": "088691",   # GOLD
+    "EUR_USD": "099741",  # EURO FX
+    "GBP_USD": "096742",  # BRITISH POUND STERLING
+    "USD_JPY": "097741",  # JAPANESE YEN (reverse polarity for USD/JPY)
+    "AUD_USD": "232741",  # AUSTRALIAN DOLLAR
+    "USD_CAD": "090741",  # CANADIAN DOLLAR (reverse polarity)
+    "XAU_USD": "088691",  # GOLD
     "NAS100_USD": "209742",  # E-MINI NASDAQ-100
     # SPX500 E-Mini code not in collectors/cot.py yet — when added there,
     # mirror it here so the COT section auto-fills.
@@ -192,7 +200,7 @@ async def _latest_fred(
     session: AsyncSession, series_id: str, max_age_days: int = 14
 ) -> tuple[float, datetime] | None:
     """Latest observation for `series_id` if at most `max_age_days` old."""
-    cutoff = datetime.now(timezone.utc).date() - timedelta(days=max_age_days)
+    cutoff = datetime.now(UTC).date() - timedelta(days=max_age_days)
     stmt = (
         select(FredObservation)
         .where(
@@ -208,7 +216,7 @@ async def _latest_fred(
         return None
     return (
         float(row.value),
-        datetime.combine(row.observation_date, datetime.min.time(), tzinfo=timezone.utc),
+        datetime.combine(row.observation_date, datetime.min.time(), tzinfo=UTC),
     )
 
 
@@ -224,9 +232,7 @@ async def _section_macro_trinity(session: AsyncSession) -> tuple[str, list[str]]
             continue
         any_data = True
         val, when = v
-        lines.append(
-            f"- {label} = {fmt.format(val)} (FRED:{series_id}, {when:%Y-%m-%d})"
-        )
+        lines.append(f"- {label} = {fmt.format(val)} (FRED:{series_id}, {when:%Y-%m-%d})")
         sources.append(f"FRED:{series_id}")
     if not any_data:
         lines.append("  _(no FRED data yet — collector hasn't filled the table)_")
@@ -243,16 +249,12 @@ async def _section_dollar_smile(session: AsyncSession) -> tuple[str, list[str]]:
             lines.append(f"- {label}: n/a (FRED:{series_id})")
             continue
         val, when = v
-        lines.append(
-            f"- {label} = {fmt.format(val)} (FRED:{series_id}, {when:%Y-%m-%d})"
-        )
+        lines.append(f"- {label} = {fmt.format(val)} (FRED:{series_id}, {when:%Y-%m-%d})")
         sources.append(f"FRED:{series_id}")
     return "\n".join(lines), sources
 
 
-async def _section_rate_diff(
-    session: AsyncSession, asset: str
-) -> tuple[str, list[str]]:
+async def _section_rate_diff(session: AsyncSession, asset: str) -> tuple[str, list[str]]:
     """## Rate differential — US 10Y minus the relevant foreign 10Y for FX pairs."""
     pair = _RATE_DIFF_PAIRS.get(asset)
     if pair is None:
@@ -275,13 +277,11 @@ async def _section_rate_diff(
     return "\n".join(lines), sources
 
 
-async def _section_polygon_intraday(
-    session: AsyncSession, asset: str
-) -> tuple[str, list[str]]:
+async def _section_polygon_intraday(session: AsyncSession, asset: str) -> tuple[str, list[str]]:
     """## Polygon intraday — last 1-min bar for every asset (cross-asset context)."""
     lines = ["## Polygon intraday (last 1-min bar per asset, last 6h)"]
     sources: list[str] = []
-    cutoff = datetime.now(timezone.utc) - timedelta(hours=6)
+    cutoff = datetime.now(UTC) - timedelta(hours=6)
     for ast in _ASSET_TO_POLYGON:
         stmt = (
             select(PolygonIntradayBar)
@@ -307,9 +307,7 @@ async def _section_polygon_intraday(
     return "\n".join(lines), sources
 
 
-async def _section_cot(
-    session: AsyncSession, asset: str
-) -> tuple[str, list[str]]:
+async def _section_cot(session: AsyncSession, asset: str) -> tuple[str, list[str]]:
     """## COT positioning — latest weekly Disaggregated row for the asset."""
     market = _COT_MARKET_BY_ASSET.get(asset)
     if market is None:
@@ -341,7 +339,7 @@ async def _section_prediction_markets(
     session: AsyncSession,
 ) -> tuple[str, list[str]]:
     """## Prediction markets — top 5 fresh entries from each venue."""
-    cutoff = datetime.now(timezone.utc) - timedelta(hours=12)
+    cutoff = datetime.now(UTC) - timedelta(hours=12)
     sources: list[str] = []
     sections: list[str] = ["## Prediction markets (last 12h, top 5 per venue)"]
 
@@ -354,7 +352,9 @@ async def _section_prediction_markets(
                 .order_by(desc(PolymarketSnapshot.fetched_at))
                 .limit(5)
             )
-        ).scalars().all()
+        )
+        .scalars()
+        .all()
     )
     sections.append("### Polymarket")
     if not poly_rows:
@@ -375,7 +375,9 @@ async def _section_prediction_markets(
                 .order_by(desc(KalshiMarket.fetched_at))
                 .limit(5)
             )
-        ).scalars().all()
+        )
+        .scalars()
+        .all()
     )
     sections.append("### Kalshi")
     if not kal_rows:
@@ -395,7 +397,9 @@ async def _section_prediction_markets(
                 .order_by(desc(ManifoldMarket.fetched_at))
                 .limit(5)
             )
-        ).scalars().all()
+        )
+        .scalars()
+        .all()
     )
     sections.append("### Manifold")
     if not man_rows:
@@ -414,11 +418,7 @@ async def _section_geopolitics(session: AsyncSession) -> tuple[str, list[str]]:
     lines = ["## Geopolitics"]
     sources: list[str] = []
 
-    gpr_stmt = (
-        select(GprObservation)
-        .order_by(desc(GprObservation.observation_date))
-        .limit(1)
-    )
+    gpr_stmt = select(GprObservation).order_by(desc(GprObservation.observation_date)).limit(1)
     gpr = (await session.execute(gpr_stmt)).scalars().first()
     if gpr is not None:
         lines.append(
@@ -429,7 +429,7 @@ async def _section_geopolitics(session: AsyncSession) -> tuple[str, list[str]]:
     else:
         lines.append("- AI-GPR: n/a")
 
-    cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
+    cutoff = datetime.now(UTC) - timedelta(hours=24)
     gdelt_stmt = (
         select(GdeltEvent)
         .where(GdeltEvent.seendate >= cutoff)
@@ -453,7 +453,7 @@ async def _section_geopolitics(session: AsyncSession) -> tuple[str, list[str]]:
 
 async def _section_cb_speeches(session: AsyncSession) -> tuple[str, list[str]]:
     """## Central bank speeches — last 5 within 7 days."""
-    cutoff = datetime.now(timezone.utc) - timedelta(days=7)
+    cutoff = datetime.now(UTC) - timedelta(days=7)
     stmt = (
         select(CbSpeech)
         .where(CbSpeech.published_at >= cutoff)
@@ -474,17 +474,13 @@ async def _section_cb_speeches(session: AsyncSession) -> tuple[str, list[str]]:
     return "\n".join(lines), sources
 
 
-async def _section_microstructure(
-    session: AsyncSession, asset: str
-) -> tuple[str, list[str]]:
+async def _section_microstructure(session: AsyncSession, asset: str) -> tuple[str, list[str]]:
     """## Microstructure — Amihud / Kyle / RV / VWAP / value-area."""
     reading = await assess_microstructure(session, asset, window_minutes=240)
     return render_microstructure_block(reading)
 
 
-async def _section_asian_session(
-    session: AsyncSession, asset: str
-) -> tuple[str, list[str]]:
+async def _section_asian_session(session: AsyncSession, asset: str) -> tuple[str, list[str]]:
     """## Asian session — Tokyo fix + range + direction (JPY-relevant only).
 
     Returns ("", []) for pairs not routed through the Asian session.
@@ -513,9 +509,7 @@ async def _section_narrative(session: AsyncSession) -> tuple[str, list[str]]:
     return render_narrative_block(report)
 
 
-async def _section_cb_intervention(
-    session: AsyncSession, asset: str
-) -> tuple[str, list[str]]:
+async def _section_cb_intervention(session: AsyncSession, asset: str) -> tuple[str, list[str]]:
     """## CB intervention risk — empirical model on the asset's spot.
 
     Returns "" if the pair has no documented intervention history
@@ -577,9 +571,7 @@ async def _section_yield_curve(
     return render_yield_curve_block(reading)
 
 
-async def _section_calendar(
-    session: AsyncSession, asset: str
-) -> tuple[str, list[str]]:
+async def _section_calendar(session: AsyncSession, asset: str) -> tuple[str, list[str]]:
     """## Economic calendar — next 14 days affecting `asset`."""
     report = await assess_calendar(session, horizon_days=14)
     return render_calendar_block(report, asset=asset, max_items=10)
@@ -625,9 +617,7 @@ async def _section_portfolio_exposure(
     return render_portfolio_exposure_block(r)
 
 
-async def _section_hourly_vol(
-    session: AsyncSession, asset: str
-) -> tuple[str, list[str]]:
+async def _section_hourly_vol(session: AsyncSession, asset: str) -> tuple[str, list[str]]:
     """## Hourly volatility heatmap — when this asset moves."""
     r = await assess_hourly_volatility(session, asset, window_days=30)
     return render_hourly_volatility_block(r)
@@ -653,24 +643,85 @@ async def _section_session_scenarios(
     return render_session_scenarios_block(s)
 
 
-async def _section_news(session: AsyncSession) -> tuple[str, list[str]]:
-    """## News — top 8 most-recent items in last 12h."""
-    cutoff = datetime.now(timezone.utc) - timedelta(hours=12)
+# Asset → keyword set for news ticker filtering.
+# Phase 2 fix for SPEC.md §2.2 #10 (polygon_news non filtré ticker-linked).
+# Heuristic until news_items.tickers ARRAY column lands (follow-up migration).
+_NEWS_KEYWORDS: dict[str, tuple[str, ...]] = {
+    "EUR_USD": ("EUR/USD", "EURUSD", "EUR ", "euro", "ECB", "Lagarde", "eurozone"),
+    "GBP_USD": ("GBP/USD", "GBPUSD", "GBP ", "pound sterling", "BoE", "Bailey", "UK economy"),
+    "USD_JPY": ("USD/JPY", "USDJPY", "JPY ", "yen", "BoJ", "Ueda", "Japan inflation"),
+    "AUD_USD": ("AUD/USD", "AUDUSD", "AUD ", "Aussie", "RBA", "iron ore", "Australia"),
+    "USD_CAD": ("USD/CAD", "USDCAD", "CAD ", "loonie", "BoC", "Macklem", "Canadian"),
+    "XAU_USD": ("XAU/USD", "XAUUSD", "gold", "bullion", "GLD ", "GDX ", "spot metals"),
+    "NAS100_USD": (
+        "NAS100",
+        "Nasdaq",
+        "NASDAQ",
+        "QQQ",
+        "AAPL",
+        "MSFT",
+        "GOOGL",
+        "AMZN",
+        "META",
+        "NVDA",
+        "TSLA",
+        "tech stocks",
+    ),
+    "SPX500_USD": ("S&P 500", "SPX", "SPY", "S&P500", "broad market", "Fed funds"),
+    "US30_USD": ("Dow Jones", "DJIA", "DIA"),
+}
+
+
+def _matches_asset(title: str, url: str, asset: str) -> bool:
+    """Heuristic ticker-link: keyword match in title (case-insensitive)
+    or in URL path. Returns True if no keywords are configured (fallback)."""
+    keys = _NEWS_KEYWORDS.get(asset.upper())
+    if not keys:
+        return True  # unknown asset: keep all
+    blob = f"{title} {url}".lower()
+    return any(k.lower() in blob for k in keys)
+
+
+async def _section_news(
+    session: AsyncSession,
+    asset: str | None = None,
+) -> tuple[str, list[str]]:
+    """## News — top 8 most-recent items in last 12h, ticker-filtered.
+
+    When `asset` is set, items are filtered by keyword match against the
+    asset's ticker / institutional terms (cf `_NEWS_KEYWORDS`). If too
+    few items match, falls back to the unfiltered top-8 with a label.
+    """
+    cutoff = datetime.now(UTC) - timedelta(hours=12)
+    # Pull a wider candidate set (50) so the post-filter still has options.
     stmt = (
         select(NewsItem)
         .where(NewsItem.published_at >= cutoff)
         .order_by(desc(NewsItem.published_at))
-        .limit(8)
+        .limit(50)
     )
     rows = list((await session.execute(stmt)).scalars().all())
     if not rows:
         return "## News (last 12h)\n- (no items ingested)", []
-    lines = ["## News (last 12h, top 8 most recent)"]
+
+    filtered: list[NewsItem]
+    if asset:
+        filtered = [r for r in rows if _matches_asset(r.title or "", r.url or "", asset)]
+        if len(filtered) < 3:
+            # Not enough asset-specific news → fallback to wide.
+            filtered = rows
+            label = f"## News (last 12h, top 8 — wide fallback, {asset} match scarce)"
+        else:
+            filtered = filtered[:8]
+            label = f"## News (last 12h, top {len(filtered)} ticker-linked to {asset})"
+    else:
+        filtered = rows[:8]
+        label = "## News (last 12h, top 8 most recent)"
+
+    lines = [label]
     sources: list[str] = []
-    for r in rows:
-        lines.append(
-            f"- {r.published_at:%Y-%m-%d %H:%M} {r.source} · {r.title[:90]} {r.url}"
-        )
+    for r in filtered:
+        lines.append(f"- {r.published_at:%Y-%m-%d %H:%M} {r.source} · {r.title[:90]} {r.url}")
         sources.append(r.url)
     return "\n".join(lines), sources
 
@@ -792,7 +843,29 @@ async def build_data_pool(
     cb_md, cb_src = await _section_cb_speeches(session)
     sections.append(("cb_speeches", cb_md, cb_src))
 
-    news_md, news_src = await _section_news(session)
+    # Phase 2 — Couche-2 agents output (CB-NLP, News-NLP, Sentiment, Positioning)
+    c2_md, c2_src = await render_couche2_block(session)
+    sections.append(("couche2", c2_md, c2_src))
+
+    # Phase 2 — divergence cross-venue (Polymarket vs Kalshi vs Manifold)
+    div_md, div_src = await render_divergence_block(session)
+    sections.append(("divergence", div_md, div_src))
+
+    # Phase 2 — Dealer GEX (only emits when asset has options coverage)
+    gex_md, gex_src = await render_gex_block(session, asset)
+    if gex_md:
+        sections.append(("gex", gex_md, gex_src))
+
+    # Phase 2 — historical analogues via DTW on Stooq daily bars
+    ana_md, ana_src = await render_analogues_block(session, asset)
+    sections.append(("analogues", ana_md, ana_src))
+
+    # Phase 2 — ML signals adapter (8 scaffolded models, status-aware)
+    ml_md, ml_src = await render_ml_signals_block(session, asset)
+    sections.append(("ml_signals", ml_md, ml_src))
+
+    # Phase 2 — news now ticker-filtered
+    news_md, news_src = await _section_news(session, asset)
     sections.append(("news", news_md, news_src))
 
     body = "\n\n".join(md for _, md, _ in sections)
@@ -801,7 +874,7 @@ async def build_data_pool(
         all_sources.extend(srcs)
     sections_emitted = [name for name, _, _ in sections]
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     header = (
         f"# Ichor data pool — {asset} — generated {now:%Y-%m-%d %H:%M UTC}\n\n"
         f"Sections : {', '.join(sections_emitted)}\n"

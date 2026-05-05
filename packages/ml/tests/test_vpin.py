@@ -24,7 +24,6 @@ from ichor_ml.microstructure.vpin import (  # noqa: E402
     quotes_to_synthetic_trades,
 )
 
-
 # ───────────────────────── Synthetic generators ─────────────────────────
 
 
@@ -156,7 +155,7 @@ def test_quotes_to_synthetic_trades_drops_invalid_mids() -> None:
 
 def test_quotes_to_synthetic_trades_rejects_missing_columns() -> None:
     bad = pd.DataFrame({"timestamp": [1, 2], "bid": [1.10, 1.10]})
-    with pytest.raises(ValueError, match="mid|bid"):
+    with pytest.raises(ValueError, match=r"mid|bid"):
         quotes_to_synthetic_trades(bad)
 
 

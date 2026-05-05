@@ -17,7 +17,6 @@ pytest.importorskip("scipy", reason="scipy required for SABR/SVI least-squares f
 pytest.importorskip("numpy", reason="numpy required")
 
 import numpy as np  # noqa: E402
-
 from ichor_ml.vol.sabr_svi import (  # noqa: E402
     SABRParams,
     SVIParams,
@@ -27,7 +26,6 @@ from ichor_ml.vol.sabr_svi import (  # noqa: E402
     sabr_25d_risk_reversal,
     svi_total_variance,
 )
-
 
 # ───────────────────────── Hagan formula sanity ─────────────────────────
 
@@ -65,10 +63,7 @@ def test_sabr_fit_recovers_synthetic_params() -> None:
     true = SABRParams(alpha=0.08, beta=1.0, rho=-0.15, nu=0.45)
     strikes = np.array([F * m for m in (0.95, 0.97, 0.99, 1.00, 1.01, 1.03, 1.05)])
     ivs = np.array(
-        [
-            hagan_lognormal_vol(F, k, T, true.alpha, true.beta, true.rho, true.nu)
-            for k in strikes
-        ]
+        [hagan_lognormal_vol(F, k, T, true.alpha, true.beta, true.rho, true.nu) for k in strikes]
     )
     fit = fit_sabr_smile(strikes.tolist(), ivs.tolist(), forward=F, tenor_years=T, beta=1.0)
     assert fit.success
@@ -135,9 +130,7 @@ def test_svi_total_variance_at_minimum_equals_a_plus_b_sigma_sqrt() -> None:
 def test_svi_fit_recovers_synthetic_params() -> None:
     true = SVIParams(a=0.04, b=0.10, rho=-0.30, m=0.02, sigma=0.20)
     ks = np.linspace(-0.30, 0.30, 11)
-    ws = np.array(
-        [svi_total_variance(k, true.a, true.b, true.rho, true.m, true.sigma) for k in ks]
-    )
+    ws = np.array([svi_total_variance(k, true.a, true.b, true.rho, true.m, true.sigma) for k in ks])
     fit = fit_svi_smile(ks.tolist(), ws.tolist())
     assert fit.success
     assert fit.rmse < 1e-6

@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
 from sqlalchemy import DateTime, MetaData
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-
 
 # Naming convention: improves Alembic autogenerate diffs
 NAMING_CONVENTION = {
@@ -26,13 +25,13 @@ class Base(DeclarativeBase):
 class TimestampMixin:
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
         nullable=False,
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
         nullable=False,
     )
 

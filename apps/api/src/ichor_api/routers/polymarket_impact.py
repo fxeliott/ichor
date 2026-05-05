@@ -12,9 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..db import get_session
 from ..services.polymarket_impact import assess_polymarket_impact
 
-router = APIRouter(
-    prefix="/v1/polymarket-impact", tags=["polymarket-impact"]
-)
+router = APIRouter(prefix="/v1/polymarket-impact", tags=["polymarket-impact"])
 
 
 class MarketHitOut(BaseModel):

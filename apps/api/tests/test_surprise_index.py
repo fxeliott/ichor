@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-
 from ichor_api.services.surprise_index import (
     SeriesSurprise,
     SurpriseIndexReading,
@@ -11,7 +10,6 @@ from ichor_api.services.surprise_index import (
     _z_score,
     render_surprise_index_block,
 )
-
 
 # ─────────────────────────── _z_score ──────────────────────────────────
 
@@ -29,7 +27,7 @@ def test_z_score_returns_nones_on_zero_std() -> None:
 
 
 def test_z_score_basic_positive_outlier() -> None:
-    history = [10.0, 10.5, 9.5, 10.2, 9.8, 10.1] + [15.0]
+    history = [10.0, 10.5, 9.5, 10.2, 9.8, 10.1, 15.0]
     last, mean, std = _z_score(history)
     assert last == 15.0
     assert mean is not None and 9.5 < mean < 10.5

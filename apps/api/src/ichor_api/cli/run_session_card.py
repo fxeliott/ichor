@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import asyncio
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import structlog
 
@@ -34,8 +34,7 @@ async def _run(asset: str, session_type: str, *, live: bool) -> int:
     asset = asset.upper()
     if session_type not in _VALID_SESSIONS:
         print(
-            f"unknown session_type {session_type!r} "
-            f"(expected one of {sorted(_VALID_SESSIONS)})",
+            f"unknown session_type {session_type!r} (expected one of {sorted(_VALID_SESSIONS)})",
             file=sys.stderr,
         )
         return 2
@@ -110,7 +109,7 @@ async def _run(asset: str, session_type: str, *, live: bool) -> int:
         asset=asset,
         data_pool=data_pool,
         asset_data=asset_data,
-        now=datetime.now(timezone.utc),
+        now=datetime.now(UTC),
     )
 
     async with sm() as session:
@@ -131,11 +130,10 @@ async def _run(asset: str, session_type: str, *, live: bool) -> int:
     # if Redis is unreachable we don't fail the persistence.
     try:
         import json as _json
+
         from redis import asyncio as aioredis  # type: ignore[import]
 
-        redis = aioredis.from_url(
-            settings.redis_url, decode_responses=True
-        )
+        redis = aioredis.from_url(settings.redis_url, decode_responses=True)
         await redis.publish(
             "ichor:session_card:new",
             _json.dumps(
@@ -162,10 +160,7 @@ async def _run(asset: str, session_type: str, *, live: bool) -> int:
 
             asset_pretty = row.asset.replace("_", "/")
             title = f"Ichor · {asset_pretty} · {row.session_type.replace('_', ' ')}"
-            body = (
-                f"{row.bias_direction.upper()} {row.conviction_pct:.0f}% "
-                f"· {row.critic_verdict}"
-            )
+            body = f"{row.bias_direction.upper()} {row.conviction_pct:.0f}% · {row.critic_verdict}"
             await send_to_all(title, body, url=f"/sessions/{row.asset}")
         except Exception as e:
             log.warning("session_card.push_failed", error=str(e))
@@ -198,8 +193,11 @@ def _dry_run_responses(asset: str):
             ),
             "confidence_pct": 72.0,
             "macro_trinity_snapshot": {
-                "DXY": 105.3, "US10Y": 4.18, "VIX": 18.2,
-                "DFII10": 1.85, "BAMLH0A0HYM2": 3.1,
+                "DXY": 105.3,
+                "US10Y": 4.18,
+                "VIX": 18.2,
+                "DFII10": 1.85,
+                "BAMLH0A0HYM2": 3.1,
             },
         },
         {

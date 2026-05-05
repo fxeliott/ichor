@@ -16,7 +16,7 @@ once we have N=100+ realized session outcomes to backtest against.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Literal
 
 CoherenceSeverity = Literal["info", "warning", "critical"]
@@ -190,5 +190,5 @@ def review_cards(cards: list[CardSnapshot]) -> CrossAssetVerdict:
     return CrossAssetVerdict(
         findings=findings,
         n_cards_reviewed=len(cards),
-        reviewed_at=datetime.now(timezone.utc),
+        reviewed_at=datetime.now(UTC),
     )

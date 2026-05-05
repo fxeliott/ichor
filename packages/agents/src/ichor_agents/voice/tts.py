@@ -112,7 +112,8 @@ async def piper_local_tts(
     """
     proc = await asyncio.create_subprocess_exec(
         piper_binary,
-        "--model", voice_model,
+        "--model",
+        voice_model,
         "--output-raw",
         stdin=asyncio.subprocess.PIPE,
         stdout=asyncio.subprocess.PIPE,

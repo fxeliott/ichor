@@ -40,15 +40,61 @@ Venue = Literal["polymarket", "kalshi", "manifold"]
 # ────────────────────────── Text normalization ─────────────────────────
 
 
-_STOPWORDS = frozenset({
-    "a", "an", "the", "is", "are", "was", "were", "be", "been", "being",
-    "to", "of", "in", "on", "at", "by", "for", "with", "from", "as",
-    "and", "or", "but", "so", "if", "than", "that", "this", "it", "its",
-    "will", "would", "could", "should", "may", "might", "can", "do",
-    "does", "did", "have", "has", "had", "?", "!",
-    # finance / venue-specific noise
-    "yes", "no", "market", "event", "contract",
-})
+_STOPWORDS = frozenset(
+    {
+        "a",
+        "an",
+        "the",
+        "is",
+        "are",
+        "was",
+        "were",
+        "be",
+        "been",
+        "being",
+        "to",
+        "of",
+        "in",
+        "on",
+        "at",
+        "by",
+        "for",
+        "with",
+        "from",
+        "as",
+        "and",
+        "or",
+        "but",
+        "so",
+        "if",
+        "than",
+        "that",
+        "this",
+        "it",
+        "its",
+        "will",
+        "would",
+        "could",
+        "should",
+        "may",
+        "might",
+        "can",
+        "do",
+        "does",
+        "did",
+        "have",
+        "has",
+        "had",
+        "?",
+        "!",
+        # finance / venue-specific noise
+        "yes",
+        "no",
+        "market",
+        "event",
+        "contract",
+    }
+)
 
 
 def normalize_question(text: str) -> str:

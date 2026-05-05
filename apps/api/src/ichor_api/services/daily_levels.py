@@ -22,9 +22,9 @@ Pure-stdlib, no pandas dependency.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import desc, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models import PolygonIntradayBar
@@ -128,11 +128,9 @@ def _classic_pivots(
     )
 
 
-async def assess_daily_levels(
-    session: AsyncSession, asset: str
-) -> DailyLevels:
+async def assess_daily_levels(session: AsyncSession, asset: str) -> DailyLevels:
     """Pull last 8d of bars and assemble all levels."""
-    cutoff = datetime.now(timezone.utc) - timedelta(days=8)
+    cutoff = datetime.now(UTC) - timedelta(days=8)
     rows = list(
         (
             await session.execute(
@@ -143,7 +141,9 @@ async def assess_daily_levels(
                 )
                 .order_by(PolygonIntradayBar.bar_ts.asc())
             )
-        ).scalars().all()
+        )
+        .scalars()
+        .all()
     )
     if not rows:
         return DailyLevels(
@@ -167,7 +167,7 @@ async def assess_daily_levels(
         )
 
     spot = float(rows[-1].close)
-    today_utc = datetime.now(timezone.utc).date()
+    today_utc = datetime.now(UTC).date()
 
     # Group bars by UTC date
     by_date: dict[str, list[PolygonIntradayBar]] = {}
@@ -247,8 +247,7 @@ def render_daily_levels_block(r: DailyLevels) -> tuple[str, list[str]]:
     lines.append(f"- Previous day H/L  = {fmt(r.pdh)} / {fmt(r.pdl)} (close {fmt(r.pd_close)})")
     if r.asian_high is not None or r.asian_low is not None:
         lines.append(
-            f"- Asian range H/L   = {fmt(r.asian_high)} / {fmt(r.asian_low)} "
-            "(00:00-07:00 UTC)"
+            f"- Asian range H/L   = {fmt(r.asian_high)} / {fmt(r.asian_low)} (00:00-07:00 UTC)"
         )
     lines.append(f"- Weekly H/L (7d)   = {fmt(r.weekly_high)} / {fmt(r.weekly_low)}")
     if r.pivot is not None:
@@ -258,8 +257,6 @@ def render_daily_levels_block(r: DailyLevels) -> tuple[str, list[str]]:
             f"{fmt(r.s1)} {fmt(r.s2)} {fmt(r.s3)}"
         )
     if r.round_levels:
-        lines.append(
-            f"- Round-number levels nearby : {', '.join(fmt(x) for x in r.round_levels)}"
-        )
+        lines.append(f"- Round-number levels nearby : {', '.join(fmt(x) for x in r.round_levels)}")
     sources = [f"polygon_intraday:{r.asset}@daily_levels"]
     return "\n".join(lines), sources

@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from ichor_api.collectors.gdelt import (
     DEFAULT_QUERIES,
-    GdeltArticle,
     GdeltQuery,
     _parse_response,
     _parse_seendate,
@@ -18,13 +17,13 @@ def test_parse_seendate_valid() -> None:
     assert dt.year == 2026
     assert dt.month == 5
     assert dt.day == 3
-    assert dt.tzinfo == timezone.utc
+    assert dt.tzinfo == UTC
 
 
 def test_parse_seendate_invalid_falls_back() -> None:
     dt = _parse_seendate("not-a-date")
     assert isinstance(dt, datetime)
-    assert dt.tzinfo == timezone.utc
+    assert dt.tzinfo == UTC
 
 
 def test_parse_response_extracts_articles() -> None:
@@ -67,11 +66,25 @@ def test_parse_response_handles_empty() -> None:
 def test_parse_response_skips_malformed_row() -> None:
     payload = {
         "articles": [
-            {"url": "https://ok.com/a", "title": "OK", "seendate": "20260503T000000Z",
-             "domain": "ok.com", "language": "en", "sourcecountry": "US", "tone": "0"},
+            {
+                "url": "https://ok.com/a",
+                "title": "OK",
+                "seendate": "20260503T000000Z",
+                "domain": "ok.com",
+                "language": "en",
+                "sourcecountry": "US",
+                "tone": "0",
+            },
             {"url": "https://bad.com/b", "title": "Bad", "tone": "not-a-number"},  # bad tone
-            {"url": "https://ok.com/c", "title": "OK2", "seendate": "20260503T000000Z",
-             "domain": "ok.com", "language": "en", "sourcecountry": "US", "tone": "0"},
+            {
+                "url": "https://ok.com/c",
+                "title": "OK2",
+                "seendate": "20260503T000000Z",
+                "domain": "ok.com",
+                "language": "en",
+                "sourcecountry": "US",
+                "tone": "0",
+            },
         ]
     }
     arts = _parse_response("fed", payload)

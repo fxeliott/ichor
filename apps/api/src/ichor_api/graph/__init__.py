@@ -21,13 +21,13 @@ Phase 2 plan : swap in spaCy NER + the FOMC-RoBERTa model_card metadata.
 """
 
 from .populator import (
+    NewsEntityExtraction,
     extract_entities,
     populate_news_edges,
-    NewsEntityExtraction,
 )
 
 __all__ = [
+    "NewsEntityExtraction",
     "extract_entities",
     "populate_news_edges",
-    "NewsEntityExtraction",
 ]

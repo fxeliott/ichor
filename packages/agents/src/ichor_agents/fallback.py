@@ -6,7 +6,7 @@ Used by the 5 Couche-2 agents (Macro, Sentiment, Positioning, CB-NLP, News-NLP).
 
 from __future__ import annotations
 
-from collections.abc import Awaitable, Callable, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import TypeVar
 
@@ -14,7 +14,7 @@ import structlog
 from pydantic_ai import Agent
 from pydantic_ai.exceptions import ModelHTTPError, UserError
 
-from .providers import ProviderConfig, build_model, MissingCredentials
+from .providers import MissingCredentials, ProviderConfig, build_model
 
 log = structlog.get_logger(__name__)
 

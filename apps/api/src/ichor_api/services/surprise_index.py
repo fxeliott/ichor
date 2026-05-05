@@ -34,13 +34,12 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models import FredObservation
-
 
 _SERIES_LABELS: dict[str, str] = {
     "PAYEMS": "Nonfarm payrolls",
@@ -93,11 +92,9 @@ def _band(z: float | None) -> str:
     return "neutral"
 
 
-async def _series_history(
-    session: AsyncSession, series_id: str, *, n: int = 24
-) -> list[float]:
+async def _series_history(session: AsyncSession, series_id: str, *, n: int = 24) -> list[float]:
     """Last `n` non-null observations for `series_id`, oldest-first."""
-    cutoff = datetime.now(timezone.utc).date() - timedelta(days=365 * 5)
+    cutoff = datetime.now(UTC).date() - timedelta(days=365 * 5)
     stmt = (
         select(FredObservation.value)
         .where(
@@ -209,8 +206,6 @@ def render_surprise_index_block(
     for s in r.series:
         z_str = "n/a" if s.z_score is None else f"{s.z_score:+.2f}"
         last_str = "n/a" if s.last_value is None else f"{s.last_value:.3f}"
-        lines.append(
-            f"  · {s.series_id:10s} ({s.label}) z={z_str} last={last_str}"
-        )
+        lines.append(f"  · {s.series_id:10s} ({s.label}) z={z_str} last={last_str}")
         sources.append(f"FRED:{s.series_id}")
     return "\n".join(lines), sources

@@ -9,7 +9,7 @@ Aggregates the recent GDELT corpus by `sourcecountry` and emits :
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
@@ -41,7 +41,7 @@ async def heatmap(
     session: Annotated[AsyncSession, Depends(get_session)],
     hours: int = Query(24, ge=1, le=336),
 ) -> GeopoliticsHeatmapOut:
-    cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
+    cutoff = datetime.now(UTC) - timedelta(hours=hours)
     rows = list(
         (
             await session.execute(
@@ -54,15 +54,11 @@ async def heatmap(
         ).all()
     )
 
-    by_country: dict[
-        str, dict[str, list[float] | list[tuple[float, str]] | int]
-    ] = {}
+    by_country: dict[str, dict[str, list[float] | list[tuple[float, str]] | int]] = {}
     for sc, tone, title in rows:
         if not sc:
             continue
-        bucket = by_country.setdefault(
-            sc, {"tones": [], "titles": []}
-        )
+        bucket = by_country.setdefault(sc, {"tones": [], "titles": []})
         # type: ignore[union-attr]
         bucket["tones"].append(float(tone))  # type: ignore[union-attr]
         bucket["titles"].append((float(tone), title))  # type: ignore[union-attr]

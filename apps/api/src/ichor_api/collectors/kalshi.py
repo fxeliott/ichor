@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import httpx
 import structlog
@@ -89,7 +89,7 @@ async def fetch_event(
         log.warning("kalshi.fetch_failed", ticker=event_ticker, error=str(e))
         return []
 
-    fetched = datetime.now(timezone.utc)
+    fetched = datetime.now(UTC)
     markets = data.get("markets") or data.get("event", {}).get("markets") or []
     out: list[KalshiMarketSnapshot] = []
     for m in markets:
@@ -137,7 +137,7 @@ async def discover_markets(
         log.warning("kalshi.discover_failed", error=str(e))
         return []
 
-    fetched = datetime.now(timezone.utc)
+    fetched = datetime.now(UTC)
     markets = data.get("markets") or []
     out: list[KalshiMarketSnapshot] = []
     for m in markets:
@@ -159,7 +159,7 @@ async def discover_markets(
             log.warning("kalshi.discover_parse_failed", error=str(e))
             continue
     # Sort by volume_24h desc, top_k
-    out.sort(key=lambda x: (x.volume_24h or 0), reverse=True)
+    out.sort(key=lambda x: x.volume_24h or 0, reverse=True)
     return out[:top_k]
 
 

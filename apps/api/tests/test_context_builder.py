@@ -8,20 +8,19 @@ in-memory ORM-shaped objects — easy to test without a session.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 from ichor_api.briefing.context_builder import (
     CHARS_PER_TOKEN,
     DEFAULT_MAX_TOKENS,
+    ContextSection,
     _format_alerts,
     _format_bias,
     _format_market_data,
     _format_news,
     _format_polymarket,
     _render,
-    ContextSection,
 )
-
 
 # ───────────────────────────── stubs ─────────────────────────────
 
@@ -104,7 +103,7 @@ def test_format_alerts_orders_and_labels() -> None:
             metric_value=35.5,
             threshold=35,
             direction="above",
-            triggered_at=datetime(2026, 5, 3, 14, 30, tzinfo=timezone.utc),
+            triggered_at=datetime(2026, 5, 3, 14, 30, tzinfo=UTC),
         ),
     ]
     out = _format_alerts(a)
@@ -144,10 +143,14 @@ def test_format_market_data_single_bar_no_change() -> None:
 
 def test_format_news_groups_by_kind() -> None:
     items = [
-        _StubNews("ecb_press", "central_bank", "Lagarde speaks",
-                  datetime(2026, 5, 3, 8, 0, tzinfo=timezone.utc), "neutral"),
-        _StubNews("bbc_business", "news", "Markets steady",
-                  datetime(2026, 5, 3, 9, 0, tzinfo=timezone.utc)),
+        _StubNews(
+            "ecb_press",
+            "central_bank",
+            "Lagarde speaks",
+            datetime(2026, 5, 3, 8, 0, tzinfo=UTC),
+            "neutral",
+        ),
+        _StubNews("bbc_business", "news", "Markets steady", datetime(2026, 5, 3, 9, 0, tzinfo=UTC)),
     ]
     out = _format_news(items)
     assert "Banques centrales" in out
@@ -163,12 +166,20 @@ def test_format_news_empty() -> None:
 
 def test_format_polymarket_picks_latest_per_slug() -> None:
     snaps = [
-        _StubPoly("fed-march", "Will the Fed cut in March?",
-                  datetime(2026, 5, 3, 10, 0, tzinfo=timezone.utc),
-                  [0.42, 0.58], 1_000_000.0),
-        _StubPoly("fed-march", "Will the Fed cut in March?",
-                  datetime(2026, 5, 3, 11, 0, tzinfo=timezone.utc),
-                  [0.45, 0.55], 1_100_000.0),
+        _StubPoly(
+            "fed-march",
+            "Will the Fed cut in March?",
+            datetime(2026, 5, 3, 10, 0, tzinfo=UTC),
+            [0.42, 0.58],
+            1_000_000.0,
+        ),
+        _StubPoly(
+            "fed-march",
+            "Will the Fed cut in March?",
+            datetime(2026, 5, 3, 11, 0, tzinfo=UTC),
+            [0.45, 0.55],
+            1_100_000.0,
+        ),
     ]
     out = _format_polymarket(snaps)
     # Only the latest snapshot rendered → 0.45, not 0.42

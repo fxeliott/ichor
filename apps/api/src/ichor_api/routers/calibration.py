@@ -12,7 +12,7 @@ Three responses :
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
@@ -77,13 +77,10 @@ async def _fetch_reconciled(
     session_type: str | None,
     regime_quadrant: str | None,
 ) -> list[SessionCardAudit]:
-    stmt = (
-        select(SessionCardAudit)
-        .where(
-            SessionCardAudit.realized_at.is_not(None),
-            SessionCardAudit.brier_contribution.is_not(None),
-            SessionCardAudit.generated_at >= since,
-        )
+    stmt = select(SessionCardAudit).where(
+        SessionCardAudit.realized_at.is_not(None),
+        SessionCardAudit.brier_contribution.is_not(None),
+        SessionCardAudit.generated_at >= since,
     )
     if asset:
         stmt = stmt.where(SessionCardAudit.asset == asset.upper())
@@ -183,7 +180,7 @@ async def calibration_overall(
     ),
     window_days: int = Query(90, ge=1, le=730),
 ) -> CalibrationOut:
-    since = datetime.now(timezone.utc) - timedelta(days=window_days)
+    since = datetime.now(UTC) - timedelta(days=window_days)
     cards = await _fetch_reconciled(
         session,
         since=since,
@@ -207,7 +204,7 @@ async def calibration_by_asset(
     session: Annotated[AsyncSession, Depends(get_session)],
     window_days: int = Query(90, ge=1, le=730),
 ) -> CalibrationGroupsOut:
-    since = datetime.now(timezone.utc) - timedelta(days=window_days)
+    since = datetime.now(UTC) - timedelta(days=window_days)
     cards = await _fetch_reconciled(
         session, since=since, asset=None, session_type=None, regime_quadrant=None
     )
@@ -238,7 +235,7 @@ async def calibration_by_regime(
     session: Annotated[AsyncSession, Depends(get_session)],
     window_days: int = Query(90, ge=1, le=730),
 ) -> CalibrationGroupsOut:
-    since = datetime.now(timezone.utc) - timedelta(days=window_days)
+    since = datetime.now(UTC) - timedelta(days=window_days)
     cards = await _fetch_reconciled(
         session, since=since, asset=None, session_type=None, regime_quadrant=None
     )

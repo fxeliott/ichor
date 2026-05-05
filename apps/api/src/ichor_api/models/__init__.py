@@ -23,11 +23,11 @@ from .cot_position import CotPosition
 from .couche2_output import Couche2Output
 from .economic_event import EconomicEvent
 
-# Phase 2 — VPIN microstructure (migration 0020)
-from .fx_tick import FxTick
-
 # Phase 1 Living Macro Entity collectors
 from .fred_observation import FredObservation
+
+# Phase 2 — VPIN microstructure (migration 0020)
+from .fx_tick import FxTick
 from .gdelt_event import GdeltEvent
 from .gpr_observation import GprObservation
 from .kalshi_market import KalshiMarket
@@ -52,10 +52,10 @@ __all__ = [
     # Phase 2
     "Couche2Output",
     "EconomicEvent",
-    # Phase 2 — VPIN microstructure
-    "FxTick",
     # Phase 1
     "FredObservation",
+    # Phase 2 — VPIN microstructure
+    "FxTick",
     "GdeltEvent",
     "GprObservation",
     "KalshiMarket",

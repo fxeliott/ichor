@@ -25,7 +25,7 @@ The collector is pure-Python (httpx). The persistence layer lives in
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from typing import Any
 
 import httpx
@@ -67,7 +67,7 @@ class PolygonBar:
 
 
 def _epoch_ms_to_dt(ms: int) -> datetime:
-    return datetime.fromtimestamp(ms / 1000.0, tz=timezone.utc)
+    return datetime.fromtimestamp(ms / 1000.0, tz=UTC)
 
 
 def _safe_float(v: Any) -> float | None:

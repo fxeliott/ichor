@@ -9,7 +9,7 @@ the partitioning column must be part of the PK.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
 from sqlalchemy import DateTime, Float, Integer, String
@@ -25,7 +25,7 @@ class Prediction(Base, TimestampMixin):
     generated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         primary_key=True,  # TimescaleDB requires partition col in PK
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
         index=True,
     )
 

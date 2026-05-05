@@ -13,9 +13,9 @@ ROOT = Path(__file__).resolve().parents[3]
 
 
 def test_extended_cron_template_uses_correct_module() -> None:
-    script = (
-        ROOT / "scripts" / "hetzner" / "register-cron-collectors-extended.sh"
-    ).read_text(encoding="utf-8")
+    script = (ROOT / "scripts" / "hetzner" / "register-cron-collectors-extended.sh").read_text(
+        encoding="utf-8"
+    )
     # The systemd ExecStart MUST use the plural module name
     assert "run_collectors" in script
     # And explicitly NOT the singular (broken) one
@@ -27,9 +27,9 @@ def test_extended_cron_template_uses_correct_module() -> None:
 
 def test_extended_cron_template_lists_forex_factory() -> None:
     """forex_factory was added to the SCHEDULES dict in this audit."""
-    script = (
-        ROOT / "scripts" / "hetzner" / "register-cron-collectors-extended.sh"
-    ).read_text(encoding="utf-8")
+    script = (ROOT / "scripts" / "hetzner" / "register-cron-collectors-extended.sh").read_text(
+        encoding="utf-8"
+    )
     assert "[forex_factory]=" in script
 
 

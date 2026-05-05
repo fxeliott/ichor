@@ -3,13 +3,11 @@
 from __future__ import annotations
 
 import pytest
-
 from ichor_api.services.cb_intervention import (
     assess,
     render_intervention_block,
     supported_pairs,
 )
-
 
 # ─────────────────────────── Coverage ──────────────────────────────────
 

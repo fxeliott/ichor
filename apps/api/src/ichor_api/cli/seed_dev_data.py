@@ -13,14 +13,13 @@ import asyncio
 import math
 import random
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 from sqlalchemy import text
 
 from ..db import get_engine, get_sessionmaker
 from ..models import Alert, BiasSignal, Briefing
-
 
 SAMPLE_ASSETS: list[str] = [
     "EUR_USD",
@@ -154,25 +153,77 @@ async def _seed_alerts(sm: object, now: datetime, rng: random.Random) -> None:
 
         # Per-asset alerts so /assets/[code] is populated
         per_asset = [
-            ("EUR_USD", "FX_RANGE_BREAK", "warning", "EUR/USD breakout du range 4h", "EUR_USD_close", 1.0823, 1.0810, "above", 90),
-            ("XAU_USD", "XAU_BREAKOUT_ATH", "info", "XAUUSD nouvel ATH 2961", "XAU_USD_high", 2961, 2900, "above", 180),
-            ("NAS100_USD", "VPIN_SPIKE", "warning", "NAS100 toxicite microstructure elevee", "vpin_1h", 0.42, 0.35, "above", 45),
-            ("USD_JPY", "BOJ_HAWKISH_SHIFT", "info", "BoJ hawkish vs prior meeting", "boj_net_hawkish", 0.45, 0.30, "cross_up", 240),
-            ("GBP_USD", "FX_RANGE_BREAK", "info", "GBP/USD touche 1.2700", "GBP_USD_high", 1.2701, 1.2700, "cross_up", 120),
+            (
+                "EUR_USD",
+                "FX_RANGE_BREAK",
+                "warning",
+                "EUR/USD breakout du range 4h",
+                "EUR_USD_close",
+                1.0823,
+                1.0810,
+                "above",
+                90,
+            ),
+            (
+                "XAU_USD",
+                "XAU_BREAKOUT_ATH",
+                "info",
+                "XAUUSD nouvel ATH 2961",
+                "XAU_USD_high",
+                2961,
+                2900,
+                "above",
+                180,
+            ),
+            (
+                "NAS100_USD",
+                "VPIN_SPIKE",
+                "warning",
+                "NAS100 toxicite microstructure elevee",
+                "vpin_1h",
+                0.42,
+                0.35,
+                "above",
+                45,
+            ),
+            (
+                "USD_JPY",
+                "BOJ_HAWKISH_SHIFT",
+                "info",
+                "BoJ hawkish vs prior meeting",
+                "boj_net_hawkish",
+                0.45,
+                0.30,
+                "cross_up",
+                240,
+            ),
+            (
+                "GBP_USD",
+                "FX_RANGE_BREAK",
+                "info",
+                "GBP/USD touche 1.2700",
+                "GBP_USD_high",
+                1.2701,
+                1.2700,
+                "cross_up",
+                120,
+            ),
         ]
         for asset, code, sev, title, metric, val, thr, direction, mins_ago in per_asset:
-            session.add(Alert(
-                alert_code=code,
-                severity=sev,
-                asset=asset,
-                metric_name=metric,
-                metric_value=val,
-                threshold=thr,
-                direction=direction,
-                title=title,
-                description=f"Seeded alert for dashboard demo ({asset}).",
-                triggered_at=now - timedelta(minutes=mins_ago),
-            ))
+            session.add(
+                Alert(
+                    alert_code=code,
+                    severity=sev,
+                    asset=asset,
+                    metric_name=metric,
+                    metric_value=val,
+                    threshold=thr,
+                    direction=direction,
+                    title=title,
+                    description=f"Seeded alert for dashboard demo ({asset}).",
+                    triggered_at=now - timedelta(minutes=mins_ago),
+                )
+            )
         await session.commit()
         print(f"Inserted {len(global_alerts) + len(per_asset)} sample alerts")
 
@@ -240,7 +291,7 @@ async def _seed_briefings(sm: object, now: datetime) -> None:
 
 async def seed(clean: bool = False, *, seed_value: int = 42) -> None:
     sm = get_sessionmaker()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     rng = random.Random(seed_value)
 
     if clean:

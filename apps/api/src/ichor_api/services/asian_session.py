@@ -18,13 +18,12 @@ dependency.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timedelta, time, timezone
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models import PolygonIntradayBar
-
 
 # Pairs where the Asian session is informative (JPY routed through
 # Tokyo, AUD/NZD through Sydney/Tokyo overlap).
@@ -78,8 +77,8 @@ def _pip_size(asset: str) -> float:
 
 
 def _utc_today_midnight() -> datetime:
-    now = datetime.now(timezone.utc)
-    return datetime(now.year, now.month, now.day, 0, 0, tzinfo=timezone.utc)
+    now = datetime.now(UTC)
+    return datetime(now.year, now.month, now.day, 0, 0, tzinfo=UTC)
 
 
 async def assess_asian_session(
@@ -114,7 +113,9 @@ async def assess_asian_session(
                 )
                 .order_by(PolygonIntradayBar.bar_ts.asc())
             )
-        ).scalars().all()
+        )
+        .scalars()
+        .all()
     )
 
     if not rows:
@@ -152,12 +153,8 @@ async def assess_asian_session(
     pip = _pip_size(asset)
     range_pips = round((high_v - low_v) * pip, 1)
     o2c_pips = round((close_price - open_price) * pip, 1)
-    o2f_pips = (
-        round((fix_price - open_price) * pip, 1) if fix_price is not None else None
-    )
-    f2c_pips = (
-        round((close_price - fix_price) * pip, 1) if fix_price is not None else None
-    )
+    o2f_pips = round((fix_price - open_price) * pip, 1) if fix_price is not None else None
+    f2c_pips = round((close_price - fix_price) * pip, 1) if fix_price is not None else None
 
     direction = (
         "asian_bid"

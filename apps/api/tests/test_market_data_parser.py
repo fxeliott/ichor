@@ -16,7 +16,6 @@ from ichor_api.collectors.market_data import (
     parse_stooq_csv,
 )
 
-
 VALID_CSV = b"""Date,Open,High,Low,Close,Volume
 2026-04-30,1.0850,1.0875,1.0840,1.0863,123456
 2026-05-01,1.0863,1.0890,1.0855,1.0871,98765
@@ -92,8 +91,14 @@ def test_fetched_at_is_set() -> None:
 def test_stooq_symbols_cover_phase0_assets() -> None:
     """The 8 Phase 0 assets must all have Stooq mappings."""
     expected = {
-        "EUR_USD", "GBP_USD", "USD_JPY", "AUD_USD", "USD_CAD",
-        "XAU_USD", "NAS100_USD", "SPX500_USD",
+        "EUR_USD",
+        "GBP_USD",
+        "USD_JPY",
+        "AUD_USD",
+        "USD_CAD",
+        "XAU_USD",
+        "NAS100_USD",
+        "SPX500_USD",
     }
     assert expected == set(STOOQ_SYMBOLS.keys())
     assert expected == set(YFINANCE_SYMBOLS.keys())

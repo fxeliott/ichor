@@ -32,9 +32,7 @@ _rate_limiter: HourlyRateLimiter
 _in_flight = 0
 
 
-_PERSONAS_ROOT = (
-    __import__("pathlib").Path(__file__).resolve().parent / "personas"
-)
+_PERSONAS_ROOT = __import__("pathlib").Path(__file__).resolve().parent / "personas"
 
 
 @asynccontextmanager
@@ -79,7 +77,10 @@ async def lifespan(app: FastAPI):
         ],
         wrapper_class=structlog.make_filtering_bound_logger(
             {
-                "DEBUG": 10, "INFO": 20, "WARNING": 30, "ERROR": 40,
+                "DEBUG": 10,
+                "INFO": 20,
+                "WARNING": 30,
+                "ERROR": 40,
             }[settings.log_level]
         ),
     )
@@ -119,12 +120,14 @@ async def healthz(settings: Settings = Depends(get_settings)) -> HealthResponse:
         # Try `claude --version` quickly. If the binary isn't on PATH this
         # raises FileNotFoundError — readiness=degraded.
         proc = await asyncio.create_subprocess_exec(
-            settings.claude_binary, "--version",
-            stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.DEVNULL,
+            settings.claude_binary,
+            "--version",
+            stdout=asyncio.subprocess.DEVNULL,
+            stderr=asyncio.subprocess.DEVNULL,
         )
         await asyncio.wait_for(proc.wait(), timeout=5)
         cli_available = proc.returncode == 0
-    except (FileNotFoundError, asyncio.TimeoutError):
+    except (TimeoutError, FileNotFoundError):
         cli_available = False
 
     status_str = "ok" if (cli_available and persona_loaded) else "degraded"
@@ -201,7 +204,7 @@ async def briefing_task(
                 model=req.model,
                 effort=req.effort,
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             return BriefingTaskResponse(
                 task_id=req.task_id,
                 status="timeout",
@@ -224,7 +227,9 @@ async def briefing_task(
     # which has content[] blocks.) Parse both for forward compat.
     briefing_md = result.get("result")
     if not briefing_md:
-        text_blocks = [b.get("text", "") for b in result.get("content", []) if b.get("type") == "text"]
+        text_blocks = [
+            b.get("text", "") for b in result.get("content", []) if b.get("type") == "text"
+        ]
         briefing_md = "\n\n".join(text_blocks).strip() or None
 
     return BriefingTaskResponse(

@@ -7,10 +7,7 @@ DB-backed factor builders are exercised in `test_data_pool.py` integration.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from datetime import date, datetime, timedelta, timezone
-
-import pytest
+from datetime import UTC, date, datetime
 
 from ichor_api.services.confluence_engine import (
     ConfluenceReport,
@@ -33,17 +30,27 @@ from ichor_api.services.yield_curve import (
     render_yield_curve_block,
 )
 
-
 # ─────────────────── confluence_engine — daily-levels factor ───────────
 
 
 def _levels(spot: float, pdh: float = 1.0750, pdl: float = 1.0700) -> DailyLevels:
     return DailyLevels(
         asset="EUR_USD",
-        spot=spot, pdh=pdh, pdl=pdl, pd_close=(pdh + pdl) / 2,
-        asian_high=None, asian_low=None,
-        weekly_high=None, weekly_low=None,
-        pivot=None, r1=None, r2=None, r3=None, s1=None, s2=None, s3=None,
+        spot=spot,
+        pdh=pdh,
+        pdl=pdl,
+        pd_close=(pdh + pdl) / 2,
+        asian_high=None,
+        asian_low=None,
+        weekly_high=None,
+        weekly_low=None,
+        pivot=None,
+        r1=None,
+        r2=None,
+        r3=None,
+        s1=None,
+        s2=None,
+        s3=None,
         round_levels=[],
     )
 
@@ -85,11 +92,21 @@ def test_daily_levels_factor_returns_none_on_missing_data() -> None:
         "EUR_USD",
         DailyLevels(
             asset="EUR_USD",
-            spot=None, pdh=None, pdl=None, pd_close=None,
-            asian_high=None, asian_low=None,
-            weekly_high=None, weekly_low=None,
-            pivot=None, r1=None, r2=None, r3=None,
-            s1=None, s2=None, s3=None,
+            spot=None,
+            pdh=None,
+            pdl=None,
+            pd_close=None,
+            asian_high=None,
+            asian_low=None,
+            weekly_high=None,
+            weekly_low=None,
+            pivot=None,
+            r1=None,
+            r2=None,
+            r3=None,
+            s1=None,
+            s2=None,
+            s3=None,
             round_levels=[],
         ),
     )
@@ -138,6 +155,7 @@ def test_render_confluence_block_renders_drivers() -> None:
 
 def test_currency_strength_module_exports() -> None:
     from ichor_api.services import currency_strength as mod
+
     assert hasattr(mod, "assess_currency_strength")
     assert hasattr(mod, "render_currency_strength_block")
     assert hasattr(mod, "CurrencyStrengthReport")
@@ -185,7 +203,7 @@ def test_filter_for_asset_subsets_correctly() -> None:
         ),
     ]
     report = CalendarReport(
-        generated_at=datetime.now(timezone.utc),
+        generated_at=datetime.now(UTC),
         horizon_days=14,
         events=events,
     )
@@ -203,7 +221,7 @@ def test_filter_for_asset_subsets_correctly() -> None:
 
 def test_render_calendar_empty_returns_friendly_message() -> None:
     report = CalendarReport(
-        generated_at=datetime.now(timezone.utc),
+        generated_at=datetime.now(UTC),
         horizon_days=14,
         events=[],
     )
@@ -227,7 +245,7 @@ def test_render_calendar_with_events() -> None:
         ),
     ]
     report = CalendarReport(
-        generated_at=datetime.now(timezone.utc),
+        generated_at=datetime.now(UTC),
         horizon_days=14,
         events=events,
     )
@@ -247,14 +265,18 @@ def _tenor(label: str, y: float | None) -> TenorPoint:
         label=label,
         series_id="DGS_X",
         yield_pct=y,
-        observation_date=datetime.now(timezone.utc),
+        observation_date=datetime.now(UTC),
     )
 
 
 def test_shape_detects_fully_inverted() -> None:
     pts = [
-        _tenor("3M", 5.5), _tenor("6M", 5.4), _tenor("1Y", 5.2),
-        _tenor("2Y", 4.9), _tenor("5Y", 4.5), _tenor("10Y", 4.2),
+        _tenor("3M", 5.5),
+        _tenor("6M", 5.4),
+        _tenor("1Y", 5.2),
+        _tenor("2Y", 4.9),
+        _tenor("5Y", 4.5),
+        _tenor("10Y", 4.2),
         _tenor("30Y", 4.0),
     ]
     shape = _shape(pts, slope_2y_10y=-0.7)
@@ -263,8 +285,11 @@ def test_shape_detects_fully_inverted() -> None:
 
 def test_shape_detects_steep() -> None:
     pts = [
-        _tenor("3M", 4.5), _tenor("6M", 4.6), _tenor("2Y", 4.7),
-        _tenor("10Y", 6.5), _tenor("30Y", 7.0),
+        _tenor("3M", 4.5),
+        _tenor("6M", 4.6),
+        _tenor("2Y", 4.7),
+        _tenor("10Y", 6.5),
+        _tenor("30Y", 7.0),
     ]
     shape = _shape(pts, slope_2y_10y=1.8)
     assert shape == "steep"
@@ -274,8 +299,12 @@ def test_shape_detects_inverted_short_segment() -> None:
     # Only one tenor pair inverted at the short end ; rest curve upward.
     # Need < (len - 2) inversions to avoid being classified inverted_full.
     pts = [
-        _tenor("3M", 5.4), _tenor("6M", 5.0), _tenor("2Y", 5.1),
-        _tenor("5Y", 5.2), _tenor("10Y", 5.3), _tenor("30Y", 5.5),
+        _tenor("3M", 5.4),
+        _tenor("6M", 5.0),
+        _tenor("2Y", 5.1),
+        _tenor("5Y", 5.2),
+        _tenor("10Y", 5.3),
+        _tenor("30Y", 5.5),
     ]
     shape = _shape(pts, slope_2y_10y=-0.3)
     assert shape == "inverted_short"
@@ -283,8 +312,11 @@ def test_shape_detects_inverted_short_segment() -> None:
 
 def test_shape_detects_normal() -> None:
     pts = [
-        _tenor("3M", 4.0), _tenor("2Y", 4.3), _tenor("5Y", 4.5),
-        _tenor("10Y", 4.7), _tenor("30Y", 5.0),
+        _tenor("3M", 4.0),
+        _tenor("2Y", 4.3),
+        _tenor("5Y", 4.5),
+        _tenor("10Y", 4.7),
+        _tenor("30Y", 5.0),
     ]
     shape = _shape(pts, slope_2y_10y=0.4)
     assert shape == "normal"
@@ -292,8 +324,11 @@ def test_shape_detects_normal() -> None:
 
 def test_shape_detects_flat() -> None:
     pts = [
-        _tenor("3M", 4.0), _tenor("2Y", 4.05), _tenor("5Y", 4.1),
-        _tenor("10Y", 4.15), _tenor("30Y", 4.18),
+        _tenor("3M", 4.0),
+        _tenor("2Y", 4.05),
+        _tenor("5Y", 4.1),
+        _tenor("10Y", 4.15),
+        _tenor("30Y", 4.18),
     ]
     shape = _shape(pts, slope_2y_10y=0.10)
     assert shape == "flat"
@@ -318,8 +353,10 @@ def test_render_yield_curve_no_data() -> None:
 def test_render_yield_curve_full_payload() -> None:
     r = YieldCurveReading(
         points=[
-            _tenor("3M", 5.30), _tenor("2Y", 4.85),
-            _tenor("10Y", 4.45), _tenor("30Y", 4.65),
+            _tenor("3M", 5.30),
+            _tenor("2Y", 4.85),
+            _tenor("10Y", 4.45),
+            _tenor("30Y", 4.65),
         ],
         slope_3m_10y=-0.85,
         slope_2y_10y=-0.40,

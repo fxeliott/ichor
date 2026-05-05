@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import ARRAY, JSON, DateTime, Integer, String, Text
+from sqlalchemy import ARRAY, DateTime, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -29,9 +29,7 @@ class Briefing(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     assets: Mapped[list[str]] = mapped_column(ARRAY(String(16)), nullable=False)
 
     # Pipeline state
-    status: Mapped[str] = mapped_column(
-        String(32), nullable=False, default="pending", index=True
-    )
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending", index=True)
     """pending → context_assembled → claude_running → completed | failed"""
 
     # Inputs

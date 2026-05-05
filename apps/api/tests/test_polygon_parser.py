@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-
 from ichor_api.collectors.polygon import (
     ASSET_TO_TICKER,
     parse_aggs_response,
@@ -20,8 +19,14 @@ def test_supported_assets_covers_all_phase1() -> None:
     (e.g. BTC_USD as cross-asset proxy) are allowed — use ⊇ not ==."""
     assets = set(supported_assets())
     phase1 = {
-        "EUR_USD", "GBP_USD", "USD_JPY", "AUD_USD", "USD_CAD",
-        "XAU_USD", "NAS100_USD", "SPX500_USD",
+        "EUR_USD",
+        "GBP_USD",
+        "USD_JPY",
+        "AUD_USD",
+        "USD_CAD",
+        "XAU_USD",
+        "NAS100_USD",
+        "SPX500_USD",
     }
     assert phase1 <= assets, f"Phase-1 not subset: missing {phase1 - assets}"
 
@@ -31,7 +36,7 @@ def test_asset_to_ticker_uses_correct_namespaces() -> None:
     # under the C: prefix. X: is crypto only. Verified against
     # massive.com/blog/real-time-forex-data-plans (2026-05-03).
     assert ASSET_TO_TICKER["EUR_USD"] == "C:EURUSD"
-    assert ASSET_TO_TICKER["XAU_USD"] == "C:XAUUSD"   # spot gold = currencies, not crypto
+    assert ASSET_TO_TICKER["XAU_USD"] == "C:XAUUSD"  # spot gold = currencies, not crypto
     assert ASSET_TO_TICKER["NAS100_USD"] == "I:NDX"
     assert ASSET_TO_TICKER["SPX500_USD"] == "I:SPX"
 
@@ -86,7 +91,7 @@ def test_parse_aggs_skips_rows_missing_ohlc() -> None:
     body = _ok_body(
         {"t": 1_762_550_400_000, "o": 1.0, "h": 1.1, "l": 0.9, "c": 1.05},  # ok
         {"t": 1_762_550_460_000, "o": 1.0, "h": 1.1},  # missing l, c → drop
-        {"o": 1.0, "h": 1.1, "l": 0.9, "c": 1.05},      # missing t → drop
+        {"o": 1.0, "h": 1.1, "l": 0.9, "c": 1.05},  # missing t → drop
     )
     bars = parse_aggs_response("EUR_USD", "C:EURUSD", body)
     assert len(bars) == 1
@@ -98,9 +103,7 @@ def test_parse_aggs_handles_empty_results() -> None:
 
 
 def test_parse_aggs_optional_fields_default_to_none() -> None:
-    body = _ok_body(
-        {"t": 1_762_550_400_000, "o": 1.0, "h": 1.1, "l": 0.9, "c": 1.05}
-    )
+    body = _ok_body({"t": 1_762_550_400_000, "o": 1.0, "h": 1.1, "l": 0.9, "c": 1.05})
     bar = parse_aggs_response("EUR_USD", "C:EURUSD", body)[0]
     assert bar.volume is None
     assert bar.vwap is None
@@ -110,10 +113,9 @@ def test_parse_aggs_optional_fields_default_to_none() -> None:
 def test_fetch_aggs_rejects_unknown_asset() -> None:
     """`fetch_aggs` should fail fast on an unknown asset before any HTTP call."""
     import asyncio
+    from datetime import date
 
     from ichor_api.collectors.polygon import fetch_aggs
-
-    from datetime import date
 
     async def _go() -> None:
         with pytest.raises(ValueError):

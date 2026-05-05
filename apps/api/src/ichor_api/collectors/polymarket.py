@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import httpx
 import structlog
@@ -113,7 +113,7 @@ def _parse_market(slug: str, payload: dict) -> PolymarketSnapshot | None:
         outcomes=outcomes,
         last_prices=prices,
         volume_usd=volume,
-        fetched_at=datetime.now(timezone.utc),
+        fetched_at=datetime.now(UTC),
     )
 
 

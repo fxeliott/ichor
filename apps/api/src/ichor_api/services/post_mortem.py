@@ -20,7 +20,7 @@ from __future__ import annotations
 import logging
 from collections import Counter, defaultdict
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import uuid4
 
@@ -64,9 +64,11 @@ async def _top_hits_and_miss(
     """
     from sqlalchemy import text as sa_text
 
-    hits_rows = (await session.execute(
-        sa_text(
-            """
+    hits_rows = (
+        (
+            await session.execute(
+                sa_text(
+                    """
             SELECT id, asset, direction, generated_at, calibrated_probability,
                    realized_direction, brier_contribution
             FROM predictions_audit
@@ -75,13 +77,19 @@ async def _top_hits_and_miss(
             ORDER BY brier_contribution ASC
             LIMIT 5
             """
-        ),
-        {"since": since},
-    )).mappings().all()
+                ),
+                {"since": since},
+            )
+        )
+        .mappings()
+        .all()
+    )
 
-    miss_rows = (await session.execute(
-        sa_text(
-            """
+    miss_rows = (
+        (
+            await session.execute(
+                sa_text(
+                    """
             SELECT id, asset, direction, generated_at, calibrated_probability,
                    realized_direction, brier_contribution
             FROM predictions_audit
@@ -90,9 +98,13 @@ async def _top_hits_and_miss(
             ORDER BY brier_contribution DESC
             LIMIT 5
             """
-        ),
-        {"since": since},
-    )).mappings().all()
+                ),
+                {"since": since},
+            )
+        )
+        .mappings()
+        .all()
+    )
 
     return (
         [dict(r) for r in hits_rows],
@@ -100,26 +112,30 @@ async def _top_hits_and_miss(
     )
 
 
-async def _calibration_summary(
-    session: AsyncSession, *, now: datetime
-) -> dict[str, Any]:
+async def _calibration_summary(session: AsyncSession, *, now: datetime) -> dict[str, Any]:
     """Average Brier on 7d, 30d, 90d windows."""
     from sqlalchemy import text as sa_text
 
     out: dict[str, Any] = {}
     for label, days in (("brier_7d", 7), ("brier_30d", 30), ("brier_90d", 90)):
         cutoff = now - timedelta(days=days)
-        row = (await session.execute(
-            sa_text(
-                """
+        row = (
+            (
+                await session.execute(
+                    sa_text(
+                        """
                 SELECT AVG(brier_contribution) AS avg, COUNT(*) AS n
                 FROM predictions_audit
                 WHERE generated_at >= :cutoff
                   AND brier_contribution IS NOT NULL
                 """
-            ),
-            {"cutoff": cutoff},
-        )).mappings().first()
+                    ),
+                    {"cutoff": cutoff},
+                )
+            )
+            .mappings()
+            .first()
+        )
         if row is None:
             out[label] = None
             out[f"{label}_n"] = 0
@@ -152,18 +168,24 @@ async def _detect_drift_per_asset(
         log.debug("ichor_ml.regime.concept_drift import failed: %s", exc)
         return []
 
-    rows = (await session.execute(
-        sa_text(
-            """
+    rows = (
+        (
+            await session.execute(
+                sa_text(
+                    """
             SELECT asset, generated_at, brier_contribution
             FROM predictions_audit
             WHERE generated_at >= :since
               AND brier_contribution IS NOT NULL
             ORDER BY asset, generated_at ASC
             """
-        ),
-        {"since": since - timedelta(days=83)},  # 90d total window for stable detection
-    )).mappings().all()
+                ),
+                {"since": since - timedelta(days=83)},  # 90d total window for stable detection
+            )
+        )
+        .mappings()
+        .all()
+    )
 
     by_asset: dict[str, list[float]] = defaultdict(list)
     for r in rows:
@@ -268,13 +290,9 @@ async def _build_suggestions(
         (4, "invalidation"),
     ):
         try:
-            should_rb, reason = await detect_rollback(
-                session, pass_index=pass_idx, scope=scope
-            )
+            should_rb, reason = await detect_rollback(session, pass_index=pass_idx, scope=scope)
         except Exception as exc:
-            log.debug(
-                "detect_rollback(%d, %s) failed: %s", pass_idx, scope, exc
-            )
+            log.debug("detect_rollback(%d, %s) failed: %s", pass_idx, scope, exc)
             continue
         if should_rb:
             out.append(
@@ -299,15 +317,15 @@ async def _build_suggestions(
     return out
 
 
-async def _recent_narratives(
-    session: AsyncSession, *, since: datetime
-) -> list[dict[str, Any]]:
+async def _recent_narratives(session: AsyncSession, *, since: datetime) -> list[dict[str, Any]]:
     """Pull narratives from latest news_nlp Couche-2 outputs."""
     from sqlalchemy import text as sa_text
 
-    rows = (await session.execute(
-        sa_text(
-            """
+    rows = (
+        (
+            await session.execute(
+                sa_text(
+                    """
             SELECT payload, ran_at
             FROM couche2_outputs
             WHERE agent_kind = 'news_nlp'
@@ -316,9 +334,13 @@ async def _recent_narratives(
             ORDER BY ran_at DESC
             LIMIT 5
             """
-        ),
-        {"since": since},
-    )).mappings().all()
+                ),
+                {"since": since},
+            )
+        )
+        .mappings()
+        .all()
+    )
     out: list[dict[str, Any]] = []
     for r in rows:
         payload = r["payload"]
@@ -329,7 +351,9 @@ async def _recent_narratives(
                         "label": n.get("label"),
                         "sentiment": n.get("sentiment"),
                         "intensity": n.get("intensity"),
-                        "ran_at": r["ran_at"].isoformat() if hasattr(r["ran_at"], "isoformat") else str(r["ran_at"]),
+                        "ran_at": r["ran_at"].isoformat()
+                        if hasattr(r["ran_at"], "isoformat")
+                        else str(r["ran_at"]),
                     }
                 )
     return out[:10]
@@ -339,7 +363,7 @@ async def build_post_mortem(
     session: AsyncSession, *, now: datetime | None = None
 ) -> PostMortemPayload:
     """Build the post-mortem for the ISO week containing `now` (default: now UTC)."""
-    now = now or datetime.now(timezone.utc)
+    now = now or datetime.now(UTC)
     week_start = now - timedelta(days=7)
     iso_y, iso_w = iso_week(now)
 
@@ -385,7 +409,9 @@ def render_markdown(p: PostMortemPayload) -> str:
     lines.append("")
 
     lines.append("## 1. Header")
-    lines.append(f"- # cards analysées : {p.stats.get('n_top_hits', 0) + p.stats.get('n_top_miss', 0)}")
+    lines.append(
+        f"- # cards analysées : {p.stats.get('n_top_hits', 0) + p.stats.get('n_top_miss', 0)}"
+    )
     lines.append(f"- # narratives détectées : {p.stats.get('n_narratives', 0)}")
     lines.append("")
 
@@ -423,8 +449,7 @@ def render_markdown(p: PostMortemPayload) -> str:
             idx = d.get("drift_at_index", "?")
             n = d.get("n_residuals", "?")
             lines.append(
-                f"- **{asset}** : drift @ idx {idx}/{n} · "
-                f"mean Brier (last 30) = {mean_b_str}"
+                f"- **{asset}** : drift @ idx {idx}/{n} · mean Brier (last 30) = {mean_b_str}"
             )
     else:
         lines.append("- (no drift flags in this window)")
@@ -451,12 +476,8 @@ def render_markdown(p: PostMortemPayload) -> str:
     lines.append("## 7. Suggestions amendments")
     for s in p.suggestions:
         kind = s.get("kind", "info")
-        prefix = {"reweight": "⚖️", "drift": "📉", "rollback": "↩️", "info": "ℹ️"}.get(
-            kind, "·"
-        )
-        lines.append(
-            f"- {prefix} **{s.get('title', '?')}** : {s.get('rationale', '?')}"
-        )
+        prefix = {"reweight": "⚖️", "drift": "📉", "rollback": "↩️", "info": "ℹ️"}.get(kind, "·")
+        lines.append(f"- {prefix} **{s.get('title', '?')}** : {s.get('rationale', '?')}")
     lines.append("")
 
     lines.append("## 8. Stats raw")

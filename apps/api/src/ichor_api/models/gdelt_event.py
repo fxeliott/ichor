@@ -22,15 +22,11 @@ class GdeltEvent(Base):
 
     __tablename__ = "gdelt_events"
 
-    id: Mapped[UUID] = mapped_column(
-        PG_UUID(as_uuid=True), primary_key=True, default=uuid4
-    )
+    id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
     seendate: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), primary_key=True, index=True
     )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
     query_label: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     url: Mapped[str] = mapped_column(String(1024), nullable=False)
@@ -40,6 +36,4 @@ class GdeltEvent(Base):
     sourcecountry: Mapped[str | None] = mapped_column(String(32))
     tone: Mapped[float] = mapped_column(Float, nullable=False)
     image_url: Mapped[str | None] = mapped_column(String(1024))
-    fetched_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
+    fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

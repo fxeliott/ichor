@@ -19,7 +19,7 @@ Two views :
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Query
@@ -81,13 +81,11 @@ async def news_network(
     so we re-derive the graph from `news_items` directly. This avoids
     AGE permission issues and keeps the route latency low (< 100 ms).
     """
-    cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
+    cutoff = datetime.now(UTC) - timedelta(hours=hours)
     rows = list(
         (
             await session.execute(
-                select(NewsItem.title, NewsItem.summary).where(
-                    NewsItem.published_at >= cutoff
-                )
+                select(NewsItem.title, NewsItem.summary).where(NewsItem.published_at >= cutoff)
             )
         ).all()
     )
@@ -211,8 +209,7 @@ async def causal_map() -> GraphOut:
         for node_id, label, kind in _CAUSAL_NODES
     ]
     edges = [
-        GraphEdge(source=s, target=t, weight=w, kind="CAUSAL_FORWARD")
-        for s, t, w in _CAUSAL_EDGES
+        GraphEdge(source=s, target=t, weight=w, kind="CAUSAL_FORWARD") for s, t, w in _CAUSAL_EDGES
     ]
     return GraphOut(
         window_hours=0,
@@ -262,9 +259,7 @@ async def shock(body: ShockRequest) -> ShockResponse:
     except ValueError as e:
         from fastapi import HTTPException, status
 
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     return ShockResponse(
         shock_node=body.shock_node,
         shock_probability=body.shock_probability,

@@ -20,15 +20,11 @@ class ManifoldMarket(Base):
 
     __tablename__ = "manifold_markets"
 
-    id: Mapped[UUID] = mapped_column(
-        PG_UUID(as_uuid=True), primary_key=True, default=uuid4
-    )
+    id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
     fetched_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), primary_key=True, index=True
     )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
     slug: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
     market_id: Mapped[str] = mapped_column(String(128), nullable=False)

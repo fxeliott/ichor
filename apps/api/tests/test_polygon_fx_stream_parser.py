@@ -16,7 +16,7 @@ run instantly without hitting the network.
 from __future__ import annotations
 
 import json
-from datetime import UTC, datetime
+from datetime import UTC
 
 from ichor_api.collectors.polygon_fx_stream import (
     DEFAULT_PAIRS,
@@ -25,7 +25,6 @@ from ichor_api.collectors.polygon_fx_stream import (
     parse_frame,
     parse_quote_message,
 )
-
 
 # ───────────────────── _ticker_to_asset ─────────────────────
 
@@ -151,9 +150,7 @@ def test_parse_frame_extracts_quotes_from_array() -> None:
 
 def test_parse_frame_handles_single_object() -> None:
     """Some frames (status messages) come as a single object, not array."""
-    frame = json.dumps(
-        {"ev": "C", "p": "EUR/USD", "b": 1.0995, "a": 1.0997, "t": 1700000000000}
-    )
+    frame = json.dumps({"ev": "C", "p": "EUR/USD", "b": 1.0995, "a": 1.0997, "t": 1700000000000})
     out = parse_frame(frame)
     assert len(out) == 1
     assert out[0].asset == "EURUSD"

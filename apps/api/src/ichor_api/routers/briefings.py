@@ -19,7 +19,9 @@ router = APIRouter(prefix="/v1/briefings", tags=["briefings"])
 @router.get("", response_model=BriefingListOut)
 async def list_briefings(
     session: Annotated[AsyncSession, Depends(get_session)],
-    briefing_type: str | None = Query(None, regex=r"^(pre_londres|pre_ny|ny_mid|ny_close|weekly|crisis)$"),
+    briefing_type: str | None = Query(
+        None, regex=r"^(pre_londres|pre_ny|ny_mid|ny_close|weekly|crisis)$"
+    ),
     asset: str | None = Query(None, regex=r"^[A-Z0-9_]{3,16}$"),
     limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0),

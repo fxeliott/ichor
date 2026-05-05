@@ -66,7 +66,7 @@ _PROFILES: dict[str, InterventionProfile] = {
         scale=2.0,
         direction=+1,
         note="MoF historically intervenes when USD/JPY > 150, "
-             "with sharp escalation 152+. 2022 + 2024 spotted.",
+        "with sharp escalation 152+. 2022 + 2024 spotted.",
     ),
     "EUR_CHF": InterventionProfile(
         asset="EUR_CHF",
@@ -75,7 +75,7 @@ _PROFILES: dict[str, InterventionProfile] = {
         scale=0.02,
         direction=-1,
         note="SNB defends EUR/CHF floor — intervention risk rises "
-             "as EUR/CHF drops below 0.95. 1.20 peg 2011-2015.",
+        "as EUR/CHF drops below 0.95. 1.20 peg 2011-2015.",
     ),
     "USD_CNH": InterventionProfile(
         asset="USD_CNH",
@@ -84,7 +84,7 @@ _PROFILES: dict[str, InterventionProfile] = {
         scale=0.05,
         direction=+1,
         note="PBoC tightens fix when USD/CNH > 7.30. Daily fix is itself "
-             "an intervention tool ; spot vs fix gap = signal.",
+        "an intervention tool ; spot vs fix gap = signal.",
     ),
 }
 

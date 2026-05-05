@@ -21,15 +21,9 @@ from .base import Base
 class FxTick(Base):
     __tablename__ = "fx_ticks"
 
-    id: Mapped[UUID] = mapped_column(
-        PG_UUID(as_uuid=True), primary_key=True, default=uuid4
-    )
-    ts: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), primary_key=True, index=True
-    )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
+    id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
+    ts: Mapped[datetime] = mapped_column(DateTime(timezone=True), primary_key=True, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
     asset: Mapped[str] = mapped_column(String(16), nullable=False, index=True)
     ticker: Mapped[str] = mapped_column(String(32), nullable=False)

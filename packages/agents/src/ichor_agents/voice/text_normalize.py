@@ -75,9 +75,11 @@ def _normalize_currencies(text: str) -> str:
 
     def repl(m: re.Match) -> str:
         num = m.group(1).replace(",", ".")
-        mult_word = {"B": "milliards de dollars", "M": "millions de dollars", "K": "milliers de dollars"}[
-            m.group(2)
-        ]
+        mult_word = {
+            "B": "milliards de dollars",
+            "M": "millions de dollars",
+            "K": "milliers de dollars",
+        }[m.group(2)]
         return f"{num} {mult_word}"
 
     return pattern.sub(repl, text)

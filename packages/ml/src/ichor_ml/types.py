@@ -6,15 +6,21 @@ table (see Phase 0 W2 step 17) and consumed by the Bias Aggregator + UI.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Literal
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field
 
 AssetCode = Literal[
-    "EUR_USD", "XAU_USD", "NAS100_USD", "USD_JPY", "SPX500_USD",
-    "GBP_USD", "AUD_USD", "USD_CAD",
+    "EUR_USD",
+    "XAU_USD",
+    "NAS100_USD",
+    "USD_JPY",
+    "SPX500_USD",
+    "GBP_USD",
+    "AUD_USD",
+    "USD_CAD",
 ]
 
 Direction = Literal["long", "short", "neutral"]
@@ -26,9 +32,17 @@ class Prediction(BaseModel):
     prediction_id: UUID = Field(default_factory=uuid4)
     model_id: str  # e.g. "lightgbm-v0.3-eurusd-1h"
     model_family: Literal[
-        "lightgbm", "xgboost", "random_forest", "logistic_reg",
-        "bayesian_numpyro", "mlp_torch", "hmm", "har_rv", "vpin",
-        "finbert_tone", "fomc_roberta",
+        "lightgbm",
+        "xgboost",
+        "random_forest",
+        "logistic_reg",
+        "bayesian_numpyro",
+        "mlp_torch",
+        "hmm",
+        "har_rv",
+        "vpin",
+        "finbert_tone",
+        "fomc_roberta",
     ]
     asset: AssetCode
     horizon_hours: int = Field(ge=1, le=168)
@@ -43,7 +57,7 @@ class Prediction(BaseModel):
     feature_snapshot_hash: str
     """SHA256 of the feature vector used. Enables exact reproduction."""
 
-    generated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    generated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 class BiasSignal(BaseModel):
@@ -68,7 +82,7 @@ class BiasSignal(BaseModel):
     """Brier-weight applied to each model_family at this run."""
 
     notes: str | None = None
-    generated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    generated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 class ModelCard(BaseModel):

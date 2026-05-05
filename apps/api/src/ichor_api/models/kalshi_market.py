@@ -21,15 +21,11 @@ class KalshiMarket(Base):
 
     __tablename__ = "kalshi_markets"
 
-    id: Mapped[UUID] = mapped_column(
-        PG_UUID(as_uuid=True), primary_key=True, default=uuid4
-    )
+    id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
     fetched_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), primary_key=True, index=True
     )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
     ticker: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
     title: Mapped[str] = mapped_column(String(512), nullable=False)

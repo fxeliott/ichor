@@ -7,10 +7,13 @@ from SOPS-decrypted infra/secrets/*.env.
 
 from __future__ import annotations
 
+import logging
 from typing import Literal
 
-from pydantic import Field, PostgresDsn, RedisDsn
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+logger = logging.getLogger(__name__)
 
 
 class Settings(BaseSettings):
@@ -37,8 +40,11 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379/0"
 
     # --- Tunnel to claude-runner ---
-    claude_runner_url: str = "https://placeholder.cfargotunnel.com"
-    """Set to <TUNNEL-UUID>.cfargotunnel.com after CF Tunnel created."""
+    claude_runner_url: str = ""
+    """Empty by default — must be set via ICHOR_API_CLAUDE_RUNNER_URL env var to
+    `https://<TUNNEL-UUID>.cfargotunnel.com` once Cloudflare Tunnel is created.
+    Empty value disables Claude routing (Couche-2 falls back to Cerebras/Groq).
+    Validated at startup via `validate_claude_runner_url()` (raises in production)."""
     cf_access_client_id: str = ""
     cf_access_client_secret: str = ""
 
@@ -86,9 +92,47 @@ class Settings(BaseSettings):
     briefing_assets_p1: list[str] = Field(
         default_factory=lambda: ["EUR_USD", "XAU_USD", "NAS100_USD", "USD_JPY", "SPX500_USD"]
     )
-    briefing_assets_p2: list[str] = Field(
-        default_factory=lambda: ["GBP_USD", "AUD_USD", "USD_CAD"]
-    )
+    briefing_assets_p2: list[str] = Field(default_factory=lambda: ["GBP_USD", "AUD_USD", "USD_CAD"])
+
+    # --- Mastodon followed feeds ---
+    # CSV-encoded list of `kind:instance:handle` triples, e.g.
+    #   "user:mastodon.social:alice,tag:econtwitter.net:macroeconomics".
+    # Empty = collector no-ops (cron timer can register but skip).
+    # Each entry expands to https://{instance}/users/{handle}.atom
+    # (kind=user) or https://{instance}/tags/{handle}.atom (kind=tag).
+    mastodon_followed_feeds: str = ""
+    """Comma-separated list of `kind:instance:handle` triples.
+    Example : "user:mastodon.social:bopp,tag:econtwitter.net:fomc".
+    Read by `cli.run_mastodon_collector` to enumerate the feeds to fetch.
+    """
+
+    @model_validator(mode="after")
+    def validate_claude_runner_url(self) -> Settings:
+        """Warn (or raise in production) when the Claude runner URL is unset.
+
+        Behavior:
+          - production + empty url    → raise ValueError (boot fails fast)
+          - non-production + empty    → log warning, allow continue
+          - placeholder.cfargotunnel  → raise (legacy bug #6 fingerprint)
+        """
+        url = self.claude_runner_url.strip()
+        if "placeholder.cfargotunnel.com" in url:
+            raise ValueError(
+                "ICHOR_API_CLAUDE_RUNNER_URL still points at the legacy "
+                "placeholder. Set it to https://<TUNNEL-UUID>.cfargotunnel.com."
+            )
+        if not url:
+            if self.environment == "production":
+                raise ValueError(
+                    "ICHOR_API_CLAUDE_RUNNER_URL is required in production. "
+                    "Couche-2 routing (CB-NLP, News-NLP, Sentiment, Positioning) "
+                    "would fall back to Cerebras/Groq silently otherwise."
+                )
+            logger.warning(
+                "claude_runner_url is empty — Couche-2 will fall back to "
+                "Cerebras/Groq. Acceptable in development; required in production."
+            )
+        return self
 
 
 _settings: Settings | None = None

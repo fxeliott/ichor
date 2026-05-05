@@ -24,13 +24,12 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models import PolygonIntradayBar
-
 
 _ASSETS = (
     "EUR_USD",
@@ -102,7 +101,7 @@ async def _hourly_returns(
     Sampling at hourly frequency keeps the math tractable ; minute-level
     correlation is dominated by noise on such a small dataset.
     """
-    cutoff = datetime.now(timezone.utc) - timedelta(days=window_days)
+    cutoff = datetime.now(UTC) - timedelta(days=window_days)
     rows = list(
         (
             await session.execute(
@@ -113,7 +112,9 @@ async def _hourly_returns(
                 )
                 .order_by(PolygonIntradayBar.bar_ts.asc())
             )
-        ).scalars().all()
+        )
+        .scalars()
+        .all()
     )
     if len(rows) < 30:
         return {}
@@ -137,18 +138,14 @@ async def _hourly_returns(
     return out
 
 
-async def assess_correlations(
-    session: AsyncSession, *, window_days: int = 30
-) -> CorrelationMatrix:
+async def assess_correlations(session: AsyncSession, *, window_days: int = 30) -> CorrelationMatrix:
     """Build the 8×8 correlation matrix over the rolling window."""
     series: dict[str, dict[datetime, float]] = {}
     for asset in _ASSETS:
         series[asset] = await _hourly_returns(session, asset, window_days)
 
     n_assets = len(_ASSETS)
-    matrix: list[list[float | None]] = [
-        [None] * n_assets for _ in range(n_assets)
-    ]
+    matrix: list[list[float | None]] = [[None] * n_assets for _ in range(n_assets)]
     max_overlap = 0
 
     for i, a in enumerate(_ASSETS):
@@ -182,8 +179,7 @@ async def assess_correlations(
             if abs(delta) >= 0.30:
                 tag = "tighter" if delta > 0 else "looser"
                 flags.append(
-                    f"{a}/{b} unusually {tag} : "
-                    f"{realized:+.2f} vs ref {ref:+.2f} ({delta:+.2f})"
+                    f"{a}/{b} unusually {tag} : {realized:+.2f} vs ref {ref:+.2f} ({delta:+.2f})"
                 )
 
     return CorrelationMatrix(
@@ -191,7 +187,7 @@ async def assess_correlations(
         assets=list(_ASSETS),
         matrix=matrix,
         n_returns_used=max_overlap,
-        generated_at=datetime.now(timezone.utc),
+        generated_at=datetime.now(UTC),
         flags=flags,
     )
 
@@ -206,8 +202,7 @@ def render_correlations_block(m: CorrelationMatrix) -> tuple[str, list[str]]:
         )
 
     lines = [
-        f"## Cross-asset correlations ({m.window_days}d, hourly log returns, "
-        f"n={m.n_returns_used})"
+        f"## Cross-asset correlations ({m.window_days}d, hourly log returns, n={m.n_returns_used})"
     ]
     # Compact upper-triangle list rather than full matrix
     rows: list[str] = []
@@ -218,9 +213,7 @@ def render_correlations_block(m: CorrelationMatrix) -> tuple[str, list[str]]:
                 continue
             ref = _ref_corr(m.assets[i], m.assets[j])
             ref_part = f" (ref {ref:+.2f})" if ref is not None else ""
-            rows.append(
-                f"  · {m.assets[i]:<11s} ↔ {m.assets[j]:<11s} = {v:+.2f}{ref_part}"
-            )
+            rows.append(f"  · {m.assets[i]:<11s} ↔ {m.assets[j]:<11s} = {v:+.2f}{ref_part}")
     lines.append("- Pairwise (upper triangle) :")
     lines.extend(rows)
 

@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from datetime import UTC
 
 import structlog
 from sqlalchemy import text
@@ -26,8 +27,14 @@ log = structlog.get_logger(__name__)
 # ───────────────────────── canonical entities ─────────────────────────
 
 _ASSET_CODES = (
-    "EUR_USD", "GBP_USD", "USD_JPY", "AUD_USD", "USD_CAD",
-    "XAU_USD", "NAS100_USD", "SPX500_USD",
+    "EUR_USD",
+    "GBP_USD",
+    "USD_JPY",
+    "AUD_USD",
+    "USD_CAD",
+    "XAU_USD",
+    "NAS100_USD",
+    "SPX500_USD",
 )
 # Map free-form mentions back to canonical codes
 _ASSET_MENTIONS = {
@@ -40,9 +47,7 @@ _ASSET_MENTIONS = {
     r"\bNAS100\b|\bNasdaq\s*100\b|\bNDX\b": "NAS100_USD",
     r"\bSPX500\b|\bS&P\s*500\b|\bSP500\b|\bS\s*and\s*P\s*500\b": "SPX500_USD",
 }
-_ASSET_PATTERNS = [
-    (re.compile(pat, re.IGNORECASE), code) for pat, code in _ASSET_MENTIONS.items()
-]
+_ASSET_PATTERNS = [(re.compile(pat, re.IGNORECASE), code) for pat, code in _ASSET_MENTIONS.items()]
 
 _INSTITUTIONS = {
     "Fed": r"\bFed\b|\bFederal Reserve\b|\bFOMC\b",
@@ -133,24 +138,23 @@ $$, %s) AS (v ag_catalog.agtype);
 """
 
 
-async def populate_news_edges(
-    session: AsyncSession, *, since_minutes: int = 60 * 24 * 7
-) -> int:
+async def populate_news_edges(session: AsyncSession, *, since_minutes: int = 60 * 24 * 7) -> int:
     """Walk recent news_items and populate the AGE graph.
 
     Returns the number of NewsArticle nodes touched (created or merged).
     """
-    from datetime import datetime, timedelta, timezone
+    from datetime import datetime, timedelta
 
-    from ..models import NewsItem
     from sqlalchemy import select
 
-    cutoff = datetime.now(timezone.utc) - timedelta(minutes=since_minutes)
+    from ..models import NewsItem
+
+    cutoff = datetime.now(UTC) - timedelta(minutes=since_minutes)
     rows = (
-        await session.execute(
-            select(NewsItem).where(NewsItem.published_at >= cutoff)
-        )
-    ).scalars().all()
+        (await session.execute(select(NewsItem).where(NewsItem.published_at >= cutoff)))
+        .scalars()
+        .all()
+    )
 
     if not rows:
         return 0
@@ -179,7 +183,9 @@ async def populate_news_edges(
             except Exception as e:
                 log.warning(
                     "graph.merge_mentions_asset_failed",
-                    guid=r.guid_hash, asset=asset, error=str(e),
+                    guid=r.guid_hash,
+                    asset=asset,
+                    error=str(e),
                 )
 
         for inst in institutions:
@@ -192,7 +198,9 @@ async def populate_news_edges(
             except Exception as e:
                 log.warning(
                     "graph.merge_mentions_institution_failed",
-                    guid=r.guid_hash, inst=inst, error=str(e),
+                    guid=r.guid_hash,
+                    inst=inst,
+                    error=str(e),
                 )
 
         touched += 1

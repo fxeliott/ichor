@@ -22,20 +22,20 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import re
+from collections.abc import Iterable
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
-from typing import Iterable
 from xml.etree import ElementTree as ET
+
+import httpx
+import structlog
 
 # defusedxml is a drop-in for `ElementTree.fromstring` that disables
 # entity expansion attacks (billion-laughs, quadratic-blowup). The
 # stdlib parser still accepts those even with externals off in 3.12.
 # See HIGH/MED-1 in docs/audits/security-2026-05-03.md.
 from defusedxml.ElementTree import fromstring as defused_fromstring
-
-import httpx
-import structlog
 
 log = structlog.get_logger(__name__)
 
@@ -126,11 +126,11 @@ def _full_text(elem: ET.Element | None) -> str:
 def _parse_date(raw: str | None) -> datetime:
     """Parse RFC-822 (RSS) and ISO-8601 (Atom). Fallback to now on failure."""
     if not raw:
-        return datetime.now(timezone.utc)
+        return datetime.now(UTC)
     try:
         dt = parsedate_to_datetime(raw)
         if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=timezone.utc)
+            dt = dt.replace(tzinfo=UTC)
         return dt
     except (TypeError, ValueError):
         pass
@@ -138,7 +138,7 @@ def _parse_date(raw: str | None) -> datetime:
         # Atom-style ISO 8601
         return datetime.fromisoformat(raw.replace("Z", "+00:00"))
     except ValueError:
-        return datetime.now(timezone.utc)
+        return datetime.now(UTC)
 
 
 def _hash(*parts: str) -> str:
@@ -163,7 +163,7 @@ def parse_feed(source: FeedSource, body: bytes) -> list[NewsItem]:
         return []
 
     items: list[NewsItem] = []
-    fetched = datetime.now(timezone.utc)
+    fetched = datetime.now(UTC)
 
     # RSS 2.0 — <channel><item>
     for item in root.iterfind(".//item"):
@@ -241,8 +241,7 @@ async def fetch_feed(
             headers={
                 "User-Agent": user_agent,
                 "Accept": (
-                    "application/rss+xml, application/atom+xml, "
-                    "application/xml;q=0.8, */*;q=0.5"
+                    "application/rss+xml, application/atom+xml, application/xml;q=0.8, */*;q=0.5"
                 ),
             },
         )

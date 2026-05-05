@@ -5,7 +5,8 @@ from __future__ import annotations
 from datetime import datetime
 
 from sqlalchemy import ARRAY, DateTime, Float, Integer, String, Text
-from sqlalchemy.dialects.postgresql import JSONB, UUID as PG_UUID
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .base import Base, TimestampMixin, UUIDPrimaryKeyMixin

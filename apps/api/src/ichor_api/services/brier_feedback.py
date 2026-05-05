@@ -21,8 +21,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
-from typing import Literal
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -55,7 +54,7 @@ class BrierFeedbackReport:
     """Fraction of cards with conviction < 30% that were directionally correct."""
     flags: list[str] = field(default_factory=list)
     """Notable patterns : "USD_JPY pre_ny over-performs (Brier=0.18)" etc."""
-    generated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    generated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 def _direction_realized(
@@ -80,7 +79,7 @@ def _direction_realized(
 async def assess_brier_feedback(
     session: AsyncSession, *, window_days: int = 30
 ) -> BrierFeedbackReport:
-    cutoff = datetime.now(timezone.utc) - timedelta(days=window_days)
+    cutoff = datetime.now(UTC) - timedelta(days=window_days)
     rows = list(
         (
             await session.execute(
@@ -91,7 +90,9 @@ async def assess_brier_feedback(
                 )
                 .order_by(SessionCardAudit.created_at.desc())
             )
-        ).scalars().all()
+        )
+        .scalars()
+        .all()
     )
 
     n = len(rows)
@@ -133,11 +134,7 @@ async def assess_brier_feedback(
                 # Approximate: we don't have entry spot here. Use Brier
                 # contribution as a proxy : low Brier (<0.25) = correct call.
                 wins.append(float(it.brier_contribution) < 0.25)
-            wr = (
-                round(sum(1 for w in wins if w) / len(wins), 3)
-                if wins
-                else None
-            )
+            wr = round(sum(1 for w in wins if w) / len(wins), 3) if wins else None
             out.append(
                 GroupStat(
                     key=k,
@@ -154,17 +151,12 @@ async def assess_brier_feedback(
     by_regime = group(lambda r: r.regime_quadrant)
 
     high_conv = [
-        r for r in rows
-        if r.conviction_pct is not None and float(r.conviction_pct) >= 70.0
+        r for r in rows if r.conviction_pct is not None and float(r.conviction_pct) >= 70.0
     ]
-    low_conv = [
-        r for r in rows
-        if r.conviction_pct is not None and float(r.conviction_pct) < 30.0
-    ]
+    low_conv = [r for r in rows if r.conviction_pct is not None and float(r.conviction_pct) < 30.0]
     hc_wins = (
         round(
-            sum(1 for r in high_conv if float(r.brier_contribution) < 0.25)
-            / len(high_conv),
+            sum(1 for r in high_conv if float(r.brier_contribution) < 0.25) / len(high_conv),
             3,
         )
         if high_conv
@@ -172,8 +164,7 @@ async def assess_brier_feedback(
     )
     lc_wins = (
         round(
-            sum(1 for r in low_conv if float(r.brier_contribution) < 0.25)
-            / len(low_conv),
+            sum(1 for r in low_conv if float(r.brier_contribution) < 0.25) / len(low_conv),
             3,
         )
         if low_conv
@@ -185,17 +176,13 @@ async def assess_brier_feedback(
     if by_asset and len(by_asset) >= 2:
         best = by_asset[0]
         worst = by_asset[-1]
-        flags.append(
-            f"Best asset : {best.key} (Brier {best.avg_brier:.3f}, n={best.n})"
-        )
-        flags.append(
-            f"Worst asset : {worst.key} (Brier {worst.avg_brier:.3f}, n={worst.n})"
-        )
+        flags.append(f"Best asset : {best.key} (Brier {best.avg_brier:.3f}, n={best.n})")
+        flags.append(f"Worst asset : {worst.key} (Brier {worst.avg_brier:.3f}, n={worst.n})")
     if hc_wins is not None and lc_wins is not None:
         flags.append(
             f"High-conv ({len(high_conv)} cards) win-rate proxy : "
-            f"{hc_wins*100:.0f}% vs low-conv ({len(low_conv)}) "
-            f"{lc_wins*100:.0f}%"
+            f"{hc_wins * 100:.0f}% vs low-conv ({len(low_conv)}) "
+            f"{lc_wins * 100:.0f}%"
         )
 
     return BrierFeedbackReport(
@@ -221,10 +208,8 @@ def render_brier_feedback_block(
             [],
         )
     lines = [
-        f"## Brier feedback (auto-introspection, {r.window_days}d, "
-        f"{r.n_cards_reconciled} cards)",
-        f"- Brier global moyen : **{r.overall_avg_brier:.4f}** "
-        f"(< 0.25 = bonne calibration)",
+        f"## Brier feedback (auto-introspection, {r.window_days}d, {r.n_cards_reconciled} cards)",
+        f"- Brier global moyen : **{r.overall_avg_brier:.4f}** (< 0.25 = bonne calibration)",
     ]
     if r.by_asset:
         lines.append("- Par actif (best→worst) :")

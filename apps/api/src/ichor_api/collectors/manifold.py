@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import httpx
 import structlog
@@ -83,7 +83,7 @@ async def fetch_market(
             volume=float(data["volume"]) if "volume" in data else None,
             closed=bool(data.get("isResolved", False) or data.get("closed", False)),
             creator_username=data.get("creatorUsername"),
-            fetched_at=datetime.now(timezone.utc),
+            fetched_at=datetime.now(UTC),
         )
     except (TypeError, ValueError, KeyError) as e:
         log.warning("manifold.parse_failed", slug=slug, error=str(e))
@@ -116,7 +116,7 @@ async def search_markets(
         log.warning("manifold.search_failed", term=term, error=str(e))
         return []
 
-    fetched = datetime.now(timezone.utc)
+    fetched = datetime.now(UTC)
     out: list[ManifoldSnapshot] = []
     for m in items if isinstance(items, list) else []:
         try:
@@ -128,7 +128,9 @@ async def search_markets(
                     market_id=str(m.get("id", "")),
                     question=str(m.get("question", ""))[:512],
                     probability=(
-                        float(m["probability"]) if "probability" in m and m["probability"] is not None else None
+                        float(m["probability"])
+                        if "probability" in m and m["probability"] is not None
+                        else None
                     ),
                     volume=float(m["volume"]) if "volume" in m else None,
                     closed=False,

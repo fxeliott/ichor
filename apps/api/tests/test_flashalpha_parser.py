@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from ichor_api.collectors.flashalpha import (
     GexSnapshot,
@@ -37,7 +37,7 @@ def test_parse_canonical_response() -> None:
     assert snap.call_wall == 5250.0
     assert snap.put_wall == 5100.0
     assert snap.zero_gamma == 5180.0
-    assert snap.as_of == datetime(2026, 5, 4, 20, 0, 0, tzinfo=timezone.utc)
+    assert snap.as_of == datetime(2026, 5, 4, 20, 0, 0, tzinfo=UTC)
 
 
 def test_parse_tolerates_camelcase_keys() -> None:
@@ -86,5 +86,5 @@ def test_parse_falls_back_to_now_on_bad_iso() -> None:
     snap = parse_gex_response("SPX", body)
     assert snap is not None
     # as_of becomes "now" — sanity check it's recent (within 5 minutes)
-    delta = abs((datetime.now(timezone.utc) - snap.as_of).total_seconds())
+    delta = abs((datetime.now(UTC) - snap.as_of).total_seconds())
     assert delta < 300

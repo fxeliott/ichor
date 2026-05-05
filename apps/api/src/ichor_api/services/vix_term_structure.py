@@ -22,14 +22,13 @@ VISION_2026 — closes the "what's the forward vol picture?" gap.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Literal
 
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models import FredObservation
-
 
 VixRegime = Literal[
     "stretched_contango",
@@ -96,35 +95,34 @@ def _interpretation(regime: VixRegime, vix: float | None) -> str:
             f"Stretched contango (VIX {vix:.1f}) — complacence prononcée, "
             "vigilance sur signaux de tournement."
         )
-    return (
-        "Stretched contango — complacence marquée, watch out for mean-revert "
-        "vol-spike events."
-    )
+    return "Stretched contango — complacence marquée, watch out for mean-revert vol-spike events."
 
 
 async def _latest(
     session: AsyncSession, series_id: str, max_age_days: int = 14
 ) -> tuple[float, datetime] | None:
-    cutoff = datetime.now(timezone.utc).date() - timedelta(days=max_age_days)
+    cutoff = datetime.now(UTC).date() - timedelta(days=max_age_days)
     row = (
-        await session.execute(
-            select(FredObservation)
-            .where(
-                FredObservation.series_id == series_id,
-                FredObservation.observation_date >= cutoff,
-                FredObservation.value.is_not(None),
+        (
+            await session.execute(
+                select(FredObservation)
+                .where(
+                    FredObservation.series_id == series_id,
+                    FredObservation.observation_date >= cutoff,
+                    FredObservation.value.is_not(None),
+                )
+                .order_by(desc(FredObservation.observation_date))
+                .limit(1)
             )
-            .order_by(desc(FredObservation.observation_date))
-            .limit(1)
         )
-    ).scalars().first()
+        .scalars()
+        .first()
+    )
     if row is None or row.value is None:
         return None
     return (
         float(row.value),
-        datetime.combine(
-            row.observation_date, datetime.min.time(), tzinfo=timezone.utc
-        ),
+        datetime.combine(row.observation_date, datetime.min.time(), tzinfo=UTC),
     )
 
 

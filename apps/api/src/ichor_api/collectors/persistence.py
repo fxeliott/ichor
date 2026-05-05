@@ -6,14 +6,13 @@ natural keys: re-running the same collector poll never duplicates rows.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import Iterable, Sequence
+from collections.abc import Iterable, Sequence
+from datetime import UTC, datetime
+from datetime import date as date_type
 
 import structlog
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from datetime import date as date_type
 
 from ..models import (
     CbSpeech,
@@ -43,9 +42,7 @@ from .rss import NewsItem as NewsItemData
 log = structlog.get_logger(__name__)
 
 
-async def persist_news_items(
-    session: AsyncSession, items: Iterable[NewsItemData]
-) -> int:
+async def persist_news_items(session: AsyncSession, items: Iterable[NewsItemData]) -> int:
     """Insert RSS news items, skipping ones already stored for the same source.
 
     De-dup is on `(source, guid_hash)`: a given headline is stored at most once
@@ -68,7 +65,7 @@ async def persist_news_items(
     ).all()
     existing: set[tuple[str, str]] = {(r[0], r[1]) for r in existing_rows}
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     inserted = 0
     for it in items:
         if (it.source, it.guid_hash) in existing:
@@ -107,7 +104,7 @@ async def persist_polymarket_snapshots(
     if not snapshots:
         return 0
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     for s in snapshots:
         session.add(
             PolymarketSnapshot(
@@ -128,9 +125,7 @@ async def persist_polymarket_snapshots(
     return len(snapshots)
 
 
-async def persist_market_data(
-    session: AsyncSession, bars: Iterable[MarketDataPoint]
-) -> int:
+async def persist_market_data(session: AsyncSession, bars: Iterable[MarketDataPoint]) -> int:
     """Insert daily OHLCV bars, skipping ones already stored for the same
     (asset, bar_date, source) tuple.
 
@@ -145,7 +140,7 @@ async def persist_market_data(
     for b in bars:
         by_asset.setdefault(b.asset, []).append(b)
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     total_inserted = 0
     total_skipped = 0
 
@@ -246,7 +241,7 @@ async def persist_fred_observations(
     ).all()
     existing: set[tuple[str, date_type]] = {(r[0], r[1]) for r in existing_rows}
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     inserted = 0
     for o, d in parsed:
         if (o.series_id, d) in existing:
@@ -273,9 +268,7 @@ async def persist_fred_observations(
     return inserted
 
 
-async def persist_polygon_bars(
-    session: AsyncSession, bars: Iterable[PolygonBar]
-) -> int:
+async def persist_polygon_bars(session: AsyncSession, bars: Iterable[PolygonBar]) -> int:
     """Insert 1-min Polygon bars, skipping existing (asset, bar_ts) pairs.
 
     Commits per-asset to keep the failure blast-radius small (a single
@@ -290,7 +283,7 @@ async def persist_polygon_bars(
     for b in bars:
         by_asset.setdefault(b.asset, []).append(b)
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     total_inserted = 0
     total_skipped = 0
 
@@ -351,9 +344,7 @@ async def persist_polygon_bars(
     return total_inserted
 
 
-async def persist_gdelt_articles(
-    session: AsyncSession, articles: Iterable[GdeltArticle]
-) -> int:
+async def persist_gdelt_articles(session: AsyncSession, articles: Iterable[GdeltArticle]) -> int:
     """Insert GDELT articles, skipping (url, query_label, seendate) dupes."""
     articles = list(articles)
     if not articles:
@@ -367,7 +358,7 @@ async def persist_gdelt_articles(
         )
     ).all()
     existing: set[tuple[str, str, datetime]] = {(r[0], r[1], r[2]) for r in existing_rows}
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     inserted = 0
     for a in articles:
         if (a.url, a.query_label, a.seendate) in existing:
@@ -394,9 +385,7 @@ async def persist_gdelt_articles(
     return inserted
 
 
-async def persist_gpr_observations(
-    session: AsyncSession, obs: Iterable[AiGprObservation]
-) -> int:
+async def persist_gpr_observations(session: AsyncSession, obs: Iterable[AiGprObservation]) -> int:
     """Insert AI-GPR daily observations, skipping existing dates."""
     obs = list(obs)
     if not obs:
@@ -410,7 +399,7 @@ async def persist_gpr_observations(
         )
     ).all()
     existing: set[date_type] = {r[0] for r in existing_rows}
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     inserted = 0
     for o in obs:
         if o.observation_date in existing:
@@ -449,7 +438,7 @@ async def persist_cot_positions(
         )
     ).all()
     existing: set[tuple[str, date_type]] = {(r[0], r[1]) for r in existing_rows}
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     inserted = 0
     for p in positions:
         if (p.market_code, p.report_date) in existing:
@@ -476,9 +465,7 @@ async def persist_cot_positions(
     return inserted
 
 
-async def persist_cb_speeches(
-    session: AsyncSession, speeches: Iterable[CentralBankSpeech]
-) -> int:
+async def persist_cb_speeches(session: AsyncSession, speeches: Iterable[CentralBankSpeech]) -> int:
     """Insert central-bank speeches, skipping URLs already known."""
     speeches = list(speeches)
     if not speeches:
@@ -488,7 +475,7 @@ async def persist_cb_speeches(
         await session.execute(select(CbSpeech.url).where(CbSpeech.url.in_(urls)))
     ).all()
     existing: set[str] = {r[0] for r in existing_rows}
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     inserted = 0
     for s in speeches:
         if s.url in existing:
@@ -520,7 +507,7 @@ async def persist_kalshi_snapshots(
     snaps = list(snaps)
     if not snaps:
         return 0
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     for s in snaps:
         session.add(
             KalshiMarket(
@@ -548,7 +535,7 @@ async def persist_manifold_snapshots(
     snaps = list(snaps)
     if not snaps:
         return 0
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     for s in snaps:
         session.add(
             ManifoldMarket(
@@ -560,8 +547,7 @@ async def persist_manifold_snapshots(
                 probability=s.probability,
                 volume=s.volume,
                 closed=s.closed,
-                creator_username=(s.creator_username or None)
-                and s.creator_username[:128],
+                creator_username=(s.creator_username or None) and s.creator_username[:128],
             )
         )
     await session.commit()

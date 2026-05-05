@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import date as DateType, datetime
+from datetime import date as DateType
+from datetime import datetime
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Query
@@ -42,11 +43,7 @@ async def get_upcoming(
     asset: Annotated[str | None, Query()] = None,
 ) -> CalendarOut:
     report = await assess_calendar(session, horizon_days=horizon_days)
-    events = (
-        filter_for_asset(report, asset.upper().replace("-", "_"))
-        if asset
-        else report.events
-    )
+    events = filter_for_asset(report, asset.upper().replace("-", "_")) if asset else report.events
     return CalendarOut(
         generated_at=report.generated_at,
         horizon_days=report.horizon_days,

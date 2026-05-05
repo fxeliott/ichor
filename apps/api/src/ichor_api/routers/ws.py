@@ -45,7 +45,7 @@ async def dashboard_ws(websocket: WebSocket) -> None:
     global _ws_count
     settings = get_settings()
     origin = websocket.headers.get("origin")
-    remote = (websocket.client.host if websocket.client else "?")
+    remote = websocket.client.host if websocket.client else "?"
 
     if origin and origin not in settings.cors_origins:
         log.warning("ws.reject_origin", origin=origin, remote=remote)
@@ -88,7 +88,9 @@ async def dashboard_ws(websocket: WebSocket) -> None:
                 except json.JSONDecodeError:
                     log.warning("ws.bad_json", channel=msg["channel"])
                     continue
-                await websocket.send_json({"type": "event", "channel": msg["channel"], "data": payload})
+                await websocket.send_json(
+                    {"type": "event", "channel": msg["channel"], "data": payload}
+                )
 
         async def drain_client() -> None:
             while True:

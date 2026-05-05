@@ -46,21 +46,15 @@ async def get_brier_feedback(
         window_days=r.window_days,
         overall_avg_brier=r.overall_avg_brier,
         by_asset=[
-            GroupStatOut(
-                key=s.key, n=s.n, avg_brier=s.avg_brier, win_rate=s.win_rate
-            )
+            GroupStatOut(key=s.key, n=s.n, avg_brier=s.avg_brier, win_rate=s.win_rate)
             for s in r.by_asset
         ],
         by_session_type=[
-            GroupStatOut(
-                key=s.key, n=s.n, avg_brier=s.avg_brier, win_rate=s.win_rate
-            )
+            GroupStatOut(key=s.key, n=s.n, avg_brier=s.avg_brier, win_rate=s.win_rate)
             for s in r.by_session_type
         ],
         by_regime=[
-            GroupStatOut(
-                key=s.key, n=s.n, avg_brier=s.avg_brier, win_rate=s.win_rate
-            )
+            GroupStatOut(key=s.key, n=s.n, avg_brier=s.avg_brier, win_rate=s.win_rate)
             for s in r.by_regime
         ],
         high_conviction_win_rate=r.high_conviction_win_rate,

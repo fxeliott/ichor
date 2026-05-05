@@ -21,15 +21,11 @@ class CbSpeech(Base):
 
     __tablename__ = "cb_speeches"
 
-    id: Mapped[UUID] = mapped_column(
-        PG_UUID(as_uuid=True), primary_key=True, default=uuid4
-    )
+    id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
     published_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), primary_key=True, index=True
     )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
     central_bank: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
     speaker: Mapped[str | None] = mapped_column(String(128), index=True)
@@ -37,6 +33,4 @@ class CbSpeech(Base):
     summary: Mapped[str | None] = mapped_column(Text)
     url: Mapped[str] = mapped_column(String(1024), nullable=False)
     source_feed: Mapped[str] = mapped_column(String(64), nullable=False)
-    fetched_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
+    fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

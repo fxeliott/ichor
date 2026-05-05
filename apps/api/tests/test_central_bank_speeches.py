@@ -5,10 +5,9 @@ from __future__ import annotations
 from ichor_api.collectors.central_bank_speeches import (
     DEFAULT_CB_FEEDS,
     CentralBankSpeechFeed,
-    parse_feed,
     _extract_speaker,
+    parse_feed,
 )
-
 
 SAMPLE_BIS_RSS = b"""<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0">

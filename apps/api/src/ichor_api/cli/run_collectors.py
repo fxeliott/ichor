@@ -26,6 +26,8 @@ from ..collectors.cot import poll_all_assets as poll_cot
 from ..collectors.flashalpha import poll_all as poll_flashalpha
 from ..collectors.forex_factory import (
     fetch_ff_calendar,
+)
+from ..collectors.forex_factory import (
     persist_events as persist_forex_events,
 )
 from ..collectors.fred import poll_all as poll_fred

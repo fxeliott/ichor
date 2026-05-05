@@ -21,15 +21,11 @@ class NewsItem(Base):
 
     __tablename__ = "news_items"
 
-    id: Mapped[UUID] = mapped_column(
-        PG_UUID(as_uuid=True), primary_key=True, default=uuid4
-    )
+    id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
     fetched_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), primary_key=True, index=True
     )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
     source: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     source_kind: Mapped[str] = mapped_column(String(32), nullable=False)

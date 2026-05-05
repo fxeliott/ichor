@@ -5,13 +5,13 @@ Math + branching tests without DB (we mock CardLite directly).
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from ichor_api.services.portfolio_exposure import (
+    _USD_AXIS,
     CardLite,
     ExposureAxis,
     ExposureReport,
-    _USD_AXIS,
     _card_weight,
     _compute_axis,
     _direction_sign,
@@ -19,9 +19,7 @@ from ichor_api.services.portfolio_exposure import (
 )
 
 
-def _card(
-    asset: str, bias: str, conviction: float = 50.0, mag: float = 30.0
-) -> CardLite:
+def _card(asset: str, bias: str, conviction: float = 50.0, mag: float = 30.0) -> CardLite:
     return CardLite(
         asset=asset,
         bias=bias,
@@ -29,7 +27,7 @@ def _card(
         magnitude_pips_low=mag,
         magnitude_pips_high=mag * 2,
         session_type="pre_londres",
-        created_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
     )
 
 

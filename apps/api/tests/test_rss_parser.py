@@ -11,14 +11,12 @@ No HTTP — feed XML is hand-crafted. Validates:
 from __future__ import annotations
 
 import pytest
-
 from ichor_api.collectors.rss import (
     DEFAULT_FEEDS,
     FeedSource,
     NewsItem,
     parse_feed,
 )
-
 
 SOURCE_RSS = FeedSource(name="rss_test", url="https://example.test/rss", kind="news")
 SOURCE_ATOM = FeedSource(name="atom_test", url="https://example.test/atom", kind="news")

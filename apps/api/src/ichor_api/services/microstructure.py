@@ -29,9 +29,9 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import desc, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models import PolygonIntradayBar
@@ -186,7 +186,7 @@ def value_area(
     bucket_w = (hi - lo) / n_buckets
     bucket_vol = [0.0] * n_buckets
     bucket_mid = [lo + bucket_w * (i + 0.5) for i in range(n_buckets)]
-    for tp, v in zip(typical, vols):
+    for tp, v in zip(typical, vols, strict=False):
         idx = min(n_buckets - 1, max(0, int((tp - lo) / bucket_w)))
         bucket_vol[idx] += v
 
@@ -224,7 +224,7 @@ async def assess_microstructure(
     window_minutes: int = 240,
 ) -> MicrostructureReading:
     """Pull recent bars and assemble all metrics in one shot."""
-    cutoff = datetime.now(timezone.utc) - timedelta(minutes=window_minutes)
+    cutoff = datetime.now(UTC) - timedelta(minutes=window_minutes)
     rows = list(
         (
             await session.execute(
@@ -235,7 +235,9 @@ async def assess_microstructure(
                 )
                 .order_by(PolygonIntradayBar.bar_ts.asc())
             )
-        ).scalars().all()
+        )
+        .scalars()
+        .all()
     )
     bars = [
         IntradayBar(
@@ -279,9 +281,7 @@ def render_microstructure_block(r: MicrostructureReading) -> tuple[str, list[str
         return "n/a" if v is None else fmt.format(v)
 
     illiq_str = (
-        f"{r.amihud_illiquidity * 1e6:.4f} (×1e6)"
-        if r.amihud_illiquidity is not None
-        else "n/a"
+        f"{r.amihud_illiquidity * 1e6:.4f} (×1e6)" if r.amihud_illiquidity is not None else "n/a"
     )
     lines = [
         f"## Microstructure ({r.asset}, last {r.window_minutes}min, {r.n_bars} bars)",

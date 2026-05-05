@@ -30,7 +30,6 @@ from typing import Literal
 
 from .daily_levels import DailyLevels
 
-
 SessionType = Literal["pre_londres", "pre_ny", "ny_mid", "ny_close", "event_driven"]
 RegimeQuadrant = Literal["haven_bid", "funding_stress", "goldilocks", "usd_complacency"]
 
@@ -93,17 +92,17 @@ def assess_session_scenarios(
     # 1. Spot position vs PDH/PDL — how stretched is the move?
     pos_pdh_pdl = _spot_position(spot, pdl, pdh)
     # 2. Spot position vs Asian range
-    pos_asian = _spot_position(spot, asian_l, asian_h)
+    _spot_position(spot, asian_l, asian_h)
 
     # 3. Conviction signal — high conviction tilts toward continuation
     conviction_norm = max(0.0, min(95.0, conviction_pct)) / 95.0  # in [0, 1]
 
     # 4. Régime bias
     regime_bias = {
-        "goldilocks": 0.10,        # trend-friendly
+        "goldilocks": 0.10,  # trend-friendly
         "haven_bid": 0.05,
         "usd_complacency": 0.0,
-        "funding_stress": -0.10,   # mean-revert friendly
+        "funding_stress": -0.10,  # mean-revert friendly
         None: 0.0,
     }.get(regime, 0.0)
 
@@ -143,7 +142,9 @@ def assess_session_scenarios(
     triggers_cont: list[str] = []
     triggers_rev: list[str] = []
     asset = levels.asset
-    fmt = lambda v: f"{v:.5f}".rstrip("0").rstrip(".")
+
+    def fmt(v):
+        return f"{v:.5f}".rstrip("0").rstrip(".")
 
     if pos_pdh_pdl > 0.7:
         triggers_cont.append(
@@ -168,15 +169,9 @@ def assess_session_scenarios(
             else f"Rejection at {fmt(pdl)} → reversal long"
         )
     else:
-        triggers_cont.append(
-            f"Break above asian-range high {fmt(asian_h)} → continuation long"
-        )
-        triggers_cont.append(
-            f"Break below asian-range low {fmt(asian_l)} → continuation short"
-        )
-        triggers_rev.append(
-            f"Sweep {fmt(asian_h)}/{fmt(asian_l)} then MSS → reversal candidate"
-        )
+        triggers_cont.append(f"Break above asian-range high {fmt(asian_h)} → continuation long")
+        triggers_cont.append(f"Break below asian-range low {fmt(asian_l)} → continuation short")
+        triggers_rev.append(f"Sweep {fmt(asian_h)}/{fmt(asian_l)} then MSS → reversal candidate")
 
     rationale = (
         f"Spot {fmt(spot)} à {pos_pdh_pdl * 100:.0f}% de la range PDH-PDL ; "

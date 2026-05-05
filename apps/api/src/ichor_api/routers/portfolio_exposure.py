@@ -12,9 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..db import get_session
 from ..services.portfolio_exposure import assess_portfolio_exposure
 
-router = APIRouter(
-    prefix="/v1/portfolio-exposure", tags=["portfolio-exposure"]
-)
+router = APIRouter(prefix="/v1/portfolio-exposure", tags=["portfolio-exposure"])
 
 
 class CardLiteOut(BaseModel):

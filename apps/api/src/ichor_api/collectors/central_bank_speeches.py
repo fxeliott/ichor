@@ -19,15 +19,15 @@ because speeches reveal forward-guidance shifts that drive yields.
 from __future__ import annotations
 
 import asyncio
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from collections.abc import Iterable
+from dataclasses import dataclass
+from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
-from typing import Iterable
 from xml.etree import ElementTree as ET
 
-from defusedxml.ElementTree import fromstring as defused_fromstring
 import httpx
 import structlog
+from defusedxml.ElementTree import fromstring as defused_fromstring
 
 log = structlog.get_logger(__name__)
 
@@ -82,24 +82,25 @@ class CentralBankSpeech:
 
 def _parse_date(raw: str | None) -> datetime:
     if not raw:
-        return datetime.now(timezone.utc)
+        return datetime.now(UTC)
     try:
         dt = parsedate_to_datetime(raw)
         if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=timezone.utc)
+            dt = dt.replace(tzinfo=UTC)
         return dt
     except (TypeError, ValueError):
         pass
     try:
         return datetime.fromisoformat(raw.replace("Z", "+00:00"))
     except ValueError:
-        return datetime.now(timezone.utc)
+        return datetime.now(UTC)
 
 
 def _strip_html(text: str | None) -> str:
     if not text:
         return ""
     import re
+
     return re.sub(r"<[^>]+>", "", text).strip()
 
 
@@ -120,7 +121,7 @@ def parse_feed(feed: CentralBankSpeechFeed, body: bytes) -> list[CentralBankSpee
         log.warning("cb_speeches.parse_failed", source=feed.name, error=str(e))
         return []
 
-    fetched = datetime.now(timezone.utc)
+    fetched = datetime.now(UTC)
     out: list[CentralBankSpeech] = []
 
     # RSS 2.0 — <channel><item>

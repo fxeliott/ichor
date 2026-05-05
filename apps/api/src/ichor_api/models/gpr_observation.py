@@ -20,17 +20,9 @@ class GprObservation(Base):
 
     __tablename__ = "gpr_observations"
 
-    id: Mapped[UUID] = mapped_column(
-        PG_UUID(as_uuid=True), primary_key=True, default=uuid4
-    )
-    observation_date: Mapped[date] = mapped_column(
-        Date, primary_key=True, index=True
-    )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
+    id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
+    observation_date: Mapped[date] = mapped_column(Date, primary_key=True, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
     ai_gpr: Mapped[float] = mapped_column(Float, nullable=False)
-    fetched_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
+    fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

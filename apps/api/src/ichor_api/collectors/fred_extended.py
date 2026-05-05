@@ -23,48 +23,48 @@ from __future__ import annotations
 # dollar smile, term structure, real yields. All FRED-hosted.
 EXTENDED_SERIES_TO_POLL: tuple[str, ...] = (
     # ─── Yield curve ───
-    "DGS3MO",       # 3-month Treasury constant maturity
-    "DGS2",         # 2y (already in fred.py — kept for completeness)
-    "DGS5",         # 5y
-    "DGS10",        # 10y (already)
-    "DGS30",        # 30y
-    "T10Y2Y",       # 10Y - 2Y spread (recession signal)
-    "T10Y3M",       # 10Y - 3M spread (NY Fed preferred)
+    "DGS3MO",  # 3-month Treasury constant maturity
+    "DGS2",  # 2y (already in fred.py — kept for completeness)
+    "DGS5",  # 5y
+    "DGS10",  # 10y (already)
+    "DGS30",  # 30y
+    "T10Y2Y",  # 10Y - 2Y spread (recession signal)
+    "T10Y3M",  # 10Y - 3M spread (NY Fed preferred)
     # ─── Real yields (TIPS) ───
-    "DFII5",        # 5Y TIPS real yield
-    "DFII10",       # 10Y TIPS real yield (PRIMARY gold driver)
-    "DFII30",       # 30Y TIPS real yield
+    "DFII5",  # 5Y TIPS real yield
+    "DFII10",  # 10Y TIPS real yield (PRIMARY gold driver)
+    "DFII30",  # 30Y TIPS real yield
     # ─── Inflation expectations ───
-    "T5YIE",        # 5Y breakeven inflation
-    "T10YIE",       # 10Y breakeven inflation
-    "T5YIFR",       # 5Y5Y forward inflation expectations
+    "T5YIE",  # 5Y breakeven inflation
+    "T10YIE",  # 10Y breakeven inflation
+    "T5YIFR",  # 5Y5Y forward inflation expectations
     # ─── Credit spreads ───
-    "BAMLH0A0HYM2", # HY OAS (already in fred.py)
-    "BAMLC0A0CM",   # IG OAS
+    "BAMLH0A0HYM2",  # HY OAS (already in fred.py)
+    "BAMLC0A0CM",  # IG OAS
     "BAMLEMHYHYTRIV",  # EM HY total return (sentiment proxy)
     # ─── Liquidity ───
-    "WALCL",        # Fed balance sheet (already)
-    "WTREGEN",      # Treasury General Account (already)
-    "RRPONTSYD",    # Reverse Repo (already)
-    "M2SL",         # M2 (already)
+    "WALCL",  # Fed balance sheet (already)
+    "WTREGEN",  # Treasury General Account (already)
+    "RRPONTSYD",  # Reverse Repo (already)
+    "M2SL",  # M2 (already)
     # ─── Dollar smile / FX ───
-    "DTWEXBGS",     # Trade-weighted dollar broad (DXY proxy, already)
-    "DTWEXAFEGS",   # Trade-weighted dollar advanced foreign economies
+    "DTWEXBGS",  # Trade-weighted dollar broad (DXY proxy, already)
+    "DTWEXAFEGS",  # Trade-weighted dollar advanced foreign economies
     # ─── Vol ───
-    "VIXCLS",       # VIX
-    "VXVCLS",       # VIX 3-month (term structure with VIXCLS)
+    "VIXCLS",  # VIX
+    "VXVCLS",  # VIX 3-month (term structure with VIXCLS)
     # ─── Sentiment / risk appetite ───
-    "UMCSENT",      # U Michigan Consumer Sentiment (monthly)
+    "UMCSENT",  # U Michigan Consumer Sentiment (monthly)
     "CSCICP03USM665S",  # OECD US Composite Consumer Confidence Index
-    "DRTSCILM",     # Bank lending standards : tighter for C&I loans (qoq)
+    "DRTSCILM",  # Bank lending standards : tighter for C&I loans (qoq)
     # ─── Energy ───
-    "DCOILWTICO",   # WTI (already)
-    "DCOILBRENTEU", # Brent
-    "DGASRGW",      # Gasoline
-    "DHHNGSP",      # Henry Hub natural gas
+    "DCOILWTICO",  # WTI (already)
+    "DCOILBRENTEU",  # Brent
+    "DGASRGW",  # Gasoline
+    "DHHNGSP",  # Henry Hub natural gas
     # ─── Commodities ───
     "GOLDAMGBD228NLBM",  # Gold London PM (already)
-    "PALLFNFUSDM",       # Palladium
+    "PALLFNFUSDM",  # Palladium
     # ─── Macro hard data already covered in fred.py ───
     # CPIAUCSL, PCEPI, PAYEMS, UNRATE, GDPC1, INDPRO, SOFR, DFF
     # ─── Foreign rate differentials ───

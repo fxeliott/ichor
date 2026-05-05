@@ -33,16 +33,31 @@ class DataPoolOut(BaseModel):
 
 
 _VALID_ASSET = {
-    "EUR_USD", "GBP_USD", "USD_JPY", "AUD_USD", "USD_CAD",
-    "XAU_USD", "NAS100_USD", "SPX500_USD", "US100", "US30",
+    "EUR_USD",
+    "GBP_USD",
+    "USD_JPY",
+    "AUD_USD",
+    "USD_CAD",
+    "XAU_USD",
+    "NAS100_USD",
+    "SPX500_USD",
+    "US100",
+    "US30",
 }
 
 
 _VALID_SESSION_TYPES = {
-    "pre_londres", "pre_ny", "ny_mid", "ny_close", "event_driven",
+    "pre_londres",
+    "pre_ny",
+    "ny_mid",
+    "ny_close",
+    "event_driven",
 }
 _VALID_REGIMES = {
-    "haven_bid", "funding_stress", "goldilocks", "usd_complacency",
+    "haven_bid",
+    "funding_stress",
+    "goldilocks",
+    "usd_complacency",
 }
 
 
@@ -81,10 +96,7 @@ async def get_pool(
     if regime is not None and regime not in _VALID_REGIMES:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=(
-                f"unknown regime {regime!r} "
-                f"(expected one of {sorted(_VALID_REGIMES)})"
-            ),
+            detail=(f"unknown regime {regime!r} (expected one of {sorted(_VALID_REGIMES)})"),
         )
     pool = await build_data_pool(
         session,

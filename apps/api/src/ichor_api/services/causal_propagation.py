@@ -23,7 +23,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-
 # Mirror of routers/graph.py:_CAUSAL_EDGES — kept here because the
 # graph router lazy-imports this module ; circular import otherwise.
 # Edge weights : 5 = canonical certain transmission, 1 = weak.

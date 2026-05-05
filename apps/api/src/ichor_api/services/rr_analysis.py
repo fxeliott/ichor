@@ -168,25 +168,14 @@ def render_rr_block(p: RRPlan) -> tuple[str, list[str]]:
         return "n/a" if v is None else f"{v:.5f}".rstrip("0").rstrip(".")
 
     lines = [f"## RR plan ({p.asset}, target RR={p.rr_target:.0f})"]
+    lines.append(f"- Bias               = **{p.bias.upper()}**")
+    lines.append(f"- Entry zone         = {fmt(p.entry_zone_low)} → {fmt(p.entry_zone_high)}")
+    lines.append(f"- Stop loss          = {fmt(p.stop_loss)} ({p.risk_pips:.0f} pips)")
+    lines.append(f"- TP1 (BE)           = {fmt(p.tp1)} (RR=1)")
     lines.append(
-        f"- Bias               = **{p.bias.upper()}**"
+        f"- TP3 (close 90%)    = {fmt(p.tp3)} (RR={p.rr_target:.0f}, {p.reward_pips_tp3:.0f} pips)"
     )
-    lines.append(
-        f"- Entry zone         = {fmt(p.entry_zone_low)} → {fmt(p.entry_zone_high)}"
-    )
-    lines.append(
-        f"- Stop loss          = {fmt(p.stop_loss)} ({p.risk_pips:.0f} pips)"
-    )
-    lines.append(
-        f"- TP1 (BE)           = {fmt(p.tp1)} (RR=1)"
-    )
-    lines.append(
-        f"- TP3 (close 90%)    = {fmt(p.tp3)} (RR={p.rr_target:.0f}, "
-        f"{p.reward_pips_tp3:.0f} pips)"
-    )
-    lines.append(
-        f"- TP extended (10%)  = {fmt(p.tp_extended)} (trail)"
-    )
+    lines.append(f"- TP extended (10%)  = {fmt(p.tp_extended)} (trail)")
     if p.notes:
         lines.append(f"- ⚠ {p.notes}")
     sources = [f"empirical_model:rr_plan:{p.asset}"]

@@ -53,9 +53,7 @@ def test_tokenize_lowercases() -> None:
 
 
 def test_render_block_empty_report() -> None:
-    report = NarrativeReport(
-        window_hours=48, n_documents=0, n_tokens=0, topics=[]
-    )
+    report = NarrativeReport(window_hours=48, n_documents=0, n_tokens=0, topics=[])
     md, sources = render_narrative_block(report)
     assert "no documents" in md.lower()
     assert sources == []

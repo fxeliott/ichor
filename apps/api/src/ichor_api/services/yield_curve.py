@@ -21,7 +21,7 @@ VISION_2026 — closes the "we have DGS10 but not the full curve" gap.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Literal
 
 from sqlalchemy import desc, select
@@ -29,26 +29,23 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models import FredObservation
 
-
 # Tenors in years × series_id
 _TENORS: list[tuple[float, str, str]] = [
     # tenor_years, series_id, label
-    (0.083, "DTB3", "3M"),     # 13-week T-bill
-    (0.5,   "DGS6MO", "6M"),
-    (1.0,   "DGS1", "1Y"),
-    (2.0,   "DGS2", "2Y"),
-    (3.0,   "DGS3", "3Y"),
-    (5.0,   "DGS5", "5Y"),
-    (7.0,   "DGS7", "7Y"),
-    (10.0,  "DGS10", "10Y"),
-    (20.0,  "DGS20", "20Y"),
-    (30.0,  "DGS30", "30Y"),
+    (0.083, "DTB3", "3M"),  # 13-week T-bill
+    (0.5, "DGS6MO", "6M"),
+    (1.0, "DGS1", "1Y"),
+    (2.0, "DGS2", "2Y"),
+    (3.0, "DGS3", "3Y"),
+    (5.0, "DGS5", "5Y"),
+    (7.0, "DGS7", "7Y"),
+    (10.0, "DGS10", "10Y"),
+    (20.0, "DGS20", "20Y"),
+    (30.0, "DGS30", "30Y"),
 ]
 
 
-CurveShape = Literal[
-    "normal", "steep", "flat", "inverted_short", "inverted_full"
-]
+CurveShape = Literal["normal", "steep", "flat", "inverted_short", "inverted_full"]
 
 
 @dataclass(frozen=True)
@@ -80,38 +77,36 @@ class YieldCurveReading:
 async def _latest_value(
     session: AsyncSession, series_id: str, max_age_days: int = 14
 ) -> tuple[float, datetime] | None:
-    cutoff = datetime.now(timezone.utc).date() - timedelta(days=max_age_days)
+    cutoff = datetime.now(UTC).date() - timedelta(days=max_age_days)
     row = (
-        await session.execute(
-            select(FredObservation)
-            .where(
-                FredObservation.series_id == series_id,
-                FredObservation.observation_date >= cutoff,
-                FredObservation.value.is_not(None),
+        (
+            await session.execute(
+                select(FredObservation)
+                .where(
+                    FredObservation.series_id == series_id,
+                    FredObservation.observation_date >= cutoff,
+                    FredObservation.value.is_not(None),
+                )
+                .order_by(desc(FredObservation.observation_date))
+                .limit(1)
             )
-            .order_by(desc(FredObservation.observation_date))
-            .limit(1)
         )
-    ).scalars().first()
+        .scalars()
+        .first()
+    )
     if row is None or row.value is None:
         return None
     return (
         float(row.value),
-        datetime.combine(
-            row.observation_date, datetime.min.time(), tzinfo=timezone.utc
-        ),
+        datetime.combine(row.observation_date, datetime.min.time(), tzinfo=UTC),
     )
 
 
-def _shape(
-    points: list[TenorPoint], slope_2y_10y: float | None
-) -> CurveShape:
+def _shape(points: list[TenorPoint], slope_2y_10y: float | None) -> CurveShape:
     yields = [p.yield_pct for p in points if p.yield_pct is not None]
     if len(yields) < 4:
         return "flat"
-    inverted = sum(
-        1 for i in range(len(yields) - 1) if yields[i] > yields[i + 1]
-    )
+    inverted = sum(1 for i in range(len(yields) - 1) if yields[i] > yields[i + 1])
     if inverted >= len(yields) - 2:
         return "inverted_full"
     if slope_2y_10y is not None and slope_2y_10y < 0:
@@ -182,13 +177,9 @@ async def assess_yield_curve(session: AsyncSession) -> YieldCurveReading:
             "inversion has preceded every recession since 1960)"
         )
     if slope_2y_10y is not None and slope_2y_10y < 0:
-        note_parts.append(
-            "2Y-10Y inverted → growth premium compressed, USD haven flows expected"
-        )
+        note_parts.append("2Y-10Y inverted → growth premium compressed, USD haven flows expected")
     if shape == "steep":
-        note_parts.append(
-            "Steep curve → growth + inflation premium pricing in, gold-friendly"
-        )
+        note_parts.append("Steep curve → growth + inflation premium pricing in, gold-friendly")
     if shape == "inverted_full":
         note_parts.append("Curve fully inverted — late-cycle, mean-revert friendly")
 
@@ -214,11 +205,7 @@ def render_yield_curve_block(r: YieldCurveReading) -> tuple[str, list[str]]:
     lines = [f"## US Treasury yield curve (shape: {r.shape})"]
 
     # One line with all tenors compactly
-    parts = [
-        f"{p.label}={p.yield_pct:.2f}%"
-        for p in r.points
-        if p.yield_pct is not None
-    ]
+    parts = [f"{p.label}={p.yield_pct:.2f}%" for p in r.points if p.yield_pct is not None]
     lines.append(f"- Curve : {' · '.join(parts)}")
 
     if r.slope_3m_10y is not None:
@@ -234,9 +221,7 @@ def render_yield_curve_block(r: YieldCurveReading) -> tuple[str, list[str]]:
     if r.slope_5y_30y is not None:
         lines.append(f"- Slope 5Y-30Y = {r.slope_5y_30y:+.2f}pp")
     if r.real_yield_10y is not None:
-        lines.append(
-            f"- Real yield 10Y (TIPS DFII10) = {r.real_yield_10y:.2f}%"
-        )
+        lines.append(f"- Real yield 10Y (TIPS DFII10) = {r.real_yield_10y:.2f}%")
     lines.append(f"- Inverted segments : {r.inverted_segments}")
     if r.note:
         lines.append(f"- Reading : {r.note}")

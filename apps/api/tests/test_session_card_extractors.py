@@ -273,8 +273,6 @@ def test_from_orm_row_preserves_base_columns() -> None:
 
 def test_from_orm_row_silently_skips_corrupt_payload() -> None:
     """A claude_raw_response shaped like none of the candidates returns base."""
-    out = SessionCardOut.from_orm_row(
-        _row(claude_raw_response={"random_unrelated_key": [1, 2, 3]})
-    )
+    out = SessionCardOut.from_orm_row(_row(claude_raw_response={"random_unrelated_key": [1, 2, 3]}))
     assert out.thesis is None
     assert out.trade_plan is None

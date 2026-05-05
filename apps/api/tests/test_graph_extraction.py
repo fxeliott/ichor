@@ -58,7 +58,9 @@ def test_extract_multiple_assets_in_one_text() -> None:
 
 
 def test_extract_summary_field_also_scanned() -> None:
-    assets, insts = extract_entities("Title without entities", "But summary mentions Fed and EUR/USD")
+    assets, insts = extract_entities(
+        "Title without entities", "But summary mentions Fed and EUR/USD"
+    )
     assert "EUR_USD" in assets
     assert "Fed" in insts
 
@@ -67,7 +69,13 @@ def test_extract_canonical_codes_only() -> None:
     """No ad-hoc codes — only the 8 Phase-0 canonicals."""
     assets, _ = extract_entities("EUR/USD GBP/USD USD/JPY AUD/USD USD/CAD XAU NAS100 SPX500")
     canonical = {
-        "EUR_USD", "GBP_USD", "USD_JPY", "AUD_USD", "USD_CAD",
-        "XAU_USD", "NAS100_USD", "SPX500_USD",
+        "EUR_USD",
+        "GBP_USD",
+        "USD_JPY",
+        "AUD_USD",
+        "USD_CAD",
+        "XAU_USD",
+        "NAS100_USD",
+        "SPX500_USD",
     }
     assert set(assets) <= canonical

@@ -14,7 +14,7 @@ Status thresholds per source kind :
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends
@@ -44,9 +44,7 @@ router = APIRouter(prefix="/v1/sources", tags=["sources"])
 
 
 Status = Literal["live", "stale", "down"]
-Category = Literal[
-    "macro", "fx", "options", "sentiment", "geopolitics", "structure"
-]
+Category = Literal["macro", "fx", "options", "sentiment", "geopolitics", "structure"]
 Cadence = Literal["intraday", "hourly", "daily", "weekly"]
 
 
@@ -391,7 +389,7 @@ _CATALOG: list[dict[str, object]] = [
 async def list_sources(
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> SourcesListOut:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     cutoff_24h = now - timedelta(hours=24)
     out: list[SourceOut] = []
 
@@ -406,11 +404,7 @@ async def list_sources(
             base_filter = entry.get("filter")
 
             last_stmt = select(ts_col).order_by(desc(ts_col)).limit(1)
-            count_stmt = (
-                select(func.count())
-                .select_from(model)
-                .where(ts_col >= cutoff_24h)
-            )
+            count_stmt = select(func.count()).select_from(model).where(ts_col >= cutoff_24h)
             if base_filter:
                 col_name, value = base_filter
                 col = getattr(model, col_name)
@@ -419,9 +413,7 @@ async def list_sources(
 
             try:
                 last_raw = (await session.execute(last_stmt)).scalar_one_or_none()
-                rows_24h = int(
-                    (await session.execute(count_stmt)).scalar_one() or 0
-                )
+                rows_24h = int((await session.execute(count_stmt)).scalar_one() or 0)
             except Exception:
                 last_raw = None
                 rows_24h = 0
@@ -431,15 +423,13 @@ async def list_sources(
             elif isinstance(last_raw, datetime):
                 last_at = last_raw
                 if last_at.tzinfo is None:
-                    last_at = last_at.replace(tzinfo=timezone.utc)
+                    last_at = last_at.replace(tzinfo=UTC)
             else:
                 # `Date` from FRED.observation_date — promote to UTC midnight
                 from datetime import date as _date
 
                 if isinstance(last_raw, _date):
-                    last_at = datetime.combine(
-                        last_raw, datetime.min.time(), tzinfo=timezone.utc
-                    )
+                    last_at = datetime.combine(last_raw, datetime.min.time(), tzinfo=UTC)
 
         cadence = entry["cadence"]  # type: ignore[assignment]
         status = _classify(now, last_at, cadence)  # type: ignore[arg-type]

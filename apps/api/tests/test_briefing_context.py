@@ -14,7 +14,7 @@ function exercises the empty-state branches without needing Postgres.
 from __future__ import annotations
 
 from typing import Any
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -41,7 +41,7 @@ class _StubSession:
     async def execute(self, stmt: Any) -> _Result:
         return _Result()
 
-    async def __aenter__(self) -> "_StubSession":
+    async def __aenter__(self) -> _StubSession:
         return self
 
     async def __aexit__(self, *args: Any) -> None:

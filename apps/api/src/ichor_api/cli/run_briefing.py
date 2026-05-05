@@ -31,15 +31,16 @@ import asyncio
 import json
 import os
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import httpx
 import structlog
+from sqlalchemy import and_, desc, func, select
 
 from ..briefing.context_builder import build_rich_context
 from ..config import Settings, get_settings
-from ..db import get_engine, get_sessionmaker
+from ..db import get_sessionmaker
 from ..models import (
     Alert,
     BiasSignal,
@@ -49,7 +50,6 @@ from ..models import (
     FredObservation,
     NewsItem,
 )
-from sqlalchemy import and_, desc, func, select
 
 log = structlog.get_logger(__name__)
 
@@ -80,7 +80,9 @@ async def _assemble_context(briefing_type: str, assets: list[str]) -> tuple[str,
         sm = get_sessionmaker()
         async with sm() as session:
             md, tok_est = await build_rich_context(
-                session, briefing_type, assets,
+                session,
+                briefing_type,
+                assets,
             )
         log.info(
             "context.rich_used",
@@ -115,7 +117,7 @@ async def _assemble_context(briefing_type: str, assets: list[str]) -> tuple[str,
 
     parts: list[str] = []
     parts.append(f"# Briefing context ({briefing_type})")
-    parts.append(f"Generated at {datetime.now(timezone.utc).isoformat()}")
+    parts.append(f"Generated at {datetime.now(UTC).isoformat()}")
     parts.append("")
 
     parts.append("## Bias signals (24h horizon, latest per asset)")
@@ -148,7 +150,7 @@ async def _assemble_context(briefing_type: str, assets: list[str]) -> tuple[str,
     # quality when a section has no data this window.
     sm2 = get_sessionmaker()
     async with sm2() as session2:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         horizon_6h = now + timedelta(hours=6)
         cutoff_24h = now - timedelta(hours=24)
         cutoff_7d = now - timedelta(days=7)
@@ -156,18 +158,22 @@ async def _assemble_context(briefing_type: str, assets: list[str]) -> tuple[str,
 
         # 1. Macro calendar — high-impact events in the next 6h
         cal_rows = (
-            await session2.execute(
-                select(EconomicEvent)
-                .where(
-                    EconomicEvent.scheduled_at.is_not(None),
-                    EconomicEvent.scheduled_at >= now,
-                    EconomicEvent.scheduled_at <= horizon_6h,
-                    EconomicEvent.impact.in_(["high", "medium"]),
+            (
+                await session2.execute(
+                    select(EconomicEvent)
+                    .where(
+                        EconomicEvent.scheduled_at.is_not(None),
+                        EconomicEvent.scheduled_at >= now,
+                        EconomicEvent.scheduled_at <= horizon_6h,
+                        EconomicEvent.impact.in_(["high", "medium"]),
+                    )
+                    .order_by(EconomicEvent.scheduled_at)
+                    .limit(15)
                 )
-                .order_by(EconomicEvent.scheduled_at)
-                .limit(15)
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
 
         # 2. News-NLP aggregate — last 24h tone-tagged headlines
         nlp_counts_rows = (
@@ -181,39 +187,51 @@ async def _assemble_context(briefing_type: str, assets: list[str]) -> tuple[str,
             )
         ).all()
         top_news = (
-            await session2.execute(
-                select(NewsItem)
-                .where(
-                    NewsItem.published_at >= cutoff_24h,
-                    NewsItem.tone_label.is_not(None),
+            (
+                await session2.execute(
+                    select(NewsItem)
+                    .where(
+                        NewsItem.published_at >= cutoff_24h,
+                        NewsItem.tone_label.is_not(None),
+                    )
+                    .order_by(desc(NewsItem.tone_score), desc(NewsItem.published_at))
+                    .limit(5)
                 )
-                .order_by(desc(NewsItem.tone_score), desc(NewsItem.published_at))
-                .limit(5)
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
 
         # 3. COT shifts — current vs 7d-ago managed-money net per market
         cot_now = (
-            await session2.execute(
-                select(CotPosition)
-                .where(CotPosition.report_date >= cutoff_7d.date())
-                .order_by(desc(CotPosition.report_date))
-                .limit(20)
+            (
+                await session2.execute(
+                    select(CotPosition)
+                    .where(CotPosition.report_date >= cutoff_7d.date())
+                    .order_by(desc(CotPosition.report_date))
+                    .limit(20)
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         cot_prev_map: dict[str, int] = {}
         prev_rows = (
-            await session2.execute(
-                select(CotPosition)
-                .where(
-                    and_(
-                        CotPosition.report_date >= cutoff_14d.date(),
-                        CotPosition.report_date < cutoff_7d.date(),
+            (
+                await session2.execute(
+                    select(CotPosition)
+                    .where(
+                        and_(
+                            CotPosition.report_date >= cutoff_14d.date(),
+                            CotPosition.report_date < cutoff_7d.date(),
+                        )
                     )
+                    .order_by(desc(CotPosition.report_date))
                 )
-                .order_by(desc(CotPosition.report_date))
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         for r in prev_rows:
             cot_prev_map.setdefault(r.market_code, r.managed_money_net)
 
@@ -251,17 +269,13 @@ async def _assemble_context(briefing_type: str, assets: list[str]) -> tuple[str,
     # ── 2. News-NLP aggregate (last 24h) ─────────────────────────────────
     parts.append("## News-NLP aggregate (last 24h, FinBERT-tone)")
     if nlp_counts_rows:
-        tone_summary = ", ".join(
-            f"{label}: {count}" for label, count in sorted(nlp_counts_rows)
-        )
+        tone_summary = ", ".join(f"{label}: {count}" for label, count in sorted(nlp_counts_rows))
         parts.append(f"- Tone distribution : {tone_summary}")
     if top_news:
         parts.append("- Top 5 by |tone_score| :")
         for n in top_news:
             score = f"{n.tone_score:+.2f}" if n.tone_score is not None else "—"
-            parts.append(
-                f"  - **{n.source}** · `{n.tone_label}` ({score}) · {n.title[:90]}"
-            )
+            parts.append(f"  - **{n.source}** · `{n.tone_label}` ({score}) · {n.title[:90]}")
     if not nlp_counts_rows and not top_news:
         parts.append("*(no tone-tagged news in the last 24h — FinBERT worker may be offline)*")
     parts.append("")
@@ -305,19 +319,14 @@ async def _assemble_context(briefing_type: str, assets: list[str]) -> tuple[str,
             line_parts.append(f"6M={vix_6m:.2f}")
         parts.append(f"- Term : {' · '.join(line_parts)}")
         # Backwardation flag : 9D > spot > 3M signals near-term stress repricing
-        if (
-            vix_9d is not None
-            and vix_3m is not None
-            and vix_9d > vix_spot > vix_3m
-        ):
+        if vix_9d is not None and vix_3m is not None and vix_9d > vix_spot > vix_3m:
             parts.append(
                 "- **Backwardation** : 9D > Spot > 3M — near-term stress, "
                 "vol-mean-revert tactical setup"
             )
         elif vix_3m is not None and vix_spot is not None and vix_3m > vix_spot * 1.05:
             parts.append(
-                "- Contango steep : 3M > Spot by >5% — calm regime, "
-                "carry-friendly conditions"
+                "- Contango steep : 3M > Spot by >5% — calm regime, carry-friendly conditions"
             )
     else:
         parts.append("*(VIX series not available — FRED collector may be lagging)*")
@@ -361,7 +370,7 @@ async def main(briefing_type: str) -> int:
 
     settings = get_settings()
     assets = _resolve_assets(briefing_type, settings)
-    triggered_at = datetime.now(timezone.utc)
+    triggered_at = datetime.now(UTC)
 
     sm = get_sessionmaker()
 
@@ -425,6 +434,7 @@ async def main(briefing_type: str) -> int:
     # 5. Pub/Sub to dashboard WS
     try:
         from redis import asyncio as aioredis
+
         redis = aioredis.from_url(settings.redis_url)
         await redis.publish(
             "ichor:briefings:new",
@@ -434,7 +444,12 @@ async def main(briefing_type: str) -> int:
     except Exception as e:
         log.warning("cli.redis_publish_failed", error=str(e))
 
-    log.info("cli.briefing.done", id=str(briefing_id), status=row.status, duration_ms=row.claude_duration_ms)
+    log.info(
+        "cli.briefing.done",
+        id=str(briefing_id),
+        status=row.status,
+        duration_ms=row.claude_duration_ms,
+    )
     return 0 if row.status == "completed" else 5
 
 

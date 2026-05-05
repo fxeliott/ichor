@@ -218,7 +218,7 @@ def extract_thesis(claude_raw_response: Any | None) -> str | None:
     return None
 
 
-def extract_trade_plan(claude_raw_response: Any | None) -> "TradePlan | None":
+def extract_trade_plan(claude_raw_response: Any | None) -> TradePlan | None:
     """Best-effort projection of Pass 2 trade-plan onto the typed schema."""
     payload = _candidate_payload(claude_raw_response)
     if payload is None:
@@ -233,7 +233,7 @@ def extract_trade_plan(claude_raw_response: Any | None) -> "TradePlan | None":
         return None
 
 
-def extract_ideas(claude_raw_response: Any | None) -> "IdeaSet | None":
+def extract_ideas(claude_raw_response: Any | None) -> IdeaSet | None:
     """Pull the brain Pass 2 ideas (top + supporting + risks)."""
     payload = _candidate_payload(claude_raw_response)
     if payload is None:
@@ -250,7 +250,7 @@ def extract_ideas(claude_raw_response: Any | None) -> "IdeaSet | None":
 
 def extract_confluence_drivers(
     claude_raw_response: Any | None,
-) -> list["ConfluenceDriver"] | None:
+) -> list[ConfluenceDriver] | None:
     """Project the per-driver confluence breakdown."""
     payload = _candidate_payload(claude_raw_response)
     if payload is None:
@@ -272,7 +272,7 @@ def extract_confluence_drivers(
 
 def extract_calibration_stat(
     claude_raw_response: Any | None,
-) -> "CalibrationStat | None":
+) -> CalibrationStat | None:
     """Project the per-asset Brier snapshot stamped by the runner."""
     payload = _candidate_payload(claude_raw_response)
     if payload is None:
@@ -360,7 +360,7 @@ class SessionCardOut(BaseModel):
     model_config = {"from_attributes": True}
 
     @classmethod
-    def from_orm_row(cls, row: Any) -> "SessionCardOut":
+    def from_orm_row(cls, row: Any) -> SessionCardOut:
         """Build SessionCardOut + extract typed Phase-2 enrichments.
 
         Reads the ORM row's columns then enriches the output with the

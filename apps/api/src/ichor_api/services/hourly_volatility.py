@@ -19,8 +19,8 @@ quantified per asset.
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -73,7 +73,7 @@ def _percentile(sorted_xs: list[float], p: float) -> float:
 async def assess_hourly_volatility(
     session: AsyncSession, asset: str, *, window_days: int = 30
 ) -> HourlyVolReport:
-    cutoff = datetime.now(timezone.utc) - timedelta(days=window_days)
+    cutoff = datetime.now(UTC) - timedelta(days=window_days)
     rows = list(
         (
             await session.execute(
@@ -84,7 +84,9 @@ async def assess_hourly_volatility(
                 )
                 .order_by(PolygonIntradayBar.bar_ts.asc())
             )
-        ).scalars().all()
+        )
+        .scalars()
+        .all()
     )
 
     # Group |log-return| samples by hour-of-day
@@ -104,9 +106,7 @@ async def assess_hourly_volatility(
     for h in range(24):
         samples = sorted(by_hour[h])
         if not samples:
-            entries.append(
-                HourlyVolEntry(hour_utc=h, median_bp=0.0, p75_bp=0.0, n_samples=0)
-            )
+            entries.append(HourlyVolEntry(hour_utc=h, median_bp=0.0, p75_bp=0.0, n_samples=0))
             continue
         median = _percentile(samples, 50.0)
         p75 = _percentile(samples, 75.0)
@@ -141,8 +141,8 @@ async def assess_hourly_volatility(
         best_hour_utc=best_hour,
         worst_hour_utc=worst_hour,
         london_session_avg_bp=avg_for(list(range(7, 16))),
-        asian_session_avg_bp=avg_for(list(range(0, 7))),
-        generated_at=datetime.now(timezone.utc),
+        asian_session_avg_bp=avg_for(list(range(7))),
+        generated_at=datetime.now(UTC),
     )
 
 
@@ -152,8 +152,7 @@ def render_hourly_volatility_block(
     populated = [e for e in r.entries if e.n_samples > 0]
     if not populated:
         return (
-            f"## Hourly volatility ({r.asset}, {r.window_days}d)\n"
-            f"- (insufficient polygon history)",
+            f"## Hourly volatility ({r.asset}, {r.window_days}d)\n- (insufficient polygon history)",
             [],
         )
 
@@ -166,7 +165,7 @@ def render_hourly_volatility_block(
     def cell(e: HourlyVolEntry) -> str:
         if e.n_samples == 0:
             return "·"
-        idx = max(0, min(8, int(round(e.median_bp / max_med * 8))))
+        idx = max(0, min(8, round(e.median_bp / max_med * 8)))
         return bar_chars[idx]
 
     hour_row = "".join(f"{e.hour_utc:>3d}" for e in r.entries)
@@ -186,13 +185,9 @@ def render_hourly_volatility_block(
             f"- Worst hour (UTC) : {r.worst_hour_utc:02d}:00 — median {we.median_bp:.1f}bp"
         )
     if r.london_session_avg_bp is not None:
-        lines.append(
-            f"- London/NY overlap (07-15 UTC) avg : {r.london_session_avg_bp:.1f}bp"
-        )
+        lines.append(f"- London/NY overlap (07-15 UTC) avg : {r.london_session_avg_bp:.1f}bp")
     if r.asian_session_avg_bp is not None:
-        lines.append(
-            f"- Asian (00-06 UTC) avg : {r.asian_session_avg_bp:.1f}bp"
-        )
+        lines.append(f"- Asian (00-06 UTC) avg : {r.asian_session_avg_bp:.1f}bp")
 
     sources = [f"polygon_intraday:{r.asset}@hourly_vol_{r.window_days}d"]
     return "\n".join(lines), sources

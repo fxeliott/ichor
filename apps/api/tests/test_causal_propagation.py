@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-import pytest
+import itertools
 
+import pytest
 from ichor_api.services.causal_propagation import (
     NodeImpact,
     propagate_shock,
@@ -54,16 +55,14 @@ def test_propagate_validates_probability_range() -> None:
 
 def test_propagate_unknown_node_yields_only_self() -> None:
     """No outgoing edges → only the shock node itself surfaces."""
-    impacts = propagate_shock(
-        shock_node="asset:UNKNOWN_FAKE_NODE", shock_probability=0.9
-    )
+    impacts = propagate_shock(shock_node="asset:UNKNOWN_FAKE_NODE", shock_probability=0.9)
     assert len(impacts) == 1
     assert impacts[0].node_id == "asset:UNKNOWN_FAKE_NODE"
 
 
 def test_propagate_results_sorted_descending() -> None:
     impacts = propagate_shock(shock_node="speaker:Powell", shock_probability=1.0)
-    for a, b in zip(impacts, impacts[1:]):
+    for a, b in itertools.pairwise(impacts):
         assert a.probability >= b.probability
 
 
@@ -81,6 +80,7 @@ def test_propagate_hops_increase_with_distance() -> None:
 def test_node_impact_is_frozen() -> None:
     """Mutability would corrupt the cached propagation if any."""
     import dataclasses
+
     n = NodeImpact(node_id="x", probability=0.5, hops_from_shock=1)
     try:
         n.probability = 0.6  # type: ignore[misc]

@@ -38,7 +38,7 @@ cross-check the brain.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Literal
 
 from sqlalchemy import desc, select
@@ -115,31 +115,33 @@ _FOREIGN_10Y: dict[str, str] = {
 _USD_IS_BASE = {"USD_JPY", "USD_CAD"}
 
 
-async def _factor_rate_diff(
-    session: AsyncSession, asset: str
-) -> Driver | None:
+async def _factor_rate_diff(session: AsyncSession, asset: str) -> Driver | None:
     """US10Y minus foreign 10Y, normalized by 1bp/+1 wide window."""
     if asset not in _FOREIGN_10Y:
         return None
 
     async def latest(series_id: str) -> tuple[float, datetime] | None:
-        cutoff = datetime.now(timezone.utc).date() - timedelta(days=14)
+        cutoff = datetime.now(UTC).date() - timedelta(days=14)
         row = (
-            await session.execute(
-                select(FredObservation)
-                .where(
-                    FredObservation.series_id == series_id,
-                    FredObservation.observation_date >= cutoff,
-                    FredObservation.value.is_not(None),
+            (
+                await session.execute(
+                    select(FredObservation)
+                    .where(
+                        FredObservation.series_id == series_id,
+                        FredObservation.observation_date >= cutoff,
+                        FredObservation.value.is_not(None),
+                    )
+                    .order_by(desc(FredObservation.observation_date))
+                    .limit(1)
                 )
-                .order_by(desc(FredObservation.observation_date))
-                .limit(1)
             )
-        ).scalars().first()
+            .scalars()
+            .first()
+        )
         if row is None or row.value is None:
             return None
         return float(row.value), datetime.combine(
-            row.observation_date, datetime.min.time(), tzinfo=timezone.utc
+            row.observation_date, datetime.min.time(), tzinfo=UTC
         )
 
     us = await latest("DGS10")
@@ -191,7 +193,9 @@ async def _factor_cot(session: AsyncSession, asset: str) -> Driver | None:
                 .order_by(desc(CotPosition.report_date))
                 .limit(52)
             )
-        ).scalars().all()
+        )
+        .scalars()
+        .all()
     )
     if len(rows) < 4:
         return None
@@ -199,7 +203,7 @@ async def _factor_cot(session: AsyncSession, asset: str) -> Driver | None:
     cur = nets[0]
     mean = sum(nets) / len(nets)
     var = sum((x - mean) ** 2 for x in nets) / max(1, len(nets) - 1)
-    std = var ** 0.5 if var > 0 else 1.0
+    std = var**0.5 if var > 0 else 1.0
     z = (cur - mean) / std
     # Tame extreme z (>3) and convert to [-1, +1]
     raw = max(-1.0, min(1.0, z / 2.0))
@@ -216,11 +220,9 @@ async def _factor_cot(session: AsyncSession, asset: str) -> Driver | None:
     )
 
 
-async def _factor_microstructure(
-    session: AsyncSession, asset: str
-) -> Driver | None:
+async def _factor_microstructure(session: AsyncSession, asset: str) -> Driver | None:
     """Lee-Ready signed-volume OFI computed inline from last 4h of bars."""
-    cutoff = datetime.now(timezone.utc) - timedelta(hours=4)
+    cutoff = datetime.now(UTC) - timedelta(hours=4)
     rows = list(
         (
             await session.execute(
@@ -231,7 +233,9 @@ async def _factor_microstructure(
                 )
                 .order_by(PolygonIntradayBar.bar_ts.asc())
             )
-        ).scalars().all()
+        )
+        .scalars()
+        .all()
     )
     if len(rows) < 5:
         return None
@@ -282,20 +286,13 @@ def _factor_daily_levels(asset: str, levels: DailyLevels) -> Driver | None:
     if 0.0 <= pos <= 1.0:
         # Tent : 0 mid, ±0.4 at extremes
         contribution = (pos - 0.5) * 0.8
-        evidence = (
-            f"spot {spot:.5f} at {pos*100:.0f}% of PDH-PDL range "
-            f"({pdl:.5f}-{pdh:.5f})"
-        )
+        evidence = f"spot {spot:.5f} at {pos * 100:.0f}% of PDH-PDL range ({pdl:.5f}-{pdh:.5f})"
     elif pos > 1.0:
         contribution = -0.5  # swept upside → reversal short
-        evidence = (
-            f"spot {spot:.5f} ABOVE PDH {pdh:.5f} (swept upside) → reversal bias"
-        )
+        evidence = f"spot {spot:.5f} ABOVE PDH {pdh:.5f} (swept upside) → reversal bias"
     else:
         contribution = 0.5  # swept downside → reversal long
-        evidence = (
-            f"spot {spot:.5f} BELOW PDL {pdl:.5f} (swept downside) → reversal bias"
-        )
+        evidence = f"spot {spot:.5f} BELOW PDL {pdl:.5f} (swept downside) → reversal bias"
     return Driver(
         factor="daily_levels",
         contribution=contribution,
@@ -354,11 +351,9 @@ def _matches_phrase(text_lower: str, phrase: list[str]) -> bool:
     return all(token in text_lower for token in phrase)
 
 
-async def _factor_polymarket(
-    session: AsyncSession, asset: str
-) -> Driver | None:
+async def _factor_polymarket(session: AsyncSession, asset: str) -> Driver | None:
     """Aggregate polymarket signal — sum of keyword-matched impacts."""
-    cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
+    cutoff = datetime.now(UTC) - timedelta(hours=24)
     rows = list(
         (
             await session.execute(
@@ -367,7 +362,9 @@ async def _factor_polymarket(
                 .order_by(desc(PolymarketSnapshot.fetched_at))
                 .limit(40)
             )
-        ).scalars().all()
+        )
+        .scalars()
+        .all()
     )
     if not rows:
         return None
@@ -375,14 +372,10 @@ async def _factor_polymarket(
     matched_examples: list[str] = []
     for r in rows:
         q = (r.question or "").lower()
-        yes = (
-            r.last_prices[0]
-            if r.last_prices and len(r.last_prices) > 0
-            else None
-        )
+        yes = r.last_prices[0] if r.last_prices and len(r.last_prices) > 0 else None
         if yes is None:
             continue
-        for kw_id, (phrases, impacts) in _POLY_KEYWORDS.items():
+        for _kw_id, (phrases, impacts) in _POLY_KEYWORDS.items():
             if asset not in impacts:
                 continue
             if not any(_matches_phrase(q, p) for p in phrases):
@@ -393,9 +386,7 @@ async def _factor_polymarket(
             contribution = impacts[asset] * weight
             total_contribution += contribution
             if abs(contribution) >= 0.05 and len(matched_examples) < 3:
-                matched_examples.append(
-                    f"'{r.question[:60]}' YES={yes:.0%} ⇒ {contribution:+.2f}"
-                )
+                matched_examples.append(f"'{r.question[:60]}' YES={yes:.0%} ⇒ {contribution:+.2f}")
     if not matched_examples:
         return None
     raw = max(-1.0, min(1.0, total_contribution))
@@ -407,9 +398,7 @@ async def _factor_polymarket(
     )
 
 
-async def _factor_funding_stress(
-    session: AsyncSession, asset: str
-) -> Driver | None:
+async def _factor_funding_stress(session: AsyncSession, asset: str) -> Driver | None:
     """Funding stress regime → mean-revert friendly. Stretched moves fade."""
     reading = await assess_funding_stress(session)
     score = getattr(reading, "stress_score", None)
@@ -432,9 +421,7 @@ async def _factor_funding_stress(
     )
 
 
-async def _factor_vix_term(
-    session: AsyncSession, asset: str
-) -> Driver | None:
+async def _factor_vix_term(session: AsyncSession, asset: str) -> Driver | None:
     """VIX term structure : backwardation = mean-revert friendly equity-long."""
     r = await assess_vix_term(session)
     if r.ratio is None:
@@ -455,54 +442,61 @@ async def _factor_vix_term(
     return Driver(
         factor="vix_term",
         contribution=round(contribution, 3),
-        evidence=(
-            f"VIX 1M={r.vix_1m:.1f} / 3M={r.vix_3m:.1f} ratio={r.ratio:.2f} "
-            f"({r.regime})"
-        ),
+        evidence=(f"VIX 1M={r.vix_1m:.1f} / 3M={r.vix_3m:.1f} ratio={r.ratio:.2f} ({r.regime})"),
         source="FRED:VIXCLS|FRED:VXVCLS",
     )
 
 
-async def _factor_btc_risk_proxy(
-    session: AsyncSession, asset: str
-) -> Driver | None:
+async def _factor_btc_risk_proxy(session: AsyncSession, asset: str) -> Driver | None:
     """BTC/USD 24h % change as risk-on/off proxy.
 
     BTC is a leading indicator of speculative risk appetite (esp. for
     NAS100, AUD/USD, JPY carry). Strong BTC up = risk-on tailwind.
     """
-    cutoff_now = datetime.now(timezone.utc)
+    cutoff_now = datetime.now(UTC)
     cutoff_24h = cutoff_now - timedelta(hours=24)
 
     last = (
-        await session.execute(
-            select(PolygonIntradayBar)
-            .where(PolygonIntradayBar.asset == "BTC_USD")
-            .order_by(desc(PolygonIntradayBar.bar_ts))
-            .limit(1)
-        )
-    ).scalars().first()
-    first = (
-        await session.execute(
-            select(PolygonIntradayBar)
-            .where(
-                PolygonIntradayBar.asset == "BTC_USD",
-                PolygonIntradayBar.bar_ts <= cutoff_24h,
-            )
-            .order_by(desc(PolygonIntradayBar.bar_ts))
-            .limit(1)
-        )
-    ).scalars().first()
-    # Fallback : use earliest bar if 24h window too narrow
-    if first is None:
-        first = (
+        (
             await session.execute(
                 select(PolygonIntradayBar)
                 .where(PolygonIntradayBar.asset == "BTC_USD")
-                .order_by(PolygonIntradayBar.bar_ts.asc())
+                .order_by(desc(PolygonIntradayBar.bar_ts))
                 .limit(1)
             )
-        ).scalars().first()
+        )
+        .scalars()
+        .first()
+    )
+    first = (
+        (
+            await session.execute(
+                select(PolygonIntradayBar)
+                .where(
+                    PolygonIntradayBar.asset == "BTC_USD",
+                    PolygonIntradayBar.bar_ts <= cutoff_24h,
+                )
+                .order_by(desc(PolygonIntradayBar.bar_ts))
+                .limit(1)
+            )
+        )
+        .scalars()
+        .first()
+    )
+    # Fallback : use earliest bar if 24h window too narrow
+    if first is None:
+        first = (
+            (
+                await session.execute(
+                    select(PolygonIntradayBar)
+                    .where(PolygonIntradayBar.asset == "BTC_USD")
+                    .order_by(PolygonIntradayBar.bar_ts.asc())
+                    .limit(1)
+                )
+            )
+            .scalars()
+            .first()
+        )
     if last is None or first is None or first.close <= 0:
         return None
     pct_change = (float(last.close) / float(first.close) - 1.0) * 100.0
@@ -535,9 +529,7 @@ async def _factor_btc_risk_proxy(
     )
 
 
-async def _factor_risk_appetite(
-    session: AsyncSession, asset: str
-) -> Driver | None:
+async def _factor_risk_appetite(session: AsyncSession, asset: str) -> Driver | None:
     """Composite risk-on/off score → tilts equities + commodity FX."""
     r = await assess_risk_appetite(session)
     if not r.components:
@@ -563,9 +555,7 @@ async def _factor_risk_appetite(
     )
 
 
-async def _factor_surprise_index(
-    session: AsyncSession, asset: str
-) -> Driver | None:
+async def _factor_surprise_index(session: AsyncSession, asset: str) -> Driver | None:
     reading = await assess_surprise_index(session)
     composite = getattr(reading, "composite", None)
     if composite is None or not isinstance(composite, (int, float)):
@@ -670,10 +660,6 @@ def render_confluence_block(r: ConfluenceReport) -> tuple[str, list[str]]:
         lines.append("- Drivers :")
         for d in r.drivers:
             sign = "+" if d.contribution >= 0 else ""
-            lines.append(
-                f"  · {d.factor:>20s}  {sign}{d.contribution:+.2f}  — {d.evidence}"
-            )
-    sources: list[str] = [
-        d.source for d in r.drivers if d.source is not None
-    ]
+            lines.append(f"  · {d.factor:>20s}  {sign}{d.contribution:+.2f}  — {d.evidence}")
+    sources: list[str] = [d.source for d in r.drivers if d.source is not None]
     return "\n".join(lines), sources

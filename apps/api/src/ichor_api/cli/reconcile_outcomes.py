@@ -25,7 +25,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import structlog
 from sqlalchemy import desc, select
@@ -50,7 +50,7 @@ async def _find_pending_cards(
 ) -> list[SessionCardAudit]:
     """Cards waiting for reconciliation : realized_at IS NULL and
     timing window has elapsed (with grace period)."""
-    cutoff = datetime.now(timezone.utc) - _GRACE_PERIOD
+    cutoff = datetime.now(UTC) - _GRACE_PERIOD
     stmt = (
         select(SessionCardAudit)
         .where(SessionCardAudit.realized_at.is_(None))
@@ -68,9 +68,7 @@ async def _find_pending_cards(
     return out
 
 
-async def _bars_for_card(
-    session: AsyncSession, card: SessionCardAudit
-) -> list[PolygonIntradayBar]:
+async def _bars_for_card(session: AsyncSession, card: SessionCardAudit) -> list[PolygonIntradayBar]:
     """Polygon 1-min bars covering the session window for this asset."""
     start = card.generated_at
     end = card.timing_window_end or (card.generated_at + _DEFAULT_WINDOW)
@@ -120,7 +118,7 @@ async def _reconcile_one(
     card.realized_close_session = outcome.realized_close_session
     card.realized_high_session = outcome.realized_high_session
     card.realized_low_session = outcome.realized_low_session
-    card.realized_at = datetime.now(timezone.utc)
+    card.realized_at = datetime.now(UTC)
     card.brier_contribution = outcome.brier_contribution
     return True, f"brier={outcome.brier_contribution:.4f} y={outcome.realized_outcome}"
 
@@ -128,17 +126,13 @@ async def _reconcile_one(
 async def _run(*, limit: int, asset_filter: str | None, dry_run: bool) -> int:
     sm = get_sessionmaker()
     async with sm() as session:
-        cards = await _find_pending_cards(
-            session, limit=limit, asset_filter=asset_filter
-        )
+        cards = await _find_pending_cards(session, limit=limit, asset_filter=asset_filter)
         if not cards:
             print("no pending cards to reconcile")
             return 0
         n_committed = 0
         for card in cards:
-            committed, reason = await _reconcile_one(
-                session, card, dry_run=dry_run
-            )
+            committed, reason = await _reconcile_one(session, card, dry_run=dry_run)
             log.info(
                 "reconcile.card",
                 id=str(card.id),
@@ -148,8 +142,7 @@ async def _run(*, limit: int, asset_filter: str | None, dry_run: bool) -> int:
                 reason=reason,
             )
             print(
-                f"{'OK ' if committed else '-- '}{card.asset:10s} "
-                f"{card.session_type:14s} {reason}"
+                f"{'OK ' if committed else '-- '}{card.asset:10s} {card.session_type:14s} {reason}"
             )
             if committed:
                 n_committed += 1

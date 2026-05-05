@@ -21,13 +21,12 @@ all of them ; this surfaces it.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models import SessionCardAudit
-
 
 # Per-asset USD impact when bias=long :
 #   For X/USD pairs : long X/USD → SHORT USD (negative for USD axis)
@@ -38,7 +37,7 @@ _USD_AXIS: dict[str, float] = {
     "AUD_USD": -1.0,
     "USD_JPY": +1.0,
     "USD_CAD": +1.0,
-    "XAU_USD": -0.6,    # gold ↑ generally USD-neutral but slight haven
+    "XAU_USD": -0.6,  # gold ↑ generally USD-neutral but slight haven
     "NAS100_USD": -0.3,  # NAS strong → USD slight risk-on bid
     "SPX500_USD": -0.3,
 }
@@ -47,29 +46,29 @@ _USD_AXIS: dict[str, float] = {
 _EQUITY_AXIS: dict[str, float] = {
     "NAS100_USD": +1.0,
     "SPX500_USD": +1.0,
-    "AUD_USD": +0.4,   # commodity risk currency
-    "USD_JPY": +0.3,   # carry, risk-on rises
-    "XAU_USD": -0.3,   # equity up → gold soft
+    "AUD_USD": +0.4,  # commodity risk currency
+    "USD_JPY": +0.3,  # carry, risk-on rises
+    "XAU_USD": -0.3,  # equity up → gold soft
 }
 
 # Gold axis : direct exposure
 _GOLD_AXIS: dict[str, float] = {
     "XAU_USD": +1.0,
-    "USD_JPY": -0.3,   # JPY weak ↔ gold up (correlated risk dimension)
+    "USD_JPY": -0.3,  # JPY weak ↔ gold up (correlated risk dimension)
 }
 
 # JPY axis : long JPY = haven exposure
 _JPY_AXIS: dict[str, float] = {
-    "USD_JPY": -1.0,   # short USD/JPY = long JPY
+    "USD_JPY": -1.0,  # short USD/JPY = long JPY
     "EUR_USD": +0.0,
-    "XAU_USD": +0.3,   # gold haven correlates with JPY haven
+    "XAU_USD": +0.3,  # gold haven correlates with JPY haven
     "NAS100_USD": -0.3,
 }
 
 # Commodity FX axis (AUD + CAD risk-on)
 _COMMODITY_AXIS: dict[str, float] = {
     "AUD_USD": +1.0,
-    "USD_CAD": -1.0,   # short USD/CAD = long CAD
+    "USD_CAD": -1.0,  # short USD/CAD = long CAD
 }
 
 
@@ -101,9 +100,7 @@ class ExposureReport:
     axes: list[ExposureAxis]
     concentration_warnings: list[str] = field(default_factory=list)
     """e.g. "5/8 cards lean USD-long — concentration risk."""
-    generated_at: datetime = field(
-        default_factory=lambda: datetime.now(timezone.utc)
-    )
+    generated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 _PHASE1_ASSETS = (
@@ -121,18 +118,22 @@ _PHASE1_ASSETS = (
 async def _latest_card(
     session: AsyncSession, asset: str, max_age_hours: int = 24
 ) -> CardLite | None:
-    cutoff = datetime.now(timezone.utc) - timedelta(hours=max_age_hours)
+    cutoff = datetime.now(UTC) - timedelta(hours=max_age_hours)
     row = (
-        await session.execute(
-            select(SessionCardAudit)
-            .where(
-                SessionCardAudit.asset == asset,
-                SessionCardAudit.created_at >= cutoff,
+        (
+            await session.execute(
+                select(SessionCardAudit)
+                .where(
+                    SessionCardAudit.asset == asset,
+                    SessionCardAudit.created_at >= cutoff,
+                )
+                .order_by(desc(SessionCardAudit.created_at))
+                .limit(1)
             )
-            .order_by(desc(SessionCardAudit.created_at))
-            .limit(1)
         )
-    ).scalars().first()
+        .scalars()
+        .first()
+    )
     if row is None:
         return None
     return CardLite(
@@ -165,9 +166,7 @@ def _card_weight(c: CardLite) -> float:
     return sign * conv * mag_norm
 
 
-def _compute_axis(
-    cards: list[CardLite], axis_map: dict[str, float], name: str
-) -> ExposureAxis:
+def _compute_axis(cards: list[CardLite], axis_map: dict[str, float], name: str) -> ExposureAxis:
     contributions: list[tuple[str, float]] = []
     total = 0.0
     for c in cards:
@@ -180,9 +179,7 @@ def _compute_axis(
             contributions.append((c.asset, round(contribution, 3)))
         total += contribution
     # Normalize : divide by sum of |coef| seen for active assets
-    seen_coefs = sum(
-        abs(axis_map.get(c.asset, 0.0)) for c in cards if c.bias != "neutral"
-    )
+    seen_coefs = sum(abs(axis_map.get(c.asset, 0.0)) for c in cards if c.bias != "neutral")
     if seen_coefs > 0:
         total = total / max(1.0, seen_coefs)
     score = max(-1.0, min(1.0, total))
@@ -216,18 +213,14 @@ async def assess_portfolio_exposure(
     n_long_usd = sum(
         1
         for c in cards
-        if c.bias == "long"
-        and _USD_AXIS.get(c.asset, 0) > 0
-        or c.bias == "short"
-        and _USD_AXIS.get(c.asset, 0) < 0
+        if (c.bias == "long" and _USD_AXIS.get(c.asset, 0) > 0)
+        or (c.bias == "short" and _USD_AXIS.get(c.asset, 0) < 0)
     )
     n_short_usd = sum(
         1
         for c in cards
-        if c.bias == "short"
-        and _USD_AXIS.get(c.asset, 0) > 0
-        or c.bias == "long"
-        and _USD_AXIS.get(c.asset, 0) < 0
+        if (c.bias == "short" and _USD_AXIS.get(c.asset, 0) > 0)
+        or (c.bias == "long" and _USD_AXIS.get(c.asset, 0) < 0)
     )
     if n_long_usd >= 5:
         warnings.append(
@@ -264,29 +257,20 @@ def render_portfolio_exposure_block(
             "- Aucune carte fraîche pour calculer l'exposition.",
             [],
         )
-    lines = [
-        f"## Portfolio exposure ({r.n_cards}/8 cards latest 24h)"
-    ]
+    lines = [f"## Portfolio exposure ({r.n_cards}/8 cards latest 24h)"]
     for ax in r.axes:
         sign = "+" if ax.score >= 0 else ""
         bar_len = int(abs(ax.score) * 10)
         bar_char = "█" if ax.score >= 0 else "░"
         bar = bar_char * bar_len + " " * (10 - bar_len)
-        lines.append(
-            f"- {ax.name:<15s} {sign}{ax.score:+.2f}  [{bar}]"
-        )
+        lines.append(f"- {ax.name:<15s} {sign}{ax.score:+.2f}  [{bar}]")
         if ax.contributors:
-            top = ", ".join(
-                f"{a} {v:+.2f}" for a, v in ax.contributors[:3]
-            )
+            top = ", ".join(f"{a} {v:+.2f}" for a, v in ax.contributors[:3])
             lines.append(f"  · top : {top}")
     if r.concentration_warnings:
         lines.append("- ⚠ Concentration warnings :")
         for w in r.concentration_warnings:
             lines.append(f"  · {w}")
 
-    sources = [
-        f"session_card_audit:{c.asset}@{c.created_at.isoformat()}"
-        for c in r.cards
-    ]
+    sources = [f"session_card_audit:{c.asset}@{c.created_at.isoformat()}" for c in r.cards]
     return "\n".join(lines), sources

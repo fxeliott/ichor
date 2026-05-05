@@ -71,8 +71,14 @@ def test_parse_disagg_csv_empty_body() -> None:
 def test_market_code_mapping_covers_phase1_assets() -> None:
     """All 8 Phase 1 assets must have a CFTC market code mapping."""
     expected = {
-        "EUR_USD", "GBP_USD", "USD_JPY", "AUD_USD", "USD_CAD",
-        "XAU_USD", "US30", "US100",
+        "EUR_USD",
+        "GBP_USD",
+        "USD_JPY",
+        "AUD_USD",
+        "USD_CAD",
+        "XAU_USD",
+        "US30",
+        "US100",
     }
     mapped_assets = set(MARKET_CODE_TO_ASSET.values())
     assert expected == mapped_assets, f"Missing assets: {expected - mapped_assets}"

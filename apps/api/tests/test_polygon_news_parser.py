@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from ichor_api.collectors.polygon_news import (
     PolygonNewsItem,
@@ -31,7 +31,7 @@ def test_parse_minimal_valid_item() -> None:
     assert it.id == "abc123"
     assert it.title == "Fed signals patient stance on rates"  # stripped
     assert it.url == "https://reuters.com/x"
-    assert it.published_at == datetime(2026, 5, 3, 14, 0, 0, tzinfo=timezone.utc)
+    assert it.published_at == datetime(2026, 5, 3, 14, 0, 0, tzinfo=UTC)
     assert it.publisher_name == "Reuters"
     assert it.tickers == ()
     assert it.keywords == ()
@@ -76,7 +76,11 @@ def test_parse_drops_rows_missing_required_fields() -> None:
             "published_utc": "2026-05-03T14:00:00Z",
             "publisher": {"name": "X"},
         },
-        {"id": "no_title", "article_url": "u2", "published_utc": "2026-05-03T14:00:00Z"},  # missing title
+        {
+            "id": "no_title",
+            "article_url": "u2",
+            "published_utc": "2026-05-03T14:00:00Z",
+        },  # missing title
         {"id": "no_url", "title": "X", "published_utc": "2026-05-03T14:00:00Z"},  # missing url
         {"title": "no_id", "article_url": "u3", "published_utc": "2026-05-03T14:00:00Z"},
         {"id": "no_published", "title": "X", "article_url": "u4"},
@@ -112,10 +116,16 @@ def test_parse_defensive_against_non_list_tickers() -> None:
 def test_relevant_keeps_macro_items_without_tickers() -> None:
     """No tickers = macro/geo news → kept."""
     item = PolygonNewsItem(
-        id="x", title="ECB Lagarde dovish", url="u",
-        published_at=datetime(2026, 5, 3, tzinfo=timezone.utc),
-        publisher_name="Reuters", publisher_url=None,
-        description=None, tickers=(), keywords=(), image_url=None,
+        id="x",
+        title="ECB Lagarde dovish",
+        url="u",
+        published_at=datetime(2026, 5, 3, tzinfo=UTC),
+        publisher_name="Reuters",
+        publisher_url=None,
+        description=None,
+        tickers=(),
+        keywords=(),
+        image_url=None,
     )
     assert relevant_to_ichor_universe(item) is True
 
@@ -123,10 +133,16 @@ def test_relevant_keeps_macro_items_without_tickers() -> None:
 def test_relevant_keeps_mega_cap_7() -> None:
     for ticker in ("AAPL", "MSFT", "GOOGL", "AMZN", "META", "NVDA", "TSLA"):
         item = PolygonNewsItem(
-            id="x", title="...", url="u",
-            published_at=datetime(2026, 5, 3, tzinfo=timezone.utc),
-            publisher_name="X", publisher_url=None,
-            description=None, tickers=(ticker,), keywords=(), image_url=None,
+            id="x",
+            title="...",
+            url="u",
+            published_at=datetime(2026, 5, 3, tzinfo=UTC),
+            publisher_name="X",
+            publisher_url=None,
+            description=None,
+            tickers=(ticker,),
+            keywords=(),
+            image_url=None,
         )
         assert relevant_to_ichor_universe(item) is True, f"{ticker} should be kept"
 
@@ -134,30 +150,48 @@ def test_relevant_keeps_mega_cap_7() -> None:
 def test_relevant_keeps_xau_proxies() -> None:
     for ticker in ("GLD", "IAU", "GDX", "SPDR"):
         item = PolygonNewsItem(
-            id="x", title="...", url="u",
-            published_at=datetime(2026, 5, 3, tzinfo=timezone.utc),
-            publisher_name="X", publisher_url=None,
-            description=None, tickers=(ticker,), keywords=(), image_url=None,
+            id="x",
+            title="...",
+            url="u",
+            published_at=datetime(2026, 5, 3, tzinfo=UTC),
+            publisher_name="X",
+            publisher_url=None,
+            description=None,
+            tickers=(ticker,),
+            keywords=(),
+            image_url=None,
         )
         assert relevant_to_ichor_universe(item) is True
 
 
 def test_relevant_drops_unrelated_smallcap() -> None:
     item = PolygonNewsItem(
-        id="x", title="Random small-cap merger", url="u",
-        published_at=datetime(2026, 5, 3, tzinfo=timezone.utc),
-        publisher_name="X", publisher_url=None,
-        description=None, tickers=("CWH", "PETS"), keywords=(), image_url=None,
+        id="x",
+        title="Random small-cap merger",
+        url="u",
+        published_at=datetime(2026, 5, 3, tzinfo=UTC),
+        publisher_name="X",
+        publisher_url=None,
+        description=None,
+        tickers=("CWH", "PETS"),
+        keywords=(),
+        image_url=None,
     )
     assert relevant_to_ichor_universe(item) is False
 
 
 def test_relevant_keeps_dxy_and_fx_direct() -> None:
     item = PolygonNewsItem(
-        id="x", title="DXY breaks 105", url="u",
-        published_at=datetime(2026, 5, 3, tzinfo=timezone.utc),
-        publisher_name="X", publisher_url=None,
-        description=None, tickers=("DXY",), keywords=(), image_url=None,
+        id="x",
+        title="DXY breaks 105",
+        url="u",
+        published_at=datetime(2026, 5, 3, tzinfo=UTC),
+        publisher_name="X",
+        publisher_url=None,
+        description=None,
+        tickers=("DXY",),
+        keywords=(),
+        image_url=None,
     )
     assert relevant_to_ichor_universe(item) is True
 

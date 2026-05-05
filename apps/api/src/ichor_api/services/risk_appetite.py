@@ -19,14 +19,13 @@ trader as a top-level filter before drilling into pairs.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Literal
 
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models import FredObservation
-
 
 RiskBand = Literal[
     "extreme_risk_off",
@@ -54,9 +53,7 @@ class RiskAppetiteReading:
     band: RiskBand
     components: list[RiskAppetiteComponent] = field(default_factory=list)
     sources: list[str] = field(default_factory=list)
-    generated_at: datetime = field(
-        default_factory=lambda: datetime.now(timezone.utc)
-    )
+    generated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 def _band(c: float) -> RiskBand:
@@ -71,11 +68,9 @@ def _band(c: float) -> RiskBand:
     return "neutral"
 
 
-async def _latest(
-    session: AsyncSession, series_id: str, max_age_days: int = 35
-) -> float | None:
+async def _latest(session: AsyncSession, series_id: str, max_age_days: int = 35) -> float | None:
     """Latest value for `series_id`. Allow 35d staleness for monthly data."""
-    cutoff = datetime.now(timezone.utc).date() - timedelta(days=max_age_days)
+    cutoff = datetime.now(UTC).date() - timedelta(days=max_age_days)
     row = (
         await session.execute(
             select(FredObservation.value)
@@ -243,15 +238,11 @@ async def assess_risk_appetite(session: AsyncSession) -> RiskAppetiteReading:
 
 def render_risk_appetite_block(r: RiskAppetiteReading) -> tuple[str, list[str]]:
     """Markdown block for data_pool.py."""
-    lines = [
-        f"## Risk appetite ({r.band}, composite {r.composite:+.2f})"
-    ]
+    lines = [f"## Risk appetite ({r.band}, composite {r.composite:+.2f})"]
     for c in r.components:
         if c.value is None:
             lines.append(f"- {c.name:>13s} : n/a")
             continue
         sign = "+" if c.contribution >= 0 else ""
-        lines.append(
-            f"- {c.name:>13s} : {sign}{c.contribution:+.2f}  — {c.rationale}"
-        )
+        lines.append(f"- {c.name:>13s} : {sign}{c.contribution:+.2f}  — {c.rationale}")
     return "\n".join(lines), list(r.sources)

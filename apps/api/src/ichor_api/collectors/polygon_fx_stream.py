@@ -302,17 +302,12 @@ async def stream_forever(
                     stats.last_tick_at = events[-1].ts
 
                     now_ts = datetime.now(UTC).timestamp()
-                    if (
-                        len(batch) >= batch_size
-                        or (now_ts - last_flush) * 1000 >= batch_window_ms
-                    ):
+                    if len(batch) >= batch_size or (now_ts - last_flush) * 1000 >= batch_window_ms:
                         try:
                             written = await persist_batch(session_factory, batch)
                             stats.n_ticks_persisted += written
                         except Exception as exc:
-                            log.warning(
-                                "polygon_fx_stream.persist_failed", error=str(exc)
-                            )
+                            log.warning("polygon_fx_stream.persist_failed", error=str(exc))
                             stats.last_error = str(exc)
                         batch.clear()
                         last_flush = now_ts
@@ -323,24 +318,20 @@ async def stream_forever(
                         written = await persist_batch(session_factory, batch)
                         stats.n_ticks_persisted += written
                     except Exception as exc:
-                        log.warning(
-                            "polygon_fx_stream.final_flush_failed", error=str(exc)
-                        )
+                        log.warning("polygon_fx_stream.final_flush_failed", error=str(exc))
                         stats.last_error = str(exc)
                     batch.clear()
 
                 if stop_event is not None and stop_event.is_set():
                     return
 
-        except (ConnectionClosed, WebSocketException, OSError, asyncio.TimeoutError) as exc:
+        except (TimeoutError, ConnectionClosed, WebSocketException, OSError) as exc:
             stats.last_error = f"{type(exc).__name__}: {exc}"
             stats.reconnects += 1
-            log.warning(
-                "polygon_fx_stream.disconnect", error=stats.last_error, backoff=backoff
-            )
+            log.warning("polygon_fx_stream.disconnect", error=stats.last_error, backoff=backoff)
             await asyncio.sleep(backoff)
             backoff = min(backoff * 2, max_backoff_s)
-        except Exception as exc:  # noqa: BLE001 — long-running supervisor
+        except Exception as exc:
             stats.last_error = f"unexpected: {type(exc).__name__}: {exc}"
             stats.reconnects += 1
             log.error("polygon_fx_stream.unexpected", error=stats.last_error)
@@ -369,9 +360,7 @@ async def _main() -> int:
 
     raw_pairs = os.environ.get("ICHOR_API_POLYGON_FX_PAIRS", "").strip()
     pairs: tuple[str, ...] = (
-        tuple(p.strip() for p in raw_pairs.split(",") if p.strip())
-        if raw_pairs
-        else DEFAULT_PAIRS
+        tuple(p.strip() for p in raw_pairs.split(",") if p.strip()) if raw_pairs else DEFAULT_PAIRS
     )
 
     stop = asyncio.Event()

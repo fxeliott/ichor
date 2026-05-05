@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime
 
 import pytest
-
 from ichor_api.services.microstructure import (
     IntradayBar,
     MicrostructureReading,
@@ -18,9 +17,11 @@ from ichor_api.services.microstructure import (
 )
 
 
-def _bar(close: float, volume: float, *, high: float | None = None, low: float | None = None) -> IntradayBar:
+def _bar(
+    close: float, volume: float, *, high: float | None = None, low: float | None = None
+) -> IntradayBar:
     return IntradayBar(
-        ts=datetime(2026, 5, 4, tzinfo=timezone.utc),
+        ts=datetime(2026, 5, 4, tzinfo=UTC),
         open=close,
         high=high if high is not None else close,
         low=low if low is not None else close,

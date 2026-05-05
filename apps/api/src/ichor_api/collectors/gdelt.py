@@ -21,9 +21,9 @@ Schema reference :
 from __future__ import annotations
 
 import asyncio
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Iterable, Sequence
+from collections.abc import Iterable
+from dataclasses import dataclass
+from datetime import UTC, datetime
 
 import httpx
 import structlog
@@ -74,7 +74,7 @@ DEFAULT_QUERIES: tuple[GdeltQuery, ...] = (
     ),
     GdeltQuery(
         "geopolitics",
-        '(Iran OR Israel OR Russia OR Ukraine OR China OR Taiwan) (oil OR gold OR sanctions OR strike)',
+        "(Iran OR Israel OR Russia OR Ukraine OR China OR Taiwan) (oil OR gold OR sanctions OR strike)",
         timespan="2h",
     ),
     GdeltQuery(
@@ -118,13 +118,13 @@ class GdeltArticle:
 def _parse_seendate(s: str) -> datetime:
     """GDELT seendate format : `20260503T093000Z`."""
     try:
-        return datetime.strptime(s, "%Y%m%dT%H%M%SZ").replace(tzinfo=timezone.utc)
+        return datetime.strptime(s, "%Y%m%dT%H%M%SZ").replace(tzinfo=UTC)
     except ValueError:
-        return datetime.now(timezone.utc)
+        return datetime.now(UTC)
 
 
 def _parse_response(query_label: str, payload: dict) -> list[GdeltArticle]:
-    fetched = datetime.now(timezone.utc)
+    fetched = datetime.now(UTC)
     out: list[GdeltArticle] = []
     for art in payload.get("articles", []):
         try:

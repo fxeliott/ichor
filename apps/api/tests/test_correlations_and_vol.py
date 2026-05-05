@@ -5,10 +5,15 @@ Focus on the math + branching logic that doesn't require live Postgres.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
-
+from ichor_api.services.brier_feedback import (
+    BrierFeedbackReport,
+    GroupStat,
+    _direction_realized,
+    render_brier_feedback_block,
+)
 from ichor_api.services.correlations import (
     CorrelationMatrix,
     _pearson,
@@ -21,13 +26,6 @@ from ichor_api.services.hourly_volatility import (
     _percentile,
     render_hourly_volatility_block,
 )
-from ichor_api.services.brier_feedback import (
-    BrierFeedbackReport,
-    GroupStat,
-    _direction_realized,
-    render_brier_feedback_block,
-)
-
 
 # ─────────────────────── correlations ──────────────────────────
 
@@ -77,7 +75,7 @@ def test_render_correlations_block_insufficient_data() -> None:
         assets=["EUR_USD", "USD_JPY"],
         matrix=[[1.0, None], [None, 1.0]],
         n_returns_used=5,
-        generated_at=datetime.now(timezone.utc),
+        generated_at=datetime.now(UTC),
         flags=[],
     )
     md, sources = render_correlations_block(m)
@@ -95,7 +93,7 @@ def test_render_correlations_block_with_flags() -> None:
             [-0.20, -0.15, 1.0],
         ],
         n_returns_used=120,
-        generated_at=datetime.now(timezone.utc),
+        generated_at=datetime.now(UTC),
         flags=["EUR_USD/GBP_USD unusually looser : +0.30 vs ref +0.65 (-0.35)"],
     )
     md, sources = render_correlations_block(m)
@@ -129,8 +127,7 @@ def test_percentile_empty() -> None:
 
 def test_render_hourly_volatility_no_data() -> None:
     entries = [
-        HourlyVolEntry(hour_utc=h, median_bp=0.0, p75_bp=0.0, n_samples=0)
-        for h in range(24)
+        HourlyVolEntry(hour_utc=h, median_bp=0.0, p75_bp=0.0, n_samples=0) for h in range(24)
     ]
     r = HourlyVolReport(
         asset="EUR_USD",
@@ -140,7 +137,7 @@ def test_render_hourly_volatility_no_data() -> None:
         worst_hour_utc=None,
         london_session_avg_bp=None,
         asian_session_avg_bp=None,
-        generated_at=datetime.now(timezone.utc),
+        generated_at=datetime.now(UTC),
     )
     md, sources = render_hourly_volatility_block(r)
     assert "insufficient" in md.lower()
@@ -157,9 +154,7 @@ def test_render_hourly_volatility_full_payload() -> None:
             med, p75 = 1.5, 2.5
         else:
             med, p75 = 3.0, 5.0
-        entries.append(
-            HourlyVolEntry(hour_utc=h, median_bp=med, p75_bp=p75, n_samples=120)
-        )
+        entries.append(HourlyVolEntry(hour_utc=h, median_bp=med, p75_bp=p75, n_samples=120))
     r = HourlyVolReport(
         asset="EUR_USD",
         window_days=30,
@@ -168,7 +163,7 @@ def test_render_hourly_volatility_full_payload() -> None:
         worst_hour_utc=3,
         london_session_avg_bp=6.0,
         asian_session_avg_bp=1.5,
-        generated_at=datetime.now(timezone.utc),
+        generated_at=datetime.now(UTC),
     )
     md, sources = render_hourly_volatility_block(r)
     assert "EUR_USD" in md

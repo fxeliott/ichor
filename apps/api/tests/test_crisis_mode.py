@@ -10,10 +10,9 @@ existing seed_dev_data CLI which we run on Hetzner.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime
 
 import pytest
-
 from ichor_api.alerts.catalog import (
     ALL_ALERTS,
     AUDIT_V2_ALERTS,
@@ -24,7 +23,6 @@ from ichor_api.alerts.catalog import (
     get_alert_def,
 )
 from ichor_api.alerts.crisis_mode import assess_crisis
-
 
 # ───────────────────────── Catalog invariants ─────────────────────────
 
@@ -79,7 +77,7 @@ class _StubAlert:
 class _StubResult:
     rows: list[_StubAlert] = field(default_factory=list)
 
-    def scalars(self) -> "_StubResult":
+    def scalars(self) -> _StubResult:
         return self
 
     def all(self) -> list[_StubAlert]:
@@ -99,14 +97,16 @@ class _StubSession:
 
 
 def _now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 @pytest.mark.asyncio
 async def test_crisis_inactive_when_below_threshold() -> None:
-    session = _StubSession(rows=[
-        _StubAlert("VIX_PANIC", "critical", _now()),
-    ])
+    session = _StubSession(
+        rows=[
+            _StubAlert("VIX_PANIC", "critical", _now()),
+        ]
+    )
     result = await assess_crisis(session, min_concurrent=2)  # type: ignore[arg-type]
     assert result.is_active is False
     assert result.triggering_codes == ["VIX_PANIC"]
@@ -115,10 +115,12 @@ async def test_crisis_inactive_when_below_threshold() -> None:
 
 @pytest.mark.asyncio
 async def test_crisis_active_when_two_critical() -> None:
-    session = _StubSession(rows=[
-        _StubAlert("VIX_PANIC", "critical", _now()),
-        _StubAlert("HY_OAS_CRISIS", "critical", _now()),
-    ])
+    session = _StubSession(
+        rows=[
+            _StubAlert("VIX_PANIC", "critical", _now()),
+            _StubAlert("HY_OAS_CRISIS", "critical", _now()),
+        ]
+    )
     result = await assess_crisis(session, min_concurrent=2)  # type: ignore[arg-type]
     assert result.is_active is True
     assert sorted(result.triggering_codes) == ["HY_OAS_CRISIS", "VIX_PANIC"]
@@ -127,20 +129,24 @@ async def test_crisis_active_when_two_critical() -> None:
 
 @pytest.mark.asyncio
 async def test_crisis_severity_weighting() -> None:
-    session = _StubSession(rows=[
-        _StubAlert("DEALER_GAMMA_FLIP", "warning", _now()),    # 2.0
-        _StubAlert("LIQUIDITY_BIDASK_WIDEN", "warning", _now()),  # 2.0
-    ])
+    session = _StubSession(
+        rows=[
+            _StubAlert("DEALER_GAMMA_FLIP", "warning", _now()),  # 2.0
+            _StubAlert("LIQUIDITY_BIDASK_WIDEN", "warning", _now()),  # 2.0
+        ]
+    )
     result = await assess_crisis(session, min_concurrent=2)  # type: ignore[arg-type]
     assert result.severity_score == pytest.approx(4.0)
 
 
 @pytest.mark.asyncio
 async def test_crisis_higher_min_concurrent() -> None:
-    session = _StubSession(rows=[
-        _StubAlert("VIX_PANIC", "critical", _now()),
-        _StubAlert("HY_OAS_CRISIS", "critical", _now()),
-    ])
+    session = _StubSession(
+        rows=[
+            _StubAlert("VIX_PANIC", "critical", _now()),
+            _StubAlert("HY_OAS_CRISIS", "critical", _now()),
+        ]
+    )
     # Bumping min_concurrent to 3 turns the same input into "not active"
     result = await assess_crisis(session, min_concurrent=3)  # type: ignore[arg-type]
     assert result.is_active is False
