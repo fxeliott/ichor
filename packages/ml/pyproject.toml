@@ -30,8 +30,11 @@ dependencies = [
     # had shap>=0.51 which is unsatisfiable). Re-add with a coordinated
     # constraint pin if/when an actual use site lands.
     "interpret>=0.7.8",
-    # Vol surface
-    "vollib>=1.0.7",
+    # NOTE: vollib was originally added for B-S implied-vol back-out from
+    # option premiums, but our SABR-Hagan + SVI fits in vol/sabr_svi.py
+    # are pure-numpy/scipy and don't need it. Dropping it removes a
+    # numpy<2.0 cap that conflicted with river>=0.24.2 (numpy>=2.3.4).
+    # Re-add when an actual call site needs it (and pin numpy<2 globally).
     # Tail/extreme
     "pyextremes>=2.5.0",
     # Causal
