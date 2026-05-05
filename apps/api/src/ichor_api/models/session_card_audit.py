@@ -61,6 +61,13 @@ class SessionCardAudit(Base):
     claude_raw_response: Mapped[Any | None] = mapped_column(JSONB)
     claude_duration_ms: Mapped[int | None] = mapped_column(Integer)
 
+    drivers: Mapped[Any | None] = mapped_column(JSONB)
+    """Per-factor contribution snapshot from confluence_engine at the
+    moment this card was generated. Shape : list[{factor: str,
+    contribution: float, evidence: str}]. Added migration 0026 to
+    feed brier_optimizer V2 — populated by the brain pipeline once
+    SessionCard.drivers is wired ; NULL for legacy rows."""
+
     realized_close_session: Mapped[float | None] = mapped_column(Float)
     realized_high_session: Mapped[float | None] = mapped_column(Float)
     realized_low_session: Mapped[float | None] = mapped_column(Float)

@@ -146,6 +146,14 @@ class SessionCard(BaseModel):
     claude_duration_ms: int = 0
     """Sum of wall-times across the 4 runner calls (excludes critic)."""
 
+    drivers: list[dict[str, Any]] | None = None
+    """Per-factor contribution snapshot from confluence_engine at
+    generation time. Shape : list[{factor: str, contribution: float,
+    evidence: str, source: str | None}]. Optional — None for legacy
+    pipelines that don't compute confluence. Persisted to
+    session_card_audit.drivers (migration 0026) so brier_optimizer V2
+    can fit per-factor SGD on a real (signals, outcomes) matrix."""
+
     @field_validator("asset")
     @classmethod
     def _normalize_asset(cls, v: str) -> str:

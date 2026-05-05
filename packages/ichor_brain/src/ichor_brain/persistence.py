@@ -49,6 +49,10 @@ def to_audit_row(card: SessionCard) -> "SessionCardAudit":
         critic_findings=_dump_list(card.critic.findings),
         claude_raw_response=card.model_dump(mode="json"),
         claude_duration_ms=card.claude_duration_ms,
+        # Sprint 16 : per-factor drivers from confluence_engine at
+        # generation time. NULL when the upstream pipeline doesn't
+        # pre-compute them — column added by migration 0026.
+        drivers=_dump_list(card.drivers),
     )
 
 
