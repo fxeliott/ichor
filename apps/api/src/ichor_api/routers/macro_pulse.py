@@ -15,6 +15,7 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..db import get_session
+from ..services.cross_asset_heatmap import assess_cross_asset_heatmap
 from ..services.funding_stress import assess_funding_stress
 from ..services.risk_appetite import assess_risk_appetite
 from ..services.surprise_index import assess_surprise_index
@@ -86,6 +87,24 @@ class SurpriseOut(BaseModel):
     composite: float | None
     band: str
     series: list[SurpriseSeriesOut]
+
+
+class HeatmapCellOut(BaseModel):
+    sym: str
+    value: float | None
+    bias: str
+    unit: str
+
+
+class HeatmapRowOut(BaseModel):
+    row: str
+    cells: list[HeatmapCellOut]
+
+
+class CrossAssetHeatmapOut(BaseModel):
+    generated_at: datetime
+    rows: list[HeatmapRowOut]
+    sources: list[str]
 
 
 class MacroPulseOut(BaseModel):
@@ -171,4 +190,28 @@ async def get_macro_pulse(
                 for s in si.series
             ],
         ),
+    )
+
+
+@router.get("/heatmap", response_model=CrossAssetHeatmapOut)
+async def get_cross_asset_heatmap(
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> CrossAssetHeatmapOut:
+    """Live cross-asset heatmap : 4 rows × 4 cells (Risk-on / Defensive /
+    Rates / Credit). Powers `/macro-pulse` page §Cross-asset heatmap.
+    """
+    h = await assess_cross_asset_heatmap(session)
+    return CrossAssetHeatmapOut(
+        generated_at=h.generated_at,
+        rows=[
+            HeatmapRowOut(
+                row=r.row,
+                cells=[
+                    HeatmapCellOut(sym=c.sym, value=c.value, bias=c.bias, unit=c.unit)
+                    for c in r.cells
+                ],
+            )
+            for r in h.rows
+        ],
+        sources=list(h.sources),
     )

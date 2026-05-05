@@ -4,10 +4,17 @@ Reads from `session_card_audit` (the table that backs every Claude
 4-pass run). The list endpoint returns the latest card per asset
 (newest-first), matching the dashboard grid layout. The detail
 endpoint returns the full card history for one asset, paginated.
+
+Phase 2 delta : adds `/v1/sessions/{asset}/scenarios` which extracts
+the typed Pass 4 scenario tree from the latest card's `mechanisms`
+JSONB column. Returns an empty tree when the runner hasn't populated
+the structured shape yet — the frontend can fall back to its mock
+display in that case.
 """
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -16,7 +23,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..db import get_session
 from ..models import SessionCardAudit
-from ..schemas import SessionCardListOut, SessionCardOut
+from ..schemas import (
+    Pass4ScenarioTree,
+    SessionCardListOut,
+    SessionCardOut,
+    extract_pass4_scenarios,
+)
 
 router = APIRouter(prefix="/v1/sessions", tags=["sessions"])
 
@@ -40,9 +52,8 @@ async def list_latest_sessions(
     if session_type:
         base = base.where(SessionCardAudit.session_type == session_type)
 
-    stmt = (
-        base.distinct(SessionCardAudit.asset)
-        .order_by(SessionCardAudit.asset, desc(SessionCardAudit.generated_at))
+    stmt = base.distinct(SessionCardAudit.asset).order_by(
+        SessionCardAudit.asset, desc(SessionCardAudit.generated_at)
     )
 
     rows = (await session.execute(stmt)).scalars().all()
@@ -50,7 +61,7 @@ async def list_latest_sessions(
 
     return SessionCardListOut(
         total=len(rows),
-        items=[SessionCardOut.model_validate(r) for r in rows_sorted],
+        items=[SessionCardOut.from_orm_row(r) for r in rows_sorted],
     )
 
 
@@ -75,17 +86,70 @@ async def list_sessions_for_asset(
         .where(SessionCardAudit.asset == asset)
         .order_by(desc(SessionCardAudit.generated_at))
     )
-    total = (
-        await session.execute(
-            select(func.count()).select_from(stmt.subquery())
-        )
-    ).scalar_one()
+    total = (await session.execute(select(func.count()).select_from(stmt.subquery()))).scalar_one()
 
-    rows = (
-        await session.execute(stmt.offset(offset).limit(limit))
-    ).scalars().all()
+    rows = (await session.execute(stmt.offset(offset).limit(limit))).scalars().all()
 
     return SessionCardListOut(
         total=total,
-        items=[SessionCardOut.model_validate(r) for r in rows],
+        items=[SessionCardOut.from_orm_row(r) for r in rows],
+    )
+
+
+@router.get("/{asset}/scenarios", response_model=Pass4ScenarioTree)
+async def get_asset_scenarios(
+    asset: str,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> Pass4ScenarioTree:
+    """Pass 4 scenario tree for `asset`, extracted from the latest card.
+
+    Reads `session_card_audit.mechanisms` JSONB on the most recent row
+    for `asset` and runs `extract_pass4_scenarios` (permissive — drops
+    malformed entries silently). Returns an empty tree (n_scenarios=0,
+    sum_probability=0.0) when the brain runner hasn't populated the
+    structured shape yet ; the frontend uses this signal to fall back
+    to its 7-mock display.
+    """
+    import re
+
+    if not re.match(_ASSET_RE, asset):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"asset must match {_ASSET_RE}",
+        )
+
+    row = (
+        await session.execute(
+            select(SessionCardAudit)
+            .where(SessionCardAudit.asset == asset)
+            .order_by(desc(SessionCardAudit.generated_at))
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+
+    if row is None:
+        return Pass4ScenarioTree(
+            asset=asset,
+            generated_at=datetime.now().astimezone(),
+            session_card_id=None,
+            n_scenarios=0,
+            sum_probability=0.0,
+            tail_padded=False,
+            scenarios=[],
+        )
+
+    scenarios = extract_pass4_scenarios(row.mechanisms)
+    sum_p = round(sum(s.probability for s in scenarios), 3)
+    # If Pass 4 produced fewer than 7, the runner SHOULD have padded.
+    # We surface a `tail_padded` flag so the frontend can distinguish
+    # canonical-7 from padded-with-tail.
+    tail_padded = len(scenarios) > 0 and len(scenarios) < 7
+    return Pass4ScenarioTree(
+        asset=asset,
+        generated_at=row.generated_at,
+        session_card_id=row.id,
+        n_scenarios=len(scenarios),
+        sum_probability=sum_p,
+        tail_padded=tail_padded,
+        scenarios=scenarios,
     )
