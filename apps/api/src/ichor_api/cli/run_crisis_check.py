@@ -91,6 +91,17 @@ async def _emit_active(session, *, codes: list[str], score: float) -> None:
             ),
         )
     )
+    # Live-push to dashboard via Redis pubsub. Channel name is
+    # documented in the original alerts/crisis_mode.py:6 docstring.
+    # Fail-soft : a Redis hiccup must not block the DB write.
+    await _publish_crisis_event(
+        action="active",
+        payload={
+            "triggering_codes": codes,
+            "severity_score": score,
+            "ts": now.isoformat(),
+        },
+    )
 
 
 async def _emit_resolved(session, *, prior_codes: list[str]) -> None:
@@ -115,6 +126,40 @@ async def _emit_resolved(session, *, prior_codes: list[str]) -> None:
             ),
         )
     )
+    await _publish_crisis_event(
+        action="resolved",
+        payload={"prior_codes": prior_codes, "ts": now.isoformat()},
+    )
+
+
+_REDIS_CHANNEL = "ichor:crisis:active"
+
+
+async def _publish_crisis_event(*, action: str, payload: dict) -> None:
+    """Publish a JSON event on the crisis pubsub channel.
+
+    Best-effort : if redis-py isn't installed or the connection fails,
+    log at debug and proceed. The DB write remains the source of truth.
+    """
+    try:
+        import json
+
+        from ..config import get_settings
+        from ..services.rate_limiter import make_redis_client
+
+        client = make_redis_client(get_settings().redis_url)
+        if client is None:
+            return
+        try:
+            msg = json.dumps({"action": action, **payload})
+            await client.publish(_REDIS_CHANNEL, msg)
+        finally:
+            try:
+                await client.close()
+            except Exception:
+                pass
+    except Exception as exc:
+        log.debug("crisis_check.redis_publish_failed", error=str(exc)[:200])
 
 
 async def run(*, persist: bool, min_concurrent: int = 2, lookback_min: int = 60) -> int:
