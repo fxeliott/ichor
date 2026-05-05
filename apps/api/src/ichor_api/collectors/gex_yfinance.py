@@ -168,15 +168,30 @@ def aggregate_dealer_gex(
 
     total = sum(t[3] for t in per_strike)
 
-    # gamma_flip = strike where the cumulative-from-low running sum
-    # changes sign. We pick the strike with smallest |running_sum| as
-    # the equilibrium pivot.
+    # gamma_flip = the strike where the cumulative-from-low running
+    # sum crosses zero. We look for the *closest-to-spot* zero crossing
+    # via linear interpolation between adjacent strikes whose running
+    # sum changes sign. If no crossing exists (chain entirely one-sided),
+    # flip is None.
     running = 0.0
     cumulative: list[tuple[float, float]] = []
     for k, _, _, gex in per_strike:
         running += gex
         cumulative.append((k, running))
-    flip_strike = min(cumulative, key=lambda x: abs(x[1]))[0]
+
+    crossings: list[float] = []
+    for i in range(1, len(cumulative)):
+        prev_k, prev_run = cumulative[i - 1]
+        cur_k, cur_run = cumulative[i]
+        if (prev_run > 0 and cur_run <= 0) or (prev_run < 0 and cur_run >= 0):
+            if cur_run != prev_run:
+                t = -prev_run / (cur_run - prev_run)
+                crossings.append(prev_k + t * (cur_k - prev_k))
+            else:
+                crossings.append(cur_k)
+    flip_strike = (
+        min(crossings, key=lambda x: abs(x - spot)) if crossings else None
+    )
 
     # call_wall = strike with max |call dealer gex|
     # put_wall  = strike with max |put dealer gex|
