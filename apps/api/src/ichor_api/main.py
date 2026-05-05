@@ -113,6 +113,20 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# SPEC_V2_HARDENING : audit_log on POST/PUT/PATCH/DELETE + rate limiter.
+# Both fail-OPEN on backing-store errors (DB / Redis) so the API
+# stays up. Audit log path is best-effort — production observability
+# falls back to journal logs if the table is unreachable.
+from .services.audit_log import AuditLogMiddleware  # noqa: E402
+from .services.rate_limiter import RateLimitMiddleware, make_redis_client  # noqa: E402
+
+app.add_middleware(AuditLogMiddleware, get_session=get_session)
+app.add_middleware(
+    RateLimitMiddleware,
+    redis_client=make_redis_client(_settings.redis_url),
+    budget_per_min=120,
+)
+
 # Routers
 app.include_router(briefings_router)
 app.include_router(alerts_router)
