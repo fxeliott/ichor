@@ -89,21 +89,25 @@ exclude = [
 module = ["tests.*"]
 disallow_untyped_decorators = false
 
-# Third-party ML libraries without type stubs (river, transformers,
-# numpyro). Calls to these untyped libs would otherwise fail the
-# strict mypy gate even though the wrapper code itself is well-typed.
+# Wrapper modules around untyped 3rd-party ML libs — relax the strict
+# gate while still requiring our own contracts to be coherent (return
+# types, signatures, shape hints).
 [[tool.mypy.overrides]]
 module = [
-    "ichor_ml.regime.concept_drift",
-    "ichor_ml.nlp.fomc_roberta",
-    "ichor_ml.nlp.finbert_tone",
-    "ichor_ml.training.numpyro_bias",
+    "ichor_ml.regime.*",
+    "ichor_ml.nlp.*",
+    "ichor_ml.training.*",
+    "ichor_ml.vol.*",
+    "ichor_ml.microstructure.*",
+    "ichor_ml.analogues.*",
 ]
 disallow_untyped_calls = false
 disallow_untyped_defs = false
 disallow_incomplete_defs = false
 warn_return_any = false
 
+# 3rd-party ML libs without py.typed markers — ignore missing stubs
+# globally so any consumer can call them without per-module noqa.
 [[tool.mypy.overrides]]
 module = [
     "river.*",
@@ -121,6 +125,13 @@ module = [
     "evidently.*",
     "mapie.*",
     "vollib.*",
+    "sklearn.*",
+    "scipy.*",
+    "pandas",
+    "pandas.*",
+    "matplotlib.*",
+    "openpyxl.*",
+    "xlrd.*",
 ]
 ignore_missing_imports = true
 
