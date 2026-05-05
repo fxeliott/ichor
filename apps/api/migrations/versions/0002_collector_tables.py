@@ -22,18 +22,19 @@ Revision ID: 0002
 Revises: 0001
 Create Date: 2026-05-03
 """
+
 from __future__ import annotations
 
-from typing import Sequence, Union
+from collections.abc import Sequence
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
 
 revision: str = "0002"
-down_revision: Union[str, None] = "0001"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = "0001"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
@@ -42,7 +43,9 @@ def upgrade() -> None:
         "news_items",
         sa.Column("id", UUID(as_uuid=True), nullable=False),
         sa.Column("fetched_at", sa.DateTime(timezone=True), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+        ),
         sa.Column("source", sa.String(64), nullable=False),
         sa.Column("source_kind", sa.String(32), nullable=False),
         sa.Column("title", sa.String(512), nullable=False),
@@ -55,7 +58,9 @@ def upgrade() -> None:
         sa.Column("tone_label", sa.String(16)),  # positive/neutral/negative
         sa.Column("tone_score", sa.Float()),
         sa.PrimaryKeyConstraint("id", "fetched_at"),
-        sa.UniqueConstraint("source", "guid_hash", "fetched_at", name="uq_news_items_source_guid_fetchedat"),
+        sa.UniqueConstraint(
+            "source", "guid_hash", "fetched_at", name="uq_news_items_source_guid_fetchedat"
+        ),
         sa.CheckConstraint(
             "source_kind IN ('news','central_bank','regulator','social','academic')",
             name="ck_news_items_source_kind_valid",
@@ -80,7 +85,9 @@ def upgrade() -> None:
         "polymarket_snapshots",
         sa.Column("id", UUID(as_uuid=True), nullable=False),
         sa.Column("fetched_at", sa.DateTime(timezone=True), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+        ),
         sa.Column("slug", sa.String(128), nullable=False),
         sa.Column("market_id", sa.String(128), nullable=False),
         sa.Column("question", sa.String(512), nullable=False),

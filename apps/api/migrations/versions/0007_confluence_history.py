@@ -8,18 +8,19 @@ Revision ID: 0007
 Revises: 0006
 Create Date: 2026-05-04
 """
+
 from __future__ import annotations
 
-from typing import Sequence, Union
+from collections.abc import Sequence
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 
 revision: str = "0007"
-down_revision: Union[str, None] = "0006"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = "0006"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
@@ -27,7 +28,9 @@ def upgrade() -> None:
         "confluence_history",
         sa.Column("id", UUID(as_uuid=True), nullable=False),
         sa.Column("captured_at", sa.DateTime(timezone=True), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+        ),
         sa.Column("asset", sa.String(16), nullable=False),
         sa.Column("score_long", sa.Float(), nullable=False),
         sa.Column("score_short", sa.Float(), nullable=False),
@@ -38,13 +41,9 @@ def upgrade() -> None:
         sa.Column("drivers", JSONB(), nullable=True),
         # Stored as JSONB list of {factor, contribution, evidence, source}.
         sa.PrimaryKeyConstraint("id", "captured_at"),
-        sa.UniqueConstraint(
-            "asset", "captured_at", name="uq_confluence_history_asset_ts"
-        ),
+        sa.UniqueConstraint("asset", "captured_at", name="uq_confluence_history_asset_ts"),
     )
-    op.create_index(
-        "ix_confluence_history_asset", "confluence_history", ["asset"]
-    )
+    op.create_index("ix_confluence_history_asset", "confluence_history", ["asset"])
     op.create_index(
         "ix_confluence_history_captured_at",
         "confluence_history",

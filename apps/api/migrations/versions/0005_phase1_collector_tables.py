@@ -20,21 +20,22 @@ Revision ID: 0005
 Revises: 0003
 Create Date: 2026-05-03 (Phase 1 reset)
 """
+
 from __future__ import annotations
 
-from typing import Sequence, Union
+from collections.abc import Sequence
 
-from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
+from alembic import op
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 
 revision: str = "0005"
 # Chain on top of 0004 even though backtest_runs was archived at the code
 # level (ADR-017 reset, 2026-05-03) — production DB already applied 0004,
 # so we keep the linear chain. A later migration may drop the table.
-down_revision: Union[str, None] = "0004"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = "0004"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
@@ -43,7 +44,9 @@ def upgrade() -> None:
         "fred_observations",
         sa.Column("id", UUID(as_uuid=True), nullable=False),
         sa.Column("observation_date", sa.Date(), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+        ),
         sa.Column("series_id", sa.String(64), nullable=False),
         sa.Column("value", sa.Float()),
         sa.Column("fetched_at", sa.DateTime(timezone=True), nullable=False),
@@ -62,7 +65,9 @@ def upgrade() -> None:
         "gdelt_events",
         sa.Column("id", UUID(as_uuid=True), nullable=False),
         sa.Column("seendate", sa.DateTime(timezone=True), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+        ),
         sa.Column("query_label", sa.String(64), nullable=False),
         sa.Column("url", sa.String(1024), nullable=False),
         sa.Column("title", sa.String(512), nullable=False),
@@ -91,7 +96,9 @@ def upgrade() -> None:
         "gpr_observations",
         sa.Column("id", UUID(as_uuid=True), nullable=False),
         sa.Column("observation_date", sa.Date(), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+        ),
         sa.Column("ai_gpr", sa.Float(), nullable=False),
         sa.Column("fetched_at", sa.DateTime(timezone=True), nullable=False),
         sa.PrimaryKeyConstraint("id", "observation_date"),
@@ -108,7 +115,9 @@ def upgrade() -> None:
         "cot_positions",
         sa.Column("id", UUID(as_uuid=True), nullable=False),
         sa.Column("report_date", sa.Date(), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+        ),
         sa.Column("market_code", sa.String(16), nullable=False),
         sa.Column("market_name", sa.String(128)),
         sa.Column("producer_net", sa.Integer(), nullable=False, server_default="0"),
@@ -133,7 +142,9 @@ def upgrade() -> None:
         "cb_speeches",
         sa.Column("id", UUID(as_uuid=True), nullable=False),
         sa.Column("published_at", sa.DateTime(timezone=True), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+        ),
         sa.Column("central_bank", sa.String(32), nullable=False),
         sa.Column("speaker", sa.String(128)),
         sa.Column("title", sa.String(512), nullable=False),
@@ -159,7 +170,9 @@ def upgrade() -> None:
         "kalshi_markets",
         sa.Column("id", UUID(as_uuid=True), nullable=False),
         sa.Column("fetched_at", sa.DateTime(timezone=True), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+        ),
         sa.Column("ticker", sa.String(128), nullable=False),
         sa.Column("title", sa.String(512), nullable=False),
         sa.Column("yes_price", sa.Float()),
@@ -182,7 +195,9 @@ def upgrade() -> None:
         "manifold_markets",
         sa.Column("id", UUID(as_uuid=True), nullable=False),
         sa.Column("fetched_at", sa.DateTime(timezone=True), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+        ),
         sa.Column("slug", sa.String(128), nullable=False),
         sa.Column("market_id", sa.String(128), nullable=False),
         sa.Column("question", sa.String(512), nullable=False),
@@ -207,7 +222,9 @@ def upgrade() -> None:
         "session_card_audit",
         sa.Column("id", UUID(as_uuid=True), nullable=False),
         sa.Column("generated_at", sa.DateTime(timezone=True), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+        ),
         sa.Column("session_type", sa.String(32), nullable=False),
         # 'pre_londres' | 'pre_ny' | 'event_driven'
         sa.Column("asset", sa.String(16), nullable=False),

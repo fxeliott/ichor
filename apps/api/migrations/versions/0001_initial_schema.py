@@ -5,19 +5,19 @@ Revises:
 Create Date: 2026-05-02
 
 """
+
 from __future__ import annotations
 
-from typing import Sequence, Union
-from uuid import uuid4
+from collections.abc import Sequence
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
 
 revision: str = "0001"
-down_revision: Union[str, None] = None
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = None
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
@@ -25,8 +25,12 @@ def upgrade() -> None:
     op.create_table(
         "briefings",
         sa.Column("id", UUID(as_uuid=True), primary_key=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
-        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+        ),
+        sa.Column(
+            "updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+        ),
         sa.Column("briefing_type", sa.String(32), nullable=False),
         sa.Column("triggered_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("assets", ARRAY(sa.String(16)), nullable=False),
@@ -48,8 +52,12 @@ def upgrade() -> None:
     op.create_table(
         "alerts",
         sa.Column("id", UUID(as_uuid=True), primary_key=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
-        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+        ),
+        sa.Column(
+            "updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+        ),
         sa.Column("alert_code", sa.String(64), nullable=False),
         sa.Column("severity", sa.String(16), nullable=False),
         sa.Column("asset", sa.String(16)),
@@ -83,8 +91,12 @@ def upgrade() -> None:
         "predictions_audit",
         sa.Column("id", UUID(as_uuid=True), nullable=False),
         sa.Column("generated_at", sa.DateTime(timezone=True), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
-        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+        ),
+        sa.Column(
+            "updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+        ),
         sa.Column("model_id", sa.String(128), nullable=False),
         sa.Column("model_family", sa.String(32), nullable=False),
         sa.Column("asset", sa.String(16), nullable=False),
@@ -114,8 +126,12 @@ def upgrade() -> None:
     op.create_table(
         "bias_signals",
         sa.Column("id", UUID(as_uuid=True), primary_key=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
-        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+        ),
+        sa.Column(
+            "updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+        ),
         sa.Column("asset", sa.String(16), nullable=False),
         sa.Column("horizon_hours", sa.Integer(), nullable=False),
         sa.Column("direction", sa.String(8), nullable=False),

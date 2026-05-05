@@ -8,18 +8,19 @@ Revision ID: 0006
 Revises: 0005
 Create Date: 2026-05-03
 """
+
 from __future__ import annotations
 
-from typing import Sequence, Union
+from collections.abc import Sequence
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 from sqlalchemy.dialects.postgresql import UUID
 
 revision: str = "0006"
-down_revision: Union[str, None] = "0005"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = "0005"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
@@ -27,7 +28,9 @@ def upgrade() -> None:
         "polygon_intraday",
         sa.Column("id", UUID(as_uuid=True), nullable=False),
         sa.Column("bar_ts", sa.DateTime(timezone=True), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+        ),
         sa.Column("asset", sa.String(16), nullable=False),
         sa.Column("ticker", sa.String(32), nullable=False),
         # Polygon-side ticker, e.g. "C:EURUSD" / "I:NDX" / "X:XAUUSD"
