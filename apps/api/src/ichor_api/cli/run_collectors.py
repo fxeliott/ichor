@@ -88,12 +88,68 @@ async def _run_polymarket(*, persist: bool) -> int:
         vol = f"${s.volume_usd:,.0f}" if s.volume_usd is not None else "n/a"
         print(f"  [{s.slug[:40]:40s}] yes={yes}  vol={vol}  {s.question[:60]}")
     if persist:
+        from datetime import UTC as _UTC
+        from datetime import timedelta as _td
+
+        from sqlalchemy import desc, select
+
         from ..collectors.persistence import persist_polymarket_snapshots
+        from ..models import PolymarketSnapshot
+        from ..services.alerts_runner import check_metric
 
         sm = get_sessionmaker()
         async with sm() as session:
             inserted = await persist_polymarket_snapshots(session, snaps)
-        print(f"Polymarket · persisted {inserted} snapshots")
+
+            # POLYMARKET_PROBABILITY_SHIFT : compute 24h delta in
+            # probability points (yes_price × 100). Catalog metric_name=
+            # 'poly_chg_24h', threshold 10pp above. We compare the
+            # current snapshot's yes_price to the closest snapshot
+            # ~24h ago for the same slug.
+            cutoff_24h = datetime.now(_UTC) - _td(hours=24)
+            cutoff_window = cutoff_24h - _td(hours=2)  # 22-26h ago window
+            n_alerts = 0
+            for s in snaps:
+                cur_yes = s.yes_price
+                if cur_yes is None:
+                    continue
+                hist_stmt = (
+                    select(PolymarketSnapshot.last_prices)
+                    .where(
+                        PolymarketSnapshot.slug == s.slug,
+                        PolymarketSnapshot.fetched_at >= cutoff_window,
+                        PolymarketSnapshot.fetched_at <= cutoff_24h + _td(hours=2),
+                    )
+                    .order_by(desc(PolymarketSnapshot.fetched_at))
+                    .limit(1)
+                )
+                hist_prices = (await session.execute(hist_stmt)).scalar_one_or_none()
+                if not hist_prices or not isinstance(hist_prices, list):
+                    continue
+                hist_yes = hist_prices[0] if hist_prices else None
+                if hist_yes is None:
+                    continue
+                # Delta in pp (percentage points)
+                delta_pp = (float(cur_yes) - float(hist_yes)) * 100.0
+                hits = await check_metric(
+                    session,
+                    metric_name="poly_chg_24h",
+                    current_value=abs(delta_pp),
+                    asset=None,
+                    extra_payload={
+                        "slug": s.slug,
+                        "question": s.question[:200],
+                        "current_yes": float(cur_yes),
+                        "yes_24h_ago": float(hist_yes),
+                        "delta_pp_signed": delta_pp,
+                    },
+                )
+                n_alerts += len(hits)
+            if n_alerts:
+                await session.commit()
+        print(
+            f"Polymarket · persisted {inserted} snapshots, {n_alerts} shift alerts"
+        )
     return 0 if snaps else 1
 
 
@@ -245,12 +301,77 @@ async def _run_cot(*, persist: bool) -> int:
             f"oi={pos.open_interest:,}"
         )
     if persist:
+        from datetime import timedelta as _td
+
+        from sqlalchemy import select
+
         from ..collectors.persistence import persist_cot_positions
+        from ..models import CotPosition
+        from ..services.alerts_runner import check_metric
 
         sm = get_sessionmaker()
         async with sm() as session:
             inserted = await persist_cot_positions(session, by_code.values())
-        print(f"COT · persisted {inserted} new rows")
+
+            # COT_NET_FLIP : z-score on managed_money_net over rolling
+            # 5y window. Catalog metric_name='cot_net_z', threshold 2.0
+            # above. Asset-scoped — fired per market_code.
+            cutoff_5y = (datetime.now(UTC) - _td(weeks=260)).date() if False else None
+            # Use date.today() to avoid the datetime/date mismatch in the
+            # prior line. The cutoff is genuinely date-typed (Postgres Date col).
+            from datetime import date as _date
+
+            cutoff_5y = _date.today() - _td(weeks=260)
+
+            n_alerts = 0
+            FX_COT_TO_ASSET = {
+                "099741": "EUR_USD",
+                "096742": "GBP_USD",
+                "097741": "USD_JPY",
+                "232741": "AUD_USD",
+                "090741": "USD_CAD",
+                "088691": "XAU_USD",
+            }
+            for code, pos in by_code.items():
+                if pos is None or pos.managed_money_net is None:
+                    continue
+                hist_stmt = (
+                    select(CotPosition.managed_money_net)
+                    .where(
+                        CotPosition.market_code == code,
+                        CotPosition.report_date >= cutoff_5y,
+                    )
+                    .order_by(CotPosition.report_date.asc())
+                )
+                hist = [r[0] for r in (await session.execute(hist_stmt)).all()]
+                if len(hist) < 30:  # <30 weeks = noise
+                    continue
+                # Z-score on the latest value vs the historical mean/std
+                hist_arr = [float(x) for x in hist if x is not None]
+                if not hist_arr:
+                    continue
+                mean = sum(hist_arr) / len(hist_arr)
+                var = sum((x - mean) ** 2 for x in hist_arr) / max(1, len(hist_arr) - 1)
+                std = var ** 0.5
+                if std <= 0:
+                    continue
+                z = (float(pos.managed_money_net) - mean) / std
+                hits = await check_metric(
+                    session,
+                    metric_name="cot_net_z",
+                    current_value=abs(z),
+                    asset=FX_COT_TO_ASSET.get(code, code),
+                    extra_payload={
+                        "z_signed": z,
+                        "managed_money_net": pos.managed_money_net,
+                        "n_history_weeks": len(hist_arr),
+                        "report_date": pos.report_date.isoformat(),
+                    },
+                )
+                n_alerts += len(hits)
+            if n_alerts:
+                await session.commit()
+        print(f"COT · persisted {inserted} new rows, {n_alerts} z-flip alerts")
     has_any = any(pos is not None for pos in by_code.values())
     return 0 if has_any else 1
 
