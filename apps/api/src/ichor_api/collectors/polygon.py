@@ -47,6 +47,10 @@ ASSET_TO_TICKER: dict[str, str] = {
     "SPX500_USD": "I:SPX",
     # ── Cross-asset risk-on/off proxy (not a Phase-1 trading asset) ──
     "BTC_USD": "X:BTCUSD",
+    # ── DXY (US Dollar Index, ICE) — drives the alert catalog's
+    # DXY_BREAKOUT_UP (cross above 105) + DXY_BREAKOUT_DOWN (cross
+    # below 100). Polygon indices namespace `I:` exposes DXY directly.
+    "DXY": "I:DXY",
 }
 
 

@@ -41,6 +41,8 @@ from ..collectors.flashalpha import poll_all as poll_flashalpha
 from ..collectors.gex_yfinance import poll_all as poll_gex_yfinance
 from ..collectors.polygon_news import fetch_news as fetch_polygon_news
 from ..collectors.polygon_news import relevant_to_ichor_universe
+from ..collectors.reddit import fetch_subreddit
+from ..collectors.reddit import persist_to_news_items as persist_reddit_news
 from ..collectors.vix_live import fetch_vix
 from ..collectors.forex_factory import (
     fetch_ff_calendar,
@@ -1162,6 +1164,43 @@ async def _run_crypto_fng(*, persist: bool) -> int:
     return 0 if readings else 1
 
 
+async def _run_reddit(*, persist: bool) -> int:
+    """Reddit subreddit watchlist — pulls hot posts and persists into
+    news_items (source_kind=social). Used by the Couche-2 sentiment
+    agent for retail-mood readings.
+
+    Public JSON endpoint (no OAuth) — rate-limited gentle. We poll
+    4 subreddits (wallstreetbets, forex, stockmarket, Gold) per
+    AUDIT_V3 §sentiment.
+    """
+    from datetime import UTC as _UTC
+    from datetime import datetime as _dt
+
+    SUBREDDITS: tuple[str, ...] = (
+        "wallstreetbets",
+        "forex",
+        "stockmarket",
+        "Gold",
+    )
+    all_posts = []
+    for sub in SUBREDDITS:
+        try:
+            posts = await fetch_subreddit(sub, sort="hot", limit=25)
+        except Exception as e:
+            print(f"Reddit · [{sub}] error: {e}", file=sys.stderr)
+            continue
+        print(f"Reddit · [{sub:20s}] {len(posts)} posts")
+        all_posts.extend(posts)
+
+    if persist and all_posts:
+        sm = get_sessionmaker()
+        async with sm() as session:
+            inserted = await persist_reddit_news(session, all_posts)
+            await session.commit()
+        print(f"Reddit · persisted {inserted} new rows ({len(all_posts) - inserted} dedup)")
+    return 0 if all_posts else 1
+
+
 async def _run_yfinance_options(*, persist: bool) -> int:
     """Pull dealer GEX from yfinance options chains for SPY + QQQ.
 
@@ -1408,6 +1447,7 @@ async def _main(target: str, *, persist: bool) -> int:
         "defillama": _run_defillama,
         "binance_funding": _run_binance_funding,
         "crypto_fng": _run_crypto_fng,
+        "reddit": _run_reddit,
         "forex_factory": _run_forex_factory,
         "mastodon": _run_mastodon,
     }
