@@ -72,5 +72,57 @@ name = "pytorch-cpu"
 url = "https://download.pytorch.org/whl/cpu"
 explicit = true
 
+# ── mypy : local config because mypy doesn't walk up the tree to the
+# root pyproject.toml. We mirror the relevant overrides here.
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_unreachable = true
+warn_unused_configs = true
+disallow_any_generics = true
+no_implicit_reexport = true
+
+[[tool.mypy.overrides]]
+module = ["tests.*"]
+disallow_untyped_decorators = false
+disallow_untyped_calls = false
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+disable_error_code = [
+    "type-arg",
+    "no-untyped-def",
+    "no-untyped-call",
+    "valid-type",
+    "unused-ignore",
+    "no-any-return",
+    "unreachable",
+]
+
+[[tool.mypy.overrides]]
+module = ["ichor_ml.*"]
+disallow_untyped_calls = false
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+warn_return_any = false
+disable_error_code = [
+    "arg-type",
+    "call-overload",
+    "unused-ignore",
+    "no-any-return",
+    "type-arg",
+    "operator",
+    "import-untyped",
+]
+
+[[tool.mypy.overrides]]
+module = [
+    "river.*", "transformers.*", "numpyro.*", "lightgbm.*", "xgboost.*",
+    "hmmlearn.*", "dtaidistance.*", "arch.*", "pyextremes.*", "interpret.*",
+    "dowhy.*", "mlflow.*", "evidently.*", "mapie.*", "vollib.*",
+    "sklearn.*", "scipy.*", "pandas", "pandas.*", "matplotlib.*",
+    "openpyxl.*", "xlrd.*", "torch.*",
+]
+ignore_missing_imports = true
+
 [tool.uv.sources]
 torch = [{ index = "pytorch-cpu", marker = "sys_platform == 'linux'" }]
