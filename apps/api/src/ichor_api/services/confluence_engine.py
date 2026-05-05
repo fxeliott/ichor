@@ -583,9 +583,21 @@ async def _factor_surprise_index(session: AsyncSession, asset: str) -> Driver | 
 
 
 async def assess_confluence(
-    session: AsyncSession, asset: str, *, levels: DailyLevels | None = None
+    session: AsyncSession,
+    asset: str,
+    *,
+    levels: DailyLevels | None = None,
+    regime: str = "all",
 ) -> ConfluenceReport:
-    """Run every factor builder, aggregate scores."""
+    """Run every factor builder, aggregate scores.
+
+    Brier-optimized factor weights are loaded from
+    `confluence_weights_history` (active row for the given asset+regime).
+    Empty / missing → equal-weight fallback (1.0 per factor) preserves
+    the legacy behavior pre-Brier-feedback wiring.
+    """
+    from .brier_optimizer import latest_active_weights
+
     asset = asset.upper()
     if levels is None:
         levels = await assess_daily_levels(session, asset)
@@ -606,8 +618,30 @@ async def assess_confluence(
         if factor is not None:
             drivers.append(factor)
 
-    pos = sum(d.contribution for d in drivers if d.contribution > 0)
-    neg = sum(-d.contribution for d in drivers if d.contribution < 0)
+    # Brier-optimized weights — active row from confluence_weights_history.
+    # Try (asset, regime) first, then global (asset=None, regime). Equal-
+    # weight if neither exists yet (cold start / pre-optimizer-run).
+    weights: dict[str, float] | None = None
+    try:
+        weights = await latest_active_weights(session, asset=asset, regime=regime)
+        if weights is None:
+            weights = await latest_active_weights(session, asset=None, regime=regime)
+    except Exception:
+        # Defensive : if the table is missing or query fails, fall back
+        # to equal-weights rather than crash the brain pipeline.
+        weights = None
+
+    def _factor_weight(name: str) -> float:
+        if weights is None:
+            return 1.0
+        return float(weights.get(name, 1.0))
+
+    pos = sum(
+        d.contribution * _factor_weight(d.factor) for d in drivers if d.contribution > 0
+    )
+    neg = sum(
+        -d.contribution * _factor_weight(d.factor) for d in drivers if d.contribution < 0
+    )
     score_long = max(0.0, min(100.0, 50.0 + 8.0 * pos))
     score_short = max(0.0, min(100.0, 50.0 + 8.0 * neg))
     score_neutral = max(0.0, 100.0 - max(score_long, score_short))
