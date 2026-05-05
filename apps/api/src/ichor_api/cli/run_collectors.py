@@ -23,14 +23,21 @@ import httpx
 from ..collectors.ai_gpr import fetch_latest as fetch_ai_gpr
 from ..collectors.central_bank_speeches import poll_all as poll_cb_speeches
 from ..collectors.cot import poll_all_assets as poll_cot
+from ..collectors.aaii import fetch_latest_aaii
 from ..collectors.bls import SERIES_TO_POLL as _BLS_SERIES
 from ..collectors.bls import fetch_series as fetch_bls_series
+from ..collectors.bluesky import poll_watchlist as poll_bluesky
+from ..collectors.boe_iadb import SERIES_TO_POLL as _BOE_SERIES
+from ..collectors.boe_iadb import fetch_series as fetch_boe_series
 from ..collectors.dts_treasury import fetch_operating_cash, latest_tga_close
 from ..collectors.ecb_sdmx import SERIES_TO_POLL as _ECB_SERIES
 from ..collectors.ecb_sdmx import fetch_series as fetch_ecb_series
+from ..collectors.eia_petroleum import fetch_steo, fetch_weekly_petroleum_stocks
 from ..collectors.finra_short import fetch_daily_short_volume
 from ..collectors.flashalpha import poll_all as poll_flashalpha
 from ..collectors.gex_yfinance import poll_all as poll_gex_yfinance
+from ..collectors.polygon_news import fetch_news as fetch_polygon_news
+from ..collectors.polygon_news import relevant_to_ichor_universe
 from ..collectors.vix_live import fetch_vix
 from ..collectors.forex_factory import (
     fetch_ff_calendar,
@@ -547,6 +554,221 @@ async def _run_finra_short(*, persist: bool) -> int:
     return 0 if rows else 1
 
 
+async def _run_aaii(*, persist: bool) -> int:
+    """AAII Sentiment Survey weekly. Persists 4 series per week into
+    fred_observations : AAII_BULLISH/BEARISH/NEUTRAL/SPREAD. Couche-2
+    sentiment agent reads these via services/couche2_context."""
+    from datetime import UTC as _UTC
+    from datetime import datetime as _dt
+
+    rows = await fetch_latest_aaii(weeks=12)
+    print(f"AAII · {len(rows)} weekly readings pulled")
+    for r in rows[:3]:
+        print(
+            f"  {r.week_ending.date().isoformat()} bull={r.bullish_pct:.0%} "
+            f"bear={r.bearish_pct:.0%} spread={r.spread:+.2f}"
+        )
+    if persist and rows:
+        from ..models import FredObservation
+
+        sm = get_sessionmaker()
+        n = 0
+        async with sm() as session:
+            for r in rows:
+                obs_date = r.week_ending.astimezone(_UTC).date()
+                for series_id, value in (
+                    ("AAII_BULLISH", r.bullish_pct),
+                    ("AAII_BEARISH", r.bearish_pct),
+                    ("AAII_NEUTRAL", r.neutral_pct),
+                    ("AAII_SPREAD", r.spread),
+                ):
+                    if value is None:
+                        continue
+                    session.add(
+                        FredObservation(
+                            observation_date=obs_date,
+                            created_at=_dt.now(_UTC),
+                            series_id=series_id,
+                            value=float(value),
+                            fetched_at=_dt.now(_UTC),
+                        )
+                    )
+                    n += 1
+            await session.commit()
+        print(f"AAII · persisted {n} observations (4 series × {len(rows)} weeks)")
+    return 0 if rows else 1
+
+
+async def _run_bluesky(*, persist: bool) -> int:
+    """Bluesky AT Protocol — pulls watchlist authors' feeds and persists
+    as news_items (source_kind=social) for the news_nlp agent."""
+    from datetime import UTC as _UTC
+    from datetime import datetime as _dt
+    from hashlib import sha256
+
+    posts = await poll_bluesky()
+    print(f"Bluesky · {len(posts)} posts pulled across watchlist")
+    for p in posts[:3]:
+        print(f"  [{p.author_handle}] {p.text[:80]!r}")
+    if persist and posts:
+        from ..models import NewsItem
+
+        sm = get_sessionmaker()
+        n = 0
+        async with sm() as session:
+            for p in posts:
+                # Idempotency : guid_hash on uri
+                guid_hash = sha256(p.uri.encode("utf-8")).hexdigest()[:32]
+                session.add(
+                    NewsItem(
+                        fetched_at=p.fetched_at,
+                        created_at=_dt.now(_UTC),
+                        source=f"bluesky:{p.author_handle[:54]}",
+                        source_kind="social",
+                        title=(p.text[:200] or "(no text)"),
+                        summary=p.text or None,
+                        url=f"https://bsky.app/profile/{p.author_handle}/post/{p.uri.split('/')[-1]}"[:1024],
+                        published_at=p.created_at,
+                        guid_hash=guid_hash,
+                        raw_categories=None,
+                    )
+                )
+                n += 1
+            await session.commit()
+        print(f"Bluesky · persisted {n} news_items rows (source_kind=social)")
+    return 0 if posts else 1
+
+
+async def _run_boe_iadb(*, persist: bool) -> int:
+    """Bank of England IADB series → fred_observations BOE_<code>."""
+    from datetime import UTC as _UTC
+    from datetime import datetime as _dt
+
+    obs = await fetch_boe_series()
+    print(f"BoE IADB · {len(obs)} observations across {len(_BOE_SERIES)} series")
+    if persist and obs:
+        from ..models import FredObservation
+
+        sm = get_sessionmaker()
+        async with sm() as session:
+            for o in obs:
+                if o.value is None or o.observation_date is None:
+                    continue
+                session.add(
+                    FredObservation(
+                        observation_date=o.observation_date,
+                        created_at=_dt.now(_UTC),
+                        series_id=f"BOE_{o.series_code}"[:64],
+                        value=float(o.value),
+                        fetched_at=o.fetched_at,
+                    )
+                )
+            await session.commit()
+        print(f"BoE IADB · persisted {len(obs)} rows")
+    return 0 if obs else 1
+
+
+async def _run_eia_petroleum(*, persist: bool) -> int:
+    """EIA OpenData v2 — weekly petroleum stocks + STEO oil prices.
+    Persists into fred_observations EIA_<id>. Requires EIA_API_KEY."""
+    from datetime import UTC as _UTC
+    from datetime import date as _date
+    from datetime import datetime as _dt
+
+    settings = get_settings()
+    eia_key = getattr(settings, "eia_api_key", "") or ""
+    if not eia_key:
+        print(
+            "EIA · ICHOR_API_EIA_API_KEY is empty — skipping. "
+            "Free registration at https://www.eia.gov/opendata/register.php",
+            file=sys.stderr,
+        )
+        return 0
+
+    weekly = await fetch_weekly_petroleum_stocks(api_key=eia_key)
+    steo = await fetch_steo(api_key=eia_key)
+    obs = list(weekly) + list(steo)
+    print(f"EIA · weekly={len(weekly)} steo={len(steo)} total={len(obs)} obs")
+    if persist and obs:
+        from ..models import FredObservation
+
+        sm = get_sessionmaker()
+        n = 0
+        async with sm() as session:
+            for o in obs:
+                if o.value is None:
+                    continue
+                # Period parse : "2026-04" or "2026-04-25"
+                try:
+                    parts = o.period.split("-")
+                    if len(parts) == 3:
+                        obs_date = _date(int(parts[0]), int(parts[1]), int(parts[2]))
+                    elif len(parts) == 2:
+                        obs_date = _date(int(parts[0]), int(parts[1]), 1)
+                    else:
+                        continue
+                except (ValueError, AttributeError):
+                    continue
+                session.add(
+                    FredObservation(
+                        observation_date=obs_date,
+                        created_at=_dt.now(_UTC),
+                        series_id=f"EIA_{o.series_id}"[:64],
+                        value=float(o.value),
+                        fetched_at=_dt.now(_UTC),
+                    )
+                )
+                n += 1
+            await session.commit()
+        print(f"EIA · persisted {n} rows")
+    return 0 if obs else 1
+
+
+async def _run_polygon_news(*, persist: bool) -> int:
+    """Polygon news endpoint — filters to Ichor universe, persists as
+    news_items (source_kind=news, source=polygon_news)."""
+    from datetime import UTC as _UTC
+    from datetime import datetime as _dt
+    from datetime import timedelta as _td
+    from hashlib import sha256
+
+    settings = get_settings()
+    api_key = settings.polygon_api_key
+    if not api_key:
+        print("Polygon news · ICHOR_API_POLYGON_API_KEY is empty — skipping", file=sys.stderr)
+        return 0
+    cutoff = _dt.now(_UTC) - _td(hours=6)
+    items = await fetch_polygon_news(api_key=api_key, limit=100, published_after=cutoff)
+    relevant = [it for it in items if relevant_to_ichor_universe(it)]
+    print(f"Polygon news · pulled={len(items)} relevant={len(relevant)}")
+    if persist and relevant:
+        from ..models import NewsItem
+
+        sm = get_sessionmaker()
+        n = 0
+        async with sm() as session:
+            for it in relevant:
+                guid_hash = sha256(it.id.encode("utf-8")).hexdigest()[:32]
+                session.add(
+                    NewsItem(
+                        fetched_at=_dt.now(_UTC),
+                        created_at=_dt.now(_UTC),
+                        source=(it.publisher_name or "polygon_news")[:64],
+                        source_kind="news",
+                        title=it.title[:512],
+                        summary=it.description or None,
+                        url=it.url[:1024],
+                        published_at=it.published_at,
+                        guid_hash=guid_hash,
+                        raw_categories=list(it.keywords)[:8] if it.keywords else None,
+                    )
+                )
+                n += 1
+            await session.commit()
+        print(f"Polygon news · persisted {n} news_items rows")
+    return 0 if items else 1
+
+
 async def _run_yfinance_options(*, persist: bool) -> int:
     """Pull dealer GEX from yfinance options chains for SPY + QQQ.
 
@@ -731,6 +953,16 @@ async def _main(target: str, *, persist: bool) -> int:
         "bls": _run_bls,
         "ecb_sdmx": _run_ecb_sdmx,
         "finra_short": _run_finra_short,
+        "aaii": _run_aaii,
+        "bluesky": _run_bluesky,
+        "boe_iadb": _run_boe_iadb,
+        "eia_petroleum": _run_eia_petroleum,
+        "polygon_news": _run_polygon_news,
+        # fred_extended is a pre-existing cron name. The actual extended
+        # series are merged into the main `fred` handler via
+        # collectors.fred_extended.merged_series. Aliasing prevents the
+        # silent "unknown target" exit.
+        "fred_extended": _run_fred,
         "forex_factory": _run_forex_factory,
         "mastodon": _run_mastodon,
     }

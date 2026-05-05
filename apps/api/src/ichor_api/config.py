@@ -84,6 +84,21 @@ class Settings(BaseSettings):
     no-key, 500 q/day with a registered key. Empty means we use the
     no-key endpoint (sufficient for our 5-series daily poll = ~5/day)."""
 
+    eia_api_key: str = ""
+    """EIA OpenData v2 API key. REQUIRED for petroleum + STEO
+    collectors (no anonymous tier). Free registration at
+    https://www.eia.gov/opendata/register.php. Empty = collector
+    skipped silently."""
+
+    bluesky_app_password: str = ""
+    """Bluesky App Password for the search endpoint (free, 2026).
+    Empty means we restrict to public author-feed scraping (no
+    search) which is the default. Format : `xxxx-xxxx-xxxx-xxxx`."""
+
+    bluesky_identifier: str = ""
+    """Bluesky handle linked to the App Password. Required only if
+    bluesky_app_password is set."""
+
     # --- PWA push (VAPID) ---
     vapid_public_key: str = ""
     """Base64url-encoded VAPID public key. Exposed to the front-end
