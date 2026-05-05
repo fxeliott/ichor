@@ -51,6 +51,15 @@ ASSET_TO_TICKER: dict[str, str] = {
     # DXY_BREAKOUT_UP (cross above 105) + DXY_BREAKOUT_DOWN (cross
     # below 100). Polygon indices namespace `I:` exposes DXY directly.
     "DXY": "I:DXY",
+    # ── FX peg pairs — drive FX_PEG_BREAK (catalog metric='fx_peg_dev',
+    # threshold 1% above, crisis_mode=True) :
+    #   USD/HKD : Hong Kong Convertibility Undertaking ±0.05 around 7.80
+    #   USD/CNH : PBOC managed band ±2% from daily fix (offshore yuan)
+    # Collector pulls 1-min bars ; the alert hook computes deviation
+    # from the canonical peg level (USDHKD 7.80) or a rolling proxy
+    # (USDCNH 30d mean as fix-substitute).
+    "USD_HKD": "C:USDHKD",
+    "USD_CNH": "C:USDCNH",
 }
 
 

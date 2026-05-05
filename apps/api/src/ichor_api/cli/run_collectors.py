@@ -43,6 +43,7 @@ from ..collectors.polygon_news import fetch_news as fetch_polygon_news
 from ..collectors.polygon_news import relevant_to_ichor_universe
 from ..collectors.reddit import fetch_subreddit
 from ..collectors.reddit import persist_to_news_items as persist_reddit_news
+from ..collectors.treasury_auction import fetch_recent_auctions
 from ..collectors.vix_live import fetch_vix
 from ..collectors.forex_factory import (
     fetch_ff_calendar,
@@ -1164,6 +1165,108 @@ async def _run_crypto_fng(*, persist: bool) -> int:
     return 0 if readings else 1
 
 
+async def _run_treasury_auction(*, persist: bool) -> int:
+    """US Treasury auction results — fires TREASURY_AUCTION_TAIL when
+    high-vs-median yield gap ≥ 2 bps for the latest auction.
+
+    Persists per (security_type, term) :
+      TREASURY_AUCTION_HIGH_{type}_{term}  (latest high yield, %)
+      TREASURY_AUCTION_BTC_{type}_{term}   (latest bid-to-cover)
+    """
+    from datetime import UTC as _UTC
+    from datetime import datetime as _dt
+
+    from sqlalchemy.dialects.postgresql import insert as pg_insert
+
+    rows = await fetch_recent_auctions(days=14)
+    print(f"Treasury auctions · {len(rows)} auctions in last 14d")
+    for r in rows[:5]:
+        tail = r.tail_bps
+        tail_str = f"{tail:+.2f}bps" if tail is not None else "n/a"
+        btc_str = f"{r.bid_to_cover_ratio:.2f}" if r.bid_to_cover_ratio else "n/a"
+        print(
+            f"  {r.issue_date.isoformat()} {r.security_type:6s} {r.security_term:10s} "
+            f"high={r.high_yield} median={r.median_yield} tail={tail_str} btc={btc_str}"
+        )
+
+    if persist and rows:
+        from ..models import FredObservation
+        from ..services.alerts_runner import check_metric
+
+        sm = get_sessionmaker()
+        n_persisted = 0
+        n_alerts = 0
+        # We alert on the most recent auction per (type, term) only.
+        latest_by_kind: dict[tuple[str, str], "AuctionResult"] = {}
+        for r in rows:
+            key = (r.security_type, r.security_term)
+            cur = latest_by_kind.get(key)
+            if cur is None or r.issue_date > cur.issue_date:
+                latest_by_kind[key] = r
+
+        async with sm() as session:
+            for r in rows:
+                short_type = r.security_type.replace(" ", "")[:8]
+                short_term = r.security_term.replace(" ", "")[:12]
+                if r.high_yield is not None:
+                    sid = f"TREASURY_AUC_HIGH_{short_type}_{short_term}"[:64]
+                    stmt = pg_insert(FredObservation).values(
+                        id=__import__("uuid").uuid4(),
+                        observation_date=r.issue_date,
+                        created_at=_dt.now(_UTC),
+                        series_id=sid,
+                        value=float(r.high_yield),
+                        fetched_at=r.fetched_at,
+                    ).on_conflict_do_update(
+                        constraint="uq_fred_series_date",
+                        set_={"value": float(r.high_yield)},
+                    )
+                    await session.execute(stmt)
+                    n_persisted += 1
+                if r.bid_to_cover_ratio is not None:
+                    sid = f"TREASURY_AUC_BTC_{short_type}_{short_term}"[:64]
+                    stmt = pg_insert(FredObservation).values(
+                        id=__import__("uuid").uuid4(),
+                        observation_date=r.issue_date,
+                        created_at=_dt.now(_UTC),
+                        series_id=sid,
+                        value=float(r.bid_to_cover_ratio),
+                        fetched_at=r.fetched_at,
+                    ).on_conflict_do_update(
+                        constraint="uq_fred_series_date",
+                        set_={"value": float(r.bid_to_cover_ratio)},
+                    )
+                    await session.execute(stmt)
+                    n_persisted += 1
+
+            # TREASURY_AUCTION_TAIL — only on the freshest auction per kind,
+            # to avoid re-firing on backfill of historical rows.
+            for r in latest_by_kind.values():
+                tail = r.tail_bps
+                if tail is None:
+                    continue
+                hits = await check_metric(
+                    session,
+                    metric_name="auction_tail_bps",
+                    current_value=tail,
+                    asset=None,
+                    extra_payload={
+                        "security_type": r.security_type,
+                        "security_term": r.security_term,
+                        "issue_date": r.issue_date.isoformat(),
+                        "high_yield": r.high_yield,
+                        "median_yield": r.median_yield,
+                        "bid_to_cover_ratio": r.bid_to_cover_ratio,
+                    },
+                )
+                n_alerts += len(hits)
+            await session.commit()
+        print(
+            f"Treasury auctions · upserted {n_persisted} rows, {n_alerts} tail alerts"
+        )
+    return 0 if rows else 1
+
+
 async def _run_reddit(*, persist: bool) -> int:
     """Reddit subreddit watchlist — pulls hot posts and persists into
     news_items (source_kind=social). Used by the Couche-2 sentiment
@@ -1383,9 +1486,17 @@ async def _run_polygon(*, persist: bool, lookback_days: int = 1) -> int:
                 if cur is None or b.bar_ts > cur.bar_ts:
                     latest_by_asset[b.asset] = b
 
+            # FX peg references — drive FX_PEG_BREAK (catalog metric=
+            # 'fx_peg_dev', threshold 1% above, crisis_mode=True).
+            #   USDHKD : HKMA Convertibility Undertaking midpoint 7.80
+            #   USDCNH : managed-float around PBOC daily fix — proxied
+            #            here by a 30-bar rolling mean (~30 min on 1-min bars).
+            FX_PEG_REFS: dict[str, float | str] = {
+                "USD_HKD": 7.80,
+                "USD_CNH": "rolling30",
+            }
             n_alerts = 0
             for asset, bar in latest_by_asset.items():
-                # close-based alerts (e.g., USDJPY_INTERVENTION_RISK)
                 close_metric = f"{asset}_close"
                 hits_close = await check_metric(
                     session,
@@ -1393,7 +1504,6 @@ async def _run_polygon(*, persist: bool, lookback_days: int = 1) -> int:
                     current_value=float(bar.close),
                     asset=asset,
                 )
-                # high-based alerts (e.g., XAU_BREAKOUT_ATH)
                 high_metric = f"{asset}_high"
                 hits_high = await check_metric(
                     session,
@@ -1402,6 +1512,32 @@ async def _run_polygon(*, persist: bool, lookback_days: int = 1) -> int:
                     asset=asset,
                 )
                 n_alerts += len(hits_close) + len(hits_high)
+
+                if asset in FX_PEG_REFS:
+                    ref = FX_PEG_REFS[asset]
+                    if ref == "rolling30":
+                        recent = [
+                            float(b.close) for b in all_bars if b.asset == asset
+                        ][-30:]
+                        ref_level = sum(recent) / len(recent) if len(recent) >= 5 else None
+                    else:
+                        ref_level = float(ref)
+                    if ref_level is not None and ref_level > 0:
+                        peg_dev_pct = (
+                            abs(float(bar.close) - ref_level) / ref_level * 100.0
+                        )
+                        peg_hits = await check_metric(
+                            session,
+                            metric_name="fx_peg_dev",
+                            current_value=peg_dev_pct,
+                            asset=asset,
+                            extra_payload={
+                                "current_close": float(bar.close),
+                                "peg_reference": ref_level,
+                                "deviation_pct": peg_dev_pct,
+                            },
+                        )
+                        n_alerts += len(peg_hits)
             if n_alerts:
                 await session.commit()
         print(
@@ -1448,6 +1584,7 @@ async def _main(target: str, *, persist: bool) -> int:
         "binance_funding": _run_binance_funding,
         "crypto_fng": _run_crypto_fng,
         "reddit": _run_reddit,
+        "treasury_auction": _run_treasury_auction,
         "forex_factory": _run_forex_factory,
         "mastodon": _run_mastodon,
     }
