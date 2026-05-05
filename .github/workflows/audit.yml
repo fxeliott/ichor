@@ -83,7 +83,14 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@0.28.0
+        # SECURITY (2026-05-05): trivy-action versions 0.0.1–0.34.2 were
+        # compromised in the March 2026 supply-chain attack (credential
+        # stealer injected via force-pushed tags). v0.28.0 was in the
+        # affected range and now also fails to resolve since clean tags
+        # were re-published. Bumped to v0.36.0 (post-attack stable).
+        # Future hardening: pin to commit SHA per
+        # https://www.aquasec.com/blog/trivy-supply-chain-attack-what-you-need-to-know/
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: fs
           scan-ref: .
