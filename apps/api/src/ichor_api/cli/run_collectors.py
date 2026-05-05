@@ -163,6 +163,7 @@ async def _run_fred(*, persist: bool, extended: bool = True) -> int:
         # this set ; the runner walks the catalog itself.
         ALERT_TRIGGER_SERIES = {
             "BAMLH0A0HYM2",  # HY_OAS_WIDEN, HY_OAS_CRISIS
+            "BAMLC0A0CMTRIV",  # IG_OAS_WIDEN (delta)
             "VIXCLS",  # VIX_SPIKE, VIX_PANIC (also fired by VIX_LIVE intraday)
             "SOFR",  # SOFR_SPIKE (delta)
             "DFF",  # FED_FUNDS_REPRICE
@@ -814,7 +815,34 @@ async def _run_eia_petroleum(*, persist: bool) -> int:
                 )
                 n += 1
             await session.commit()
-        print(f"EIA · persisted {n} rows")
+
+            # OIL_INVENTORY_SHOCK : crude inventory week-over-week change
+            # in million barrels. The catalog metric_name='EIA_crude_chg'
+            # threshold=-5 below. We compute it from the latest 2 WCESTUS1
+            # observations.
+            from ..services.alerts_runner import check_metric
+
+            crude_obs = sorted(
+                [o for o in obs if o.series_id == "WCESTUS1" and o.value is not None],
+                key=lambda o: o.period,
+            )
+            n_alerts = 0
+            if len(crude_obs) >= 2:
+                wow = (float(crude_obs[-1].value) - float(crude_obs[-2].value)) / 1000.0
+                hits = await check_metric(
+                    session,
+                    metric_name="EIA_crude_chg",
+                    current_value=wow,
+                    asset=None,
+                    extra_payload={
+                        "current_kbbl": float(crude_obs[-1].value),
+                        "previous_kbbl": float(crude_obs[-2].value),
+                    },
+                )
+                n_alerts = len(hits)
+                if n_alerts:
+                    await session.commit()
+        print(f"EIA · persisted {n} rows, {n_alerts} alerts triggered")
     return 0 if obs else 1
 
 
@@ -1179,11 +1207,46 @@ async def _run_polygon(*, persist: bool, lookback_days: int = 1) -> int:
 
     if persist and all_bars:
         from ..collectors.persistence import persist_polygon_bars
+        from ..services.alerts_runner import check_metric
 
         sm = get_sessionmaker()
         async with sm() as session:
             inserted = await persist_polygon_bars(session, all_bars)
-        print(f"Polygon · persisted {inserted} new rows")
+
+            # Price-based alert wiring : feed the latest close/high per
+            # asset to the catalog. The catalog encodes per-asset metric
+            # names (USD_JPY_close, XAU_USD_high) so we walk our bars
+            # by asset and match.
+            latest_by_asset: dict[str, Any] = {}
+            for b in all_bars:
+                cur = latest_by_asset.get(b.asset)
+                if cur is None or b.bar_ts > cur.bar_ts:
+                    latest_by_asset[b.asset] = b
+
+            n_alerts = 0
+            for asset, bar in latest_by_asset.items():
+                # close-based alerts (e.g., USDJPY_INTERVENTION_RISK)
+                close_metric = f"{asset}_close"
+                hits_close = await check_metric(
+                    session,
+                    metric_name=close_metric,
+                    current_value=float(bar.close),
+                    asset=asset,
+                )
+                # high-based alerts (e.g., XAU_BREAKOUT_ATH)
+                high_metric = f"{asset}_high"
+                hits_high = await check_metric(
+                    session,
+                    metric_name=high_metric,
+                    current_value=float(bar.high),
+                    asset=asset,
+                )
+                n_alerts += len(hits_close) + len(hits_high)
+            if n_alerts:
+                await session.commit()
+        print(
+            f"Polygon · persisted {inserted} new rows, {n_alerts} alerts triggered"
+        )
     return 0 if all_bars else 1
 
 
