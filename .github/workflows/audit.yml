@@ -39,7 +39,10 @@ jobs:
           python-version: "3.12"
 
       - name: Install pip-audit
-        run: pip install pip-audit==2.8.1
+        # 2.8.1 was yanked / never released ; latest stable on PyPI is
+        # 2.10.0 (April 2026). Use a flexible >=2.10 floor so dependabot
+        # can keep us current without YAML edits.
+        run: pip install "pip-audit>=2.10.0"
 
       - name: Run pip-audit
         working-directory: ${{ matrix.package }}
