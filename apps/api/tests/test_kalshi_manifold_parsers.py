@@ -33,13 +33,17 @@ def test_kalshi_parse_iso_garbage() -> None:
     assert _parse_iso("not-a-date") is None
 
 
-def test_kalshi_watched_tickers_non_empty() -> None:
-    assert len(WATCHED_TICKERS) >= 4
+def test_kalshi_watched_tickers_is_tuple() -> None:
+    """WATCHED_TICKERS is env-driven (defaults to () when no env set).
+    The test validates the type contract, not emptyness — production
+    Hetzner sets the env var so it's populated there."""
+    assert isinstance(WATCHED_TICKERS, tuple)
 
 
-def test_manifold_watched_slugs_non_empty() -> None:
-    assert len(WATCHED_SLUGS) >= 3
-    # All slugs should be lowercase, no spaces
+def test_manifold_watched_slugs_is_tuple_lowercase() -> None:
+    """WATCHED_SLUGS is env-driven. Validate type + lowercase invariant
+    when populated (env-driven on Hetzner production)."""
+    assert isinstance(WATCHED_SLUGS, tuple)
     for slug in WATCHED_SLUGS:
-        assert slug == slug.lower()
+        assert slug == slug.lower(), f"slug {slug!r} not lowercase"
         assert " " not in slug

@@ -16,12 +16,14 @@ def _ok_body(*results: dict) -> dict:
 
 
 def test_supported_assets_covers_all_phase1() -> None:
+    """All 8 Phase-1 trading assets must be supported. Extra assets
+    (e.g. BTC_USD as cross-asset proxy) are allowed — use ⊇ not ==."""
     assets = set(supported_assets())
-    expected = {
+    phase1 = {
         "EUR_USD", "GBP_USD", "USD_JPY", "AUD_USD", "USD_CAD",
         "XAU_USD", "NAS100_USD", "SPX500_USD",
     }
-    assert assets == expected
+    assert phase1 <= assets, f"Phase-1 not subset: missing {phase1 - assets}"
 
 
 def test_asset_to_ticker_uses_correct_namespaces() -> None:
