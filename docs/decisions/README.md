@@ -30,6 +30,7 @@
 | [022](ADR-022-probability-bias-models-reinstated.md)     | Accepted | Probability-only bias models reinstated under Critic gate     | 2026-05-05 |
 | [023](ADR-023-couche2-haiku-not-sonnet-on-free-cf-tunnel.md) | Accepted | Couche-2 → Claude Haiku low (CF Free 100s tunnel cap)     | 2026-05-06 |
 | [024](ADR-024-session-cards-five-bug-fix.md)             | Accepted | session-cards 4-pass — five-bug fix and ny_mid/ny_close enable | 2026-05-06 |
+| [025](ADR-025-brier-optimizer-v2-projected-sgd.md)       | Accepted | Brier optimizer V2 — projected SGD on per-factor drivers matrix | 2026-05-06 |
 
 > **Note**: SPEC_V2_HARDENING.md §4 originally referred to "ADR-008 to
 > ADR-011 prévus" for Phase 2 decisions. Those numbers were already taken

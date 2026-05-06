@@ -77,11 +77,16 @@ D:\Ichor
   `session_card_audit` CHECK constraint to include `ny_mid` and
   `ny_close` (cf. ADR-024).
 - **0026** — `session_card_audit.drivers` JSONB for Brier V2
-  per-factor SGD (cf. ADR-022). Column shipped, optimizer V2 still
-  TODO.
+  per-factor SGD (cf. ADR-022). Column shipped, optimizer V2 SHIPPED
+  2026-05-06 (cf. ADR-025). Activation gated on
+  `ICHOR_API_BRIER_V2_ENABLED=true` env flag.
 
 ## Recent ADRs (2026-05-06)
 
+- [ADR-025](docs/decisions/ADR-025-brier-optimizer-v2-projected-sgd.md)
+  Brier optimizer V2 — projected SGD on the per-factor drivers matrix.
+  New CLI `run_brier_optimizer_v2.py`, three helpers added to
+  `services/brier_optimizer.py`, gated on `ICHOR_API_BRIER_V2_ENABLED`.
 - [ADR-024](docs/decisions/ADR-024-session-cards-five-bug-fix.md)
   fixed 5 stacked bugs that had killed `session_card_audit` writes
   for 2 days. ny_mid + ny_close now valid sessions.

@@ -25,6 +25,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
+from typing import Any
 from uuid import UUID, uuid4
 
 import numpy as np
@@ -36,6 +37,22 @@ WEIGHT_MAX = 0.5
 
 DEFAULT_LR = 0.05
 DEFAULT_MOMENTUM = 0.9
+
+# Canonical factor list emitted by services/confluence_engine.assess_confluence.
+# V2 reads `session_card_audit.drivers` and pivots a row into a (F,) signal
+# vector indexed by these names ; missing factors fall back to 0.5 (neutral).
+DEFAULT_FACTOR_NAMES: tuple[str, ...] = (
+    "rate_diff",
+    "cot",
+    "microstructure_ofi",
+    "daily_levels",
+    "polymarket_overlay",
+    "funding_stress",
+    "surprise_index",
+    "vix_term",
+    "risk_appetite",
+    "btc_risk_proxy",
+)
 
 
 @dataclass(frozen=True)
@@ -218,6 +235,176 @@ async def persist_optimizer_run(
         },
     )
     return run_id
+
+
+# ──────────────────────── V2 helpers (D.1 sprint) ─────────────────────
+# These pivot the new `session_card_audit.drivers` JSONB column (added by
+# migration 0026, shape list[{factor, contribution, evidence}]) into a
+# (N, F) signal matrix + (N,) outcome vector that the V1 `run_optimization`
+# helpers can fit. Outcomes are reverse-engineered from the Brier identity
+# brier = (p_up - y)^2 with y ∈ {0, 1} — exact for any non-neutral card.
+
+
+def derive_realized_outcome(
+    bias_direction: str,
+    conviction_pct: float,
+    brier_contribution: float,
+    *,
+    tolerance: float = 1e-3,
+) -> int | None:
+    """Reverse-engineer the binary outcome y ∈ {0, 1} from the persisted
+    Brier contribution.
+
+    The reconciler writes brier_contribution = (p_up − y)² where y ∈ {0, 1}.
+    Given (bias, conviction) we recover p_up via `services.brier.conviction_to_p_up`
+    and pick whichever y minimizes |brier − (p_up − y)²|.
+
+    Returns None when both candidates are within `tolerance` of brier — that
+    only happens at p_up = 0.5 (neutral bias), where the call carried no
+    directional information and the optimizer must skip the row.
+    """
+    from .brier import conviction_to_p_up
+
+    if bias_direction not in {"long", "short", "neutral"}:
+        return None
+    p_up = conviction_to_p_up(bias_direction, conviction_pct)  # type: ignore[arg-type]
+    diff_y0 = abs(brier_contribution - p_up * p_up)
+    diff_y1 = abs(brier_contribution - (p_up - 1.0) ** 2)
+    if abs(diff_y0 - diff_y1) < tolerance:
+        return None
+    return 0 if diff_y0 < diff_y1 else 1
+
+
+def drivers_to_signal_row(
+    drivers: list[Any] | None,
+    factor_names: tuple[str, ...] = DEFAULT_FACTOR_NAMES,
+) -> np.ndarray | None:
+    """Map a `drivers` JSONB row → (F,) array of signals in [0, 1].
+
+    confluence_engine emits Driver.contribution ∈ [-1, +1] (signed,
+    + = long, − = short). The V1 optimizer expects signals in [0, 1]
+    with 0.5 = neutral, so we apply `signal = 0.5 + 0.5 * contribution`
+    and clamp out-of-range values defensively.
+
+    Missing factors default to 0.5 (neutral). Returns None if `drivers`
+    is None or empty (no signal at all). Argument type stays `list[Any]`
+    because the column is JSONB — rows surfaced by SQLAlchemy may contain
+    legacy shapes or string-encoded contributions ; we validate each entry.
+    """
+    if not drivers:
+        return None
+    by_factor: dict[str, float] = {}
+    for entry in drivers:
+        if not isinstance(entry, dict):
+            continue
+        f = entry.get("factor")
+        c = entry.get("contribution")
+        if not isinstance(f, str) or c is None:
+            continue
+        try:
+            c_val = float(c)
+        except (TypeError, ValueError):
+            continue
+        c_clamped = max(-1.0, min(1.0, c_val))
+        by_factor[f] = 0.5 + 0.5 * c_clamped
+    if not by_factor:
+        return None
+    arr: np.ndarray = np.array(
+        [by_factor.get(name, 0.5) for name in factor_names],
+        dtype=np.float64,
+    )
+    return arr
+
+
+@dataclass(frozen=True)
+class DriversMatrix:
+    """Output of `aggregate_drivers_matrix` — keeps the factor list paired
+    with the matrix so callers don't drift between V1 helpers."""
+
+    factor_names: list[str]
+    factor_signals: np.ndarray
+    """Shape (N, F), each row = one card, each col = one factor signal."""
+    outcomes: np.ndarray
+    """Shape (N,), binary realized direction (1 = close > open)."""
+    n_skipped_no_drivers: int
+    n_skipped_ambiguous_outcome: int
+
+
+async def aggregate_drivers_matrix(
+    session: AsyncSession,
+    *,
+    asset: str | None,
+    regime: str | None,
+    lookback_days: int = 30,
+    factor_names: tuple[str, ...] = DEFAULT_FACTOR_NAMES,
+    min_obs: int = 30,
+) -> DriversMatrix | None:
+    """Build a (factor_signals, outcomes) batch from `session_card_audit`.
+
+    Filters :
+      - drivers IS NOT NULL
+      - brier_contribution IS NOT NULL
+      - generated_at >= now − lookback_days
+      - asset = :asset (when provided)
+      - regime_quadrant = :regime (when provided ; "all" maps to NULL/any)
+
+    Skips rows where drivers cannot be parsed or outcome is ambiguous
+    (neutral bias). Returns None when fewer than `min_obs` rows survive
+    filtering — projected SGD on tiny batches is meaningless.
+    """
+    from sqlalchemy import select
+
+    from ..models import SessionCardAudit
+
+    cutoff = datetime.now(UTC) - timedelta(days=lookback_days)
+    stmt = select(
+        SessionCardAudit.bias_direction,
+        SessionCardAudit.conviction_pct,
+        SessionCardAudit.brier_contribution,
+        SessionCardAudit.drivers,
+    ).where(
+        SessionCardAudit.generated_at >= cutoff,
+        SessionCardAudit.brier_contribution.is_not(None),
+        SessionCardAudit.drivers.is_not(None),
+    )
+    if asset:
+        stmt = stmt.where(SessionCardAudit.asset == asset)
+    if regime and regime != "all":
+        stmt = stmt.where(SessionCardAudit.regime_quadrant == regime)
+
+    rows = (await session.execute(stmt)).all()
+
+    signals_rows: list[np.ndarray] = []
+    outcomes_list: list[float] = []
+    n_no_drivers = 0
+    n_ambiguous = 0
+
+    for bias, conviction, brier, drivers in rows:
+        sig = drivers_to_signal_row(drivers, factor_names)
+        if sig is None:
+            n_no_drivers += 1
+            continue
+        outcome = derive_realized_outcome(
+            str(bias), float(conviction), float(brier)
+        )
+        if outcome is None:
+            n_ambiguous += 1
+            continue
+        signals_rows.append(sig)
+        outcomes_list.append(float(outcome))
+
+    if len(outcomes_list) < min_obs:
+        return None
+
+    factor_signals = np.vstack(signals_rows)
+    outcomes_arr = np.array(outcomes_list, dtype=np.float64)
+    return DriversMatrix(
+        factor_names=list(factor_names),
+        factor_signals=factor_signals,
+        outcomes=outcomes_arr,
+        n_skipped_no_drivers=n_no_drivers,
+        n_skipped_ambiguous_outcome=n_ambiguous,
+    )
 
 
 async def latest_active_weights(
