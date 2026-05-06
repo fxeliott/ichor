@@ -29,7 +29,6 @@ No action needed but worth knowing:
 - No GPL, AGPL, or SSPL dependency in the JS tree (lockfile checked — see Licensing section).
 - Redis self-hosted via `redis:7-alpine` (Langfuse stack) is still under BSD-3 (Redis 7 line). Redis 8.0 (May 2025) moved to AGPLv3/SSPL/RSALv2 tri-license — not relevant unless you upgrade.
 
-
 ---
 
 ## CRITICAL severity
@@ -68,7 +67,7 @@ Three-layer problem:
 
 1. **Library is abandoned.** Last release 3.5.0 (mid-2024), repo issues stacking up. FastAPI itself dropped its python-jose recommendation in favour of PyJWT.
 2. **CVE-2024-33663** (algorithm confusion via OpenSSH ECDSA / non-PEM-prefixed public keys) is unpatched upstream — the `invalid_strings` blacklist in `cryptography_backend.py` is incomplete and any key format that does not match a known prefix slips through.
-3. **Our call site is vulnerable to alg confusion as written** — `auth.py:89-95` passes `algorithms=[header.get("alg", "RS256")]` to `jwt.decode`, which means the *allowlist* is read from the token own header. An attacker who obtains the JWKS public key (it is public by design) can sign an HS256 token with that public key as the secret, set `alg: HS256` in the header, and bypass verification.
+3. **Our call site is vulnerable to alg confusion as written** — `auth.py:89-95` passes `algorithms=[header.get("alg", "RS256")]` to `jwt.decode`, which means the _allowlist_ is read from the token own header. An attacker who obtains the JWKS public key (it is public by design) can sign an HS256 token with that public key as the secret, set `alg: HS256` in the header, and bypass verification.
 
 Mitigating context: tokens come from Cloudflare Access (CF signs them, we verify). For an external attacker, forging requires either (a) Cloudflare being broken or (b) bypassing CF Access entirely — in either case they own you anyway. So this is more "defence in depth + abandonware risk" than "hot fire". But the migration is cheap.
 
@@ -82,7 +81,6 @@ Upstream references:
 
 - CVE: https://www.sentinelone.com/vulnerability-database/cve-2024-33663/
 - Maintenance status: https://github.com/fastapi/fastapi/discussions/11345
-
 
 ---
 
@@ -101,7 +99,7 @@ Source review confirms the agent code does not need the Anthropic provider:
 
 **Fix** (single-line change): replace the line `"pydantic-ai>=1.88,<2",` in the `dependencies = [...]` block with `"pydantic-ai-slim[openai]>=1.88,<2",` then `uv lock --upgrade` and verify `anthropic` is gone from the lockfile.
 
-Note also the comment in `pyproject.toml` lines 12-14 saying anthropic is intentionally not in production. The comment is correct in *intent* but currently misleading: `anthropic` IS being installed today, just via the meta-package. Fix the dep, then the comment is accurate again.
+Note also the comment in `pyproject.toml` lines 12-14 saying anthropic is intentionally not in production. The comment is correct in _intent_ but currently misleading: `anthropic` IS being installed today, just via the meta-package. Fix the dep, then the comment is accurate again.
 
 ---
 
@@ -141,7 +139,7 @@ Upstream: https://github.com/minio/minio/security/advisories/GHSA-jjjj-jwhf-8rgr
 Issue is structural: the `24.12-alpine` tag is a moving pointer to "latest patch in 24.12 line". Two problems:
 
 1. **Reproducibility**: a `docker compose pull` six months from now may yield a different image than today. Pin to a digest (`@sha256:...`) or to a full patch (`24.12.5.65-alpine`).
-2. **CVE-2025-1385** (clickhouse-library-bridge RCE on localhost API): fixed minimum `24.12.5.65`. Floating `24.12-alpine` *might* have pulled a pre-fix image when you first deployed.
+2. **CVE-2025-1385** (clickhouse-library-bridge RCE on localhost API): fixed minimum `24.12.5.65`. Floating `24.12-alpine` _might_ have pulled a pre-fix image when you first deployed.
 
 Mitigating context: the bridge is a localhost-only HTTP API in the container, and there is no library file mounted into the container. Real exploitability is near-zero in this configuration. Still, pin the tag.
 
@@ -160,7 +158,6 @@ Upstream: https://github.com/ClickHouse/ClickHouse/security/advisories/GHSA-5phv
 
 Advisory: https://github.com/advisories/GHSA-qx2v-qp2m-jg93
 
-
 ---
 
 ## MEDIUM severity
@@ -169,16 +166,16 @@ Advisory: https://github.com/advisories/GHSA-qx2v-qp2m-jg93
 
 `pnpm outdated -r` output:
 
-| Package | Current | Latest | Major lag | Notes |
-|---|---|---|---|---|
-| `next` | 15.5.15 | 16.2.4 | 1 major | App Router stable, but 16 changes RSC default behavior; defer until RSC story stabilises post-React2Shell ecosystem fallout. |
-| `typescript` | 5.9.3 | 6.0.3 | 1 major | TS 6 has breaking inference changes around narrowing; non-blocking but plan for it. |
-| `@types/node` | 22.19.17 | 25.6.0 | 3 majors | Tracks Node.js; you are on Node 22 LTS so 22.x is correct. Do not bump to 25.x while runtime is 22. |
-| `eslint` | 10.3.0 | 10.3.0 | none | Pinned correct. |
-| `turbo` | 2.9.7 | 2.9.8 | patch | Trivial. |
-| `@types/react` | 19.0.0 | 19.2.14 | minor | Bump for newer React 19 type fixes. |
-| `@types/react-dom` | 19.0.0 | 19.2.3 | minor | Same. |
-| `react` / `react-dom` | 19.0.0 | 19.2.5 | minor | Includes React 19 RSC patches CVE-2025-55183 / CVE-2025-55184 — though Next.js 15.5.15 already pulls patched react via its own resolution. Bump for consistency. |
+| Package               | Current  | Latest  | Major lag | Notes                                                                                                                                                            |
+| --------------------- | -------- | ------- | --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `next`                | 15.5.15  | 16.2.4  | 1 major   | App Router stable, but 16 changes RSC default behavior; defer until RSC story stabilises post-React2Shell ecosystem fallout.                                     |
+| `typescript`          | 5.9.3    | 6.0.3   | 1 major   | TS 6 has breaking inference changes around narrowing; non-blocking but plan for it.                                                                              |
+| `@types/node`         | 22.19.17 | 25.6.0  | 3 majors  | Tracks Node.js; you are on Node 22 LTS so 22.x is correct. Do not bump to 25.x while runtime is 22.                                                              |
+| `eslint`              | 10.3.0   | 10.3.0  | none      | Pinned correct.                                                                                                                                                  |
+| `turbo`               | 2.9.7    | 2.9.8   | patch     | Trivial.                                                                                                                                                         |
+| `@types/react`        | 19.0.0   | 19.2.14 | minor     | Bump for newer React 19 type fixes.                                                                                                                              |
+| `@types/react-dom`    | 19.0.0   | 19.2.3  | minor     | Same.                                                                                                                                                            |
+| `react` / `react-dom` | 19.0.0   | 19.2.5  | minor     | Includes React 19 RSC patches CVE-2025-55183 / CVE-2025-55184 — though Next.js 15.5.15 already pulls patched react via its own resolution. Bump for consistency. |
 
 **Recommended bump set** (low risk): `react@19.2.5`, `react-dom@19.2.5`, `@types/react@19.2.14`, `@types/react-dom@19.2.3`, `turbo@2.9.8`.
 
@@ -192,14 +189,13 @@ Defer for now:
 
 These were not checked with `pip-audit` (see Limitations) but are worth a manual look during the next maintenance window:
 
-| Package | Where | Concern |
-|---|---|---|
-| `numpy>=1.26.0,<2.0` | `packages/ml` | The `<2.0` cap is now obsolete and will block resolutions soon. All your other ML deps support NumPy 2. Lift the cap. |
-| `python-jose[cryptography]` | `apps/claude-runner` | Already covered above (CRITICAL). |
-| `vollib>=1.0.7` | `packages/ml` | The 1.0.7 series is the revival; older `py_vollib` is dead. Spec-only today (see grep). Re-evaluate when used. |
-| `dowhy>=0.12`, `econml>=0.15` | `packages/ml` | Both alive but slow-moving causal-inference libs; verify before lifting from spec. |
-| `mlflow>=3.11.1` | `packages/ml` | MLflow 3.x has had a steady stream of CVEs around model-registry endpoints — make sure the tracking server is bound to localhost or behind CF Access (it should be by your usual pattern). |
-
+| Package                       | Where                | Concern                                                                                                                                                                                    |
+| ----------------------------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `numpy>=1.26.0,<2.0`          | `packages/ml`        | The `<2.0` cap is now obsolete and will block resolutions soon. All your other ML deps support NumPy 2. Lift the cap.                                                                      |
+| `python-jose[cryptography]`   | `apps/claude-runner` | Already covered above (CRITICAL).                                                                                                                                                          |
+| `vollib>=1.0.7`               | `packages/ml`        | The 1.0.7 series is the revival; older `py_vollib` is dead. Spec-only today (see grep). Re-evaluate when used.                                                                             |
+| `dowhy>=0.12`, `econml>=0.15` | `packages/ml`        | Both alive but slow-moving causal-inference libs; verify before lifting from spec.                                                                                                         |
+| `mlflow>=3.11.1`              | `packages/ml`        | MLflow 3.x has had a steady stream of CVEs around model-registry endpoints — make sure the tracking server is bound to localhost or behind CF Access (it should be by your usual pattern). |
 
 ---
 
@@ -225,7 +221,7 @@ Output of `pnpm licenses ls` analysed. Distribution:
 
 Not run programmatically (no `pip-licenses` or `licensecheck` available locally). Manual spot-check of the declared deps:
 
-- **Permissive (MIT / BSD / Apache-2.0)**: fastapi, uvicorn, pydantic, sqlalchemy, asyncpg, alembic, redis-py, httpx, structlog, opentelemetry-*, pytest, ruff, mypy, anyio, lightgbm, xgboost, scikit-learn, numpy, pandas, scipy, statsmodels, transformers, torch, mlflow, evidently, mapie, shap, **interpret** (MIT, recently-released 0.7.8 Mar 2026 — actively maintained).
+- **Permissive (MIT / BSD / Apache-2.0)**: fastapi, uvicorn, pydantic, sqlalchemy, asyncpg, alembic, redis-py, httpx, structlog, opentelemetry-\*, pytest, ruff, mypy, anyio, lightgbm, xgboost, scikit-learn, numpy, pandas, scipy, statsmodels, transformers, torch, mlflow, evidently, mapie, shap, **interpret** (MIT, recently-released 0.7.8 Mar 2026 — actively maintained).
 - **Watch**:
   - `python-jose[cryptography]` -> MIT, but abandoned (covered above).
   - `dowhy`, `econml` -> MIT, slower-moving but maintained.
@@ -245,7 +241,7 @@ Not run programmatically (no `pip-licenses` or `licensecheck` available locally)
 ### Abandonware check
 
 - **`python-jose`** — confirmed abandoned (covered).
-- **`py_vollib`** (NOT `vollib`) — abandoned since 2017; you are on the renamed-revival `vollib>=1.0.7` so this is OK *if* uv resolves to the right project.
+- **`py_vollib`** (NOT `vollib`) — abandoned since 2017; you are on the renamed-revival `vollib>=1.0.7` so this is OK _if_ uv resolves to the right project.
 - **All other Python deps** I sampled (lightgbm, xgboost, transformers, torch, mlflow, sklearn, statsmodels, mapie, shap, interpret, river, hmmlearn, dtaidistance, dowhy, econml, evidently, numpyro, arch, pyextremes) have releases in the last 12 months per their respective registries.
 - **JS deps** — Next.js, React, Tailwind 4, TanStack, lightweight-charts, motion, react-markdown, remark-gfm: all weekly to monthly cadence.
 
@@ -253,19 +249,19 @@ Not run programmatically (no `pip-licenses` or `licensecheck` available locally)
 
 ## Summary
 
-| Metric | Value |
-|---|---|
-| JS direct deps (production) | 11 (across `apps/web` + `packages/ui`) |
-| JS direct deps (dev) | 8 |
-| JS transitive deps in lockfile | ~110 (per `pnpm-lock.yaml` size) |
-| Python direct deps (production, all packages) | ~45 |
-| Docker images pinned | 11 (across 3 compose files) |
-| **Critical CVEs / abandonware** | **2** (n8n, python-jose) |
-| **High severity** | **5** (pydantic-ai/anthropic, Grafana, MinIO, ClickHouse, postcss) |
-| **Medium** | **3** (Next 15.5.15->.16+, NumPy cap, ML deps lacking pip-audit) |
-| Out-of-date (JS, any lag) | 8 |
-| Licence conflicts | **0** GPL/AGPL/SSPL. 1 MPL (lightningcss, OK), 1 LGPL-component (sharp on win32, OK if not statically distributed). |
-| Voie D / ADR-009 violations | **1** (`pydantic-ai` pulls `anthropic` transitively). Plus 1 dead dep (`claude-agent-sdk`). |
+| Metric                                        | Value                                                                                                               |
+| --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| JS direct deps (production)                   | 11 (across `apps/web` + `packages/ui`)                                                                              |
+| JS direct deps (dev)                          | 8                                                                                                                   |
+| JS transitive deps in lockfile                | ~110 (per `pnpm-lock.yaml` size)                                                                                    |
+| Python direct deps (production, all packages) | ~45                                                                                                                 |
+| Docker images pinned                          | 11 (across 3 compose files)                                                                                         |
+| **Critical CVEs / abandonware**               | **2** (n8n, python-jose)                                                                                            |
+| **High severity**                             | **5** (pydantic-ai/anthropic, Grafana, MinIO, ClickHouse, postcss)                                                  |
+| **Medium**                                    | **3** (Next 15.5.15->.16+, NumPy cap, ML deps lacking pip-audit)                                                    |
+| Out-of-date (JS, any lag)                     | 8                                                                                                                   |
+| Licence conflicts                             | **0** GPL/AGPL/SSPL. 1 MPL (lightningcss, OK), 1 LGPL-component (sharp on win32, OK if not statically distributed). |
+| Voie D / ADR-009 violations                   | **1** (`pydantic-ai` pulls `anthropic` transitively). Plus 1 dead dep (`claude-agent-sdk`).                         |
 
 ---
 
@@ -274,7 +270,7 @@ Not run programmatically (no `pip-licenses` or `licensecheck` available locally)
 - **`pip-audit` was not run.** No `uv` and no `pip-audit` in PATH; the repo `.venv-tooling/` does not have it either. Installing it would have been a network action that I declined to take without explicit ask. Python CVE coverage in this report relies on web-sourced advisories for the high-profile packages only — minor / less-common Python deps were not individually checked. Recommend running `uv tool install pip-audit` and then `pip-audit -r requirements.txt` per package once `uv` is on the box.
 - **Dead-import analysis for JS** was not run (`knip` / `ts-prune`). Bloat assessment is by manifest review only.
 - **Dead-import analysis for Python** was a manual `grep` only — confirms `claude-agent-sdk` is unused but does not catch deeper dead chains.
-- **Docker base image scanning** (Trivy / Grype) was not run. Only the headline CVEs for the *application* images were checked, not the base layers (Alpine, Debian, etc.). The Langfuse v3.162 issue thread (GHSA scan results) is a useful template if you want to wire Trivy into CI later.
+- **Docker base image scanning** (Trivy / Grype) was not run. Only the headline CVEs for the _application_ images were checked, not the base layers (Alpine, Debian, etc.). The Langfuse v3.162 issue thread (GHSA scan results) is a useful template if you want to wire Trivy into CI later.
 - **Bundlephobia / actual bundle-size impact** of `react-markdown` + `remark-gfm` not measured. Both are reasonable, around 50 KB gzipped each, but if you only use markdown in one route, dynamic-import them.
 - **Tooling versions used**:
   - `pnpm` (via corepack) 10.33.2

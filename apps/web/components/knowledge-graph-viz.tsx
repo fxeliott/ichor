@@ -67,11 +67,7 @@ interface PositionedNode extends GraphNode {
   radius: number;
 }
 
-const layoutNodes = (
-  nodes: GraphNode[],
-  width: number,
-  height: number
-): PositionedNode[] => {
+const layoutNodes = (nodes: GraphNode[], width: number, height: number): PositionedNode[] => {
   const cx = width / 2;
   const cy = height / 2;
   const ringR = Math.min(width, height) * 0.36;
@@ -135,14 +131,8 @@ export const KnowledgeGraphViz: React.FC<KnowledgeGraphVizProps> = ({
   const [hovered, setHovered] = React.useState<string | null>(null);
   const [selected, setSelected] = React.useState<string | null>(null);
 
-  const positioned = React.useMemo(
-    () => layoutNodes(nodes, width, height),
-    [nodes, width, height]
-  );
-  const byId = React.useMemo(
-    () => new Map(positioned.map((n) => [n.id, n])),
-    [positioned]
-  );
+  const positioned = React.useMemo(() => layoutNodes(nodes, width, height), [nodes, width, height]);
+  const byId = React.useMemo(() => new Map(positioned.map((n) => [n.id, n])), [positioned]);
 
   const focus = selected ?? hovered;
   const focusNeighbors = React.useMemo(() => {
@@ -189,10 +179,9 @@ export const KnowledgeGraphViz: React.FC<KnowledgeGraphVizProps> = ({
             const s = byId.get(e.source);
             const t = byId.get(e.target);
             if (!s || !t) return null;
-            const dimmed = focus !== null && !focusNeighbors.has(e.source) && !focusNeighbors.has(e.target);
-            const opacity = dimmed
-              ? 0.07
-              : 0.15 + 0.55 * (e.weight / maxEdgeWeight);
+            const dimmed =
+              focus !== null && !focusNeighbors.has(e.source) && !focusNeighbors.has(e.target);
+            const opacity = dimmed ? 0.07 : 0.15 + 0.55 * (e.weight / maxEdgeWeight);
             const strokeWidth = 0.8 + 1.5 * (e.weight / maxEdgeWeight);
             const cx = (s.x + t.x) / 2;
             const cy = (s.y + t.y) / 2 - 30;
@@ -200,11 +189,7 @@ export const KnowledgeGraphViz: React.FC<KnowledgeGraphVizProps> = ({
               <path
                 key={`e${i}`}
                 d={`M ${s.x},${s.y} Q ${cx},${cy} ${t.x},${t.y}`}
-                stroke={
-                  e.kind === "CAUSAL_FORWARD"
-                    ? "rgb(251 191 36)"
-                    : "rgb(115 115 115)"
-                }
+                stroke={e.kind === "CAUSAL_FORWARD" ? "rgb(251 191 36)" : "rgb(115 115 115)"}
                 strokeOpacity={opacity}
                 strokeWidth={strokeWidth}
                 fill="none"

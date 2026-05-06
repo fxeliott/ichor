@@ -9,17 +9,17 @@ ichor_locale: en_US.UTF-8
 
 # --- Versions verified 2026-05-02 ---
 postgres_version: "16"
-timescaledb_apt_version: "2.17.*"  # latest 2.17.x via timescale apt repo
+timescaledb_apt_version: "2.17.*" # latest 2.17.x via timescale apt repo
 apache_age_version: "1.5.0"
-redis_version: "8"  # apt packages.redis.io serves 8.x current stable — see ADR-008
-walg_version: "3.0.8"  # AUDIT_V3 §2 — pgbackrest archived, switched to wal-g
+redis_version: "8" # apt packages.redis.io serves 8.x current stable — see ADR-008
+walg_version: "3.0.8" # AUDIT_V3 §2 — pgbackrest archived, switched to wal-g
 python_version: "3.12"
-node_major_version: "22"  # AUDIT_V3 §6 — Node 22 LTS (Node 20 LTS ended Apr 2026)
+node_major_version: "22" # AUDIT_V3 §6 — Node 22 LTS (Node 20 LTS ended Apr 2026)
 docker_compose_version: "2.32"
 
 # --- Postgres tuning (Hetzner CX32 = 16GB RAM, 8 vCPU) ---
-postgres_shared_buffers: "4GB"           # 25% RAM
-postgres_effective_cache_size: "12GB"    # 75% RAM
+postgres_shared_buffers: "4GB" # 25% RAM
+postgres_effective_cache_size: "12GB" # 75% RAM
 postgres_maintenance_work_mem: "1GB"
 postgres_work_mem: "32MB"
 postgres_max_connections: 200
@@ -35,14 +35,14 @@ postgres_max_wal_senders: 4
 redis_maxmemory: "2gb"
 redis_maxmemory_policy: "allkeys-lru"
 redis_appendonly: "yes"
-redis_appendfsync: "everysec"  # AUDIT_V3 — durability vs perf balance
+redis_appendfsync: "everysec" # AUDIT_V3 — durability vs perf balance
 
 # --- UFW: ports allowed publicly ---
 # All internal services exposed via Cloudflare Tunnel (no public port)
 ufw_allowed_tcp:
-  - { port: 22,  comment: "SSH" }
+  - { port: 22, comment: "SSH" }
   # No apostrophe in comment — community.general.ufw forwards to shell and breaks on quoting
-  - { port: 80,  comment: "HTTP - Lets Encrypt challenges" }
+  - { port: 80, comment: "HTTP - Lets Encrypt challenges" }
   - { port: 443, comment: "HTTPS public" }
 
 # --- SSH hardening ---
@@ -55,14 +55,14 @@ ssh_client_alive_count_max: 3
 
 # --- fail2ban ---
 fail2ban_ssh_maxretry: 3
-fail2ban_ssh_bantime: 86400  # 24h
+fail2ban_ssh_bantime: 86400 # 24h
 
 # --- Backup (wal-g → Cloudflare R2 EU) ---
-walg_s3_bucket: ichor-walg-eu  # to be created in R2 manually before first backup
-walg_s3_endpoint: "https://<account>.r2.cloudflarestorage.com"  # filled from secret
+walg_s3_bucket: ichor-walg-eu # to be created in R2 manually before first backup
+walg_s3_endpoint: "https://<account>.r2.cloudflarestorage.com" # filled from secret
 walg_s3_region: auto
 walg_pg_data: "/var/lib/postgresql/{{ postgres_version }}/main"
-walg_archive_timeout: 60  # seconds — force WAL archive every minute even if not full
+walg_archive_timeout: 60 # seconds — force WAL archive every minute even if not full
 
 # --- Observability ---
 observability_loki_retention_days: 14
@@ -71,4 +71,4 @@ observability_grafana_admin_user: admin
 
 # --- Cloudflared (tunnel installed by apt — config in Week 3) ---
 cloudflared_install: true
-cloudflared_configure_tunnel: false  # toggled true in Week 3 step 19
+cloudflared_configure_tunnel: false # toggled true in Week 3 step 19

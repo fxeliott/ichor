@@ -29,12 +29,12 @@ the **known boundaries** of trust.
 
 ### Trust boundaries
 
-| Boundary | Trust direction | Mitigation |
-|---|---|---|
-| Internet → Cloudflare Tunnel → Win11 :8766 | untrusted → trusted | Cloudflare Access JWT verify (when enabled); rate limiter; UUID-secret-only fallback in Phase 0 |
-| Hetzner :8000 (lo) → only local | trusted | Bind localhost-only; not exposed |
-| GitHub Actions → Hetzner deploy | trusted (with HETZNER_SSH_PRIVATE_KEY secret) | Secret scoped to `deploy.yml`, only readable on `main` branch |
-| LLM agents → output | untrusted | All outputs persisted with `briefing_markdown` source-of-truth; never auto-execute LLM output as code |
+| Boundary                                   | Trust direction                               | Mitigation                                                                                            |
+| ------------------------------------------ | --------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| Internet → Cloudflare Tunnel → Win11 :8766 | untrusted → trusted                           | Cloudflare Access JWT verify (when enabled); rate limiter; UUID-secret-only fallback in Phase 0       |
+| Hetzner :8000 (lo) → only local            | trusted                                       | Bind localhost-only; not exposed                                                                      |
+| GitHub Actions → Hetzner deploy            | trusted (with HETZNER_SSH_PRIVATE_KEY secret) | Secret scoped to `deploy.yml`, only readable on `main` branch                                         |
+| LLM agents → output                        | untrusted                                     | All outputs persisted with `briefing_markdown` source-of-truth; never auto-execute LLM output as code |
 
 ## Reporting a vulnerability
 
@@ -53,16 +53,17 @@ If you discover a vulnerability — or even a suspected one — please report it
 
 ## Secrets handling
 
-| Type of secret | Where it lives | How it's used |
-|---|---|---|
-| Cloudflare API tokens, R2 keys, tunnel UUIDs | `infra/secrets/cloudflare.env` (SOPS+age) | Decrypted at runtime by Ansible / `ichor-decrypt-secrets` |
-| Postgres `ichor` user password | `infra/secrets/postgres.env` (SOPS+age) | EnvironmentFile= for `ichor-api.service` |
-| Grafana admin password | `infra/secrets/grafana.env` (SOPS+age) | Mounted as Docker secret |
-| age private keys (Eliot + Hetzner) | `%APPDATA%\sops\age\keys.txt` (Win11 user dir) + USB vault | Local-only, never committed |
-| Claude OAuth tokens (Max 20x) | `%USERPROFILE%\.claude\.credentials.json` (managed by `claude` CLI) | Read by user-mode `apps/claude-runner` only |
-| GitHub Actions secrets (HETZNER_SSH_PRIVATE_KEY, etc.) | GitHub repo Settings → Secrets | Injected by workflow runner |
+| Type of secret                                         | Where it lives                                                      | How it's used                                             |
+| ------------------------------------------------------ | ------------------------------------------------------------------- | --------------------------------------------------------- |
+| Cloudflare API tokens, R2 keys, tunnel UUIDs           | `infra/secrets/cloudflare.env` (SOPS+age)                           | Decrypted at runtime by Ansible / `ichor-decrypt-secrets` |
+| Postgres `ichor` user password                         | `infra/secrets/postgres.env` (SOPS+age)                             | EnvironmentFile= for `ichor-api.service`                  |
+| Grafana admin password                                 | `infra/secrets/grafana.env` (SOPS+age)                              | Mounted as Docker secret                                  |
+| age private keys (Eliot + Hetzner)                     | `%APPDATA%\sops\age\keys.txt` (Win11 user dir) + USB vault          | Local-only, never committed                               |
+| Claude OAuth tokens (Max 20x)                          | `%USERPROFILE%\.claude\.credentials.json` (managed by `claude` CLI) | Read by user-mode `apps/claude-runner` only               |
+| GitHub Actions secrets (HETZNER_SSH_PRIVATE_KEY, etc.) | GitHub repo Settings → Secrets                                      | Injected by workflow runner                               |
 
 **Ground rules** :
+
 - Never commit a `.env` file. The `.gitignore` blocks `.env*`,
   `*.pem`, `*.key`, `secrets/*.dec.*`.
 - Never paste a secret into Claude Code chat (it gets stored in transcripts).

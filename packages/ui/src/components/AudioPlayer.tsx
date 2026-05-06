@@ -29,6 +29,14 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
       {label && (
         <span className="text-xs text-[var(--color-ichor-text-muted)] font-medium">{label}</span>
       )}
+      {/*
+        Captions intentionally omitted: WCAG SC 1.2.1 (Audio-only) is
+        satisfied by the linked text transcript (`transcriptHref`), which
+        is the equivalent alternative for synthesized briefing audio.
+        Live captions are out of scope for Phase 2 (Voice TTS deferred — cf
+        SPEC.md §9 / Sprint N).
+      */}
+      {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
       <audio
         controls
         src={src}

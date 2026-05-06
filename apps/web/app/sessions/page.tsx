@@ -1,10 +1,6 @@
 import Link from "next/link";
 import { SessionCard as SessionCardUI } from "@ichor/ui";
-import {
-  ApiError,
-  listLatestSessions,
-  type SessionCard,
-} from "../../lib/api";
+import { ApiError, listLatestSessions, type SessionCard } from "../../lib/api";
 import { ASSETS } from "../../lib/assets";
 import { RegimeQuadrantWidget } from "../../components/regime-quadrant-widget";
 import { CrossAssetHeatmap } from "../../components/cross-asset-heatmap";
@@ -18,7 +14,6 @@ export const metadata = {
 export const dynamic = "force-dynamic";
 export const revalidate = 30;
 
-
 export default async function SessionsPage() {
   let cards: SessionCard[] = [];
   let total = 0;
@@ -29,11 +24,7 @@ export default async function SessionsPage() {
     total = out.total;
   } catch (err) {
     error =
-      err instanceof ApiError
-        ? err.message
-        : err instanceof Error
-          ? err.message
-          : "unknown error";
+      err instanceof ApiError ? err.message : err instanceof Error ? err.message : "unknown error";
   }
 
   const cardByAsset = new Map(cards.map((c) => [c.asset, c]));
@@ -46,14 +37,11 @@ export default async function SessionsPage() {
             Cartes de session
           </h1>
           <p className="text-sm text-[var(--color-ichor-text-muted)] mt-1">
-            Verdict structuré du pipeline 4-pass (régime → asset → stress →
-            invalidation) — une carte par actif. Conviction affichée =
-            post-stress (calibrée).
+            Verdict structuré du pipeline 4-pass (régime → asset → stress → invalidation) — une
+            carte par actif. Conviction affichée = post-stress (calibrée).
           </p>
         </div>
-        <p className="text-xs text-[var(--color-ichor-text-subtle)]">
-          {total} carte(s) actives
-        </p>
+        <p className="text-xs text-[var(--color-ichor-text-subtle)]">{total} carte(s) actives</p>
       </header>
 
       {error ? (
@@ -66,9 +54,7 @@ export default async function SessionsPage() {
       ) : null}
 
       <div className="mb-5 grid grid-cols-1 lg:grid-cols-[minmax(0,420px)_1fr] gap-3">
-        <RegimeQuadrantWidget
-          cards={cards.map((c) => ({ regime_quadrant: c.regime_quadrant }))}
-        />
+        <RegimeQuadrantWidget cards={cards.map((c) => ({ regime_quadrant: c.regime_quadrant }))} />
         <CrossAssetHeatmap
           cards={cards.map((c) => ({
             asset: c.asset,

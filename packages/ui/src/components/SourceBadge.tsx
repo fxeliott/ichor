@@ -24,7 +24,8 @@ const KIND_COLORS: Record<NonNullable<SourceBadgeProps["kind"]>, string> = {
   news: "bg-violet-900/30 text-violet-200 border-violet-700/40",
   central_bank: "bg-amber-900/30 text-amber-200 border-amber-700/40",
   academic: "bg-emerald-900/30 text-emerald-200 border-emerald-700/40",
-  internal: "bg-[var(--color-ichor-surface-2)] text-[var(--color-ichor-text-muted)] border-[var(--color-ichor-border-strong)]/40",
+  internal:
+    "bg-[var(--color-ichor-surface-2)] text-[var(--color-ichor-text-muted)] border-[var(--color-ichor-border-strong)]/40",
 };
 
 // Reject `javascript:`, `data:`, `vbscript:`, etc. — React does NOT
@@ -62,5 +63,9 @@ export const SourceBadge: React.FC<SourceBadgeProps> = ({
       </a>
     );
   }
-  return <span className={cls} title={`Source: ${source}`}>{content}</span>;
+  return (
+    <span className={cls} title={`Source: ${source}`}>
+      {content}
+    </span>
+  );
 };

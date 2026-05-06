@@ -14,27 +14,28 @@ en investissement) under AMF Position DOC-2008-23, but inside its
 
 DOC-2008-23 distinguishes:
 
-| Service type | Personalization | Regulatory requirement |
-|--------------|-----------------|------------------------|
-| Investment advice | YES — recommendation specific to ONE client | Conseiller en investissements financiers (CIF) licence + ACPR registration + ORIAS |
-| General research | NO — same content for all readers | Disclosure of nature + author + conflicts |
-| Portfolio management | YES + executes | Société de gestion + AMF licence |
+| Service type         | Personalization                             | Regulatory requirement                                                             |
+| -------------------- | ------------------------------------------- | ---------------------------------------------------------------------------------- |
+| Investment advice    | YES — recommendation specific to ONE client | Conseiller en investissements financiers (CIF) licence + ACPR registration + ORIAS |
+| General research     | NO — same content for all readers           | Disclosure of nature + author + conflicts                                          |
+| Portfolio management | YES + executes                              | Société de gestion + AMF licence                                                   |
 
 The line between "general research" and "investment advice" is drawn by
 **personalization**:
+
 - "EUR/USD biased short, IC 55-65%" → general research
 - "Eliot, you should sell EUR/USD given your portfolio" → investment advice
 
 ## Where Ichor sits
 
-| Ichor feature | Classification | Notes |
-|---------------|----------------|-------|
-| Briefings 4×/day | General research | Same content for all (currently 1) users; no per-portfolio reasoning |
-| Asset cards (bias bar + regime) | General research | Aggregated indicators, no buy/sell |
-| Alerts (33 types) | General research / market data | Threshold breaches on public data |
-| `/performance` dashboard | Self-disclosure (transparency, not regulated) | Calibration scores, Brier, etc. |
-| Drill-down on click | Borderline — could become advice if "Eliot's holdings" injected | **DESIGN CONSTRAINT: never inject portfolio data into Claude prompts** |
-| Audio briefings | General research | Same as text |
+| Ichor feature                   | Classification                                                  | Notes                                                                  |
+| ------------------------------- | --------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| Briefings 4×/day                | General research                                                | Same content for all (currently 1) users; no per-portfolio reasoning   |
+| Asset cards (bias bar + regime) | General research                                                | Aggregated indicators, no buy/sell                                     |
+| Alerts (33 types)               | General research / market data                                  | Threshold breaches on public data                                      |
+| `/performance` dashboard        | Self-disclosure (transparency, not regulated)                   | Calibration scores, Brier, etc.                                        |
+| Drill-down on click             | Borderline — could become advice if "Eliot's holdings" injected | **DESIGN CONSTRAINT: never inject portfolio data into Claude prompts** |
+| Audio briefings                 | General research                                                | Same as text                                                           |
 
 ## Hard design constraints to stay general-research
 

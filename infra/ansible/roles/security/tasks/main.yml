@@ -43,7 +43,7 @@
   loop:
     - { direction: incoming, policy: deny }
     - { direction: outgoing, policy: allow }
-    - { direction: routed,   policy: deny }
+    - { direction: routed, policy: deny }
 
 - name: Allow SSH (rate-limited)
   community.general.ufw:
@@ -59,7 +59,7 @@
     proto: tcp
     comment: "{{ item.comment }}"
   loop: "{{ ufw_allowed_tcp }}"
-  when: item.port not in [22]  # already handled with limit above
+  when: item.port not in [22] # already handled with limit above
 
 - name: Enable UFW
   community.general.ufw:

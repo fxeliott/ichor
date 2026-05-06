@@ -2,9 +2,23 @@
 
 Runs on Eliot's Windows 11 desktop, never on Hetzner.
 
-Exposes a FastAPI on `:8765` accessible only via Cloudflare Tunnel
-(`<TUNNEL-UUID>.cfargotunnel.com`) protected by Cloudflare Access service-token
-gating Hetzner outbound calls.
+Exposes a FastAPI accessible via Cloudflare Tunnel
+(`claude-runner.fxmilyapp.com` → `127.0.0.1:8766`). Cloudflare
+Access service-token gating is configured but currently disabled
+(`require_cf_access=false`) — re-enabling is a deferred sprint
+(see `CLAUDE.md` root §Production deployment).
+
+Two endpoints expose the runner :
+- `POST /v1/briefing-task` — Couche-1 briefings + session-cards
+  (Opus 4.7 / Sonnet 4.6 high effort)
+- `POST /v1/agent-task` — Couche-2 single-shot agents (Haiku 4.5
+  low effort per ADR-023). Body : `{system, prompt, model, effort}`.
+
+Both endpoints share one `max_concurrent_subprocess` semaphore + a
+30-req/h `HourlyRateLimiter` for Max 20x quota self-protection.
+Callers (Hetzner cron) carry retry-on-503/429 logic
+(`HttpRunnerClient` in `packages/ichor_brain` and `call_agent_task`
+in `packages/agents`).
 
 ## Why a local subprocess wrapper?
 
@@ -23,6 +37,15 @@ Hetzner's cron triggers a webhook to this local FastAPI 4× per day at 06h/12h/
 - Local PC sleep / Windows update / power outage.
   → Power Plan never sleep + gpedit Windows Update window 04-05h Paris.
 
-## Phase 0 status
+## Status (2026-05-06)
 
-🚧 Skeleton only. Real subprocess invocation in Phase 0 Week 3 (steps 18-23).
+**LIVE in production**. Currently running as a standalone uvicorn
+process (PID owned by user) instead of the NSSM `IchorClaudeRunner`
+service (which is in `Paused` because `ICHOR_RUNNER_ENVIRONMENT=development`
+was lost from its env list — admin elevation needed to restore).
+A user-level launcher
+`scripts/windows/start-claude-runner-standalone.bat` is installed in
+the Startup folder so the runner survives reboot.
+
+17 tests pass (`tests/`) covering models, rate limiter, and the
+end-to-end agent-task endpoint with mocked subprocess.

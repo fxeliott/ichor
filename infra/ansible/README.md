@@ -4,7 +4,7 @@ Idempotent Ansible playbook that takes a fresh Ubuntu 24.04 LTS Hetzner Cloud
 server and brings it to Phase 0 baseline (steps 4 in `docs/ARCHITECTURE_FINALE.md`):
 
 - Postgres 16 + TimescaleDB + Apache AGE
-- Redis 7 (AOF, appendfsync everysec)
+- Redis 8 (AOF, appendfsync everysec) — see [ADR-008](../../docs/decisions/ADR-008-redis-8-not-7.md)
 - wal-g 3.0.8 → Cloudflare R2 EU
 - Python 3.12 + uv
 - Node 22 + pnpm via Corepack

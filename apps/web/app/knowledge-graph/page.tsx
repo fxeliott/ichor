@@ -25,10 +25,10 @@ interface GraphOut {
 }
 
 async function fetchGraph(path: string): Promise<GraphOut> {
-  const r = await fetch(
-    `${process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000"}${path}`,
-    { next: { revalidate: 300 }, headers: { Accept: "application/json" } }
-  );
+  const r = await fetch(`${process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000"}${path}`, {
+    next: { revalidate: 300 },
+    headers: { Accept: "application/json" },
+  });
   if (!r.ok) throw new ApiError(`${path} ${r.status}`, r.status);
   return r.json() as Promise<GraphOut>;
 }
@@ -36,7 +36,7 @@ async function fetchGraph(path: string): Promise<GraphOut> {
 async function fetchShockNodes(): Promise<string[]> {
   const r = await fetch(
     `${process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000"}/v1/graph/shock-nodes`,
-    { next: { revalidate: 3600 }, headers: { Accept: "application/json" } }
+    { next: { revalidate: 3600 }, headers: { Accept: "application/json" } },
   );
   if (!r.ok) throw new ApiError(`shock-nodes ${r.status}`, r.status);
   return r.json() as Promise<string[]>;
@@ -60,15 +60,12 @@ export default async function KnowledgeGraphPage() {
   return (
     <div className="max-w-6xl mx-auto px-4 py-6 space-y-6">
       <header>
-        <h1 className="text-2xl font-semibold text-neutral-100">
-          Knowledge graph
-        </h1>
+        <h1 className="text-2xl font-semibold text-neutral-100">Knowledge graph</h1>
         <p className="text-sm text-neutral-400 mt-1 max-w-2xl">
-          Deux vues : le graphe de co-mentions news des 48 dernières heures
-          (poids = nombre d&apos;articles) et la carte causale canonique
-          que le brain utilise pour la transmission macro (Powell → Fed →
-          USD → DXY → XAU/USD, etc.). Survole ou clique un nœud pour
-          isoler son voisinage.
+          Deux vues : le graphe de co-mentions news des 48 dernières heures (poids = nombre
+          d&apos;articles) et la carte causale canonique que le brain utilise pour la transmission
+          macro (Powell → Fed → USD → DXY → XAU/USD, etc.). Survole ou clique un nœud pour isoler
+          son voisinage.
         </p>
       </header>
 
@@ -84,9 +81,7 @@ export default async function KnowledgeGraphPage() {
           {/* News network — data-derived */}
           <section>
             <header className="mb-3">
-              <h2 className="text-lg font-semibold text-neutral-100">
-                Co-mentions news (48h)
-              </h2>
+              <h2 className="text-lg font-semibold text-neutral-100">Co-mentions news (48h)</h2>
               <p className="text-[11px] text-neutral-500">
                 {news?.n_news ?? 0} articles · {news?.nodes.length ?? 0} entités ·{" "}
                 {news?.edges.length ?? 0} arêtes
@@ -96,9 +91,9 @@ export default async function KnowledgeGraphPage() {
               <KnowledgeGraphViz nodes={news.nodes} edges={news.edges} />
             ) : (
               <p className="text-sm text-neutral-500">
-                Aucune entité reconnue dans la fenêtre 48h. Le populator
-                news AGE travaille en mode "en attente" jusqu&apos;à ce que
-                des articles mentionnant des actifs/institutions arrivent.
+                Aucune entité reconnue dans la fenêtre 48h. Le populator news AGE travaille en mode
+                "en attente" jusqu&apos;à ce que des articles mentionnant des actifs/institutions
+                arrivent.
               </p>
             )}
           </section>
@@ -106,26 +101,16 @@ export default async function KnowledgeGraphPage() {
           {/* Causal map — canonical */}
           <section>
             <header className="mb-3">
-              <h2 className="text-lg font-semibold text-neutral-100">
-                Carte causale canonique
-              </h2>
+              <h2 className="text-lg font-semibold text-neutral-100">Carte causale canonique</h2>
               <p className="text-[11px] text-neutral-500">
-                Pré-encodée — utilisée par le brain pour la propagation
-                macro. Powell → Fed → US10Y → USD → DXY → XAU/USD.
+                Pré-encodée — utilisée par le brain pour la propagation macro. Powell → Fed → US10Y
+                → USD → DXY → XAU/USD.
               </p>
             </header>
-            {causal && (
-              <KnowledgeGraphViz
-                nodes={causal.nodes}
-                edges={causal.edges}
-                directed
-              />
-            )}
+            {causal && <KnowledgeGraphViz nodes={causal.nodes} edges={causal.edges} directed />}
           </section>
 
-          {shockNodes.length > 0 && (
-            <ShockSimulator initialNodes={shockNodes} />
-          )}
+          {shockNodes.length > 0 && <ShockSimulator initialNodes={shockNodes} />}
         </>
       )}
     </div>

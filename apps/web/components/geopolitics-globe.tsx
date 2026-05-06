@@ -66,12 +66,7 @@ const COUNTRY_GEO: Record<string, [number, number, string]> = {
   NO: [60, 9, "Norway"],
 };
 
-const project = (
-  lon: number,
-  lat: number,
-  width: number,
-  height: number
-): [number, number] => {
+const project = (lon: number, lat: number, width: number, height: number): [number, number] => {
   const x = ((lon + 180) / 360) * width;
   const y = ((90 - lat) / 180) * height;
   return [x, y];
@@ -150,12 +145,7 @@ export const GeopoliticsGlobe: React.FC<GeopoliticsGlobeProps> = ({
             </React.Fragment>
           ))}
           {/* Equator label */}
-          <text
-            x={4}
-            y={height / 2 - 4}
-            fontSize={10}
-            fill="rgba(115,115,115,0.7)"
-          >
+          <text x={4} y={height / 2 - 4} fontSize={10} fill="rgba(115,115,115,0.7)">
             équateur
           </text>
 
@@ -217,22 +207,23 @@ export const GeopoliticsGlobe: React.FC<GeopoliticsGlobeProps> = ({
             taille = nb d&apos;événements
           </span>
         </div>
-        {focus && (() => {
-          const c = countries.find((x) => x.country === focus);
-          if (!c) return null;
-          return (
-            <p className="text-[var(--color-ichor-text-muted)] max-w-md text-right">
-              <span className="font-mono">{c.country}</span> · {c.count} évts ·
-              tone {c.mean_tone >= 0 ? "+" : ""}
-              {c.mean_tone.toFixed(2)}
-              {c.most_negative_title && (
-                <span className="block text-[var(--color-ichor-text-subtle)] italic line-clamp-1">
-                  “{c.most_negative_title}”
-                </span>
-              )}
-            </p>
-          );
-        })()}
+        {focus &&
+          (() => {
+            const c = countries.find((x) => x.country === focus);
+            if (!c) return null;
+            return (
+              <p className="text-[var(--color-ichor-text-muted)] max-w-md text-right">
+                <span className="font-mono">{c.country}</span> · {c.count} évts · tone{" "}
+                {c.mean_tone >= 0 ? "+" : ""}
+                {c.mean_tone.toFixed(2)}
+                {c.most_negative_title && (
+                  <span className="block text-[var(--color-ichor-text-subtle)] italic line-clamp-1">
+                    “{c.most_negative_title}”
+                  </span>
+                )}
+              </p>
+            );
+          })()}
       </div>
     </div>
   );

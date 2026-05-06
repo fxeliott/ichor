@@ -13,6 +13,7 @@ claude -p "test" --output-format json --model haiku --no-session-persistence
 ```
 
 Returns:
+
 ```json
 {
   "type": "result",
@@ -24,6 +25,7 @@ Returns:
 ```
 
 `claude auth status` reports the account as healthy:
+
 ```json
 {
   "loggedIn": true,
@@ -77,6 +79,7 @@ claude setup-token
 ```
 
 After the fix, retest:
+
 ```bash
 curl -X POST http://127.0.0.1:8765/v1/briefing-task \
   -H "Content-Type: application/json" \
@@ -91,6 +94,7 @@ curl -X POST http://127.0.0.1:8765/v1/briefing-task \
 - Phase 1 launch blocker.
 
 If permanent (account flagged), fallback options:
+
 - Switch to ANTHROPIC_API_KEY mode (Voie C, $25-50/mo prod) — supersedes ADR-009.
 - Switch to free Cerebras+Groq for ALL agents (lower quality but $0).
 

@@ -16,12 +16,7 @@ import { findAsset, isValidAssetCode } from "../../../lib/assets";
 export const dynamic = "force-dynamic";
 export const revalidate = 30;
 
-type SessionType =
-  | "pre_londres"
-  | "pre_ny"
-  | "ny_mid"
-  | "ny_close"
-  | "event_driven";
+type SessionType = "pre_londres" | "pre_ny" | "ny_mid" | "ny_close" | "event_driven";
 
 const VALID_SESSIONS: ReadonlyArray<readonly [SessionType, string]> = [
   ["pre_londres", "Pré-Londres"],
@@ -31,19 +26,10 @@ const VALID_SESSIONS: ReadonlyArray<readonly [SessionType, string]> = [
   ["event_driven", "Event driven"],
 ] as const;
 
-const VALID_REGIMES = [
-  "haven_bid",
-  "funding_stress",
-  "goldilocks",
-  "usd_complacency",
-] as const;
+const VALID_REGIMES = ["haven_bid", "funding_stress", "goldilocks", "usd_complacency"] as const;
 type Regime = (typeof VALID_REGIMES)[number];
 
-export async function generateMetadata({
-  params,
-}: {
-  params: Promise<{ asset: string }>;
-}) {
+export async function generateMetadata({ params }: { params: Promise<{ asset: string }> }) {
   const { asset } = await params;
   return { title: `Scénarios · ${asset.replace(/_/g, "/")}` };
 }
@@ -77,9 +63,7 @@ function extractSection(markdown: string, heading: string): string | null {
   // Stop at the next "## " heading
   const tail = markdown.slice(start + 1);
   const next = tail.indexOf("\n## ");
-  return next < 0
-    ? markdown.slice(start)
-    : markdown.slice(start, start + 1 + next);
+  return next < 0 ? markdown.slice(start) : markdown.slice(start, start + 1 + next);
 }
 
 function parseScenarios(
@@ -101,16 +85,10 @@ function parseScenarios(
   };
 }
 
-function parseTriggers(
-  pool: DataPoolResponse,
-  kind: "continuation" | "reversal",
-): string[] {
+function parseTriggers(pool: DataPoolResponse, kind: "continuation" | "reversal"): string[] {
   const md = extractSection(pool.markdown, "Session scenarios");
   if (!md) return [];
-  const heading =
-    kind === "continuation"
-      ? "Triggers continuation :"
-      : "Triggers reversal :";
+  const heading = kind === "continuation" ? "Triggers continuation :" : "Triggers reversal :";
   const idx = md.indexOf(heading);
   if (idx < 0) return [];
   const tail = md.slice(idx + heading.length);
@@ -127,9 +105,7 @@ function parseTriggers(
   return out;
 }
 
-function extractDailyLevels(
-  pool: DataPoolResponse,
-): Record<string, string> | null {
+function extractDailyLevels(pool: DataPoolResponse): Record<string, string> | null {
   const md = extractSection(pool.markdown, "Daily levels");
   if (!md) return null;
   const out: Record<string, string> = {};
@@ -189,20 +165,10 @@ export default async function ScenariosPage({
     if (calR.status === "fulfilled") calendar = calR.value;
     if (poolR.status === "rejected") {
       const r = poolR.reason;
-      error =
-        r instanceof ApiError
-          ? r.message
-          : r instanceof Error
-            ? r.message
-            : "unknown error";
+      error = r instanceof ApiError ? r.message : r instanceof Error ? r.message : "unknown error";
     }
   } catch (e) {
-    error =
-      e instanceof ApiError
-        ? e.message
-        : e instanceof Error
-          ? e.message
-          : "unknown error";
+    error = e instanceof ApiError ? e.message : e instanceof Error ? e.message : "unknown error";
   }
 
   const scenarios = pool ? parseScenarios(pool) : null;
@@ -234,8 +200,8 @@ export default async function ScenariosPage({
           Scénarios de session — {meta?.display ?? asset}
         </h1>
         <p className="text-sm text-[var(--color-ichor-text-muted)] mt-1">
-          SMC framework : Continuation / Reversal / Sideways pour la fenêtre
-          de session sélectionnée. Ajusté par le régime macro et la conviction.
+          SMC framework : Continuation / Reversal / Sideways pour la fenêtre de session
+          sélectionnée. Ajusté par le régime macro et la conviction.
         </p>
       </header>
 
@@ -333,47 +299,24 @@ export default async function ScenariosPage({
         </h2>
         {scenarios ? (
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <ScenarioBar
-              label="Continuation"
-              pct={scenarios.cont}
-              color="emerald"
-            />
-            <ScenarioBar
-              label="Reversal"
-              pct={scenarios.rev}
-              color="rose"
-            />
-            <ScenarioBar
-              label="Sideways"
-              pct={scenarios.side}
-              color="amber"
-            />
+            <ScenarioBar label="Continuation" pct={scenarios.cont} color="emerald" />
+            <ScenarioBar label="Reversal" pct={scenarios.rev} color="rose" />
+            <ScenarioBar label="Sideways" pct={scenarios.side} color="amber" />
           </div>
         ) : (
           <p className="text-sm text-[var(--color-ichor-text-subtle)]">
-            Données insuffisantes (PDH/PDL manquants) — re-essayer après
-            ingestion polygon.
+            Données insuffisantes (PDH/PDL manquants) — re-essayer après ingestion polygon.
           </p>
         )}
         {scenarios?.rationale ? (
-          <p className="text-xs text-[var(--color-ichor-text-muted)] mt-4">
-            {scenarios.rationale}
-          </p>
+          <p className="text-xs text-[var(--color-ichor-text-muted)] mt-4">{scenarios.rationale}</p>
         ) : null}
       </section>
 
       {/* Triggers */}
       <section className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
-        <TriggerList
-          title="Triggers · Continuation"
-          tone="emerald"
-          items={continuationTriggers}
-        />
-        <TriggerList
-          title="Triggers · Reversal"
-          tone="rose"
-          items={reversalTriggers}
-        />
+        <TriggerList title="Triggers · Continuation" tone="emerald" items={continuationTriggers} />
+        <TriggerList title="Triggers · Reversal" tone="rose" items={reversalTriggers} />
       </section>
 
       {/* Confluence engine */}
@@ -457,12 +400,9 @@ function TriggerList({
   tone: "emerald" | "rose";
   items: string[];
 }) {
-  const borderClass =
-    tone === "emerald" ? "border-emerald-800/50" : "border-rose-800/50";
+  const borderClass = tone === "emerald" ? "border-emerald-800/50" : "border-rose-800/50";
   return (
-    <div
-      className={`rounded-lg border ${borderClass} bg-[var(--color-ichor-surface)]/60 p-4`}
-    >
+    <div className={`rounded-lg border ${borderClass} bg-[var(--color-ichor-surface)]/60 p-4`}>
       <h3 className="text-sm font-semibold text-[var(--color-ichor-text)] mb-2">{title}</h3>
       {items.length === 0 ? (
         <p className="text-xs text-[var(--color-ichor-text-subtle)]">Aucun trigger calculé.</p>
@@ -483,9 +423,7 @@ function TradePlanCard({ plan }: { plan: TradePlan | null }) {
   if (!plan) {
     return (
       <section className="rounded-lg border border-[var(--color-ichor-border)] bg-[var(--color-ichor-surface)]/60 p-5">
-        <h2 className="text-lg font-semibold text-[var(--color-ichor-text)] mb-2">
-          Plan RR
-        </h2>
+        <h2 className="text-lg font-semibold text-[var(--color-ichor-text)] mb-2">Plan RR</h2>
         <p className="text-sm text-[var(--color-ichor-text-subtle)]">
           Pas de plan disponible (API trade-plan indisponible).
         </p>
@@ -499,9 +437,9 @@ function TradePlanCard({ plan }: { plan: TradePlan | null }) {
           Plan RR — bias neutre
         </h2>
         <p className="text-sm text-[var(--color-ichor-text-muted)]">
-          Pas de plan d&apos;entrée pour le moment — soit aucune carte
-          n&apos;a encore été générée, soit le verdict est neutre. Lancer un{" "}
-          <code className="ichor-text-long">--live</code> pour rafraîchir.
+          Pas de plan d&apos;entrée pour le moment — soit aucune carte n&apos;a encore été générée,
+          soit le verdict est neutre. Lancer un <code className="ichor-text-long">--live</code> pour
+          rafraîchir.
         </p>
       </section>
     );
@@ -537,16 +475,9 @@ function TradePlanCard({ plan }: { plan: TradePlan | null }) {
           label="Stop loss"
           value={fmt(plan.stop_loss)}
           tone="rose"
-          subline={
-            plan.risk_pips != null ? `${plan.risk_pips.toFixed(0)} pips` : null
-          }
+          subline={plan.risk_pips != null ? `${plan.risk_pips.toFixed(0)} pips` : null}
         />
-        <PlanLine
-          label="TP1 (BE)"
-          value={fmt(plan.tp1)}
-          tone="amber"
-          subline="RR=1"
-        />
+        <PlanLine label="TP1 (BE)" value={fmt(plan.tp1)} tone="amber" subline="RR=1" />
         <PlanLine
           label="TP3 (90%)"
           value={fmt(plan.tp3)}
@@ -734,10 +665,7 @@ function CalendarCard({ calendar }: { calendar: CalendarUpcoming | null }) {
       </h2>
       <ul className="divide-y divide-[var(--color-ichor-border)] text-sm">
         {calendar.events.slice(0, 10).map((e, i) => (
-          <li
-            key={`${e.when}-${e.label}-${i}`}
-            className="py-2 flex items-baseline gap-3"
-          >
+          <li key={`${e.when}-${e.label}-${i}`} className="py-2 flex items-baseline gap-3">
             <span className="font-mono text-xs text-[var(--color-ichor-text-muted)] w-28 shrink-0">
               {e.when}
               {e.when_time_utc ? ` ${e.when_time_utc}` : ""}

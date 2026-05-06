@@ -17,7 +17,11 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 # ────────────────────────────── enums ──────────────────────────────
 
-SessionType = Literal["pre_londres", "pre_ny", "event_driven"]
+SessionType = Literal["pre_londres", "pre_ny", "ny_mid", "ny_close", "event_driven"]
+"""5 session windows. ny_mid (17:00 Paris) and ny_close (22:00 Paris)
+were registered as systemd timers (cf scripts/hetzner/) but missing
+from this Literal — every batch since 2026-05-04 14:23 was rejected
+with `unknown session_type` before even hitting the runner."""
 BiasDirection = Literal["long", "short", "neutral"]
 RegimeQuadrant = Literal[
     "haven_bid",

@@ -8,18 +8,19 @@
 ### The "macro trinity" (DXY + 10Y yields + VIX)
 
 The standard regime-detection logic combines these three as orthogonal axes :
+
 - **VIX** captures fear / risk appetite
 - **10Y yields** capture growth / policy expectations
 - **DXY** captures relative US strength + global funding stress
 
 Practitioners commonly z-score each axis on a rolling window and require alignment before assigning conviction. **Common quadrant map** :
 
-| Quadrant | Regime |
-|---|---|
-| DXY↓ + VIX↑ | Haven bid |
+| Quadrant    | Regime                                    |
+| ----------- | ----------------------------------------- |
+| DXY↓ + VIX↑ | Haven bid                                 |
 | DXY↑ + VIX↑ | **Funding stress** (dollar wrecking ball) |
-| DXY↓ + VIX↓ | Goldilocks / risk-on |
-| DXY↑ + VIX↓ | USD-dominant complacency |
+| DXY↓ + VIX↓ | Goldilocks / risk-on                      |
+| DXY↑ + VIX↓ | USD-dominant complacency                  |
 
 Single-axis moves are typically discarded as noise.
 
@@ -47,6 +48,7 @@ Calculated as nominal 10Y − breakeven, or read directly from FRED's `DFII10` s
 ### Dollar smile theory (Stephen Jen, 2001)
 
 DXY smiles in two regimes :
+
 1. **Global crisis / funding stress** → forced USD demand on dollar-denominated debt
 2. **US growth outperformance** → capital inflows + Fed leadership in tightening
 
@@ -57,6 +59,7 @@ Bottom of the smile = "muddle through" with steady Fed = USD weakness.
 ### Liquidity proxies
 
 The widely used formula :
+
 ```
 Net Liquidity = Fed Balance Sheet − TGA − RRP
 ```
@@ -74,6 +77,7 @@ Live dashboard : netliquidity.org
 ### Interest rate differential (IRD)
 
 Both nominal and real differentials matter :
+
 - **EUR/USD** historically tracks the US-Germany 10Y spread
 - **USD/JPY** tracks the US-Japan 10Y spread very closely
 - **The widening of the differential (rate of change) tends to drive trends more than the absolute level**
@@ -87,6 +91,7 @@ Standard G10 carry basket : long top-3 yielders (recently NZD, AUD, NOK), short 
 ### Central bank divergence
 
 Build a hawkish/dovish score across G10 from :
+
 - Policy-rate path expectations (OIS curves)
 - Recent statement tone
 - Inflation / jobs data trajectory
@@ -95,23 +100,23 @@ The pair = (hawkish CB) / (dovish CB) is the higher-conviction directional bet, 
 
 ### Risk-on/off behavior of majors
 
-| Type | Currencies | Notes |
-|---|---|---|
-| Safe havens | USD (smile-dependent), CHF, JPY | JPY mostly via carry-unwind, not pure flight |
-| Pro-cyclical | AUD, NZD, CAD, NOK | Commodity link + carry |
-| Mixed | EUR, GBP, SEK | |
+| Type         | Currencies                      | Notes                                        |
+| ------------ | ------------------------------- | -------------------------------------------- |
+| Safe havens  | USD (smile-dependent), CHF, JPY | JPY mostly via carry-unwind, not pure flight |
+| Pro-cyclical | AUD, NZD, CAD, NOK              | Commodity link + carry                       |
+| Mixed        | EUR, GBP, SEK                   |                                              |
 
 Academic work : liquid currencies (JPY, EUR) have negative liquidity betas ; illiquid ones (NOK, NZD) the most positive.
 
 ### Per-pair primary drivers
 
-| Pair | Primary drivers |
-|---|---|
-| **EUR/USD** | Fed vs ECB policy differential ; Eurozone energy/geopolitics ; EU growth surprises |
-| **GBP/USD** | BoE policy ; UK politics/fiscal ; risk sentiment (more pro-cyclical than EUR) |
+| Pair        | Primary drivers                                                                                                 |
+| ----------- | --------------------------------------------------------------------------------------------------------------- |
+| **EUR/USD** | Fed vs ECB policy differential ; Eurozone energy/geopolitics ; EU growth surprises                              |
+| **GBP/USD** | BoE policy ; UK politics/fiscal ; risk sentiment (more pro-cyclical than EUR)                                   |
 | **USD/JPY** | US-Japan rate differential (esp. 10Y) ; BoJ policy shifts ; MoF intervention thresholds ; risk-off carry-unwind |
-| **AUD/USD** | China growth + iron ore/copper ; RBA ; global risk sentiment |
-| **USD/CAD** | WTI crude ; BoC vs Fed differential ; US ISM/employment |
+| **AUD/USD** | China growth + iron ore/copper ; RBA ; global risk sentiment                                                    |
+| **USD/CAD** | WTI crude ; BoC vs Fed differential ; US ISM/employment                                                         |
 
 ---
 
@@ -140,7 +145,7 @@ Post-Feb 2022 (Russian FX-reserve freeze) became **structural rather than transi
 
 ### Inflation expectations (5Y5Y, breakevens)
 
-Gold reacts more to *expected* inflation than realized. WGC : +50 bps in 10Y breakeven ≈ +4 % gold historically.
+Gold reacts more to _expected_ inflation than realized. WGC : +50 bps in 10Y breakeven ≈ +4 % gold historically.
 
 FRED series : `T5YIFR`, `T5YIE`
 
@@ -224,6 +229,7 @@ Speeches : Powell/Lagarde + voting members ; "Fedspeak" blackout window starts ~
 ### Treasury auctions
 
 Watch :
+
 - **Tail** (stop-out yield − WI yield)
 - **Bid-to-cover**
 - **Indirect bidder %**
@@ -305,7 +311,7 @@ Aleatory uncertainty (irreducible) plus epistemic uncertainty (knowable but unkn
 - **Brier score** (calibration + resolution combined)
 - Superforecasters update **often, in small increments** — the Bayesian rhythm
 - They keep journals ; they Fermi-decompose questions ; they consult comparison classes (outside view) before applying inside-view nuance
-- **The single strongest predictor of forecasting skill is *commitment to belief updating* — 3× stronger than IQ**
+- **The single strongest predictor of forecasting skill is _commitment to belief updating_ — 3× stronger than IQ**
 
 ### Domain caveat
 
@@ -344,6 +350,7 @@ Recent work shows financial / economic forecasts are **harder** than political o
 ## Sources
 
 ### Cross-asset
+
 - [ACY: Gold strategy using VIX, yields, DXY](https://acy.com/en/market-news/education/gold-strategy-using-vix-yields-dxy-2025-l-s-162409/)
 - [Eurizon SLJ — Dollar Smile](https://www.eurizonsljcapital.com/dollar-smile/)
 - [Schroders — Dollar Smile validity](https://www.schroders.com/en-us/us/institutional/insights/the-dollar-smile-theory-what-is-it-and-is-it-still-valid-in-the-new-market-regime/)
@@ -355,6 +362,7 @@ Recent work shows financial / economic forecasts are **harder** than political o
 - [NetLiquidity dashboard](https://www.netliquidity.org/dashboard)
 
 ### FX
+
 - [EBC — Yen Carry Trade Unwind](https://www.ebc.com/forex/yen-carry-trade-unwind-could-it-trigger-the-next-market-crash)
 - [ING THINK — G10 FX Outlook 2026](https://think.ing.com/articles/g10-fx-outlook-2026/)
 - [Fusion Markets — Interest Rate Divergence 2025](https://fusionmarkets.com/posts/interest-rate-divergence-2025)
@@ -362,27 +370,32 @@ Recent work shows financial / economic forecasts are **harder** than political o
 - [Forex.com — USD price action setups](https://www.forex.com/en-uk/news-and-analysis/us-dollar-price-action-setups-eur-usd-usd-jpy-gbp-usd-usd-cad-2026-03-20/)
 
 ### Gold
+
 - [VanEck — Gold structural strength](https://www.vaneck.com/us/en/blogs/gold-investing/gold-in-2025-a-new-era-of-structural-strength-and-enduring-appeal/)
 - [World Gold Council — Gold Demand Trends](https://www.gold.org/goldhub/research/gold-demand-trends)
 - [EBC — Geopolitics and Gold](https://www.ebc.com/forex/how-geopolitics-and-central-banks-are-driving-gold-higher)
 - [FRED — T5YIFR (5Y5Y forward)](https://fred.stlouisfed.org/series/T5YIFR)
 
 ### Indices
+
 - [SpotGamma — GEX explained](https://spotgamma.com/gamma-exposure-gex/)
 - [Cboe — VIX Backwardation](https://www.cboe.com/insights/posts/inside-volatility-trading-is-vix-backwardation-necessarily-a-sign-of-a-future-down-market/)
 - [Macroption — VIX Futures Curve](https://www.macroption.com/vix-futures-curve/)
 - [Investing.com — March 2026 BofA FMS](https://www.investing.com/news/stock-market-news/bofa-fund-manager-survey-shows-no-signs-of-equity-capitulation-yet-4565163)
 
 ### Catalysts
+
 - [CME Group — Economic Indicators That Most Impact Markets](https://www.cmegroup.com/insights/economic-research/2025/economic-indicators-that-most-impact-markets.html)
 - [Loomis Sayles — Anatomy of Treasury Auction](https://www.loomissayles.com/insights/the-anatomy-of-a-treasury-auction/)
 
 ### Sessions
+
 - [Babypips — Forex Trading Sessions](https://www.babypips.com/learn/forex/forex-trading-sessions)
 - [OANDA — Best Times to Trade Forex](https://www.oanda.com/us-en/trade-tap-blog/trading-knowledge/when-is-the-best-time-for-forex-trading/)
 - [BigGo Finance — Goldman month-end rebalancing](https://finance.biggo.com/news/qGYFvJ0BrdTHlKtCcBzy)
 
 ### Calibration
+
 - [Farnam Street — Ten Commandments for Superforecasters](https://fs.blog/ten-commandments-for-superforecasters/)
 - [Wharton — Superforecasting paper](https://faculty.wharton.upenn.edu/wp-content/uploads/2015/07/2015---superforecasters.pdf)
 

@@ -65,9 +65,33 @@ export function MobileNav({ items }: { items: NavItem[] }) {
           aria-hidden="true"
           className="text-[var(--color-ichor-text-muted)]"
         >
-          <line x1="2" y1="4" x2="14" y2="4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-          <line x1="2" y1="8" x2="14" y2="8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-          <line x1="2" y1="12" x2="14" y2="12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+          <line
+            x1="2"
+            y1="4"
+            x2="14"
+            y2="4"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+          />
+          <line
+            x1="2"
+            y1="8"
+            x2="14"
+            y2="8"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+          />
+          <line
+            x1="2"
+            y1="12"
+            x2="14"
+            y2="12"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+          />
         </svg>
       </button>
 
@@ -128,15 +152,7 @@ export function MobileNav({ items }: { items: NavItem[] }) {
   );
 }
 
-function NavGroup({
-  title,
-  items,
-  onNav,
-}: {
-  title: string;
-  items: NavItem[];
-  onNav: () => void;
-}) {
+function NavGroup({ title, items, onNav }: { title: string; items: NavItem[]; onNav: () => void }) {
   return (
     <div>
       <h2 className="text-[10px] uppercase tracking-wider text-[var(--color-ichor-text-faint)] font-mono mb-2">

@@ -56,13 +56,13 @@ class MlSignal:
 
 async def _daily_returns(session: AsyncSession, asset: str, *, days: int = 250) -> list[float]:
     """Last N close-to-close simple returns from market_data (Stooq)."""
-    cutoff = datetime.now(UTC) - timedelta(days=days * 2)
+    cutoff = (datetime.now(UTC) - timedelta(days=days * 2)).date()
     rows = list(
         (
             await session.execute(
                 select(MarketDataBar)
-                .where(MarketDataBar.asset == asset, MarketDataBar.bar_ts >= cutoff)
-                .order_by(MarketDataBar.bar_ts.asc())
+                .where(MarketDataBar.asset == asset, MarketDataBar.bar_date >= cutoff)
+                .order_by(MarketDataBar.bar_date.asc())
             )
         )
         .scalars()

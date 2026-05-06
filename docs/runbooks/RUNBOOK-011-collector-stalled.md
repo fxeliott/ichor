@@ -43,14 +43,14 @@ ssh ichor-hetzner '
 
 Common patterns :
 
-| Log signature | Likely cause | Fix |
-|---|---|---|
-| `dns lookup error` / `Name or service not known` | DNS hiccup | Re-run; transient |
-| `503 Service Unavailable` from a feed | Source's CDN down | Wait, fall back to other feeds |
-| `403 Forbidden` from a feed | UA blocked or rate-limited | Tweak `user_agent` in `rss.py`, add backoff |
-| `parse_failed: not well-formed XML` | Source serves HTML now (URL changed) | Update / remove the feed entry in `DEFAULT_FEEDS` |
-| `polymarket.shape_unexpected slug=<X>` | Slug renamed | Update `WATCHED_SLUGS` (see RUNBOOK-005) |
-| `psycopg2.errors.UniqueViolation` | guid_hash collision (very unlikely) | Check `(source, guid_hash, fetched_at)` index — should be NEVER |
+| Log signature                                    | Likely cause                         | Fix                                                             |
+| ------------------------------------------------ | ------------------------------------ | --------------------------------------------------------------- |
+| `dns lookup error` / `Name or service not known` | DNS hiccup                           | Re-run; transient                                               |
+| `503 Service Unavailable` from a feed            | Source's CDN down                    | Wait, fall back to other feeds                                  |
+| `403 Forbidden` from a feed                      | UA blocked or rate-limited           | Tweak `user_agent` in `rss.py`, add backoff                     |
+| `parse_failed: not well-formed XML`              | Source serves HTML now (URL changed) | Update / remove the feed entry in `DEFAULT_FEEDS`               |
+| `polymarket.shape_unexpected slug=<X>`           | Slug renamed                         | Update `WATCHED_SLUGS` (see RUNBOOK-005)                        |
+| `psycopg2.errors.UniqueViolation`                | guid_hash collision (very unlikely)  | Check `(source, guid_hash, fetched_at)` index — should be NEVER |
 
 ### Step 3 — manual dry-run
 
@@ -102,6 +102,7 @@ HETZNER_SSH_PRIVATE_KEY secret is set).
 ### B. All RSS sources down — backbone outage
 
 Probably DNS or network issue. Check :
+
 ```bash
 ssh ichor-hetzner 'curl -sI https://www.federalreserve.gov/feeds/press_all.xml -m 5 | head -3'
 ```
@@ -119,6 +120,7 @@ to polymarket.com, search the market, copy slug from URL).
 ### D. DB write failure
 
 Check disk space + Postgres health :
+
 ```bash
 ssh ichor-hetzner '
   df -h /var/lib/postgresql

@@ -1,0 +1,8 @@
+---
+postgres_exporter_version: "0.16.0"
+postgres_exporter_sha256: "REPLACE_WITH_PINNED_SHA256_FROM_RELEASE"
+postgres_exporter_port: 9187
+postgres_exporter_user: postgres_exporter
+postgres_exporter_db_user: ichor_metrics
+postgres_exporter_db_name: ichor
+# postgres_exporter_db_password: must be set via SOPS-decrypted env (no default).

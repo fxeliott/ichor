@@ -21,12 +21,7 @@ export default async function YieldCurvePage() {
     const pulse = await getMacroPulse();
     yc = pulse.yield_curve;
   } catch (e) {
-    error =
-      e instanceof ApiError
-        ? e.message
-        : e instanceof Error
-          ? e.message
-          : "unknown error";
+    error = e instanceof ApiError ? e.message : e instanceof Error ? e.message : "unknown error";
   }
 
   return (
@@ -48,9 +43,8 @@ export default async function YieldCurvePage() {
           US Treasury yield curve
         </h1>
         <p className="text-sm text-[var(--color-ichor-text-muted)] mt-1">
-          Term structure complète 3M-30Y. La pente 3M-10Y est le proxy de
-          récession le plus précis (NY Fed) — quand inversée ≥ 1 trimestre,
-          elle a précédé chaque récession depuis 1960.
+          Term structure complète 3M-30Y. La pente 3M-10Y est le proxy de récession le plus précis
+          (NY Fed) — quand inversée ≥ 1 trimestre, elle a précédé chaque récession depuis 1960.
         </p>
       </header>
 
@@ -137,21 +131,9 @@ function CurveChart({ yc }: { yc: YieldCurvePulse }) {
 
 function SlopeGrid({ yc }: { yc: YieldCurvePulse }) {
   const slopes: Array<[string, number | null, string]> = [
-    [
-      "Slope 3M-10Y",
-      yc.slope_3m_10y,
-      "NY Fed recession proxy. < 0 inversé.",
-    ],
-    [
-      "Slope 2Y-10Y",
-      yc.slope_2y_10y,
-      "Le grand classique : > 0 normal, < 0 USD haven flows.",
-    ],
-    [
-      "Slope 5Y-30Y",
-      yc.slope_5y_30y,
-      "Long-end pente. Steepening = inflation premium.",
-    ],
+    ["Slope 3M-10Y", yc.slope_3m_10y, "NY Fed recession proxy. < 0 inversé."],
+    ["Slope 2Y-10Y", yc.slope_2y_10y, "Le grand classique : > 0 normal, < 0 USD haven flows."],
+    ["Slope 5Y-30Y", yc.slope_5y_30y, "Long-end pente. Steepening = inflation premium."],
     [
       "Real yield 10Y (DFII10)",
       yc.real_yield_10y,
@@ -199,9 +181,7 @@ function SlopeGrid({ yc }: { yc: YieldCurvePulse }) {
 function NoteCallout({ note }: { note: string }) {
   return (
     <section className="rounded-lg border border-amber-700/40 bg-amber-900/15 p-4">
-      <h3 className="text-sm font-semibold text-amber-200 mb-1">
-        🔔 Lecture de la courbe
-      </h3>
+      <h3 className="text-sm font-semibold text-amber-200 mb-1">🔔 Lecture de la courbe</h3>
       <p className="text-xs text-amber-100 leading-relaxed">{note}</p>
     </section>
   );

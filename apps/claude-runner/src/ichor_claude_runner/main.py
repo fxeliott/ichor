@@ -19,7 +19,13 @@ from fastapi import Depends, FastAPI, HTTPException, status
 from . import __version__
 from .auth import verify_cf_access
 from .config import Settings, get_settings
-from .models import BriefingTaskRequest, BriefingTaskResponse, HealthResponse
+from .models import (
+    AgentTaskRequest,
+    AgentTaskResponse,
+    BriefingTaskRequest,
+    BriefingTaskResponse,
+    HealthResponse,
+)
 from .rate_limiter import HourlyRateLimiter
 from .subprocess_runner import ClaudeSubprocessError, run_claude
 
@@ -236,6 +242,110 @@ async def briefing_task(
         task_id=req.task_id,
         status="success",
         briefing_markdown=briefing_md,
+        raw_claude_json=result,
+        duration_ms=duration_ms,
+    )
+
+
+@app.post(
+    "/v1/agent-task",
+    response_model=AgentTaskResponse,
+    responses={
+        401: {"description": "Cloudflare Access JWT invalid"},
+        429: {"description": "Rate limit exceeded"},
+        503: {"description": "All concurrent slots busy"},
+    },
+)
+async def agent_task(
+    req: AgentTaskRequest,
+    identity: str = Depends(verify_cf_access),
+    settings: Settings = Depends(get_settings),
+) -> AgentTaskResponse:
+    """Generic Claude single-shot for Couche-2 agents — see ADR-021.
+
+    Reuses the same rate-limit and concurrency guards as /v1/briefing-task
+    (one shared `_subprocess_semaphore`, one shared `_rate_limiter`) so
+    Couche-2 traffic and briefings draw from the same Max 20x quota
+    envelope. The agent's system prompt overrides the default persona —
+    each Couche-2 agent ships its own SYSTEM_PROMPT_X.
+    """
+    global _in_flight
+
+    if not _rate_limiter.try_acquire():
+        log.warning(
+            "claude_runner.rate_limited",
+            task_id=str(req.task_id),
+            requester=identity,
+            window_count=_rate_limiter.current_count(),
+            endpoint="agent-task",
+        )
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Hourly rate limit exceeded — Max 20x quota self-protection",
+        )
+
+    if _subprocess_semaphore.locked():
+        log.warning(
+            "claude_runner.busy",
+            task_id=str(req.task_id),
+            requester=identity,
+            endpoint="agent-task",
+        )
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Another task in flight — try again in a moment",
+        )
+
+    log.info(
+        "claude_runner.agent_task.accepted",
+        task_id=str(req.task_id),
+        model=req.model,
+        effort=req.effort,
+        prompt_len=len(req.prompt),
+        system_len=len(req.system),
+        requester=identity,
+    )
+
+    started = time.monotonic()
+    async with _subprocess_semaphore:
+        _in_flight += 1
+        try:
+            result = await run_claude(
+                prompt=req.prompt,
+                settings=settings,
+                model=req.model,
+                effort=req.effort,
+                persona_text=req.system,
+            )
+        except TimeoutError:
+            return AgentTaskResponse(
+                task_id=req.task_id,
+                status="timeout",
+                error_message=f"Claude subprocess exceeded {settings.claude_timeout_sec}s",
+                duration_ms=int((time.monotonic() - started) * 1000),
+            )
+        except ClaudeSubprocessError as e:
+            return AgentTaskResponse(
+                task_id=req.task_id,
+                status="subprocess_error",
+                error_message=str(e),
+                duration_ms=int((time.monotonic() - started) * 1000),
+            )
+        finally:
+            _in_flight -= 1
+
+    duration_ms = int((time.monotonic() - started) * 1000)
+    output_text = result.get("result")
+    if not output_text:
+        text_blocks = [
+            b.get("text", "") for b in result.get("content", []) if b.get("type") == "text"
+        ]
+        output_text = "\n\n".join(text_blocks).strip() or None
+
+    return AgentTaskResponse(
+        task_id=req.task_id,
+        status="success",
+        output_text=output_text,
         raw_claude_json=result,
         duration_ms=duration_ms,
     )

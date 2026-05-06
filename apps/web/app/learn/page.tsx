@@ -29,12 +29,15 @@ export default function LearnPage() {
             Apprendre · 6 chapitres
           </p>
           <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-[var(--color-ichor-text)]">
-            Comment <span className="bg-gradient-to-r from-[var(--color-ichor-accent-bright)] to-[var(--color-ichor-accent-muted)] bg-clip-text text-transparent">lire</span> Ichor
+            Comment{" "}
+            <span className="bg-gradient-to-r from-[var(--color-ichor-accent-bright)] to-[var(--color-ichor-accent-muted)] bg-clip-text text-transparent">
+              lire
+            </span>{" "}
+            Ichor
           </h1>
           <p className="text-sm text-[var(--color-ichor-text-muted)] mt-2 max-w-2xl">
-            Les concepts macro / SMC / RR utilisés partout dans l&apos;app,
-            illustrés en 1 schéma + 3 phrases. Tout est cliquable pour
-            drill-down vers la page live.
+            Les concepts macro / SMC / RR utilisés partout dans l&apos;app, illustrés en 1 schéma +
+            3 phrases. Tout est cliquable pour drill-down vers la page live.
           </p>
         </header>
 
@@ -139,7 +142,10 @@ export default function LearnPage() {
         <footer className="mt-10 text-center ichor-fade-in" data-stagger="6">
           <p className="text-xs text-[var(--color-ichor-text-subtle)]">
             Pour aller plus loin :{" "}
-            <Link href="/sources" className="text-[var(--color-ichor-accent-bright)] hover:underline">
+            <Link
+              href="/sources"
+              className="text-[var(--color-ichor-accent-bright)] hover:underline"
+            >
               Sources data
             </Link>{" "}
             ·{" "}
@@ -147,7 +153,10 @@ export default function LearnPage() {
               Health snapshot
             </Link>{" "}
             ·{" "}
-            <Link href="/calibration" className="text-[var(--color-ichor-accent-bright)] hover:underline">
+            <Link
+              href="/calibration"
+              className="text-[var(--color-ichor-accent-bright)] hover:underline"
+            >
               Calibration Brier
             </Link>
           </p>
@@ -179,12 +188,7 @@ function ChapterCard({
   stagger: number;
 }) {
   return (
-    <GlassCard
-      variant="glass"
-      lift
-      className="p-5 ichor-fade-in"
-      data-stagger={stagger}
-    >
+    <GlassCard variant="glass" lift className="p-5 ichor-fade-in" data-stagger={stagger}>
       <header className="flex items-baseline justify-between mb-3 gap-2">
         <div className="flex items-baseline gap-3">
           <span className="font-mono text-[var(--color-ichor-accent-bright)] text-lg">
@@ -240,13 +244,32 @@ function RegimeQuadrantDiagram() {
       aria-label="4-quadrant régime macro diagram"
     >
       <defs>
-        <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="4" markerHeight="4" orient="auto">
+        <marker
+          id="arrow"
+          viewBox="0 0 10 10"
+          refX="8"
+          refY="5"
+          markerWidth="4"
+          markerHeight="4"
+          orient="auto"
+        >
           <path d="M 0 0 L 10 5 L 0 10 z" fill="#3B82F6" />
         </marker>
       </defs>
       {/* Axes labels */}
-      <text x="120" y="10" fill="#5A6E89" fontSize="9" textAnchor="middle">stress macro →</text>
-      <text x="0" y="80" fill="#5A6E89" fontSize="9" transform="rotate(-90, 0, 80)" textAnchor="middle">conviction →</text>
+      <text x="120" y="10" fill="#5A6E89" fontSize="9" textAnchor="middle">
+        stress macro →
+      </text>
+      <text
+        x="0"
+        y="80"
+        fill="#5A6E89"
+        fontSize="9"
+        transform="rotate(-90, 0, 80)"
+        textAnchor="middle"
+      >
+        conviction →
+      </text>
 
       {quadrants.map((q, i) => (
         <g key={i} transform={`translate(${20 + q.x * 110}, ${20 + q.y * 65})`}>
@@ -260,14 +283,7 @@ function RegimeQuadrantDiagram() {
             strokeOpacity="0.5"
             strokeWidth="1"
           />
-          <text
-            x="50"
-            y="22"
-            fill={q.color}
-            fontSize="10"
-            fontWeight="600"
-            textAnchor="middle"
-          >
+          <text x="50" y="22" fill={q.color} fontSize="10" fontWeight="600" textAnchor="middle">
             {q.label.split("\n")[0]}
           </text>
           <text x="50" y="34" fill={q.color} fontSize="10" fontWeight="600" textAnchor="middle">
@@ -299,17 +315,59 @@ function DailyLevelsDiagram() {
   return (
     <svg viewBox="0 0 240 160" width="240" height="160" aria-label="Daily levels SMC diagram">
       {/* PDH line */}
-      <line x1="10" y1="55" x2="230" y2="55" stroke="#F87171" strokeWidth="1" strokeDasharray="3 2" />
-      <text x="232" y="58" fill="#F87171" fontSize="9">PDH</text>
+      <line
+        x1="10"
+        y1="55"
+        x2="230"
+        y2="55"
+        stroke="#F87171"
+        strokeWidth="1"
+        strokeDasharray="3 2"
+      />
+      <text x="232" y="58" fill="#F87171" fontSize="9">
+        PDH
+      </text>
       {/* PDL */}
-      <line x1="10" y1="125" x2="230" y2="125" stroke="#34D399" strokeWidth="1" strokeDasharray="3 2" />
-      <text x="232" y="128" fill="#34D399" fontSize="9">PDL</text>
+      <line
+        x1="10"
+        y1="125"
+        x2="230"
+        y2="125"
+        stroke="#34D399"
+        strokeWidth="1"
+        strokeDasharray="3 2"
+      />
+      <text x="232" y="128" fill="#34D399" fontSize="9">
+        PDL
+      </text>
       {/* Asian range box */}
-      <rect x="10" y="75" width="60" height="30" fill="#3B82F6" fillOpacity="0.10" stroke="#3B82F6" strokeOpacity="0.5" strokeDasharray="2 2" />
-      <text x="14" y="86" fill="#60A5FA" fontSize="8">Asian range</text>
+      <rect
+        x="10"
+        y="75"
+        width="60"
+        height="30"
+        fill="#3B82F6"
+        fillOpacity="0.10"
+        stroke="#3B82F6"
+        strokeOpacity="0.5"
+        strokeDasharray="2 2"
+      />
+      <text x="14" y="86" fill="#60A5FA" fontSize="8">
+        Asian range
+      </text>
       {/* Pivot */}
-      <line x1="10" y1="90" x2="230" y2="90" stroke="#94A3B8" strokeWidth="0.5" strokeOpacity="0.6" />
-      <text x="232" y="93" fill="#94A3B8" fontSize="8">PP</text>
+      <line
+        x1="10"
+        y1="90"
+        x2="230"
+        y2="90"
+        stroke="#94A3B8"
+        strokeWidth="0.5"
+        strokeOpacity="0.6"
+      />
+      <text x="232" y="93" fill="#94A3B8" fontSize="8">
+        PP
+      </text>
       {/* Candles */}
       {candles.map((c, i) => (
         <g key={i}>
@@ -333,7 +391,9 @@ function ScenariosDiagram() {
     <svg viewBox="0 0 240 160" width="240" height="160" aria-label="Scenarios SMC diagram">
       {/* Spot in center */}
       <circle cx="60" cy="80" r="4" fill="#60A5FA" />
-      <text x="40" y="74" fill="#60A5FA" fontSize="9">spot</text>
+      <text x="40" y="74" fill="#60A5FA" fontSize="9">
+        spot
+      </text>
 
       {/* 3 paths : Continuation up, Reversal down, Sideways */}
       <path
@@ -343,7 +403,9 @@ function ScenariosDiagram() {
         fill="none"
         strokeLinecap="round"
       />
-      <text x="190" y="32" fill="#34D399" fontSize="10" fontWeight="600">Cont. ↑</text>
+      <text x="190" y="32" fill="#34D399" fontSize="10" fontWeight="600">
+        Cont. ↑
+      </text>
 
       <path
         d="M 60 80 Q 120 130 180 140"
@@ -352,7 +414,9 @@ function ScenariosDiagram() {
         fill="none"
         strokeLinecap="round"
       />
-      <text x="190" y="144" fill="#F87171" fontSize="10" fontWeight="600">Rev. ↓</text>
+      <text x="190" y="144" fill="#F87171" fontSize="10" fontWeight="600">
+        Rev. ↓
+      </text>
 
       <path
         d="M 60 80 Q 120 80 180 80 M 90 75 L 90 85 M 110 75 L 110 85 M 130 75 L 130 85 M 150 75 L 150 85 M 170 75 L 170 85"
@@ -362,12 +426,20 @@ function ScenariosDiagram() {
         strokeDasharray="2 3"
         strokeLinecap="round"
       />
-      <text x="190" y="84" fill="#94A3B8" fontSize="10" fontWeight="600">Side. ↔</text>
+      <text x="190" y="84" fill="#94A3B8" fontSize="10" fontWeight="600">
+        Side. ↔
+      </text>
 
       {/* Probabilities */}
-      <text x="180" y="50" fill="#34D399" fontSize="8" textAnchor="end">35%</text>
-      <text x="180" y="100" fill="#94A3B8" fontSize="8" textAnchor="end">28%</text>
-      <text x="180" y="125" fill="#F87171" fontSize="8" textAnchor="end">37%</text>
+      <text x="180" y="50" fill="#34D399" fontSize="8" textAnchor="end">
+        35%
+      </text>
+      <text x="180" y="100" fill="#94A3B8" fontSize="8" textAnchor="end">
+        28%
+      </text>
+      <text x="180" y="125" fill="#F87171" fontSize="8" textAnchor="end">
+        37%
+      </text>
     </svg>
   );
 }
@@ -396,8 +468,18 @@ function RRPlanDiagram() {
         </g>
       ))}
       {/* Risk arrow */}
-      <line x1="22" y1="100" x2="22" y2="130" stroke="#F87171" strokeWidth="1" markerEnd="url(#arrow)" />
-      <text x="6" y="118" fill="#F87171" fontSize="8">risk</text>
+      <line
+        x1="22"
+        y1="100"
+        x2="22"
+        y2="130"
+        stroke="#F87171"
+        strokeWidth="1"
+        markerEnd="url(#arrow)"
+      />
+      <text x="6" y="118" fill="#F87171" fontSize="8">
+        risk
+      </text>
     </svg>
   );
 }
@@ -408,17 +490,18 @@ function VixTermDiagram() {
       {/* Axis */}
       <line x1="30" y1="130" x2="220" y2="130" stroke="#3F526E" strokeWidth="0.8" />
       <line x1="30" y1="20" x2="30" y2="130" stroke="#3F526E" strokeWidth="0.8" />
-      <text x="215" y="145" fill="#5A6E89" fontSize="8">tenor</text>
-      <text x="6" y="22" fill="#5A6E89" fontSize="8">VIX</text>
+      <text x="215" y="145" fill="#5A6E89" fontSize="8">
+        tenor
+      </text>
+      <text x="6" y="22" fill="#5A6E89" fontSize="8">
+        VIX
+      </text>
 
       {/* Three curves : contango, normal, backwardation */}
-      <path
-        d="M 50 100 Q 120 70 200 40"
-        stroke="#34D399"
-        strokeWidth="1.5"
-        fill="none"
-      />
-      <text x="190" y="45" fill="#34D399" fontSize="9" fontWeight="600">contango</text>
+      <path d="M 50 100 Q 120 70 200 40" stroke="#34D399" strokeWidth="1.5" fill="none" />
+      <text x="190" y="45" fill="#34D399" fontSize="9" fontWeight="600">
+        contango
+      </text>
 
       <path
         d="M 50 80 L 200 80"
@@ -427,15 +510,14 @@ function VixTermDiagram() {
         strokeDasharray="3 3"
         fill="none"
       />
-      <text x="180" y="76" fill="#94A3B8" fontSize="9">flat</text>
+      <text x="180" y="76" fill="#94A3B8" fontSize="9">
+        flat
+      </text>
 
-      <path
-        d="M 50 50 Q 120 80 200 110"
-        stroke="#F87171"
-        strokeWidth="1.5"
-        fill="none"
-      />
-      <text x="160" y="120" fill="#F87171" fontSize="9" fontWeight="600">backwardation</text>
+      <path d="M 50 50 Q 120 80 200 110" stroke="#F87171" strokeWidth="1.5" fill="none" />
+      <text x="160" y="120" fill="#F87171" fontSize="9" fontWeight="600">
+        backwardation
+      </text>
 
       {/* Tick labels */}
       {[
@@ -455,15 +537,15 @@ function VixTermDiagram() {
 function ConfluenceDiagram() {
   const factors = [
     { label: "rate diff", value: 0.35 },
-    { label: "COT", value: -0.20 },
+    { label: "COT", value: -0.2 },
     { label: "OFI", value: 0.45 },
-    { label: "daily lvl", value: 0.30 },
-    { label: "polymkt", value: 0.10 },
+    { label: "daily lvl", value: 0.3 },
+    { label: "polymkt", value: 0.1 },
     { label: "fund. stress", value: -0.15 },
     { label: "surprise", value: 0.25 },
-    { label: "VIX term", value: 0.40 },
+    { label: "VIX term", value: 0.4 },
     { label: "risk app.", value: 0.55 },
-    { label: "BTC proxy", value: 0.20 },
+    { label: "BTC proxy", value: 0.2 },
   ];
   return (
     <svg viewBox="0 0 240 200" width="240" height="200" aria-label="Confluence engine diagram">

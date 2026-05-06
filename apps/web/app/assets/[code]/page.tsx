@@ -69,14 +69,14 @@ async function loadAssetDetail(meta: AssetMeta): Promise<AssetDetail> {
     };
   } catch (err) {
     const reason =
-      err instanceof ApiError
-        ? err.message
-        : err instanceof Error
-          ? err.message
-          : "unknown error";
+      err instanceof ApiError ? err.message : err instanceof Error ? err.message : "unknown error";
     return {
-      meta, signals: [], alerts: [], briefings: [],
-      bars: [], predictions: [],
+      meta,
+      signals: [],
+      alerts: [],
+      briefings: [],
+      bars: [],
+      predictions: [],
       error: reason,
     };
   }
@@ -110,16 +110,11 @@ export default async function AssetDetailPage({ params }: PageProps) {
   return (
     <main className="max-w-4xl mx-auto px-4 py-6 flex flex-col gap-8">
       <header>
-        <Link
-          href="/assets"
-          className="text-xs text-neutral-500 hover:text-neutral-300"
-        >
+        <Link href="/assets" className="text-xs text-neutral-500 hover:text-neutral-300">
           ← Tous les actifs
         </Link>
         <div className="mt-2 flex items-baseline justify-between">
-          <h1 className="text-3xl font-semibold text-neutral-100 font-mono">
-            {meta.display}
-          </h1>
+          <h1 className="text-3xl font-semibold text-neutral-100 font-mono">{meta.display}</h1>
           <span className="text-xs text-neutral-500 uppercase tracking-wider">
             {meta.class.replace("_", " ")}
           </span>
@@ -144,10 +139,7 @@ export default async function AssetDetailPage({ params }: PageProps) {
             Biais courant (horizon 24h)
           </h2>
           {latest && (
-            <time
-              dateTime={latest.generated_at}
-              className="text-[11px] text-neutral-500 font-mono"
-            >
+            <time dateTime={latest.generated_at} className="text-[11px] text-neutral-500 font-mono">
               {fmtAt(latest.generated_at)}
             </time>
           )}
@@ -183,9 +175,7 @@ export default async function AssetDetailPage({ params }: PageProps) {
                   .map(([name, w]) => (
                     <li key={name} className="flex items-center gap-2">
                       <span className="text-neutral-300 truncate">{name}</span>
-                      <span className="ml-auto text-neutral-500">
-                        {(w * 100).toFixed(1)}%
-                      </span>
+                      <span className="ml-auto text-neutral-500">{(w * 100).toFixed(1)}%</span>
                     </li>
                   ))}
               </ul>
@@ -193,18 +183,14 @@ export default async function AssetDetailPage({ params }: PageProps) {
           </>
         ) : (
           <p className="text-xs text-neutral-500">
-            Aucun signal disponible pour cet actif (premiers runs aggregator
-            pending W2).
+            Aucun signal disponible pour cet actif (premiers runs aggregator pending W2).
           </p>
         )}
       </section>
 
       {detail.bars.length >= 2 && (
         <section aria-labelledby="market-section">
-          <h2
-            id="market-section"
-            className="text-sm font-medium text-neutral-200 mb-3"
-          >
+          <h2 id="market-section" className="text-sm font-medium text-neutral-200 mb-3">
             Prix daily — dernière année
           </h2>
           <ChartCard
@@ -217,19 +203,15 @@ export default async function AssetDetailPage({ params }: PageProps) {
             lastLabel={detail.bars[detail.bars.length - 1]!.close.toFixed(meta.precision)}
           />
           <p className="mt-2 text-[11px] text-neutral-500">
-            Source : {detail.bars[detail.bars.length - 1]!.source}. Données
-            free-tier (yfinance) — non destinées au trading exécuté en
-            l'état. Phase 1+ : OANDA M1 pour intraday.
+            Source : {detail.bars[detail.bars.length - 1]!.source}. Données free-tier (yfinance) —
+            non destinées au trading exécuté en l'état. Phase 1+ : OANDA M1 pour intraday.
           </p>
         </section>
       )}
 
       {detail.predictions.length > 0 && (
         <section aria-labelledby="predictions-section">
-          <h2
-            id="predictions-section"
-            className="text-sm font-medium text-neutral-200 mb-3"
-          >
+          <h2 id="predictions-section" className="text-sm font-medium text-neutral-200 mb-3">
             Predictions historiques (paper, audit only)
           </h2>
           <div className="rounded-lg border border-neutral-800 bg-neutral-900/30 p-3">
@@ -273,10 +255,7 @@ export default async function AssetDetailPage({ params }: PageProps) {
 
       {probSeries.length >= 2 && (
         <section aria-labelledby="history-section">
-          <h2
-            id="history-section"
-            className="text-sm font-medium text-neutral-200 mb-3"
-          >
+          <h2 id="history-section" className="text-sm font-medium text-neutral-200 mb-3">
             Évolution P(long) sur les {probSeries.length} derniers signaux
           </h2>
           <ChartCard
@@ -294,24 +273,18 @@ export default async function AssetDetailPage({ params }: PageProps) {
       )}
 
       <section aria-labelledby="regime-section">
-        <h2
-          id="regime-section"
-          className="text-sm font-medium text-neutral-200 mb-3"
-        >
+        <h2 id="regime-section" className="text-sm font-medium text-neutral-200 mb-3">
           Régime HMM (placeholder Phase 0)
         </h2>
         <RegimeIndicator stateProbs={[0.6, 0.3, 0.1]} asset={meta.code} />
         <p className="mt-2 text-[11px] text-neutral-400">
-          Probabilités issues du dernier viterbi forward pass HMM 3-states.
-          Données réelles connectées en Phase 0 W2.
+          Probabilités issues du dernier viterbi forward pass HMM 3-states. Données réelles
+          connectées en Phase 0 W2.
         </p>
       </section>
 
       <section aria-labelledby="timeline-section">
-        <h2
-          id="timeline-section"
-          className="text-sm font-medium text-neutral-200 mb-3"
-        >
+        <h2 id="timeline-section" className="text-sm font-medium text-neutral-200 mb-3">
           Frise 24h
         </h2>
         <Timeline startTs={windowStart} endTs={windowEnd}>
@@ -345,10 +318,7 @@ export default async function AssetDetailPage({ params }: PageProps) {
 
       <section aria-labelledby="alerts-section">
         <header className="flex items-baseline justify-between mb-3">
-          <h2
-            id="alerts-section"
-            className="text-sm font-medium text-neutral-200"
-          >
+          <h2 id="alerts-section" className="text-sm font-medium text-neutral-200">
             Alertes liées
           </h2>
           <Link
@@ -374,10 +344,7 @@ export default async function AssetDetailPage({ params }: PageProps) {
                   <AlertChip alertCode={a.alert_code} severity={a.severity} />
                   <span className="text-sm text-neutral-200">{a.title}</span>
                 </div>
-                <time
-                  dateTime={a.triggered_at}
-                  className="text-[11px] text-neutral-500 font-mono"
-                >
+                <time dateTime={a.triggered_at} className="text-[11px] text-neutral-500 font-mono">
                   {fmtAt(a.triggered_at)}
                 </time>
               </li>
@@ -388,10 +355,7 @@ export default async function AssetDetailPage({ params }: PageProps) {
 
       <section aria-labelledby="briefings-section">
         <header className="flex items-baseline justify-between mb-3">
-          <h2
-            id="briefings-section"
-            className="text-sm font-medium text-neutral-200"
-          >
+          <h2 id="briefings-section" className="text-sm font-medium text-neutral-200">
             Briefings mentionnant {meta.display}
           </h2>
           <Link
@@ -415,9 +379,7 @@ export default async function AssetDetailPage({ params }: PageProps) {
                   className="block rounded border border-neutral-800 bg-neutral-900/40 px-3 py-2 hover:border-neutral-700 transition"
                 >
                   <div className="flex items-baseline justify-between">
-                    <span className="font-mono text-sm text-neutral-200">
-                      {b.briefing_type}
-                    </span>
+                    <span className="font-mono text-sm text-neutral-200">{b.briefing_type}</span>
                     <time
                       dateTime={b.triggered_at}
                       className="text-[11px] text-neutral-500 font-mono"

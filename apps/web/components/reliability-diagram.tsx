@@ -43,8 +43,7 @@ export const ReliabilityDiagram: React.FC<ReliabilityDiagramProps> = ({
   const totalCount = bins.reduce((acc, b) => acc + b.count, 0);
   const maxCount = Math.max(1, ...bins.map((b) => b.count));
 
-  const radius = (count: number) =>
-    3 + 9 * Math.sqrt(count / Math.max(1, maxCount));
+  const radius = (count: number) => 3 + 9 * Math.sqrt(count / Math.max(1, maxCount));
 
   return (
     <svg
@@ -105,9 +104,7 @@ export const ReliabilityDiagram: React.FC<ReliabilityDiagramProps> = ({
         const y = scale(b.mean_realized, "y");
         const r = radius(b.count);
         const overconfident = b.mean_predicted > b.mean_realized;
-        const fill = overconfident
-          ? "rgb(248 113 113 / 0.7)"
-          : "rgb(56 189 248 / 0.7)";
+        const fill = overconfident ? "rgb(248 113 113 / 0.7)" : "rgb(56 189 248 / 0.7)";
         return (
           <g key={i}>
             <line
@@ -143,13 +140,7 @@ export const ReliabilityDiagram: React.FC<ReliabilityDiagramProps> = ({
       />
 
       {/* Axis labels */}
-      <text
-        x={width / 2}
-        y={height - 8}
-        textAnchor="middle"
-        fill="rgb(163 163 163)"
-        fontSize={11}
-      >
+      <text x={width / 2} y={height - 8} textAnchor="middle" fill="rgb(163 163 163)" fontSize={11}>
         Probabilité prédite
       </text>
       <text

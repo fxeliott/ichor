@@ -5,8 +5,8 @@ whales (>$10K bets), IV skew options chains (yfinance), and produces
 positioning extremes per asset + dealer gamma flip risk + smart money
 divergence vs retail.
 
-Per ADR-021, routes via Claude Haiku 4.5 (primary) with Cerebras
-fallback.
+Routing : Claude Haiku 4.5 effort=low (ADR-021 + reaffirmed by
+ADR-023) primary, Cerebras + Groq high-volume fallback.
 """
 
 from __future__ import annotations
@@ -16,6 +16,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from ..claude_runner import ClaudeRunnerConfig
 from ..fallback import FallbackChain
 from ..providers import CEREBRAS, GROQ_HIGH_VOLUME
 
@@ -103,4 +104,5 @@ def make_positioning_chain() -> FallbackChain:
         providers=(CEREBRAS, GROQ_HIGH_VOLUME),
         system_prompt=SYSTEM_PROMPT_POSITIONING,
         output_type=PositioningAgentOutput,
+        claude=ClaudeRunnerConfig.from_env(model="haiku", effort="low"),
     )

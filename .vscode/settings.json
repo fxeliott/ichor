@@ -33,12 +33,12 @@
   "python.analysis.typeCheckingMode": "strict",
   "python.testing.pytestEnabled": true,
 
-  "[typescript]":     { "editor.defaultFormatter": "esbenp.prettier-vscode" },
-  "[typescriptreact]":{ "editor.defaultFormatter": "esbenp.prettier-vscode" },
-  "[javascript]":     { "editor.defaultFormatter": "esbenp.prettier-vscode" },
-  "[json]":           { "editor.defaultFormatter": "esbenp.prettier-vscode" },
-  "[yaml]":           { "editor.defaultFormatter": "redhat.vscode-yaml" },
-  "[markdown]":       { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+  "[typescript]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+  "[typescriptreact]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+  "[javascript]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+  "[json]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+  "[yaml]": { "editor.defaultFormatter": "redhat.vscode-yaml" },
+  "[markdown]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
 
   "yaml.schemas": {
     "https://json.schemastore.org/ansible-playbook.json": [

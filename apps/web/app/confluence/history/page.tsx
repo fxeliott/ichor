@@ -8,11 +8,7 @@
  */
 
 import Link from "next/link";
-import {
-  ApiError,
-  getConfluenceHistory,
-  type ConfluenceHistory,
-} from "../../../lib/api";
+import { ApiError, getConfluenceHistory, type ConfluenceHistory } from "../../../lib/api";
 import { ASSETS } from "../../../lib/assets";
 import { AmbientOrbs } from "../../../components/ui/ambient-orbs";
 import { GlassCard } from "../../../components/ui/glass-card";
@@ -23,9 +19,7 @@ export const revalidate = 300;
 export const metadata = { title: "Confluence — historique 30j — Ichor" };
 
 export default async function ConfluenceHistoryPage() {
-  const settled = await Promise.allSettled(
-    ASSETS.map((a) => getConfluenceHistory(a.code, 30)),
-  );
+  const settled = await Promise.allSettled(ASSETS.map((a) => getConfluenceHistory(a.code, 30)));
   const rows = ASSETS.map((meta, i) => {
     const r = settled[i];
     return {
@@ -61,12 +55,17 @@ export default async function ConfluenceHistoryPage() {
             Historique · snapshots toutes les 6h
           </p>
           <h1 className="text-3xl font-semibold tracking-tight text-[var(--color-ichor-text)]">
-            Évolution <span className="bg-gradient-to-r from-[var(--color-ichor-accent-bright)] to-[var(--color-ichor-accent-muted)] bg-clip-text text-transparent">30 jours</span>
+            Évolution{" "}
+            <span className="bg-gradient-to-r from-[var(--color-ichor-accent-bright)] to-[var(--color-ichor-accent-muted)] bg-clip-text text-transparent">
+              30 jours
+            </span>
           </h1>
           <p className="text-sm text-[var(--color-ichor-text-muted)] mt-1.5 max-w-2xl">
-            Évolution des scores long / short par actif. La ligne pointillée
-            à 60 marque le seuil qualifies-as-setup. Source : table
-            <code className="mx-1 font-mono text-[var(--color-ichor-accent-muted)]">confluence_history</code>
+            Évolution des scores long / short par actif. La ligne pointillée à 60 marque le seuil
+            qualifies-as-setup. Source : table
+            <code className="mx-1 font-mono text-[var(--color-ichor-accent-muted)]">
+              confluence_history
+            </code>
             (cron timer toutes les 6h UTC).
           </p>
         </header>
@@ -120,15 +119,10 @@ function AssetTimelineCard({
   stagger: number;
 }) {
   const lastPoint =
-    history && history.points.length > 0
-      ? history.points[history.points.length - 1]
-      : null;
+    history && history.points.length > 0 ? history.points[history.points.length - 1] : null;
   const dom = lastPoint?.dominant_direction ?? "neutral";
-  const lastScore = lastPoint
-    ? Math.max(lastPoint.score_long, lastPoint.score_short)
-    : null;
-  const tone =
-    dom === "long" ? "long" : dom === "short" ? "short" : "default";
+  const lastScore = lastPoint ? Math.max(lastPoint.score_long, lastPoint.score_short) : null;
+  const tone = dom === "long" ? "long" : dom === "short" ? "short" : "default";
   return (
     <GlassCard
       variant="glass"
@@ -194,8 +188,7 @@ function TimelineSvg({ history }: { history: ConfluenceHistory }) {
   const innerH = h - padY * 2;
   const n = history.points.length;
 
-  const xAt = (i: number) =>
-    padX + (i / Math.max(1, n - 1)) * innerW;
+  const xAt = (i: number) => padX + (i / Math.max(1, n - 1)) * innerW;
   const yAt = (s: number) => padY + (1 - s / 100) * innerH;
 
   const path = (key: "score_long" | "score_short") =>
@@ -240,14 +233,7 @@ function TimelineSvg({ history }: { history: ConfluenceHistory }) {
 
         {/* Y-axis labels */}
         {[0, 50, 100].map((s, i) => (
-          <text
-            key={i}
-            x={padX - 4}
-            y={yAt(s) + 3}
-            fill="#3F526E"
-            fontSize="8"
-            textAnchor="end"
-          >
+          <text key={i} x={padX - 4} y={yAt(s) + 3} fill="#3F526E" fontSize="8" textAnchor="end">
             {s}
           </text>
         ))}
@@ -279,7 +265,9 @@ function TimelineSvg({ history }: { history: ConfluenceHistory }) {
 
       <div className="flex items-baseline justify-between text-[10px] text-[var(--color-ichor-text-faint)] font-mono mt-1 px-7">
         <span>{fmtDate(first.captured_at)}</span>
-        <span>{n} snapshots · {history.window_days}j</span>
+        <span>
+          {n} snapshots · {history.window_days}j
+        </span>
         <span>{fmtDate(last.captured_at)}</span>
       </div>
     </div>

@@ -1,0 +1,77 @@
+---
+# Promtail — log shipper from Hetzner journalctl/files → Loki.
+# Cf SPEC.md §2.2 #21 (Loki déployé sans shipper) + Phase D §5.
+#
+# Ships:
+#   - systemd journal (everything tagged `ichor-*` services)
+#   - /var/log/nginx/{access,error}.log
+#   - /var/log/wal-g/*.log
+#
+# Loki listens on http://127.0.0.1:3100 (already deployed by
+# observability/docker-compose.yml).
+
+- name: Ensure Promtail user
+  ansible.builtin.user:
+    name: promtail
+    system: true
+    create_home: false
+    shell: /usr/sbin/nologin
+
+- name: Ensure Promtail config directory
+  ansible.builtin.file:
+    path: /etc/promtail
+    state: directory
+    owner: promtail
+    group: promtail
+    mode: "0750"
+
+- name: Render Promtail config
+  ansible.builtin.template:
+    src: promtail-config.yml.j2
+    dest: /etc/promtail/config.yml
+    owner: promtail
+    group: promtail
+    mode: "0640"
+  notify: restart promtail
+
+- name: Download Promtail binary (pinned)
+  ansible.builtin.get_url:
+    url: "https://github.com/grafana/loki/releases/download/v{{ promtail_version }}/promtail-linux-amd64.zip"
+    dest: /tmp/promtail-linux-amd64.zip
+    mode: "0644"
+    checksum: "sha256:{{ promtail_sha256 }}"
+
+- name: Unzip Promtail
+  ansible.builtin.unarchive:
+    src: /tmp/promtail-linux-amd64.zip
+    dest: /usr/local/bin/
+    remote_src: true
+    creates: /usr/local/bin/promtail-linux-amd64
+
+- name: Symlink promtail
+  ansible.builtin.file:
+    src: /usr/local/bin/promtail-linux-amd64
+    dest: /usr/local/bin/promtail
+    state: link
+
+- name: Allow promtail to read journal
+  ansible.builtin.user:
+    name: promtail
+    groups: systemd-journal
+    append: true
+
+- name: Install Promtail systemd unit
+  ansible.builtin.copy:
+    src: promtail.service
+    dest: /etc/systemd/system/promtail.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: restart promtail
+
+- name: Enable + start Promtail
+  ansible.builtin.systemd:
+    name: promtail
+    enabled: true
+    state: started
+    daemon_reload: true

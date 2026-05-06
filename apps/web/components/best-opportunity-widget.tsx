@@ -19,18 +19,13 @@ interface AssetScore {
 }
 
 export async function BestOpportunityWidget() {
-  const settled = await Promise.allSettled(
-    ASSETS.map((a) => getConfluence(a.code)),
-  );
+  const settled = await Promise.allSettled(ASSETS.map((a) => getConfluence(a.code)));
   const rows: AssetScore[] = ASSETS.map((meta, i) => {
     const r = settled[i];
     return {
       code: meta.code,
       display: meta.display,
-      data:
-        r && r.status === "fulfilled"
-          ? (r as PromiseFulfilledResult<Confluence>).value
-          : null,
+      data: r && r.status === "fulfilled" ? (r as PromiseFulfilledResult<Confluence>).value : null,
     };
   });
 
@@ -49,26 +44,20 @@ export async function BestOpportunityWidget() {
     });
 
   const qualified = candidates.filter(
-    (x) =>
-      x.score >= 60 &&
-      x.conf.confluence_count >= 3 &&
-      x.conf.dominant_direction !== "neutral",
+    (x) => x.score >= 60 && x.conf.confluence_count >= 3 && x.conf.dominant_direction !== "neutral",
   );
-  const sorted = qualified.length > 0
-    ? qualified.sort((a, b) => b.score - a.score)
-    : candidates.sort((a, b) => b.score - a.score);
+  const sorted =
+    qualified.length > 0
+      ? qualified.sort((a, b) => b.score - a.score)
+      : candidates.sort((a, b) => b.score - a.score);
 
   const best = sorted[0];
 
   if (!best || !best.conf) {
     return (
       <GlassCard variant="glass" className="p-4">
-        <h2 className="text-sm font-semibold text-[var(--color-ichor-text)] mb-2">
-          Setup du jour
-        </h2>
-        <p className="text-xs text-[var(--color-ichor-text-subtle)]">
-          Données indisponibles.
-        </p>
+        <h2 className="text-sm font-semibold text-[var(--color-ichor-text)] mb-2">Setup du jour</h2>
+        <p className="text-xs text-[var(--color-ichor-text-subtle)]">Données indisponibles.</p>
       </GlassCard>
     );
   }
@@ -84,13 +73,8 @@ export async function BestOpportunityWidget() {
   });
   const topDriver = sortedDrivers[0];
 
-  const tone =
-    dom === "long" ? "long" : dom === "short" ? "short" : "default";
-  const ringClass = isQualified
-    ? dom === "long"
-      ? "ichor-glow-emerald"
-      : "ichor-glow-rose"
-    : "";
+  const tone = dom === "long" ? "long" : dom === "short" ? "short" : "default";
+  const ringClass = isQualified ? (dom === "long" ? "ichor-glow-emerald" : "ichor-glow-rose") : "";
 
   return (
     <Link

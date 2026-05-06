@@ -95,12 +95,14 @@ future reader can understand what was tried and abandoned.
 ## The 12 capabilities (full architecture, all 4 phases)
 
 ### Perception layer
+
 1. Continuous ingestion 25+ sources (existing 3 + 22 new ones — see PHASE_1_LOG)
 2. Real-time anomaly detection (variance spikes, cross-asset divergence,
    GDELT critical news, Polymarket > 5pp moves)
 3. Knowledge graph populated continuously (news → entities → causal relations)
 
 ### Analysis layer (Claude at max power)
+
 4. Pipeline 4-pass per session per asset : regime → specialization → stress-test
    → invalidation. Opus 4.7 + extended thinking for Pass 2-4.
 5. Claude equipped with tools in runtime : `WebSearch`, `WebFetch`, `query_db`,
@@ -109,12 +111,14 @@ future reader can understand what was tried and abandoned.
 7. Critic Agent gate before publication
 
 ### Memory & calibration layer (meta-cognition)
+
 8. Persistent track-record + public calibration (Brier rolling 30/90/365 by asset,
    session, regime)
 9. Auto-improvement monthly (post-mortem on misses + framework patches proposed)
 10. Autonomous pattern discovery weekly
 
 ### Expression layer
+
 11. Living UI (régime-colored global accent, animations, ambient widget,
     conversational chat, voice in/out, mobile push)
 12. Mobile companion PWA
@@ -122,18 +126,21 @@ future reader can understand what was tried and abandoned.
 ## Asset universe
 
 8 assets with session cards :
+
 - EUR/USD, GBP/USD, USD/JPY, AUD/USD, USD/CAD (5 FX majors)
 - XAU/USD (gold)
 - US30 (Dow Jones futures)
 - US100 (NAS100 futures)
 
 Tracked for context, no session cards :
+
 - US500 (SPX500), DXY, VIX, 10Y/2Y yields, 10Y TIPS real yields, WTI oil, BTC,
   EUR/GBP cross
 
 ## Sessions
 
 Two session cards per actif per day :
+
 - **Pré-Londres** : generated ~07:30 Paris, valid 09:00-12:00 Paris
 - **Pré-NY** : generated ~13:30 Paris, valid 14:30-22:00 Paris
 
@@ -143,13 +150,14 @@ geopolitical flash).
 ## Cost ceiling
 
 Total monthly :
+
 - Claude Max 20x : $200 (Voie D, fixed)
 - **Massive Currencies (intraday for 6/8 assets)** : **$49** (CORRECTED
   2026-05-03 — was wrongly listed as Polygon Starter $29 in the
   original ADR. The Stocks Starter $29 plan does NOT cover forex/XAU.
   The Currencies $49 plan covers EUR/USD, GBP/USD, USD/JPY, AUD/USD,
   USD/CAD, XAU/USD with real-time WebSocket + REST unlimited. NAS100
-  + SPX500 stay on yfinance EOD until an Indices plan is decided.)
+  - SPX500 stay on yfinance EOD until an Indices plan is decided.)
 - Hetzner CX32 : ~€20
 - Cloudflare R2 + Tunnel + Pages : $0
 - GitHub Actions (private) : $0
@@ -165,6 +173,7 @@ Total monthly :
 ## Roll-out plan
 
 ### Phase 1 — Foundation (4-5 weeks)
+
 - 25 collectors LIVE (8 existing + 17 new)
 - Pipeline Claude 4-pass for 1 asset (EUR/USD) in Pré-Londres
 - 1 session card web complete (sources, drill-down, calibration tracking init)
@@ -172,6 +181,7 @@ Total monthly :
 - AMF disclaimer intact
 
 ### Phase 2 — Coverage (5-6 weeks)
+
 - 8 assets × 2 sessions = 16 cards/day
 - Critic Agent gate on every verdict
 - Conversational chat français native
@@ -180,6 +190,7 @@ Total monthly :
 - Public calibration : reliability diagram + Brier 30/90 visible
 
 ### Phase 3 — Méta-cognition (4-5 weeks)
+
 - Auto-improvement monthly (post-mortem + patches)
 - Autonomous pattern discovery weekly
 - RAG historical (5y embeddings)
@@ -188,6 +199,7 @@ Total monthly :
 - Mode "session active" UI focus
 
 ### Phase 4 — Living entity (4-6 weeks)
+
 - 24/7 event-driven persistent agent (vs cron)
 - Voice input + output native
 - Ambient widget always-visible

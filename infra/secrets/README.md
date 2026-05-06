@@ -81,19 +81,19 @@ encrypted secrets are unrecoverable.** Mirror it to:
 
 ## Secrets currently expected (Phase 0 → 1)
 
-| File | Contents | Source |
-|------|----------|--------|
-| `anthropic.env` | `ANTHROPIC_API_KEY` (workspace `ichor-prod`) | Anthropic Console |
-| `cloudflare.env` | R2 access keys, API token, Tunnel credentials | Cloudflare Dashboard |
-| `oanda.env` | OANDA practice account API key | OANDA developer portal |
-| `fred.env` | FRED API key | research.stlouisfed.org |
-| `azure-tts.env` | Azure Speech key + region | Azure portal |
-| `langfuse-postgres.env` | random 32-byte password | generate locally |
-| `n8n-postgres.env` | random 32-byte password | generate locally |
-| `grafana-admin.env` | random 32-byte password | generate locally |
-| `cerebras.env` | Cerebras API key (free tier) | cloud.cerebras.ai |
-| `groq.env` | Groq API key (free tier) | console.groq.com |
-| `github-pat.env` | GitHub PAT for Actions runner / `gh` | github.com/settings/tokens |
+| File                    | Contents                                      | Source                     |
+| ----------------------- | --------------------------------------------- | -------------------------- |
+| `anthropic.env`         | `ANTHROPIC_API_KEY` (workspace `ichor-prod`)  | Anthropic Console          |
+| `cloudflare.env`        | R2 access keys, API token, Tunnel credentials | Cloudflare Dashboard       |
+| `oanda.env`             | OANDA practice account API key                | OANDA developer portal     |
+| `fred.env`              | FRED API key                                  | research.stlouisfed.org    |
+| `azure-tts.env`         | Azure Speech key + region                     | Azure portal               |
+| `langfuse-postgres.env` | random 32-byte password                       | generate locally           |
+| `n8n-postgres.env`      | random 32-byte password                       | generate locally           |
+| `grafana-admin.env`     | random 32-byte password                       | generate locally           |
+| `cerebras.env`          | Cerebras API key (free tier)                  | cloud.cerebras.ai          |
+| `groq.env`              | Groq API key (free tier)                      | console.groq.com           |
+| `github-pat.env`        | GitHub PAT for Actions runner / `gh`          | github.com/settings/tokens |
 
 ## Rotation cadence
 

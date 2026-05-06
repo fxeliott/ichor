@@ -52,11 +52,8 @@ interface PageProps {
 export default async function NewsPage({ searchParams }: PageProps) {
   const params = await searchParams;
   const sourceKind =
-    params.kind && params.kind !== "all"
-      ? (params.kind as NewsSourceKind)
-      : undefined;
-  const tone =
-    params.tone && params.tone !== "all" ? (params.tone as NewsTone) : undefined;
+    params.kind && params.kind !== "all" ? (params.kind as NewsSourceKind) : undefined;
+  const tone = params.tone && params.tone !== "all" ? (params.tone as NewsTone) : undefined;
   const source = params.source?.trim() || undefined;
 
   let items: NewsItem[] = [];
@@ -71,11 +68,7 @@ export default async function NewsPage({ searchParams }: PageProps) {
     });
   } catch (err) {
     error =
-      err instanceof ApiError
-        ? err.message
-        : err instanceof Error
-          ? err.message
-          : "unknown error";
+      err instanceof ApiError ? err.message : err instanceof Error ? err.message : "unknown error";
   }
 
   return (
@@ -83,8 +76,7 @@ export default async function NewsPage({ searchParams }: PageProps) {
       <header className="mb-6">
         <h1 className="text-2xl font-semibold text-[var(--color-ichor-text)] mb-1">News</h1>
         <p className="text-sm text-[var(--color-ichor-text-muted)]">
-          Dépêches collectées en continu (Fed, ECB, BoE, BBC, SEC) — refresh
-          toutes les 15 min.
+          Dépêches collectées en continu (Fed, ECB, BoE, BBC, SEC) — refresh toutes les 15 min.
         </p>
       </header>
 
@@ -168,10 +160,7 @@ export default async function NewsPage({ searchParams }: PageProps) {
       </form>
 
       {error ? (
-        <EmptyState
-          title="API injoignable"
-          description={`Détails techniques : ${error}`}
-        />
+        <EmptyState title="API injoignable" description={`Détails techniques : ${error}`} />
       ) : items.length === 0 ? (
         <EmptyState
           title="Aucune dépêche"
@@ -223,9 +212,7 @@ export default async function NewsPage({ searchParams }: PageProps) {
                   }
                 >
                   ton {it.tone_label}
-                  {it.tone_score != null
-                    ? ` (${(it.tone_score * 100).toFixed(0)}%)`
-                    : ""}
+                  {it.tone_score != null ? ` (${(it.tone_score * 100).toFixed(0)}%)` : ""}
                 </span>
               )}
             </li>

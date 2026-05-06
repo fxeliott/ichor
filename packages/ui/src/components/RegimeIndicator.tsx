@@ -27,10 +27,7 @@ const STATE_COLORS: [string, string, string] = [
   "rgb(115 115 115)", // neutral-500
 ];
 
-export const RegimeIndicator: React.FC<RegimeIndicatorProps> = ({
-  stateProbs,
-  asset,
-}) => {
+export const RegimeIndicator: React.FC<RegimeIndicatorProps> = ({ stateProbs, asset }) => {
   const dominant = stateProbs.indexOf(Math.max(...stateProbs)) as 0 | 1 | 2;
   const total = stateProbs.reduce((a, b) => a + b, 0);
   // Normalize defensively
@@ -45,11 +42,7 @@ export const RegimeIndicator: React.FC<RegimeIndicatorProps> = ({
     : `Régime : ${STATE_LABELS[dominant]}`;
 
   return (
-    <div
-      role="img"
-      aria-label={fullDescription}
-      className="inline-flex items-center gap-2"
-    >
+    <div role="img" aria-label={fullDescription} className="inline-flex items-center gap-2">
       <div className="flex h-3 w-24 rounded overflow-hidden border border-[var(--color-ichor-border-strong)]">
         {probs.map((p, i) => (
           <div

@@ -22,8 +22,7 @@ export interface GlassCardProps extends HTMLAttributes<HTMLDivElement> {
 }
 
 const VARIANT_CLASSES: Record<Variant, string> = {
-  default:
-    "bg-[var(--color-ichor-surface)] border border-[var(--color-ichor-border)]",
+  default: "bg-[var(--color-ichor-surface)] border border-[var(--color-ichor-border)]",
   glass: "ichor-glass",
   gradient: "ichor-gradient-border",
   glow: "ichor-glow bg-[var(--color-ichor-surface)]",
@@ -48,10 +47,7 @@ export function GlassCard({
   const toneCls = tone !== "default" ? TONE_GLOW[tone] : "";
   const liftCls = lift ? "ichor-lift" : "";
   return (
-    <div
-      className={`relative rounded-xl ${baseCls} ${toneCls} ${liftCls} ${className}`}
-      {...rest}
-    >
+    <div className={`relative rounded-xl ${baseCls} ${toneCls} ${liftCls} ${className}`} {...rest}>
       {children}
     </div>
   );

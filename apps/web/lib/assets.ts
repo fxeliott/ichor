@@ -30,7 +30,6 @@ export const ASSETS: readonly AssetMeta[] = [
 
 const BY_CODE: Map<string, AssetMeta> = new Map(ASSETS.map((a) => [a.code, a]));
 
-export const findAsset = (code: string): AssetMeta | undefined =>
-  BY_CODE.get(code);
+export const findAsset = (code: string): AssetMeta | undefined => BY_CODE.get(code);
 
 export const isValidAssetCode = (code: string): boolean => BY_CODE.has(code);

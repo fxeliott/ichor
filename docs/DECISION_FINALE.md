@@ -11,12 +11,14 @@
 **Ichor "tout automatisé full-scope sur Max 20x SEUL" entre en collision frontale avec la politique Anthropic d'avril 2026.**
 
 Sources confirmées :
-- [PYMNTS 2026](https://www.pymnts.com/artificial-intelligence-2/2026/third-party-agents-lose-access-as-anthropic-tightens-claude-usage-rules/) : *"Third-party agents lose access as Anthropic tightens Claude usage rules"*
-- [Anthropic Issue #559](https://github.com/anthropics/claude-agent-sdk-python/issues/559) : *"Agent SDK requires API key authentication and explicitly prohibits using claude.ai subscription billing"*
-- [Anthropic Usage Policy 2026](https://www.anthropic.com/legal/aup) : *"OAuth authentication on Pro/Max plans is intended exclusively for ordinary individual use of Claude Code. Developers building products should use API key authentication."*
+
+- [PYMNTS 2026](https://www.pymnts.com/artificial-intelligence-2/2026/third-party-agents-lose-access-as-anthropic-tightens-claude-usage-rules/) : _"Third-party agents lose access as Anthropic tightens Claude usage rules"_
+- [Anthropic Issue #559](https://github.com/anthropics/claude-agent-sdk-python/issues/559) : _"Agent SDK requires API key authentication and explicitly prohibits using claude.ai subscription billing"_
+- [Anthropic Usage Policy 2026](https://www.anthropic.com/legal/aup) : _"OAuth authentication on Pro/Max plans is intended exclusively for ordinary individual use of Claude Code. Developers building products should use API key authentication."_
 - [DevOps.com mars 2026](https://devops.com/claude-code-quota-limits-usage-problems/) : Max 20x users crament quota en 19 minutes dans le crisis 2026-03
 
 **Conséquences pratiques** :
+
 - Pattern « cron 4×/jour multi-actifs 24/7 » est exactement le pattern qu'Anthropic a tué (OpenClaw shutdown précédent)
 - Risque réel ban silencieux du compte Max 20x d'Eliot
 - Pas de garantie écrite Anthropic sur un usage automation Max — zone grise documentée
@@ -37,8 +39,10 @@ Sources confirmées :
 ## 3 voies réalistes — tu DOIS choisir
 
 ### Voie A — « Demander Anthropic d'abord »
+
 **Avant tout build** : ouvrir ticket support Anthropic en clair :
-> *« Puis-je utiliser mon abonnement Claude Pro Max 20x via `claude -p` headless cron 4 fois/jour pour mon outil personnel d'analyse trading Ichor, non-commercial, mono-utilisateur (moi seul) ? »*
+
+> _« Puis-je utiliser mon abonnement Claude Pro Max 20x via `claude -p` headless cron 4 fois/jour pour mon outil personnel d'analyse trading Ichor, non-commercial, mono-utilisateur (moi seul) ? »_
 
 Obtenir **réponse écrite Anthropic** avant de construire.
 
@@ -48,6 +52,7 @@ Obtenir **réponse écrite Anthropic** avant de construire.
 - **Avis** : à faire systématiquement avant tout investissement temps
 
 ### Voie B — Ichor Lite minimal sur Max 20x ($200/mois total)
+
 **Scope** : 1-2 actifs (EURUSD seul ou EURUSD+XAUUSD), 1-2 briefings/jour, agents continus = ML local Hetzner sans LLM, briefings = `claude -p` headless ordi local.
 
 - ✅ Zone clairement « personal individual use » Anthropic
@@ -58,7 +63,9 @@ Obtenir **réponse écrite Anthropic** avant de construire.
 - 🟡 Compromis sur ambition
 
 ### Voie C — « Hybride pragmatique » avec mini API key prod ($225-250/mois total) ⭐ RECOMMANDÉ
+
 **Architecture** :
+
 - **$200 Max 20x** : ton dev quotidien Claude Code (inchangé)
 - **$25-50/mois API key dédiée `ichor-prod`** : automation 4 briefings/jour + Crisis Mode + agents Critic/Journalist
 - **Hetzner 24/7** : data/ML/alerts numériques/Postgres/Redis/Azure TTS/PWA backend
@@ -66,10 +73,11 @@ Obtenir **réponse écrite Anthropic** avant de construire.
 - 8 actifs Phase 1+2 couverts
 
 **Justification du $25-50/mois** :
+
 - 4 briefings groupés multi-asset/jour × ~7k tokens out moyens = ~840k tokens out/mois
 - Avec prompt caching (90% read off) + batch API (-50%) + citations (free) = **~$25/mois Sonnet 4.6 dominant**
-- + Opus 4.7 ponctuel Crisis (~5/mois) = +$5
-- + Drill-downs on-demand = +$10
+- - Opus 4.7 ponctuel Crisis (~5/mois) = +$5
+- - Drill-downs on-demand = +$10
 - **Total ~$40/mois API prod** pire cas optimisé
 
 - ✅ 100% automatisé, multi-actifs, ToS conforme
@@ -80,7 +88,9 @@ Obtenir **réponse écrite Anthropic** avant de construire.
 - 🟡 Compromis budget vs scope
 
 ### Voie D — « Hybride local PC + Cerebras free fallback » ($200/mois strict)
+
 **Architecture compliquée** :
+
 - **$200 Max 20x** : briefings via `claude -p` headless ordi local Win11 + Cloudflare Tunnel ordi local → Hetzner
 - 4 briefings/jour groupés multi-asset (pas 4×8 individuels)
 - **Cerebras free 30 RPM** + **Groq free 1000 RPD** = fallback automatique si Max throttle / ordi local KO
@@ -101,6 +111,7 @@ Obtenir **réponse écrite Anthropic** avant de construire.
 **Voie C — Hybride pragmatique $225-250/mois** ⭐
 
 Pourquoi :
+
 1. **Tu m'as donné comme contraintes** : tout automatisé + multi-actifs + 0 risque. Voie C est la SEULE qui les respecte toutes.
 2. **$25-50/mois API extra** = prix d'un café/jour pour avoir un produit qui marche sans risque ban
 3. **Voie D risque réel Anthropic ban** : tu perds ton compte Max 20x à $200/mois (perte > économie API key)
@@ -114,19 +125,23 @@ Pourquoi :
 ## Plan d'action concret
 
 ### Étape 1 (NOW) — Tu choisis
+
 - A : Demander Anthropic avant build (recommandé en parallèle de toute voie)
 - B : Ichor Lite 1 actif strict $200/mois
 - **C : Hybride $225-250/mois ⭐ recommandé**
 - D : Tentative Max 20x SEUL avec risque ban (déconseillé)
 
 ### Étape 2 (post-décision) — `/clear` + nouvelle session
+
 Mission selon ton choix :
 
 **Si C choisi** :
-> *« Réécris SPEC.md vers SPEC_FINAL.md. Architecture Voie C : Hetzner 24/7 fait tout (data + ML + alerts + agents Claude API + briefings + TTS Azure + PWA). API key Anthropic prod budget cap $50/mois optimisé caching+batch. 8 actifs Phase 1+2 (EURUSD/XAUUSD/NAS100/USDJPY/SPX500 puis +GBPUSD/AUDUSD/USDCAD). 4 briefings groupés/jour 06h/12h/17h/22h Paris. Stack vérifié AUDIT_V3 : Apache AGE (KG), wal-g, vollib, motion ex-framer, orval ≥8.0.3. Audio Azure Neural FR free + Piper fallback. Frameworks : Claude Agent SDK + Pydantic AI. Sub-agents Macro/Sentiment/Positioning Sonnet 4.6, CB-NLP/Critic Sonnet 4.6, News-NLP Haiku 4.5, Orchestrator/Journalist Opus 4.7. AI disclosure obligatoire chaque export. Budget total $250/mois. »*
+
+> _« Réécris SPEC.md vers SPEC_FINAL.md. Architecture Voie C : Hetzner 24/7 fait tout (data + ML + alerts + agents Claude API + briefings + TTS Azure + PWA). API key Anthropic prod budget cap $50/mois optimisé caching+batch. 8 actifs Phase 1+2 (EURUSD/XAUUSD/NAS100/USDJPY/SPX500 puis +GBPUSD/AUDUSD/USDCAD). 4 briefings groupés/jour 06h/12h/17h/22h Paris. Stack vérifié AUDIT_V3 : Apache AGE (KG), wal-g, vollib, motion ex-framer, orval ≥8.0.3. Audio Azure Neural FR free + Piper fallback. Frameworks : Claude Agent SDK + Pydantic AI. Sub-agents Macro/Sentiment/Positioning Sonnet 4.6, CB-NLP/Critic Sonnet 4.6, News-NLP Haiku 4.5, Orchestrator/Journalist Opus 4.7. AI disclosure obligatoire chaque export. Budget total $250/mois. »_
 
 **Si B choisi** :
-> *« Réécris SPEC.md vers SPEC_LITE.md. Architecture Voie B : Ichor Lite 1 actif EURUSD seul, 1-2 briefings/jour via Claude Code headless ordi local Win11 (Max 20x). ML local Hetzner sans LLM 24/7. Audio Azure Neural FR free. Frameworks : Claude Agent SDK + Pydantic AI. Budget $200/mois Max 20x strict. Phase 0 = 3-4 sem, Phase 1 = 12 sem. »*
+
+> _« Réécris SPEC.md vers SPEC_LITE.md. Architecture Voie B : Ichor Lite 1 actif EURUSD seul, 1-2 briefings/jour via Claude Code headless ordi local Win11 (Max 20x). ML local Hetzner sans LLM 24/7. Audio Azure Neural FR free. Frameworks : Claude Agent SDK + Pydantic AI. Budget $200/mois Max 20x strict. Phase 0 = 3-4 sem, Phase 1 = 12 sem. »_
 
 ### Étape 3 — Validation SPEC + Phase 0 démarre
 
@@ -134,13 +149,13 @@ Mission selon ton choix :
 
 ## Documents disponibles
 
-| Doc | Contenu | Lignes |
-|---|---|---|
-| [ICHOR_PLAN.md](ICHOR_PLAN.md) | Vision macro 26 axes data | 526 |
-| [SPEC.md](SPEC.md) | Spec technique v1 initiale | 502 |
-| [AUDIT.md](AUDIT.md) | Audit v1 5 domaines | 557 |
-| [AUDIT_V2.md](AUDIT_V2.md) | Audit v2 + 5 sub-agents v2 | 528 |
-| [AUDIT_V3.md](AUDIT_V3.md) | Audit v3 vérifications 0-hallucination | 526 |
+| Doc                                          | Contenu                                         | Lignes      |
+| -------------------------------------------- | ----------------------------------------------- | ----------- |
+| [ICHOR_PLAN.md](ICHOR_PLAN.md)               | Vision macro 26 axes data                       | 526         |
+| [SPEC.md](SPEC.md)                           | Spec technique v1 initiale                      | 502         |
+| [AUDIT.md](AUDIT.md)                         | Audit v1 5 domaines                             | 557         |
+| [AUDIT_V2.md](AUDIT_V2.md)                   | Audit v2 + 5 sub-agents v2                      | 528         |
+| [AUDIT_V3.md](AUDIT_V3.md)                   | Audit v3 vérifications 0-hallucination          | 526         |
 | **[DECISION_FINALE.md](DECISION_FINALE.md)** | **Synthèse honnête + 3 voies + recommandation** | **présent** |
 
 **Total** : 6 documents, ~210 KB, ~3000 lignes

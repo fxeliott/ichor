@@ -1,0 +1,89 @@
+# Custom postgres_exporter queries for Ichor.
+# Cf SPEC_V2_HARDENING §5 + observability §5.
+
+pg_stat_statements_top:
+  query: |
+    SELECT
+      LEFT(query, 100) AS query_short,
+      calls,
+      ROUND(total_exec_time::numeric, 2) AS total_ms,
+      ROUND(mean_exec_time::numeric, 2) AS mean_ms,
+      rows
+    FROM pg_stat_statements
+    ORDER BY total_exec_time DESC
+    LIMIT 20
+  metrics:
+    - query_short:
+        usage: "LABEL"
+        description: "Query text (first 100 chars)"
+    - calls:
+        usage: "COUNTER"
+        description: "Total number of calls"
+    - total_ms:
+        usage: "COUNTER"
+        description: "Total time in ms"
+    - mean_ms:
+        usage: "GAUGE"
+        description: "Mean time per call (ms)"
+    - rows:
+        usage: "COUNTER"
+        description: "Total rows returned"
+
+ichor_table_sizes:
+  query: |
+    SELECT
+      schemaname,
+      relname AS tablename,
+      pg_total_relation_size(schemaname || '.' || relname) AS total_bytes,
+      pg_relation_size(schemaname || '.' || relname) AS table_bytes,
+      pg_indexes_size(schemaname || '.' || relname) AS indexes_bytes
+    FROM pg_stat_user_tables
+    WHERE schemaname = 'public'
+  metrics:
+    - schemaname:
+        usage: "LABEL"
+    - tablename:
+        usage: "LABEL"
+    - total_bytes:
+        usage: "GAUGE"
+        description: "Total bytes (table + indexes + TOAST)"
+    - table_bytes:
+        usage: "GAUGE"
+        description: "Table-only bytes"
+    - indexes_bytes:
+        usage: "GAUGE"
+        description: "Indexes-only bytes"
+
+ichor_pgvector_index_health:
+  query: |
+    SELECT
+      i.indexrelname AS index_name,
+      pg_relation_size(i.indexrelid) AS bytes,
+      idx_scan AS scans
+    FROM pg_stat_user_indexes i
+    WHERE i.indexrelname LIKE '%hnsw%' OR i.indexrelname LIKE '%rag_chunks%'
+  metrics:
+    - index_name:
+        usage: "LABEL"
+    - bytes:
+        usage: "GAUGE"
+        description: "pgvector / RAG index size"
+    - scans:
+        usage: "COUNTER"
+        description: "Total index scans"
+
+ichor_collector_lag:
+  query: |
+    SELECT
+      'fred' AS collector, MAX(fetched_at) AS last_fetch FROM fred_observations UNION ALL
+    SELECT 'polygon_intraday', MAX(fetched_at) FROM polygon_intraday UNION ALL
+    SELECT 'polymarket', MAX(fetched_at) FROM polymarket_snapshots UNION ALL
+    SELECT 'kalshi', MAX(fetched_at) FROM kalshi_markets UNION ALL
+    SELECT 'gex_snapshots', MAX(captured_at) FROM gex_snapshots UNION ALL
+    SELECT 'couche2', MAX(ran_at) FROM couche2_outputs
+  metrics:
+    - collector:
+        usage: "LABEL"
+    - last_fetch:
+        usage: "GAUGE"
+        description: "Last fetch timestamp (epoch via Postgres TZ-aware → grafana converts)"

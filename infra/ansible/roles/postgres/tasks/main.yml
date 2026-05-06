@@ -41,7 +41,7 @@
       - "postgresql-contrib-{{ postgres_version }}"
       - "postgresql-server-dev-{{ postgres_version }}"
       - "timescaledb-2-postgresql-{{ postgres_version }}"
-      - python3-psycopg2  # required by community.postgresql.postgresql_ext
+      - python3-psycopg2 # required by community.postgresql.postgresql_ext
       - libreadline-dev
       - bison
       - flex
@@ -54,7 +54,7 @@
     --conf-path /etc/postgresql/{{ postgres_version }}/main/postgresql.conf
     --memory={{ postgres_shared_buffers }}
     --max-conns={{ postgres_max_connections }}
-  changed_when: false  # tune is idempotent
+  changed_when: false # tune is idempotent
   notify: Restart postgresql
 
 - name: Apply Ichor postgresql.conf overrides

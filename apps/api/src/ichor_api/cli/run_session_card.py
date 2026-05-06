@@ -27,7 +27,11 @@ from ..db import get_engine, get_sessionmaker
 log = structlog.get_logger(__name__)
 
 
-_VALID_SESSIONS = {"pre_londres", "pre_ny", "event_driven"}
+# 5 session windows aligned with run_session_cards_batch.py + the
+# SessionType Literal in ichor_brain. The drift between this set
+# and the batch set silently killed every ny_mid/ny_close run since
+# 2026-05-04 (cf SESSION_LOG_2026-05-06.md).
+_VALID_SESSIONS = {"pre_londres", "pre_ny", "ny_mid", "ny_close", "event_driven"}
 
 
 async def _run(asset: str, session_type: str, *, live: bool) -> int:

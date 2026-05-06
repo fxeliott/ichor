@@ -47,11 +47,7 @@ const trendDescription = (data: number[]): string => {
   const slope = last - first;
   const range = max - min;
   const dir =
-    range === 0 || Math.abs(slope) < range * 0.05
-      ? "stable"
-      : slope > 0
-        ? "haussier"
-        : "baissier";
+    range === 0 || Math.abs(slope) < range * 0.05 ? "stable" : slope > 0 ? "haussier" : "baissier";
   return `${dir}, de ${first.toFixed(2)} à ${last.toFixed(2)}, plage ${min.toFixed(2)}–${max.toFixed(2)}`;
 };
 
@@ -80,8 +76,16 @@ export const ChartCard: React.FC<ChartCardProps> = ({
   let refY: number | null = null;
 
   if (hasData) {
-    const yMin = Math.min(...data, ...(band ? [band.low] : []), ...(referenceY != null ? [referenceY] : []));
-    const yMax = Math.max(...data, ...(band ? [band.high] : []), ...(referenceY != null ? [referenceY] : []));
+    const yMin = Math.min(
+      ...data,
+      ...(band ? [band.low] : []),
+      ...(referenceY != null ? [referenceY] : []),
+    );
+    const yMax = Math.max(
+      ...data,
+      ...(band ? [band.high] : []),
+      ...(referenceY != null ? [referenceY] : []),
+    );
     const range = yMax - yMin || 1;
     yOf = (v: number) => PAD_Y + innerH - ((v - yMin) / range) * innerH;
     const xOf = (i: number) => PAD_X + (i / (data.length - 1)) * innerW;
@@ -107,7 +111,9 @@ export const ChartCard: React.FC<ChartCardProps> = ({
       <header className="flex items-baseline justify-between mb-2">
         <h3 className="text-sm font-medium text-[var(--color-ichor-text)]">{title}</h3>
         {caption && (
-          <span className="text-[11px] text-[var(--color-ichor-text-subtle)] font-mono">{caption}</span>
+          <span className="text-[11px] text-[var(--color-ichor-text-subtle)] font-mono">
+            {caption}
+          </span>
         )}
       </header>
 

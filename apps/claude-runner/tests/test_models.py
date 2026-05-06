@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import pytest
-from ichor_claude_runner.models import BriefingTaskRequest
+from ichor_claude_runner.models import AgentTaskRequest, BriefingTaskRequest
 from pydantic import ValidationError
 
 
@@ -54,3 +54,34 @@ def test_briefing_request_accepts_all_effort_levels() -> None:
             effort=effort,
         )
         assert req.effort == effort
+
+
+# ── AgentTaskRequest (ADR-021) ─────────────────────────────────────
+
+
+def test_agent_task_request_defaults() -> None:
+    req = AgentTaskRequest(system="some system prompt", prompt="some user prompt")
+    assert req.model == "sonnet"
+    assert req.effort == "medium"
+    assert req.task_id is not None
+
+
+def test_agent_task_request_rejects_empty_system() -> None:
+    with pytest.raises(ValidationError):
+        AgentTaskRequest(system="", prompt="x")
+
+
+def test_agent_task_request_rejects_empty_prompt() -> None:
+    with pytest.raises(ValidationError):
+        AgentTaskRequest(system="x", prompt="")
+
+
+def test_agent_task_request_rejects_bad_model() -> None:
+    with pytest.raises(ValidationError):
+        AgentTaskRequest(system="s", prompt="p", model="gpt-5")  # type: ignore[arg-type]
+
+
+def test_agent_task_request_accepts_all_models() -> None:
+    for m in ["opus", "sonnet", "haiku"]:
+        req = AgentTaskRequest(system="s", prompt="p", model=m)  # type: ignore[arg-type]
+        assert req.model == m

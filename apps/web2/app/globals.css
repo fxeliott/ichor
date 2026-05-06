@@ -1,0 +1,208 @@
+@import "tailwindcss";
+
+/*
+ * Ichor design tokens — Phase 2 redesign.
+ *
+ * Sources:
+ *   - docs/SPEC_V2_DESIGN.md §1 (surfaces, borders, text, spacing, radius,
+ *     shadow, motion, z-index)
+ *   - SPEC.md §14 OVERRIDES DESIGN §1.4 on bull/bear: vert #34D399 / rouge
+ *     #F87171 + mandatory `+/−` AND `▲/▼` redundancy. WCAG 1.4.1 is satisfied
+ *     by triple signal (color + sign + glyph), not by CVD-safe palette.
+ *
+ * Theme color is unified at #04070C across:
+ *   - app/layout.tsx viewport.themeColor
+ *   - public/manifest.webmanifest theme_color + background_color
+ *   - this CSS var --color-bg-base
+ *
+ * Bull/bear redundancy is enforced by the BiasIndicator component (NOT here)
+ * — color alone is forbidden on chiffrés affichages (lint rule planned).
+ */
+
+/* Tailwind v4 @theme inline binds CSS variables (next/font) into utilities
+ * like `font-sans`, `font-mono`, `font-serif`. */
+@theme inline {
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-jetbrains-mono);
+  --font-serif: var(--font-fraunces);
+}
+
+@theme {
+  /* ── Surfaces ─────────────────────────────────────────── */
+  --color-bg-base: #04070C;
+  --color-bg-surface: #0B1220;
+  --color-bg-elevated: #0F1828;
+  --color-bg-overlay: rgba(8, 10, 14, 0.72);
+
+  /* Legacy alias (for components migrating from apps/web/) */
+  --color-ichor-deep: var(--color-bg-base);
+
+  /* ── Borders ──────────────────────────────────────────── */
+  --color-border-subtle: rgba(255, 255, 255, 0.06);
+  --color-border-default: rgba(255, 255, 255, 0.10);
+  --color-border-strong: rgba(255, 255, 255, 0.18);
+
+  /* ── Text ─────────────────────────────────────────────── */
+  --color-text-primary: #E6EDF3;
+  --color-text-secondary: #A4ADBA;
+  --color-text-muted: #6E7785;
+
+  /* ── Bull/Bear (override §14) ─────────────────────────── */
+  --color-bull: #34D399;
+  --color-bull-deep: #047857;
+  --color-bear: #F87171;
+  --color-bear-deep: #B91C1C;
+  --color-neutral: #94A3B8;
+
+  /* ── Severity ─────────────────────────────────────────── */
+  --color-warn: #FFB000;
+  --color-alert: #DC267F;
+  --color-info: #06B6D4;
+  --color-critical: #EF4444;
+
+  /* ── Accents ──────────────────────────────────────────── */
+  --color-accent-cobalt: #3B82F6;
+  --color-accent-cobalt-bright: #60A5FA;
+  --color-accent-cobalt-deep: #1E40AF;
+  --color-accent-warm: #C15F3C;
+  --color-accent-violet: #785EF0;
+
+  /* ── Spacing scale (4px base) ────────────────────────── */
+  --spacing-0: 0;
+  --spacing-1: 1px;
+  --spacing-2: 4px;
+  --spacing-3: 8px;
+  --spacing-4: 12px;
+  --spacing-5: 16px;
+  --spacing-6: 20px;
+  --spacing-7: 24px;
+  --spacing-8: 32px;
+  --spacing-9: 40px;
+  --spacing-10: 48px;
+  --spacing-11: 64px;
+  --spacing-12: 96px;
+
+  /* ── Radius ───────────────────────────────────────────── */
+  --radius-none: 0;
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-full: 9999px;
+
+  /* ── Shadow ───────────────────────────────────────────── */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.40);
+  --shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.45);
+  --shadow-md: 0 6px 16px rgba(0, 0, 0, 0.50);
+  --shadow-lg: 0 16px 32px rgba(0, 0, 0, 0.55);
+  --shadow-glow-bull: 0 0 24px rgba(52, 211, 153, 0.25);
+  --shadow-glow-bear: 0 0 24px rgba(248, 113, 113, 0.25);
+  --shadow-glow-cobalt: 0 0 24px rgba(96, 165, 250, 0.30);
+
+  /* ── Motion ───────────────────────────────────────────── */
+  --duration-instant: 80ms;
+  --duration-fast: 150ms;
+  --duration-base: 220ms;
+  --duration-slow: 320ms;
+  --duration-cinematic: 500ms;
+
+  --ease-respond: cubic-bezier(0.2, 0, 0, 1);
+  --ease-enter: cubic-bezier(0, 0, 0.2, 1);
+  --ease-exit: cubic-bezier(0.4, 0, 1, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-snap: cubic-bezier(0.12, 0, 0.08, 1);
+
+  /* ── Z-index ──────────────────────────────────────────── */
+  --z-base: 0;
+  --z-sticky: 100;
+  --z-dropdown: 200;
+  --z-overlay: 300;
+  --z-modal-backdrop: 400;
+  --z-modal: 410;
+  --z-popover: 500;
+  --z-toast: 600;
+  --z-command: 700;
+  --z-debug: 9999;
+}
+
+/* ── Base ─────────────────────────────────────────────── */
+html,
+body {
+  height: 100%;
+  background: var(--color-bg-base);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: "ss01", "cv11";
+}
+
+body {
+  scrollbar-gutter: stable;
+}
+
+/* Tabular numerals on data-dense surfaces (DESIGN §1.2). */
+.font-mono,
+code,
+kbd,
+samp,
+[data-numeric] {
+  font-family: var(--font-mono);
+  font-feature-settings: "tnum", "zero";
+}
+
+.font-serif,
+[data-editorial] {
+  font-family: var(--font-serif);
+  font-optical-sizing: auto;
+}
+
+/* ── Selection ───────────────────────────────────────── */
+::selection {
+  background: rgba(59, 130, 246, 0.3);
+  color: var(--color-text-primary);
+}
+
+/* ── Focus ring (WCAG 2.4.7 + DESIGN §6) ─────────────── */
+:focus-visible {
+  outline: 2px solid var(--color-bull);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ── Reduced motion (WCAG 2.3.3 + DESIGN §6) ─────────── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ── Scrollbar (subtle, dark) ────────────────────────── */
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 5px;
+  transition: background var(--duration-base) var(--ease-respond);
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.08) transparent;
+}

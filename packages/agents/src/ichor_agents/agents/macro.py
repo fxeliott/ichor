@@ -3,7 +3,8 @@
 Produces structured output with directional bias + confidence per major
 macro driver. Consumed by the Bias Aggregator (Couche 3 ML).
 
-Provider chain: Cerebras → Groq → static fallback.
+Routing per ADR-021: Claude Sonnet 4.6 (primary, via runner) →
+Cerebras Llama 3.3-70B → Groq Llama 3.3-70B-versatile (last resort).
 """
 
 from __future__ import annotations
@@ -13,6 +14,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from ..claude_runner import ClaudeRunnerConfig
 from ..fallback import FallbackChain
 from ..providers import CEREBRAS, GROQ
 
@@ -66,4 +68,11 @@ def make_macro_chain() -> FallbackChain:
         providers=(CEREBRAS, GROQ),
         system_prompt=SYSTEM_PROMPT_MACRO,
         output_type=MacroAgentOutput,
+        # ADR-021 originally mapped this to Sonnet, but the Free-tier
+        # Cloudflare Tunnel between Hetzner and the Win11 runner caps
+        # request duration at ~100 s and Sonnet medium routinely runs
+        # 60-120 s on a 5 KB prompt. Haiku 4.5 is well under the budget
+        # (~30-40 s) and quality is sufficient for Couche-2 batch
+        # analysis. Revisit once the tunnel runs on a paid plan.
+        claude=ClaudeRunnerConfig.from_env(model="haiku", effort="low"),
     )

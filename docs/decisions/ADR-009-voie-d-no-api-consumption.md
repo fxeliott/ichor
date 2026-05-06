@@ -11,8 +11,8 @@ Earlier in the day I proposed creating an Anthropic Workspace API key
 the original Voie D architecture (`docs/ARCHITECTURE_FINALE.md`):
 
 > "je veux fonctionner full avec l'abonnement claude pro maxx20 que j'ai et
->  mon ordi localement tourne h24 et le serveur hetzner mais je veux pas
->  d'api avec des cout surprise donc voila"
+> mon ordi localement tourne h24 et le serveur hetzner mais je veux pas
+> d'api avec des cout surprise donc voila"
 
 Translation: 100% on the $200/mo Claude Max 20x flat subscription + local
 Win11 24/7 + Hetzner. **No usage-based API costs anywhere.**
@@ -21,19 +21,19 @@ Win11 24/7 + Hetzner. **No usage-based API costs anywhere.**
 
 ### Allowed cost surfaces
 
-| Service | Cost | Cap |
-|---------|------|-----|
-| Claude Max 20x | $200/mo flat | 5h rolling + weekly caps |
-| Hetzner CX32 (current) | ~€20/mo flat | none (fixed VM) |
-| Cloudflare R2 | $0/mo (free 10 GB) | hard limit at 10 GB until paid plan |
-| Cloudflare Pages | $0/mo (free) | 500 builds/mo, illimited bandwidth |
-| Cloudflare Tunnel | $0/mo (free) | unlimited |
-| GitHub | $0/mo (free private repos) | 2000 actions min/mo |
-| Cerebras free | $0/mo | **30 RPM hard cap** Llama 3.3-70B |
-| Groq free | $0/mo | **1000 RPD hard cap** (most models) |
-| Azure Speech free F0 | $0/mo | **5M chars/mo hard cap** Neural TTS |
-| OANDA Practice | $0/mo | rate limits, no overage cost |
-| FRED API | $0/mo | rate limits, no overage cost |
+| Service                | Cost                       | Cap                                 |
+| ---------------------- | -------------------------- | ----------------------------------- |
+| Claude Max 20x         | $200/mo flat               | 5h rolling + weekly caps            |
+| Hetzner CX32 (current) | ~€20/mo flat               | none (fixed VM)                     |
+| Cloudflare R2          | $0/mo (free 10 GB)         | hard limit at 10 GB until paid plan |
+| Cloudflare Pages       | $0/mo (free)               | 500 builds/mo, illimited bandwidth  |
+| Cloudflare Tunnel      | $0/mo (free)               | unlimited                           |
+| GitHub                 | $0/mo (free private repos) | 2000 actions min/mo                 |
+| Cerebras free          | $0/mo                      | **30 RPM hard cap** Llama 3.3-70B   |
+| Groq free              | $0/mo                      | **1000 RPD hard cap** (most models) |
+| Azure Speech free F0   | $0/mo                      | **5M chars/mo hard cap** Neural TTS |
+| OANDA Practice         | $0/mo                      | rate limits, no overage cost        |
+| FRED API               | $0/mo                      | rate limits, no overage cost        |
 
 **Total $200/mo + €20/mo Hetzner = ~$220/mo flat, no surprise costs.**
 
@@ -56,6 +56,7 @@ subprocess as Eliot's authenticated Claude Code → returns JSON to Hetzner.
 Quota consumed: Eliot's Max 20x (5h rolling + weekly caps).
 
 **Mitigations** (see ARCHITECTURE_FINALE risk table):
+
 - 4 grouped briefings/day (not 32 individual) — fits Max 20x easily
 - Fallback chain on Max throttle: Cerebras → Groq → static template
 - Power Plan never sleep + WoL on Win11

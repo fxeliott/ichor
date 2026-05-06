@@ -12,20 +12,23 @@
 ## Diagnosis
 
 ```sql
--- Brier score per model_family, last 7 days vs prior 14 days
+-- Brier score per model_family, last 7 days vs prior 14 days.
+-- Note: ADR-017 renamed `predictions_audit` to `session_card_audit`
+-- (one row per asset per session window) and `model_family` is now
+-- `model_id`. Update this query if you upgrade the runbook.
 WITH recent AS (
-  SELECT model_family, AVG(brier_contribution) AS brier_7d
-  FROM predictions_audit
+  SELECT model_id AS model_family, AVG(brier_contribution) AS brier_7d
+  FROM session_card_audit
   WHERE realized_at > now() - interval '7 days'
     AND brier_contribution IS NOT NULL
-  GROUP BY model_family
+  GROUP BY model_id
 ),
 baseline AS (
-  SELECT model_family, AVG(brier_contribution) AS brier_baseline
-  FROM predictions_audit
+  SELECT model_id AS model_family, AVG(brier_contribution) AS brier_baseline
+  FROM session_card_audit
   WHERE realized_at BETWEEN now() - interval '21 days' AND now() - interval '7 days'
     AND brier_contribution IS NOT NULL
-  GROUP BY model_family
+  GROUP BY model_id
 )
 SELECT r.model_family,
        r.brier_7d, b.brier_baseline,
@@ -35,6 +38,7 @@ ORDER BY pct_change DESC;
 ```
 
 Common causes (in order of likelihood):
+
 1. **Regime shift**: HMM state changed — models trained in regime 0 perform
    poorly in regime 2. Check `bias_signals.weights_snapshot` evolution.
 2. **Concept drift**: ADWIN already flagged it (RUNBOOK-XXX). Recalibrate.
@@ -46,6 +50,7 @@ Common causes (in order of likelihood):
 ## Recovery
 
 ### A. Recalibration (most common fix)
+
 1. Trigger a fresh isotonic fit using last 90d of realized outcomes:
    ```bash
    ssh ichor-hetzner
@@ -55,6 +60,7 @@ Common causes (in order of likelihood):
 3. If yes: keep new calibration. If no: investigate other causes.
 
 ### B. Reduce weight of degraded model in aggregator
+
 - If a single model is the outlier, drop its weight to 0 temporarily:
   ```python
   # In packages/ml/src/ichor_ml/bias_aggregator.py — config override
@@ -65,6 +71,7 @@ Common causes (in order of likelihood):
 - Re-train + re-test the bad model offline
 
 ### C. Regime-aware retraining
+
 - If the issue correlates with a regime change, partition the training data
   by HMM state and retrain per-regime ensembles (Phase 2+).
 

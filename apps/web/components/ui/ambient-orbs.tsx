@@ -18,10 +18,7 @@ export function AmbientOrbs({
   };
   const [c1, c2] = palette[variant];
   return (
-    <div
-      aria-hidden="true"
-      className="pointer-events-none absolute inset-0 overflow-hidden"
-    >
+    <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
       <div
         className="ichor-orb"
         style={{

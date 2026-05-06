@@ -29,16 +29,17 @@ export interface BiasBarProps {
 
 const clamp = (v: number, lo = -1, hi = 1) => Math.min(hi, Math.max(lo, v));
 
-const describeBias = (
-  b: number,
-  ci?: { low: number; high: number }
-): string => {
+const describeBias = (b: number, ci?: { low: number; high: number }): string => {
   const dir =
-    b > 0.4 ? "long fort" :
-    b > 0.1 ? "long faible" :
-    b < -0.4 ? "short fort" :
-    b < -0.1 ? "short faible" :
-    "neutre";
+    b > 0.4
+      ? "long fort"
+      : b > 0.1
+        ? "long faible"
+        : b < -0.4
+          ? "short fort"
+          : b < -0.1
+            ? "short faible"
+            : "neutre";
   const ciStr = ci
     ? `, intervalle crédible 80 % de ${ci.low.toFixed(2)} à ${ci.high.toFixed(2)}`
     : "";
@@ -61,9 +62,11 @@ export const BiasBar: React.FC<BiasBarProps> = ({
 
   // Color by sign + magnitude
   const color =
-    b > 0.4 ? "rgb(16 185 129)" : // emerald-500
-    b < -0.4 ? "rgb(239 68 68)" : // red-500
-    "rgb(115 115 115)";           // neutral-500
+    b > 0.4
+      ? "rgb(16 185 129)" // emerald-500
+      : b < -0.4
+        ? "rgb(239 68 68)" // red-500
+        : "rgb(115 115 115)"; // neutral-500
 
   return (
     <div
@@ -98,14 +101,7 @@ export const BiasBar: React.FC<BiasBarProps> = ({
         )}
 
         {/* Bias marker */}
-        <rect
-          x={xOf(b) - 2}
-          y="6"
-          width="4"
-          height="20"
-          rx="1"
-          fill={color}
-        />
+        <rect x={xOf(b) - 2} y="6" width="4" height="20" rx="1" fill={color} />
 
         {/* Tick marks at +/- 0.5 */}
         <line x1={xOf(-0.5)} y1="22" x2={xOf(-0.5)} y2="26" stroke="rgb(115 115 115)" />
@@ -119,7 +115,9 @@ export const BiasBar: React.FC<BiasBarProps> = ({
         style={{ width }}
       >
         <span>short</span>
-        <span>{b > 0.05 ? "▲" : b < -0.05 ? "▼" : "—"} {b.toFixed(2)}</span>
+        <span>
+          {b > 0.05 ? "▲" : b < -0.05 ? "▼" : "—"} {b.toFixed(2)}
+        </span>
         <span>long</span>
       </div>
     </div>

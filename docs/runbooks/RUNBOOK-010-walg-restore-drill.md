@@ -168,13 +168,13 @@ Save results in `docs/dr-tests/YYYY-Qn-walg-drill.md` with:
 
 ## Failure modes + recovery
 
-| Symptom | Likely cause | Action |
-|---|---|---|
-| `wal-g backup-fetch` 403 | R2 keys revoked | Rotate via SOPS, re-encrypt, redeploy |
-| `wal-g backup-fetch` 404 LATEST | No backup exists | Trigger `walg-basebackup.service`, retry |
-| WAL replay stuck on missing WAL | Gap in archive | Find last good WAL, restore to that point with `recovery_target_lsn` |
-| Postgres won't start after fetch | Permissions | `chown -R postgres:postgres /var/lib/postgresql/16/main && chmod 700 .` |
-| Data tables empty | Restored older basebackup before tables existed | Pick newer basebackup with `wal-g backup-fetch ... <BACKUP_NAME>` |
+| Symptom                          | Likely cause                                    | Action                                                                  |
+| -------------------------------- | ----------------------------------------------- | ----------------------------------------------------------------------- |
+| `wal-g backup-fetch` 403         | R2 keys revoked                                 | Rotate via SOPS, re-encrypt, redeploy                                   |
+| `wal-g backup-fetch` 404 LATEST  | No backup exists                                | Trigger `walg-basebackup.service`, retry                                |
+| WAL replay stuck on missing WAL  | Gap in archive                                  | Find last good WAL, restore to that point with `recovery_target_lsn`    |
+| Postgres won't start after fetch | Permissions                                     | `chown -R postgres:postgres /var/lib/postgresql/16/main && chmod 700 .` |
+| Data tables empty                | Restored older basebackup before tables existed | Pick newer basebackup with `wal-g backup-fetch ... <BACKUP_NAME>`       |
 
 ## Cost
 

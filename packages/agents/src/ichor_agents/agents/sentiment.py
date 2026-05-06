@@ -5,9 +5,10 @@ Reads AAII Sentiment Survey (weekly), Reddit /r/wallstreetbets +
 (pytrends watchlist) and produces a retail sentiment map + contrarian
 extreme flags + emerging themes.
 
-Per ADR-021, routes via Claude Haiku 4.5 (primary) with Cerebras
-fallback (Haiku is the cheapest premium model — fits the high-cadence
-6h budget).
+Routing : Claude Haiku 4.5 effort=low (ADR-021 + reaffirmed by
+ADR-023) primary, Cerebras + Groq high-volume fallback. Haiku is
+the cheapest premium model and fits the 6h cadence + the CF Free
+tunnel budget.
 """
 
 from __future__ import annotations
@@ -17,6 +18,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from ..claude_runner import ClaudeRunnerConfig
 from ..fallback import FallbackChain
 from ..providers import CEREBRAS, GROQ_HIGH_VOLUME
 
@@ -79,9 +81,11 @@ Hard rules:
 
 def make_sentiment_chain() -> FallbackChain:
     # Haiku-class budget: high-volume cadence (every 6h × ~50 inputs).
-    # Cerebras + Groq high-volume model fits the cost envelope.
+    # Claude Haiku primary per ADR-021; Cerebras + Groq high-volume
+    # model as fallback when the runner is down.
     return FallbackChain(
         providers=(CEREBRAS, GROQ_HIGH_VOLUME),
         system_prompt=SYSTEM_PROMPT_SENTIMENT,
         output_type=SentimentAgentOutput,
+        claude=ClaudeRunnerConfig.from_env(model="haiku", effort="low"),
     )

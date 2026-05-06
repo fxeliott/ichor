@@ -25,8 +25,9 @@ Verified 2026-05-02:
 ## Decision
 
 Bootstrap Ansible **on the Hetzner server itself** during Phase 0 cleanup
-+ first run. The Ansible control node and managed node are the same machine,
-running against `localhost` via the local connection plugin.
+
+- first run. The Ansible control node and managed node are the same machine,
+  running against `localhost` via the local connection plugin.
 
 Workflow:
 
@@ -64,7 +65,7 @@ A helper script lives at `scripts/run-ansible-on-hetzner.sh`.
 - **Inventory simplified** — `-i 'localhost,'` instead of dealing with SSH
   delegation across the network. No SSH-from-control-to-managed latency.
 - **Apt is faster on the server** (datacenter network) than `become: true`
-  + apt over SSH from Win11 residential.
+  - apt over SSH from Win11 residential.
 
 ### Cons
 

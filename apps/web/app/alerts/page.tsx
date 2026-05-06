@@ -45,9 +45,7 @@ interface PageProps {
 export default async function AlertsPage({ searchParams }: PageProps) {
   const params = await searchParams;
   const severity =
-    params.severity && params.severity !== "all"
-      ? (params.severity as AlertSeverity)
-      : undefined;
+    params.severity && params.severity !== "all" ? (params.severity as AlertSeverity) : undefined;
   const asset = params.asset?.trim().toUpperCase() || undefined;
   const unacknowledgedOnly = params.unack === "1";
 
@@ -62,11 +60,7 @@ export default async function AlertsPage({ searchParams }: PageProps) {
     });
   } catch (err) {
     error =
-      err instanceof ApiError
-        ? err.message
-        : err instanceof Error
-          ? err.message
-          : "unknown error";
+      err instanceof ApiError ? err.message : err instanceof Error ? err.message : "unknown error";
   }
 
   const counts = {
@@ -80,10 +74,14 @@ export default async function AlertsPage({ searchParams }: PageProps) {
       <header className="mb-6">
         <h1 className="text-2xl font-semibold text-[var(--color-ichor-text)] mb-1">Alertes</h1>
         <p className="text-sm text-[var(--color-ichor-text-muted)]">
-          33 types d'alertes (28 PLAN + 5 AUDIT_V2) déclenchés par l'engine
-          Hetzner. Crisis Mode = composite.
+          33 types d'alertes (28 PLAN + 5 AUDIT_V2) déclenchés par l'engine Hetzner. Crisis Mode =
+          composite.
         </p>
-        <div className="mt-3 flex items-center gap-3 text-xs" role="group" aria-label="Compteurs d'alertes par sévérité">
+        <div
+          className="mt-3 flex items-center gap-3 text-xs"
+          role="group"
+          aria-label="Compteurs d'alertes par sévérité"
+        >
           <span
             className="px-2 py-0.5 rounded bg-red-900/40 text-red-200 font-mono"
             aria-label={`${counts.critical} alerte${counts.critical !== 1 ? "s" : ""} critique${counts.critical !== 1 ? "s" : ""}`}
@@ -178,10 +176,7 @@ export default async function AlertsPage({ searchParams }: PageProps) {
       </form>
 
       {error ? (
-        <EmptyState
-          title="API injoignable"
-          description={`Détails techniques : ${error}`}
-        />
+        <EmptyState title="API injoignable" description={`Détails techniques : ${error}`} />
       ) : items.length === 0 ? (
         <EmptyState
           title="Aucune alerte"

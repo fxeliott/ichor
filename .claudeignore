@@ -1,0 +1,68 @@
+# What Claude Code should NOT read or grep through.
+# Nothing here is part of the Ichor source — it's vendored / generated /
+# scratch state. Excluding it keeps Glob and Grep fast and prevents
+# the LLM from being distracted by 4 vendored CLAUDE.md files inside
+# pydantic_ai's site-packages tree, etc.
+
+# Python venvs (each app has its own; tooling has yet another)
+.venv/
+.venv-tooling/
+**/.venv/
+**/.venv-tooling/
+**/__pycache__/
+**/*.pyc
+**/.pytest_cache/
+**/.mypy_cache/
+**/.ruff_cache/
+
+# Node / pnpm
+node_modules/
+**/node_modules/
+.pnpm-store/
+**/.pnpm-store/
+
+# Build output
+.next/
+**/.next/
+dist/
+**/dist/
+build/
+**/build/
+.turbo/
+**/.turbo/
+
+# IDE / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Local credentials / scratch (never read these)
+.env
+.env.local
+.env.*.local
+**/.env
+**/.env.local
+secrets/
+**/secrets/
+
+# Coverage / test artefacts
+coverage/
+**/coverage/
+.coverage
+htmlcov/
+
+# Phase 0 archives kept for traceability — don't read by default
+phase0-artifacts/
+docs/legal-archive/
+**/archive/
+
+# Cache and tasks
+.cache/
+**/.cache/
+
+# UV / pip stuff
+*.egg-info/
+**/*.egg-info/
+.uv/

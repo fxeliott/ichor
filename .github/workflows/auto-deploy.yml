@@ -1,0 +1,148 @@
+name: auto-deploy
+
+# Triggered on every push to main. Two parallel jobs:
+#   1. Cloudflare Pages — apps/web2 (frontend, public URL)
+#   2. Hetzner SSH      — apps/api (backend, behind CF Tunnel)
+#
+# Phase 2 Semaine 0 status:
+#   - Pages job: scaffolded; Cloudflare project must be created manually first
+#     and CLOUDFLARE_API_TOKEN + CLOUDFLARE_ACCOUNT_ID secrets configured.
+#   - Hetzner job: scaffolded; HETZNER_SSH_PRIVATE_KEY + HETZNER_HOST secrets
+#     must be configured (SPEC.md §2.2 #19).
+#
+# Until both sets of secrets are in place, this workflow is a no-op (each job
+# guards on the secret being non-empty).
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  deployments: write
+
+jobs:
+  pages-web2:
+    name: Deploy apps/web2 → Cloudflare Pages
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Guard on Cloudflare creds
+        id: guard
+        run: |
+          if [ -z "${{ secrets.CLOUDFLARE_API_TOKEN }}" ] || [ -z "${{ secrets.CLOUDFLARE_ACCOUNT_ID }}" ]; then
+            echo "::warning::CLOUDFLARE_API_TOKEN or CLOUDFLARE_ACCOUNT_ID missing — skipping Pages deploy"
+            echo "skip=true" >> $GITHUB_OUTPUT
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Setup Node 22
+        if: steps.guard.outputs.skip != 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Setup pnpm via Corepack
+        if: steps.guard.outputs.skip != 'true'
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.33.2 --activate
+
+      - name: Cache pnpm store
+        if: steps.guard.outputs.skip != 'true'
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/pnpm/store/v10
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: ${{ runner.os }}-pnpm-
+
+      - name: Install
+        if: steps.guard.outputs.skip != 'true'
+        run: pnpm install --frozen-lockfile
+
+      - name: Build apps/web2
+        if: steps.guard.outputs.skip != 'true'
+        run: pnpm --filter @ichor/web2 build
+
+      - name: Deploy to Cloudflare Pages
+        if: steps.guard.outputs.skip != 'true'
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          # Project name must exist in CF dashboard before first deploy.
+          # Phase D milestone: create `ichor-web2` Pages project.
+          command: pages deploy apps/web2/.next --project-name=ichor-web2 --branch=main
+
+  hetzner-api:
+    name: Deploy apps/api → Hetzner via SSH
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    needs: []
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Guard on Hetzner SSH creds
+        id: guard
+        run: |
+          if [ -z "${{ secrets.HETZNER_SSH_PRIVATE_KEY }}" ] || [ -z "${{ secrets.HETZNER_HOST }}" ]; then
+            echo "::warning::HETZNER_SSH_PRIVATE_KEY or HETZNER_HOST missing — skipping API deploy"
+            echo "skip=true" >> $GITHUB_OUTPUT
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Setup SSH
+        if: steps.guard.outputs.skip != 'true'
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.HETZNER_SSH_PRIVATE_KEY }}
+
+      - name: Add Hetzner to known_hosts
+        if: steps.guard.outputs.skip != 'true'
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ secrets.HETZNER_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Rsync apps/api + packages to Hetzner
+        if: steps.guard.outputs.skip != 'true'
+        run: |
+          rsync -az --delete \
+            --exclude='.venv' \
+            --exclude='__pycache__' \
+            --exclude='node_modules' \
+            --exclude='.next' \
+            apps/api/ \
+            ichor@${{ secrets.HETZNER_HOST }}:/opt/ichor/api/
+          rsync -az --delete \
+            --exclude='__pycache__' \
+            packages/ \
+            ichor@${{ secrets.HETZNER_HOST }}:/opt/ichor/packages/
+
+      - name: Reinstall venv + restart API
+        if: steps.guard.outputs.skip != 'true'
+        run: |
+          ssh ichor@${{ secrets.HETZNER_HOST }} <<'EOF'
+            set -euo pipefail
+            cd /opt/ichor/api
+            uv venv --clear
+            uv pip install -e ".[prod]"
+            sudo systemctl restart ichor-api
+            sleep 5
+            curl -fsS http://localhost:8000/healthz | head -10
+          EOF
+
+      - name: Smoke check via Cloudflare Tunnel
+        if: steps.guard.outputs.skip != 'true' && secrets.ICHOR_PROD_URL != ''
+        run: |
+          curl -fsS "${{ secrets.ICHOR_PROD_URL }}/healthz" | head -10

@@ -10,8 +10,7 @@ const nextConfig: NextConfig = {
   // from the server during SSR — not from the user's browser via the
   // public tunnel).
   async rewrites() {
-    const apiOrigin =
-      process.env["ICHOR_API_PROXY_TARGET"] ?? "http://127.0.0.1:8000";
+    const apiOrigin = process.env["ICHOR_API_PROXY_TARGET"] ?? "http://127.0.0.1:8000";
     return [
       { source: "/v1/:path*", destination: `${apiOrigin}/v1/:path*` },
       { source: "/healthz", destination: `${apiOrigin}/healthz` },

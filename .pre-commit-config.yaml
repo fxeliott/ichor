@@ -22,13 +22,13 @@ repos:
     rev: v5.0.0
     hooks:
       - id: trailing-whitespace
-        exclude: \.md$  # Markdown sometimes uses trailing 2-space for line break
+        exclude: \.md$ # Markdown sometimes uses trailing 2-space for line break
       - id: end-of-file-fixer
         exclude: phase0-artifacts/
       - id: check-yaml
         args: [--allow-multiple-documents]
       - id: check-json
-        exclude: tsconfig.*\.json$  # tsconfigs allow JSON-with-comments
+        exclude: tsconfig.*\.json$ # tsconfigs allow JSON-with-comments
       - id: check-toml
       - id: check-merge-conflict
       - id: check-added-large-files

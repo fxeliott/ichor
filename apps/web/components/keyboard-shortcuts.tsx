@@ -42,9 +42,7 @@ export const KeyboardShortcutsModal: React.FC = () => {
       // Don't fire when typing in inputs / textareas / contenteditable
       const target = e.target as HTMLElement;
       const inEditable =
-        target.tagName === "INPUT" ||
-        target.tagName === "TEXTAREA" ||
-        target.isContentEditable;
+        target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable;
       if (inEditable && e.key !== "Escape") return;
 
       if (e.key === "?" && !e.metaKey && !e.ctrlKey) {
@@ -127,9 +125,9 @@ export const KeyboardShortcutsModal: React.FC = () => {
             </div>
 
             <footer className="px-4 py-3 border-t border-[var(--color-ichor-border)] text-[11px] text-[var(--color-ichor-text-subtle)]">
-              Tip : <kbd className="ichor-kbd">G</kbd> puis{" "}
-              <kbd className="ichor-kbd">C</kbd> ouvre /confluence ; appuie{" "}
-              <kbd className="ichor-kbd">G</kbd> seul puis attends 1s pour annuler.
+              Tip : <kbd className="ichor-kbd">G</kbd> puis <kbd className="ichor-kbd">C</kbd> ouvre
+              /confluence ; appuie <kbd className="ichor-kbd">G</kbd> seul puis attends 1s pour
+              annuler.
             </footer>
           </motion.div>
         </motion.div>
@@ -138,13 +136,7 @@ export const KeyboardShortcutsModal: React.FC = () => {
   );
 };
 
-function Section({
-  title,
-  bindings,
-}: {
-  title: string;
-  bindings: Binding[];
-}) {
+function Section({ title, bindings }: { title: string; bindings: Binding[] }) {
   return (
     <div>
       <h3 className="text-[10px] uppercase tracking-wider text-[var(--color-ichor-text-faint)] font-mono mb-2">
@@ -152,13 +144,8 @@ function Section({
       </h3>
       <ul className="space-y-1.5">
         {bindings.map((b, i) => (
-          <li
-            key={i}
-            className="flex items-center justify-between gap-3 text-xs"
-          >
-            <span className="text-[var(--color-ichor-text-muted)]">
-              {b.label}
-            </span>
+          <li key={i} className="flex items-center justify-between gap-3 text-xs">
+            <span className="text-[var(--color-ichor-text-muted)]">{b.label}</span>
             <span className="flex items-center gap-1">
               {b.keys.map((k, j) => (
                 <kbd key={j} className="ichor-kbd">

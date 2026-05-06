@@ -97,9 +97,7 @@ export const revalidate = 30;
 export default async function HomePage() {
   const data = await loadDashboard();
 
-  const featuredCards = data.cards
-    .filter((c) => c.critic_verdict !== "blocked")
-    .slice(0, 3);
+  const featuredCards = data.cards.filter((c) => c.critic_verdict !== "blocked").slice(0, 3);
   const criticalAlerts = data.alerts.filter((a) => a.severity === "critical");
   const totalAlerts = data.alerts.length;
 
@@ -124,10 +122,19 @@ export default async function HomePage() {
         {/* HERO : title + best-opportunity */}
         <header className="ichor-fade-in" data-stagger="1">
           <p className="text-[11px] font-mono uppercase tracking-[0.2em] text-[var(--color-ichor-accent-bright)]">
-            ICHOR · {new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", timeZone: "Europe/Paris" })}
+            ICHOR ·{" "}
+            {new Date().toLocaleDateString("fr-FR", {
+              weekday: "long",
+              day: "numeric",
+              month: "long",
+              timeZone: "Europe/Paris",
+            })}
           </p>
           <h1 className="mt-1 text-3xl sm:text-4xl font-semibold tracking-tight text-[var(--color-ichor-text)]">
-            Météo macro <span className="bg-gradient-to-r from-[var(--color-ichor-accent-bright)] to-[var(--color-ichor-accent-muted)] bg-clip-text text-transparent">+ scénarios de session</span>
+            Météo macro{" "}
+            <span className="bg-gradient-to-r from-[var(--color-ichor-accent-bright)] to-[var(--color-ichor-accent-muted)] bg-clip-text text-transparent">
+              + scénarios de session
+            </span>
           </h1>
           <p className="mt-1 text-sm text-[var(--color-ichor-text-muted)]">
             8 actifs · 25 sections de données · 10 facteurs synthétisés · 22 vues spécialisées.
@@ -149,7 +156,9 @@ export default async function HomePage() {
           className="grid grid-cols-1 lg:grid-cols-[minmax(0,420px)_1fr] gap-4 ichor-fade-in"
           data-stagger="3"
         >
-          <h2 id="layer1-heading" className="sr-only">Vue macro courante</h2>
+          <h2 id="layer1-heading" className="sr-only">
+            Vue macro courante
+          </h2>
           <RegimeQuadrantWidget
             cards={data.cards.map((c) => ({ regime_quadrant: c.regime_quadrant }))}
           />
@@ -166,12 +175,10 @@ export default async function HomePage() {
         </section>
 
         {/* LAYER 2 : currency strength */}
-        <section
-          aria-labelledby="layer2-heading"
-          className="ichor-fade-in"
-          data-stagger="4"
-        >
-          <h2 id="layer2-heading" className="sr-only">Force des devises</h2>
+        <section aria-labelledby="layer2-heading" className="ichor-fade-in" data-stagger="4">
+          <h2 id="layer2-heading" className="sr-only">
+            Force des devises
+          </h2>
           <CurrencyStrengthWidget />
         </section>
 
@@ -197,12 +204,13 @@ export default async function HomePage() {
               </header>
               <ul className="grid gap-1.5">
                 {criticalAlerts.slice(0, 5).map((a) => (
-                  <li
-                    key={a.id}
-                    className="flex items-baseline justify-between gap-2 text-xs"
-                  >
+                  <li key={a.id} className="flex items-baseline justify-between gap-2 text-xs">
                     <span className="text-[var(--color-ichor-text)] truncate">
-                      {a.asset ? <span className="font-mono mr-2 text-[var(--color-ichor-text-muted)]">{a.asset.replace(/_/g, "/")}</span> : null}
+                      {a.asset ? (
+                        <span className="font-mono mr-2 text-[var(--color-ichor-text-muted)]">
+                          {a.asset.replace(/_/g, "/")}
+                        </span>
+                      ) : null}
                       {a.title}
                     </span>
                     <span className="text-[var(--color-ichor-text-subtle)] font-mono whitespace-nowrap">
@@ -216,16 +224,9 @@ export default async function HomePage() {
         ) : null}
 
         {/* LAYER 3 : Featured cards */}
-        <section
-          aria-labelledby="cards-heading"
-          className="ichor-fade-in"
-          data-stagger="5"
-        >
+        <section aria-labelledby="cards-heading" className="ichor-fade-in" data-stagger="5">
           <header className="flex items-baseline justify-between mb-3">
-            <h2
-              id="cards-heading"
-              className="text-lg font-semibold text-[var(--color-ichor-text)]"
-            >
+            <h2 id="cards-heading" className="text-lg font-semibold text-[var(--color-ichor-text)]">
               Cartes session récentes
             </h2>
             <Link
@@ -272,11 +273,7 @@ export default async function HomePage() {
 
         {/* Active alerts (warning if no critical) */}
         {totalAlerts > 0 && criticalAlerts.length === 0 ? (
-          <section
-            aria-labelledby="alerts-heading"
-            className="ichor-fade-in"
-            data-stagger="6"
-          >
+          <section aria-labelledby="alerts-heading" className="ichor-fade-in" data-stagger="6">
             <header className="flex items-baseline justify-between mb-3">
               <h2
                 id="alerts-heading"
@@ -305,11 +302,7 @@ export default async function HomePage() {
         ) : null}
 
         {/* Briefings strip — legacy */}
-        <section
-          aria-labelledby="briefings-heading"
-          className="ichor-fade-in"
-          data-stagger="6"
-        >
+        <section aria-labelledby="briefings-heading" className="ichor-fade-in" data-stagger="6">
           <header className="flex items-baseline justify-between mb-3">
             <h2
               id="briefings-heading"

@@ -40,14 +40,19 @@ export const AlertChip: React.FC<AlertChipProps> = ({
       } ${acknowledged ? "opacity-50" : ""}`}
       title={title ?? alertCode}
     >
-      <span className={`w-1.5 h-1.5 rounded-full ${SEVERITY_DOT[severity]} ${
-        severity === "critical" && !acknowledged ? "animate-pulse" : ""
-      }`} />
+      <span
+        className={`w-1.5 h-1.5 rounded-full ${SEVERITY_DOT[severity]} ${
+          severity === "critical" && !acknowledged ? "animate-pulse" : ""
+        }`}
+      />
       <span>{alertCode}</span>
       {onAcknowledge && !acknowledged && (
         <button
           type="button"
-          onClick={(e) => { e.stopPropagation(); onAcknowledge(); }}
+          onClick={(e) => {
+            e.stopPropagation();
+            onAcknowledge();
+          }}
           // WCAG 2.5.8 Target Size — 24x24 minimum.
           className="ml-1 inline-flex items-center justify-center w-6 h-6 -my-1 -mr-1 rounded text-[10px] opacity-70 hover:opacity-100 focus-visible:opacity-100"
           aria-label="Acquitter l'alerte"

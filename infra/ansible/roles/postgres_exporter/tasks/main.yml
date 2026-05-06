@@ -1,0 +1,97 @@
+---
+# postgres_exporter — Prometheus PostgreSQL metrics exporter.
+# Cf SPEC.md §2.2 #22 (postgres_exporter scrape config but no installer).
+#
+# Defaults (overridable via group_vars):
+#   postgres_exporter_version: "0.16.0"
+#   postgres_exporter_port: 9187
+#   postgres_exporter_user: postgres_exporter
+#   postgres_exporter_db_user: ichor_metrics  (read-only role)
+#   postgres_exporter_db_name: ichor
+
+- name: Ensure postgres_exporter user
+  ansible.builtin.user:
+    name: "{{ postgres_exporter_user }}"
+    system: true
+    create_home: false
+    shell: /usr/sbin/nologin
+
+- name: Ensure postgres_exporter directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ postgres_exporter_user }}"
+    group: "{{ postgres_exporter_user }}"
+    mode: "0750"
+  loop:
+    - /opt/postgres_exporter
+    - /etc/postgres_exporter
+
+- name: Download postgres_exporter binary
+  ansible.builtin.get_url:
+    url: "https://github.com/prometheus-community/postgres_exporter/releases/download/v{{ postgres_exporter_version }}/postgres_exporter-{{ postgres_exporter_version }}.linux-amd64.tar.gz"
+    dest: /tmp/postgres_exporter.tar.gz
+    checksum: "sha256:{{ postgres_exporter_sha256 }}"
+    mode: "0644"
+
+- name: Extract postgres_exporter
+  ansible.builtin.unarchive:
+    src: /tmp/postgres_exporter.tar.gz
+    dest: /opt/postgres_exporter/
+    remote_src: true
+    owner: "{{ postgres_exporter_user }}"
+    group: "{{ postgres_exporter_user }}"
+    extra_opts:
+      - "--strip-components=1"
+    creates: /opt/postgres_exporter/postgres_exporter
+
+- name: Symlink to /usr/local/bin
+  ansible.builtin.file:
+    src: /opt/postgres_exporter/postgres_exporter
+    dest: /usr/local/bin/postgres_exporter
+    state: link
+
+- name: Render env file (DATA_SOURCE_NAME)
+  ansible.builtin.template:
+    src: postgres_exporter.env.j2
+    dest: /etc/postgres_exporter/postgres_exporter.env
+    owner: "{{ postgres_exporter_user }}"
+    group: "{{ postgres_exporter_user }}"
+    mode: "0600" # contains DB password
+  notify: restart postgres_exporter
+  no_log: true
+
+- name: Render custom queries
+  ansible.builtin.copy:
+    src: queries.yml
+    dest: /etc/postgres_exporter/queries.yml
+    owner: "{{ postgres_exporter_user }}"
+    group: "{{ postgres_exporter_user }}"
+    mode: "0644"
+  notify: restart postgres_exporter
+
+- name: Install systemd unit
+  ansible.builtin.copy:
+    src: postgres_exporter.service
+    dest: /etc/systemd/system/postgres_exporter.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: restart postgres_exporter
+
+- name: Enable + start postgres_exporter
+  ansible.builtin.systemd:
+    name: postgres_exporter
+    enabled: true
+    state: started
+    daemon_reload: true
+
+- name: Wait for /metrics endpoint
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ postgres_exporter_port }}/metrics"
+    return_content: false
+    status_code: 200
+  register: metrics_probe
+  retries: 6
+  delay: 5
+  until: metrics_probe.status == 200

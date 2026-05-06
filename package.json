@@ -16,11 +16,13 @@
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev",
-    "lint": "turbo run lint",
+    "lint": "pnpm lint:eslint && pnpm format:check",
+    "lint:eslint": "eslint . --max-warnings 0",
+    "lint:packages": "turbo run lint",
     "test": "turbo run test",
     "typecheck": "turbo run typecheck",
-    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md,yml,yaml}\"",
-    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md,yml,yaml}\"",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,mjs,cjs,json,md,yml,yaml}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,mjs,cjs,json,md,yml,yaml}\"",
     "clean": "turbo run clean && rm -rf node_modules .turbo"
   },
   "devDependencies": {
@@ -28,7 +30,14 @@
     "typescript": "5.9.3",
     "prettier": "3.8.3",
     "eslint": "10.3.0",
-    "@types/node": "22.19.17"
+    "@eslint/js": "^9.18.0",
+    "@next/eslint-plugin-next": "15.5.15",
+    "@types/node": "22.19.17",
+    "eslint-plugin-jsx-a11y": "^6.10.2",
+    "eslint-plugin-react": "^7.37.4",
+    "eslint-plugin-react-hooks": "^5.1.0",
+    "globals": "^15.14.0",
+    "typescript-eslint": "^8.20.0"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

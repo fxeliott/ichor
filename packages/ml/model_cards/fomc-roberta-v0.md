@@ -51,4 +51,4 @@ score that drives:
 ## Aggregator weight
 
 Currently 0 (FOMC events are episodic, no rolling integration yet). Used as
-event-driven *signal* not steady-state probability contributor.
+event-driven _signal_ not steady-state probability contributor.

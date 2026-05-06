@@ -42,7 +42,7 @@ interface StatusOut {
 async function fetchStatus(): Promise<StatusOut> {
   const r = await fetch(
     `${process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000"}/v1/admin/status`,
-    { next: { revalidate: 30 }, headers: { Accept: "application/json" } }
+    { next: { revalidate: 30 }, headers: { Accept: "application/json" } },
   );
   if (!r.ok) throw new ApiError(`status ${r.status}`, r.status);
   return r.json() as Promise<StatusOut>;
@@ -91,8 +91,7 @@ export default async function AdminPage() {
           Admin · État opérationnel
         </h1>
         <p className="text-sm text-[var(--color-ichor-text-muted)] mt-1">
-          Compteurs DB live et stats des cartes récentes. Auto-refresh
-          toutes les 30s.
+          Compteurs DB live et stats des cartes récentes. Auto-refresh toutes les 30s.
         </p>
       </header>
 
@@ -109,11 +108,7 @@ export default async function AdminPage() {
           <section className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <Stat label="Cartes 24h" value={s.n_cards_24h} />
             <Stat label="Cartes (total)" value={s.n_cards_total} />
-            <Stat
-              label="Dernière carte"
-              value={fmtTime(s.last_card_at)}
-              mono={false}
-            />
+            <Stat label="Dernière carte" value={fmtTime(s.last_card_at)} mono={false} />
             <Stat
               label="Claude-runner"
               value={s.claude_runner_url ? "configuré" : "n/a"}
@@ -131,12 +126,8 @@ export default async function AdminPage() {
                 <thead className="bg-[var(--color-ichor-surface)]/60 text-[var(--color-ichor-text-muted)] text-xs">
                   <tr>
                     <th className="px-3 py-2 text-left font-medium">Table</th>
-                    <th className="px-3 py-2 text-right font-medium">
-                      Lignes
-                    </th>
-                    <th className="px-3 py-2 text-right font-medium">
-                      Dernière entrée
-                    </th>
+                    <th className="px-3 py-2 text-right font-medium">Lignes</th>
+                    <th className="px-3 py-2 text-right font-medium">Dernière entrée</th>
                     <th className="px-3 py-2 text-left font-medium">Âge</th>
                   </tr>
                 </thead>
@@ -186,24 +177,12 @@ export default async function AdminPage() {
                     <tr>
                       <th className="px-3 py-2 text-left font-medium">Actif</th>
                       <th className="px-3 py-2 text-right font-medium">Total</th>
-                      <th className="px-3 py-2 text-right font-medium">
-                        Approved
-                      </th>
-                      <th className="px-3 py-2 text-right font-medium">
-                        Amendments
-                      </th>
-                      <th className="px-3 py-2 text-right font-medium">
-                        Blocked
-                      </th>
-                      <th className="px-3 py-2 text-right font-medium">
-                        Avg dur (s)
-                      </th>
-                      <th className="px-3 py-2 text-right font-medium">
-                        Avg conv
-                      </th>
-                      <th className="px-3 py-2 text-right font-medium">
-                        Dernière
-                      </th>
+                      <th className="px-3 py-2 text-right font-medium">Approved</th>
+                      <th className="px-3 py-2 text-right font-medium">Amendments</th>
+                      <th className="px-3 py-2 text-right font-medium">Blocked</th>
+                      <th className="px-3 py-2 text-right font-medium">Avg dur (s)</th>
+                      <th className="px-3 py-2 text-right font-medium">Avg conv</th>
+                      <th className="px-3 py-2 text-right font-medium">Dernière</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -212,12 +191,8 @@ export default async function AdminPage() {
                         key={c.asset}
                         className="border-t border-[var(--color-ichor-border)] text-[var(--color-ichor-text)]"
                       >
-                        <td className="px-3 py-2 font-mono">
-                          {c.asset.replace(/_/g, "/")}
-                        </td>
-                        <td className="px-3 py-2 text-right font-mono">
-                          {c.n_total}
-                        </td>
+                        <td className="px-3 py-2 font-mono">{c.asset.replace(/_/g, "/")}</td>
+                        <td className="px-3 py-2 text-right font-mono">{c.n_total}</td>
                         <td className="px-3 py-2 text-right font-mono text-emerald-300">
                           {c.n_approved}
                         </td>

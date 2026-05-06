@@ -1,0 +1,23 @@
+# Next.js
+/.next/
+/out/
+
+# Production
+/build
+/dist
+
+# Misc
+*.pem
+.DS_Store
+.vercel
+.env*.local
+.turbo
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+# Testing
+/coverage
+/playwright-report
+/test-results

@@ -20,8 +20,10 @@ export const metadata: Metadata = {
   manifest: "/manifest.webmanifest",
 };
 
+// Single source of truth for theme color across manifest, viewport meta, and CSS var.
+// Matches --color-ichor-deep in app/globals.css (deepest navy in palette).
 export const viewport: Viewport = {
-  themeColor: "#070B14",
+  themeColor: "#04070C",
   colorScheme: "dark",
   width: "device-width",
   initialScale: 1,
@@ -52,11 +54,7 @@ const NAV: NavItem[] = [
   { href: "/learn", label: "Apprendre", group: "ops" },
 ];
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   const coreNav = NAV.filter((n) => n.group === "core");
   const macroNav = NAV.filter((n) => n.group === "macro");
   const opsNav = NAV.filter((n) => n.group === "ops");
@@ -79,15 +77,9 @@ export default function RootLayout({
         <DisclaimerBanner compact />
 
         <header className="sticky top-0 z-20 border-b border-[var(--color-ichor-border)] bg-[var(--color-ichor-deep)]/80 backdrop-blur-xl">
-          <div
-            className="max-w-7xl mx-auto px-4 py-3"
-            aria-label="Navigation principale"
-          >
+          <div className="max-w-7xl mx-auto px-4 py-3" aria-label="Navigation principale">
             <nav className="flex items-center gap-5">
-              <Link
-                href="/"
-                className="group flex items-center gap-2.5 transition"
-              >
+              <Link href="/" className="group flex items-center gap-2.5 transition">
                 {/* Animated I-mark with cobalt glow */}
                 <span className="relative inline-flex items-center justify-center w-8 h-8 rounded-md bg-gradient-to-br from-[var(--color-ichor-accent-deep)] to-[var(--color-ichor-accent)] ichor-glow">
                   <svg
@@ -105,12 +97,7 @@ export default function RootLayout({
                       strokeLinecap="round"
                       strokeLinejoin="round"
                     />
-                    <circle
-                      cx="21"
-                      cy="18"
-                      r="1.5"
-                      fill="currentColor"
-                    />
+                    <circle cx="21" cy="18" r="1.5" fill="currentColor" />
                   </svg>
                 </span>
                 <div className="flex flex-col leading-tight">
@@ -132,24 +119,15 @@ export default function RootLayout({
                     </Link>
                   </li>
                 ))}
-                <li
-                  aria-hidden="true"
-                  className="w-px h-4 bg-[var(--color-ichor-border)]"
-                />
+                <li aria-hidden="true" className="w-px h-4 bg-[var(--color-ichor-border)]" />
                 {macroNav.map((item) => (
                   <li key={item.href}>
-                    <Link
-                      href={item.href}
-                      className="ichor-nav-link text-xs"
-                    >
+                    <Link href={item.href} className="ichor-nav-link text-xs">
                       {item.label}
                     </Link>
                   </li>
                 ))}
-                <li
-                  aria-hidden="true"
-                  className="w-px h-4 bg-[var(--color-ichor-border)]"
-                />
+                <li aria-hidden="true" className="w-px h-4 bg-[var(--color-ichor-border)]" />
                 {opsNav.map((item) => (
                   <li key={item.href}>
                     <Link

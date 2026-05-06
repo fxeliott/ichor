@@ -37,7 +37,7 @@ export interface CrossAssetHeatmapProps {
 
 const directionTone = (
   direction: BiasDirection,
-  convictionPct: number
+  convictionPct: number,
 ): { bg: string; text: string; ring: string; arrow: string } => {
   // Conviction (0..95) drives intensity bucket.
   const c = Math.min(95, Math.max(0, convictionPct));
@@ -83,14 +83,9 @@ const directionTone = (
 
 const formatAsset = (a: string) => a.replace(/_/g, "/");
 
-export const CrossAssetHeatmap: React.FC<CrossAssetHeatmapProps> = ({
-  cards,
-}) => {
+export const CrossAssetHeatmap: React.FC<CrossAssetHeatmapProps> = ({ cards }) => {
   const focus = useRegimeStore((s) => s.focus);
-  const byAsset = React.useMemo(
-    () => new Map(cards.map((c) => [c.asset, c])),
-    [cards]
-  );
+  const byAsset = React.useMemo(() => new Map(cards.map((c) => [c.asset, c])), [cards]);
 
   return (
     <section
@@ -99,9 +94,7 @@ export const CrossAssetHeatmap: React.FC<CrossAssetHeatmapProps> = ({
     >
       <header className="mb-3 flex items-baseline justify-between gap-2">
         <div className="flex items-center gap-2">
-          <h2 className="text-sm font-semibold text-[var(--color-ichor-text)]">
-            Cross-asset
-          </h2>
+          <h2 className="text-sm font-semibold text-[var(--color-ichor-text)]">Cross-asset</h2>
           <span className="text-[10px] uppercase tracking-wider font-mono text-[var(--color-ichor-text-faint)]">
             biais × conviction
           </span>
@@ -110,15 +103,10 @@ export const CrossAssetHeatmap: React.FC<CrossAssetHeatmapProps> = ({
           couleur = direction · intensité = conviction
         </p>
       </header>
-      <div
-        className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2"
-        role="list"
-      >
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2" role="list">
         {ASSETS.map((meta, i) => {
           const card = byAsset.get(meta.code);
-          const matchesFocus = focus
-            ? card?.regime_quadrant === focus
-            : true;
+          const matchesFocus = focus ? card?.regime_quadrant === focus : true;
           if (!card) {
             return (
               <div
@@ -130,9 +118,7 @@ export const CrossAssetHeatmap: React.FC<CrossAssetHeatmapProps> = ({
                 <p className="text-[11px] font-mono text-[var(--color-ichor-text-muted)]">
                   {meta.display}
                 </p>
-                <p className="mt-0.5 text-[10px] text-[var(--color-ichor-text-faint)]">
-                  n/c
-                </p>
+                <p className="mt-0.5 text-[10px] text-[var(--color-ichor-text-faint)]">n/c</p>
               </div>
             );
           }
@@ -160,9 +146,7 @@ export const CrossAssetHeatmap: React.FC<CrossAssetHeatmapProps> = ({
                   "focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-ichor-accent)]",
                 ].join(" ")}
               >
-                <p className="text-[11px] font-mono opacity-90">
-                  {meta.display}
-                </p>
+                <p className="text-[11px] font-mono opacity-90">{meta.display}</p>
                 <p className="mt-0.5 text-base font-bold leading-none">
                   <span aria-hidden="true">{tone.arrow}</span>
                   <span className="ml-1">
@@ -170,9 +154,7 @@ export const CrossAssetHeatmap: React.FC<CrossAssetHeatmapProps> = ({
                     <span className="text-[10px] opacity-70">%</span>
                   </span>
                 </p>
-                <p className="mt-0.5 text-[10px] opacity-75">
-                  {magnitudeLabel}
-                </p>
+                <p className="mt-0.5 text-[10px] opacity-75">{magnitudeLabel}</p>
               </Link>
             </div>
           );

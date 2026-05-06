@@ -17,6 +17,7 @@ journalctl -u ichor-collector-polymarket --since "1 hour" --no-pager | tail -30
 ```
 
 Check Polymarket dev docs:
+
 - https://docs.polymarket.com/
 - WS endpoint historically: `wss://ws-subscriptions-clob.polymarket.com/ws/market`
 - REST historically: `https://gamma-api.polymarket.com/`

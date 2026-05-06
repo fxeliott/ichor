@@ -21,34 +21,34 @@ shown to a human must explicitly disclose AI generation**.
 
 ## Disclosure surfaces
 
-| Surface | Disclosure required | Implementation |
-|---|---|---|
-| Web dashboard | `<DisclaimerBanner />` always visible | `packages/ui/src/components/DisclaimerBanner.tsx` |
-| Briefing markdown | Persona-baked footer | `apps/claude-runner/.../personas/ichor.md` |
-| Audio (TTS) | Spoken prefix before content | `packages/agents/.../voice/tts.py` (TBD Phase 0 W4) |
-| Email export (Phase 1+) | HTML banner + text footer | TBD |
-| PDF export (Phase 2+) | Cover page + every-page footer | TBD |
-| API responses | Header `X-Ichor-AI-Generated: true` | TBD |
-| Push notifications (PWA) | Subject prefix `[IA]` | TBD |
+| Surface                  | Disclosure required                   | Implementation                                      |
+| ------------------------ | ------------------------------------- | --------------------------------------------------- |
+| Web dashboard            | `<DisclaimerBanner />` always visible | `packages/ui/src/components/DisclaimerBanner.tsx`   |
+| Briefing markdown        | Persona-baked footer                  | `apps/claude-runner/.../personas/ichor.md`          |
+| Audio (TTS)              | Spoken prefix before content          | `packages/agents/.../voice/tts.py` (TBD Phase 0 W4) |
+| Email export (Phase 1+)  | HTML banner + text footer             | TBD                                                 |
+| PDF export (Phase 2+)    | Cover page + every-page footer        | TBD                                                 |
+| API responses            | Header `X-Ichor-AI-Generated: true`   | TBD                                                 |
+| Push notifications (PWA) | Subject prefix `[IA]`                 | TBD                                                 |
 
 ## Canonical wording (French — the user's language)
 
 Long form (full screen, PDF cover, email body):
 
-> *« Contenu généré par intelligence artificielle (Claude, Anthropic),
+> _« Contenu généré par intelligence artificielle (Claude, Anthropic),
 > assemblé par la chaîne Ichor. Analyse non personnalisée à but informatif
 > uniquement. Ne constitue pas un conseil en investissement personnalisé au
 > sens de la position AMF DOC-2008-23. Vérifiez les sources avant toute
-> décision. »*
+> décision. »_
 
 Compact form (top bar, push subject, every-page footer):
 
-> *« Avis IA · Analyse non personnalisée · Pas un conseil en investissement (AMF DOC-2008-23) »*
+> _« Avis IA · Analyse non personnalisée · Pas un conseil en investissement (AMF DOC-2008-23) »_
 
 Audio prefix (spoken before every briefing):
 
-> *« Briefing Ichor généré par intelligence artificielle. Analyse non
-> personnalisée. »*
+> _« Briefing Ichor généré par intelligence artificielle. Analyse non
+> personnalisée. »_
 
 ## Hard rules (do not weaken without counsel sign-off)
 

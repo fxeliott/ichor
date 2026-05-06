@@ -21,10 +21,8 @@ const CHANNEL_LABELS: Record<LiveEvent["channel"], string> = {
 };
 
 const CHANNEL_COLORS: Record<LiveEvent["channel"], string> = {
-  "ichor:briefings:new":
-    "ichor-glass border-emerald-700/40 ichor-glow-emerald text-emerald-100",
-  "ichor:alerts:new":
-    "ichor-glass border-amber-700/40 text-amber-100",
+  "ichor:briefings:new": "ichor-glass border-emerald-700/40 ichor-glow-emerald text-emerald-100",
+  "ichor:alerts:new": "ichor-glass border-amber-700/40 text-amber-100",
   "ichor:bias:updated":
     "ichor-glass border-[var(--color-ichor-accent)]/40 ichor-glow text-[var(--color-ichor-text)]",
   "ichor:session_card:new":
@@ -81,13 +79,7 @@ function eventSummary(event: LiveEvent): string {
   return "";
 }
 
-function ToastChip({
-  event,
-  onDismiss,
-}: {
-  event: LiveEvent;
-  onDismiss: (id: string) => void;
-}) {
+function ToastChip({ event, onDismiss }: { event: LiveEvent; onDismiss: (id: string) => void }) {
   useEffect(() => {
     const t = setTimeout(() => onDismiss(event.localId), AUTO_DISMISS_MS);
     return () => clearTimeout(t);
@@ -121,8 +113,7 @@ function ToastChip({
   // Alerts use role="alert" (assertive) so SR users hear them right away.
   // Briefings + bias updates use role="status" (polite) — they're informative,
   // not interrupting.
-  const ariaRole: "alert" | "status" =
-    event.channel === "ichor:alerts:new" ? "alert" : "status";
+  const ariaRole: "alert" | "status" = event.channel === "ichor:alerts:new" ? "alert" : "status";
 
   const cls =
     "block w-72 rounded-lg border px-3 py-2 shadow-lg transition ichor-fade-in " +
@@ -150,7 +141,7 @@ export function LiveEventsToast() {
         dismissAll();
       }
     },
-    [events.length, dismissAll]
+    [events.length, dismissAll],
   );
   useEffect(() => {
     window.addEventListener("keydown", handleEscape);
@@ -160,12 +151,7 @@ export function LiveEventsToast() {
   return (
     <>
       {/* Connection status moved into header via StatusDot — keep this hidden status for accessibility only */}
-      <span
-        role="status"
-        aria-live="polite"
-        aria-atomic="true"
-        className="sr-only"
-      >
+      <span role="status" aria-live="polite" aria-atomic="true" className="sr-only">
         {connected ? "Live connecté" : "Live en reconnexion"}
       </span>
 

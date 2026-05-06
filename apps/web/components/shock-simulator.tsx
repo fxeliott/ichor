@@ -70,12 +70,8 @@ export interface ShockSimulatorProps {
   initialNodes: string[];
 }
 
-export const ShockSimulator: React.FC<ShockSimulatorProps> = ({
-  initialNodes,
-}) => {
-  const [shockNode, setShockNode] = React.useState<string>(
-    initialNodes[0] ?? "speaker:Powell"
-  );
+export const ShockSimulator: React.FC<ShockSimulatorProps> = ({ initialNodes }) => {
+  const [shockNode, setShockNode] = React.useState<string>(initialNodes[0] ?? "speaker:Powell");
   const [probability, setProbability] = React.useState<number>(1.0);
   const [result, setResult] = React.useState<ShockResponse | null>(null);
   const [loading, setLoading] = React.useState(false);
@@ -95,7 +91,7 @@ export const ShockSimulator: React.FC<ShockSimulatorProps> = ({
             shock_node: shockNode,
             shock_probability: probability,
           }),
-        }
+        },
       );
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       setResult((await r.json()) as ShockResponse);
@@ -113,9 +109,9 @@ export const ShockSimulator: React.FC<ShockSimulatorProps> = ({
           Simulateur de choc causal
         </h2>
         <p className="text-[11px] text-[var(--color-ichor-text-muted)] mt-1 max-w-2xl">
-          Choisis un nœud, fixe la probabilité du choc (0-1), et clique
-          Propage — la chaîne de transmission canonique propage l&apos;impact
-          via noisy-OR sur les arêtes pondérées du causal map.
+          Choisis un nœud, fixe la probabilité du choc (0-1), et clique Propage — la chaîne de
+          transmission canonique propage l&apos;impact via noisy-OR sur les arêtes pondérées du
+          causal map.
         </p>
       </header>
 

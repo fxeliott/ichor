@@ -112,8 +112,7 @@ const SOURCES: Source[] = [
     id: "kalshi",
     category: "Prediction markets",
     name: "Kalshi (CFTC-regulated)",
-    description:
-      "US-regulated event contracts. Volume-sorted top markets via /markets discovery.",
+    description: "US-regulated event contracts. Volume-sorted top markets via /markets discovery.",
     url: "https://kalshi.com",
     collector: "kalshi (discovery)",
     cadence: "on-demand polling",
@@ -225,7 +224,8 @@ const SOURCES: Source[] = [
 const STATUS_COLOR: Record<Source["status"], string> = {
   live: "bg-emerald-900/40 text-emerald-200 border-emerald-700/40",
   scaffold: "bg-amber-900/40 text-amber-200 border-amber-700/40",
-  deferred: "bg-[var(--color-ichor-surface-2)] text-[var(--color-ichor-text-muted)] border-[var(--color-ichor-border-strong)]/40",
+  deferred:
+    "bg-[var(--color-ichor-surface-2)] text-[var(--color-ichor-text-muted)] border-[var(--color-ichor-border-strong)]/40",
 };
 
 const CATEGORIES = Array.from(new Set(SOURCES.map((s) => s.category)));
@@ -236,10 +236,9 @@ export default function SourcesPage() {
       <header>
         <h1 className="text-2xl font-semibold text-[var(--color-ichor-text)]">Sources data</h1>
         <p className="text-sm text-[var(--color-ichor-text-muted)] mt-1 max-w-2xl">
-          Liste exhaustive des feeds upstream que Ichor poll. Chaque carte
-          session cite explicitement les sources qu&apos;elle utilise (FRED
-          series IDs, Polygon tickers, CFTC market codes, Polymarket slugs,
-          URLs news). Cliquez un nom pour vérifier la source à
+          Liste exhaustive des feeds upstream que Ichor poll. Chaque carte session cite
+          explicitement les sources qu&apos;elle utilise (FRED series IDs, Polygon tickers, CFTC
+          market codes, Polymarket slugs, URLs news). Cliquez un nom pour vérifier la source à
           l&apos;upstream.
         </p>
       </header>
@@ -253,7 +252,10 @@ export default function SourcesPage() {
         return (
           <section key={cat}>
             <h2 className="text-lg font-semibold text-[var(--color-ichor-text)] mb-3">
-              {cat} <span className="text-[var(--color-ichor-text-subtle)] text-sm">({items.length})</span>
+              {cat}{" "}
+              <span className="text-[var(--color-ichor-text-subtle)] text-sm">
+                ({items.length})
+              </span>
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {items.map((s) => (
@@ -310,9 +312,8 @@ export default function SourcesPage() {
 
       <footer className="border-t border-[var(--color-ichor-border)] pt-4">
         <p className="text-[11px] text-[var(--color-ichor-text-subtle)]">
-          Les sources hors upstream (modèles empiriques code-internes :
-          CB intervention probability, causal map canonique, surprise
-          index z-score proxy) sont documentées dans{" "}
+          Les sources hors upstream (modèles empiriques code-internes : CB intervention probability,
+          causal map canonique, surprise index z-score proxy) sont documentées dans{" "}
           <a
             href="/knowledge-graph"
             className="text-[var(--color-ichor-text-muted)] hover:text-emerald-300 underline"
@@ -329,9 +330,8 @@ export default function SourcesPage() {
           (compteurs DB live).
         </p>
         <p className="text-[11px] text-[var(--color-ichor-text-subtle)] italic mt-2">
-          Sprint pending : audit FlashAlpha key activation, snapshot du
-          data_pool per session_card pour reproductibilité, KalshiCategory
-          filter macro/politics only (drop sport markets).
+          Sprint pending : audit FlashAlpha key activation, snapshot du data_pool per session_card
+          pour reproductibilité, KalshiCategory filter macro/politics only (drop sport markets).
         </p>
       </footer>
     </div>

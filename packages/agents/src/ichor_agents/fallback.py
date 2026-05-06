@@ -2,18 +2,25 @@
 short-circuit on auth errors (which won't recover by retry).
 
 Used by the 5 Couche-2 agents (Macro, Sentiment, Positioning, CB-NLP, News-NLP).
+
+Per ADR-021, when `claude` is set on the chain, Claude (via the local
+runner) is tried FIRST and Cerebras/Groq only fire as fallback. The
+Claude path is a self-contained adapter (`claude_runner.call_agent_task`)
+that bypasses Pydantic AI Agent because the runner shells out to
+`claude -p` (Voie D) rather than speaking an OpenAI-compatible API.
 """
 
 from __future__ import annotations
 
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TypeVar
 
 import structlog
 from pydantic_ai import Agent
 from pydantic_ai.exceptions import ModelHTTPError, UserError
 
+from .claude_runner import ClaudeRunnerConfig, ClaudeRunnerError, call_agent_task
 from .providers import MissingCredentials, ProviderConfig, build_model
 
 log = structlog.get_logger(__name__)
@@ -34,10 +41,20 @@ class AllProvidersFailed(RuntimeError):
 @dataclass
 class FallbackChain:
     providers: Sequence[ProviderConfig]
-    """Order matters: first = primary, last = last resort."""
+    """Order matters: first = primary, last = last resort.
+    When `claude` is set, Claude is tried before this list."""
 
     system_prompt: str
     output_type: type | None = None  # Pydantic AI structured output type if any
+
+    claude: ClaudeRunnerConfig | None = None
+    """ADR-021 primary brain. None = skip Claude path entirely (test
+    mode, or runner not configured in this env)."""
+
+    last_success: str | None = field(default=None, init=False, repr=False)
+    """Provider:model string of whichever path returned successfully on
+    the most recent run() call. Read this AFTER run() to log/persist
+    accurate provenance. None when the chain has not yet succeeded."""
 
     async def run(
         self,
@@ -45,12 +62,32 @@ class FallbackChain:
         *,
         run_kwargs: dict | None = None,
     ) -> str | T:
-        """Try each provider in order until one returns successfully.
+        """Try Claude first (if configured), then each fallback provider
+        in order until one returns successfully.
 
         Returns the agent output (str or structured Pydantic model).
         Raises AllProvidersFailed if every provider errors.
         """
         attempts: list[tuple[str, Exception]] = []
+        self.last_success = None
+
+        if self.claude is not None:
+            try:
+                result = await call_agent_task(
+                    self.claude,
+                    system=self.system_prompt,
+                    prompt=user_prompt,
+                    output_type=self.output_type,
+                )
+                self.last_success = f"claude:{self.claude.model}"
+                return result
+            except ClaudeRunnerError as e:
+                log.warning(
+                    "agents.fallback.claude_failed",
+                    error=str(e)[:300],
+                    error_type=type(e).__name__,
+                )
+                attempts.append(("claude", e))
 
         for cfg in self.providers:
             try:
@@ -84,6 +121,7 @@ class FallbackChain:
                     model=cfg.default_model,
                     usage=result.usage().__dict__ if result.usage() else None,
                 )
+                self.last_success = f"{cfg.name}:{cfg.default_model}"
                 return result.output
 
             except (ModelHTTPError, UserError) as e:

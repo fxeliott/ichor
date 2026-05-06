@@ -15,11 +15,7 @@ import { CounterfactualButton } from "../../../components/counterfactual-button"
 export const dynamic = "force-dynamic";
 export const revalidate = 30;
 
-export async function generateMetadata({
-  params,
-}: {
-  params: Promise<{ asset: string }>;
-}) {
+export async function generateMetadata({ params }: { params: Promise<{ asset: string }> }) {
   const { asset } = await params;
   return { title: `Sessions · ${asset.replace(/_/g, "/")}` };
 }
@@ -43,11 +39,7 @@ export default async function AssetSessionsPage({
     total = out.total;
   } catch (err) {
     error =
-      err instanceof ApiError
-        ? err.message
-        : err instanceof Error
-          ? err.message
-          : "unknown error";
+      err instanceof ApiError ? err.message : err instanceof Error ? err.message : "unknown error";
   }
   // Intraday bars are best-effort — the chart degrades gracefully on error.
   try {
@@ -92,9 +84,7 @@ export default async function AssetSessionsPage({
             <span aria-hidden="true">▶</span>
             <span>Replay temporel</span>
           </Link>
-          {latest && (
-            <CounterfactualButton cardId={latest.id} asset={asset} />
-          )}
+          {latest && <CounterfactualButton cardId={latest.id} asset={asset} />}
         </div>
       </header>
 
@@ -114,9 +104,7 @@ export default async function AssetSessionsPage({
       {latest ? <LatestDetail card={latest} /> : null}
 
       <section className="mt-8">
-        <h2 className="text-lg font-semibold text-[var(--color-ichor-text)] mb-3">
-          Historique
-        </h2>
+        <h2 className="text-lg font-semibold text-[var(--color-ichor-text)] mb-3">Historique</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {cards.map((card) => (
             <SessionCardUI
@@ -134,8 +122,8 @@ export default async function AssetSessionsPage({
           ))}
           {cards.length === 0 && !error ? (
             <p className="text-sm text-[var(--color-ichor-text-subtle)] col-span-full">
-              Aucune carte générée pour cet actif. Le pipeline 4-pass démarre
-              à la prochaine fenêtre de session.
+              Aucune carte générée pour cet actif. Le pipeline 4-pass démarre à la prochaine fenêtre
+              de session.
             </p>
           ) : null}
         </div>
@@ -143,7 +131,6 @@ export default async function AssetSessionsPage({
     </div>
   );
 }
-
 
 function LatestDetail({ card }: { card: SessionCard }) {
   return (
@@ -184,9 +171,7 @@ function LatestDetail({ card }: { card: SessionCard }) {
                   <br />
                   <span>{c.event}</span>
                   {c.expected_impact ? (
-                    <span className="ml-1 text-xs text-amber-300">
-                      ({c.expected_impact})
-                    </span>
+                    <span className="ml-1 text-xs text-amber-300">({c.expected_impact})</span>
                   ) : null}
                 </li>
               ))}
@@ -252,8 +237,7 @@ function LatestDetail({ card }: { card: SessionCard }) {
           <ul className="list-disc list-inside space-y-1">
             {card.critic_findings.slice(0, 5).map((f, i) => (
               <li key={i}>
-                <span className="opacity-80">{f.severity ?? "info"} :</span>{" "}
-                {f.reason}
+                <span className="opacity-80">{f.severity ?? "info"} :</span> {f.reason}
               </li>
             ))}
           </ul>
@@ -263,14 +247,7 @@ function LatestDetail({ card }: { card: SessionCard }) {
   );
 }
 
-
-function DetailBlock({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
+function DetailBlock({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div>
       <h3 className="text-sm font-semibold text-[var(--color-ichor-text)] mb-2">{title}</h3>
@@ -278,7 +255,6 @@ function DetailBlock({
     </div>
   );
 }
-
 
 function Empty() {
   return <p className="text-xs text-[var(--color-ichor-text-subtle)]">Aucune entrée.</p>;

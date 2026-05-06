@@ -1,0 +1,23 @@
+[Unit]
+Description=Prometheus PostgreSQL Exporter
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=postgres_exporter
+Group=postgres_exporter
+WorkingDirectory=/opt/postgres_exporter
+EnvironmentFile=/etc/postgres_exporter/postgres_exporter.env
+ExecStart=/usr/local/bin/postgres_exporter
+Restart=on-failure
+RestartSec=5
+
+# Sandboxing
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

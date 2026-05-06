@@ -45,9 +45,7 @@ async function loadAll(): Promise<AssetRow[]> {
       code: meta.code,
       display: meta.display,
       data:
-        cr && cr.status === "fulfilled"
-          ? (cr as PromiseFulfilledResult<Confluence>).value
-          : null,
+        cr && cr.status === "fulfilled" ? (cr as PromiseFulfilledResult<Confluence>).value : null,
       history:
         hr && hr.status === "fulfilled"
           ? (hr as PromiseFulfilledResult<ConfluenceHistory>).value
@@ -88,12 +86,15 @@ export default async function ConfluencePage() {
               Confluence engine · 10 facteurs
             </p>
             <h1 className="text-3xl font-semibold tracking-tight text-[var(--color-ichor-text)]">
-              Synthèse <span className="bg-gradient-to-r from-[var(--color-ichor-accent-bright)] to-[var(--color-ichor-accent-muted)] bg-clip-text text-transparent">multi-actifs</span>
+              Synthèse{" "}
+              <span className="bg-gradient-to-r from-[var(--color-ichor-accent-bright)] to-[var(--color-ichor-accent-muted)] bg-clip-text text-transparent">
+                multi-actifs
+              </span>
             </h1>
             <p className="text-sm text-[var(--color-ichor-text-muted)] mt-1.5 max-w-2xl">
-              Score 0-100 par direction · 10 facteurs (rate diff, COT, OFI,
-              daily levels, polymarket, funding stress, surprise index, VIX
-              term, risk appetite, BTC risk-proxy) · sparkline 30j à droite.
+              Score 0-100 par direction · 10 facteurs (rate diff, COT, OFI, daily levels,
+              polymarket, funding stress, surprise index, VIX term, risk appetite, BTC risk-proxy) ·
+              sparkline 30j à droite.
             </p>
           </div>
           <Link
@@ -104,51 +105,43 @@ export default async function ConfluencePage() {
           </Link>
         </header>
 
-      <div className="overflow-x-auto ichor-glass rounded-xl ichor-fade-in" data-stagger="2">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="text-left text-xs uppercase text-[var(--color-ichor-text-muted)] border-b border-[var(--color-ichor-border)]">
-              <th className="px-4 py-3 font-semibold">Actif</th>
-              <th className="px-4 py-3 font-semibold">Dominante</th>
-              <th className="px-4 py-3 font-semibold text-right">Long</th>
-              <th className="px-4 py-3 font-semibold text-right">Short</th>
-              <th className="px-4 py-3 font-semibold text-right">Confluences</th>
-              <th className="px-4 py-3 font-semibold">30j</th>
-              <th className="px-4 py-3 font-semibold">Top driver</th>
-              <th className="px-4 py-3 font-semibold text-right">Action</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-[var(--color-ichor-border)]">
-            {sorted.map((row, i) => (
-              <AssetConfluenceRow key={row.code} row={row} stagger={i + 1} />
-            ))}
-          </tbody>
-        </table>
-      </div>
+        <div className="overflow-x-auto ichor-glass rounded-xl ichor-fade-in" data-stagger="2">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-xs uppercase text-[var(--color-ichor-text-muted)] border-b border-[var(--color-ichor-border)]">
+                <th className="px-4 py-3 font-semibold">Actif</th>
+                <th className="px-4 py-3 font-semibold">Dominante</th>
+                <th className="px-4 py-3 font-semibold text-right">Long</th>
+                <th className="px-4 py-3 font-semibold text-right">Short</th>
+                <th className="px-4 py-3 font-semibold text-right">Confluences</th>
+                <th className="px-4 py-3 font-semibold">30j</th>
+                <th className="px-4 py-3 font-semibold">Top driver</th>
+                <th className="px-4 py-3 font-semibold text-right">Action</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[var(--color-ichor-border)]">
+              {sorted.map((row, i) => (
+                <AssetConfluenceRow key={row.code} row={row} stagger={i + 1} />
+              ))}
+            </tbody>
+          </table>
+        </div>
 
-      <p className="mt-4 text-xs text-[var(--color-ichor-text-subtle)] leading-snug">
-        Les scores ≥ 60 + écart ≥ 5pts vs l&apos;autre direction donnent une
-        dominante non-neutre. Le nombre de confluences est le nombre de
-        drivers contribuant {`>|0.2|`} dans la direction dominante.
-      </p>
+        <p className="mt-4 text-xs text-[var(--color-ichor-text-subtle)] leading-snug">
+          Les scores ≥ 60 + écart ≥ 5pts vs l&apos;autre direction donnent une dominante non-neutre.
+          Le nombre de confluences est le nombre de drivers contribuant {`>|0.2|`} dans la direction
+          dominante.
+        </p>
       </main>
     </div>
   );
 }
 
-function AssetConfluenceRow({
-  row,
-  stagger,
-}: {
-  row: AssetRow;
-  stagger: number;
-}) {
+function AssetConfluenceRow({ row, stagger }: { row: AssetRow; stagger: number }) {
   if (!row.data) {
     return (
       <tr>
-        <td className="px-4 py-3 font-mono text-[var(--color-ichor-text)]">
-          {row.display}
-        </td>
+        <td className="px-4 py-3 font-mono text-[var(--color-ichor-text)]">{row.display}</td>
         <td colSpan={6} className="px-4 py-3 text-xs ichor-text-short">
           {row.error ?? "indisponible"}
         </td>
@@ -180,9 +173,7 @@ function AssetConfluenceRow({
       className="hover:bg-[var(--color-ichor-surface-2)]/40 transition ichor-fade-in"
       data-stagger={Math.min(6, stagger)}
     >
-      <td className="px-4 py-3 font-mono text-[var(--color-ichor-text)]">
-        {row.display}
-      </td>
+      <td className="px-4 py-3 font-mono text-[var(--color-ichor-text)]">{row.display}</td>
       <td className="px-4 py-3">
         <span
           className={`inline-flex rounded border px-2 py-0.5 text-[10px] uppercase font-mono ${domClass}`}
@@ -197,7 +188,8 @@ function AssetConfluenceRow({
         <ScorePill score={c.score_short} kind="short" />
       </td>
       <td className="px-4 py-3 text-right font-mono text-[var(--color-ichor-text-muted)]">
-        {c.confluence_count} <span className="text-[var(--color-ichor-text-faint)]">/ {c.drivers.length}</span>
+        {c.confluence_count}{" "}
+        <span className="text-[var(--color-ichor-text-faint)]">/ {c.drivers.length}</span>
       </td>
       <td className="px-4 py-3">
         <ConfluenceSparkline history={row.history} />
@@ -259,9 +251,7 @@ function ScorePill({ score, kind }: { score: number; kind: "long" | "short" }) {
           ? shortMid
           : shortLow;
   return (
-    <span
-      className={`inline-block min-w-[3rem] rounded font-mono px-2 py-0.5 text-xs ${cls}`}
-    >
+    <span className={`inline-block min-w-[3rem] rounded font-mono px-2 py-0.5 text-xs ${cls}`}>
       {score.toFixed(0)}
     </span>
   );

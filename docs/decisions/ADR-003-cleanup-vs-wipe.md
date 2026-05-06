@@ -7,6 +7,7 @@
 ## Context
 
 `docs/ARCHITECTURE_FINALE.md` Phase 0 Week 1 steps 2-3:
+
 > 2. Backup Hetzner pre-wipe (Langfuse + n8n + /etc + clés)
 > 3. Wipe + réinstall Ubuntu 24.04 LTS
 

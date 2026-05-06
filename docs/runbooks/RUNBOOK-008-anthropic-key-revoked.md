@@ -1,7 +1,7 @@
 # RUNBOOK-008: Anthropic Max 20x banned / Claude CLI revoked
 
 - **Severity**: P0 if Couche-1 briefings are user-visible critical
-                 (otherwise P1 — fallback chain runs degraded mode)
+  (otherwise P1 — fallback chain runs degraded mode)
 - **Last reviewed**: 2026-05-02
 - **Time to resolve (target)**: 30 min to fallback fully active
 
@@ -16,23 +16,29 @@
 ## Immediate actions (first 5 min)
 
 1. **Confirm the scope** — is it the OAuth session or the account itself?
+
    ```bash
    ssh ichor-hetzner
    curl -H "CF-Access-Client-Id: ..." -H "CF-Access-Client-Secret: ..." \
      https://<TUNNEL-UUID>.cfargotunnel.com/v1/usage | jq
    ```
+
    Then on Win11:
+
    ```powershell
    claude auth status
    claude -p "ping" --model haiku
    ```
 
 2. **Try a re-login first** (recoverable):
+
    ```powershell
    claude auth logout
    claude auth login --claudeai
    ```
+
    Then re-test. If it works, restart the service:
+
    ```powershell
    Restart-Service IchorClaudeRunner
    ```
@@ -58,11 +64,13 @@ static template          ←  last resort (timestamp + alerts list, no analysis)
 ### Implementation steps
 
 1. **Verify Cerebras + Groq keys are decryptable** on Hetzner:
+
    ```bash
    ssh ichor-hetzner
    SOPS_AGE_KEY_FILE=/etc/sops/age/key.txt sops --decrypt /root/infra/secrets/cerebras.env | grep CEREBRAS_API_KEY
    SOPS_AGE_KEY_FILE=/etc/sops/age/key.txt sops --decrypt /root/infra/secrets/groq.env | grep GROQ_API_KEY
    ```
+
    If either is empty: regenerate at https://cloud.cerebras.ai or https://console.groq.com (5 min each).
 
 2. **Toggle the briefing CLI to fallback mode**:
@@ -71,6 +79,7 @@ static template          ←  last resort (timestamp + alerts list, no analysis)
    `fallback.py` (Cerebras → Groq).
 
    Set the env var:
+
    ```bash
    sudo systemctl edit ichor-briefing@.service
    # Add:
@@ -80,6 +89,7 @@ static template          ←  last resort (timestamp + alerts list, no analysis)
    ```
 
 3. **Trigger a manual briefing** to validate Couche-2 fallback works:
+
    ```bash
    sudo systemctl start ichor-briefing@pre_londres.service
    sudo journalctl -u ichor-briefing@pre_londres.service -f

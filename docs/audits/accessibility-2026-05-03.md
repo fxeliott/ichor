@@ -18,7 +18,7 @@ Severity legend:
 ## Summary
 
 | Severity | Count |
-|----------|-------|
+| -------- | ----- |
 | BLOCKER  | 4     |
 | HIGH     | 8     |
 | MEDIUM   | 7     |
@@ -38,6 +38,7 @@ The codebase is in **good shape on the basics** (lang="fr", :focus-visible outli
 ## BLOCKER — 4 findings
 
 ### B1 — text-neutral-600 body text fails contrast 4.5:1
+
 **WCAG 2.2 SC 1.4.3 (Contrast Minimum)** — measured **2.53:1** against #0a0a0b, required ≥ 4.5:1.
 
 Affected (non-exhaustive):
@@ -75,6 +76,7 @@ Affected (non-exhaustive):
 ---
 
 ### B2 — Briefing-list status badge & alert-row meta rely on raw English keyword + color only
+
 **WCAG 2.2 SC 1.1.1 (Non-text Content), SC 1.4.1 (Use of Color), SC 3.1.1 (Language of Page = fr)**
 
 The page is declared lang="fr", but the content surfaces machine values straight from the API:
@@ -108,10 +110,8 @@ const STATUS_LABELS: Record<Briefing["status"], string> = {
 ```tsx
 // apps/web/app/briefings/page.tsx:149-160 — apply the same map + use the
 // shared TYPE_LABELS for briefing_type:
-- <span className="font-mono text-sm text-neutral-200">{b.briefing_type}</span>
-+ <span className="font-mono text-sm text-neutral-200">
-+   {TYPE_LABELS[b.briefing_type]}
-+ </span>
+-(<span className="font-mono text-sm text-neutral-200">{b.briefing_type}</span>) +
+<span className="font-mono text-sm text-neutral-200">+ {TYPE_LABELS[b.briefing_type]}+ </span>;
 ```
 
 ```tsx
@@ -132,6 +132,7 @@ const STATUS_LABELS: Record<Briefing["status"], string> = {
 ---
 
 ### B3 — LiveEventsToast is invisible to screen readers + has no keyboard escape
+
 **WCAG 2.2 SC 4.1.3 (Status Messages), SC 2.1.1 (Keyboard), SC 2.1.2 (No Keyboard Trap acceptable but no exit), SC 2.5.3 (Label in Name)**
 
 apps/web/app/live-events-toast.tsx:135 renders the floating stack with no live region:
@@ -202,6 +203,7 @@ Also add sr-only utility to Tailwind if not present (Tailwind v4 ships it by def
 ---
 
 ### B4 — Asset cards: nested interactive elements + duplicated accessible name
+
 **WCAG 2.2 SC 4.1.2 (Name, Role, Value), SC 2.4.4 (Link Purpose)**
 
 Pattern used in apps/web/app/page.tsx:171-186, apps/web/app/assets/page.tsx:99-114:
@@ -254,6 +256,7 @@ Also: text inside the SR badge should be French. The chart aria-label="${title} 
 ## HIGH — 8 findings
 
 ### H1 — No "skip to main content" link
+
 **WCAG 2.2 SC 2.4.1 (Bypass Blocks)**
 
 The layout has a sticky <header> with 4 nav items and a logo before {children}. Keyboard users have to Tab through 5+ links on every page load.
@@ -279,6 +282,7 @@ Note: every page <main> already exists at the top of children, so wrapping the c
 ---
 
 ### H2 — BiasBar / ConfidenceMeter ARIA labels are mathematically opaque
+
 **WCAG 2.2 SC 1.1.1, SC 1.3.1**
 
 packages/ui/src/components/BiasBar.tsx:53 — aria-label="Directional bias 0.42". A SR user has zero context to interpret 0.42. Same for ConfidenceMeter.tsx:48 — aria-label="Probability 38%" — no indication of what that probability is OF.
@@ -331,6 +335,7 @@ aria-label={
 ---
 
 ### H3 — ChartCard sparkline conveys trend by colour line only, no text alternative
+
 **WCAG 2.2 SC 1.1.1**
 
 packages/ui/src/components/ChartCard.tsx:97-105 exposes only aria-label="${title} sparkline, last value 0.61". The whole point of a sparkline is the **trend**, not the last value.
@@ -358,6 +363,7 @@ Add a <desc> child to the SVG for additional verbose detail (NVDA reads <desc> o
 ---
 
 ### H4 — Touch / click targets below WCAG 2.2 24×24 minimum
+
 **WCAG 2.2 SC 2.5.8 (Target Size — Minimum)** — 2.2 AA, no exemption applies (these are not inline-text targets).
 
 - apps/web/app/live-events-toast.tsx:81-92 — close × button: only text-xs content (~12 px), no padding, no min-w/h. Effective target ~12×12 px.
@@ -412,6 +418,7 @@ Add a <desc> child to the SVG for additional verbose detail (NVDA reads <desc> o
 ---
 
 ### H5 — Form <input> pattern attribute fails accessible error reporting
+
 **WCAG 2.2 SC 3.3.1 (Error Identification), SC 3.3.3 (Error Suggestion)**
 
 apps/web/app/briefings/page.tsx:103-110 and apps/web/app/alerts/page.tsx:119-127:
@@ -454,6 +461,7 @@ title becomes the validation tooltip that browsers show; aria-describedby ensure
 ---
 
 ### H6 — <select> and <input> do not have an id/for association — only implicit wrap
+
 **WCAG 2.2 SC 1.3.1 (Info and Relationships) + SC 4.1.2**
 
 apps/web/app/briefings/page.tsx:87-100 (and many others) wrap the input in a <label> directly. This works in modern browsers, but:
@@ -477,6 +485,7 @@ Apply consistently to all 5 form fields across briefings/page.tsx (1) and alerts
 ---
 
 ### H7 — Audio player has no transcript and no captions
+
 **WCAG 2.2 SC 1.2.1 (Audio-only and Video-only — Prerecorded), SC 1.2.2 (Captions Prerecorded)**
 
 packages/ui/src/components/AudioPlayer.tsx:27-37 is a bare <audio controls> with the briefing TTS MP3. For pre-recorded audio-only content, **WCAG requires either a transcript OR an alternative for time-based media**. The briefing markdown is itself the transcript; we need to expose it explicitly.
@@ -505,6 +514,7 @@ In apps/web/app/briefings/[id]/page.tsx, pass transcriptHref="#transcript" and a
 ---
 
 ### H8 — aria-busy without an associated live region
+
 **WCAG 2.2 SC 4.1.3 (Status Messages)**
 
 packages/ui/src/components/DrillDownButton.tsx:86 sets aria-busy={loading || undefined} on the button. SR users will NOT be told the button is now busy unless the surrounding region is a live region or the spinner has its own announcement. The button accessible name **also does not change** to "Claude réfléchit…" because aria-label={ariaLabel ?? label} ignores loadingLabel.
@@ -534,6 +544,7 @@ Better: hoist the live region to the parent. Add aria-live="polite" on the secti
 ## MEDIUM — 7 findings
 
 ### M1 — DisclaimerBanner uses <aside role="note"> but is the most legally important content
+
 **WCAG 2.2 SC 1.3.1**
 
 packages/ui/src/components/DisclaimerBanner.tsx:28-43 — <aside role="note"> is technically valid (W3C recently re-classified note as a structural role), but two issues:
@@ -569,6 +580,7 @@ Also: the banner is non-dismissible (good), but it has no tabindex of its own, s
 ---
 
 ### M2 — Status badge claude_running uses animate-pulse with no reduce-motion override
+
 **WCAG 2.2 SC 2.3.3 (Animation from Interactions, AAA, but EU best practice)** — partially mitigated.
 
 packages/ui/src/components/BriefingHeader.tsx:31 and AlertChip.tsx:43-44 use animate-pulse for the "in progress" / critical states. The globals.css:60-69 block correctly disables CSS animations via prefers-reduced-motion, BUT Tailwind animate-pulse uses animation-duration: 2s set inline at the utility level — the global !important rule shortens it to 0.01ms. The pulse is therefore **not** disabled, only made imperceptibly fast (still cycles, just quickly). Acceptable per WCAG, but cleaner:
@@ -588,9 +600,10 @@ packages/ui/src/components/BriefingHeader.tsx:31 and AlertChip.tsx:43-44 use ani
 ---
 
 ### M3 — Markdown <a> links open in a new tab without warning the user
+
 **WCAG 2.2 SC 3.2.5 (Change on Request, AAA, but BIT-required in France)**
 
-apps/web/app/briefings/[id]/page.tsx:83-91 — every Markdown link is forced to target="_blank" with no visual or programmatic indication. SR users hear "lien" but discover only after clicking that the page did not navigate.
+apps/web/app/briefings/[id]/page.tsx:83-91 — every Markdown link is forced to target="\_blank" with no visual or programmatic indication. SR users hear "lien" but discover only after clicking that the page did not navigate.
 
 **Fix:**
 
@@ -614,6 +627,7 @@ Same applies to BriefingHeader.tsx:84-91 (Écouter audio) and SourceBadge.tsx:46
 ---
 
 ### M4 — RegimeIndicator coloured strip uses title for tooltip, no keyboard alternative
+
 **WCAG 2.2 SC 1.4.13 (Content on Hover or Focus)**
 
 packages/ui/src/components/RegimeIndicator.tsx:50-56:
@@ -635,6 +649,7 @@ The title attribute is mouse-only (touch and keyboard cannot trigger it). The st
 ---
 
 ### M5 — Color-only indication of bias direction in BiasBar
+
 **WCAG 2.2 SC 1.4.1 (Use of Color)**
 
 The marker on the bar uses red for short, emerald for long, gray for neutral. There is no shape difference, no text, no pattern. For users with red-green deficiency (~ 6 % male population) a strong-short and strong-long are visually identical (both saturated bars).
@@ -657,6 +672,7 @@ The arrow + numeric label provides redundant non-color encoding.
 ---
 
 ### M6 — Header logo <Link> accessible name competes with the visible "Ichor" text
+
 **WCAG 2.2 SC 2.5.3 (Label in Name)**
 
 apps/web/app/layout.tsx:47-70 — the link has aria-label="Ichor — accueil" AND visible text Ichor. Voice-control users saying "click Ichor" expect the link accessible name to **start with or contain** the visible text. "Ichor — accueil" does (starts with it), so this passes — but the visible text alone would be enough; current setup just risks the SR reading the visible "Ichor" then the aria-label "Ichor — accueil" depending on browser/SR pair.
@@ -678,6 +694,7 @@ apps/web/app/layout.tsx:47-70 — the link has aria-label="Ichor — accueil" AN
 ---
 
 ### M7 — Briefing markdown lists use list-inside which breaks long-line indent
+
 **WCAG 2.2 SC 1.4.10 (Reflow) — partial**
 
 apps/web/app/briefings/[id]/page.tsx:65-69:
@@ -706,6 +723,7 @@ ol: ({ children }) => (
 ## LOW — 3 findings
 
 ### L1 — EmptyState uses role="status" but is not a status message
+
 **WCAG 2.2 SC 4.1.3 (Status Messages)** — minor.
 
 packages/ui/src/components/EmptyState.tsx:23-25 puts role="status" on the empty placeholder. role="status" implies aria-live="polite" — meaning every navigation between pages re-announces the empty state. Acceptable in some contexts, mildly annoying when a page loads with the empty state already present.
@@ -720,19 +738,20 @@ packages/ui/src/components/EmptyState.tsx:23-25 puts role="status" on the empty 
 ---
 
 ### L2 — formatPct shows +0.00% for zero change
+
 **WCAG 2.2 SC 1.3.1 — minor cognitive accessibility**
 
 packages/ui/src/components/AssetCard.tsx:54 always prefixes + for non-negative values, including zero (+0.00%). For low-numeracy users / SR voicing, "plus zéro virgule zéro pourcent" is a small annoyance. Render 0.00% (no sign) when p === 0.
 
 ```tsx
-const formatPct = (p) =>
-- `${p >= 0 ? "+" : ""}${p.toFixed(2)}%`;
-+ `${p > 0 ? "+" : ""}${p.toFixed(2)}%`;
+const formatPct = (p) => -`${p >= 0 ? "+" : ""}${p.toFixed(2)}%`;
++`${p > 0 ? "+" : ""}${p.toFixed(2)}%`;
 ```
 
 ---
 
 ### L3 — <time dateTime> always uses ISO; visible text is human-friendly
+
 This is correct behavior, just noting: SR users get the human-readable text (good) and crawlers / parsers get the ISO (good). No fix needed. Marked LOW just to note we verified it.
 
 ---

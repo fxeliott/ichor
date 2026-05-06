@@ -20,9 +20,11 @@ This is by design. To make a tunnel publicly reachable, Cloudflare requires
 ONE of:
 
 1. **DNS route on a Cloudflare-managed zone** (custom domain):
+
    ```
    cloudflared tunnel route dns <UUID> claude-runner.eliotsdomain.com
    ```
+
    This creates a CNAME → `<UUID>.cfargotunnel.com` ON YOUR ZONE. Requests
    to `claude-runner.eliotsdomain.com` then route to your tunnel.
    **Requires**: Eliot owns and has at least one domain on Cloudflare.
@@ -45,6 +47,7 @@ ONE of:
 **Defer the production tunnel setup until Eliot picks an option.**
 
 Phase 0 deliverables:
+
 - ✅ Tunnel created (`97aab1f6-bd98-4743-8f65-78761388fe77`) via API
 - ✅ credentials.json + config.yml in `~/.cloudflared/`
 - ✅ cloudflared verified to register 4 connections to Cloudflare edge (MRS)
@@ -57,6 +60,7 @@ End-to-end Hetzner→Win11 path is intentionally cold until tunnel is reachable.
 ## Recommended option (when Eliot returns)
 
 **Option 1 — buy `ichor.fyi` ($15.18/year via Cloudflare Registrar)**:
+
 - Aligns with Phase 1 domain decision (was deferred ADR-002 — could un-defer
   partially)
 - Use `claude-runner.ichor.fyi` as the tunnel hostname
@@ -65,6 +69,7 @@ End-to-end Hetzner→Win11 path is intentionally cold until tunnel is reachable.
 - Total time: 5 min to register + 2 min to add DNS route
 
 **Option 2 — Cloudflare Access + WARP Connector**:
+
 - $0/month
 - 1 click to enable Access in dashboard
 - Then ~10 min to install + configure WARP on Hetzner (apt install)

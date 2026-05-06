@@ -48,13 +48,7 @@ async function get<T>(path: string, revalidate = DEFAULT_REVALIDATE): Promise<T>
 
 // ─────────────────────────── shapes ───────────────────────────
 
-export type BriefingType =
-  | "pre_londres"
-  | "pre_ny"
-  | "ny_mid"
-  | "ny_close"
-  | "weekly"
-  | "crisis";
+export type BriefingType = "pre_londres" | "pre_ny" | "ny_mid" | "ny_close" | "weekly" | "crisis";
 
 export type BriefingStatus =
   | "pending"
@@ -119,9 +113,7 @@ export interface ListBriefingsParams {
   asset?: string;
 }
 
-export const listBriefings = (
-  params: ListBriefingsParams = {}
-): Promise<BriefingList> => {
+export const listBriefings = (params: ListBriefingsParams = {}): Promise<BriefingList> => {
   const q = new URLSearchParams();
   if (params.limit) q.set("limit", String(params.limit));
   if (params.offset) q.set("offset", String(params.offset));
@@ -131,8 +123,7 @@ export const listBriefings = (
   return get<BriefingList>(`/v1/briefings${qs ? `?${qs}` : ""}`);
 };
 
-export const getBriefing = (id: string): Promise<Briefing> =>
-  get<Briefing>(`/v1/briefings/${id}`);
+export const getBriefing = (id: string): Promise<Briefing> => get<Briefing>(`/v1/briefings/${id}`);
 
 export interface ListAlertsParams {
   severity?: AlertSeverity;
@@ -157,18 +148,13 @@ export const currentBiasSignals = (horizonHours = 24): Promise<BiasSignal[]> =>
 export const biasSignalHistory = (
   asset: string,
   horizonHours = 24,
-  limit = 100
+  limit = 100,
 ): Promise<BiasSignal[]> =>
   get<BiasSignal[]>(
-    `/v1/bias-signals/history?asset=${encodeURIComponent(asset)}&horizon_hours=${horizonHours}&limit=${limit}`
+    `/v1/bias-signals/history?asset=${encodeURIComponent(asset)}&horizon_hours=${horizonHours}&limit=${limit}`,
   );
 
-export type NewsSourceKind =
-  | "news"
-  | "central_bank"
-  | "regulator"
-  | "social"
-  | "academic";
+export type NewsSourceKind = "news" | "central_bank" | "regulator" | "social" | "academic";
 
 export type NewsTone = "positive" | "neutral" | "negative";
 
@@ -219,9 +205,7 @@ export const signedBias = (s: BiasSignal): number => {
   return (s.probability - 0.5) * 2 * sign;
 };
 
-export const signedCredibleInterval = (
-  s: BiasSignal
-): { low: number; high: number } => {
+export const signedCredibleInterval = (s: BiasSignal): { low: number; high: number } => {
   const sign = s.direction === "short" ? -1 : 1;
   const lo = (s.credible_interval_low - 0.5) * 2 * sign;
   const hi = (s.credible_interval_high - 0.5) * 2 * sign;
@@ -241,14 +225,8 @@ export interface MarketBar {
   volume: number | null;
 }
 
-export const assetMarketHistory = (
-  asset: string,
-  days = 180,
-): Promise<MarketBar[]> =>
-  get<MarketBar[]>(
-    `/v1/market/${encodeURIComponent(asset)}?days=${days}`,
-    60,
-  );
+export const assetMarketHistory = (asset: string, days = 180): Promise<MarketBar[]> =>
+  get<MarketBar[]>(`/v1/market/${encodeURIComponent(asset)}?days=${days}`, 60);
 
 // ─────────────────────────── predictions ───────────────────────────
 
@@ -282,19 +260,14 @@ export interface ListPredictionsParams {
   limit?: number;
 }
 
-export const listPredictions = (
-  params: ListPredictionsParams = {},
-): Promise<PredictionRow[]> => {
+export const listPredictions = (params: ListPredictionsParams = {}): Promise<PredictionRow[]> => {
   const q = new URLSearchParams();
   if (params.asset) q.set("asset", params.asset);
   if (params.modelId) q.set("model_id", params.modelId);
   if (params.sinceDays) q.set("since_days", String(params.sinceDays));
   if (params.limit) q.set("limit", String(params.limit));
   const qs = q.toString();
-  return get<PredictionRow[]>(
-    `/v1/predictions${qs ? `?${qs}` : ""}`,
-    60,
-  );
+  return get<PredictionRow[]>(`/v1/predictions${qs ? `?${qs}` : ""}`, 60);
 };
 
 export const listModels = (): Promise<ModelSummary[]> =>
@@ -305,11 +278,7 @@ export const listModels = (): Promise<ModelSummary[]> =>
 export type SessionType = "pre_londres" | "pre_ny" | "event_driven";
 export type BiasDirection = "long" | "short" | "neutral";
 export type CriticVerdict = "approved" | "amendments" | "blocked";
-export type RegimeQuadrant =
-  | "haven_bid"
-  | "funding_stress"
-  | "goldilocks"
-  | "usd_complacency";
+export type RegimeQuadrant = "haven_bid" | "funding_stress" | "goldilocks" | "usd_complacency";
 
 export interface SessionCard {
   id: string;
@@ -325,12 +294,8 @@ export interface SessionCard {
   timing_window_start: string | null;
   timing_window_end: string | null;
   mechanisms: { claim?: string; sources?: string[] }[] | null;
-  invalidations:
-    | { condition?: string; threshold?: string | number; source?: string }[]
-    | null;
-  catalysts:
-    | { time?: string; event?: string; expected_impact?: string }[]
-    | null;
+  invalidations: { condition?: string; threshold?: string | number; source?: string }[] | null;
+  catalysts: { time?: string; event?: string; expected_impact?: string }[] | null;
   correlations_snapshot: Record<string, number> | null;
   polymarket_overlay:
     | {
@@ -364,14 +329,8 @@ export const listLatestSessions = (
   return get<SessionCardList>(`/v1/sessions?${q.toString()}`, 30);
 };
 
-export const listSessionsForAsset = (
-  asset: string,
-  limit = 20,
-): Promise<SessionCardList> =>
-  get<SessionCardList>(
-    `/v1/sessions/${encodeURIComponent(asset)}?limit=${limit}`,
-    30,
-  );
+export const listSessionsForAsset = (asset: string, limit = 20): Promise<SessionCardList> =>
+  get<SessionCardList>(`/v1/sessions/${encodeURIComponent(asset)}?limit=${limit}`, 30);
 
 // ─────────────────────────── calibration (Phase 1) ───────────────────────────
 
@@ -412,9 +371,7 @@ export interface CalibrationParams {
   windowDays?: number;
 }
 
-export const getCalibrationOverall = (
-  params: CalibrationParams = {},
-): Promise<Calibration> => {
+export const getCalibrationOverall = (params: CalibrationParams = {}): Promise<Calibration> => {
   const q = new URLSearchParams();
   if (params.asset) q.set("asset", params.asset);
   if (params.sessionType) q.set("session_type", params.sessionType);
@@ -424,21 +381,11 @@ export const getCalibrationOverall = (
   return get<Calibration>(`/v1/calibration${qs ? `?${qs}` : ""}`, 300);
 };
 
-export const getCalibrationByAsset = (
-  windowDays = 90,
-): Promise<CalibrationGroups> =>
-  get<CalibrationGroups>(
-    `/v1/calibration/by-asset?window_days=${windowDays}`,
-    300,
-  );
+export const getCalibrationByAsset = (windowDays = 90): Promise<CalibrationGroups> =>
+  get<CalibrationGroups>(`/v1/calibration/by-asset?window_days=${windowDays}`, 300);
 
-export const getCalibrationByRegime = (
-  windowDays = 90,
-): Promise<CalibrationGroups> =>
-  get<CalibrationGroups>(
-    `/v1/calibration/by-regime?window_days=${windowDays}`,
-    300,
-  );
+export const getCalibrationByRegime = (windowDays = 90): Promise<CalibrationGroups> =>
+  get<CalibrationGroups>(`/v1/calibration/by-regime?window_days=${windowDays}`, 300);
 
 // ─────────────────────────── Intraday bars (Polygon) ───────────────────────────
 
@@ -451,14 +398,8 @@ export interface IntradayBar {
   volume: number | null;
 }
 
-export const getIntradayBars = (
-  asset: string,
-  hours = 8,
-): Promise<IntradayBar[]> =>
-  get<IntradayBar[]>(
-    `/v1/market/intraday/${encodeURIComponent(asset)}?hours=${hours}`,
-    30,
-  );
+export const getIntradayBars = (asset: string, hours = 8): Promise<IntradayBar[]> =>
+  get<IntradayBar[]>(`/v1/market/intraday/${encodeURIComponent(asset)}?hours=${hours}`, 30);
 
 // ────────────────── data pool (debug + scenarios) ──────────────────
 
@@ -475,30 +416,17 @@ export interface DataPoolResponse {
 export const getDataPool = (
   asset: string,
   opts?: {
-    session_type?:
-      | "pre_londres"
-      | "pre_ny"
-      | "ny_mid"
-      | "ny_close"
-      | "event_driven";
-    regime?:
-      | "haven_bid"
-      | "funding_stress"
-      | "goldilocks"
-      | "usd_complacency";
+    session_type?: "pre_londres" | "pre_ny" | "ny_mid" | "ny_close" | "event_driven";
+    regime?: "haven_bid" | "funding_stress" | "goldilocks" | "usd_complacency";
     conviction_pct?: number;
   },
 ): Promise<DataPoolResponse> => {
   const qs = new URLSearchParams();
   if (opts?.session_type) qs.set("session_type", opts.session_type);
   if (opts?.regime) qs.set("regime", opts.regime);
-  if (opts?.conviction_pct != null)
-    qs.set("conviction_pct", String(opts.conviction_pct));
+  if (opts?.conviction_pct != null) qs.set("conviction_pct", String(opts.conviction_pct));
   const suffix = qs.toString() ? `?${qs.toString()}` : "";
-  return get<DataPoolResponse>(
-    `/v1/data-pool/${encodeURIComponent(asset)}${suffix}`,
-    30,
-  );
+  return get<DataPoolResponse>(`/v1/data-pool/${encodeURIComponent(asset)}${suffix}`, 30);
 };
 
 // ─────────────────── trade plan (RR analysis) ────────────────────
@@ -529,14 +457,8 @@ export interface TradePlan {
   derived_from: Record<string, string | null> | null;
 }
 
-export const getTradePlan = (
-  asset: string,
-  rrTarget = 3.0,
-): Promise<TradePlan> =>
-  get<TradePlan>(
-    `/v1/trade-plan/${encodeURIComponent(asset)}?rr_target=${rrTarget}`,
-    30,
-  );
+export const getTradePlan = (asset: string, rrTarget = 3.0): Promise<TradePlan> =>
+  get<TradePlan>(`/v1/trade-plan/${encodeURIComponent(asset)}?rr_target=${rrTarget}`, 30);
 
 // ─────────────────── confluence engine ────────────────────
 
@@ -577,10 +499,7 @@ export interface ConfluenceHistory {
   points: ConfluenceHistoryPoint[];
 }
 
-export const getConfluenceHistory = (
-  asset: string,
-  windowDays = 30,
-): Promise<ConfluenceHistory> =>
+export const getConfluenceHistory = (asset: string, windowDays = 30): Promise<ConfluenceHistory> =>
   get<ConfluenceHistory>(
     `/v1/confluence/${encodeURIComponent(asset)}/history?window_days=${windowDays}`,
     300,
@@ -602,13 +521,8 @@ export interface CurrencyStrength {
   entries: CurrencyStrengthEntry[];
 }
 
-export const getCurrencyStrength = (
-  windowHours = 24,
-): Promise<CurrencyStrength> =>
-  get<CurrencyStrength>(
-    `/v1/currency-strength?window_hours=${windowHours}`,
-    30,
-  );
+export const getCurrencyStrength = (windowHours = 24): Promise<CurrencyStrength> =>
+  get<CurrencyStrength>(`/v1/currency-strength?window_hours=${windowHours}`, 30);
 
 // ─────────────────── economic calendar ────────────────────
 
@@ -673,10 +587,7 @@ export interface HourlyVolReport {
   generated_at: string;
 }
 
-export const getHourlyVol = (
-  asset: string,
-  windowDays = 30,
-): Promise<HourlyVolReport> =>
+export const getHourlyVol = (asset: string, windowDays = 30): Promise<HourlyVolReport> =>
   get<HourlyVolReport>(
     `/v1/hourly-volatility/${encodeURIComponent(asset)}?window_days=${windowDays}`,
     60,
@@ -782,8 +693,7 @@ export interface MacroPulse {
   surprise_index: SurprisePulse;
 }
 
-export const getMacroPulse = (): Promise<MacroPulse> =>
-  get<MacroPulse>(`/v1/macro-pulse`, 60);
+export const getMacroPulse = (): Promise<MacroPulse> => get<MacroPulse>(`/v1/macro-pulse`, 60);
 
 // ─────────────── polymarket impact ────────────────
 
@@ -810,7 +720,5 @@ export interface PolymarketImpact {
   asset_aggregate: Record<string, number>;
 }
 
-export const getPolymarketImpact = (
-  hours = 24,
-): Promise<PolymarketImpact> =>
+export const getPolymarketImpact = (hours = 24): Promise<PolymarketImpact> =>
   get<PolymarketImpact>(`/v1/polymarket-impact?hours=${hours}`, 60);

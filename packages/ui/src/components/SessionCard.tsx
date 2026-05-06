@@ -20,11 +20,7 @@ import { BiasBar } from "./BiasBar";
 export type SessionType = "pre_londres" | "pre_ny" | "event_driven";
 export type BiasDirection = "long" | "short" | "neutral";
 export type CriticVerdict = "approved" | "amendments" | "blocked";
-export type RegimeQuadrant =
-  | "haven_bid"
-  | "funding_stress"
-  | "goldilocks"
-  | "usd_complacency";
+export type RegimeQuadrant = "haven_bid" | "funding_stress" | "goldilocks" | "usd_complacency";
 
 export interface SessionCardProps {
   asset: string; // "EUR_USD" — display normalized
@@ -79,10 +75,7 @@ const formatTime = (t: string | Date) => {
   });
 };
 
-const biasToSignedScalar = (
-  direction: BiasDirection,
-  convictionPct: number
-): number => {
+const biasToSignedScalar = (direction: BiasDirection, convictionPct: number): number => {
   // Conviction is in [0,95]; map to [0,1] then sign by direction.
   const mag = Math.min(95, Math.max(0, convictionPct)) / 100;
   if (direction === "neutral") return 0;
@@ -178,9 +171,7 @@ export const SessionCard: React.FC<SessionCardProps> = ({
           {convictionPct.toFixed(0)} %
         </dd>
         <dt className="text-[var(--color-ichor-text-muted)]">Magnitude</dt>
-        <dd className="text-[var(--color-ichor-text)] text-right font-medium">
-          {magnitudeLabel}
-        </dd>
+        <dd className="text-[var(--color-ichor-text)] text-right font-medium">{magnitudeLabel}</dd>
       </dl>
     </Wrapper>
   );

@@ -16,6 +16,7 @@
 ## Immediate actions (first 5 min)
 
 1. **Suppress the briefing immediately**:
+
    ```bash
    ssh ichor-hetzner
    sudo -u postgres psql -d ichor <<SQL
@@ -34,9 +35,11 @@
 ## Diagnosis
 
 1. **Source attribution**: was the injection in the assembled context?
+
    ```sql
    SELECT context_markdown FROM briefings WHERE id = '<BRIEFING-ID>';
    ```
+
    Look for: external URLs, base64 blobs, "ignore" / "system:" / "assistant:"
    tokens. If yes — the upstream collector was compromised.
 

@@ -1,0 +1,39 @@
+[Unit]
+Description=Ichor API (instance %i — blue-green slot)
+After=network-online.target postgresql.service redis.service
+Wants=network-online.target
+
+# %i is the instance name (blue|green). The deploy script flips between
+# the two slots and reloads nginx upstream config to switch traffic.
+# Cf docs/SPEC_V2_HARDENING.md §3 + RUNBOOK-014 (blue-green drill).
+
+[Service]
+Type=notify
+User=ichor
+Group=ichor
+WorkingDirectory=/opt/ichor/api
+EnvironmentFile=/etc/ichor/api.env
+EnvironmentFile=/etc/ichor/slot-%i.env
+# slot-blue.env defines: ICHOR_API_PORT=8001
+# slot-green.env defines: ICHOR_API_PORT=8002
+ExecStart=/opt/ichor/api/.venv/bin/uvicorn ichor_api.main:app \
+    --host 127.0.0.1 \
+    --port ${ICHOR_API_PORT} \
+    --workers 2 \
+    --log-config /etc/ichor/log-config.json
+Restart=on-failure
+RestartSec=3
+TimeoutStartSec=120
+TimeoutStopSec=30
+KillSignal=SIGINT
+# Sandboxing
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/var/log/ichor /tmp
+NoNewPrivileges=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+LimitNOFILE=4096
+
+[Install]
+WantedBy=multi-user.target

@@ -4,16 +4,29 @@ Production path : `HttpRunnerClient` posts to the Win11 claude-runner
 through the Cloudflare Tunnel (Voie D, ADR-009). Tests use
 `InMemoryRunnerClient` to script the per-pass responses without touching
 a real subprocess.
+
+Retry envelope : the runner enforces max_concurrent_subprocess=1 to
+protect the Max 20x quota, so when the briefing timer (HH:00) and the
+session-cards batch timer (HH:01) overlap, the second hit gets HTTP
+503 "Another briefing in flight". We retry transparently with
+exponential backoff before failing the card. 429 (hourly rate limit)
+is also retried for the same reason. 524 (Cloudflare edge timeout
+after 100 s) is NOT retried — the second call would just hit the
+same wall.
 """
 
 from __future__ import annotations
 
+import asyncio
 from abc import ABC, abstractmethod
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
 import httpx
+import structlog
+
+log = structlog.get_logger(__name__)
 
 
 @dataclass(frozen=True)
@@ -109,10 +122,36 @@ class HttpRunnerClient(RunnerClient):
             "model": call.model,
             "effort": call.effort,
         }
+        # Backoff schedule for transient 503/429: 5s, 15s, 45s. Total
+        # worst-case ~65s, well under Cloudflare's 100s edge cap.
+        backoff = (5.0, 15.0, 45.0)
+        last_status: int | None = None
+        body: dict | None = None
         async with httpx.AsyncClient(timeout=self._timeout_sec) as client:
-            r = await client.post(url, headers=self._headers, json=payload)
-            r.raise_for_status()
-            body = r.json()
+            for attempt, delay in enumerate((0.0,) + backoff):
+                if delay > 0:
+                    await asyncio.sleep(delay)
+                r = await client.post(url, headers=self._headers, json=payload)
+                last_status = r.status_code
+                if r.status_code in (429, 503):
+                    log.info(
+                        "runner_client.retry",
+                        status=r.status_code,
+                        attempt=attempt + 1,
+                        next_delay_s=backoff[attempt] if attempt < len(backoff) else None,
+                    )
+                    if attempt < len(backoff):
+                        continue
+                    # Out of retries — let raise_for_status surface the error
+                r.raise_for_status()
+                body = r.json()
+                break
+        if body is None:
+            raise httpx.HTTPStatusError(
+                f"runner busy after retries (last status={last_status})",
+                request=httpx.Request("POST", url),
+                response=httpx.Response(last_status or 503),
+            )
         return RunnerResponse(
             text=body.get("briefing_markdown") or "",
             raw=body,

@@ -40,18 +40,88 @@ interface Command {
 const PAGES: Command[] = [
   { id: "home", label: "Accueil", hint: "/", kind: "page", href: "/" },
   { id: "sessions", label: "Cartes session", hint: "/sessions", kind: "page", href: "/sessions" },
-  { id: "confluence", label: "Confluence multi-actifs", hint: "/confluence", kind: "page", href: "/confluence", keywords: ["score", "synthese", "drivers", "trade strength"] },
-  { id: "correlations", label: "Corrélations cross-asset", hint: "/correlations", kind: "page", href: "/correlations", keywords: ["matrix", "pearson", "regime"] },
-  { id: "macro-pulse", label: "Macro pulse", hint: "/macro-pulse", kind: "page", href: "/macro-pulse", keywords: ["vix", "risk appetite", "yield curve", "stress", "surprise", "weather"] },
-  { id: "yield-curve", label: "Yield curve", hint: "/yield-curve", kind: "page", href: "/yield-curve", keywords: ["term structure", "tips", "real yield", "recession", "inverted"] },
-  { id: "polymarket-impact", label: "Polymarket impact", hint: "/polymarket-impact", kind: "page", href: "/polymarket-impact", keywords: ["polymarket", "themes", "fed", "trump", "recession", "kalshi"] },
+  {
+    id: "confluence",
+    label: "Confluence multi-actifs",
+    hint: "/confluence",
+    kind: "page",
+    href: "/confluence",
+    keywords: ["score", "synthese", "drivers", "trade strength"],
+  },
+  {
+    id: "correlations",
+    label: "Corrélations cross-asset",
+    hint: "/correlations",
+    kind: "page",
+    href: "/correlations",
+    keywords: ["matrix", "pearson", "regime"],
+  },
+  {
+    id: "macro-pulse",
+    label: "Macro pulse",
+    hint: "/macro-pulse",
+    kind: "page",
+    href: "/macro-pulse",
+    keywords: ["vix", "risk appetite", "yield curve", "stress", "surprise", "weather"],
+  },
+  {
+    id: "yield-curve",
+    label: "Yield curve",
+    hint: "/yield-curve",
+    kind: "page",
+    href: "/yield-curve",
+    keywords: ["term structure", "tips", "real yield", "recession", "inverted"],
+  },
+  {
+    id: "polymarket-impact",
+    label: "Polymarket impact",
+    hint: "/polymarket-impact",
+    kind: "page",
+    href: "/polymarket-impact",
+    keywords: ["polymarket", "themes", "fed", "trump", "recession", "kalshi"],
+  },
   { id: "narratives", label: "Narratives", hint: "/narratives", kind: "page", href: "/narratives" },
-  { id: "kg", label: "Knowledge graph", hint: "/knowledge-graph", kind: "page", href: "/knowledge-graph", keywords: ["graph", "shock", "causal"] },
+  {
+    id: "kg",
+    label: "Knowledge graph",
+    hint: "/knowledge-graph",
+    kind: "page",
+    href: "/knowledge-graph",
+    keywords: ["graph", "shock", "causal"],
+  },
   { id: "geopol", label: "Géopolitique", hint: "/geopolitics", kind: "page", href: "/geopolitics" },
-  { id: "calibration", label: "Calibration", hint: "/calibration", kind: "page", href: "/calibration", keywords: ["brier", "track-record"] },
-  { id: "sources", label: "Sources data", hint: "/sources", kind: "page", href: "/sources", keywords: ["feeds", "upstream", "providers"] },
-  { id: "learn", label: "Apprendre · concepts illustrés", hint: "/learn", kind: "page", href: "/learn", keywords: ["learn", "education", "smc", "rr", "diagrams", "schemas"] },
-  { id: "admin", label: "Admin", hint: "/admin", kind: "page", href: "/admin", keywords: ["status", "ops", "health"] },
+  {
+    id: "calibration",
+    label: "Calibration",
+    hint: "/calibration",
+    kind: "page",
+    href: "/calibration",
+    keywords: ["brier", "track-record"],
+  },
+  {
+    id: "sources",
+    label: "Sources data",
+    hint: "/sources",
+    kind: "page",
+    href: "/sources",
+    keywords: ["feeds", "upstream", "providers"],
+  },
+  {
+    id: "learn",
+    label: "Apprendre · concepts illustrés",
+    hint: "/learn",
+    kind: "page",
+    href: "/learn",
+    keywords: ["learn", "education", "smc", "rr", "diagrams", "schemas"],
+  },
+  {
+    id: "admin",
+    label: "Admin",
+    hint: "/admin",
+    kind: "page",
+    href: "/admin",
+    keywords: ["status", "ops", "health"],
+  },
   { id: "briefings", label: "Briefings", hint: "/briefings", kind: "page", href: "/briefings" },
   { id: "alerts", label: "Alertes", hint: "/alerts", kind: "page", href: "/alerts" },
   { id: "news", label: "News", hint: "/news", kind: "page", href: "/news" },
@@ -98,17 +168,7 @@ const SCENARIOS: Command[] = ASSET_LIST.map(([code, label]) => ({
   hint: `/scenarios/${code}`,
   kind: "action" as CommandKind,
   href: `/scenarios/${code}`,
-  keywords: [
-    "scenarios",
-    "scenario",
-    "rr",
-    "trade plan",
-    "smc",
-    "pivots",
-    "pdh",
-    "pdl",
-    code,
-  ],
+  keywords: ["scenarios", "scenario", "rr", "trade plan", "smc", "pivots", "pdh", "pdl", code],
 }));
 
 const HOURLY_VOL: Command[] = ASSET_LIST.map(([code, label]) => ({
@@ -120,13 +180,7 @@ const HOURLY_VOL: Command[] = ASSET_LIST.map(([code, label]) => ({
   keywords: ["volatility", "vol", "hour", "best", "moment", "heatmap", code],
 }));
 
-const ALL_COMMANDS: Command[] = [
-  ...PAGES,
-  ...ASSETS,
-  ...SCENARIOS,
-  ...HOURLY_VOL,
-  ...REPLAY,
-];
+const ALL_COMMANDS: Command[] = [...PAGES, ...ASSETS, ...SCENARIOS, ...HOURLY_VOL, ...REPLAY];
 
 const fuzzyMatch = (q: string, c: Command): number => {
   if (!q) return 1;
@@ -234,7 +288,9 @@ export const CommandPalette: React.FC = () => {
             className="w-full max-w-xl mx-4 rounded-lg border border-[var(--color-ichor-border-strong)] bg-[var(--color-ichor-surface)] shadow-2xl overflow-hidden"
           >
             <div className="flex items-center gap-2 px-3 py-2 border-b border-[var(--color-ichor-border)]">
-              <span className="text-[var(--color-ichor-text-subtle)] text-sm" aria-hidden="true">⌘</span>
+              <span className="text-[var(--color-ichor-text-subtle)] text-sm" aria-hidden="true">
+                ⌘
+              </span>
               <input
                 ref={inputRef}
                 type="text"
@@ -293,16 +349,24 @@ export const CommandPalette: React.FC = () => {
 
             <footer className="flex items-center justify-between border-t border-[var(--color-ichor-border)] bg-[var(--color-ichor-deep)]/40 px-3 py-1.5 text-[10px] text-[var(--color-ichor-text-subtle)]">
               <span className="font-mono">
-                <kbd className="border border-[var(--color-ichor-border-strong)] rounded px-1">↑</kbd>{" "}
-                <kbd className="border border-[var(--color-ichor-border-strong)] rounded px-1">↓</kbd>{" "}
+                <kbd className="border border-[var(--color-ichor-border-strong)] rounded px-1">
+                  ↑
+                </kbd>{" "}
+                <kbd className="border border-[var(--color-ichor-border-strong)] rounded px-1">
+                  ↓
+                </kbd>{" "}
                 naviguer
               </span>
               <span className="font-mono">
-                <kbd className="border border-[var(--color-ichor-border-strong)] rounded px-1">↵</kbd>{" "}
+                <kbd className="border border-[var(--color-ichor-border-strong)] rounded px-1">
+                  ↵
+                </kbd>{" "}
                 ouvrir
               </span>
               <span className="font-mono">
-                <kbd className="border border-[var(--color-ichor-border-strong)] rounded px-1">⌘K</kbd>{" "}
+                <kbd className="border border-[var(--color-ichor-border-strong)] rounded px-1">
+                  ⌘K
+                </kbd>{" "}
                 toggle
               </span>
             </footer>

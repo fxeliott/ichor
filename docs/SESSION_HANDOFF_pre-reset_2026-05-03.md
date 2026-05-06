@@ -9,6 +9,7 @@
 **Phase 0 cron pipeline LIVE end-to-end + Phase 1 foundations shipped paper-only.**
 
 What runs autonomously today on Hetzner :
+
 - 5 briefing systemd timers (06h/12h/17h/22h Paris + Sun 18h)
 - 3 collector timers (RSS 15min, Polymarket 5min, market_data daily 23:10)
 - 20 556 daily OHLCV bars persisted (8 assets, 10 y of yfinance fallback)
@@ -33,6 +34,7 @@ What runs autonomously today on Hetzner :
 ## Timeline of the session (2026-05-02 → 2026-05-03)
 
 ### Day 1 morning — read + plan + infra
+
 1. Read ARCHITECTURE_FINALE + AUDIT_V3
 2. Verified `ichor.app` taken → defer Phase 1 (ADR-002)
 3. SSH access to Hetzner established (ED25519 + RSA legacy from vault)
@@ -43,6 +45,7 @@ What runs autonomously today on Hetzner :
 8. Multi-recipient SOPS (Eliot's local key + Hetzner server key)
 
 ### Day 1 afternoon — Ansible + first services
+
 9. Ansible foundation roles (base/security/docker/python/node/postgres/redis) GREEN
 10. Apache AGE 1.5.0 built from source for PG16 (ADR-005)
 11. wal-g 3.0.8 + R2 EU LIVE (basebackup + WAL archive verified)
@@ -53,6 +56,7 @@ What runs autonomously today on Hetzner :
 16. SOPS + 9 .env templates + R2 credentials encrypted
 
 ### Day 2 — apps/api LIVE + tunnel + briefing test
+
 17. apps/api real implementation (4 routers + WebSocket + briefing CLI)
 18. Alembic migrations: 5 tables + TimescaleDB hypertable + AGE graph
 19. Sample data seeded (8 bias_signals + 3 alerts + 1 briefing)
@@ -66,6 +70,7 @@ What runs autonomously today on Hetzner :
 27. GitHub Actions deploy workflow
 
 ### Day 2 — Cloudflare Tunnel saga (tricky)
+
 28. Initial tunnel created with config_src=local — `<UUID>.cfargotunnel.com` only resolves to IPv6 ULA, not publicly routable
 29. `cfut_` API token doesn't have scope to PUT /configurations (10405) — workaround via `cloudflared tunnel route dns` after Eliot did `cloudflared tunnel login`
 30. Eliot migrated `fxmilyapp.com` from Hover DNS to Cloudflare (free plan)
@@ -73,6 +78,7 @@ What runs autonomously today on Hetzner :
 32. **Tunnel reachable from Hetzner** : HTTP 200, 330ms latency
 
 ### Day 2 — Auth pipeline workaround
+
 33. claude -p returns 403 even after Eliot re-login: NSSM service runs as
     LocalSystem which can't access user-keychain OAuth credentials
 34. Workaround: launch uvicorn AS USER on `:8766` (not the LocalSystem
@@ -85,50 +91,50 @@ What runs autonomously today on Hetzner :
 
 ### Hetzner (178.104.39.201)
 
-| Service | Port | State | Auth |
-|---|---|---|---|
-| Postgres 16 + TimescaleDB 2.26.4 + Apache AGE 1.5.0 | 5432 (lo) | active | scram-sha-256 + Docker bridge |
-| Redis 8.6.2 | 6379 (lo) | active, AOF | bind localhost |
-| ichor-api uvicorn (systemd) | 8000 (lo) | active, `/healthz/detailed` returns DB+Redis+collector lag+briefing lag | none yet (HIGH-3) |
-| 5 briefing systemd timers (06/12/17/22 Paris + Sun 18) | — | enabled | — |
-| 2 collector systemd timers (rss every 15 min, polymarket every 5 min) | — | enabled | — |
-| Loki + Prometheus + Grafana (docker-compose) | 3001/9090/3100 | UP | grafana_admin in SOPS |
-| Langfuse v3 + ClickHouse + MinIO | 3000 | UP | langfuse_*_password in SOPS |
-| n8n 1.78.1 | 5678 | UP | n8n_postgres_password in SOPS |
-| wal-g 3.0.8 → R2 ichor-walg-eu | systemd timer 03h Paris | enabled | R2 keys in SOPS |
+| Service                                                               | Port                    | State                                                                   | Auth                           |
+| --------------------------------------------------------------------- | ----------------------- | ----------------------------------------------------------------------- | ------------------------------ |
+| Postgres 16 + TimescaleDB 2.26.4 + Apache AGE 1.5.0                   | 5432 (lo)               | active                                                                  | scram-sha-256 + Docker bridge  |
+| Redis 8.6.2                                                           | 6379 (lo)               | active, AOF                                                             | bind localhost                 |
+| ichor-api uvicorn (systemd)                                           | 8000 (lo)               | active, `/healthz/detailed` returns DB+Redis+collector lag+briefing lag | none yet (HIGH-3)              |
+| 5 briefing systemd timers (06/12/17/22 Paris + Sun 18)                | —                       | enabled                                                                 | —                              |
+| 2 collector systemd timers (rss every 15 min, polymarket every 5 min) | —                       | enabled                                                                 | —                              |
+| Loki + Prometheus + Grafana (docker-compose)                          | 3001/9090/3100          | UP                                                                      | grafana_admin in SOPS          |
+| Langfuse v3 + ClickHouse + MinIO                                      | 3000                    | UP                                                                      | langfuse\_\*\_password in SOPS |
+| n8n 1.78.1                                                            | 5678                    | UP                                                                      | n8n_postgres_password in SOPS  |
+| wal-g 3.0.8 → R2 ichor-walg-eu                                        | systemd timer 03h Paris | enabled                                                                 | R2 keys in SOPS                |
 
 ### DB content (verified 2026-05-03)
 
-| Table | Rows | Notes |
-|---|---|---|
-| `news_items` | 160+ | TimescaleDB hypertable, 7d chunks, real news from Fed/ECB/BoE/BBC/SEC |
-| `polymarket_snapshots` | 7+ | TimescaleDB hypertable, 30d chunks, prediction-market snapshots |
-| `bias_signals` | 384 | 8 assets × 48 half-hourly points, seeded |
-| `alerts` | 8 | 3 global + 5 per-asset, seeded |
-| `briefings` | 3 | 1 real + 2 seed |
-| `predictions_audit` | 0 | TimescaleDB hypertable, 7d chunks, ready for Phase 0 W2 |
+| Table                  | Rows | Notes                                                                 |
+| ---------------------- | ---- | --------------------------------------------------------------------- |
+| `news_items`           | 160+ | TimescaleDB hypertable, 7d chunks, real news from Fed/ECB/BoE/BBC/SEC |
+| `polymarket_snapshots` | 7+   | TimescaleDB hypertable, 30d chunks, prediction-market snapshots       |
+| `bias_signals`         | 384  | 8 assets × 48 half-hourly points, seeded                              |
+| `alerts`               | 8    | 3 global + 5 per-asset, seeded                                        |
+| `briefings`            | 3    | 1 real + 2 seed                                                       |
+| `predictions_audit`    | 0    | TimescaleDB hypertable, 7d chunks, ready for Phase 0 W2               |
 
 ### Win11 (Eliot's PC)
 
-| Service | Port | State | How |
-|---|---|---|---|
-| **claude-runner uvicorn user-mode** | **8766** | **alive, claude_cli_available=true** | bash nohup |
-| cloudflared tunnel | (outbound 443) | 4 connections MRS edge | bash nohup |
-| OLD NSSM service IchorClaudeRunner | 8765 | running but idle (LocalSystem, can't access user OAuth) | NSSM |
-| age 1.3.1 + sops 3.12.2 | — | installed | local bin |
-| pnpm 10.33.2 + Node 24 + Python 3.14 | — | installed | local |
-| age private key | — | `%APPDATA%\sops\age\keys.txt` + USB backup | — |
+| Service                              | Port           | State                                                   | How        |
+| ------------------------------------ | -------------- | ------------------------------------------------------- | ---------- |
+| **claude-runner uvicorn user-mode**  | **8766**       | **alive, claude_cli_available=true**                    | bash nohup |
+| cloudflared tunnel                   | (outbound 443) | 4 connections MRS edge                                  | bash nohup |
+| OLD NSSM service IchorClaudeRunner   | 8765           | running but idle (LocalSystem, can't access user OAuth) | NSSM       |
+| age 1.3.1 + sops 3.12.2              | —              | installed                                               | local bin  |
+| pnpm 10.33.2 + Node 24 + Python 3.14 | —              | installed                                               | local      |
+| age private key                      | —              | `%APPDATA%\sops\age\keys.txt` + USB backup              | —          |
 
 ### Cloudflare
 
-| Resource | Value |
-|---|---|
-| Account ID | `6bc2ed8d6d675701a9a54f4f3d9b2499` |
-| Zone fxmilyapp.com | `f80b4469f67d1687211fd169a33258bf` (free plan, NS migrated from Hover) |
-| Tunnel ID | `97aab1f6-bd98-4743-8f65-78761388fe77` |
-| Tunnel name | `ichor-claude-runner` |
-| Public hostname | `claude-runner.fxmilyapp.com` (proxied CNAME → cfargotunnel) |
-| R2 bucket | `ichor-walg-eu` (EU jurisdiction) |
+| Resource            | Value                                                                           |
+| ------------------- | ------------------------------------------------------------------------------- |
+| Account ID          | `6bc2ed8d6d675701a9a54f4f3d9b2499`                                              |
+| Zone fxmilyapp.com  | `f80b4469f67d1687211fd169a33258bf` (free plan, NS migrated from Hover)          |
+| Tunnel ID           | `97aab1f6-bd98-4743-8f65-78761388fe77`                                          |
+| Tunnel name         | `ichor-claude-runner`                                                           |
+| Public hostname     | `claude-runner.fxmilyapp.com` (proxied CNAME → cfargotunnel)                    |
+| R2 bucket           | `ichor-walg-eu` (EU jurisdiction)                                               |
 | API token (in SOPS) | `cfut_...` — has Tunnel:Edit + Access:Edit + Zone:Read but NOT DNS records:Edit |
 
 ### GitHub
@@ -157,19 +163,19 @@ What runs autonomously today on Hetzner :
 
 ## Known issues + workarounds discovered
 
-| Issue | Workaround | Permanent fix |
-|---|---|---|
-| Win11 NSSM service runs as LocalSystem → can't read user OAuth tokens → claude -p 403 | Launch uvicorn as user on :8766 instead | Use `nssm set ObjectName .\eliot <password>` (need Eliot password) |
-| `<UUID>.cfargotunnel.com` resolves to IPv6 ULA, unreachable | Use `cloudflared tunnel route dns` to bind hostname | none — by design |
-| Cloudflare API token (cfut_) lacks DNS records:Edit scope | Use `cloudflared tunnel route dns` (CLI w/ cert.pem) for CNAME ops | Create new token with `Zone DNS: Edit` scope |
-| PUT /configurations sometimes returns 10405 "Method not allowed" | Worked on retry — token may have transiently lacked perms during creation | always retry; verify scope via /user/tokens/verify |
-| PowerShell can't parse em-dash `—` in scripts | Use ASCII dashes only in .ps1 files | save scripts as UTF-8 with BOM (Out-File -Encoding utf8BOM) |
-| Eliot dismisses UAC prompts often | Avoid Start-Process -Verb RunAs, prefer scripts he runs once manually | n/a |
-| `cloudflared service install <token>` ignores ~/.cloudflared/config.yml | Don't use service install with token, use scheduled task + nohup | n/a |
-| TimescaleDB hypertable requires partitioning column in PK | Composite PK (id, generated_at) on predictions_audit | done in Alembic 0001 |
-| pydantic-settings reads `.env` from CWD → permission error for service users | Drop env_file from SettingsConfigDict, use systemd EnvironmentFile only | done in apps/api/config.py |
-| /etc/ichor mode 700 root-only blocks ichor user from reading files inside | chmod 750 + chown root:ichor | done |
-| Apache AGE create_graph requires ag_catalog privileges (postgres only) | Grant USAGE/EXECUTE on ag_catalog to ichor + create graph as postgres | done in role + Ansible task |
+| Issue                                                                                 | Workaround                                                                | Permanent fix                                                      |
+| ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| Win11 NSSM service runs as LocalSystem → can't read user OAuth tokens → claude -p 403 | Launch uvicorn as user on :8766 instead                                   | Use `nssm set ObjectName .\eliot <password>` (need Eliot password) |
+| `<UUID>.cfargotunnel.com` resolves to IPv6 ULA, unreachable                           | Use `cloudflared tunnel route dns` to bind hostname                       | none — by design                                                   |
+| Cloudflare API token (cfut\_) lacks DNS records:Edit scope                            | Use `cloudflared tunnel route dns` (CLI w/ cert.pem) for CNAME ops        | Create new token with `Zone DNS: Edit` scope                       |
+| PUT /configurations sometimes returns 10405 "Method not allowed"                      | Worked on retry — token may have transiently lacked perms during creation | always retry; verify scope via /user/tokens/verify                 |
+| PowerShell can't parse em-dash `—` in scripts                                         | Use ASCII dashes only in .ps1 files                                       | save scripts as UTF-8 with BOM (Out-File -Encoding utf8BOM)        |
+| Eliot dismisses UAC prompts often                                                     | Avoid Start-Process -Verb RunAs, prefer scripts he runs once manually     | n/a                                                                |
+| `cloudflared service install <token>` ignores ~/.cloudflared/config.yml               | Don't use service install with token, use scheduled task + nohup          | n/a                                                                |
+| TimescaleDB hypertable requires partitioning column in PK                             | Composite PK (id, generated_at) on predictions_audit                      | done in Alembic 0001                                               |
+| pydantic-settings reads `.env` from CWD → permission error for service users          | Drop env_file from SettingsConfigDict, use systemd EnvironmentFile only   | done in apps/api/config.py                                         |
+| /etc/ichor mode 700 root-only blocks ichor user from reading files inside             | chmod 750 + chown root:ichor                                              | done                                                               |
+| Apache AGE create_graph requires ag_catalog privileges (postgres only)                | Grant USAGE/EXECUTE on ag_catalog to ichor + create graph as postgres     | done in role + Ansible task                                        |
 
 ## Critical commands ready to run
 
@@ -211,14 +217,14 @@ sudo -u postgres bash -c "set -a; source /etc/wal-g.env; set +a; wal-g backup-li
 
 ## Cost summary (real, verified)
 
-| Item | Cost | Status |
-|---|---|---|
-| Claude Max 20x | $200/mo flat | active (Eliot) |
-| Hetzner CX32 | ~€20/mo flat | active |
-| Cloudflare R2 (8.9 GB used) | $0/mo (free 10 GB) | active |
-| Cloudflare Tunnel + DNS + Pages | $0/mo (free) | active |
-| GitHub Actions (private repo) | $0/mo (within 2000 min/mo free) | active |
-| **Total monthly** | **~$220** | flat, no surprise |
+| Item                            | Cost                            | Status            |
+| ------------------------------- | ------------------------------- | ----------------- |
+| Claude Max 20x                  | $200/mo flat                    | active (Eliot)    |
+| Hetzner CX32                    | ~€20/mo flat                    | active            |
+| Cloudflare R2 (8.9 GB used)     | $0/mo (free 10 GB)              | active            |
+| Cloudflare Tunnel + DNS + Pages | $0/mo (free)                    | active            |
+| GitHub Actions (private repo)   | $0/mo (within 2000 min/mo free) | active            |
+| **Total monthly**               | **~$220**                       | flat, no surprise |
 
 ## Files of authority
 
@@ -248,11 +254,11 @@ Azure key, register-user-tasks, Cloudflare Access enable, GitHub
 HETZNER_SSH_PRIVATE_KEY secret) — all documented in
 [the manual guide](#manual-guide-2026-05-03). The autonomous-side closeouts :
 
-| # | Item | Effort | Notes |
-|---|------|--------|-------|
-| #25 | Cloudflare Pages deploy config | S | Wrangler + GHA workflow scaffold (deploy itself blocked on Eliot login) |
-| #26 | VAPID push server scaffold | S | Migration + ORM + endpoint, keys/subscription needs Eliot |
-| #12 | First trained ML model end-to-end | M | Synthetic-data path so we don't depend on OANDA |
+| #   | Item                              | Effort | Notes                                                                   |
+| --- | --------------------------------- | ------ | ----------------------------------------------------------------------- |
+| #25 | Cloudflare Pages deploy config    | S      | Wrangler + GHA workflow scaffold (deploy itself blocked on Eliot login) |
+| #26 | VAPID push server scaffold        | S      | Migration + ORM + endpoint, keys/subscription needs Eliot               |
+| #12 | First trained ML model end-to-end | M      | Synthetic-data path so we don't depend on OANDA                         |
 
 ### Phase 1 — chosen scope for this autonomous burst
 
@@ -296,15 +302,15 @@ work can stand on, with **paper-only + kill switch** baked in from day 1 :
 
 ### Risks + mitigations
 
-| Risk | Mitigation in this plan |
-|---|---|
-| Voie D fragility (single Win11 PC) | No new dependency on Win11 process — all new code runs on Hetzner |
-| 6 unbuilt bias models | Ship ONE end-to-end first (LightGBM), prove the path, defer the rest |
-| Free tier limits (Cerebras 30 RPM, Groq 1000 RPD, Azure 5M chars/mo) | Not consumed by this plan — pure code + synthetic data |
-| n8n / Grafana / MinIO rot | n8n + Grafana already bumped commit e89d93a, deploy needs Eliot |
-| python-jose abandoned | RS256 pin shipped; full migration tracked Phase 1 |
-| Backtest-driven overconfidence | Hard rules: paper-only by default, kill switch tested, no alpha promises |
-| Data leakage in backtest harness | `LeakageGuard` class enforces feature_t ⊥ price_t, asserts at every fold boundary |
+| Risk                                                                 | Mitigation in this plan                                                           |
+| -------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| Voie D fragility (single Win11 PC)                                   | No new dependency on Win11 process — all new code runs on Hetzner                 |
+| 6 unbuilt bias models                                                | Ship ONE end-to-end first (LightGBM), prove the path, defer the rest              |
+| Free tier limits (Cerebras 30 RPM, Groq 1000 RPD, Azure 5M chars/mo) | Not consumed by this plan — pure code + synthetic data                            |
+| n8n / Grafana / MinIO rot                                            | n8n + Grafana already bumped commit e89d93a, deploy needs Eliot                   |
+| python-jose abandoned                                                | RS256 pin shipped; full migration tracked Phase 1                                 |
+| Backtest-driven overconfidence                                       | Hard rules: paper-only by default, kill switch tested, no alpha promises          |
+| Data leakage in backtest harness                                     | `LeakageGuard` class enforces feature_t ⊥ price_t, asserts at every fold boundary |
 
 ### Chunks (1-2 h each, dependency-ordered)
 

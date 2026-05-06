@@ -108,7 +108,7 @@ export const LiveChartCard: React.FC<LiveChartCardProps> = ({
         high: b.high,
         low: b.low,
         close: b.close,
-      }))
+      })),
     );
     chartRef.current?.timeScale().fitContent();
   }, [bars]);
@@ -120,7 +120,7 @@ export const LiveChartCard: React.FC<LiveChartCardProps> = ({
       try {
         const r = await fetch(
           `${process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000"}/v1/market/intraday/${encodeURIComponent(asset)}?hours=8`,
-          { headers: { Accept: "application/json" }, cache: "no-store" }
+          { headers: { Accept: "application/json" }, cache: "no-store" },
         );
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         const fresh = (await r.json()) as IntradayBar[];
@@ -144,11 +144,7 @@ export const LiveChartCard: React.FC<LiveChartCardProps> = ({
           {bars.length} bars · refresh {Math.round(reloadIntervalMs / 1000)}s
         </p>
       </header>
-      {error && (
-        <p className="mb-2 text-[11px] text-red-300">
-          ⚠ {error}
-        </p>
-      )}
+      {error && <p className="mb-2 text-[11px] text-red-300">⚠ {error}</p>}
       {bars.length === 0 ? (
         <div
           className="flex items-center justify-center text-xs text-[var(--color-ichor-text-subtle)]"

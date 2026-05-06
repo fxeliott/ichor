@@ -17,6 +17,7 @@ séquentiellement (~8 minutes). Chaque carte qui sort en `approved` ou
 `amendments` envoie une notif push iPhone.
 
 À 06:08, tu as 5-7 notifications dans ton centre de notif :
+
 ```
 🔔 Ichor · EUR/USD · pre londres
    SHORT 22% · approved
@@ -24,6 +25,7 @@ séquentiellement (~8 minutes). Chaque carte qui sort en `approved` ou
 🔔 Ichor · USD/JPY · pre londres
    NEUTRAL 18% · approved
 ```
+
 Tap → ouvre directement `/sessions/EUR_USD`.
 
 ### 07:30 Paris — Tu te réveilles, tu prends ton café
@@ -32,6 +34,7 @@ Tu ouvres `https://app-ichor.pages.dev` (ou en dev :
 `pnpm --filter @ichor/web dev` puis `localhost:3000`).
 
 **Ce que tu vois sur `/`** :
+
 - Le quadrant régime macro pulse sur le régime courant
   (haven_bid / funding_stress / goldilocks / usd_complacency)
 - Heatmap cross-asset colorée (couleur = direction biais, intensité = conviction)
@@ -44,6 +47,7 @@ Tu ouvres `https://app-ichor.pages.dev` (ou en dev :
 `Cmd+K` → tape "EUR" → Enter, ou clique directement la card.
 
 `/sessions/EUR_USD` te montre :
+
 - LiveChartCard 1-min Polygon (auto-refresh 30s)
 - Bouton **▶ Replay temporel** → time-machine slider sur l'historique
 - Bouton **🔮 Counterfactual** → "et si Powell avait été dovish ?"
@@ -78,34 +82,39 @@ sur les cards closes du jour. **`/calibration`** s'enrichit
 
 ---
 
-## 2. Pages disponibles (13)
+## 2. Pages disponibles
 
-| Page | Quand y aller |
-|---|---|
-| `/` | Au réveil, vue d'ensemble |
-| `/sessions` | Toutes les cards courantes |
-| `/sessions/{asset}` | Drill-down un actif (chart + replay + counterfactual) |
-| `/replay/{asset}` | Time-machine slider sur l'historique verdicts |
-| `/narratives` | Top keywords cb_speeches + news 24h vs 7j |
-| `/knowledge-graph` | Carte causale + ShockSimulator |
-| `/geopolitics` | Heatmap GDELT monde |
-| `/calibration` | Brier track-record reliability diagram |
-| `/admin` | Health snapshot — taux d'approval, durées, fraîcheur tables |
-| `/briefings` | Liste briefings narratifs (legacy) |
-| `/assets` | Liste 8 actifs Phase-1 |
-| `/alerts` | Alertes actives |
-| `/news` | Flux news brut |
+> **Phase 2 status (2026-05-04)** — `apps/web/` legacy = 24 pages live. Phase
+> 2 redesign en cours dans `apps/web2/` : 1 page (`/today`) shippée, 13 pages
+> à migrer (cf [`SPEC.md §5 Phase A`](../SPEC.md)). Chiffre total cible
+> post-migration = ~25 pages avec `/today` + `/learn/glossary` ajoutés.
+
+| Page                | Quand y aller                                               |
+| ------------------- | ----------------------------------------------------------- |
+| `/`                 | Au réveil, vue d'ensemble                                   |
+| `/sessions`         | Toutes les cards courantes                                  |
+| `/sessions/{asset}` | Drill-down un actif (chart + replay + counterfactual)       |
+| `/replay/{asset}`   | Time-machine slider sur l'historique verdicts               |
+| `/narratives`       | Top keywords cb_speeches + news 24h vs 7j                   |
+| `/knowledge-graph`  | Carte causale + ShockSimulator                              |
+| `/geopolitics`      | Heatmap GDELT monde                                         |
+| `/calibration`      | Brier track-record reliability diagram                      |
+| `/admin`            | Health snapshot — taux d'approval, durées, fraîcheur tables |
+| `/briefings`        | Liste briefings narratifs (legacy)                          |
+| `/assets`           | Liste 8 actifs Phase-1                                      |
+| `/alerts`           | Alertes actives                                             |
+| `/news`             | Flux news brut                                              |
 
 ---
 
 ## 3. Raccourcis clavier
 
-| Raccourci | Action |
-|---|---|
-| `Cmd+K` (Mac) / `Ctrl+K` (Win) | Ouvrir command palette |
-| `↑ ↓` dans le palette | Naviguer suggestions |
-| `Enter` | Exécuter sélection |
-| `Esc` | Fermer palette / dismiss toasts |
+| Raccourci                      | Action                          |
+| ------------------------------ | ------------------------------- |
+| `Cmd+K` (Mac) / `Ctrl+K` (Win) | Ouvrir command palette          |
+| `↑ ↓` dans le palette          | Naviguer suggestions            |
+| `Enter`                        | Exécuter sélection              |
+| `Esc`                          | Fermer palette / dismiss toasts |
 
 ---
 
@@ -116,6 +125,7 @@ sur les cards closes du jour. **`/calibration`** s'enrichit
 Sur n'importe quelle session card, clique 🔮 **Counterfactual**.
 Modal s'ouvre. Tape un événement (ex: "Powell hawkish surprise May 2") →
 le brain re-derive le verdict en scrubant cet événement. Te montre :
+
 - Original bias vs counterfactual bias
 - Delta narrative (1-3 phrases d'explication)
 - Drivers dominants si l'événement n'avait pas eu lieu
@@ -150,9 +160,11 @@ identifier les patterns de drift, comprendre les épisodes passés.
 Quand le brain sees un gap > 5pp entre les 3 venues sur la même
 question, ça apparaît dans la section `prediction_markets` du
 data_pool. Tu peux query directement :
+
 ```
 GET /v1/data-pool/EUR_USD
 ```
+
 et regarder la sous-section "prediction_markets" pour voir les écarts.
 
 ---
@@ -166,6 +178,7 @@ et regarder la sous-section "prediction_markets" pour voir les écarts.
 5. Accepte la permission iOS
 
 À chaque carte approved/amendments générée :
+
 - iPhone vibre
 - Notif "Ichor · {asset} · {session_type}" + "{BIAS} {conv}% · {verdict}"
 - Tap → ouvre `/sessions/{asset}` directement
@@ -177,6 +190,7 @@ et regarder la sous-section "prediction_markets" pour voir les écarts.
 Ouvre `/admin`. Tu dois voir :
 
 ### Top KPIs
+
 - **Cartes 24h** : 0 jusqu'au premier batch automatique. Devrait être 32 si tu
   laisses tourner toute une journée (8 actifs × 4 sessions).
 - **Cartes total** : nombre cumulé persistées.
@@ -184,6 +198,7 @@ Ouvre `/admin`. Tu dois voir :
 - **Claude-runner** : "configuré" si l'URL est set dans api.env.
 
 ### Tables freshness
+
 - **fresh** (vert) : entrée dans la dernière 30 min
 - **recent** (vert pâle) : dans les 6h
 - **today** (orange) : dans les 24h
@@ -191,6 +206,7 @@ Ouvre `/admin`. Tu dois voir :
   (Friday-only).
 
 ### Per-asset breakdown
+
 Voit le **taux d'approval** par actif. Si EUR/USD est à 33% approved
 mais USD/JPY est à 100%, c'est un signal que les frameworks asset-
 spécifiques ont des forces / faiblesses différentes.
@@ -205,14 +221,18 @@ ssh ichor-hetzner 'curl -s http://127.0.0.1:8000/v1/data-pool/EUR_USD' \
   | less
 ```
 
-Te montre les 14 sections que le brain voit pour un asset, sans
-dépenser une session Claude --live.
+Te montre les sections que le brain voit pour un asset, sans dépenser
+une session Claude --live. **Phase 1 = 27 sections** (post-marathon
+2026-05-04). **Phase 2 ajoute** : `couche2`, `divergence`, `gex`
+(SPX/NDX uniquement), `analogues` (DTW Stooq) → ~30 sections cible
+post-Phase-B.
 
 ---
 
 ## 8. Lancer une carte --live à la demande
 
 Ssh sur Hetzner :
+
 ```bash
 ssh ichor-hetzner "set -a; source /etc/ichor/api.env; set +a; \
   cd /opt/ichor/api && /opt/ichor/api/.venv/bin/python -m \
@@ -253,21 +273,25 @@ ssh ichor-hetzner "set -a; source /etc/ichor/api.env; set +a; \
 ## 11. Quand quelque chose ne marche pas
 
 ### Le batch 06:00 n'a pas tourné
+
 ```bash
 ssh ichor-hetzner "sudo systemctl status ichor-session-cards-pre_londres.timer"
 ssh ichor-hetzner "sudo journalctl -u ichor-session-cards@pre_londres.service -n 50 --no-pager"
 ```
 
 ### Une carte est verdict=blocked persistante
+
 Cause typique : data manquante dans le pool. Va voir
 `/v1/data-pool/{asset}` pour identifier les sections vides.
 
 ### Le claude-runner Win11 ne répond plus
+
 ADR-010 : `claude auth logout && claude auth login --claudeai`.
 Vérifier que les Scheduled Tasks `IchorClaudeRunnerUser` +
 `IchorCloudflaredUser` sont en Running.
 
 ### Push notifications ne marchent plus sur iPhone
+
 1. Va sur `/admin` → vérifie que VAPID est configuré
 2. Sur iPhone : Réglages → Notifications → Ichor → autoriser
 3. Re-tape "🔔 activer push" depuis l'app
@@ -276,16 +300,16 @@ Vérifier que les Scheduled Tasks `IchorClaudeRunnerUser` +
 
 ## 12. Documents de référence
 
-| Doc | Quand le lire |
-|---|---|
-| `docs/decisions/ADR-017-reset-phase1-living-macro-entity.md` | La vision contractée |
-| `docs/VISION_2026.md` | Les 17 deltas + 5 sprints non-prévus livrés |
-| `docs/SESSION_HANDOFF.md` | À chaque `/clear` Claude Code |
-| `docs/PHASE_1_LOG.md` | Chronologie des chunks shipped |
-| `README.md` | Top-level overview repo |
-| `docs/research/macro-frameworks-2026.md` | Les frameworks par actif |
+| Doc                                                          | Quand le lire                               |
+| ------------------------------------------------------------ | ------------------------------------------- |
+| `docs/decisions/ADR-017-reset-phase1-living-macro-entity.md` | La vision contractée                        |
+| `docs/VISION_2026.md`                                        | Les 17 deltas + 5 sprints non-prévus livrés |
+| `docs/SESSION_HANDOFF.md`                                    | À chaque `/clear` Claude Code               |
+| `docs/PHASE_1_LOG.md`                                        | Chronologie des chunks shipped              |
+| `README.md`                                                  | Top-level overview repo                     |
+| `docs/research/macro-frameworks-2026.md`                     | Les frameworks par actif                    |
 
 ---
 
-*Dernière update : 2026-05-04 après la session marathon de 31 commits.
-Tout fonctionne en autonomie 24/7. Le système ne dort pas.*
+_Dernière update : 2026-05-04 après la session marathon de 31 commits.
+Tout fonctionne en autonomie 24/7. Le système ne dort pas._

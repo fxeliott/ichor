@@ -127,13 +127,13 @@ function Header({
         Ichor
       </h1>
       <p className="max-w-prose text-[var(--color-text-secondary)]">
-        Living macro entity — pré-trade context premium. Le vrai{" "}
+        Living macro entity — pré-trade context premium. Lecture du{" "}
         <code className="rounded bg-[var(--color-bg-elevated)] px-1.5 py-0.5 font-mono text-sm">
-          /
+          /v1/today
         </code>{" "}
-        sera branché à l&apos;API au sprint suivant. Cette page démontre les 5 composants UI
-        primitives Phase 2 (BiasIndicator, MetricTooltip, RegimeQuadrant, SessionCard,
-        MobileBlocker) sur mock data plausible.
+        en SSR + ISR (revalidation 30 s) avec fallback offline si l&apos;API
+        ne répond pas — pulse régime, 6 opportunities top conviction, 4
+        triggers actionnable.
       </p>
     </header>
   );

@@ -32,9 +32,14 @@
 #               ICHOR_API_MASTODON_FOLLOWED_FEEDS env ; persists into
 #               news_items with source_kind="social" ; 30-min cadence)
 #
-# Each timer triggers a oneshot service that decrypts secrets, runs the
-# collector via `python -m ichor_api.cli.run_collector <name>`, persists,
-# then shreds the secret bundle.
+# Each timer triggers a oneshot service that loads /etc/ichor/api.env,
+# runs the collector via `python -m ichor_api.cli.run_collectors
+# <name> --persist`. Same env pattern as every other ichor-* service
+# (corrected 2026-05-06 — the original draft referenced a tmpfs-encrypted
+# secrets file that was never deployed and silently broke the
+# ichor-collector@ template, taking out fred + gdelt + polygon when
+# extended ran. Cf. ADR-024 §"Operational drift" and the matching
+# fix in register-cron-couche2.sh).
 
 set -euo pipefail
 
@@ -49,12 +54,11 @@ Wants=network-online.target
 Type=oneshot
 User=ichor
 Group=ichor
-WorkingDirectory=/opt/ichor/api
-EnvironmentFile=/dev/shm/ichor-secrets.env
-ExecStartPre=/usr/local/bin/ichor-decrypt-secrets
+WorkingDirectory=/opt/ichor/api/src
+EnvironmentFile=/etc/ichor/api.env
 ExecStart=/opt/ichor/api/.venv/bin/python -m ichor_api.cli.run_collectors %i --persist
-ExecStartPost=/usr/bin/shred -u /dev/shm/ichor-secrets.env
 TimeoutStartSec=600
+SuccessExitStatus=0 1
 StandardOutput=journal
 StandardError=journal
 EOF

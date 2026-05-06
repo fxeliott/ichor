@@ -8,31 +8,19 @@
 
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import {
-  ApiError,
-  listSessionsForAsset,
-  type SessionCard,
-} from "../../../lib/api";
+import { ApiError, listSessionsForAsset, type SessionCard } from "../../../lib/api";
 import { findAsset, isValidAssetCode } from "../../../lib/assets";
 import { TimeMachineReplay } from "../../../components/time-machine-replay";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 60;
 
-export async function generateMetadata({
-  params,
-}: {
-  params: Promise<{ asset: string }>;
-}) {
+export async function generateMetadata({ params }: { params: Promise<{ asset: string }> }) {
   const { asset } = await params;
   return { title: `Replay · ${asset.replace(/_/g, "/")}` };
 }
 
-export default async function AssetReplayPage({
-  params,
-}: {
-  params: Promise<{ asset: string }>;
-}) {
+export default async function AssetReplayPage({ params }: { params: Promise<{ asset: string }> }) {
   const { asset } = await params;
   if (!isValidAssetCode(asset)) notFound();
   const meta = findAsset(asset);
@@ -46,11 +34,7 @@ export default async function AssetReplayPage({
     total = out.total;
   } catch (err) {
     error =
-      err instanceof ApiError
-        ? err.message
-        : err instanceof Error
-          ? err.message
-          : "unknown error";
+      err instanceof ApiError ? err.message : err instanceof Error ? err.message : "unknown error";
   }
 
   return (
@@ -60,10 +44,7 @@ export default async function AssetReplayPage({
           Sessions
         </Link>
         <span className="mx-2">/</span>
-        <Link
-          href={`/sessions/${asset}`}
-          className="hover:text-neutral-300 underline"
-        >
+        <Link href={`/sessions/${asset}`} className="hover:text-neutral-300 underline">
           {meta?.display ?? asset}
         </Link>
         <span className="mx-2">/</span>
@@ -75,10 +56,9 @@ export default async function AssetReplayPage({
           Replay · {meta?.display ?? asset}
         </h1>
         <p className="text-sm text-neutral-400 mt-1 max-w-2xl">
-          Glisse le curseur ou clique <span className="font-mono">▶</span> pour
-          rejouer l&apos;évolution du verdict Ichor au fil des sessions.
-          Les changements de régime, biais et verdict sont mis en avant
-          (anneau émeraude). Utile pour valider que les transitions ont du
+          Glisse le curseur ou clique <span className="font-mono">▶</span> pour rejouer
+          l&apos;évolution du verdict Ichor au fil des sessions. Les changements de régime, biais et
+          verdict sont mis en avant (anneau émeraude). Utile pour valider que les transitions ont du
           sens et identifier les patterns de drift.
         </p>
         <p className="text-[11px] text-neutral-500 mt-1">

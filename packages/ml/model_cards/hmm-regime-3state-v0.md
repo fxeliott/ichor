@@ -14,18 +14,18 @@
 Given a univariate or multivariate market series (default: log-returns +
 realized vol + cross-asset correlation), label the current regime as one of:
 
-| State | Label                  | Behavioral meaning                              |
-|-------|------------------------|-------------------------------------------------|
-| 0     | Low-vol trending       | Trust trend-following, momentum signals dominate|
-| 1     | High-vol trending      | Trend persists but expect sharp pullbacks       |
-| 2     | Mean-reverting noise   | Fade extremes, distrust momentum                |
+| State | Label                | Behavioral meaning                               |
+| ----- | -------------------- | ------------------------------------------------ |
+| 0     | Low-vol trending     | Trust trend-following, momentum signals dominate |
+| 1     | High-vol trending    | Trend persists but expect sharp pullbacks        |
+| 2     | Mean-reverting noise | Fade extremes, distrust momentum                 |
 
 Used as a **conditioning gate** in `bias_aggregator`: per-model weights are
 downscaled when the model was trained on a different regime than the current.
 
 ### Out-of-scope
 
-- Not a forecaster of *future* regime — only labels the current observation.
+- Not a forecaster of _future_ regime — only labels the current observation.
 - Not stable across very long horizons (re-fit on rolling 2y windows).
 
 ## Inputs / Outputs

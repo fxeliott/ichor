@@ -8,23 +8,20 @@
  */
 
 const CACHE_VERSION = "ichor-v1";
-const STATIC_ALLOWLIST = [
-  "/manifest.webmanifest",
-  "/icon.svg",
-];
+const STATIC_ALLOWLIST = ["/manifest.webmanifest", "/icon.svg"];
 
 self.addEventListener("install", (event) => {
-  event.waitUntil(
-    caches.open(CACHE_VERSION).then((cache) => cache.addAll(STATIC_ALLOWLIST))
-  );
+  event.waitUntil(caches.open(CACHE_VERSION).then((cache) => cache.addAll(STATIC_ALLOWLIST)));
   self.skipWaiting();
 });
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE_VERSION).map((k) => caches.delete(k)))
-    )
+    caches
+      .keys()
+      .then((keys) =>
+        Promise.all(keys.filter((k) => k !== CACHE_VERSION).map((k) => caches.delete(k))),
+      ),
   );
   self.clients.claim();
 });
@@ -46,8 +43,8 @@ self.addEventListener("fetch", (event) => {
             const copy = res.clone();
             caches.open(CACHE_VERSION).then((cache) => cache.put(request, copy));
             return res;
-          })
-      )
+          }),
+      ),
     );
     return;
   }
@@ -60,7 +57,7 @@ self.addEventListener("fetch", (event) => {
         caches.open(CACHE_VERSION).then((cache) => cache.put(request, copy));
         return res;
       })
-      .catch(() => caches.match(request).then((hit) => hit || Response.error()))
+      .catch(() => caches.match(request).then((hit) => hit || Response.error())),
   );
 });
 
@@ -81,7 +78,7 @@ self.addEventListener("push", (event) => {
       badge: "/icon.svg",
       tag: payload.tag || "ichor-notification",
       data: payload.data || {},
-    })
+    }),
   );
 });
 
@@ -94,6 +91,6 @@ self.addEventListener("notificationclick", (event) => {
         if (w.url === url && "focus" in w) return w.focus();
       }
       if (self.clients.openWindow) return self.clients.openWindow(url);
-    })
+    }),
   );
 });

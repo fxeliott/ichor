@@ -81,7 +81,7 @@ export const PushToggle: React.FC = () => {
         userVisibleOnly: true,
         applicationServerKey: keyArr.buffer.slice(
           keyArr.byteOffset,
-          keyArr.byteOffset + keyArr.byteLength
+          keyArr.byteOffset + keyArr.byteLength,
         ) as ArrayBuffer,
       });
 

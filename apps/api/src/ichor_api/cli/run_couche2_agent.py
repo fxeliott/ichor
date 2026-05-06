@@ -82,8 +82,11 @@ async def run_one(kind: str, *, hours: int = 6) -> int:
     try:
         log.info("couche2.run.start", kind=kind)
         output = await chain.run(ctx.body)
-        first_cfg = chain.providers[0]
-        model_used = f"{first_cfg.name}:{first_cfg.default_model}"
+        # FallbackChain populates last_success with the provider:model
+        # of whichever path actually returned (Claude / Cerebras / Groq).
+        # Pre-2026-05-06 this was hard-coded to providers[0] which lied
+        # whenever Claude (now primary per ADR-021) was used.
+        model_used = chain.last_success or "unknown"
         log.info("couche2.run.ok", kind=kind, model=model_used)
     except Exception as exc:
         err = repr(exc)[:1000]

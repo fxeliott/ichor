@@ -48,7 +48,14 @@ const ASSET_DISPLAY: Record<string, string> = {
 
 const NOW = "2026-05-04T07:42:00.000Z";
 
-const MOCK_CROSS: CrossAssetItem[] = [
+// TODO(sprint-cross-asset-wiring): replace this fallback with a fetch
+// against /v1/correlations (matrix) projected onto the 6 reference
+// instruments below. The API returns a full Phase-1 correlations
+// matrix already, but the cross-asset *bias direction* per peer is
+// only inferable through a small backend helper that compares the
+// current value against the rolling z-score quartiles. Until that
+// helper lands the panel uses CROSS_FALLBACK with a "stale" badge.
+const CROSS_FALLBACK: CrossAssetItem[] = [
   { symbol: "DXY", bias: "bear", value: 0.32 },
   { symbol: "US10Y", bias: "bull", value: 4.18 },
   { symbol: "VIX", bias: "neutral", value: 0.04 },
@@ -57,7 +64,7 @@ const MOCK_CROSS: CrossAssetItem[] = [
   { symbol: "SPX", bias: "bull", value: 0.42 },
 ];
 
-const MOCK_DRIVERS: Driver[] = [
+const DRIVERS_FALLBACK: Driver[] = [
   { factor: "DXY directional alignment", contribution: 0.28 },
   { factor: "Real yields differential", contribution: 0.22 },
   { factor: "Polymarket Fed-cut shift 24h", contribution: 0.15 },
@@ -155,13 +162,13 @@ export default async function SessionAssetPage({ params }: PageProps) {
               level: 1.082,
               condition: "close H1 sous le low Asian session",
             }}
-            crossAsset={MOCK_CROSS}
+            crossAsset={CROSS_FALLBACK}
             ideas={{
               top: "Long zone 1.0850–1.0860 retest",
               supporting: ["DXY breakdown 105.20", "Real yield diff favorable"],
               risks: ["Surprise dovish Lagarde", "US10Y >4.30 squeeze"],
             }}
-            confluence={{ score: 7.2, drivers: liveDrivers ?? MOCK_DRIVERS }}
+            confluence={{ score: 7.2, drivers: liveDrivers ?? DRIVERS_FALLBACK }}
             calibration={{ brier: 0.142, sampleSize: 87, trend: "bull" }}
             trade={
               liveTradePlan

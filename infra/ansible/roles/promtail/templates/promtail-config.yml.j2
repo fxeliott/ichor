@@ -1,0 +1,53 @@
+# Promtail — managed by Ansible (role: promtail). Do not edit by hand.
+# Loki target: http://127.0.0.1:3100 (observability docker-compose).
+
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /var/lib/promtail/positions.yaml
+
+clients:
+  - url: http://127.0.0.1:3100/loki/api/v1/push
+    backoff_config:
+      min_period: 500ms
+      max_period: 5m
+      max_retries: 10
+
+scrape_configs:
+  # ─── systemd journal ───────────────────────────────────────────────
+  - job_name: ichor-systemd
+    journal:
+      max_age: 12h
+      labels:
+        job: ichor-systemd
+        host: "{{ inventory_hostname }}"
+      path: /var/log/journal
+    relabel_configs:
+      - source_labels: ["__journal__systemd_unit"]
+        target_label: unit
+      - source_labels: ["__journal_priority_keyword"]
+        target_label: severity
+      # Keep only ichor-* services + nginx + postgresql + redis.
+      - source_labels: ["__journal__systemd_unit"]
+        regex: "(ichor-.*|nginx|postgresql.*|redis-server)\\.service"
+        action: keep
+
+  # ─── nginx access + error logs ─────────────────────────────────────
+  - job_name: nginx
+    static_configs:
+      - targets: [localhost]
+        labels:
+          job: nginx
+          host: "{{ inventory_hostname }}"
+          __path__: /var/log/nginx/*.log
+
+  # ─── wal-g + DR drill logs ─────────────────────────────────────────
+  - job_name: walg
+    static_configs:
+      - targets: [localhost]
+        labels:
+          job: walg
+          host: "{{ inventory_hostname }}"
+          __path__: /var/log/wal-g/*.log

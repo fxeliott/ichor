@@ -1,14 +1,8 @@
 {
   "$schema": "https://turborepo.com/schema.json",
   "ui": "tui",
-  "globalDependencies": [
-    "**/.env.*local",
-    "tsconfig.base.json"
-  ],
-  "globalEnv": [
-    "NODE_ENV",
-    "VERCEL_ENV"
-  ],
+  "globalDependencies": ["**/.env.*local", "tsconfig.base.json"],
+  "globalEnv": ["NODE_ENV", "VERCEL_ENV"],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],

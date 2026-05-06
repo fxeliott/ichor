@@ -29,12 +29,7 @@ export default async function PolymarketImpactPage() {
   try {
     r = await getPolymarketImpact(24);
   } catch (e) {
-    error =
-      e instanceof ApiError
-        ? e.message
-        : e instanceof Error
-          ? e.message
-          : "unknown error";
+    error = e instanceof ApiError ? e.message : e instanceof Error ? e.message : "unknown error";
   }
 
   return (
@@ -44,10 +39,9 @@ export default async function PolymarketImpactPage() {
           Polymarket impact mapping
         </h1>
         <p className="text-sm text-[var(--color-ichor-text-muted)] mt-1">
-          Clusters thématiques des prediction-markets actifs (24h) ramenés à
-          un impact directionnel signé par actif. Chaque thème agrège les
-          marchés qui matchent ses keyphrases et pondère leur YES par
-          (yes - 0.5) × 2 → contribution dans [-1, +1].
+          Clusters thématiques des prediction-markets actifs (24h) ramenés à un impact directionnel
+          signé par actif. Chaque thème agrège les marchés qui matchent ses keyphrases et pondère
+          leur YES par (yes - 0.5) × 2 → contribution dans [-1, +1].
         </p>
       </header>
 
@@ -57,9 +51,8 @@ export default async function PolymarketImpactPage() {
         </p>
       ) : r.themes.length === 0 ? (
         <p className="text-sm text-[var(--color-ichor-text-subtle)]">
-          Aucun thème identifié dans les {r.n_markets_scanned} markets
-          analysés (24h). Polymarket peut être pauvre côté FX/macro pour le
-          moment.
+          Aucun thème identifié dans les {r.n_markets_scanned} markets analysés (24h). Polymarket
+          peut être pauvre côté FX/macro pour le moment.
         </p>
       ) : (
         <>
@@ -70,9 +63,8 @@ export default async function PolymarketImpactPage() {
             ))}
           </section>
           <p className="mt-6 text-xs text-[var(--color-ichor-text-subtle)]">
-            Source : /v1/polymarket-impact · {r.n_markets_scanned} markets
-            scannés sur 24h · clusters thématiques + magnitudes empiriques
-            (FX desk standard).
+            Source : /v1/polymarket-impact · {r.n_markets_scanned} markets scannés sur 24h ·
+            clusters thématiques + magnitudes empiriques (FX desk standard).
           </p>
         </>
       )}
@@ -80,14 +72,8 @@ export default async function PolymarketImpactPage() {
   );
 }
 
-function AssetAggregate({
-  aggregate,
-}: {
-  aggregate: Record<string, number>;
-}) {
-  const entries = Object.entries(aggregate).sort(
-    ([, a], [, b]) => Math.abs(b) - Math.abs(a),
-  );
+function AssetAggregate({ aggregate }: { aggregate: Record<string, number> }) {
+  const entries = Object.entries(aggregate).sort(([, a], [, b]) => Math.abs(b) - Math.abs(a));
   if (entries.length === 0) return null;
   const max = Math.max(0.1, ...entries.map(([, v]) => Math.abs(v)));
   return (
@@ -95,10 +81,7 @@ function AssetAggregate({
       aria-labelledby="agg-heading"
       className="rounded-lg border border-[var(--color-ichor-border)] bg-[var(--color-ichor-surface)]/60 p-5 mb-6"
     >
-      <h2
-        id="agg-heading"
-        className="text-lg font-semibold text-[var(--color-ichor-text)] mb-3"
-      >
+      <h2 id="agg-heading" className="text-lg font-semibold text-[var(--color-ichor-text)] mb-3">
         Impact agrégé par actif
       </h2>
       <ul className="space-y-2">
@@ -138,9 +121,7 @@ function ThemeCard({ theme }: { theme: PolymarketThemeHit }) {
   return (
     <article className="rounded-lg border border-[var(--color-ichor-border)] bg-[var(--color-ichor-surface)]/60 p-4">
       <header className="flex items-baseline justify-between mb-3">
-        <h3 className="text-base font-semibold text-[var(--color-ichor-text)]">
-          {theme.label}
-        </h3>
+        <h3 className="text-base font-semibold text-[var(--color-ichor-text)]">{theme.label}</h3>
         <span className="text-xs text-[var(--color-ichor-text-muted)] font-mono">
           n={theme.n_markets} · avg YES={(theme.avg_yes * 100).toFixed(0)}%
         </span>

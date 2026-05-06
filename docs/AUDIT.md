@@ -9,14 +9,14 @@
 
 ## 1. Verdict global
 
-| Domaine | Score actuel | Score post-Phase 1 si recos intégrées | Plafond honnête atteignable solo dev 0€ |
-|---|---|---|---|
-| Coverage data & sources | **6.5/10** | 7.5/10 | 8.5/10 (Phase 3) |
-| Quant/ML rigueur | **4/10** | 7/10 | 8/10 (Phase 4) |
-| Real-time architecture | **5.5/10** (« partiellement ») | 7.5/10 | 8/10 (Phase 4+) |
-| UX/UI vs Bloomberg/Koyfin | **5.5/10** | 7.5/10 | 8.5/10 (Phase 5+) |
-| Risk + compliance + ops | **4.5/10** | 7/10 | 8/10 (Phase 7) |
-| **GLOBAL pondéré** | **5.2/10** | **7.3/10** | **8.2/10** |
+| Domaine                   | Score actuel                   | Score post-Phase 1 si recos intégrées | Plafond honnête atteignable solo dev 0€ |
+| ------------------------- | ------------------------------ | ------------------------------------- | --------------------------------------- |
+| Coverage data & sources   | **6.5/10**                     | 7.5/10                                | 8.5/10 (Phase 3)                        |
+| Quant/ML rigueur          | **4/10**                       | 7/10                                  | 8/10 (Phase 4)                          |
+| Real-time architecture    | **5.5/10** (« partiellement ») | 7.5/10                                | 8/10 (Phase 4+)                         |
+| UX/UI vs Bloomberg/Koyfin | **5.5/10**                     | 7.5/10                                | 8.5/10 (Phase 5+)                       |
+| Risk + compliance + ops   | **4.5/10**                     | 7/10                                  | 8/10 (Phase 7)                          |
+| **GLOBAL pondéré**        | **5.2/10**                     | **7.3/10**                            | **8.2/10**                              |
 
 **Plafond 10/10 inatteignable** sans Bloomberg Terminal + CME DataMine + ICE Connect + équipe quant 5 ETP + bureau légal AMF dédié. C'est par construction du budget 0€ + solo dev.
 
@@ -34,27 +34,27 @@ Les 4 autres dimensions (UX, real-time, frameworks macro canon) sont **améliora
 
 ### A. Bloquants Phase 1 (à intégrer SPEC.md avant code)
 
-1. **Protocole d'évaluation Brier formalisé** *(quant)* : triple-barrier labeling + Purged K-Fold + embargo + CPCV (≥10 paths) + PBO + Deflated Sharpe + reality check vs baseline naïf + multiple testing FDR. **Sans ça, /performance = marketing.** Ref López de Prado *Advances in FML* ch. 3-7-12-14.
+1. **Protocole d'évaluation Brier formalisé** _(quant)_ : triple-barrier labeling + Purged K-Fold + embargo + CPCV (≥10 paths) + PBO + Deflated Sharpe + reality check vs baseline naïf + multiple testing FDR. **Sans ça, /performance = marketing.** Ref López de Prado _Advances in FML_ ch. 3-7-12-14.
 
-2. **Audit trail prédictions** *(risk)* : table `predictions_audit (id, ts_utc, asset, horizon, features_hash_sha256, model_version, calibrator_version, regime_hmm, bias_value, confidence, brier_realized_when_known)`. **Indispensable** pour défendre toute prédiction rétroactivement.
+2. **Audit trail prédictions** _(risk)_ : table `predictions_audit (id, ts_utc, asset, horizon, features_hash_sha256, model_version, calibrator_version, regime_hmm, bias_value, confidence, brier_realized_when_known)`. **Indispensable** pour défendre toute prédiction rétroactivement.
 
-3. **Block K data « Treasury & Repo Microstructure »** *(coverage)* : QRA + auctions calendar (2y/5y/7y/10y/20y/30y/TIPS hebdo) + bid-to-cover/tail/stop-through + SOFR percentiles NY Fed + dealer positioning hebdo. **Driver USD/rates dominant depuis 2023 (Yellen issuance shift).** Effort 3-4j Phase 1 sem 2-3.
+3. **Block K data « Treasury & Repo Microstructure »** _(coverage)_ : QRA + auctions calendar (2y/5y/7y/10y/20y/30y/TIPS hebdo) + bid-to-cover/tail/stop-through + SOFR percentiles NY Fed + dealer positioning hebdo. **Driver USD/rates dominant depuis 2023 (Yellen issuance shift).** Effort 3-4j Phase 1 sem 2-3.
 
-4. **Block L data « Equity Microstructure & Calendar »** *(coverage)* : index rebalancings (Russell/MSCI/S&P) + OPEX/quad witching + ETF flows daily (XLK/QQQ/SPY/SPDR Gold) + S&P 500 + Nasdaq 100 earnings calendar **complet** (pas 7 noms). Effort 2j.
+4. **Block L data « Equity Microstructure & Calendar »** _(coverage)_ : index rebalancings (Russell/MSCI/S&P) + OPEX/quad witching + ETF flows daily (XLK/QQQ/SPY/SPDR Gold) + S&P 500 + Nasdaq 100 earnings calendar **complet** (pas 7 noms). Effort 2j.
 
-5. **Redis Streams comme bus officiel d'ingestion** *(real-time)* : SPEC §3.3 + §3.4 à updater. Conventions `prices:oanda:eurusd`, `news:rss`, `sentiment:polymarket`, `events:macro:fred`. AOF `appendfsync everysec`. Producers asyncio par source streamable + consumer groups (`bias-cg`, `nlp-cg`, `archiver-cg`). Replace cron OAS 30min naïf par event-driven.
+5. **Redis Streams comme bus officiel d'ingestion** _(real-time)_ : SPEC §3.3 + §3.4 à updater. Conventions `prices:oanda:eurusd`, `news:rss`, `sentiment:polymarket`, `events:macro:fred`. AOF `appendfsync everysec`. Producers asyncio par source streamable + consumer groups (`bias-cg`, `nlp-cg`, `archiver-cg`). Replace cron OAS 30min naïf par event-driven.
 
-6. **WAL streaming Postgres → R2 EU bucket** *(risk)* : `pgbackrest` ou `wal-g`. Cible **RPO 1h** (vs 7j actuel via pg_dump weekly). Test restauration trimestriel chronométré commité `docs/dr-tests/`.
+6. **WAL streaming Postgres → R2 EU bucket** _(risk)_ : `pgbackrest` ou `wal-g`. Cible **RPO 1h** (vs 7j actuel via pg_dump weekly). Test restauration trimestriel chronométré commité `docs/dr-tests/`.
 
-7. **Page `/performance` Phase 1** *(UX)* — pas Phase 2+ : Brier scores live + reliability diagram + ECE + hit rate by confidence bucket + worst calls explained + regime-conditional perf. **C'est le moat de confiance vs Koyfin/Atom qui ne publient JAMAIS leurs erreurs.**
+7. **Page `/performance` Phase 1** _(UX)_ — pas Phase 2+ : Brier scores live + reliability diagram + ECE + hit rate by confidence bucket + worst calls explained + regime-conditional perf. **C'est le moat de confiance vs Koyfin/Atom qui ne publient JAMAIS leurs erreurs.**
 
-8. **Hard caps providers + cost dashboard** *(risk)* : Anthropic API key backup monthly cap $50 + alerts 50/80/100% + ElevenLabs hard cap caractères + Cloudflare R2 alert >5GB + Hetzner traffic >10TB. **Non-négociable post-incident Gemini 2026-04 (95€ abusés).**
+8. **Hard caps providers + cost dashboard** _(risk)_ : Anthropic API key backup monthly cap $50 + alerts 50/80/100% + ElevenLabs hard cap caractères + Cloudflare R2 alert >5GB + Hetzner traffic >10TB. **Non-négociable post-incident Gemini 2026-04 (95€ abusés).**
 
 ### B. Améliorations majeures Phase 1-2 (impactantes)
 
-9. **Command palette grammaticale + chord shortcuts + cheatsheet `?`** *(UX)* : `go eurusd`, `chart spx 3m`, `cmp gold dxy`, `news fed`, `cal 2026-05-15`. Sans ça, Cmd+K reste un fuzzy-finder banal. Bloomberg-essentiel.
+9. **Command palette grammaticale + chord shortcuts + cheatsheet `?`** _(UX)_ : `go eurusd`, `chart spx 3m`, `cmp gold dxy`, `news fed`, `cal 2026-05-15`. Sans ça, Cmd+K reste un fuzzy-finder banal. Bloomberg-essentiel.
 
-10. **Vintage data ALFRED + lineage point-in-time** *(quant)* : étendre la colonne `vintage_at` (déjà prévue pour OAS) à **toutes** séries macro révisables (GDP, NFP, CPI, NFP). Sans ça, look-ahead bias systématique sur révisions.
+10. **Vintage data ALFRED + lineage point-in-time** _(quant)_ : étendre la colonne `vintage_at` (déjà prévue pour OAS) à **toutes** séries macro révisables (GDP, NFP, CPI, NFP). Sans ça, look-ahead bias systématique sur révisions.
 
 ---
 
@@ -63,6 +63,7 @@ Les 4 autres dimensions (UX, real-time, frameworks macro canon) sont **améliora
 ### 3.1 Coverage data — gaps détaillés
 
 **Critique Phase 1** :
+
 - Treasury auctions cycle (TreasuryDirect API) — Block K
 - SOFR percentiles NY Fed — Block K
 - Index rebalancings + OPEX + quad witching — Block L
@@ -76,6 +77,7 @@ Les 4 autres dimensions (UX, real-time, frameworks macro canon) sont **améliora
 - ICE BofA OAS sub-indices (BBB only, B only, CCC only) — Block A étendu
 
 **Important Phase 2-3** :
+
 - EM cross-region (CNY PBoC fix, Caixin PMI, Japan Tankan, BTP-Bund, OAT-Bund spreads)
 - Sector rotation ETF (XLF/XLK/XLE/XLV/XLP/XLY/XLU/XLB/XLI/XLRE/XLC)
 - NAAIM exposure index, ICI fund flows weekly (complète AAII/Sentix/ZEW déjà prévus)
@@ -91,6 +93,7 @@ Les 4 autres dimensions (UX, real-time, frameworks macro canon) sont **améliora
 - CME FedWatch tool (proxy implied Fed-cut prob, complémentaire Polymarket)
 
 **Sources gratuites manquantes que TOUS les pros utilisent** :
+
 - TreasuryDirect API XML (auctions)
 - NY Fed SOFR percentiles JSON daily
 - FINRA Reg SHO daily short sale CSV
@@ -99,6 +102,7 @@ Les 4 autres dimensions (UX, real-time, frameworks macro canon) sont **améliora
 - OFR Financial Stress Index daily JSON
 
 **Risques sources actuelles du plan** :
+
 - Polymarket Gamma API non-documenté officiellement → rate limit silencieux + breaking changes possible. Mitigation : cache local + fallback Kalshi + CME FedWatch.
 - COT release vendredi 15:30 ET = 3j retard → ne pas surpondérer en horizons intraday.
 - HY/IG OAS rolling 3 ans depuis avril 2026 → archivage J0 critique (déjà bien identifié SPEC §3.4) **mais étendre à TOUTES séries FRED critiques** (T5YIE, T10YIE, THREEFYTP10, SAHMREALTIME, USEPUINDXD).
@@ -108,6 +112,7 @@ Les 4 autres dimensions (UX, real-time, frameworks macro canon) sont **améliora
 ### 3.2 Quant/ML rigueur — gaps détaillés
 
 **Critique avant Phase 1** (sans ça, Brier publié non-défendable) :
+
 - Triple-barrier labeling par actif×horizon (López de Prado ch. 3)
 - Purged K-Fold avec embargo = max(horizon labels) (ch. 7)
 - CPCV (Combinatorial Purged CV) génération N≥10 paths backtest (ch. 12)
@@ -118,6 +123,7 @@ Les 4 autres dimensions (UX, real-time, frameworks macro canon) sont **améliora
 - Multiple testing correction (Bonferroni / FDR Benjamini-Hochberg) sur 6 modèles × 12 moteurs × 15 actifs × 3 horizons ~3000 strategies évaluées
 
 **Probabilistic forecasting** :
+
 - Reliability diagram + ECE + MCE par actif/horizon/régime (pas que Brier scalaire)
 - CRPS (Continuous Ranked Probability Score) pour distribution 7 scenarios
 - Pinball loss / quantile evaluation pour `<ConfidenceBand>`
@@ -125,6 +131,7 @@ Les 4 autres dimensions (UX, real-time, frameworks macro canon) sont **améliora
 - Comparaison calibration isotonic vs Platt vs beta vs spline (isotonic over-fit notoirement sur petits datasets)
 
 **Feature engineering / data leakage** :
+
 - Vintage ALFRED point-in-time pour TOUTES séries macro révisables (pas que OAS)
 - Stationarity tests ADF, KPSS, PP avant tout modèle linéaire (lib `statsmodels`)
 - Fractional differentiation (López de Prado ch. 5 ; lib `fracdiff` MIT)
@@ -136,6 +143,7 @@ Les 4 autres dimensions (UX, real-time, frameworks macro canon) sont **améliora
 - Copulas pour dépendance + EVT POT pour tails (lib `pyextremes` MIT) — nécessaire pour stress tests + crisis mode
 
 **Model risk governance (SR 26-2 inspired)** :
+
 - Tier per model (Tier 1 critique HMM + aggregator, Tier 2 secondaire tournament 6, Tier 3 LLM agents Langfuse-only)
 - Lifecycle gates écrits : dev → validation → deploy → monitor → retire
 - Champion/challenger discipline avec shadow window N=20 jours min avant promotion
@@ -147,6 +155,7 @@ Les 4 autres dimensions (UX, real-time, frameworks macro canon) sont **améliora
 - Distinction retrain (refit features) vs recalibrate (isotonic only) — triggers explicites
 
 **Libs additionnelles obligatoires à ajouter à SPEC §3.5** :
+
 - `mapie` (BSD-3) — conformal prediction
 - `fracdiff` (MIT) — fractional differentiation
 - `properscoring` ou `scoringrules` — CRPS/pinball/energy score
@@ -167,6 +176,7 @@ Les 4 autres dimensions (UX, real-time, frameworks macro canon) sont **améliora
 **Refonte recommandée** : **hybride autour de Redis Streams** (déjà en stack), pas Kafka/Flink/Materialize.
 
 **Architecture cible** :
+
 ```
 producers asyncio (par source) ─XADD→ Redis Streams (per-source key)
                                            │
@@ -201,6 +211,7 @@ producers asyncio (par source) ─XADD→ Redis Streams (per-source key)
 | GDELT | Pseudo-stream 15min | 15min | Polling 15min |
 
 **Latency budgets réalistes** (single-user prod Hetzner) :
+
 - Tick FX OANDA → UI : **<500ms p95**
 - Polymarket move → alert UI : **<1s p95**
 - News RSS → alert UI : **<2min p95**
@@ -208,6 +219,7 @@ producers asyncio (par source) ─XADD→ Redis Streams (per-source key)
 - Crisis Mode briefing audio dispo : **<2min**
 
 **Risques temps-réel sous-estimés** :
+
 - Pas de DLQ ni replay → perte silencieuse possible (XPENDING + XCLAIM répare)
 - Backpressure si Polymarket spike 10k msg/s → consumer groups + decouplage
 - Heartbeat OANDA stream non spécifié (stale stream silencieux)
@@ -221,6 +233,7 @@ producers asyncio (par source) ─XADD→ Redis Streams (per-source key)
 ### 3.4 UX/UI — gaps détaillés
 
 **Bloquants Phase 1** :
+
 - Command palette grammaticale (verb subject modifier) — `go {symbol}`, `chart {symbol} {tf}`, `cmp {a} {b}`, `news {topic}`, `cal {date}`, `?` aide
 - Function-key chord shortcuts spécifiés (`e e` → EURUSD, `x a u` → XAUUSD, `g k` → goto knowledge graph) + cheatsheet `?` overlay
 - Stale data badge couleur + tooltip "last update HH:MM Paris (Xmin ago)" sur **chaque** metric
@@ -232,6 +245,7 @@ producers asyncio (par source) ─XADD→ Redis Streams (per-source key)
 - Empty/loading skeletons par carte avec last-update badge
 
 **Composants à AJOUTER design system (au-delà des 12 actuels)** :
+
 - `<CommandPalette />` avec grammaire (au-delà de cmdk brut)
 - `<NewsTicker />` marquee top-bar + click → assets impactés
 - `<StaleBadge />` timestamp + couleur fresh/stale/dead
@@ -248,6 +262,7 @@ producers asyncio (par source) ─XADD→ Redis Streams (per-source key)
 - `<BriefingPlayer />` audio Brian + transcript synchronisé + chapters SSML + vitesse
 
 **Pages à AJOUTER au sitemap** :
+
 - `/performance` **dès Phase 1** (pas Phase 2+)
 - `/replay` (Phase 3+) time-travel slider + saved snapshots
 - `/compare?a=eurusd&b=gbpusd` split asset cards
@@ -258,6 +273,7 @@ producers asyncio (par source) ─XADD→ Redis Streams (per-source key)
 - `/onboarding` Phase 7 multi-tenant — scaffolder dès Phase 1 placeholder
 
 **Top 5 features différenciantes vs Koyfin/Atom** :
+
 1. Calibration publique live (`/performance` reliability + Brier streaming) — Koyfin/Atom ne publient JAMAIS leurs erreurs
 2. Briefings audio FR Brian + transcript synchronisé + chapters SSML — pipeline ElevenLabs avec lexique phonétique custom unique
 3. Driver decomposition transparente 12 moteurs + sources cliquables jusqu'à donnée brute
@@ -267,6 +283,7 @@ producers asyncio (par source) ─XADD→ Redis Streams (per-source key)
 ### 3.5 Risk + compliance + ops — gaps détaillés
 
 **Critique avant Phase 1 prod** :
+
 - Model inventory (`docs/model-registry.yaml`) + 1 model card par modèle (HMM, isotonic, 6 tournament, aggregator)
 - Table `predictions_audit` pour reproducibilité point-in-time
 - Threat model STRIDE écrit
@@ -280,6 +297,7 @@ producers asyncio (par source) ─XADD→ Redis Streams (per-source key)
 - AOF `appendfsync everysec` Redis (sinon crash = perte messages non consommés)
 
 **Model risk governance (SR 26-2, 17 avril 2026)** :
+
 - Tier per model (1/2/3 selon matérialité)
 - Lifecycle gates documentés
 - Champion/challenger shadow window N≥20j avant promotion
@@ -288,6 +306,7 @@ producers asyncio (par source) ─XADD→ Redis Streams (per-source key)
 - Annual review formelle = revue trimestrielle écrite signée pour solo dev
 
 **AMF / juridique France** :
+
 - **Critère décisif** = recommandation **personnalisée** sur instrument **précis identifié** (Position DOC-2008-23). Ichor = biais par actif identifié → le caractère **non personnalisé** est l'unique rempart, doit être **technically enforced**.
 - **Risque glissement** Phase 7 si annotations perso, watchlists user-specific, alertes config par user → bascule potentielle vers conseil. Séparation stricte « contenu identique pour tous » vs « préférences UI cosmétiques ».
 - **Disclaimer seul ne suffit pas** : ajouter (i) CGU signées au modal initial avec horodatage + IP + hash, (ii) mention « non-CIF, non-PSI » footer, (iii) **NE PAS publier de performances historiques** sans track record audité (plus prudent V1).
@@ -296,6 +315,7 @@ producers asyncio (par source) ─XADD→ Redis Streams (per-source key)
 - **Documents juridiques** à rédiger : CGU + Politique de confidentialité + DPIA draft + mention non-CIF/non-PSI — **avocat fintech AMF (~500-1500€) avant ouverture multi-tenant Phase 7**.
 
 **GDPR Phase 7 prérequis** :
+
 - DPIA obligatoire (art. 35) car traitement automatisé pouvant influencer décisions financières
 - Registre des traitements (art. 30) à initier dès Phase 0
 - Right to be forgotten process documenté
@@ -313,6 +333,7 @@ producers asyncio (par source) ─XADD→ Redis Streams (per-source key)
 | Hetzner serveur | N/A | 24h | **Pas de second Hetzner ni Oracle Free chaud** (déjà dispo `ICHOR_PLAN.md:474`) |
 
 **Cost monitoring (anti incident Gemini)** :
+
 - Anthropic backup key monthly cap $50 + alerts 50/80/100%
 - ElevenLabs hard cap caractères/mois
 - Cloudflare R2 alert >5GB stockage ou >1M class-A ops
@@ -322,6 +343,7 @@ producers asyncio (par source) ─XADD→ Redis Streams (per-source key)
 - Rotation policy 90j calendrier `docs/key-rotation.md`
 
 **7 incident runbooks à créer Phase 0** :
+
 1. Hetzner injoignable
 2. Clé API compromise
 3. Postgres corruption
@@ -338,20 +360,20 @@ producers asyncio (par source) ─XADD→ Redis Streams (per-source key)
 
 Les 12 moteurs actuels sont pertinents mais gagnent à être nommés par leurs paternités intellectuelles, ce qui structure la pédagogie + le knowledge base + la légitimité auprès d'un user pro :
 
-| Moteur Ichor | Paternité intellectuelle | Concept clé | Reference book |
-|---|---|---|---|
-| Top-down macro (#1) | **Ray Dalio** Big Cycle | Long-term debt cycle, productivity, internal/external order | *Big Debt Crises* (2018), *Principles for Dealing with Changing World Order* (2021) |
-| Liquidity-driven (#9) | **Zoltan Pozsar** Money Markets | Shadow banking, dollar funding, collateral, FX swaps | *Global Money Notes* series (Credit Suisse 2018-2022) |
-| Liquidity-driven (#9) bis | **Hyman Minsky** | Hedge → speculative → Ponzi finance, Minsky moment | *Stabilizing an Unstable Economy* (1986) |
-| Narrative-driven (#8) | **George Soros** reflexivity | Boom-bust feedback cognitive function ↔ price | *The Alchemy of Finance* (1987) |
-| Narrative-driven (#8) bis | **Robert Shiller** | Narrative economics, viral stories drive markets | *Narrative Economics* (2019) |
-| Vol-regime (#10) | **Markus Brunnermeier** | Liquidity spirals, fire sales, leverage cycle | *The I-Theory of Money* WP series, BIS lectures |
-| Mean reversion (#4) | **AQR Asness** | Value, profitability, defensive (QMJ) | *Quality Minus Junk* (2013) |
-| Carry (#3) | **Pedersen-Asness-Moskowitz** | Carry returns across asset classes | *Carry* (2018, J Financial Economics) |
-| Momentum (#5) | **Carhart-Fama** + **Asness** | 12-1 month momentum equity, currency, commodity | *On Persistence in Mutual Fund Performance* (1997) |
-| Contrarian (#6) | **De Bondt-Thaler** | Long-term reversal 3-5y | *Does the Stock Market Overreact?* (1985) |
-| Cross-asset (#11) | **Antti Ilmanen** | Risk premia harvesting, regime conditioning | *Expected Returns* (2011), *Investing Amid Low Expected Returns* (2022) |
-| Pairs/RV (#12) | **Ed Thorp** + **Gatev-Goetzmann-Rouwenhorst** | Statistical arbitrage convergence | *Beat the Market* (1967), *Pairs Trading* (RFS 2006) |
+| Moteur Ichor              | Paternité intellectuelle                       | Concept clé                                                 | Reference book                                                                      |
+| ------------------------- | ---------------------------------------------- | ----------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| Top-down macro (#1)       | **Ray Dalio** Big Cycle                        | Long-term debt cycle, productivity, internal/external order | _Big Debt Crises_ (2018), _Principles for Dealing with Changing World Order_ (2021) |
+| Liquidity-driven (#9)     | **Zoltan Pozsar** Money Markets                | Shadow banking, dollar funding, collateral, FX swaps        | _Global Money Notes_ series (Credit Suisse 2018-2022)                               |
+| Liquidity-driven (#9) bis | **Hyman Minsky**                               | Hedge → speculative → Ponzi finance, Minsky moment          | _Stabilizing an Unstable Economy_ (1986)                                            |
+| Narrative-driven (#8)     | **George Soros** reflexivity                   | Boom-bust feedback cognitive function ↔ price               | _The Alchemy of Finance_ (1987)                                                     |
+| Narrative-driven (#8) bis | **Robert Shiller**                             | Narrative economics, viral stories drive markets            | _Narrative Economics_ (2019)                                                        |
+| Vol-regime (#10)          | **Markus Brunnermeier**                        | Liquidity spirals, fire sales, leverage cycle               | _The I-Theory of Money_ WP series, BIS lectures                                     |
+| Mean reversion (#4)       | **AQR Asness**                                 | Value, profitability, defensive (QMJ)                       | _Quality Minus Junk_ (2013)                                                         |
+| Carry (#3)                | **Pedersen-Asness-Moskowitz**                  | Carry returns across asset classes                          | _Carry_ (2018, J Financial Economics)                                               |
+| Momentum (#5)             | **Carhart-Fama** + **Asness**                  | 12-1 month momentum equity, currency, commodity             | _On Persistence in Mutual Fund Performance_ (1997)                                  |
+| Contrarian (#6)           | **De Bondt-Thaler**                            | Long-term reversal 3-5y                                     | _Does the Stock Market Overreact?_ (1985)                                           |
+| Cross-asset (#11)         | **Antti Ilmanen**                              | Risk premia harvesting, regime conditioning                 | _Expected Returns_ (2011), _Investing Amid Low Expected Returns_ (2022)             |
+| Pairs/RV (#12)            | **Ed Thorp** + **Gatev-Goetzmann-Rouwenhorst** | Statistical arbitrage convergence                           | _Beat the Market_ (1967), _Pairs Trading_ (RFS 2006)                                |
 
 **Action** : enrichir SPEC §4 « Architecture multi-agent » avec un tableau de paternité par moteur. Ça aide aussi le Critic agent à challenger le model en référençant des frameworks établis.
 
@@ -360,48 +382,55 @@ Les 12 moteurs actuels sont pertinents mais gagnent à être nommés par leurs p
 Pour la Phase 6 « Recherche académique synthesizer » du plan original, le pipeline RAG doit indexer les **books canon trading systématique** suivants (chunks + embeddings, recherche sémantique) :
 
 **Trading systématique & ML quant** :
-- López de Prado, *Advances in Financial Machine Learning* (Wiley 2018)
-- López de Prado, *Machine Learning for Asset Managers* (Cambridge 2020)
-- López de Prado, *Causal Factor Investing* (Cambridge 2023)
-- Carver, *Systematic Trading* (Harriman House 2015)
-- Chan, *Quantitative Trading* (Wiley 2008) + *Algorithmic Trading* (Wiley 2013)
-- Aronson, *Evidence-Based Technical Analysis* (Wiley 2006) — méta sur biais
+
+- López de Prado, _Advances in Financial Machine Learning_ (Wiley 2018)
+- López de Prado, _Machine Learning for Asset Managers_ (Cambridge 2020)
+- López de Prado, _Causal Factor Investing_ (Cambridge 2023)
+- Carver, _Systematic Trading_ (Harriman House 2015)
+- Chan, _Quantitative Trading_ (Wiley 2008) + _Algorithmic Trading_ (Wiley 2013)
+- Aronson, _Evidence-Based Technical Analysis_ (Wiley 2006) — méta sur biais
 
 **Volatilité & options** :
-- Hull, *Options, Futures, and Other Derivatives* (10th ed) — bible
-- Natenberg, *Option Volatility & Pricing* (2nd ed)
-- Sinclair, *Volatility Trading* (2nd ed) + *Option Trading*
-- Gatheral, *The Volatility Surface* (Wiley 2006)
-- Rebonato, *Volatility and Correlation* (Wiley 2nd ed)
+
+- Hull, _Options, Futures, and Other Derivatives_ (10th ed) — bible
+- Natenberg, _Option Volatility & Pricing_ (2nd ed)
+- Sinclair, _Volatility Trading_ (2nd ed) + _Option Trading_
+- Gatheral, _The Volatility Surface_ (Wiley 2006)
+- Rebonato, _Volatility and Correlation_ (Wiley 2nd ed)
 
 **Macro & risk premia** :
-- Ilmanen, *Expected Returns* (2011) + *Investing Amid Low Expected Returns* (2022)
-- Dalio, *Principles for Dealing with the Changing World Order* (2021) + *Big Debt Crises* (2018)
-- Cochrane, *Asset Pricing* (2005)
-- Pedersen, *Efficiently Inefficient* (Princeton 2015)
+
+- Ilmanen, _Expected Returns_ (2011) + _Investing Amid Low Expected Returns_ (2022)
+- Dalio, _Principles for Dealing with the Changing World Order_ (2021) + _Big Debt Crises_ (2018)
+- Cochrane, _Asset Pricing_ (2005)
+- Pedersen, _Efficiently Inefficient_ (Princeton 2015)
 
 **Comportements de marché** :
-- Lo, *Adaptive Markets* (Princeton 2017)
-- Bookstaber, *A Demon of Our Own Design* (2007) + *The End of Theory* (2017)
-- Soros, *The Alchemy of Finance* (1987)
-- Shiller, *Narrative Economics* (2019)
-- Mandelbrot, *The (Mis)Behavior of Markets* (2004)
-- Taleb, *Dynamic Hedging* (1997) + *Statistical Consequences of Fat Tails* (2020)
+
+- Lo, _Adaptive Markets_ (Princeton 2017)
+- Bookstaber, _A Demon of Our Own Design_ (2007) + _The End of Theory_ (2017)
+- Soros, _The Alchemy of Finance_ (1987)
+- Shiller, _Narrative Economics_ (2019)
+- Mandelbrot, _The (Mis)Behavior of Markets_ (2004)
+- Taleb, _Dynamic Hedging_ (1997) + _Statistical Consequences of Fat Tails_ (2020)
 
 **Forecasting & cognition** :
-- Tetlock, *Superforecasting* (2015)
-- Mauboussin, *More Than You Know* (2006) + *The Success Equation* (2012)
-- Silver, *The Signal and the Noise* (2012)
+
+- Tetlock, _Superforecasting_ (2015)
+- Mauboussin, _More Than You Know_ (2006) + _The Success Equation_ (2012)
+- Silver, _The Signal and the Noise_ (2012)
 
 **Méta / classique** :
-- Schwager, *Market Wizards* series
-- Kindleberger, *Manias, Panics, and Crashes* (8th ed)
+
+- Schwager, _Market Wizards_ series
+- Kindleberger, _Manias, Panics, and Crashes_ (8th ed)
 
 **Action Phase 6** : pipeline `academic-digest` ingère ces ~30 books + arXiv q-fin + NBER + Fed FEDS + BIS WP + IMF WP + ECB WP + SSRN q-fin → embeddings (OpenAI proscrit ; alternative : `bge-large-en-v1.5` ou `nomic-embed-text-v1.5` HF gratuits) → Kuzu graphe (déjà SPEC §3.3) + recherche sémantique pour Critic + Journalist agents qui peuvent référencer livres pendant briefings.
 
 ### 4.3 Research feeds publics gratuits manquants
 
 À ajouter au Block G news/academic (Phase 1-2) :
+
 - **Pozsar Money Markets notes** (depuis indépendant post-CS) — substack si dispo
 - **Macro Compass** (Alfonso Peccatiello) — substack
 - **Bianco Research** — blog public partial
@@ -449,6 +478,7 @@ Pour la Phase 6 « Recherche académique synthesizer » du plan original, le pip
 ### 5.2 Phase 0 enrichie (au-delà de SPEC §14)
 
 **Semaine 1 — Infrastructure** (inchangée principalement) :
+
 - Achat ichor.app Cloudflare Registrar **+ R2 bucket EU jurisdiction obligatoire**
 - Backup Hetzner pre-wipe
 - Wipe + Ubuntu 24.04
@@ -459,6 +489,7 @@ Pour la Phase 6 « Recherche académique synthesizer » du plan original, le pip
 - Cloudflare Access **+ YubiKey MFA Cloudflare/Hetzner/GitHub/Anthropic**
 
 **Semaine 2 — Foundation critique** :
+
 - **Cron archiver HY/IG OAS J0** + **étendu à toutes séries FRED critiques**
 - **WAL streaming Postgres → R2 EU**
 - **Redis Streams setup + 3 producers stub** (OANDA, Finnhub, Polymarket)
@@ -476,6 +507,7 @@ Pour la Phase 6 « Recherche académique synthesizer » du plan original, le pip
 - Script `check_api_keys.py`
 
 **Semaine 3 — Test restauration + DR** :
+
 - **Premier test restauration Postgres chronométré** → résultat commité
 - **Account recovery printout papier** (codes Cloudflare/Hetzner/GitHub/Anthropic) cold storage
 - **DPA template ouverts** avec providers (Cloudflare, Hetzner, ElevenLabs, Anthropic, Groq, Cerebras, HuggingFace)
@@ -519,19 +551,25 @@ Même avec toutes les recommandations intégrées, certaines choses **ne seront 
 Eliot, tu as 3 options :
 
 ### Option A — « Ship MVP plus vite » (pragmatique)
+
 Garder SPEC.md actuel. Démarrer Phase 0 selon SPEC §14. Intégrer recommandations critiques (top 8) en cours de Phase 1 quand tu en croises le besoin réel.
+
 - **Pour** : tu codes vite, MVP Phase 1 en 7-9 sem comme prévu
 - **Contre** : tu vas devoir refactorer Real-time architecture + protocole Brier rigueur en cours de route, friction
 - **Score post-Phase 1** : ~6.5/10
 
 ### Option B — « SPEC v2 complet avant code » (rigoureux) — **RECOMMANDÉ**
+
 Updater SPEC.md avec les 15 modifications listées §5.1. Délai +1-2 semaines. Phase 0 enrichie selon §5.2. Phase 1 plus solide.
+
 - **Pour** : architecture cohérente dès J1, pas de refactor majeur en cours, défendable face à risk officer / régulateur
 - **Contre** : +1-2 semaines avant de coder
 - **Score post-Phase 1** : ~7.3/10
 
 ### Option C — « Audit + revue avec experts externes » (paranoïa)
+
 Avant Phase 0, faire revue de SPEC v2 par : avocat fintech AMF (1500€), risk officer freelance (1-2k€), staff engineer streaming (1-2k€).
+
 - **Pour** : robustesse maximale dès J1
 - **Contre** : 4-6k€ + 4-6 semaines avant Phase 0. Hors budget actuel.
 - **Score post-Phase 1** : ~7.8/10
@@ -543,6 +581,7 @@ Avant Phase 0, faire revue de SPEC v2 par : avocat fintech AMF (1500€), risk o
 ## 8. Prochaine action concrète
 
 **Si tu choisis Option B**, je propose ce flux :
+
 1. Tu lis ce AUDIT.md (15-30 min)
 2. Tu valides Option A / B / C ou hybride
 3. Si B : on `/clear`, nouvelle session avec mission **« Update SPEC.md selon AUDIT.md §5.1 — produire SPEC v2 »**. Travail dans une session vierge avec contexte propre.
@@ -554,4 +593,4 @@ Je suis prêt à enchaîner. Dis-moi.
 
 ---
 
-*Document maintenu par Claude. Synthèse de 5 sub-agents experts (UX, quant, coverage data, real-time, risk/compliance) + ajouts main agent (frameworks canon + books + research feeds). Mis à jour à chaque évolution majeure.*
+_Document maintenu par Claude. Synthèse de 5 sub-agents experts (UX, quant, coverage data, real-time, risk/compliance) + ajouts main agent (frameworks canon + books + research feeds). Mis à jour à chaque évolution majeure._

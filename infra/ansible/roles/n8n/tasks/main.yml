@@ -22,9 +22,9 @@
     owner: "{{ item.owner | default(omit) }}"
     group: "{{ item.group | default(omit) }}"
   loop:
-    - { path: n8n-data,      owner: "1000", group: "1000" }  # n8n container UID = node user
-    - { path: postgres-data, owner: "999",  group: "999" }   # postgres alpine UID
-    - { path: secrets,       owner: "root", group: "root" }
+    - { path: n8n-data, owner: "1000", group: "1000" } # n8n container UID = node user
+    - { path: postgres-data, owner: "999", group: "999" } # postgres alpine UID
+    - { path: secrets, owner: "root", group: "root" }
 
 - name: Write Docker secret (n8n Postgres password)
   ansible.builtin.copy:

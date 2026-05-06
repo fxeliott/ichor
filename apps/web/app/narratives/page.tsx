@@ -41,10 +41,7 @@ export default async function NarrativesPage() {
   let report168: NarrativeOut | null = null;
   let error: string | null = null;
   try {
-    [report24, report168] = await Promise.all([
-      fetchNarrative(24),
-      fetchNarrative(168),
-    ]);
+    [report24, report168] = await Promise.all([fetchNarrative(24), fetchNarrative(168)]);
   } catch (e) {
     error = e instanceof Error ? e.message : "unknown";
   }
@@ -52,14 +49,11 @@ export default async function NarrativesPage() {
   return (
     <div className="max-w-5xl mx-auto px-4 py-6 space-y-6">
       <header>
-        <h1 className="text-2xl font-semibold text-[var(--color-ichor-text)]">
-          Narratives macro
-        </h1>
+        <h1 className="text-2xl font-semibold text-[var(--color-ichor-text)]">Narratives macro</h1>
         <p className="text-sm text-[var(--color-ichor-text-muted)] mt-1 max-w-2xl">
-          Mots-clés dominants extraits des discours banques centrales et
-          des news des 24h / 7j. Chaque keyword affiche son nombre de
-          documents et sa part du corpus. Doublons (24h dans 7j) =
-          narrative récurrente, écart 24h vs 7j ≫ 0 = narrative émergente.
+          Mots-clés dominants extraits des discours banques centrales et des news des 24h / 7j.
+          Chaque keyword affiche son nombre de documents et sa part du corpus. Doublons (24h dans
+          7j) = narrative récurrente, écart 24h vs 7j ≫ 0 = narrative émergente.
         </p>
       </header>
 

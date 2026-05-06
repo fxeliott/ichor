@@ -42,11 +42,7 @@ export default async function AssetsPage() {
     ]);
   } catch (err) {
     error =
-      err instanceof ApiError
-        ? err.message
-        : err instanceof Error
-          ? err.message
-          : "unknown error";
+      err instanceof ApiError ? err.message : err instanceof Error ? err.message : "unknown error";
   }
 
   const sigByAsset = new Map(signals.map((s) => [s.asset, s]));
@@ -107,13 +103,9 @@ export default async function AssetsPage() {
                       lastPrice={0}
                       change24hPct={0}
                       bias={sig ? signedBias(sig) : 0}
-                      {...(sig
-                        ? { credibleInterval: signedCredibleInterval(sig) }
-                        : {})}
+                      {...(sig ? { credibleInterval: signedCredibleInterval(sig) } : {})}
                       alertsCount={al.length}
-                      {...(maxSeverity(al)
-                        ? { maxAlertSeverity: maxSeverity(al)! }
-                        : {})}
+                      {...(maxSeverity(al) ? { maxAlertSeverity: maxSeverity(al)! } : {})}
                     />
                   </Link>
                 );

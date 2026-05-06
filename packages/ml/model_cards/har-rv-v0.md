@@ -21,7 +21,7 @@ Used in two places:
 1. **Vol-aware position sizing** in briefings (probabilistic statements
    conditioned on next-day realized vol).
 2. **PLAN_VOL_REGIME_BREAK alert**: triggers when `RV_{t+1}^pred >
-   2 × MA_30(RV)`.
+2 × MA_30(RV)`.
 
 ### Out-of-scope
 

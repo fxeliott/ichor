@@ -45,7 +45,7 @@ services:
       # Pulled in by datasources/datasources.yaml — see provisioning dir
       ICHOR_DB_PASSWORD_FILE: /run/secrets/ichor_db_password
     ports:
-      - "127.0.0.1:3001:3000"  # 3001 host → 3000 container; 3000 reserved for Langfuse
+      - "127.0.0.1:3001:3000" # 3001 host → 3000 container; 3000 reserved for Langfuse
     volumes:
       - ./grafana-data:/var/lib/grafana
       - ./grafana-provisioning/datasources:/etc/grafana/provisioning/datasources:ro

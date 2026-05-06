@@ -18,14 +18,14 @@ On 2026-05-02 we verified:
 
 Available alternatives verified via DNS NXDOMAIN check + Cloudflare price API:
 
-| Domain | DNS resolves? | CF price/yr |
-|--------|---------------|-------------|
-| `ichor.fyi` | NXDOMAIN | $15.18 |
-| `getichor.com` | NXDOMAIN | $10.46 |
-| `ichor.com` | resolves (taken) | — |
-| `ichor.io` | resolves (taken) | — |
-| `ichor.dev` | resolves (taken) | — |
-| `ichor.ai` | resolves (taken) | — |
+| Domain         | DNS resolves?    | CF price/yr |
+| -------------- | ---------------- | ----------- |
+| `ichor.fyi`    | NXDOMAIN         | $15.18      |
+| `getichor.com` | NXDOMAIN         | $10.46      |
+| `ichor.com`    | resolves (taken) | —           |
+| `ichor.io`     | resolves (taken) | —           |
+| `ichor.dev`    | resolves (taken) | —           |
+| `ichor.ai`     | resolves (taken) | —           |
 
 ## Decision
 

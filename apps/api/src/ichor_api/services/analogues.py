@@ -96,9 +96,9 @@ async def find_analogues(
                 select(MarketDataBar)
                 .where(
                     MarketDataBar.asset == asset,
-                    MarketDataBar.bar_ts >= earliest,
+                    MarketDataBar.bar_date >= earliest.date(),
                 )
-                .order_by(MarketDataBar.bar_ts.asc())
+                .order_by(MarketDataBar.bar_date.asc())
             )
         )
         .scalars()
@@ -109,7 +109,7 @@ async def find_analogues(
         return []  # not enough history
 
     closes = [float(r.close) for r in rows]
-    times = [r.bar_ts for r in rows]
+    times = [r.bar_date for r in rows]
     rets = _percent_returns(closes)
     if len(rets) < window_days * 2:
         return []

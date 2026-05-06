@@ -91,7 +91,7 @@ models:
     family: fomc_roberta
     asset: "*"
     horizon_hours: 24
-    status: scaffolded  # promoted from `planned` 2026-05-03
+    status: scaffolded # promoted from `planned` 2026-05-03
     impl: packages/ml/src/ichor_ml/nlp/fomc_roberta.py
     model_card: packages/ml/model_cards/fomc-roberta-v0.md
     upstream_model: gtfintechlab/fomc-roberta-large

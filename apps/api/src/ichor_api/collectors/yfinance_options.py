@@ -56,11 +56,27 @@ def compute_metrics(
     calls: list[dict[str, Any]],
     puts: list[dict[str, Any]],
 ) -> OptionsSnapshot:
-    """Pure function on dicts (so it's testable without yfinance)."""
-    call_oi = sum(int(c.get("openInterest") or 0) for c in calls)
-    put_oi = sum(int(p.get("openInterest") or 0) for p in puts)
-    call_vol = sum(int(c.get("volume") or 0) for c in calls)
-    put_vol = sum(int(p.get("volume") or 0) for p in puts)
+    """Pure function on dicts (so it's testable without yfinance).
+
+    Defensive against NaN inputs : Yahoo's option_chain DataFrame
+    sometimes carries NaN volume/openInterest for very recent
+    contracts (no fills yet). `int(NaN)` raises ; coerce-to-zero
+    instead so a single bad row doesn't kill the whole compute.
+    """
+
+    def _safe_int(x: object) -> int:
+        if x is None:
+            return 0
+        try:
+            f = float(x)  # type: ignore[arg-type]
+        except (TypeError, ValueError):
+            return 0
+        return 0 if (f != f) else int(f)  # f != f → NaN
+
+    call_oi = sum(_safe_int(c.get("openInterest")) for c in calls)
+    put_oi = sum(_safe_int(p.get("openInterest")) for p in puts)
+    call_vol = sum(_safe_int(c.get("volume")) for c in calls)
+    put_vol = sum(_safe_int(p.get("volume")) for p in puts)
 
     atm_iv: float | None = None
     rr25: float | None = None

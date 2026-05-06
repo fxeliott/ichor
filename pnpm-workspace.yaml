@@ -4,6 +4,7 @@
 # part of pnpm.
 packages:
   - "apps/web"
+  - "apps/web2"
   - "packages/ui"
 
 # Pin known-good versions across the workspace
@@ -13,7 +14,6 @@ catalog:
   react-dom: "19.0.0"
   typescript: "5.9.3"
   tailwindcss: "4.2.4"
-  lightweight-charts: "5.2.0"
   motion: "12.38.0"
   orval: "8.9.0"
   zustand: "5.0.12"

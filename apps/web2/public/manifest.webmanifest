@@ -1,0 +1,21 @@
+{
+  "name": "Ichor",
+  "short_name": "Ichor",
+  "description": "Living macro entity — pré-trade context premium",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#04070C",
+  "theme_color": "#04070C",
+  "lang": "fr",
+  "categories": ["finance", "news", "productivity"],
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "any maskable"
+    }
+  ]
+}

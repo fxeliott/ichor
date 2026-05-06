@@ -27,15 +27,13 @@ export type RegimeState = {
   /** When `current` last changed (ms epoch) — used for transition animations. */
   changedAt: number | null;
   /** Hydrate from a list of session cards. Picks the modal régime. */
-  hydrateFromCards: (
-    cards: { regime_quadrant: RegimeQuadrant | null }[]
-  ) => void;
+  hydrateFromCards: (cards: { regime_quadrant: RegimeQuadrant | null }[]) => void;
   /** User clicks a quadrant to drill in. Click again on the same → reset. */
   setFocus: (q: RegimeQuadrant | null) => void;
 };
 
 const modalRegime = (
-  cards: { regime_quadrant: RegimeQuadrant | null }[]
+  cards: { regime_quadrant: RegimeQuadrant | null }[],
 ): RegimeQuadrant | null => {
   const counts = new Map<RegimeQuadrant, number>();
   for (const c of cards) {
@@ -64,6 +62,5 @@ export const useRegimeStore = create<RegimeState>((set, get) => ({
       set({ current: next, changedAt: Date.now() });
     }
   },
-  setFocus: (q) =>
-    set((s) => ({ focus: s.focus === q ? null : q })),
+  setFocus: (q) => set((s) => ({ focus: s.focus === q ? null : q })),
 }));

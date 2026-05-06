@@ -35,9 +35,7 @@ export const ConfidenceMeter: React.FC<ConfidenceMeterProps> = ({
       {label && (
         <div className="flex justify-between mb-1">
           <span className="text-[var(--color-ichor-text-muted)]">{label}</span>
-          <span className="font-mono text-[var(--color-ichor-text)]">
-            {(p * 100).toFixed(0)}%
-          </span>
+          <span className="font-mono text-[var(--color-ichor-text)]">{(p * 100).toFixed(0)}%</span>
         </div>
       )}
       <svg
@@ -70,7 +68,14 @@ export const ConfidenceMeter: React.FC<ConfidenceMeterProps> = ({
         {/* Point estimate */}
         <rect x={xOf(p) - 1} y="0" width="2" height="14" rx="0.5" fill="rgb(16 185 129)" />
         {/* 50% reference line */}
-        <line x1={xOf(0.5)} y1="2" x2={xOf(0.5)} y2="12" stroke="rgb(82 82 82)" strokeDasharray="2 2" />
+        <line
+          x1={xOf(0.5)}
+          y1="2"
+          x2={xOf(0.5)}
+          y2="12"
+          stroke="rgb(82 82 82)"
+          strokeDasharray="2 2"
+        />
       </svg>
     </div>
   );

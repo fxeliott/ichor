@@ -22,45 +22,45 @@ Ichor est un moteur d'analyse trading multi-domaine (hors AT) qui produit des bi
 
 ### 3.1 Backend & runtime
 
-| Couche | Choix | Rationale |
-|---|---|---|
-| Backend | **FastAPI (Python 3.12)** | Toute la stack ML/quant est Python (DSPy, LlamaIndex Workflows, Letta, Pydantic AI, hmmlearn, river, FinBERT, NumPyro, dtaidistance). Une seule pile à maintenir, OpenAPI 3.1 auto. |
-| API style | **OpenAPI auto + `orval` client TS** | Type-safe end-to-end sans Node côté serveur. FastAPI génère le schéma, `orval` génère le client TanStack Query côté Next.js. |
-| Real-time | **WebSocket natif FastAPI** | Suffisant single-user, pas de dépendance lourde (Socket.IO retiré). Hook React custom avec reconnect strategy côté front. |
-| Agents | **Claude Agent SDK Python v0.1.72** + DSPy v3.2.0 + LlamaIndex Workflows v0.14.21 + Letta v0.16.7 + Pydantic AI v1.89.1 | Stack validée plan Lot 3. MIT/Apache, MCP natif. |
-| LLMs | Claude Opus 4.7 (orchestrator), Sonnet 4.6 (CB-NLP, Critic), Haiku 4.5 (News-NLP), Cerebras Llama-70 (Macro), Groq Llama-70 (Sentiment, Positioning) | Plan Yone — 5 modèles, 5 rôles, 0 € hors Claude Max. |
+| Couche    | Choix                                                                                                                                                | Rationale                                                                                                                                                                           |
+| --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Backend   | **FastAPI (Python 3.12)**                                                                                                                            | Toute la stack ML/quant est Python (DSPy, LlamaIndex Workflows, Letta, Pydantic AI, hmmlearn, river, FinBERT, NumPyro, dtaidistance). Une seule pile à maintenir, OpenAPI 3.1 auto. |
+| API style | **OpenAPI auto + `orval` client TS**                                                                                                                 | Type-safe end-to-end sans Node côté serveur. FastAPI génère le schéma, `orval` génère le client TanStack Query côté Next.js.                                                        |
+| Real-time | **WebSocket natif FastAPI**                                                                                                                          | Suffisant single-user, pas de dépendance lourde (Socket.IO retiré). Hook React custom avec reconnect strategy côté front.                                                           |
+| Agents    | **Claude Agent SDK Python v0.1.72** + DSPy v3.2.0 + LlamaIndex Workflows v0.14.21 + Letta v0.16.7 + Pydantic AI v1.89.1                              | Stack validée plan Lot 3. MIT/Apache, MCP natif.                                                                                                                                    |
+| LLMs      | Claude Opus 4.7 (orchestrator), Sonnet 4.6 (CB-NLP, Critic), Haiku 4.5 (News-NLP), Cerebras Llama-70 (Macro), Groq Llama-70 (Sentiment, Positioning) | Plan Yone — 5 modèles, 5 rôles, 0 € hors Claude Max.                                                                                                                                |
 
 ### 3.2 Frontend
 
-| Couche | Choix |
-|---|---|
-| Framework | **Next.js 15 App Router** |
-| CSS | **Tailwind CSS v4** |
-| Composants | **shadcn/ui + Radix UI** |
-| Charts | **lightweight-charts TradingView v5** (Apache 2.0, attribution + logo TradingView en footer obligatoire) |
-| Knowledge graph viz | **react-force-graph** (rendu) |
-| Animations | **Framer Motion v11** |
-| Icons | **Lucide React** |
-| State | **Zustand + TanStack Query** |
-| Tableaux | **TanStack Table v8** |
-| Theme | **next-themes** (dark default, light togglable) |
-| Toasts | **Sonner** |
-| Command palette | **cmdk** (Cmd+K Linear-like) |
-| PWA | **@serwist/next** (manifest + service worker + Web Push) |
-| Hôtesse | **Cloudflare Pages** |
+| Couche              | Choix                                                                                                    |
+| ------------------- | -------------------------------------------------------------------------------------------------------- |
+| Framework           | **Next.js 15 App Router**                                                                                |
+| CSS                 | **Tailwind CSS v4**                                                                                      |
+| Composants          | **shadcn/ui + Radix UI**                                                                                 |
+| Charts              | **lightweight-charts TradingView v5** (Apache 2.0, attribution + logo TradingView en footer obligatoire) |
+| Knowledge graph viz | **react-force-graph** (rendu)                                                                            |
+| Animations          | **Framer Motion v11**                                                                                    |
+| Icons               | **Lucide React**                                                                                         |
+| State               | **Zustand + TanStack Query**                                                                             |
+| Tableaux            | **TanStack Table v8**                                                                                    |
+| Theme               | **next-themes** (dark default, light togglable)                                                          |
+| Toasts              | **Sonner**                                                                                               |
+| Command palette     | **cmdk** (Cmd+K Linear-like)                                                                             |
+| PWA                 | **@serwist/next** (manifest + service worker + Web Push)                                                 |
+| Hôtesse             | **Cloudflare Pages**                                                                                     |
 
 ### 3.3 Stockage data
 
-| Couche | Choix |
-|---|---|
-| DB primaire | **PostgreSQL 16 + TimescaleDB 2.x** (Hetzner self-host) |
-| Cache | **Redis 7** (Hetzner self-host) |
-| Knowledge graph | **Kuzu embedded** (fichier `.kz`, MIT, Cypher-like) |
-| Features brutes | Wide tables TimescaleDB hypertables par axe (`features_macro`, `features_sentiment`, `features_volatility`, etc.) |
-| Features dérivées | **Parquet** par actif/jour : `data/features/{symbol}/{YYYY-MM-DD}.parquet` |
-| Archives long-terme | **Hetzner `/var/lib/ichor/archives/`** Parquet mensuel **+ sync hebdo Cloudflare R2** (gratuit ≤10 GB/mois) |
-| Compression TimescaleDB | Compression after **30 jours**, rétention **infinie** |
-| Phase 2+ analytics | DuckDB + Parquet à ajouter si besoin réel ; **pas dans Phase 1** |
+| Couche                  | Choix                                                                                                             |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| DB primaire             | **PostgreSQL 16 + TimescaleDB 2.x** (Hetzner self-host)                                                           |
+| Cache                   | **Redis 7** (Hetzner self-host)                                                                                   |
+| Knowledge graph         | **Kuzu embedded** (fichier `.kz`, MIT, Cypher-like)                                                               |
+| Features brutes         | Wide tables TimescaleDB hypertables par axe (`features_macro`, `features_sentiment`, `features_volatility`, etc.) |
+| Features dérivées       | **Parquet** par actif/jour : `data/features/{symbol}/{YYYY-MM-DD}.parquet`                                        |
+| Archives long-terme     | **Hetzner `/var/lib/ichor/archives/`** Parquet mensuel **+ sync hebdo Cloudflare R2** (gratuit ≤10 GB/mois)       |
+| Compression TimescaleDB | Compression after **30 jours**, rétention **infinie**                                                             |
+| Phase 2+ analytics      | DuckDB + Parquet à ajouter si besoin réel ; **pas dans Phase 1**                                                  |
 
 ### 3.4 Archivage HY/IG OAS — CRITIQUE J0
 
@@ -74,19 +74,19 @@ Ichor est un moteur d'analyse trading multi-domaine (hors AT) qui produit des bi
 
 ### 3.5 ML / quant
 
-| Composant | Lib |
-|---|---|
-| HMM régimes 3 états (calm/elevated/stressed) | **hmmlearn** |
-| DTW analogues historiques | **dtaidistance** |
-| Concept drift detection | **river** (ADWIN + page-Hinkley) |
-| Bayesian inference | **NumPyro** + **PyMC** (CBN) |
-| Tournament 6 modèles | **Logistic Regression (sklearn)**, **LightGBM**, **XGBoost**, **Random Forest (sklearn)**, **Bayesian Logistic (NumPyro)**, **MLP simple (PyTorch)** |
-| Calibration | **Isotonic Regression** par défaut (`CalibratedClassifierCV(method='isotonic', cv=5)`), recalibration mensuelle 90j glissants |
-| Brier scoring | Implémentation maison (formule standard, decomposition reliability/resolution/uncertainty) |
-| Triple-barrier / CPCV / PBO | **Réimplémentation maison** depuis López de Prado (mlfinlab passé propriétaire) |
-| NLP CB | **gtfintechlab/FOMC-RoBERTa** + **ZiweiChen/FinBERT-FOMC** (HF), méthodologies Hansen-McMahon (JIE 2016) + Aruoba-Drechsel (NBER WP 32417 2024) |
-| NLP général | **FinBERT-tone (yiyanghkust)**, **FinGPT (AI4Finance)** |
-| Topic modeling | **BERTopic** + **LDA** (gensim) |
+| Composant                                    | Lib                                                                                                                                                  |
+| -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| HMM régimes 3 états (calm/elevated/stressed) | **hmmlearn**                                                                                                                                         |
+| DTW analogues historiques                    | **dtaidistance**                                                                                                                                     |
+| Concept drift detection                      | **river** (ADWIN + page-Hinkley)                                                                                                                     |
+| Bayesian inference                           | **NumPyro** + **PyMC** (CBN)                                                                                                                         |
+| Tournament 6 modèles                         | **Logistic Regression (sklearn)**, **LightGBM**, **XGBoost**, **Random Forest (sklearn)**, **Bayesian Logistic (NumPyro)**, **MLP simple (PyTorch)** |
+| Calibration                                  | **Isotonic Regression** par défaut (`CalibratedClassifierCV(method='isotonic', cv=5)`), recalibration mensuelle 90j glissants                        |
+| Brier scoring                                | Implémentation maison (formule standard, decomposition reliability/resolution/uncertainty)                                                           |
+| Triple-barrier / CPCV / PBO                  | **Réimplémentation maison** depuis López de Prado (mlfinlab passé propriétaire)                                                                      |
+| NLP CB                                       | **gtfintechlab/FOMC-RoBERTa** + **ZiweiChen/FinBERT-FOMC** (HF), méthodologies Hansen-McMahon (JIE 2016) + Aruoba-Drechsel (NBER WP 32417 2024)      |
+| NLP général                                  | **FinBERT-tone (yiyanghkust)**, **FinGPT (AI4Finance)**                                                                                              |
+| Topic modeling                               | **BERTopic** + **LDA** (gensim)                                                                                                                      |
 
 ### 3.6 Repo & dev workflow
 
@@ -125,6 +125,7 @@ Ichor est un moteur d'analyse trading multi-domaine (hors AT) qui produit des bi
 > Décision Eliot : « reprend le serveur mais nettoie le à 0 ».
 
 **Procédure Phase 0** :
+
 1. **Backup avant wipe** :
    - `pg_dumpall` Langfuse data → `D:\Ichor\backups\hetzner\langfuse_pre_wipe_2026-05-02.sql`
    - `n8n export:workflow --all --output=...` workflows → `n8n_workflows_pre_wipe.json`
@@ -142,15 +143,15 @@ Ichor est un moteur d'analyse trading multi-domaine (hors AT) qui produit des bi
 
 ### 3.8 Sécurité & ops
 
-| Domaine | Choix |
-|---|---|
-| Secrets | **SOPS + age** (`.env.sops` chiffré committable, clé age en `~/.config/sops/age/keys.txt`) + **systemd LoadCredential** côté Hetzner (`/etc/ichor/secrets/` chmod 600) + **Cloudflare Pages env vars** côté front |
-| Auth V1 | **Cloudflare Access Zero-Trust** (login email magic-link / Google / Passkey, gratuit ≤50 users) — **0 ligne d'auth dans le code Phase 1**, migrable Phase 7 |
-| Observabilité | **Langfuse** (déjà installé Hetzner port 13000) pour traces LLM + tokens/coût + **OpenTelemetry SDK Python** (traces app + DB + HTTP) → exporter OTLP → **Tempo + Loki + Grafana** self-host Hetzner via docker-compose |
-| Logs | journald → Loki via promtail. Rétention 30j hot, 1 an cold (compression). |
-| Métriques | **Prometheus** node_exporter + custom metrics FastAPI → Grafana dashboards (api latency, ML inference time, brier score live, regime current) |
-| Alerts ops | Grafana → email Eliot + PWA push (canal séparé du push utilisateur) |
-| Sanitation prompt injection | Tout pipeline NLP qui ingère contenu externe (RSS, Reddit, scrapes) DOIT passer par **`promptsanitize` maison** : strip control chars, escape markdown injections, max length, watchlist red-flag patterns |
+| Domaine                     | Choix                                                                                                                                                                                                                   |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Secrets                     | **SOPS + age** (`.env.sops` chiffré committable, clé age en `~/.config/sops/age/keys.txt`) + **systemd LoadCredential** côté Hetzner (`/etc/ichor/secrets/` chmod 600) + **Cloudflare Pages env vars** côté front       |
+| Auth V1                     | **Cloudflare Access Zero-Trust** (login email magic-link / Google / Passkey, gratuit ≤50 users) — **0 ligne d'auth dans le code Phase 1**, migrable Phase 7                                                             |
+| Observabilité               | **Langfuse** (déjà installé Hetzner port 13000) pour traces LLM + tokens/coût + **OpenTelemetry SDK Python** (traces app + DB + HTTP) → exporter OTLP → **Tempo + Loki + Grafana** self-host Hetzner via docker-compose |
+| Logs                        | journald → Loki via promtail. Rétention 30j hot, 1 an cold (compression).                                                                                                                                               |
+| Métriques                   | **Prometheus** node_exporter + custom metrics FastAPI → Grafana dashboards (api latency, ML inference time, brier score live, regime current)                                                                           |
+| Alerts ops                  | Grafana → email Eliot + PWA push (canal séparé du push utilisateur)                                                                                                                                                     |
+| Sanitation prompt injection | Tout pipeline NLP qui ingère contenu externe (RSS, Reddit, scrapes) DOIT passer par **`promptsanitize` maison** : strip control chars, escape markdown injections, max length, watchlist red-flag patterns              |
 
 ### 3.9 Domaine
 
@@ -320,18 +321,18 @@ Ichor est un moteur d'analyse trading multi-domaine (hors AT) qui produit des bi
 
 ## 7. Edge cases & erreurs
 
-| Cas | Comportement attendu |
-|---|---|
-| API source down (FRED/EIA) | Retry exponential backoff (1s, 2s, 4s, 8s, 16s) ; après 5 échecs, log + Grafana alert + UI affiche `<SourceBadge variant="stale">` avec délai depuis dernière donnée |
-| TTS ElevenLabs 5xx | 3 retries ; si total échec, briefing texte servi + ops alert |
-| Cloudflare Access bloque login | Magic-link email fallback ; si KO total, accès direct Hetzner via SSH tunnel admin (documenté runbook) |
-| Postgres slow query (>2s) | Log + EXPLAIN ANALYZE auto-archivé ; circuit breaker côté FastAPI évite cascade |
-| WebSocket déconnexion | Frontend reconnect exponential backoff + replay missed events depuis API REST `/sync?since=` |
-| Brier score se dégrade (>0.25 sur 30j) | Trigger ré-entraînement accéléré ; si persistance 60j, alerte Self-Reflection hebdo + revue manuelle |
-| Concept drift (river ADWIN) | Switch automatique sur model challenger ; baseline reste comparé pour 30j |
-| Prompt injection détectée dans source NLP | Sanitization + log + flagging source ; pattern récurrent → blacklist source |
-| HY/IG OAS series gap >24h | Critique : ops alert immédiate, vérification manuelle FRED rate limit / format change |
-| Cloudflare R2 sync échoue | Retry hourly ; après 24h échecs, ops alert + tentative S3 backup secondary |
+| Cas                                       | Comportement attendu                                                                                                                                                 |
+| ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| API source down (FRED/EIA)                | Retry exponential backoff (1s, 2s, 4s, 8s, 16s) ; après 5 échecs, log + Grafana alert + UI affiche `<SourceBadge variant="stale">` avec délai depuis dernière donnée |
+| TTS ElevenLabs 5xx                        | 3 retries ; si total échec, briefing texte servi + ops alert                                                                                                         |
+| Cloudflare Access bloque login            | Magic-link email fallback ; si KO total, accès direct Hetzner via SSH tunnel admin (documenté runbook)                                                               |
+| Postgres slow query (>2s)                 | Log + EXPLAIN ANALYZE auto-archivé ; circuit breaker côté FastAPI évite cascade                                                                                      |
+| WebSocket déconnexion                     | Frontend reconnect exponential backoff + replay missed events depuis API REST `/sync?since=`                                                                         |
+| Brier score se dégrade (>0.25 sur 30j)    | Trigger ré-entraînement accéléré ; si persistance 60j, alerte Self-Reflection hebdo + revue manuelle                                                                 |
+| Concept drift (river ADWIN)               | Switch automatique sur model challenger ; baseline reste comparé pour 30j                                                                                            |
+| Prompt injection détectée dans source NLP | Sanitization + log + flagging source ; pattern récurrent → blacklist source                                                                                          |
+| HY/IG OAS series gap >24h                 | Critique : ops alert immédiate, vérification manuelle FRED rate limit / format change                                                                                |
+| Cloudflare R2 sync échoue                 | Retry hourly ; après 24h échecs, ops alert + tentative S3 backup secondary                                                                                           |
 
 ## 8. Critères d'acceptation Phase 0
 
@@ -358,18 +359,18 @@ Phase 0 est **done** quand TOUS les critères suivants passent :
 
 Pour les 3 actifs MVP **EURUSD + XAUUSD + NAS100**.
 
-| Block | Sources | Priorité Phase 1 |
-|---|---|---|
-| **A. Macro core FRED** | `WALCL`, `RRPONTSYD`, `WTREGEN`, `BAMLH0A0HYM2`, `BAMLC0A0CM`, `T5YIE`, `T10YIE`, `T5YIFR`, `THREEFYTP10`, `T10Y2Y`, `DGS10`, `DGS2`, `SAHMREALTIME`, `USEPUINDXD`, `DTWEXBGS` | Sem 1 |
-| **B. Sentiment & positioning** | Polymarket Gamma API (Fed-cut, recession, election markets), CFTC COT (`cot_reports`), Reddit OAuth (r/forex, r/Gold, r/StockMarket, r/wallstreetbets), Google Trends (pytrends) | Sem 1-2 |
-| **C. Volatilité & options** | VIX, VVIX, VIX9D, VIX3M, VIX6M (FRED), MOVE, OVX, GVZ (yfinance), Tradier free options chains pour SPX/NDX (GEX 0DTE), VRP calc maison | Sem 2 |
-| **D. Cross-asset & corrélations** | DXY broad, US10Y, gold, oil WTI, copper (FRED + yfinance), rolling 30j corrs matrix, HMM régime | Sem 2 |
-| **E. Énergie (NAS100 cyclicals + risk-off)** | EIA API v2 STEO, weekly stocks, Cushing inventory | Sem 3 |
-| **F. CB NLP** | Fed (FOMC statements, minutes, Beige Book, dot plot, Powell pressers `/mediacenter/files/`), ECB (statements, minutes, speeches), `gtfintechlab/FOMC-RoBERTa`, `ZiweiChen/FinBERT-FOMC` | Sem 3-4 |
-| **G. News & academic** | Reuters / AP / Bloomberg public RSS, GDELT DOC 2.0, arXiv q-fin RSS daily, NBER WP RSS | Sem 4 |
-| **H. EURUSD specifics** | Rate diff calc FRED+ECB, EU PMI, BIS effective EUR, COT EUR | Sem 4 |
-| **I. XAUUSD specifics** | TIPS real yields (FRED), DXY, Gold ETF flows SPDR Gold (web scrape SPDR holdings), WGC quarterly CB purchases (PDF parse), gold/silver ratio | Sem 5 |
-| **J. NAS100 specifics** | Mega-cap earnings (Finnhub free) — AAPL/MSFT/GOOGL/AMZN/META/NVDA/TSLA, AI capex narrative (BERTopic sur news), GEX SPX/NDX, US10Y inverse | Sem 5-6 |
+| Block                                        | Sources                                                                                                                                                                                 | Priorité Phase 1 |
+| -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------- |
+| **A. Macro core FRED**                       | `WALCL`, `RRPONTSYD`, `WTREGEN`, `BAMLH0A0HYM2`, `BAMLC0A0CM`, `T5YIE`, `T10YIE`, `T5YIFR`, `THREEFYTP10`, `T10Y2Y`, `DGS10`, `DGS2`, `SAHMREALTIME`, `USEPUINDXD`, `DTWEXBGS`          | Sem 1            |
+| **B. Sentiment & positioning**               | Polymarket Gamma API (Fed-cut, recession, election markets), CFTC COT (`cot_reports`), Reddit OAuth (r/forex, r/Gold, r/StockMarket, r/wallstreetbets), Google Trends (pytrends)        | Sem 1-2          |
+| **C. Volatilité & options**                  | VIX, VVIX, VIX9D, VIX3M, VIX6M (FRED), MOVE, OVX, GVZ (yfinance), Tradier free options chains pour SPX/NDX (GEX 0DTE), VRP calc maison                                                  | Sem 2            |
+| **D. Cross-asset & corrélations**            | DXY broad, US10Y, gold, oil WTI, copper (FRED + yfinance), rolling 30j corrs matrix, HMM régime                                                                                         | Sem 2            |
+| **E. Énergie (NAS100 cyclicals + risk-off)** | EIA API v2 STEO, weekly stocks, Cushing inventory                                                                                                                                       | Sem 3            |
+| **F. CB NLP**                                | Fed (FOMC statements, minutes, Beige Book, dot plot, Powell pressers `/mediacenter/files/`), ECB (statements, minutes, speeches), `gtfintechlab/FOMC-RoBERTa`, `ZiweiChen/FinBERT-FOMC` | Sem 3-4          |
+| **G. News & academic**                       | Reuters / AP / Bloomberg public RSS, GDELT DOC 2.0, arXiv q-fin RSS daily, NBER WP RSS                                                                                                  | Sem 4            |
+| **H. EURUSD specifics**                      | Rate diff calc FRED+ECB, EU PMI, BIS effective EUR, COT EUR                                                                                                                             | Sem 4            |
+| **I. XAUUSD specifics**                      | TIPS real yields (FRED), DXY, Gold ETF flows SPDR Gold (web scrape SPDR holdings), WGC quarterly CB purchases (PDF parse), gold/silver ratio                                            | Sem 5            |
+| **J. NAS100 specifics**                      | Mega-cap earnings (Finnhub free) — AAPL/MSFT/GOOGL/AMZN/META/NVDA/TSLA, AI capex narrative (BERTopic sur news), GEX SPX/NDX, US10Y inverse                                              | Sem 5-6          |
 
 Sem 7-8 : intégration multi-block dans Bias Aggregator, calibration tournament, premier briefing audio Brian end-to-end, dashboard live.
 
@@ -392,58 +393,58 @@ Sem 7-8 : intégration multi-block dans Bias Aggregator, calibration tournament,
 
 ## 11. Décisions documentées (tableau récap avec rationale)
 
-| Sujet | Choix | Pourquoi |
-|---|---|---|
-| Backend | FastAPI Python | Stack ML 100% Python, une seule pile |
-| Repo | Monorepo Turborepo | Solo dev, refactor cross-package, cache build |
-| Hetzner | Wipe + Ubuntu 24.04 propre | « Reprend le serveur mais nettoie le à 0 » |
-| CI/CD | GitHub Actions | Standard, gratuit, intégré GitHub PAT |
-| DB | Postgres 16 + TimescaleDB | Hypertables compress, query SQL, retention infinie |
-| Features | Hybride SQL + Parquet | Live SQL + analytics Parquet |
-| OAS archive | Hetzner Parquet + R2 sync hebdo | Critique J0, redondance |
-| Compression | 30j + retention infinie | Analogues historiques 10+ ans nécessaires |
-| Charts | lightweight-charts TV | Standard pro trading, perf canvas, attribution OK |
-| KG | Kuzu embedded | Pas de service, fichier `.kz`, Cypher-like |
-| API | OpenAPI + orval client TS | Type-safe sans tRPC (backend Python) |
-| Real-time | WS natif FastAPI | Suffisant single-user, pas de Socket.IO |
-| HMM | hmmlearn | Stable, sklearn-like, consensus académique |
-| DTW | dtaidistance | Spécialisé, perf C bindings |
-| Tournament | Logistic + LGBM + XGBoost + RF + Bayesian + MLP | Couverture linéaire/non-linéaire/Bayesian/ensemble |
-| Calibration | Isotonic + recal mensuelle 90j | Standard moderne non-paramétrique |
-| Persona | Sobre + verbose togglable | « Le plus complet possible mais ultra compréhensible » |
-| Briefings | 5 cron UTC, UI heure Paris | Sessions trading + lisibilité Eliot |
-| Voice Q&A | Phase 5 | Plan original respecté, MVP plus rapide |
-| Audio TTS | Brian FR + lexique custom + retry+fallback | « Articule et prononciation parfaite » |
-| Notifications | PWA Web Push VAPID | « C'est plus pro mieux » qu'un Telegram |
-| Telegram | Retiré V1 | Remplacé par PWA push |
-| Secrets | SOPS+age + systemd creds + Cloudflare env | Pro-grade gratuit |
-| Observability | Langfuse + OTel + Loki/Grafana | Pro-grade, Langfuse déjà installé |
-| Auth | Cloudflare Access Zero-Trust | 0 ligne d'auth dans le code, gratuit ≤50 users |
-| Domain | ichor.app | Court, mémorable, .app HTTPS auto |
-| Disclaimers | Modal 1er login + footer permanent + en-tête exports | Compliance AMF max, friction min |
+| Sujet         | Choix                                                | Pourquoi                                               |
+| ------------- | ---------------------------------------------------- | ------------------------------------------------------ |
+| Backend       | FastAPI Python                                       | Stack ML 100% Python, une seule pile                   |
+| Repo          | Monorepo Turborepo                                   | Solo dev, refactor cross-package, cache build          |
+| Hetzner       | Wipe + Ubuntu 24.04 propre                           | « Reprend le serveur mais nettoie le à 0 »             |
+| CI/CD         | GitHub Actions                                       | Standard, gratuit, intégré GitHub PAT                  |
+| DB            | Postgres 16 + TimescaleDB                            | Hypertables compress, query SQL, retention infinie     |
+| Features      | Hybride SQL + Parquet                                | Live SQL + analytics Parquet                           |
+| OAS archive   | Hetzner Parquet + R2 sync hebdo                      | Critique J0, redondance                                |
+| Compression   | 30j + retention infinie                              | Analogues historiques 10+ ans nécessaires              |
+| Charts        | lightweight-charts TV                                | Standard pro trading, perf canvas, attribution OK      |
+| KG            | Kuzu embedded                                        | Pas de service, fichier `.kz`, Cypher-like             |
+| API           | OpenAPI + orval client TS                            | Type-safe sans tRPC (backend Python)                   |
+| Real-time     | WS natif FastAPI                                     | Suffisant single-user, pas de Socket.IO                |
+| HMM           | hmmlearn                                             | Stable, sklearn-like, consensus académique             |
+| DTW           | dtaidistance                                         | Spécialisé, perf C bindings                            |
+| Tournament    | Logistic + LGBM + XGBoost + RF + Bayesian + MLP      | Couverture linéaire/non-linéaire/Bayesian/ensemble     |
+| Calibration   | Isotonic + recal mensuelle 90j                       | Standard moderne non-paramétrique                      |
+| Persona       | Sobre + verbose togglable                            | « Le plus complet possible mais ultra compréhensible » |
+| Briefings     | 5 cron UTC, UI heure Paris                           | Sessions trading + lisibilité Eliot                    |
+| Voice Q&A     | Phase 5                                              | Plan original respecté, MVP plus rapide                |
+| Audio TTS     | Brian FR + lexique custom + retry+fallback           | « Articule et prononciation parfaite »                 |
+| Notifications | PWA Web Push VAPID                                   | « C'est plus pro mieux » qu'un Telegram                |
+| Telegram      | Retiré V1                                            | Remplacé par PWA push                                  |
+| Secrets       | SOPS+age + systemd creds + Cloudflare env            | Pro-grade gratuit                                      |
+| Observability | Langfuse + OTel + Loki/Grafana                       | Pro-grade, Langfuse déjà installé                      |
+| Auth          | Cloudflare Access Zero-Trust                         | 0 ligne d'auth dans le code, gratuit ≤50 users         |
+| Domain        | ichor.app                                            | Court, mémorable, .app HTTPS auto                      |
+| Disclaimers   | Modal 1er login + footer permanent + en-tête exports | Compliance AMF max, friction min                       |
 
 ## 12. Ressources Yone — mapping (rappel)
 
-| Ressource | Statut | Usage Ichor V1 |
-|---|---|---|
-| Hetzner `root@178.104.39.201` | À wipe | Backend FastAPI + Postgres + Redis + Langfuse + n8n + Loki/Grafana + cron archiver |
-| Cloudflare API token | OK | Pages (front) + Access (auth) + R2 (archives) + Registrar (ichor.app) + Email Routing |
-| Claude Max 20x | OK | Tous les agents (orchestrator Opus, CB-NLP/Critic Sonnet, News-NLP Haiku) |
-| Anthropic API key backup | OK | Fallback si Max throttled |
-| Groq Cloud free 14400/jour | OK | Sentiment + Positioning agents |
-| Cerebras free 60/min | OK | Macro agent |
-| HuggingFace | OK | FOMC-RoBERTa, FinBERT-FOMC, FinBERT-tone downloads |
-| OANDA Practice | OK | Forex/indices/métaux prix temps réel |
-| FRED API | OK | Macro core (block A) |
-| Finnhub free | OK | Earnings + sentiment news |
-| Twelve Data | OK | Backup quotes |
-| ElevenLabs Brian multilingual_v2 | OK | Briefings audio FR |
-| Langfuse Hetzner port 13000 | À ré-installer post-wipe | Traces LLM |
-| n8n Hetzner port 5678 | À ré-installer post-wipe | Workflows scheduling secondaires |
-| GitHub PAT (fxeliott) | OK | Repo `ichor/` privé + GitHub Actions |
-| Oracle Cloud Always Free | OK (réserve) | Pas utilisé V1, dispo si besoin DR |
-| Gemini | ⚠ Lockdown billing | Non utilisé Ichor (incident 2026-04, vigilance) |
-| OpenAI | ❌ Interdit règle interne | N/A |
+| Ressource                        | Statut                    | Usage Ichor V1                                                                        |
+| -------------------------------- | ------------------------- | ------------------------------------------------------------------------------------- |
+| Hetzner `root@178.104.39.201`    | À wipe                    | Backend FastAPI + Postgres + Redis + Langfuse + n8n + Loki/Grafana + cron archiver    |
+| Cloudflare API token             | OK                        | Pages (front) + Access (auth) + R2 (archives) + Registrar (ichor.app) + Email Routing |
+| Claude Max 20x                   | OK                        | Tous les agents (orchestrator Opus, CB-NLP/Critic Sonnet, News-NLP Haiku)             |
+| Anthropic API key backup         | OK                        | Fallback si Max throttled                                                             |
+| Groq Cloud free 14400/jour       | OK                        | Sentiment + Positioning agents                                                        |
+| Cerebras free 60/min             | OK                        | Macro agent                                                                           |
+| HuggingFace                      | OK                        | FOMC-RoBERTa, FinBERT-FOMC, FinBERT-tone downloads                                    |
+| OANDA Practice                   | OK                        | Forex/indices/métaux prix temps réel                                                  |
+| FRED API                         | OK                        | Macro core (block A)                                                                  |
+| Finnhub free                     | OK                        | Earnings + sentiment news                                                             |
+| Twelve Data                      | OK                        | Backup quotes                                                                         |
+| ElevenLabs Brian multilingual_v2 | OK                        | Briefings audio FR                                                                    |
+| Langfuse Hetzner port 13000      | À ré-installer post-wipe  | Traces LLM                                                                            |
+| n8n Hetzner port 5678            | À ré-installer post-wipe  | Workflows scheduling secondaires                                                      |
+| GitHub PAT (fxeliott)            | OK                        | Repo `ichor/` privé + GitHub Actions                                                  |
+| Oracle Cloud Always Free         | OK (réserve)              | Pas utilisé V1, dispo si besoin DR                                                    |
+| Gemini                           | ⚠ Lockdown billing        | Non utilisé Ichor (incident 2026-04, vigilance)                                       |
+| OpenAI                           | ❌ Interdit règle interne | N/A                                                                                   |
 
 ## 13. Risques & questions ouvertes (non bloquants)
 
@@ -460,6 +461,7 @@ Sem 7-8 : intégration multi-block dans Bias Aggregator, calibration tournament,
 > Ce plan sera repris en début de session Phase 0 implémentation après `/clear`.
 
 **Semaine 1 — Infrastructure**
+
 1. Achat `ichor.app` Cloudflare Registrar
 2. Backup Hetzner pre-wipe (Langfuse + n8n + /etc + clés)
 3. Wipe + réinstall Ubuntu 24.04
@@ -469,16 +471,7 @@ Sem 7-8 : intégration multi-block dans Bias Aggregator, calibration tournament,
 7. SOPS+age secrets setup
 8. Cloudflare Access zero-trust sur `*.ichor.app`
 
-**Semaine 2 — App squelettes + archivage critique**
-9. **Cron systemd `ichor-archiver.service` HY/IG OAS J0** (priorité max)
-10. FastAPI minimal `/healthz` deploy Hetzner
-11. Next.js minimal Cloudflare Pages deploy `app.ichor.app`
-12. Disclaimer modal + footer + dark mode toggle
-13. Service worker PWA + VAPID push test
-14. Logo + palette + mockups asset cards (canvas-design)
-15. ElevenLabs Brian voix FR test 10 phrases finance
-16. Persona Ichor v1 prompt + lexique phonétique v0
-17. Script `scripts/check_api_keys.py` — toutes clés vertes
+**Semaine 2 — App squelettes + archivage critique** 9. **Cron systemd `ichor-archiver.service` HY/IG OAS J0** (priorité max) 10. FastAPI minimal `/healthz` deploy Hetzner 11. Next.js minimal Cloudflare Pages deploy `app.ichor.app` 12. Disclaimer modal + footer + dark mode toggle 13. Service worker PWA + VAPID push test 14. Logo + palette + mockups asset cards (canvas-design) 15. ElevenLabs Brian voix FR test 10 phrases finance 16. Persona Ichor v1 prompt + lexique phonétique v0 17. Script `scripts/check_api_keys.py` — toutes clés vertes
 
 **Gate Phase 0 → Phase 1** : tous les 16 critères §8 cochés + revue Eliot.
 
@@ -489,6 +482,7 @@ Sem 7-8 : intégration multi-block dans Bias Aggregator, calibration tournament,
 ✅ **SPEC.md écrit** : `D:\Ichor\SPEC.md` (~600 lignes)
 
 **PROCHAINE ÉTAPE** :
+
 1. **Eliot relit SPEC.md tranquillement** (15-20 min) — modifie/ajoute/supprime selon préférence
 2. **Validation explicite** ou édition manuelle
 3. **`/clear`** la session courante (contexte interview pollue Phase 0)
@@ -499,4 +493,4 @@ Pourquoi nouvelle session : le contexte d'interview (~30k tokens) pollue la phas
 
 ---
 
-*Document maintenu par Claude. Mettre à jour à chaque évolution majeure de la spec ou des décisions.*
+_Document maintenu par Claude. Mettre à jour à chaque évolution majeure de la spec ou des décisions._

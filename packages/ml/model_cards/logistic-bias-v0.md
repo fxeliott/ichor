@@ -11,7 +11,7 @@
 ## Intended use
 
 Linear baseline: any non-linear model added to the ensemble must beat this
-in cross-val Brier *plus* improve ensemble Brier marginally — otherwise we
+in cross-val Brier _plus_ improve ensemble Brier marginally — otherwise we
 keep the simpler model.
 
 Same inputs / outputs as the LightGBM card. Features standardized

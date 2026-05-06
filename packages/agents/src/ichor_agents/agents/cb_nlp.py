@@ -4,11 +4,13 @@ Reads recent CB speeches/communiqués from Fed, ECB, BoE, BoJ, SNB, PBoC
 and produces hawkish/dovish scores per CB + key shifts identified +
 projected impact per rate-sensitive asset.
 
-Per ADR-021, this routes via Claude Sonnet 4.6 (local runner) with
-Cerebras/Groq fallback. The fallback chain construction below uses the
-existing OpenAI-compat providers; the Claude wiring is added at the
-service-level call site (apps/api) which prefers the runner client and
-falls back to this chain on runner unavailable.
+Routing per ADR-023 (which supersedes ADR-021's mapping table) :
+Claude Haiku 4.5 effort=low (primary) → Cerebras Llama 3.3-70B →
+Groq Llama 3.3-70B-versatile (last-resort). ADR-021 originally
+prescribed Sonnet medium but the Free-tier Cloudflare Tunnel caps
+requests at ~100 s and Sonnet medium routinely exceeds that on a
+~5 KB CB-speeches context. Haiku 4.5 stays well under the budget
+(~30 s) and quality is sufficient for structured rhetoric scoring.
 """
 
 from __future__ import annotations
@@ -18,6 +20,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from ..claude_runner import ClaudeRunnerConfig
 from ..fallback import FallbackChain
 from ..providers import CEREBRAS, GROQ
 
@@ -94,4 +97,9 @@ def make_cb_nlp_chain() -> FallbackChain:
         providers=(CEREBRAS, GROQ),
         system_prompt=SYSTEM_PROMPT_CB_NLP,
         output_type=CbNlpAgentOutput,
+        # Haiku low instead of ADR-021 Sonnet medium: Free-tier CF
+        # Tunnel times out at ~100 s and Sonnet medium often exceeds
+        # that on the 5 KB CB-speeches context. Haiku 4.5 stays under
+        # the budget and produces well-structured rhetoric scoring.
+        claude=ClaudeRunnerConfig.from_env(model="haiku", effort="low"),
     )

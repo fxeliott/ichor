@@ -50,8 +50,7 @@ const formatAsset = (a: string) => a.replace(/_/g, "/");
 const formatPrice = (p: number) =>
   p >= 1000 ? p.toLocaleString("fr-FR", { maximumFractionDigits: 2 }) : p.toFixed(4);
 
-const formatPct = (p: number) =>
-  `${p > 0 ? "+" : ""}${p.toFixed(2)}%`;
+const formatPct = (p: number) => `${p > 0 ? "+" : ""}${p.toFixed(2)}%`;
 
 export const AssetCard: React.FC<AssetCardProps> = ({
   asset,
@@ -76,9 +75,11 @@ export const AssetCard: React.FC<AssetCardProps> = ({
   }
 
   const changeColor =
-    change24hPct > 0 ? "text-emerald-400" :
-    change24hPct < 0 ? "text-red-400" :
-    "text-[var(--color-ichor-text-muted)]";
+    change24hPct > 0
+      ? "text-emerald-400"
+      : change24hPct < 0
+        ? "text-red-400"
+        : "text-[var(--color-ichor-text-muted)]";
 
   // When no onDrillDown is provided, render as <article> so the parent
   // (e.g. Next.js <Link>) can wrap it without nesting interactive elements.
@@ -114,7 +115,9 @@ export const AssetCard: React.FC<AssetCardProps> = ({
           {formatAsset(asset)}
         </h3>
         {regimeState !== undefined && (
-          <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded border ${REGIME_COLORS[regimeState]}`}>
+          <span
+            className={`text-[10px] font-mono px-1.5 py-0.5 rounded border ${REGIME_COLORS[regimeState]}`}
+          >
             R{regimeState} · {REGIME_LABELS[regimeState]}
           </span>
         )}
@@ -125,11 +128,7 @@ export const AssetCard: React.FC<AssetCardProps> = ({
         <span className={`text-sm font-mono ${changeColor}`}>{formatPct(change24hPct)}</span>
       </div>
 
-      <BiasBar
-        bias={bias}
-        {...(credibleInterval ? { credibleInterval } : {})}
-        width={220}
-      />
+      <BiasBar bias={bias} {...(credibleInterval ? { credibleInterval } : {})} width={220} />
 
       {alertsCount > 0 && maxAlertSeverity && (
         <div className="mt-3 flex items-center gap-2">

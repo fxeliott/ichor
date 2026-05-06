@@ -18,21 +18,21 @@ Documentation of Ichor's compliance posture across:
 
 ## Documents (TBD)
 
-| File | Status | Trigger |
-|------|--------|---------|
-| `ai-disclosure.md` | ⬜ TBD Phase 0 W4 | Article 50 mandate |
-| `amf-mapping.md` | ⬜ TBD Phase 0 W4 | DOC-2008-23 vs Ichor |
-| `cgu-v0.md` (Conditions Générales) | ⬜ TBD Phase 1 | Pre-launch |
-| `privacy-policy-v0.md` | ⬜ TBD Phase 1 | RGPD baseline |
-| `dpia-draft.md` (Data Protection Impact Assessment) | ⬜ TBD Phase 1 | If processing personal data |
-| `terms-of-use-disclaimer.md` | ⬜ TBD Phase 0 W4 | Disclaimer modal in UI |
+| File                                                | Status            | Trigger                     |
+| --------------------------------------------------- | ----------------- | --------------------------- |
+| `ai-disclosure.md`                                  | ⬜ TBD Phase 0 W4 | Article 50 mandate          |
+| `amf-mapping.md`                                    | ⬜ TBD Phase 0 W4 | DOC-2008-23 vs Ichor        |
+| `cgu-v0.md` (Conditions Générales)                  | ⬜ TBD Phase 1    | Pre-launch                  |
+| `privacy-policy-v0.md`                              | ⬜ TBD Phase 1    | RGPD baseline               |
+| `dpia-draft.md` (Data Protection Impact Assessment) | ⬜ TBD Phase 1    | If processing personal data |
+| `terms-of-use-disclaimer.md`                        | ⬜ TBD Phase 0 W4 | Disclaimer modal in UI      |
 
 ## AI disclosure — minimum text (placeholder)
 
-> *« Contenu généré par intelligence artificielle. Ichor produit des analyses
+> _« Contenu généré par intelligence artificielle. Ichor produit des analyses
 > non personnalisées à but informatif. Ce contenu ne constitue pas un conseil
 > en investissement personnalisé au sens de la position AMF DOC-2008-23.
-> Vérifiez les sources avant toute décision. »*
+> Vérifiez les sources avant toute décision. »_
 
 This wording is to be reviewed by counsel before any external publication.
 

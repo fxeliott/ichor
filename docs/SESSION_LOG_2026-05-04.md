@@ -23,6 +23,7 @@ du résumé. Les deux sont documentées séparément ci-dessous.
 ### 1.A. Session-A (avant compaction) — 31 prompts user
 
 #### Prompt #1 — préambule (méta)
+
 > "je vais te donner mon prompt ma demande très longue et complexe
 > mais je sais pas si je la structure bien pour toi claude code donc
 > prend en compte ça et agis en tant qu'expert en claude et en expert
@@ -30,6 +31,7 @@ du résumé. Les deux sont documentées séparément ci-dessous.
 > comprend bien tout etc"
 
 #### Prompt #2 — vision profonde + audit atomique
+
 > "on a pas mal avancé sur le projet ichor mais j'ai l'impression plus
 > la session à avancé plus t étais moins performant perdu et tu écouté
 > plus donc tu te mélange etc donc la je veux que tu sois à jour sur
@@ -83,11 +85,13 @@ en 1 paragraphe. Il est cité ici verbatim car tout ce qui a été shippé
 ensuite découle de ce prompt.
 
 #### Prompt #3 — push origin + Polygon key
+
 > "Push origin/main OK si ça reste pv / pour la clé polygon dis moi
 > exactement suelle abonnement prendre il y en a plusieurs pour
 > diférent actif. pour le reste des bloqueurs guide moi de A à Z"
 
 #### Prompt #4 — Polygon API key
+
 > "voila la clé : Meaxr6y_W4MspeotMc3hRGtcoHjiMgXX je vois aussi que
 > gratuitement avec cette clé tu peux avoir des appels api sur d'autres
 > choses à toi de l'exploiter au maximum au mieux. le reste tu as
@@ -97,33 +101,42 @@ ensuite découle de ce prompt.
 #### Prompt #5 — `Continue from where you left off.`
 
 #### Prompts #6-#7 — debug Win11 claude-runner
+
 PowerShell outputs collés (Scheduled Tasks reset, taskkill claude.exe,
 auth status firstParty/eliott.pena@icloud.com)
 
 #### Prompt #8 — réponse claude -p success
+
 > Output JSON `{"type":"result","subtype":"success", ...}` confirmant
 > que claude-runner Win11 répond OK
 
 #### Prompt #9 — re-register Scheduled Tasks failure
+
 > Output `register-user-tasks.ps1 : Impossible de charger le fichier`
-> + execution policy issue
+>
+> - execution policy issue
 
 #### Prompt #10 — autonomie request
+
 > "attend tout ça tu peux le faire en autonomie ?"
 
 #### Prompt #11 — push autonomy max
+
 > "continue sans rien oublier en faisant tout à la perfection en
 > poussant au maximum possible"
 
 #### Prompt #12 — FRED API key
+
 > "9088bbb349877c9d81e4d42e0b74a780"
 
 #### Prompts #13-#22 — 10× simple "continue"
+
 Variantes : "continue", "continue sans rien oublier en faisant tout
 à la perfection en poussant au maximum possible". Chaque "continue"
 déclenchait un nouveau push.
 
 #### Prompt #23 — final push autonomy
+
 > "continue sans rien oublier en faisant tout à la perfection en
 > poussant au maximum possible en revoyant ma demande initial ton plan
 > ton organisation perds aucun contexte agis vraiment en tant qu'expert
@@ -137,17 +150,19 @@ de la journée).
 
 À ce point, le contexte avait grossi au point que Claude Code a généré
 un résumé automatique de la session A. Le résumé incluait :
+
 - L'état initial du projet Ichor
 - Les concepts techniques utilisés (Turborepo, FastAPI, TimescaleDB,
   Apache AGE, "Voie D" Max 20x, brain 4-pass)
 - Les fichiers déjà créés (`daily_levels.py`, `session_scenarios.py`,
   `rr_analysis.py` + tests 19/19 passing)
 - Les bugs précédemment fixés (taskkill claude.exe, csv.field_size_limit
-  + binary xls detection, lightweight-charts v5 API, asset alias bug,
-  AssetSpecialization correlations_snapshot validation, func.case())
+  - binary xls detection, lightweight-charts v5 API, asset alias bug,
+    AssetSpecialization correlations_snapshot validation, func.case())
 - 32 commits déjà poussés sur `origin/main`
 
 **Citation** du résumé sur l'état avant push 1 du jour :
+
 > "8 services trader-grade avaient été créés (daily_levels,
 > session_scenarios, rr_analysis) avec 19/19 tests passing.
 > L'AI Brain 4-pass tournait sur Hetzner avec verdict approved en 80s.
@@ -172,6 +187,7 @@ un résumé automatique de la session A. Le résumé incluait :
 > possible (...) je veux que ça soit parfait."
 
 **Vision réaffirmée** :
+
 - Eliot trade momentum sessions Londres/NY sur 8 actifs (FX majors,
   XAU, NAS100, SPX500), RR=3, BE@1, close 90% à RR=3, 10% en trail
 - Son analyse technique = 10% (sur TradingView). Le système Ichor
@@ -199,9 +215,10 @@ Plusieurs prompts identiques répétés, chacun déclenchant un nouveau push :
 > web design et en développer (...)"
 
 #### Prompt #35 — état actuel
+
 > "on en est on la donc ?"
-→ J'ai répondu un récap des 6 pushes shippés ce jour-là, état du
-système (88 pytest passing, 25 sections data_pool, etc).
+> → J'ai répondu un récap des 6 pushes shippés ce jour-là, état du
+> système (88 pytest passing, 25 sections data_pool, etc).
 
 #### Prompt #36 — accès visible à l'app
 
@@ -246,6 +263,7 @@ complet.**
 ### Push 1 — `77d40dc` — trader-grade SMC + macro-omniscient
 
 **Services API (8 nouveaux)** :
+
 1. `daily_levels.py` — PDH, PDL, Asian range, classic Pivots PP/R1-R3/
    S1-S3, round numbers psychologiques. Pip-size adaptatif (JPY=0.01,
    XAU=0.10, indices=1.0, FX=0.0001). Tire les 8 derniers jours de
@@ -271,12 +289,14 @@ complet.**
    3M-10Y/2Y-10Y/5Y-30Y, real yield TIPS, détection de shape.
 
 **Routers REST (5 endpoints)** :
+
 - `GET /v1/trade-plan/{asset}` (+ POST `/manual` counterfactual)
 - `GET /v1/confluence/{asset}`
 - `GET /v1/currency-strength`
 - `GET /v1/calendar/upcoming?asset=`
 
 **Web (Next.js 15 RSC)** :
+
 - Page `/scenarios/[asset]` complète : probability bars, triggers,
   daily-levels block, confluence drivers, calendar feed, RR plan
 - Widget Currency Strength sur home
@@ -292,6 +312,7 @@ cited, 4-pass brain → critic approved en 80s.
 ### Push 2 — `b9b2f96` — corrélations + hourly vol + Brier feedback
 
 **Services API (3 nouveaux)** :
+
 - `correlations.py` — matrice 8×8 Pearson sur returns horaires 30j.
   Long-run priors hardcoded (EUR/GBP=0.65, NAS/SPX=0.92, XAU/JPY=
   -0.50, etc.). Flags les divergences ≥ 0.30.
@@ -306,6 +327,7 @@ cited, 4-pass brain → critic approved en 80s.
 `/v1/brier-feedback`
 
 **3 nouvelles pages UI** :
+
 - `/confluence` — tableau triable 8 actifs
 - `/correlations` — heatmap 8×8 + flags panel
 - `/hourly-volatility/[asset]` — barres 24h heatmap
@@ -318,12 +340,13 @@ brain 4-pass → approved en 86s.
 ### Push 3 — `3ea9d2a` — VIX term + risk appetite + macro pulse
 
 **Services API (2 nouveaux)** :
+
 - `vix_term_structure.py` — VIX/VIX3M ratio classification (contango
   / normal / flat / backwardation / extreme_backwardation /
   stretched_contango), interpretation trader-friendly.
 - `risk_appetite.py` — composite [-1, +1] aggregating VIX + HY OAS
-  + IG OAS + T10Y2Y curve + UMCSENT. Bands : extreme_risk_off →
-  extreme_risk_on.
+  - IG OAS + T10Y2Y curve + UMCSENT. Bands : extreme_risk_off →
+    extreme_risk_on.
 
 **Confluence engine étendu** : 7 → 9 facteurs (added vix_term +
 risk_appetite drivers, asset-aware sign mapping).
@@ -333,6 +356,7 @@ risk_appetite drivers, asset-aware sign mapping).
 **FRED collector étendu** : ajout UMCSENT, CSCICP03USM665S, DRTSCILM.
 
 **2 nouvelles pages UI** :
+
 - `/macro-pulse` — 5-panel dashboard
 - `/yield-curve` — full curve chart + slope diagnostics
 
@@ -346,6 +370,7 @@ verdict=approved en 61s.
 ### Push 4 — `9d6136d` — Polymarket impact + macro home widget
 
 **Service API (1 nouveau)** :
+
 - `polymarket_impact.py` — clusters thématiques sur 9 thèmes (fed_cut,
   fed_hike, recession, trump_election, ukraine_russia, israel_iran,
   china_taiwan, inflation, oil_supply). Per-asset impact magnitudes.
@@ -354,6 +379,7 @@ verdict=approved en 61s.
 **Endpoint** : `/v1/polymarket-impact?hours=24`
 
 **Web** :
+
 - Home page : `MacroPulseWidget` 4 tiles compactes
 - `/polymarket-impact` page avec themed cluster cards
 - Cmd+K : entrée Polymarket
@@ -363,6 +389,7 @@ verdict=approved en 61s.
 ### Push 5 — `c874ef8` — portfolio exposure + BTC factor
 
 **Service API** :
+
 - `portfolio_exposure.py` — 5 axes (USD, Equity, Gold, JPY haven,
   Commodity FX), agrège les 8 latest cards weighted par conviction
   × magnitude. Concentration warnings si 5+ cards alignées USD.
@@ -390,21 +417,25 @@ commentaires Claude cassent la pipeline.
 ### Push 6 — `258c140` — confluence history persistence
 
 **DB** :
+
 - Migration 0007 : table `confluence_history` (TimescaleDB hypertable
   sur `captured_at`, 30-day chunks). Stocke score_long/short/neutral,
   dominant_direction, confluence_count, drivers JSONB.
 
 **Service** :
+
 - `cli/snapshot_confluence.py` — fan out `assess_confluence` sur les
   8 phase-1 actifs, persist 8 rows en une transaction.
 
 **Systemd timer (Hetzner)** :
+
 - `ichor-snapshot-confluence.service` / `.timer` — runs toutes les 6h
   (00:30/06:30/12:30/18:30 UTC) → 32 datapoints/jour.
 
 **Endpoint** : `GET /v1/confluence/{asset}/history?window_days=30`
 
 **Web** :
+
 - `components/confluence-sparkline.tsx` — pure SVG 100×22, 2 polylines
   (long emerald + short rose), seuil 60 dashed
 - `/confluence` table : ajout colonne "30j" avec sparkline pré-fetché
@@ -413,6 +444,7 @@ commentaires Claude cassent la pipeline.
 ### Push 7 — `40a46bf` — full UI redesign cobalt + navy
 
 **Design tokens (`globals.css`)** :
+
 - Palette cobalt sur noir profond : --color-ichor-deep #04070C →
   --color-ichor-surface-3 #16223A
 - Accent cobalt : #3B82F6 / #60A5FA / #1E40AF / #93C5FD
@@ -429,6 +461,7 @@ commentaires Claude cassent la pipeline.
 - prefers-reduced-motion respecté
 
 **4 nouveaux composants UI réutilisables** :
+
 - `AmbientOrbs` — 3 floating gradient blobs animés (default/long/
   short/alert variants)
 - `GlassCard` — wrapper 4 variants × 4 tones
@@ -436,6 +469,7 @@ commentaires Claude cassent la pipeline.
 - `StatusDot` — live indicator avec pulse animation
 
 **Layout** :
+
 - Header sticky glass-morphism (backdrop-blur-xl + bg cobalt 80%)
 - Logo I-mark animé en gradient cobalt avec halo
 - Wordmark "Ichor" en gradient text white→cobalt-bright
@@ -443,6 +477,7 @@ commentaires Claude cassent la pipeline.
 - Cluster droit : pulse dot LIVE + ⌘K kbd + push toggle
 
 **Home page** :
+
 - Hero + best-opportunity callout XL
 - Macro Pulse 4 tiles
 - Régime quadrant + cross-asset heatmap
@@ -450,6 +485,7 @@ commentaires Claude cassent la pipeline.
 - Featured cards / alerts / briefings strips
 
 **~40 fichiers touchés** :
+
 - 16 pages migrées (home, /confluence, /macro-pulse, /scenarios,
   /correlations, /yield-curve, /hourly-volatility, /polymarket-impact,
   /sessions, /alerts, /admin, /calibration, /narratives, /news,
@@ -463,6 +499,7 @@ commentaires Claude cassent la pipeline.
 ### Push 8 — `a5285d5` — /learn + ? shortcuts + mobile nav + /confluence/history
 
 **Page `/learn`** — éducation 6 chapitres avec **diagrammes SVG inline** :
+
 1. Régime macro 4 quadrants (axes stress/conviction)
 2. Daily levels SMC (PDH/PDL/Asian range/Pivot + candles)
 3. Scénarios session (3 paths émergeant du spot)
@@ -477,11 +514,13 @@ la page live.
 (1 par actif), score_long (emerald) + score_short (rose), seuil 60.
 
 **Power-user** :
+
 - `?` modal raccourcis — 11 keybindings (Cmd+K, Esc, ↑↓, Enter,
   Tab + G+H/C/M/S/L navigation rapide)
 - Header : `⌘K` + `?` kbd cliquable
 
 **Mobile** :
+
 - Drawer slide-in sur < lg breakpoint
 - Hamburger button cobalt-bordered
 - 3 groupes (Core / Macro / Ops) avec gros tap targets
@@ -489,12 +528,14 @@ la page live.
 - Animation motion/react slide-in 220ms
 
 **Polish** :
+
 - Live events toast : refresh palette ichor-glass + ichor-glow
 - Command palette : ajout /learn, KIND_BADGE refactor
 
 ### Push 9 — `c528aa8` — fix TS strict-mode (`noUncheckedIndexedAccess`)
 
 7 fichiers avec erreurs TS qui bloquaient le prod build :
+
 - `confluence/history/page.tsx` — guard settled[i] potentiel undefined
 - `confluence/page.tsx` — guard cr/hr dans loadAll
 - `correlations/page.tsx` — `matrix.matrix[i]?.[j] ?? null`
@@ -502,13 +543,14 @@ la page live.
 - `scenarios/[asset]/page.tsx` — rationaleMatch?.[1]?.trim(),
   exactOptionalPropertyTypes : conditional dataPoolOpts construction
 - `best-opportunity-widget.tsx`, `confluence-sparkline.tsx` — guards
-  + non-null asserts post-check
+  - non-null asserts post-check
 
 Production build OK : 24 routes compilées (102 kB shared).
 
 ### Push 10 — `4fbc4e1` — bugs critiques frontend reported by user
 
 **Bug #1 — API injoignable depuis browser** :
+
 - `next.config.ts` : ajout rewrites `/v1/*` + `/healthz/*` vers
   127.0.0.1:8000 (configurable via `ICHOR_API_PROXY_TARGET`)
 - `lib/api.ts` : détection server vs client. Server = URL absolue,
@@ -517,12 +559,14 @@ Production build OK : 24 routes compilées (102 kB shared).
   `${ws|wss}://${host}/v1/ws/dashboard`
 
 **Bug #2 — Régime quadrant + cross-asset heatmap invisibles** :
+
 - `motion.button initial={{opacity:0}}` rend invisible côté SSR.
   Si hydration ou motion lib lag → reste invisible.
 - Fix : remplacé motion par `<button>`/`<div>` + class CSS
   `.ichor-fade-in` + `data-stagger`. Plus light, plus fiable.
 
 **Bug #3 — `.ichor-fade-in` failsafe** :
+
 - Keyframe NE manipule plus opacity, seulement translateY(6px → 0)
 - Élément toujours visible peu importe l'état de l'animation
 - Stagger réduit 60-360ms → 40-240ms
@@ -534,6 +578,7 @@ Production build OK : 24 routes compilées (102 kB shared).
 ### Backend (Python / FastAPI)
 
 **25 sections data_pool** (jusqu'à 25 selon l'actif) :
+
 1. macro_trinity (DXY + US10Y + VIX)
 2. dollar_smile (DFII10 + OAS + curve + DGS2)
 3. **vix_term** ← NEW
@@ -563,6 +608,7 @@ Production build OK : 24 routes compilées (102 kB shared).
 27. news
 
 **Confluence engine — 10 facteurs** :
+
 1. rate_diff
 2. COT z-score
 3. microstructure_ofi (Lee-Ready 4h)
@@ -575,6 +621,7 @@ Production build OK : 24 routes compilées (102 kB shared).
 10. **btc_risk_proxy** ← NEW
 
 **Endpoints REST nouveaux** (10) :
+
 - `/v1/trade-plan/{asset}` (GET + POST manual)
 - `/v1/confluence/{asset}` (+ /history)
 - `/v1/currency-strength`
@@ -593,8 +640,9 @@ Production build OK : 24 routes compilées (102 kB shared).
 (+ ichor-snapshot-confluence toutes les 6h, ajouté).
 
 **Brain pipeline** : 4-pass (regime → asset → stress → invalidation)
-+ Critic Agent. Verifié approved sur 5 actifs différents en 60-90s
-chacun.
+
+- Critic Agent. Verifié approved sur 5 actifs différents en 60-90s
+  chacun.
 
 ### Frontend (Next.js 15 + React 19 + Tailwind 4)
 
@@ -628,6 +676,7 @@ chacun.
 | Admin | `/admin` |
 
 **Widgets home** :
+
 - BestOpportunityWidget (NEW)
 - MacroPulseWidget (NEW)
 - RegimeQuadrantWidget
@@ -636,10 +685,12 @@ chacun.
 - Cards / alerts / briefings strips
 
 **Composants UI réutilisables (NEW)** :
+
 - `AmbientOrbs`, `GlassCard`, `StatTile`, `StatusDot`,
   `KeyboardShortcutsModal`, `MobileNav`, `ConfluenceSparkline`
 
 **Design system** :
+
 - 25+ tokens CSS variables `--color-ichor-*`
 - 12+ utility classes `.ichor-*`
 - Cobalt accent + navy bg avec ambient gradients
@@ -652,6 +703,7 @@ chacun.
 ### Déploiement
 
 **Hetzner CX32** :
+
 - API systemd : `ichor-api.service` (port 8000)
 - Web systemd (NEW) : `ichor-web.service` (port 3030)
 - Tunnel systemd (NEW) : `ichor-web-tunnel.service` (cloudflared
@@ -663,6 +715,7 @@ chacun.
 (quick tunnel — l'URL change au restart du service)
 
 **SSH tunnel pour dev local** :
+
 ```bash
 ssh -L 18000:127.0.0.1:8000 -N -f ichor-hetzner
 # Then in apps/web/.env.local :
@@ -714,6 +767,7 @@ apps/api/tests/test_vix_and_risk_appetite.py
 ### Frontend Web (12 nouveaux + ~40 modifiés)
 
 **Nouveaux** :
+
 ```
 apps/web/app/confluence/page.tsx
 apps/web/app/confluence/history/page.tsx
@@ -839,6 +893,7 @@ Tous les `--live` runs ont produit des cards persistées en
 👉 https://demonstrates-plc-ordering-attractive.trycloudflare.com
 
 **⚠ Caractéristiques du quick tunnel** :
+
 - Pas d'uptime garanti (Cloudflare quick tunnels sont best-effort)
 - L'URL change si le service `ichor-web-tunnel` est restart
 - Pour récupérer l'URL après un restart :
@@ -847,6 +902,7 @@ Tous les `--live` runs ont produit des cards persistées en
   ```
 
 **Pour passer à un sous-domaine permanent** :
+
 1. Lier compte Cloudflare avec un domaine
 2. Créer un named tunnel : `cloudflared tunnel create ichor-web`
 3. Configurer le DNS CNAME `app.ton-domaine.com → tunnel-id.cfargotunnel.com`
@@ -894,7 +950,7 @@ Tous les `--live` runs ont produit des cards persistées en
 - **TimescaleDB hypertable** sur confluence_history avec chunks 30j
 - **Quick tunnel cloudflared** pour démo immédiate sans config
   Cloudflare account
-- **Bulk-migration script** pour theme tokens (neutral-* → ichor
+- **Bulk-migration script** pour theme tokens (neutral-\* → ichor
   cobalt) sur 30+ fichiers en une passe
 
 ---
@@ -904,54 +960,54 @@ Tous les `--live` runs ont produit des cards persistées en
 ### Bugs potentiels à investiguer
 
 - [ ] Local preview tool screenshots timeout (visibility hidden) — peut-
-  être lié à un dev mode trick. Si user encore voit des bugs, mieux
-  utiliser Chrome MCP (extension non-installée actuellement).
+      être lié à un dev mode trick. Si user encore voit des bugs, mieux
+      utiliser Chrome MCP (extension non-installée actuellement).
 - [ ] Polymarket collector inserts duplicates (by design), mais le
-  service polymarket_impact dedupe by slug. Pourrait être nettoyé
-  côté collector pour économiser stockage.
+      service polymarket_impact dedupe by slug. Pourrait être nettoyé
+      côté collector pour économiser stockage.
 
 ### Features potentielles non livrées
 
 - [ ] **WebSocket live event push pleinement wiré** — orchestrator
-  produit-il des events Redis pubsub ? Le ws_router consume-t-il ?
-  Vérification end-to-end nécessaire.
+      produit-il des events Redis pubsub ? Le ws_router consume-t-il ?
+      Vérification end-to-end nécessaire.
 - [ ] **Auto-tuning Brier feedback** — le service brier_feedback fait
-  l'introspection mais ne FEED pas les confluence_engine weights. Une
-  v2 pourrait down-weighter les facteurs qui foirent.
+      l'introspection mais ne FEED pas les confluence_engine weights. Une
+      v2 pourrait down-weighter les facteurs qui foirent.
 - [ ] **Named Cloudflare Tunnel** sous sous-domaine permanent
-  (request explicit from user).
+      (request explicit from user).
 - [ ] **Cloudflare Pages auto-deploy** depuis GitHub branch main pour
-  static export Next.js. Permettrait URL stable
-  `app-ichor.pages.dev`.
+      static export Next.js. Permettrait URL stable
+      `app-ichor.pages.dev`.
 - [ ] **Mobile UX polish** — testé partial via le drawer mais
-  inspection mobile-specific layouts (375×812) à faire.
+      inspection mobile-specific layouts (375×812) à faire.
 
 ### Tech debt
 
 - [ ] Tests d'intégration pour les nouveaux endpoints (currently
-  pure unit tests only).
+      pure unit tests only).
 - [ ] Run `pnpm typecheck` complet sur tout le repo (TS strict
-  errors apparaissent only on `pnpm build`).
+      errors apparaissent only on `pnpm build`).
 - [ ] CI/CD : ajouter un workflow GitHub Actions qui build + deploy
-  le web automatiquement sur push to main (currently manual deploy).
+      le web automatiquement sur push to main (currently manual deploy).
 
 ---
 
 ## 10. Stats finales de la journée
 
-| Métrique | Avant la session | Après la session |
-|---|---|---|
-| Commits sur origin/main | `fdd2fbd` | `4fbc4e1` (+ 10) |
-| Sections data_pool | 14 | **25** |
-| Sources cited per pool | ~30 | **89** |
-| markdown chars per pool | ~7k | **10758** |
-| Endpoints REST | ~25 | **35+** |
-| Pages web | 13 | **24** |
-| Confluence engine factors | n/a | **10** |
-| Tests pytest | 0 (post-reset) | **114 passing** |
-| Systemd timers | 17 | **18** |
-| Composants UI nouveaux | 0 | **9** |
-| Lignes ajoutées (estimé) | — | **~12 000** |
+| Métrique                  | Avant la session | Après la session |
+| ------------------------- | ---------------- | ---------------- |
+| Commits sur origin/main   | `fdd2fbd`        | `4fbc4e1` (+ 10) |
+| Sections data_pool        | 14               | **25**           |
+| Sources cited per pool    | ~30              | **89**           |
+| markdown chars per pool   | ~7k              | **10758**        |
+| Endpoints REST            | ~25              | **35+**          |
+| Pages web                 | 13               | **24**           |
+| Confluence engine factors | n/a              | **10**           |
+| Tests pytest              | 0 (post-reset)   | **114 passing**  |
+| Systemd timers            | 17               | **18**           |
+| Composants UI nouveaux    | 0                | **9**            |
+| Lignes ajoutées (estimé)  | —                | **~12 000**      |
 
 **Brain pipeline verified live** : 5 cards `--live` cycle complet
 4-pass, toutes verdicts `approved` en 60-90s, brain ingère 25
@@ -987,6 +1043,7 @@ https://demonstrates-plc-ordering-attractive.trycloudflare.com
 Eliot a explicitement demandé "fais tout ce qui peut être fais en
 autonomie, ne me sollicite pas". Le pattern qui a marché toute la
 session :
+
 1. Identifier la feature la plus high-impact restante
 2. Implémenter service + endpoint + UI + tests + wire dans data_pool
 3. Verify avec un `--live` brain run
@@ -994,6 +1051,7 @@ session :
 5. Boucler
 
 Liste prioritaire (extensible) :
+
 1. Cloudflare Pages deploy auto (pour URL stable)
 2. WebSocket live events end-to-end
 3. Auto-tuning Brier feedback dans confluence weights
@@ -1004,6 +1062,6 @@ Liste prioritaire (extensible) :
 
 ---
 
-*Document généré automatiquement le 2026-05-04 en fin de session
+_Document généré automatiquement le 2026-05-04 en fin de session
 de 15h. Eliot peut copier-coller dans son issue tracker, ou laisser
-en place comme référence.*
+en place comme référence._

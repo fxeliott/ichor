@@ -56,3 +56,49 @@ class HealthResponse(BaseModel):
 
     requests_last_hour: int
     rate_limit_remaining: int
+
+
+class AgentTaskRequest(BaseModel):
+    """POST /v1/agent-task — generic single-shot Claude call for Couche-2.
+
+    Unlike `/v1/briefing-task` which packages a pre-rendered briefing
+    template (assets, briefing_type), this endpoint accepts any
+    system+prompt pair so Hetzner-side Couche-2 agents (CB-NLP, News-NLP,
+    Sentiment, Positioning, Macro) can route through Claude per ADR-021.
+
+    The system prompt is injected via `--append-system-prompt`, exactly
+    like the persona file is for briefings — with one difference: we do
+    NOT load the runner's default persona on top, since Couche-2 agents
+    bring their own dedicated system prompts.
+    """
+
+    task_id: UUID = Field(default_factory=uuid4)
+    system: str = Field(min_length=1, max_length=200_000)
+    """Agent system prompt (e.g. SYSTEM_PROMPT_MACRO)."""
+
+    prompt: str = Field(min_length=1, max_length=200_000)
+    """User-side context (data window from Postgres assembled by Hetzner)."""
+
+    model: Literal["opus", "sonnet", "haiku"] = "sonnet"
+    """ADR-021 default mapping: sonnet for CB-NLP/News-NLP/Macro,
+    haiku for Sentiment/Positioning. Caller picks per agent kind."""
+
+    effort: Literal["low", "medium", "high", "xhigh", "max"] = "medium"
+    """Lower than briefing default — Couche-2 runs frequently and the
+    output schema is smaller than a full briefing."""
+
+
+class AgentTaskResponse(BaseModel):
+    task_id: UUID
+    status: Literal["success", "throttled", "subprocess_error", "timeout", "auth_failed"]
+    output_text: str | None = None
+    """Raw model output (typically JSON the caller validates against
+    a Pydantic schema)."""
+
+    raw_claude_json: dict | None = None
+    """Full envelope from `claude -p --output-format json` — includes
+    usage stats for quota monitoring."""
+
+    error_message: str | None = None
+    duration_ms: int
+    completed_at: datetime = Field(default_factory=lambda: datetime.now(UTC))

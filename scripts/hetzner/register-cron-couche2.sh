@@ -7,11 +7,14 @@
 #   Sentiment    toutes les 6h (02:30, 08:30, 14:30, 20:30 Paris)
 #   Positioning  toutes les 6h (offset +60min : 03:30, 09:30, ...)
 #
-# Each timer triggers a oneshot service that:
-#   1. Decrypts secrets via /usr/local/bin/ichor-decrypt-secrets
-#   2. Runs `python -m ichor_api.cli.run_couche2_agent <kind>`
-#   3. Persists output to couche2_outputs (or error row)
-#   4. Shreds the secrets tmpfs file
+# Each timer triggers a oneshot service that runs
+# `python -m ichor_api.cli.run_couche2_agent <kind>` and persists
+# the structured output (or error row) to couche2_outputs.
+#
+# Env loads /etc/ichor/api.env — same pattern as every other ichor-*
+# service. The earlier draft referenced a tmpfs-encrypted secrets file
+# that was never deployed, which silently broke all 5 services and left
+# couche2_outputs empty (cf root-cause investigation 2026-05-06).
 #
 # Cf docs/decisions/ADR-021-couche2-via-claude-not-fallback.md for the
 # routing decision (Claude primary, Cerebras/Groq fallback).
@@ -29,11 +32,9 @@ Wants=network-online.target
 Type=oneshot
 User=ichor
 Group=ichor
-WorkingDirectory=/opt/ichor/api
-EnvironmentFile=/dev/shm/ichor-secrets.env
-ExecStartPre=/usr/local/bin/ichor-decrypt-secrets
+WorkingDirectory=/opt/ichor/api/src
+EnvironmentFile=/etc/ichor/api.env
 ExecStart=/opt/ichor/api/.venv/bin/python -m ichor_api.cli.run_couche2_agent %i
-ExecStartPost=/usr/bin/shred -u /dev/shm/ichor-secrets.env
 TimeoutStartSec=600
 StandardOutput=journal
 StandardError=journal

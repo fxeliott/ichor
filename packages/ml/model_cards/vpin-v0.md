@@ -30,7 +30,7 @@ phrased as "tension microstructure élevée — liquidité asymmetric".
 ## Caveats & failure modes
 
 - VPIN's predictive power is debated (Andersen-Bondarenko 2014 critique);
-  treat as a *risk gauge*, not a return predictor.
+  treat as a _risk gauge_, not a return predictor.
 - Bucket size ≠ time — long quiet periods inflate VPIN spuriously.
 - Latency: O(N) per bucket — < 5 ms.
 

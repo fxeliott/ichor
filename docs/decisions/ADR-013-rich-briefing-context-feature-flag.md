@@ -48,13 +48,13 @@ Two-track delivery :
 
 Section priorities (lower = drop first under budget pressure) :
 
-| Priority | Section |
-|---|---|
-| 10 | Bias signals (never drop) |
-| 9 | Active alerts |
-| 8 | Market data (close + D/D %) |
-| 5 | News |
-| 4 | Polymarket |
+| Priority | Section                     |
+| -------- | --------------------------- |
+| 10       | Bias signals (never drop)   |
+| 9        | Active alerts               |
+| 8        | Market data (close + D/D %) |
+| 5        | News                        |
+| 4        | Polymarket                  |
 
 ## Alternatives considered
 

@@ -38,13 +38,7 @@ const VARIANT_CLS: Record<NonNullable<DrillDownButtonProps["variant"]>, string> 
 };
 
 const Spinner: React.FC = () => (
-  <svg
-    width="12"
-    height="12"
-    viewBox="0 0 12 12"
-    aria-hidden="true"
-    className="animate-spin"
-  >
+  <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true" className="animate-spin">
     <circle
       cx="6"
       cy="6"
@@ -102,13 +96,7 @@ export const DrillDownButton: React.FC<DrillDownButtonProps> = ({
       ) : (
         <>
           <span>{label}</span>
-          <svg
-            width="10"
-            height="10"
-            viewBox="0 0 10 10"
-            aria-hidden="true"
-            className="opacity-70"
-          >
+          <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true" className="opacity-70">
             <path
               d="M3 1.5 L7 5 L3 8.5"
               stroke="currentColor"

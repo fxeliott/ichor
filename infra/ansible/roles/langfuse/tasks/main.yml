@@ -22,10 +22,10 @@
     owner: "{{ item.owner | default(omit) }}"
     group: "{{ item.group | default(omit) }}"
   loop:
-    - { path: postgres-data,   owner: "999",  group: "999" }   # postgres alpine UID
-    - { path: clickhouse-data, owner: "101",  group: "101" }   # clickhouse-server UID
-    - { path: minio-data,      owner: "1000", group: "1000" }  # minio UID
-    - { path: secrets,         owner: "root", group: "root" }
+    - { path: postgres-data, owner: "999", group: "999" } # postgres alpine UID
+    - { path: clickhouse-data, owner: "101", group: "101" } # clickhouse-server UID
+    - { path: minio-data, owner: "1000", group: "1000" } # minio UID
+    - { path: secrets, owner: "root", group: "root" }
 
 - name: Write Docker secrets (Postgres + MinIO + ClickHouse passwords)
   ansible.builtin.copy:
@@ -36,8 +36,8 @@
     owner: root
     group: root
   loop:
-    - { file: langfuse_postgres_password.txt,   value: "{{ LANGFUSE_POSTGRES_PASSWORD }}" }
-    - { file: langfuse_minio_password.txt,      value: "{{ LANGFUSE_MINIO_PASSWORD }}" }
+    - { file: langfuse_postgres_password.txt, value: "{{ LANGFUSE_POSTGRES_PASSWORD }}" }
+    - { file: langfuse_minio_password.txt, value: "{{ LANGFUSE_MINIO_PASSWORD }}" }
     - { file: langfuse_clickhouse_password.txt, value: "{{ LANGFUSE_NEXTAUTH_SECRET }}" }
   no_log: true
 

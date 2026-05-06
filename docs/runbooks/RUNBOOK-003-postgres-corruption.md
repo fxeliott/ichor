@@ -32,6 +32,7 @@
 ## Recovery — wal-g full restore (preferred for data-loss scenarios)
 
 1. Move corrupted PGDATA aside:
+
    ```bash
    sudo mv /var/lib/postgresql/16/main /var/lib/postgresql/16/main.corrupted-$(date +%Y%m%d-%H%M)
    sudo -u postgres mkdir /var/lib/postgresql/16/main
@@ -39,6 +40,7 @@
    ```
 
 2. **Fetch latest basebackup from R2**:
+
    ```bash
    sudo -u postgres bash -c '
      set -a; source /etc/wal-g.env; set +a
@@ -47,6 +49,7 @@
    ```
 
 3. **Configure recovery target** — full point-in-time restore (latest WAL):
+
    ```bash
    cat > /var/lib/postgresql/16/main/recovery.signal <<EOF
    EOF
@@ -58,15 +61,19 @@
    ```
 
 4. **Start Postgres** (will replay WAL from R2 until latest):
+
    ```bash
    sudo systemctl start postgresql
    ```
 
 5. **Watch the recovery progress** (this is the tense moment):
+
    ```bash
    sudo tail -f /var/lib/postgresql/16/main/log/postgresql-*.log
    ```
+
    Look for:
+
    ```
    LOG:  starting archive recovery
    LOG:  restored log file "..." from archive
@@ -76,13 +83,14 @@
    ```
 
 6. **Verify integrity**:
+
    ```bash
    sudo -u postgres psql -d ichor <<SQL
    SELECT pg_is_in_recovery();   -- should be 'f'
    SELECT count(*) FROM briefings;
    SELECT max(triggered_at) FROM briefings;
    SELECT count(*) FROM alerts;
-   SELECT count(*) FROM predictions_audit;
+   SELECT count(*) FROM session_card_audit;  -- renamed from predictions_audit by ADR-017
    SQL
    ```
 

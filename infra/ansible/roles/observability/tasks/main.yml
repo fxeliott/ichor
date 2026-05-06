@@ -22,14 +22,14 @@
     group: "{{ item.group | default(omit) }}"
   loop:
     # Container UIDs (must match upstream image defaults)
-    - { path: loki-data,                          owner: "10001", group: "10001" }
-    - { path: grafana-data,                       owner: "472",   group: "472" }
-    - { path: prometheus-data,                    owner: "65534", group: "65534" }
-    - { path: prometheus-config,                  owner: "root",  group: "root" }
-    - { path: secrets,                            owner: "root",  group: "root" }
-    - { path: grafana-provisioning,               owner: "root",  group: "root" }
-    - { path: grafana-provisioning/datasources,   owner: "root",  group: "root" }
-    - { path: grafana-provisioning/dashboards,    owner: "root",  group: "root" }
+    - { path: loki-data, owner: "10001", group: "10001" }
+    - { path: grafana-data, owner: "472", group: "472" }
+    - { path: prometheus-data, owner: "65534", group: "65534" }
+    - { path: prometheus-config, owner: "root", group: "root" }
+    - { path: secrets, owner: "root", group: "root" }
+    - { path: grafana-provisioning, owner: "root", group: "root" }
+    - { path: grafana-provisioning/datasources, owner: "root", group: "root" }
+    - { path: grafana-provisioning/dashboards, owner: "root", group: "root" }
     - { path: grafana-provisioning/dashboards/json, owner: "root", group: "root" }
 
 - name: Write Docker secret (Grafana admin password)
@@ -46,7 +46,7 @@
   ansible.builtin.copy:
     dest: /opt/ichor/observability/secrets/ichor_db_password.txt
     content: "{{ ICHOR_DB_PASSWORD }}"
-    mode: "0644"  # readable by grafana UID 472
+    mode: "0644" # readable by grafana UID 472
     owner: root
     group: root
   no_log: true

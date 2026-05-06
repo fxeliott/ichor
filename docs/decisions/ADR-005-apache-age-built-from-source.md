@@ -65,7 +65,7 @@ updates `apache_age_version` in `group_vars/all.yml`.
   proprietary tail).
 - **Wait for upstream apt package** — rejected: no roadmap, indefinite delay.
 - **Run AGE in a Docker container (separate from Postgres)** — rejected:
-  AGE is a Postgres *extension*, must run in the same process as PG to
+  AGE is a Postgres _extension_, must run in the same process as PG to
   manipulate the same data. Containerizing PG separately would lose
   TimescaleDB integration and complicate wal-g backup.
 

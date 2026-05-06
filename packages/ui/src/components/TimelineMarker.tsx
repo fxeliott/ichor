@@ -64,8 +64,7 @@ export const TimelineMarker: React.FC<TimelineMarkerProps> = ({
   const span = end - start;
   if (span <= 0) return null;
   const pct = Math.max(0, Math.min(100, ((at - start) / span) * 100));
-  const colorCls =
-    kind === "alert" && severity ? SEVERITY_OVERRIDE[severity] : KIND_COLORS[kind];
+  const colorCls = kind === "alert" && severity ? SEVERITY_OVERRIDE[severity] : KIND_COLORS[kind];
 
   const Tag: React.ElementType = onClick ? "button" : "div";
 

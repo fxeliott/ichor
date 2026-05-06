@@ -28,22 +28,14 @@ export async function MacroPulseWidget() {
     pulse = await getMacroPulse();
   } catch (err) {
     error =
-      err instanceof ApiError
-        ? err.message
-        : err instanceof Error
-          ? err.message
-          : "unknown error";
+      err instanceof ApiError ? err.message : err instanceof Error ? err.message : "unknown error";
   }
 
   if (error || !pulse) {
     return (
       <GlassCard variant="glass" className="p-4">
-        <h2 className="text-sm font-semibold text-[var(--color-ichor-text)] mb-2">
-          Macro pulse
-        </h2>
-        <p className="text-xs text-[var(--color-ichor-text-subtle)]">
-          {error ?? "Indisponible."}
-        </p>
+        <h2 className="text-sm font-semibold text-[var(--color-ichor-text)] mb-2">Macro pulse</h2>
+        <p className="text-xs text-[var(--color-ichor-text-subtle)]">{error ?? "Indisponible."}</p>
       </GlassCard>
     );
   }
@@ -99,9 +91,7 @@ export async function MacroPulseWidget() {
     <GlassCard variant="glass" className="p-4">
       <header className="mb-3 flex items-baseline justify-between">
         <div className="flex items-center gap-2">
-          <h2 className="text-sm font-semibold text-[var(--color-ichor-text)]">
-            Macro pulse
-          </h2>
+          <h2 className="text-sm font-semibold text-[var(--color-ichor-text)]">Macro pulse</h2>
           <span className="text-[10px] uppercase tracking-wider text-[var(--color-ichor-text-faint)] font-mono">
             FRED + modèles
           </span>
@@ -123,20 +113,12 @@ export async function MacroPulseWidget() {
   );
 }
 
-function PulseTile({
-  tile,
-  stagger,
-}: {
-  tile: TileSpec;
-  stagger: number;
-}) {
+function PulseTile({ tile, stagger }: { tile: TileSpec; stagger: number }) {
   const TONE_CLS: Record<TileTone, string> = {
     emerald:
       "bg-[var(--color-ichor-long)]/8 border-[var(--color-ichor-long)]/30 text-[var(--color-ichor-long)]",
-    amber:
-      "bg-amber-500/8 border-amber-500/30 text-amber-200",
-    rose:
-      "bg-[var(--color-ichor-short)]/8 border-[var(--color-ichor-short)]/30 text-[var(--color-ichor-short)]",
+    amber: "bg-amber-500/8 border-amber-500/30 text-amber-200",
+    rose: "bg-[var(--color-ichor-short)]/8 border-[var(--color-ichor-short)]/30 text-[var(--color-ichor-short)]",
     accent:
       "bg-[var(--color-ichor-accent)]/8 border-[var(--color-ichor-accent)]/30 text-[var(--color-ichor-accent-bright)]",
     neutral:

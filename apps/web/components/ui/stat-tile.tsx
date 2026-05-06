@@ -5,14 +5,7 @@
 
 import type { ReactNode } from "react";
 
-type Tone =
-  | "default"
-  | "accent"
-  | "long"
-  | "short"
-  | "warning"
-  | "info"
-  | "neutral";
+type Tone = "default" | "accent" | "long" | "short" | "warning" | "info" | "neutral";
 
 const STRIPE: Record<Tone, string> = {
   default: "from-[var(--color-ichor-accent-deep)] to-[var(--color-ichor-accent)]",
@@ -67,15 +60,11 @@ export function StatTile({
           </div>
         ) : null}
       </div>
-      <div
-        className={`font-mono text-lg font-semibold ${PRIMARY_COLOR[tone]} ichor-ticker-in`}
-      >
+      <div className={`font-mono text-lg font-semibold ${PRIMARY_COLOR[tone]} ichor-ticker-in`}>
         {primary}
       </div>
       {secondary ? (
-        <div className="text-[11px] text-[var(--color-ichor-text-muted)] mt-0.5">
-          {secondary}
-        </div>
+        <div className="text-[11px] text-[var(--color-ichor-text-muted)] mt-0.5">{secondary}</div>
       ) : null}
     </div>
   );

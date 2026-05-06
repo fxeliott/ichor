@@ -32,10 +32,7 @@ export interface CounterfactualButtonProps {
   asset: string;
 }
 
-export const CounterfactualButton: React.FC<CounterfactualButtonProps> = ({
-  cardId,
-  asset,
-}) => {
+export const CounterfactualButton: React.FC<CounterfactualButtonProps> = ({ cardId, asset }) => {
   const [open, setOpen] = React.useState(false);
   const [event, setEvent] = React.useState("");
   const [loading, setLoading] = React.useState(false);
@@ -53,7 +50,7 @@ export const CounterfactualButton: React.FC<CounterfactualButtonProps> = ({
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ scrubbed_event: event }),
-        }
+        },
       );
       if (!r.ok) {
         const text = await r.text();
@@ -109,8 +106,8 @@ export const CounterfactualButton: React.FC<CounterfactualButtonProps> = ({
                   Counterfactual · {asset.replace(/_/g, "/")}
                 </h2>
                 <p className="text-xs text-[var(--color-ichor-text-muted)] mt-1">
-                  Si un événement n&apos;avait pas eu lieu, quel serait le
-                  biais ? Décris l&apos;événement à mentalement scrub.
+                  Si un événement n&apos;avait pas eu lieu, quel serait le biais ? Décris
+                  l&apos;événement à mentalement scrub.
                 </p>
               </header>
 
@@ -141,7 +138,8 @@ export const CounterfactualButton: React.FC<CounterfactualButtonProps> = ({
                     <span className="text-[var(--color-ichor-text-muted)] text-xs">
                       Counterfactual :{" "}
                       <span className="font-mono text-amber-200">
-                        {result.counterfactual_bias} {result.counterfactual_conviction_pct.toFixed(0)}%
+                        {result.counterfactual_bias}{" "}
+                        {result.counterfactual_conviction_pct.toFixed(0)}%
                       </span>
                     </span>
                   </div>

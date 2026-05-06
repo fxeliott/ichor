@@ -13,12 +13,7 @@
 
 import * as React from "react";
 import { motion, AnimatePresence } from "motion/react";
-import type {
-  BiasDirection,
-  CriticVerdict,
-  RegimeQuadrant,
-  SessionCard,
-} from "../lib/api";
+import type { BiasDirection, CriticVerdict, RegimeQuadrant, SessionCard } from "../lib/api";
 
 export interface TimeMachineReplayProps {
   cards: SessionCard[]; // newest first or oldest first ; we sort
@@ -66,17 +61,13 @@ const fmtTime = (iso: string) =>
     timeZone: "Europe/Paris",
   });
 
-export const TimeMachineReplay: React.FC<TimeMachineReplayProps> = ({
-  cards,
-}) => {
+export const TimeMachineReplay: React.FC<TimeMachineReplayProps> = ({ cards }) => {
   const sorted = React.useMemo(
     () =>
       [...cards].sort(
-        (a, b) =>
-          new Date(a.generated_at).getTime() -
-          new Date(b.generated_at).getTime()
+        (a, b) => new Date(a.generated_at).getTime() - new Date(b.generated_at).getTime(),
       ),
-    [cards]
+    [cards],
   );
   const [idx, setIdx] = React.useState(sorted.length - 1);
   const [autoplay, setAutoplay] = React.useState(false);
@@ -89,10 +80,7 @@ export const TimeMachineReplay: React.FC<TimeMachineReplayProps> = ({
       setAutoplay(false);
       return;
     }
-    const t = window.setTimeout(
-      () => setIdx((i) => Math.min(i + 1, sorted.length - 1)),
-      speed
-    );
+    const t = window.setTimeout(() => setIdx((i) => Math.min(i + 1, sorted.length - 1)), speed);
     return () => window.clearTimeout(t);
   }, [autoplay, idx, sorted.length, speed]);
 
@@ -106,14 +94,10 @@ export const TimeMachineReplay: React.FC<TimeMachineReplayProps> = ({
 
   const current = sorted[idx]!;
   const prev = idx > 0 ? sorted[idx - 1] : null;
-  const convDelta =
-    prev != null ? current.conviction_pct - prev.conviction_pct : null;
-  const regimeChanged =
-    prev != null && prev.regime_quadrant !== current.regime_quadrant;
-  const verdictChanged =
-    prev != null && prev.critic_verdict !== current.critic_verdict;
-  const biasChanged =
-    prev != null && prev.bias_direction !== current.bias_direction;
+  const convDelta = prev != null ? current.conviction_pct - prev.conviction_pct : null;
+  const regimeChanged = prev != null && prev.regime_quadrant !== current.regime_quadrant;
+  const verdictChanged = prev != null && prev.critic_verdict !== current.critic_verdict;
+  const biasChanged = prev != null && prev.bias_direction !== current.bias_direction;
 
   return (
     <section
@@ -232,7 +216,9 @@ export const TimeMachineReplay: React.FC<TimeMachineReplayProps> = ({
           </div>
 
           <div className="rounded border border-[var(--color-ichor-border)] bg-[var(--color-ichor-surface)]/60 p-3">
-            <p className="text-[11px] text-[var(--color-ichor-text-subtle)] mb-1">Verdict pipeline</p>
+            <p className="text-[11px] text-[var(--color-ichor-text-subtle)] mb-1">
+              Verdict pipeline
+            </p>
             <p
               className={[
                 "text-2xl font-bold",
@@ -240,12 +226,8 @@ export const TimeMachineReplay: React.FC<TimeMachineReplayProps> = ({
                 biasChanged ? "ring-2 ring-emerald-400/60 rounded" : "",
               ].join(" ")}
             >
-              <span aria-hidden="true">
-                {BIAS_ARROW[current.bias_direction]}
-              </span>{" "}
-              <span className="font-mono">
-                {current.conviction_pct.toFixed(0)}%
-              </span>
+              <span aria-hidden="true">{BIAS_ARROW[current.bias_direction]}</span>{" "}
+              <span className="font-mono">{current.conviction_pct.toFixed(0)}%</span>
             </p>
             {convDelta !== null && Math.abs(convDelta) > 0.5 && (
               <p

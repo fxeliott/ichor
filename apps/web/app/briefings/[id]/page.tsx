@@ -47,9 +47,7 @@ export default async function BriefingPage({ params }: { params: Promise<{ id: s
             remarkPlugins={[remarkGfm]}
             components={{
               h1: ({ children }) => (
-                <h1 className="text-2xl font-semibold text-neutral-100 mt-6 mb-3">
-                  {children}
-                </h1>
+                <h1 className="text-2xl font-semibold text-neutral-100 mt-6 mb-3">{children}</h1>
               ),
               h2: ({ children }) => (
                 <h2 className="text-lg font-semibold text-neutral-100 mt-5 mb-2 border-b border-neutral-800 pb-1">
@@ -57,9 +55,7 @@ export default async function BriefingPage({ params }: { params: Promise<{ id: s
                 </h2>
               ),
               h3: ({ children }) => (
-                <h3 className="text-base font-semibold text-neutral-100 mt-4 mb-2">
-                  {children}
-                </h3>
+                <h3 className="text-base font-semibold text-neutral-100 mt-4 mb-2">{children}</h3>
               ),
               p: ({ children }) => <p className="my-2">{children}</p>,
               ul: ({ children }) => (
@@ -71,9 +67,7 @@ export default async function BriefingPage({ params }: { params: Promise<{ id: s
               strong: ({ children }) => (
                 <strong className="text-neutral-50 font-semibold">{children}</strong>
               ),
-              em: ({ children }) => (
-                <em className="text-neutral-300 italic">{children}</em>
-              ),
+              em: ({ children }) => <em className="text-neutral-300 italic">{children}</em>,
               code: ({ children }) => (
                 <code className="px-1 py-0.5 rounded bg-neutral-800 text-emerald-200 font-mono text-[0.9em]">
                   {children}
@@ -87,9 +81,7 @@ export default async function BriefingPage({ params }: { params: Promise<{ id: s
                   rel="noopener noreferrer"
                   className="text-emerald-400 hover:text-emerald-300 underline-offset-2 hover:underline"
                   aria-label={
-                    typeof children === "string"
-                      ? `${children} (nouvel onglet)`
-                      : undefined
+                    typeof children === "string" ? `${children} (nouvel onglet)` : undefined
                   }
                 >
                   {children}
@@ -105,9 +97,7 @@ export default async function BriefingPage({ params }: { params: Promise<{ id: s
               ),
               table: ({ children }) => (
                 <div className="overflow-x-auto my-3">
-                  <table className="min-w-full text-sm border border-neutral-800">
-                    {children}
-                  </table>
+                  <table className="min-w-full text-sm border border-neutral-800">{children}</table>
                 </div>
               ),
               th: ({ children }) => (
@@ -123,9 +113,7 @@ export default async function BriefingPage({ params }: { params: Promise<{ id: s
             {briefing.briefing_markdown}
           </ReactMarkdown>
         ) : (
-          <p className="text-neutral-500 italic">
-            Briefing en cours d'assemblage…
-          </p>
+          <p className="text-neutral-500 italic">Briefing en cours d'assemblage…</p>
         )}
       </article>
 

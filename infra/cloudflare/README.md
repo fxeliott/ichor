@@ -38,6 +38,7 @@ winget install --id Cloudflare.cloudflared
 ```
 
 Verify:
+
 ```powershell
 cloudflared --version
 ```
@@ -59,6 +60,7 @@ cloudflared tunnel create ichor-claude-runner
 ```
 
 Output:
+
 ```
 Created tunnel ichor-claude-runner with id <TUNNEL-UUID>
 Saved credentials to %USERPROFILE%\.cloudflared\<TUNNEL-UUID>.json
@@ -84,6 +86,7 @@ cloudflared service install
 ```
 
 Verify:
+
 ```powershell
 Get-Service cloudflared
 # Status should be Running
@@ -101,6 +104,7 @@ d. Identity providers: Service Auth only
 e. Save
 
 Then: Access → Service Auth → Service tokens → **Create Service Token**
+
 - Name: `ichor-hetzner-prod`
 - Duration: leave default (years)
 - Save → copy `Client ID` + `Client Secret`
@@ -108,6 +112,7 @@ Then: Access → Service Auth → Service tokens → **Create Service Token**
 Add policy on the application: **Allow** when `Service Auth Token = ichor-hetzner-prod`.
 
 Store the token pair in `infra/secrets/cloudflare.env`:
+
 ```
 CF_ACCESS_CLIENT_ID=...
 CF_ACCESS_CLIENT_SECRET=...

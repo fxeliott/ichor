@@ -61,9 +61,7 @@ interface PageProps {
 export default async function BriefingsPage({ searchParams }: PageProps) {
   const params = await searchParams;
   const briefingType =
-    params.type && params.type !== "all"
-      ? (params.type as BriefingType)
-      : undefined;
+    params.type && params.type !== "all" ? (params.type as BriefingType) : undefined;
   const asset = params.asset?.trim().toUpperCase() || undefined;
 
   let items: Briefing[] = [];
@@ -79,19 +77,13 @@ export default async function BriefingsPage({ searchParams }: PageProps) {
     total = list.total;
   } catch (err) {
     error =
-      err instanceof ApiError
-        ? err.message
-        : err instanceof Error
-          ? err.message
-          : "unknown error";
+      err instanceof ApiError ? err.message : err instanceof Error ? err.message : "unknown error";
   }
 
   return (
     <main className="max-w-4xl mx-auto px-4 py-6">
       <header className="mb-6">
-        <h1 className="text-2xl font-semibold text-[var(--color-ichor-text)] mb-1">
-          Briefings
-        </h1>
+        <h1 className="text-2xl font-semibold text-[var(--color-ichor-text)] mb-1">Briefings</h1>
         <p className="text-sm text-[var(--color-ichor-text-muted)]">
           Historique complet des analyses générées par la chaîne Ichor.
         </p>
@@ -135,7 +127,10 @@ export default async function BriefingsPage({ searchParams }: PageProps) {
             aria-describedby="briefing-asset-help"
             className="bg-[var(--color-ichor-surface)] border border-[var(--color-ichor-border-strong)] rounded px-2 py-1 text-sm font-mono text-[var(--color-ichor-text)] w-32"
           />
-          <span id="briefing-asset-help" className="text-[10px] text-[var(--color-ichor-text-muted)]">
+          <span
+            id="briefing-asset-help"
+            className="text-[10px] text-[var(--color-ichor-text-muted)]"
+          >
             Format : 3–16 caractères majuscules, ex. EUR_USD
           </span>
         </label>
@@ -159,10 +154,7 @@ export default async function BriefingsPage({ searchParams }: PageProps) {
       </form>
 
       {error ? (
-        <EmptyState
-          title="API injoignable"
-          description={`Détails techniques : ${error}`}
-        />
+        <EmptyState title="API injoignable" description={`Détails techniques : ${error}`} />
       ) : items.length === 0 ? (
         <EmptyState
           title="Aucun briefing trouvé"
@@ -182,8 +174,7 @@ export default async function BriefingsPage({ searchParams }: PageProps) {
                   </span>
                   <span
                     className={
-                      "text-[11px] font-mono px-1.5 py-0.5 rounded " +
-                      STATUS_COLORS[b.status]
+                      "text-[11px] font-mono px-1.5 py-0.5 rounded " + STATUS_COLORS[b.status]
                     }
                     aria-label={`Statut : ${STATUS_LABELS[b.status]}`}
                   >
@@ -201,9 +192,7 @@ export default async function BriefingsPage({ searchParams }: PageProps) {
                   {b.claude_duration_ms != null && (
                     <>
                       <span>·</span>
-                      <span className="font-mono">
-                        {(b.claude_duration_ms / 1000).toFixed(1)}s
-                      </span>
+                      <span className="font-mono">{(b.claude_duration_ms / 1000).toFixed(1)}s</span>
                     </>
                   )}
                 </div>

@@ -21,24 +21,24 @@
     - name: Wait for cloud-init to finish (avoid apt locks)
       ansible.builtin.command: cloud-init status --wait
       changed_when: false
-      failed_when: false  # cloud-init may already be done or absent
+      failed_when: false # cloud-init may already be done or absent
 
   roles:
-    - { role: base,           tags: [base] }
-    - { role: security,       tags: [security, ssh, ufw, fail2ban] }
-    - { role: docker,         tags: [docker] }
-    - { role: python,         tags: [python] }
-    - { role: node,           tags: [node, pnpm] }
-    - { role: postgres,       tags: [postgres, db] }
-    - { role: redis,          tags: [redis] }
+    - { role: base, tags: [base] }
+    - { role: security, tags: [security, ssh, ufw, fail2ban] }
+    - { role: docker, tags: [docker] }
+    - { role: python, tags: [python] }
+    - { role: node, tags: [node, pnpm] }
+    - { role: postgres, tags: [postgres, db] }
+    - { role: redis, tags: [redis] }
     # secrets must run before any role that consumes credentials
-    - { role: secrets,        tags: [secrets, walg, observability, langfuse, n8n, cloudflared, always] }
-    - { role: walg,           tags: [walg, backup] }
-    - { role: observability,  tags: [observability, loki, grafana, prometheus] }
-    - { role: langfuse,       tags: [langfuse] }
-    - { role: n8n,            tags: [n8n] }
-    - { role: cloudflared,    tags: [cloudflared, tunnel] }
-    - { role: ichor_api,      tags: [api, ichor_api] }
+    - { role: secrets, tags: [secrets, walg, observability, langfuse, n8n, cloudflared, always] }
+    - { role: walg, tags: [walg, backup] }
+    - { role: observability, tags: [observability, loki, grafana, prometheus] }
+    - { role: langfuse, tags: [langfuse] }
+    - { role: n8n, tags: [n8n] }
+    - { role: cloudflared, tags: [cloudflared, tunnel] }
+    - { role: ichor_api, tags: [api, ichor_api] }
 
   post_tasks:
     - name: Final health check — services must be running

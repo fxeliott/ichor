@@ -23,17 +23,20 @@ sudo -u postgres bash -c 'set -a; source /etc/wal-g.env; set +a; wal-g st check 
 ## Recovery
 
 ### A. Cloudflare-side incident
+
 - Wait. WAL files queue locally in `pg_wal/` — Postgres tolerates this for
   hours (default `max_wal_size = 1GB`). Monitor disk space.
 - If disk pressure: `df -h /var/lib/postgresql`. Above 80% → consider
   detaching unused snapshots or temporarily disabling archive.
 
 ### B. Token revoked / rotated
+
 - Check `infra/secrets/cloudflare.env` is current: `sops --decrypt ... | grep R2_`.
 - If keys changed: regenerate API token in Cloudflare R2 dashboard, update env,
   re-encrypt, re-deploy.
 
 ### C. Bucket deleted
+
 - DON'T panic. **Recreate the bucket with the same name** in Cloudflare R2.
 - wal-g will start writing again; existing backups in the deleted bucket
   are gone (Cloudflare R2 doesn't soft-delete by default).

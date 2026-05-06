@@ -33,7 +33,7 @@
 
 - name: Enable Corepack (built-in pnpm/yarn manager)
   ansible.builtin.command: corepack enable
-  changed_when: false  # idempotent
+  changed_when: false # idempotent
 
 - name: Activate latest pnpm via Corepack
   ansible.builtin.command: corepack prepare pnpm@latest --activate

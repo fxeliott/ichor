@@ -13,6 +13,7 @@ verdicts with public calibration track-record — through a living UI Eliot open
 before each trading session.
 
 **It is NOT** :
+
 - A signal generator (Eliot trades discretionary on TradingView)
 - A backtest framework or paper trading layer (those were a wrong-direction drift,
   archived 2026-05-03)
@@ -27,16 +28,16 @@ memory/calibration → expression).
 
 ## Asset universe (8 with session cards)
 
-| # | Asset | Type |
-|---|---|---|
-| 1 | EUR/USD | FX major |
-| 2 | GBP/USD | FX major |
-| 3 | USD/JPY | FX major |
-| 4 | AUD/USD | FX major |
-| 5 | USD/CAD | FX major |
-| 6 | XAU/USD | Gold |
-| 7 | US30 | Dow Jones futures |
-| 8 | US100 | NAS100 futures |
+| #   | Asset   | Type              |
+| --- | ------- | ----------------- |
+| 1   | EUR/USD | FX major          |
+| 2   | GBP/USD | FX major          |
+| 3   | USD/JPY | FX major          |
+| 4   | AUD/USD | FX major          |
+| 5   | USD/CAD | FX major          |
+| 6   | XAU/USD | Gold              |
+| 7   | US30    | Dow Jones futures |
+| 8   | US100   | NAS100 futures    |
 
 **Tracked for context only (no session card)** : SPX500, DXY, VIX, 10Y/2Y yields,
 10Y TIPS real yields, WTI oil, BTC, EUR/GBP cross.
@@ -49,39 +50,39 @@ memory/calibration → expression).
 
 ## Cost ceiling
 
-| Item | Monthly |
-|---|---|
-| Claude Max 20x | $200 (Voie D, fixed) |
-| Polygon Starter intraday | $29 (validated by Eliot 2026-05-03) |
-| Hetzner CX32 | ~€20 |
-| Cloudflare R2 + Tunnel + Pages | $0 |
-| GitHub Actions (private) | $0 |
-| All other data (FRED, GDELT, Polymarket, COT, etc.) | $0 |
-| **Total** | **~$249/mo flat** |
+| Item                                                           | Monthly                                                                |
+| -------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| Claude Max 20x                                                 | $200 (Voie D, fixed)                                                   |
+| Massive Currencies plan (ex-Polygon, $49 confirmed 2026-05-04) | $49 (FX + spot metals)                                                 |
+| Hetzner CX32                                                   | ~€20                                                                   |
+| Cloudflare R2 + Tunnel + Pages                                 | $0                                                                     |
+| GitHub Actions (private)                                       | $0                                                                     |
+| All other data (FRED, GDELT, Polymarket, COT, etc.)            | $0                                                                     |
+| **Total**                                                      | **~$269/mo flat** (cf ADR-017, VISION_2026, [SPEC.md §13](../SPEC.md)) |
 
 ## What's running LIVE on Hetzner today
 
-| Service | State | Notes |
-|---|---|---|
-| Postgres 16 + TimescaleDB 2.26 + Apache AGE 1.5 | active | scram-sha-256 + Docker bridge |
-| Redis 8.6 (AOF) | active, localhost-only | |
-| ichor-api uvicorn (systemd) | active | `/healthz/detailed` returns full state |
-| 5 briefing systemd timers (06h/12h/17h/22h Paris + Sun 18h) | enabled | will be refactored toward session cards |
-| 3 collector systemd timers (rss 15min, polymarket 5min, market_data daily) | enabled | will be extended to 17 more sources in CHUNK 2 |
-| Loki + Prometheus + Grafana | UP | observability ready |
-| wal-g basebackup → R2 EU | systemd timer 03h Paris | enabled |
+| Service                                                                    | State                   | Notes                                          |
+| -------------------------------------------------------------------------- | ----------------------- | ---------------------------------------------- |
+| Postgres 16 + TimescaleDB 2.26 + Apache AGE 1.5                            | active                  | scram-sha-256 + Docker bridge                  |
+| Redis 8.6 (AOF)                                                            | active, localhost-only  |                                                |
+| ichor-api uvicorn (systemd)                                                | active                  | `/healthz/detailed` returns full state         |
+| 5 briefing systemd timers (06h/12h/17h/22h Paris + Sun 18h)                | enabled                 | will be refactored toward session cards        |
+| 3 collector systemd timers (rss 15min, polymarket 5min, market_data daily) | enabled                 | will be extended to 17 more sources in CHUNK 2 |
+| Loki + Prometheus + Grafana                                                | UP                      | observability ready                            |
+| wal-g basebackup → R2 EU                                                   | systemd timer 03h Paris | enabled                                        |
 
 ## DB content (verified 2026-05-03)
 
-| Table | Rows | Notes |
-|---|---|---|
-| `news_items` | 160+ | TimescaleDB hypertable, 24/7 ingestion |
-| `polymarket_snapshots` | 7+ | TimescaleDB hypertable |
-| `market_data` | 20 556 | 8 assets × 10y daily yfinance |
-| `bias_signals` | 384 | seeded ; will be replaced by session cards |
-| `alerts` | 8 | 33-alert engine + Crisis Mode triggers |
-| `briefings` | 3 | will be refactored as session cards |
-| `predictions_audit` | 2 036 | will be repurposed as `session_card_audit` for Brier tracking |
+| Table                  | Rows   | Notes                                                         |
+| ---------------------- | ------ | ------------------------------------------------------------- |
+| `news_items`           | 160+   | TimescaleDB hypertable, 24/7 ingestion                        |
+| `polymarket_snapshots` | 7+     | TimescaleDB hypertable                                        |
+| `market_data`          | 20 556 | 8 assets × 10y daily yfinance                                 |
+| `bias_signals`         | 384    | seeded ; will be replaced by session cards                    |
+| `alerts`               | 8      | 33-alert engine + Crisis Mode triggers                        |
+| `briefings`            | 3      | will be refactored as session cards                           |
+| `predictions_audit`    | 2 036  | will be repurposed as `session_card_audit` for Brier tracking |
 
 ## What the reset removed (archived, not deleted)
 
@@ -129,18 +130,22 @@ Full VISION_2026 roadmap shipped end-to-end. **17/17 deltas in production**.
 ### What's LIVE on origin/main (head `d386e30`)
 
 **Brain pipeline** :
+
 - 4-pass orchestrator (regime → asset → stress → invalidation + Critic)
 - Pass 5 counterfactual (on-demand via UI button)
 - 8 frameworks asset-spécifiques (XAU + USDJPY + NAS100 + US30 + GBPUSD
-  + AUDUSD + USDCAD + EURUSD)
+  - AUDUSD + USDCAD + EURUSD)
 - Critic Agent gate with asset alias matching robust
 - Brier reconciler nightly 23:15 Paris
 
-**Data pool** (14 sections per session run, ~9000 chars / 65 sources cited) :
+**Data pool** (post-marathon 2026-05-04 = 27 sections per session run, ~12k
+chars / 80+ sources cited; Phase 2 W0 ajoute 4 sections — couche2,
+divergence, gex, analogues — pour cible ~31 sections post-Phase-B) :
 macro_trinity, dollar_smile, rate_diff, polygon_intraday, microstructure,
 asian_session (JPY-relevant only), cot, prediction_markets, funding_stress,
 surprise_index (z-score proxy), narrative, geopolitics, cb_speeches, news,
-+ cb_intervention conditional (USD/JPY, EUR/CHF, USD/CNH).
+
+- cb_intervention conditional (USD/JPY, EUR/CHF, USD/CNH).
 
 **Collectors câblés** (15 total, 9/10 tables peuplées) :
 fred, fred_extended, polygon, polygon_news, market_data, rss, polymarket,
@@ -168,6 +173,7 @@ TimeMachineReplay, KnowledgeGraphViz, GeopoliticsGlobe, CounterfactualButton,
 ShockSimulator + Cmd+K palette + EventTicker + PushToggle.
 
 **Capacités UNIQUES vs concurrents** (8) :
+
 1. CB intervention probability empirical (BoJ/SNB/PBoC sigmoid)
 2. Polymarket↔Kalshi↔Manifold divergence detection
 3. Time-machine replay slider verdicts
@@ -180,31 +186,31 @@ ShockSimulator + Cmd+K palette + EventTicker + PushToggle.
 ### State Hetzner production (2026-05-04 12:43 UTC)
 
 Tables peuplées :
-  polygon_intraday    4771   (cron 1-min)
-  gpr_observations   15096   (full history loaded via xlrd)
-  gdelt_events         534   (cron 2h post-backoff fix)
-  polymarket           263   (cron 5-min)
-  news_items           176   (cron 15-min)
-  cb_speeches          126   (cron 6h)
-  manifold_markets      37   (discovery)
-  fred_observations     37   (cron 4h)
-  kalshi_markets        30   (discovery)
-  cot_positions          0   (Friday-only — expected)
-  session_card_audit    17   (13 approved = 76% rate)
+polygon_intraday 4771 (cron 1-min)
+gpr_observations 15096 (full history loaded via xlrd)
+gdelt_events 534 (cron 2h post-backoff fix)
+polymarket 263 (cron 5-min)
+news_items 176 (cron 15-min)
+cb_speeches 126 (cron 6h)
+manifold_markets 37 (discovery)
+fred_observations 37 (cron 4h)
+kalshi_markets 30 (discovery)
+cot_positions 0 (Friday-only — expected)
+session_card_audit 17 (13 approved = 76% rate)
 
 Cards approved breakdown :
-  EUR_USD: 9 (5 approved, 1 amendments, 3 blocked)
-  USD_JPY: 3 (3 approved)
-  XAU_USD: 2 (2 approved)
-  NAS100_USD: 1 (1 approved)
-  USD_CAD: 1 (1 approved)
-  GBP_USD: 1 (1 approved)
+EUR_USD: 9 (5 approved, 1 amendments, 3 blocked)
+USD_JPY: 3 (3 approved)
+XAU_USD: 2 (2 approved)
+NAS100_USD: 1 (1 approved)
+USD_CAD: 1 (1 approved)
+GBP_USD: 1 (1 approved)
 
 17 systemd timers actifs sur Hetzner (autopilot 24/7) :
-  polygon (1-min), rss (15-min), polymarket (5-min), fred (4h),
-  gdelt (2h), cb_speeches (6h), market_data (daily), cot (Friday),
-  reconciler (nightly 23:15 Paris), session-cards × 4 (06/12/17/22 Paris),
-  briefings × 5 (06/12/17/22 + Sun 18:00 weekly).
+polygon (1-min), rss (15-min), polymarket (5-min), fred (4h),
+gdelt (2h), cb_speeches (6h), market_data (daily), cot (Friday),
+reconciler (nightly 23:15 Paris), session-cards × 4 (06/12/17/22 Paris),
+briefings × 5 (06/12/17/22 + Sun 18:00 weekly).
 
 VAPID + push notifications opérationnels (clés persistées dans api.env).
 

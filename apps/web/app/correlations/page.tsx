@@ -22,12 +22,7 @@ export default async function CorrelationsPage() {
   try {
     m = await getCorrelations(30);
   } catch (e) {
-    error =
-      e instanceof ApiError
-        ? e.message
-        : e instanceof Error
-          ? e.message
-          : "unknown error";
+    error = e instanceof ApiError ? e.message : e instanceof Error ? e.message : "unknown error";
   }
 
   return (
@@ -37,20 +32,17 @@ export default async function CorrelationsPage() {
           Corrélations cross-asset
         </h1>
         <p className="text-sm text-[var(--color-ichor-text-muted)] mt-1">
-          Pearson sur les rendements log horaires des 30 derniers jours.
-          Le drapeau 🔔 marque les paires dont la corrélation diverge de plus
-          de 0.30 du prior long-terme.
+          Pearson sur les rendements log horaires des 30 derniers jours. Le drapeau 🔔 marque les
+          paires dont la corrélation diverge de plus de 0.30 du prior long-terme.
         </p>
       </header>
 
       {error || !m ? (
-        <p className="text-sm ichor-text-short">
-          {error ?? "Indisponible : matrice vide."}
-        </p>
+        <p className="text-sm ichor-text-short">{error ?? "Indisponible : matrice vide."}</p>
       ) : m.n_returns_used < 30 ? (
         <p className="text-sm text-amber-300">
-          Historique polygon insuffisant ({m.n_returns_used} heures de
-          chevauchement). Patiente que les bars s&apos;accumulent.
+          Historique polygon insuffisant ({m.n_returns_used} heures de chevauchement). Patiente que
+          les bars s&apos;accumulent.
         </p>
       ) : (
         <>
@@ -127,10 +119,7 @@ function FlagsPanel({ flags }: { flags: string[] }) {
       aria-labelledby="flags-heading"
       className="rounded-lg border border-amber-700/40 bg-amber-900/15 p-4"
     >
-      <h2
-        id="flags-heading"
-        className="text-sm font-semibold text-amber-200 mb-2"
-      >
+      <h2 id="flags-heading" className="text-sm font-semibold text-amber-200 mb-2">
         🔔 Régime shifts vs prior — {flags.length}
       </h2>
       <ul className="text-xs text-amber-100 space-y-1">

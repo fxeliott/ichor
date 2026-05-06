@@ -29,6 +29,7 @@ Expected: ~600k chars/month. If > 4.5M → close to free tier limit.
 ## Recovery
 
 ### A. Quota soft-exceed (Azure throttles, doesn't bill)
+
 - Fallback to Piper is automatic (per `tts.py` synthesize_briefing).
 - Verify Piper is installed + voice model present:
   ```bash
@@ -38,11 +39,13 @@ Expected: ~600k chars/month. If > 4.5M → close to free tier limit.
   If missing: install via Ansible role `tts_piper` (TBD Phase 0 W4)
 
 ### B. Reduce chars/month
+
 - Trim briefing markdown stripped of metadata before TTS (drop tables, lists)
 - Switch from `synthesize_briefing` (full markdown) to `synthesize_summary`
   (top 3 paragraphs only) for non-Crisis briefings (Phase 1+)
 
 ### C. Upgrade if usage growth is sustained
+
 - Azure F0 (free) → S0 (standard) starts at $4 per 1M chars Neural
 - For 8M chars/month: ~$30/month — still flat, predictable
 - Update `infra/secrets/azure-tts.env` + create new resource at S0 tier

@@ -20,9 +20,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   actionLabel,
   onAction,
 }) => (
-  <div
-    className="flex flex-col items-center justify-center py-12 px-4 text-center text-[var(--color-ichor-text-muted)] border border-dashed border-[var(--color-ichor-border)] rounded-lg"
-  >
+  <div className="flex flex-col items-center justify-center py-12 px-4 text-center text-[var(--color-ichor-text-muted)] border border-dashed border-[var(--color-ichor-border)] rounded-lg">
     <p className="text-base font-medium text-[var(--color-ichor-text)] mb-2">{title}</p>
     {description && (
       <p className="text-sm max-w-md text-[var(--color-ichor-text-muted)] mb-4 leading-relaxed">

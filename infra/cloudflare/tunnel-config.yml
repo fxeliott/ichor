@@ -12,7 +12,9 @@ no-autoupdate: false
 protocol: quic
 
 ingress:
-  - service: http://127.0.0.1:8765
+  # Port 8766 — claude-runner user-mode uvicorn (cf scripts/windows/start-claude-runner-user.ps1).
+  # Was 8765 (NSSM service mode, deprecated).
+  - service: http://127.0.0.1:8766
 
 loglevel: info
 logfile: C:\Users\eliot\.cloudflared\cloudflared.log

@@ -83,11 +83,8 @@ export function useLiveEvents(options: UseLiveEventsOptions = {}) {
     // through to the API (next.config.ts rewrites). This avoids the
     // browser trying to reach 127.0.0.1:8000 directly which only works
     // when the dev is running locally with the API on the same host.
-    const sameOriginWs =
-      window.location.protocol === "https:" ? "wss:" : "ws:";
-    const wsUrl =
-      options.url ??
-      `${sameOriginWs}//${window.location.host}/v1/ws/dashboard`;
+    const sameOriginWs = window.location.protocol === "https:" ? "wss:" : "ws:";
+    const wsUrl = options.url ?? `${sameOriginWs}//${window.location.host}/v1/ws/dashboard`;
     const refreshOn = options.refreshOn ?? DEFAULT_REFRESH;
     const bufferSize = options.bufferSize ?? 5;
 

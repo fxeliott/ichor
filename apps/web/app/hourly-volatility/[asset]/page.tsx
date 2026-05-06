@@ -10,30 +10,18 @@
 
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import {
-  ApiError,
-  getHourlyVol,
-  type HourlyVolReport,
-} from "../../../lib/api";
+import { ApiError, getHourlyVol, type HourlyVolReport } from "../../../lib/api";
 import { findAsset, isValidAssetCode } from "../../../lib/assets";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 300;
 
-export async function generateMetadata({
-  params,
-}: {
-  params: Promise<{ asset: string }>;
-}) {
+export async function generateMetadata({ params }: { params: Promise<{ asset: string }> }) {
   const { asset } = await params;
   return { title: `Vol horaire · ${asset.replace(/_/g, "/")}` };
 }
 
-export default async function HourlyVolPage({
-  params,
-}: {
-  params: Promise<{ asset: string }>;
-}) {
+export default async function HourlyVolPage({ params }: { params: Promise<{ asset: string }> }) {
   const { asset } = await params;
   if (!isValidAssetCode(asset)) notFound();
   const meta = findAsset(asset);
@@ -43,12 +31,7 @@ export default async function HourlyVolPage({
   try {
     report = await getHourlyVol(asset, 30);
   } catch (e) {
-    error =
-      e instanceof ApiError
-        ? e.message
-        : e instanceof Error
-          ? e.message
-          : "unknown error";
+    error = e instanceof ApiError ? e.message : e instanceof Error ? e.message : "unknown error";
   }
 
   return (
@@ -68,8 +51,8 @@ export default async function HourlyVolPage({
           Volatilité horaire — {meta?.display ?? asset}
         </h1>
         <p className="text-sm text-[var(--color-ichor-text-muted)] mt-1">
-          Médiane du |log-rendement| par heure UTC sur 30 jours. Te montre
-          quand cet actif bouge vraiment vs quand il dort.
+          Médiane du |log-rendement| par heure UTC sur 30 jours. Te montre quand cet actif bouge
+          vraiment vs quand il dort.
         </p>
       </header>
 
@@ -88,11 +71,7 @@ export default async function HourlyVolPage({
 function HeatmapBars({ report }: { report: HourlyVolReport }) {
   const populated = report.entries.filter((e) => e.n_samples > 0);
   if (populated.length === 0) {
-    return (
-      <p className="text-sm text-amber-300">
-        Historique polygon insuffisant pour calculer.
-      </p>
-    );
+    return <p className="text-sm text-amber-300">Historique polygon insuffisant pour calculer.</p>;
   }
   const maxMed = Math.max(...populated.map((e) => e.median_bp));
 
@@ -101,10 +80,16 @@ function HeatmapBars({ report }: { report: HourlyVolReport }) {
       aria-labelledby="heatmap-heading"
       className="rounded-lg border border-[var(--color-ichor-border)] bg-[var(--color-ichor-surface)]/60 p-5 mb-6"
     >
-      <h2 id="heatmap-heading" className="text-lg font-semibold text-[var(--color-ichor-text)] mb-4">
+      <h2
+        id="heatmap-heading"
+        className="text-lg font-semibold text-[var(--color-ichor-text)] mb-4"
+      >
         Heatmap 24h (UTC)
       </h2>
-      <div className="grid grid-cols-24 gap-0.5 mb-3" style={{ gridTemplateColumns: "repeat(24, minmax(0, 1fr))" }}>
+      <div
+        className="grid grid-cols-24 gap-0.5 mb-3"
+        style={{ gridTemplateColumns: "repeat(24, minmax(0, 1fr))" }}
+      >
         {report.entries.map((e) => {
           const pct = maxMed > 0 ? (e.median_bp / maxMed) * 100 : 0;
           const isBest = e.hour_utc === report.best_hour_utc;
@@ -118,11 +103,7 @@ function HeatmapBars({ report }: { report: HourlyVolReport }) {
               <div className="flex-1 flex items-end">
                 <div
                   className={`w-full rounded-sm ${
-                    isBest
-                      ? "bg-emerald-500"
-                      : isWorst
-                        ? "bg-rose-700/50"
-                        : "bg-emerald-700/60"
+                    isBest ? "bg-emerald-500" : isWorst ? "bg-rose-700/50" : "bg-emerald-700/60"
                   }`}
                   style={{ height: `${Math.max(2, pct)}%` }}
                 />
@@ -194,9 +175,8 @@ function SessionAverages({ report }: { report: HourlyVolReport }) {
         ))}
       </div>
       <p className="text-[11px] text-[var(--color-ichor-text-subtle)] mt-3">
-        1 bp = 0.01% de variation moyenne par bar 1-min. Des moyennes
-        élevées sur la session Londres/NY confirment qu&apos;il faut trader
-        pendant ces heures, pas pendant l&apos;Asia.
+        1 bp = 0.01% de variation moyenne par bar 1-min. Des moyennes élevées sur la session
+        Londres/NY confirment qu&apos;il faut trader pendant ces heures, pas pendant l&apos;Asia.
       </p>
     </section>
   );

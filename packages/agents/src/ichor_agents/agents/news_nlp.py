@@ -4,8 +4,9 @@ Reads recent news (RSS + GDELT + polygon_news clustered by topic via
 FinBERT-tone) and produces top narratives + per-asset sentiment +
 entity extraction.
 
-Per ADR-021, routes via Claude Sonnet 4.6 (primary) with Cerebras/Groq
-fallback.
+Routing per ADR-023 (supersedes the ADR-021 mapping) : Claude Haiku
+4.5 effort=low primary → Cerebras / Groq fallback. Haiku stays under
+the Cloudflare Free-tier 100 s edge cap.
 """
 
 from __future__ import annotations
@@ -15,6 +16,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from ..claude_runner import ClaudeRunnerConfig
 from ..fallback import FallbackChain
 from ..providers import CEREBRAS, GROQ
 
@@ -88,4 +90,7 @@ def make_news_nlp_chain() -> FallbackChain:
         providers=(CEREBRAS, GROQ),
         system_prompt=SYSTEM_PROMPT_NEWS_NLP,
         output_type=NewsNlpAgentOutput,
+        # Haiku low to stay under the Free-tier CF Tunnel 100 s cap
+        # (cf macro.py for the rationale).
+        claude=ClaudeRunnerConfig.from_env(model="haiku", effort="low"),
     )

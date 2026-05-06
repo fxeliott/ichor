@@ -50,12 +50,12 @@ docs(adr): ADR-008 — switch from R2 to B2 (cost analysis)
 
 ## Code style
 
-| Language | Formatter | Linter |
-|----------|-----------|--------|
-| TS/JS    | Prettier 3 | ESLint 10 |
-| Python   | Ruff (format + lint) | mypy `--strict` |
-| YAML     | Prettier (basic) | ansible-lint for `infra/ansible/` |
-| Markdown | Prettier | none |
+| Language | Formatter            | Linter                            |
+| -------- | -------------------- | --------------------------------- |
+| TS/JS    | Prettier 3           | ESLint 10                         |
+| Python   | Ruff (format + lint) | mypy `--strict`                   |
+| YAML     | Prettier (basic)     | ansible-lint for `infra/ansible/` |
+| Markdown | Prettier             | none                              |
 
 Run locally:
 

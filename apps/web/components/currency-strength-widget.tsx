@@ -29,11 +29,7 @@ export async function CurrencyStrengthWidget() {
     report = await getCurrencyStrength(24);
   } catch (err) {
     error =
-      err instanceof ApiError
-        ? err.message
-        : err instanceof Error
-          ? err.message
-          : "unknown error";
+      err instanceof ApiError ? err.message : err instanceof Error ? err.message : "unknown error";
   }
 
   if (error || !report || report.entries.length === 0) {
@@ -43,9 +39,7 @@ export async function CurrencyStrengthWidget() {
           Force des devises (24h)
         </h2>
         <p className="text-xs text-[var(--color-ichor-text-subtle)]">
-          {error
-            ? `Indisponible : ${error}`
-            : "En attente de bars polygon."}
+          {error ? `Indisponible : ${error}` : "En attente de bars polygon."}
         </p>
       </GlassCard>
     );
@@ -111,8 +105,8 @@ export async function CurrencyStrengthWidget() {
         })}
       </ul>
       <p className="mt-3 text-[10px] text-[var(--color-ichor-text-subtle)] leading-snug">
-        Moyenne des % de variation 24h des paires USD-quotées. Positif =
-        devise forte, négatif = faible.
+        Moyenne des % de variation 24h des paires USD-quotées. Positif = devise forte, négatif =
+        faible.
       </p>
     </GlassCard>
   );
