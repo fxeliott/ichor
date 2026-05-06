@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, JetBrains_Mono, Fraunces } from "next/font/google";
 
+import { MotionProvider } from "@/components/motion/motion-provider";
 import { AIDisclosureBanner } from "@/components/ui/ai-disclosure-banner";
 import { LegalFooter } from "@/components/ui/legal-footer";
 
@@ -31,7 +32,13 @@ const jetbrainsMono = JetBrains_Mono({
 const fraunces = Fraunces({
   variable: "--font-fraunces",
   subsets: ["latin"],
-  display: "swap",
+  // `display: 'optional'` — Fraunces is editorial-only (briefings, /learn).
+  // If the WOFF2 isn't cached within 100ms, the browser falls back without
+  // ever swapping in. Trade-off : first-time visitors see Geist on editorial
+  // copy until cached on a subsequent navigation. Net : zero FOIT/FOUT,
+  // tighter LCP on dashboard routes that don't actually use Fraunces.
+  // Source: nextjs.org/docs/app/api-reference/components/font#display
+  display: "optional",
   axes: ["opsz", "SOFT", "WONK"],
 });
 
@@ -68,13 +75,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         >
           Aller au contenu principal
         </a>
-        {/* EU AI Act Article 50 §1 + §5 — permanent AI disclosure (not dismissible). */}
-        <AIDisclosureBanner />
-        <main id="main" className="relative">
-          {children}
-        </main>
-        {/* AMF DOC-2008-23 + MiFID 2 + EU AI Act §50 §4 boundary statement. */}
-        <LegalFooter />
+        <MotionProvider>
+          {/* EU AI Act Article 50 §1 + §5 — permanent AI disclosure (not dismissible). */}
+          <AIDisclosureBanner />
+          <main id="main" className="relative">
+            {children}
+          </main>
+          {/* AMF DOC-2008-23 + MiFID 2 + EU AI Act §50 §4 boundary statement. */}
+          <LegalFooter />
+        </MotionProvider>
       </body>
     </html>
   );

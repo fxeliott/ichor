@@ -24,7 +24,9 @@ export function AIDisclosureBanner() {
       aria-label="AI disclosure"
       className="sticky top-0 z-40 border-b border-[var(--color-border-subtle)] bg-[var(--color-bg-elevated)]/95 backdrop-blur-sm"
     >
-      <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-1.5 text-[11px] font-mono">
+      {/* min-h-[28px] satisfies WCAG 2.2 §2.5.8 Target Size Minimum (24px)
+        on the only interactive element here ("méthodo →" link). */}
+      <div className="mx-auto flex min-h-[28px] max-w-7xl items-center justify-between gap-3 px-4 py-1 text-[11px] font-mono">
         <span className="flex items-center gap-2 text-[var(--color-text-secondary)]">
           <span
             aria-hidden="true"
@@ -40,7 +42,7 @@ export function AIDisclosureBanner() {
         </span>
         <a
           href="/methodology"
-          className="text-[var(--color-accent-cobalt)] underline underline-offset-2 hover:text-[var(--color-text-primary)]"
+          className="inline-flex min-h-[24px] items-center px-1 text-[var(--color-accent-cobalt)] underline underline-offset-2 hover:text-[var(--color-text-primary)]"
         >
           méthodo →
         </a>

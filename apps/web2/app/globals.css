@@ -34,8 +34,9 @@
   --color-bg-elevated: #0F1828;
   --color-bg-overlay: rgba(8, 10, 14, 0.72);
 
-  /* Legacy alias (for components migrating from apps/web/) */
+  /* Legacy aliases (for components migrating from apps/web/ + shadcn shapes). */
   --color-ichor-deep: var(--color-bg-base);
+  --color-bg-deep: var(--color-bg-base);
 
   /* ── Borders ──────────────────────────────────────────── */
   /* 2026-05-06 — alpha values raised to satisfy WCAG 2.2 AA §1.4.11
@@ -53,10 +54,23 @@
   --color-border-default: rgba(255, 255, 255, 0.32);
   --color-border-strong: rgba(255, 255, 255, 0.48);
 
+  /* Defensive alias — components imported from apps/web1 / shadcn refer to
+   * `var(--color-border)` without the `-default` suffix. Keep them rendering
+   * the right border instead of the CSS-fallback transparent. */
+  --color-border: var(--color-border-default);
+
   /* ── Text ─────────────────────────────────────────────── */
   --color-text-primary: #E6EDF3;
   --color-text-secondary: #A4ADBA;
-  --color-text-muted: #6E7785;
+  /* 2026-05-06 — was #6E7785 (≈ 4.42:1 vs --color-bg-base = AA fail).
+   * Raised to #7A8492 (≈ 5.0:1) per accessibility-reviewer audit. Used
+   * as default body text color across most pages, hence the AA bar
+   * applies (WCAG 2.2 §1.4.3 Minimum Contrast). */
+  --color-text-muted: #7A8492;
+  /* `text-tertiary` is referenced by loading.tsx / error.tsx / not-found.tsx
+   * as the lightest-weight info color (timestamps, "loading…" labels). Sat
+   * to a value between secondary and muted. */
+  --color-text-tertiary: #93999E;
 
   /* ── Bull/Bear (override §14) ─────────────────────────── */
   --color-bull: #34D399;
@@ -174,11 +188,18 @@ samp,
   color: var(--color-text-primary);
 }
 
-/* ── Focus ring (WCAG 2.4.7 + DESIGN §6) ─────────────── */
+/* ── Focus ring (WCAG 2.4.7 + 2.4.11 + DESIGN §6) ────── */
+/* 2026-05-06 — added `scroll-margin-block` so the focus indicator is
+ * never obscured by the sticky AIDisclosureBanner (~32px). Required by
+ * WCAG 2.2 §2.4.11 Focus Not Obscured (Minimum, AA new in 2.2). */
 :focus-visible {
   outline: 2px solid var(--color-bull);
   outline-offset: 2px;
   border-radius: 4px;
+}
+
+:where(a, button, input, select, textarea, [tabindex], summary):focus-visible {
+  scroll-margin-block: 5rem;
 }
 
 /* ── Reduced motion (WCAG 2.3.3 + DESIGN §6) ─────────── */

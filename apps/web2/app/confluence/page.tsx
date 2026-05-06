@@ -182,7 +182,8 @@ function ConfluenceRow({
       <td className="px-4 py-3 text-right">
         <Link
           href={`/scenarios/${row.code}`}
-          className="font-mono text-xs uppercase tracking-widest text-[var(--color-accent-cobalt)] transition hover:text-[var(--color-text-primary)]"
+          aria-label={`Voir scénarios pour ${row.display}`}
+          className="inline-flex min-h-[24px] min-w-[24px] items-center justify-center font-mono text-xs uppercase tracking-widest text-[var(--color-accent-cobalt)] transition hover:text-[var(--color-text-primary)]"
         >
           →
         </Link>
@@ -196,15 +197,24 @@ function ScorePill({ score, kind }: { score: number; kind: "long" | "short" }) {
   // Strength tiers : ≥70 saturated, ≥60 medium, <60 muted. Color-mix
   // keeps the pill background tinted by the base color but readable.
   const mixPct = score >= 70 ? 22 : score >= 60 ? 14 : 8;
+  // WCAG 1.4.1 — direction must NOT rely on color alone. ▲/▼ glyph adjacent
+  // to the score makes "70 long" and "70 short" distinguishable in grayscale,
+  // for color-blind users, and for SR (we expose the explicit verb in
+  // aria-label).
+  const glyph = kind === "long" ? "▲" : "▼";
+  const verb = kind === "long" ? "long" : "short";
   return (
     <span
-      className="inline-block min-w-[3rem] rounded px-2 py-0.5 text-center font-mono text-xs"
+      role="img"
+      aria-label={`Score ${verb} ${score.toFixed(0)}`}
+      className="inline-flex min-w-[3.5rem] items-center justify-center gap-1 rounded px-2 py-0.5 text-center font-mono text-xs"
       style={{
         color: baseColor,
         backgroundColor: `color-mix(in oklch, ${baseColor} ${mixPct}%, transparent)`,
       }}
     >
-      {score.toFixed(0)}
+      <span aria-hidden="true">{glyph}</span>
+      <span className="tabular-nums">{score.toFixed(0)}</span>
     </span>
   );
 }
