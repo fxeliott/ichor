@@ -1,5 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, JetBrains_Mono, Fraunces } from "next/font/google";
+
+import { AIDisclosureBanner } from "@/components/ui/ai-disclosure-banner";
+import { LegalFooter } from "@/components/ui/legal-footer";
+
 import "./globals.css";
 
 // Self-hosted via next/font/google — no requests sent to fonts.google.com
@@ -64,9 +68,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         >
           Aller au contenu principal
         </a>
+        {/* EU AI Act Article 50 §1 + §5 — permanent AI disclosure (not dismissible). */}
+        <AIDisclosureBanner />
         <main id="main" className="relative">
           {children}
         </main>
+        {/* AMF DOC-2008-23 + MiFID 2 + EU AI Act §50 §4 boundary statement. */}
+        <LegalFooter />
       </body>
     </html>
   );
