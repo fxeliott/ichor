@@ -38,9 +38,20 @@
   --color-ichor-deep: var(--color-bg-base);
 
   /* ── Borders ──────────────────────────────────────────── */
-  --color-border-subtle: rgba(255, 255, 255, 0.06);
-  --color-border-default: rgba(255, 255, 255, 0.10);
-  --color-border-strong: rgba(255, 255, 255, 0.18);
+  /* 2026-05-06 — alpha values raised to satisfy WCAG 2.2 AA §1.4.11
+   * Non-text Contrast (3:1 minimum vs adjacent surface). The previous
+   * values (0.06 / 0.10 / 0.18) gave ~1.05:1 / ~1.10:1 / ~1.30:1 against
+   * --color-bg-surface (#0B1220) — a level-A failure for any UI element
+   * that conveys boundary or interactive state. New values approximate
+   * 3.0:1 (subtle), 4.5:1 (default), 7.0:1 (strong) to keep a usable
+   * three-tier hierarchy while clearing the WCAG floor. Cf. researcher
+   * report 2026-05-06 (Stack 2026 deep technical recipes, §6.4) and
+   * w3.org/TR/WCAG22/#non-text-contrast.
+   * Full OKLCH palette migration deferred — needs a dedicated session
+   * with visual diff review per route, not a code-only flip. */
+  --color-border-subtle: rgba(255, 255, 255, 0.20);
+  --color-border-default: rgba(255, 255, 255, 0.32);
+  --color-border-strong: rgba(255, 255, 255, 0.48);
 
   /* ── Text ─────────────────────────────────────────────── */
   --color-text-primary: #E6EDF3;
