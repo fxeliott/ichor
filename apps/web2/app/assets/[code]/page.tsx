@@ -62,15 +62,13 @@ export default async function AssetDrillDownPage({ params }: PageProps) {
   const [sessions, confluence, alertsResp, briefings] = await Promise.all([
     apiGet<SessionCardList>(`/v1/sessions/${slug}?limit=5`, { revalidate: 30 }),
     apiGet<ConfluenceOut>(`/v1/confluence/${slug}`, { revalidate: 30 }),
-    apiGet<{ items: AlertItem[]; total: number }>(
-      `/v1/alerts?asset=${slug}&limit=10`,
-      { revalidate: 60 },
-    ),
+    apiGet<{ items: AlertItem[]; total: number }>(`/v1/alerts?asset=${slug}&limit=10`, {
+      revalidate: 60,
+    }),
     apiGet<BriefingList>(`/v1/briefings?asset=${slug}&limit=5`, { revalidate: 60 }),
   ]);
 
-  const latestCard =
-    isLive(sessions) && sessions.items.length > 0 ? sessions.items[0]! : null;
+  const latestCard = isLive(sessions) && sessions.items.length > 0 ? sessions.items[0]! : null;
 
   return (
     <main className="container mx-auto max-w-5xl px-6 py-12">
@@ -117,7 +115,7 @@ export default async function AssetDrillDownPage({ params }: PageProps) {
 
       <div className="grid gap-6 lg:grid-cols-2">
         <SessionsBlock latestCard={latestCard} sessions={sessions} slug={slug} />
-        <ConfluenceBlock confluence={confluence} slug={slug} />
+        <ConfluenceBlock confluence={confluence} />
         <AlertsBlock alerts={alertsResp} slug={slug} />
         <BriefingsBlock briefings={briefings} slug={slug} />
       </div>
@@ -219,13 +217,7 @@ function SessionsBlock({
   );
 }
 
-function ConfluenceBlock({
-  confluence,
-  slug,
-}: {
-  confluence: ConfluenceOut | null;
-  slug: string;
-}) {
+function ConfluenceBlock({ confluence }: { confluence: ConfluenceOut | null }) {
   return (
     <section
       aria-labelledby="confluence-block"
@@ -265,9 +257,7 @@ function ConfluenceBlock({
             <ul className="mt-3 space-y-1 text-xs">
               {confluence.drivers.slice(0, 5).map((d) => (
                 <li key={d.factor} className="flex items-baseline justify-between gap-2">
-                  <span className="font-mono text-[var(--color-text-secondary)]">
-                    {d.factor}
-                  </span>
+                  <span className="font-mono text-[var(--color-text-secondary)]">{d.factor}</span>
                   <span
                     className="font-mono"
                     style={{
@@ -309,9 +299,7 @@ function Stat({
         : "var(--color-text-muted)";
   return (
     <div className="rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-bg-elevated)] p-2 text-center">
-      <p className="text-[9px] uppercase tracking-widest text-[var(--color-text-muted)]">
-        {label}
-      </p>
+      <p className="text-[9px] uppercase tracking-widest text-[var(--color-text-muted)]">{label}</p>
       <p className="mt-0.5 tabular-nums" style={{ color }}>
         {value}
       </p>
@@ -384,13 +372,7 @@ function AlertsBlock({
   );
 }
 
-function BriefingsBlock({
-  briefings,
-  slug,
-}: {
-  briefings: BriefingList | null;
-  slug: string;
-}) {
+function BriefingsBlock({ briefings, slug }: { briefings: BriefingList | null; slug: string }) {
   return (
     <section
       aria-labelledby="briefings-block"

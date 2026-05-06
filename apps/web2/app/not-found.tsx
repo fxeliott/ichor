@@ -17,20 +17,15 @@ export default function NotFound() {
         404 · route inconnue
       </span>
 
-      <h1
-        data-editorial
-        className="text-4xl tracking-tight text-[var(--color-text-primary)]"
-      >
+      <h1 data-editorial className="text-4xl tracking-tight text-[var(--color-text-primary)]">
         Cette page n&apos;existe pas (encore).
       </h1>
 
       <p className="max-w-prose text-[var(--color-text-secondary)]">
-        L&apos;URL demandée n&apos;est pas dans le routeur App.
-        Si tu cherches un actif, vérifie son code parmi les 8 actifs
-        Phase 1 :&nbsp;
+        L&apos;URL demandée n&apos;est pas dans le routeur App. Si tu cherches un actif, vérifie son
+        code parmi les 8 actifs Phase 1 :&nbsp;
         <code className="rounded bg-[var(--color-bg-elevated)] px-1.5 py-0.5 font-mono text-sm">
-          EUR_USD · GBP_USD · USD_JPY · AUD_USD · USD_CAD · XAU_USD ·
-          NAS100_USD · SPX500_USD
+          EUR_USD · GBP_USD · USD_JPY · AUD_USD · USD_CAD · XAU_USD · NAS100_USD · SPX500_USD
         </code>
       </p>
 

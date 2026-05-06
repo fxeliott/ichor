@@ -79,9 +79,9 @@ export default async function Home() {
             )}
           </h2>
           <p className="max-w-prose text-sm text-[var(--color-text-secondary)]">
-            Top {Math.min(6, today?.top_sessions.length ?? 0)} actifs ranked par conviction
-            × régime fit pour la session courante. Hover une card pour ouvrir le briefing
-            complet (thesis, mechanisms, invalidations, trade plan).
+            Top {Math.min(6, today?.top_sessions.length ?? 0)} actifs ranked par conviction × régime
+            fit pour la session courante. Hover une card pour ouvrir le briefing complet (thesis,
+            mechanisms, invalidations, trade plan).
           </p>
           <div className="mt-6">
             <BiasOpportunitiesGrid data={isLive(today) ? today : null} />
@@ -131,9 +131,8 @@ function Header({
         <code className="rounded bg-[var(--color-bg-elevated)] px-1.5 py-0.5 font-mono text-sm">
           /v1/today
         </code>{" "}
-        en SSR + ISR (revalidation 30 s) avec fallback offline si l&apos;API
-        ne répond pas — pulse régime, 6 opportunities top conviction, 4
-        triggers actionnable.
+        en SSR + ISR (revalidation 30 s) avec fallback offline si l&apos;API ne répond pas — pulse
+        régime, 6 opportunities top conviction, 4 triggers actionnable.
       </p>
     </header>
   );

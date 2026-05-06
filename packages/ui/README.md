@@ -22,8 +22,9 @@ Phase 1 Step 1 marathon) :
 **SHIPPED**. Used by `apps/web` (legacy Phase 1 dashboard).
 `apps/web2` (Phase 2 redesign) deliberately reimplements its own
 component layer to align with the new design tokens (Tailwind v4
-+ motion 12 + Geist/JetBrains Mono/Fraunces stack) — the two
-dashboards run in parallel until web1 is decommissioned.
+
+- motion 12 + Geist/JetBrains Mono/Fraunces stack) — the two
+  dashboards run in parallel until web1 is decommissioned.
 
 No automated tests at this layer ; the web2 e2e smoke suite
 (`apps/web2/e2e/smoke.spec.ts`) covers the routes that consume

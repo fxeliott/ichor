@@ -66,8 +66,8 @@ export default async function ConfluenceHistoryPage() {
           Évolution 30 jours
         </h1>
         <p className="mt-2 max-w-2xl text-sm text-[var(--color-text-secondary)]">
-          Évolution des scores long / short par actif. La ligne pointillée
-          à 60 marque le seuil qualifies-as-setup. Source : table{" "}
+          Évolution des scores long / short par actif. La ligne pointillée à 60 marque le seuil
+          qualifies-as-setup. Source : table{" "}
           <code className="rounded bg-[var(--color-bg-elevated)] px-1 font-mono text-xs text-[var(--color-accent-cobalt)]">
             confluence_history
           </code>

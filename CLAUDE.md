@@ -56,7 +56,7 @@ D:\Ichor
 
 - **Hetzner** SSH alias `ichor-hetzner` (~/.ssh/config). All API,
   Postgres-with-Timescale-AGE, Redis 8, n8n, Langfuse, observability.
-  43+ ichor-*.timer units active. systemd `After=` chains the Living
+  43+ ichor-\*.timer units active. systemd `After=` chains the Living
   Entity loop : reconciler → brier_optimizer → brier_drift →
   concept_drift → prediction_outlier → dtw_analogue (nightly), then
   post_mortem → counterfactual_batch (weekly Sun).
@@ -98,8 +98,8 @@ D:\Ichor
 
 - All commits / PRs / docstrings in **English**. Conversation in
   **French**.
-- **Conventional Commits**, short subject. Body explains *why* not
-  *what*.
+- **Conventional Commits**, short subject. Body explains _why_ not
+  _what_.
 - Tests required for non-trivial code changes. Pytest for Python,
   Vitest + Playwright for web2.
 - ADR for any architectural decision (one decision = one file in
@@ -111,12 +111,12 @@ D:\Ichor
 
 ### 4-layer Claude Code architecture for Ichor
 
-| Layer | Where | Status |
-|---|---|---|
-| **CLAUDE.md** (advisory) | This file + per-package `CLAUDE.md` if needed | Active |
-| **Skills** (reusable recipes) | `.claude/skills/` (project) and `~/.claude/skills/` (global) | 4 project skills : `frontend-design` (legacy), `ichor-dashboard-component`, `ichor-alembic-migration`, `ichor-ssh-deploy` |
-| **Hooks** (deterministic gates) | `.claude/settings.json` (project) and `~/.claude/settings.json` (global) | PreToolUse blocks `.git`/`infra/secrets`/`.env`, warns on `register-cron-*.sh` edits ; PostToolUse auto-formats `.py` (ruff) and `.tsx`/`.ts` (prettier). |
-| **Subagents** (parallel/isolated) | `.claude/agents/` (project) and `~/.claude/agents/` (global) | Project : `ichor-navigator`, `ichor-trader`, `ichor-data-pool-validator`. Global : 16 generalists (researcher, verifier, code-reviewer, etc.). |
+| Layer                             | Where                                                                    | Status                                                                                                                                                    |
+| --------------------------------- | ------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **CLAUDE.md** (advisory)          | This file + per-package `CLAUDE.md` if needed                            | Active                                                                                                                                                    |
+| **Skills** (reusable recipes)     | `.claude/skills/` (project) and `~/.claude/skills/` (global)             | 4 project skills : `frontend-design` (legacy), `ichor-dashboard-component`, `ichor-alembic-migration`, `ichor-ssh-deploy`                                 |
+| **Hooks** (deterministic gates)   | `.claude/settings.json` (project) and `~/.claude/settings.json` (global) | PreToolUse blocks `.git`/`infra/secrets`/`.env`, warns on `register-cron-*.sh` edits ; PostToolUse auto-formats `.py` (ruff) and `.tsx`/`.ts` (prettier). |
+| **Subagents** (parallel/isolated) | `.claude/agents/` (project) and `~/.claude/agents/` (global)             | Project : `ichor-navigator`, `ichor-trader`, `ichor-data-pool-validator`. Global : 16 generalists (researcher, verifier, code-reviewer, etc.).            |
 
 ### Subagents : when to invoke
 
@@ -178,14 +178,14 @@ D:\Ichor
 
 ## Known dormant alerts (status 2026-05-06 evening)
 
-| Alert | Status | Notes |
-|---|---|---|
-| RISK_REVERSAL_25D | **WIRED** | `services/risk_reversal_check.py` + `cli/run_rr25_check.py` deployed. 3 tickers persisted (SPY/QQQ/GLD → SPX500/NAS100/XAU). Cron registration pending. |
-| LIQUIDITY_TIGHTENING | **WIRED** | `services/liquidity_proxy.py` + `cli/run_liquidity_check.py` deployed. Will activate after dts_treasury collector accumulates first DTS_TGA_CLOSE (next 04:00 Paris cron). |
-| FOMC_TONE_SHIFT | **CODE READY, ACTIVATION PENDING** | `services/cb_tone_check.py` + `cli/run_cb_tone_check.py` shipped. To activate: `pip install transformers torch --index-url https://download.pytorch.org/whl/cpu` in `/opt/ichor/api/.venv` on Hetzner. |
-| ECB_TONE_SHIFT | **CODE READY, ACTIVATION PENDING** | Same path as FOMC_TONE_SHIFT (transfer-learning FOMC-Roberta on ECB speeches). Same activation step. |
-| FED_FUNDS_REPRICE | DORMANT | moyen (no FRED feed for ZQ futures, approx via DFF+OIS) |
-| ECB_DEPO_REPRICE | DORMANT | difficile (no free Eurex €STR feed) |
+| Alert                | Status                             | Notes                                                                                                                                                                                                  |
+| -------------------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| RISK_REVERSAL_25D    | **WIRED**                          | `services/risk_reversal_check.py` + `cli/run_rr25_check.py` deployed. 3 tickers persisted (SPY/QQQ/GLD → SPX500/NAS100/XAU). Cron registration pending.                                                |
+| LIQUIDITY_TIGHTENING | **WIRED**                          | `services/liquidity_proxy.py` + `cli/run_liquidity_check.py` deployed. Will activate after dts_treasury collector accumulates first DTS_TGA_CLOSE (next 04:00 Paris cron).                             |
+| FOMC_TONE_SHIFT      | **CODE READY, ACTIVATION PENDING** | `services/cb_tone_check.py` + `cli/run_cb_tone_check.py` shipped. To activate: `pip install transformers torch --index-url https://download.pytorch.org/whl/cpu` in `/opt/ichor/api/.venv` on Hetzner. |
+| ECB_TONE_SHIFT       | **CODE READY, ACTIVATION PENDING** | Same path as FOMC_TONE_SHIFT (transfer-learning FOMC-Roberta on ECB speeches). Same activation step.                                                                                                   |
+| FED_FUNDS_REPRICE    | DORMANT                            | moyen (no FRED feed for ZQ futures, approx via DFF+OIS)                                                                                                                                                |
+| ECB_DEPO_REPRICE     | DORMANT                            | difficile (no free Eurex €STR feed)                                                                                                                                                                    |
 
 ## Things that are subtly broken or deferred
 

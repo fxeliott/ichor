@@ -15,7 +15,7 @@ the per-factor contribution snapshot from
 card was generated. The column was added explicitly to feed a V2 of the
 Brier→weights optimizer (cf. ADR-022).
 
-V1 (`cli/run_brier_optimizer.py`) only writes a *diagnostic* row that
+V1 (`cli/run_brier_optimizer.py`) only writes a _diagnostic_ row that
 aggregates `brier_contribution` across the lookback window — it does not
 optimize per-factor weights. The math primitives in
 `services/brier_optimizer.py` (`project_simplex_bounded`, `step_sgd`,

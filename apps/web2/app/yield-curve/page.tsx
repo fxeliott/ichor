@@ -56,33 +56,27 @@ export default async function YieldCurvePage() {
       label: "10Y - 2Y",
       value: data.slope_2y_10y !== null ? Math.round(data.slope_2y_10y * 100) : null,
       bias:
-        data.slope_2y_10y !== null && data.slope_2y_10y < 0
-          ? ("bear" as const)
-          : ("bull" as const),
+        data.slope_2y_10y !== null && data.slope_2y_10y < 0 ? ("bear" as const) : ("bull" as const),
       sig: data.slope_2y_10y !== null && data.slope_2y_10y < 0 ? "inverted" : "normal",
     },
     {
       label: "10Y - 3M",
       value: data.slope_3m_10y !== null ? Math.round(data.slope_3m_10y * 100) : null,
       bias:
-        data.slope_3m_10y !== null && data.slope_3m_10y < 0
-          ? ("bear" as const)
-          : ("bull" as const),
+        data.slope_3m_10y !== null && data.slope_3m_10y < 0 ? ("bear" as const) : ("bull" as const),
       sig: data.slope_3m_10y !== null && data.slope_3m_10y < 0 ? "deeply inverted" : "normal",
     },
     {
       label: "30Y - 5Y",
       value: data.slope_5y_30y !== null ? Math.round(data.slope_5y_30y * 100) : null,
       bias:
-        data.slope_5y_30y !== null && data.slope_5y_30y < 0
-          ? ("bear" as const)
-          : ("bull" as const),
+        data.slope_5y_30y !== null && data.slope_5y_30y < 0 ? ("bear" as const) : ("bull" as const),
       sig: data.slope_5y_30y !== null && data.slope_5y_30y > 0.5 ? "term premium" : "compressed",
     },
     {
       label: "Real 10Y",
       value: data.real_yield_10y !== null ? Math.round(data.real_yield_10y * 100) : null,
-      bias: ("bull" as const),
+      bias: "bull" as const,
       sig: data.real_yield_10y !== null ? `TIPS ${data.real_yield_10y.toFixed(2)} %` : "n/a",
     },
   ];
@@ -281,8 +275,7 @@ function CurveTable({ points }: { points: RenderTenor[] }) {
         </thead>
         <tbody>
           {points.map((p) => {
-            const bias =
-              p.delta_bps_24h > 0 ? "bull" : p.delta_bps_24h < 0 ? "bear" : "neutral";
+            const bias = p.delta_bps_24h > 0 ? "bull" : p.delta_bps_24h < 0 ? "bear" : "neutral";
             return (
               <tr
                 key={p.label}

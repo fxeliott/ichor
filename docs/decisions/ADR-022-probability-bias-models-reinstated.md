@@ -33,8 +33,8 @@ gate before Claude publishes a session card.
 ## Decision
 
 The 6 probability-only bias trainers stay. ADR-017's archival paragraph (lines
-70-71 : *"`packages/ml/src/ichor_ml/training/` — wrong scope (Claude does
-analysis, not ML models)"*) is amended to read :
+70-71 : _"`packages/ml/src/ichor_ml/training/` — wrong scope (Claude does
+analysis, not ML models)"_) is amended to read :
 
 > `packages/ml/src/ichor_ml/training/` (the **price-prediction**
 > `lightgbm_bias` and helpers) — wrong scope. The Phase-2 reinstated
@@ -47,7 +47,7 @@ analysis, not ML models)"*) is amended to read :
 
 1. **Probability output only.** No `direction: "BUY" | "SELL"`, no scaling
    factor, no position size. The signature is `predict_proba(row) -> float in
-   [0, 1]`.
+[0, 1]`.
 2. **No P&L, no order generation.** No call to any broker API, no paper
    trading wrapper. Any code introducing those is a violation of this ADR.
 3. **Inputs to Claude only.** Probabilities flow to
@@ -91,4 +91,4 @@ analysis, not ML models)"*) is amended to read :
 - Aggregator : `packages/ml/src/ichor_ml/bias_aggregator.py`
 - Critic gate : `packages/agents/critic/cross_asset.py`
 - Pre-reset reference (price-predicting trainer) : `archive/2026-05-03-pre-reset/ml-training/lightgbm_bias.py`
-- Boundary doc cited in every trainer module : *"ADR-017 boundary : returns probabilities, never BUY/SELL signals."*
+- Boundary doc cited in every trainer module : _"ADR-017 boundary : returns probabilities, never BUY/SELL signals."_

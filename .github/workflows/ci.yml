@@ -27,7 +27,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 2  # turbo needs prev commit for affected detection
+          fetch-depth: 2 # turbo needs prev commit for affected detection
 
       - name: Setup Node 22
         uses: actions/setup-node@v4
@@ -53,11 +53,12 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # Phase 0: warn-only on lint (skeleton may not have full ESLint config yet).
-      # Tighten to fail-on-error in Phase 1 once apps/web has a real ESLint setup.
+      # Wave 5 blocking (2026-05-06) — `pnpm lint` runs eslint
+      # --max-warnings 0 + prettier --check. Verified clean locally on
+      # apps/web2 + packages/ui at this commit (apps/web is no longer
+      # in pnpm-workspace.yaml after the D.3 sprint).
       - name: Lint
-        run: pnpm lint || echo "::warning::pnpm lint reported issues (warn-only Phase 0)"
-        continue-on-error: true
+        run: pnpm lint
 
       # Build BEFORE typecheck — Next.js generates next-env.d.ts and .next/types/
       # that the tsconfig.json includes. Without a build, tsc fails on missing types.
@@ -115,9 +116,19 @@ jobs:
         # [tool.ruff.lint.ignore] in root pyproject.toml.
         run: uv run ruff check .
 
-      - name: Mypy (lenient in Phase 0)
+      # Wave 5 ramp (2026-05-06) — apps/api now blocks on mypy. The 3
+      # pre-existing numpy return-type errors in services/brier_optimizer.py
+      # were fixed in this commit. The 4 other Python packages still
+      # tolerate residual mypy errors via `|| true` until each gets its
+      # own cleanup pass.
+      - name: Mypy
         working-directory: ${{ matrix.package }}
-        run: uv run mypy --no-error-summary . || true
+        run: |
+          if [ "${{ matrix.package }}" = "apps/api" ]; then
+            uv run mypy --no-error-summary .
+          else
+            uv run mypy --no-error-summary . || echo "::warning::mypy reports issues in ${{ matrix.package }} (warn-only until per-package cleanup)"
+          fi
 
       - name: Pytest (skip cleanly if no tests)
         working-directory: ${{ matrix.package }}

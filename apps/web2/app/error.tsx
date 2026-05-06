@@ -45,18 +45,14 @@ export default function RootError({ error, reset }: Props) {
         ▼ erreur
       </span>
 
-      <h1
-        data-editorial
-        className="text-4xl tracking-tight text-[var(--color-text-primary)]"
-      >
+      <h1 data-editorial className="text-4xl tracking-tight text-[var(--color-text-primary)]">
         Le contexte n&apos;a pas pu être chargé.
       </h1>
 
       <p className="max-w-prose text-[var(--color-text-secondary)]">
-        Une erreur côté serveur a interrompu le rendu de cette page.
-        Tu peux réessayer immédiatement, ou attendre le prochain
-        rafraîchissement ISR (30-60 s selon la route). Si le problème
-        persiste, vérifie que <code>ichor-api</code> et le tunnel
+        Une erreur côté serveur a interrompu le rendu de cette page. Tu peux réessayer
+        immédiatement, ou attendre le prochain rafraîchissement ISR (30-60 s selon la route). Si le
+        problème persiste, vérifie que <code>ichor-api</code> et le tunnel
         <code>claude-runner.fxmilyapp.com</code> répondent.
       </p>
 

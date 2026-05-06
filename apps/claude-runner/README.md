@@ -9,6 +9,7 @@ Access service-token gating is configured but currently disabled
 (see `CLAUDE.md` root §Production deployment).
 
 Two endpoints expose the runner :
+
 - `POST /v1/briefing-task` — Couche-1 briefings + session-cards
   (Opus 4.7 / Sonnet 4.6 high effort)
 - `POST /v1/agent-task` — Couche-2 single-shot agents (Haiku 4.5

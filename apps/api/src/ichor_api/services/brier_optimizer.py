@@ -93,12 +93,15 @@ def project_simplex_bounded(
         w = np.clip(w, w_min, w_max)
         s = w.sum()
         if s <= 0:
-            return np.full_like(w, 1.0 / len(w))
+            full: np.ndarray = np.full_like(w, 1.0 / len(w))
+            return full
         w = w / s
         # If clipping happened the sum may be off; iterate.
         if abs(w.sum() - 1.0) < 1e-6 and (w >= w_min - 1e-9).all() and (w <= w_max + 1e-9).all():
-            return np.clip(w, w_min, w_max)
-    return np.clip(w / w.sum(), w_min, w_max)
+            clipped: np.ndarray = np.clip(w, w_min, w_max)
+            return clipped
+    final: np.ndarray = np.clip(w / w.sum(), w_min, w_max)
+    return final
 
 
 def brier_loss(weights: np.ndarray, factor_signals: np.ndarray, outcomes: np.ndarray) -> float:
@@ -429,5 +432,6 @@ async def latest_active_weights(
         return None
     raw = row["weights"]
     if isinstance(raw, str):
-        return __import__("json").loads(raw)
+        loaded: dict[str, float] = __import__("json").loads(raw)
+        return loaded
     return dict(raw)

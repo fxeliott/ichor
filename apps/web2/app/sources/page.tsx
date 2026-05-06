@@ -45,8 +45,8 @@ export default async function SourcesPage() {
           Sources
         </h1>
         <p className="max-w-prose text-[var(--color-text-secondary)]">
-          État des sources de données ingérées par Ichor. Le statut (live/stale/down) est calculé
-          en temps réel à partir des tables Postgres ;{" "}
+          État des sources de données ingérées par Ichor. Le statut (live/stale/down) est calculé en
+          temps réel à partir des tables Postgres ;{" "}
           <MetricTooltip
             term="Massive Currencies"
             definition="Tier $49/mo qui couvre FX majors + spot metals (XAU/USD) + WebSockets + Quotes + Second Aggregates + Crypto Trades. Confirmé 2026-05-05 directement sur la page tarifaire massive.com/pricing."

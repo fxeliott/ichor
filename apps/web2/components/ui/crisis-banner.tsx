@@ -69,8 +69,7 @@ export function CrisisBanner() {
   if (!state.active || !state.alert) return null;
 
   const codes =
-    (state.alert.description ?? "") ||
-    `${state.alert.metric_name} = ${state.alert.metric_value}`;
+    (state.alert.description ?? "") || `${state.alert.metric_name} = ${state.alert.metric_value}`;
 
   return (
     <motion.div

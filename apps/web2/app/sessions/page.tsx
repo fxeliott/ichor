@@ -51,8 +51,8 @@ export default async function SessionsIndexPage() {
             Cartes par actif
           </h1>
           <p className="mt-2 max-w-2xl text-sm text-[var(--color-text-secondary)]">
-            Une carte par actif Phase 1. Conviction post-stress (ADR-017),
-            jamais un signal trade. Cliquez un actif pour le drill-down.
+            Une carte par actif Phase 1. Conviction post-stress (ADR-017), jamais un signal trade.
+            Cliquez un actif pour le drill-down.
           </p>
         </div>
         <p className="font-mono text-xs text-[var(--color-text-muted)]">
@@ -74,9 +74,7 @@ export default async function SessionsIndexPage() {
                 aria-label={`Voir l'historique pour ${meta.display}`}
               >
                 <p className="font-mono text-sm text-[var(--color-text-primary)]">{meta.display}</p>
-                <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-                  Aucune carte récente.
-                </p>
+                <p className="mt-1 text-xs text-[var(--color-text-muted)]">Aucune carte récente.</p>
                 <p className="mt-3 text-xs text-[var(--color-accent-cobalt)]">Historique →</p>
               </Link>
             );
@@ -97,9 +95,7 @@ export default async function SessionsIndexPage() {
               aria-label={`Voir l'historique pour ${meta.display}`}
             >
               <header className="flex items-baseline justify-between">
-                <p className="font-mono text-sm text-[var(--color-text-primary)]">
-                  {meta.display}
-                </p>
+                <p className="font-mono text-sm text-[var(--color-text-primary)]">{meta.display}</p>
                 <BiasIndicator
                   bias={bias as "bull" | "bear" | "neutral"}
                   value={card.conviction_pct}

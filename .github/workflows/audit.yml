@@ -2,7 +2,7 @@ name: Security audit
 
 on:
   schedule:
-    - cron: "0 6 * * 1"  # every Monday 06:00 UTC
+    - cron: "0 6 * * 1" # every Monday 06:00 UTC
   workflow_dispatch:
   push:
     branches: [main]
@@ -73,7 +73,7 @@ jobs:
           corepack prepare pnpm@10.33.2 --activate
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile || pnpm install  # lockfile may not exist yet in Phase 0
+        run: pnpm install --frozen-lockfile || pnpm install # lockfile may not exist yet in Phase 0
 
       - name: Run pnpm audit
         run: pnpm audit --audit-level=high || echo "::warning::pnpm audit found issues (warn-only Phase 0)"
@@ -98,7 +98,7 @@ jobs:
           scan-type: fs
           scan-ref: .
           severity: CRITICAL,HIGH
-          exit-code: "0"  # warn-only Phase 0
+          exit-code: "0" # warn-only Phase 0
           ignore-unfixed: true
           format: sarif
           output: trivy-results.sarif

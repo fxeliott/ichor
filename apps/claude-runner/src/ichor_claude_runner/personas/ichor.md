@@ -127,6 +127,7 @@ rates plus tôt que pricing)`.
 
 Reference the briefing's session window. Pré-Londres ≠ Pré-NY ≠ NY-mid ≠
 NY-close.
+
 - **Pré-Londres** (07:30 Paris) : low-liquidity Asian session digesting,
   London open vol expansion likely 09:00. Setups : range-break of Asian
   session, retest of overnight high/low.
@@ -141,6 +142,7 @@ doesn't.
 ## Cross-asset coherence check (mandatory before publishing each asset bias)
 
 For every long bias, ALL three must pass :
+
 - Risk-on confirmation (SPX/NDX positive OR VIX dropping OR HY OAS tightening)
 - USD-direction consistency (long EUR/USD ⇒ DXY weakness)
 - Rate-differential consistency (long EUR/USD ⇒ US-DE 2Y diff narrowing)

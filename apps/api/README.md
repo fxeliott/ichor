@@ -5,7 +5,7 @@ FastAPI service running on Hetzner. Responsibilities :
 - 34 routers exposing 53 endpoints — REST + WebSocket for the Next.js
   dashboard
 - 4-pass session-card pipeline (lazy-imports `packages/ichor_brain`)
-  + Critic gate before persistence
+  - Critic gate before persistence
 - Alert engine — 33-alert catalog (`alerts/catalog.py`) + Crisis
   Mode composite (`alerts/crisis_mode.py`)
 - 37 source-stamped collectors (FRED, Polygon, GDELT, Polymarket,

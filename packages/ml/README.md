@@ -42,6 +42,7 @@ index `pytorch-cpu`).
 the RAG path (`services/rag/`) and the FOMC/ECB tone scorers
 (`services/cb_tone_check.py`) lazy-import them. To activate those
 on Hetzner :
+
 ```
 /opt/ichor/api/.venv/bin/pip install transformers torch \
     --index-url https://download.pytorch.org/whl/cpu

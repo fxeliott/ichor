@@ -66,7 +66,8 @@ export function BiasOpportunitiesGrid({ data }: { data: TodayOut | null }) {
   if (!data || data.top_sessions.length === 0) {
     return (
       <div className="rounded-xl border border-dashed border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-6 py-12 text-center text-sm text-[var(--color-text-muted)]">
-        Aucune session card disponible. Le brain regenère à 07:30 (pré-Londres) et 13:30 (pré-NY) Paris.
+        Aucune session card disponible. Le brain regenère à 07:30 (pré-Londres) et 13:30 (pré-NY)
+        Paris.
       </div>
     );
   }
@@ -100,11 +101,10 @@ function OpportunityCard({ session: s }: { session: TodayTopSession }) {
     >
       <header className="mb-3 flex items-start justify-between gap-3">
         <div>
-          <p
-            className="font-mono text-base font-semibold tracking-tight"
-            style={{ color }}
-          >
-            <span className="mr-1.5" aria-hidden="true">{glyph}</span>
+          <p className="font-mono text-base font-semibold tracking-tight" style={{ color }}>
+            <span className="mr-1.5" aria-hidden="true">
+              {glyph}
+            </span>
             {s.asset.replace("_", "/")}
           </p>
           <p className="font-mono text-[9px] uppercase tracking-widest text-[var(--color-text-muted)]">

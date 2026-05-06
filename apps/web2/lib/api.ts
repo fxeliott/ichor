@@ -821,13 +821,7 @@ export interface IntradayBarOut {
 // ─────────────────────── Sources catalog ───────────────────────
 
 export type SourceStatus = "live" | "stale" | "down";
-export type SourceCategory =
-  | "macro"
-  | "fx"
-  | "options"
-  | "sentiment"
-  | "geopolitics"
-  | "structure";
+export type SourceCategory = "macro" | "fx" | "options" | "sentiment" | "geopolitics" | "structure";
 export type SourceCadence = "intraday" | "hourly" | "daily" | "weekly";
 
 export interface SourceOut {

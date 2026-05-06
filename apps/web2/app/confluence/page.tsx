@@ -59,9 +59,8 @@ export default async function ConfluencePage() {
             Synthèse multi-actifs
           </h1>
           <p className="mt-2 max-w-2xl text-sm text-[var(--color-text-secondary)]">
-            Score 0-100 par direction. 10 facteurs : rate diff, COT, OFI,
-            daily levels, polymarket, funding stress, surprise index, VIX
-            term, risk appetite, BTC risk-proxy.
+            Score 0-100 par direction. 10 facteurs : rate diff, COT, OFI, daily levels, polymarket,
+            funding stress, surprise index, VIX term, risk appetite, BTC risk-proxy.
           </p>
         </div>
         <Link
@@ -94,9 +93,9 @@ export default async function ConfluencePage() {
       </div>
 
       <p className="mt-4 text-xs text-[var(--color-text-muted)]">
-        Les scores ≥ 60 + écart ≥ 5 pts vs l&apos;autre direction donnent
-        une dominante non-neutre. Le nombre de confluences est le nombre
-        de drivers contribuant {`>|0.2|`} dans la direction dominante.
+        Les scores ≥ 60 + écart ≥ 5 pts vs l&apos;autre direction donnent une dominante non-neutre.
+        Le nombre de confluences est le nombre de drivers contribuant {`>|0.2|`} dans la direction
+        dominante.
       </p>
     </main>
   );
@@ -160,9 +159,7 @@ function ConfluenceRow({
       <td className="max-w-md truncate px-4 py-3 text-xs text-[var(--color-text-muted)]">
         {topDriver ? (
           <>
-            <span className="font-mono text-[var(--color-text-secondary)]">
-              {topDriver.factor}
-            </span>{" "}
+            <span className="font-mono text-[var(--color-text-secondary)]">{topDriver.factor}</span>{" "}
             <span
               className="font-mono"
               style={{

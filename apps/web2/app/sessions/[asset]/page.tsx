@@ -95,10 +95,7 @@ export default async function SessionAssetPage({ params }: PageProps) {
     }),
   ]);
   const apiOnline =
-    isLive(history) ||
-    isLive(calibration7d) ||
-    isLive(calibration30d) ||
-    isLive(calibration90d);
+    isLive(history) || isLive(calibration7d) || isLive(calibration30d) || isLive(calibration90d);
   const cardsCount = isLive(history) ? history.total : null;
   const liveBrier =
     isLive(calibration30d) && calibration30d.n_cards > 0 ? calibration30d.mean_brier : null;

@@ -1,6 +1,7 @@
 # Guide manuel de déploiement — diff session 2026-05-05
 
 Ce guide est conçu pour Eliot (débutant motivé). Chaque étape :
+
 - les **commandes exactes** à copier-coller
 - ce que tu dois **voir s'afficher**
 - ce qu'il faut faire **si ça échoue**
@@ -51,6 +52,7 @@ uv run mypy src
 ✅ Tu devrais voir : `Success: no issues found in N source files`.
 
 ❌ Si erreurs :
+
 - **Note les fichiers et lignes**
 - Ouvre une session Claude : `claude` puis colle le bloc d'erreurs avec "fix these mypy errors without changing behavior, only type annotations"
 - Re-run jusqu'à `Success`
@@ -64,6 +66,7 @@ uv run pytest -ra --cov=src --cov-report=term
 ✅ Tu devrais voir : `passed` sur la dernière ligne, **0 failed**, coverage ≥ 65 %.
 
 ❌ Si tests échouent :
+
 - **N'ignore pas** — c'est exactement ce qu'on veut catcher avant push
 - Pour les tests ML qui skippent (scipy/pandas absent) : OK, c'est attendu local
 - Pour les autres : `claude` → colle le test failure → "diagnose and fix"
@@ -95,6 +98,7 @@ pnpm build
 ❌ Si TypeScript errors : `claude` → colle l'erreur → "fix without changing behavior".
 
 **Cases à cocher avant l'étape 2** :
+
 - [ ] mypy apps/api : 0 erreur
 - [ ] pytest apps/api : 0 failure
 - [ ] pnpm typecheck apps/web2 : 0 erreur
@@ -220,6 +224,7 @@ gh run watch  # suit en temps réel
 ✅ Attendu : `node-lint`, `node-build`, `node-vitest`, `node-e2e`, `python-lint`, `python-types-tests`, `ansible-lint` tous verts.
 
 ❌ Si rouge :
+
 - `gh run view --log-failed` pour voir les erreurs
 - Le plus probable : un test apps/api qui passe local mais échoue en CI à cause de différences d'env
 - Ouvre une session Claude avec le log d'erreur, demande "fix this CI failure"
@@ -260,6 +265,7 @@ sudo -u ichor uv run alembic current
 ```
 
 ✅ Tu devrais voir :
+
 ```
 INFO  [alembic.runtime.migration] Running upgrade 0019 -> 0020, fx_ticks — Polygon Forex WebSocket quote ticks
 0020 (head)
@@ -306,6 +312,7 @@ sudo journalctl -u ichor-fx-stream -n 20 --no-pager
 ```
 
 ✅ Tu devrais voir :
+
 - `active (running)`
 - Logs : `polygon_fx_stream.subscribed` avec les 6 paires
 
@@ -322,6 +329,7 @@ sudo -u postgres psql ichor -c "SELECT count(*), max(ts) FROM fx_ticks WHERE ts 
 ❌ Si count = 0 après 5 min : les heures de marché FX peuvent être fermées (week-end). Re-tester en semaine.
 
 **Cases à cocher étape 4** :
+
 - [ ] git pull réussi
 - [ ] websockets dep installé
 - [ ] Migration 0020 appliquée
@@ -358,7 +366,7 @@ continue-on-error: ${{ matrix.package == 'apps/claude-runner' || matrix.package 
 # AVANT
 continue-on-error: ${{ matrix.package != 'apps/api' }}
 
-# APRÈS  
+# APRÈS
 continue-on-error: ${{ matrix.package == 'apps/claude-runner' || matrix.package == 'packages/shared-types' }}
 ```
 
@@ -463,6 +471,7 @@ git push
 ⚠️ **Sécurité** : ne committe JAMAIS ta clé privée dans le repo. GitHub Secrets l'encrypte côté GitHub, c'est sûr.
 
 **Cases à cocher Wave 7** :
+
 - [ ] Track A — OANDA token + account_id
 - [ ] Track B — FINRA client_id + client_secret
 - [ ] Track C — FlashAlpha key

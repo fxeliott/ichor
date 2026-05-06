@@ -14,40 +14,41 @@
 Couche-2 agents to route through the local Win11 claude-runner. The
 mapping it specified was:
 
-| Agent       | Model      | Effort   |
-| ----------- | ---------- | -------- |
-| CB-NLP      | Sonnet 4.6 | medium   |
-| News-NLP    | Sonnet 4.6 | medium   |
-| Macro       | Sonnet 4.6 | medium   |
-| Sentiment   | Haiku 4.5  | low      |
-| Positioning | Haiku 4.5  | low      |
+| Agent       | Model      | Effort |
+| ----------- | ---------- | ------ |
+| CB-NLP      | Sonnet 4.6 | medium |
+| News-NLP    | Sonnet 4.6 | medium |
+| Macro       | Sonnet 4.6 | medium |
+| Sentiment   | Haiku 4.5  | low    |
+| Positioning | Haiku 4.5  | low    |
 
 When the actual implementation landed (2026-05-06, [packages/agents/src/ichor_agents/claude_runner.py](../../packages/agents/src/ichor_agents/claude_runner.py)
-+ [fallback.py](../../packages/agents/src/ichor_agents/fallback.py)),
-end-to-end testing on Hetzner showed that the **Cloudflare Free tier
-imposes a 100-second hard timeout on tunneled requests**. The
-`claude-runner.fxmilyapp.com` tunnel sits on Free, and Sonnet medium
-on a 5 KB Couche-2 prompt routinely runs 60-120 s — past the cutoff
-~60 % of the time, surfacing as HTTP 524 from Cloudflare's edge.
+
+- [fallback.py](../../packages/agents/src/ichor_agents/fallback.py)),
+  end-to-end testing on Hetzner showed that the **Cloudflare Free tier
+  imposes a 100-second hard timeout on tunneled requests**. The
+  `claude-runner.fxmilyapp.com` tunnel sits on Free, and Sonnet medium
+  on a 5 KB Couche-2 prompt routinely runs 60-120 s — past the cutoff
+  ~60 % of the time, surfacing as HTTP 524 from Cloudflare's edge.
 
 Empirical numbers from the validation run (2026-05-06 01:43-01:55 UTC):
 
-| Model+Effort     | Cold prompt 5 KB | Tunnel verdict |
-| ---------------- | ---------------- | -------------- |
-| Sonnet medium    | 60 s - 130 s     | 524 if > 100 s |
-| Haiku low        | 18 s - 45 s      | always under   |
+| Model+Effort  | Cold prompt 5 KB | Tunnel verdict |
+| ------------- | ---------------- | -------------- |
+| Sonnet medium | 60 s - 130 s     | 524 if > 100 s |
+| Haiku low     | 18 s - 45 s      | always under   |
 
 ## Decision
 
 **All five Couche-2 agents route via Claude Haiku 4.5, effort `low`.**
 
-| Agent       | Model     | Effort | Why                                     |
-| ----------- | --------- | ------ | --------------------------------------- |
-| CB-NLP      | Haiku 4.5 | low    | 100 s tunnel cap                        |
-| News-NLP    | Haiku 4.5 | low    | 100 s tunnel cap                        |
-| Macro       | Haiku 4.5 | low    | 100 s tunnel cap                        |
-| Sentiment   | Haiku 4.5 | low    | unchanged (was already this combo)      |
-| Positioning | Haiku 4.5 | low    | unchanged (was already this combo)      |
+| Agent       | Model     | Effort | Why                                |
+| ----------- | --------- | ------ | ---------------------------------- |
+| CB-NLP      | Haiku 4.5 | low    | 100 s tunnel cap                   |
+| News-NLP    | Haiku 4.5 | low    | 100 s tunnel cap                   |
+| Macro       | Haiku 4.5 | low    | 100 s tunnel cap                   |
+| Sentiment   | Haiku 4.5 | low    | unchanged (was already this combo) |
+| Positioning | Haiku 4.5 | low    | unchanged (was already this combo) |
 
 Cerebras + Groq remain the transparent fallback per ADR-021.
 [apps/claude-runner/src/ichor_claude_runner/main.py:255](../../apps/claude-runner/src/ichor_claude_runner/main.py:255)

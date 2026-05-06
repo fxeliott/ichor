@@ -86,6 +86,10 @@ export default async function BriefingDetailPage({ params }: PageProps) {
         ) : null}
         {briefing.audio_mp3_url ? (
           <audio controls className="mt-4 w-full" src={briefing.audio_mp3_url}>
+            {/* No transcript available yet — captions wired in Phase C
+                with the briefing TTS pipeline. Empty track is required by
+                jsx-a11y/media-has-caption. */}
+            <track kind="captions" srcLang="fr" label="Briefing audio (transcript pending)" />
             Audio briefing — votre navigateur ne supporte pas l&apos;élément audio.
           </audio>
         ) : null}

@@ -24,13 +24,7 @@ import { apiGet, type MacroPulse } from "@/lib/api";
 const POLL_INTERVAL_MS = 15_000;
 
 /** Smooth-tween a numeric value between updates. */
-function AnimatedNumber({
-  value,
-  format,
-}: {
-  value: number;
-  format: (v: number) => string;
-}) {
+function AnimatedNumber({ value, format }: { value: number; format: (v: number) => string }) {
   const reduced = useReducedMotion();
   const spring = useSpring(value, reduced ? { duration: 0 } : { stiffness: 90, damping: 18 });
   const formatted = useTransform(spring, (v) => format(v));
@@ -108,12 +102,7 @@ export function LiveTicker() {
     <div className="flex flex-wrap items-center gap-x-6 gap-y-2 px-4 py-2 font-mono text-xs">
       <TickerCell
         label="VIX 1M"
-        value={
-          <AnimatedNumber
-            value={vixVal}
-            format={(v) => v.toFixed(2)}
-          />
-        }
+        value={<AnimatedNumber value={vixVal} format={(v) => v.toFixed(2)} />}
         accent={vixCol}
         sub={macro.vix_term.regime}
       />
@@ -137,10 +126,7 @@ export function LiveTicker() {
       <TickerCell
         label="Funding"
         value={
-          <AnimatedNumber
-            value={macro.funding_stress.stress_score}
-            format={(v) => v.toFixed(2)}
-          />
+          <AnimatedNumber value={macro.funding_stress.stress_score} format={(v) => v.toFixed(2)} />
         }
         accent={
           macro.funding_stress.stress_score < 0.3
@@ -149,7 +135,13 @@ export function LiveTicker() {
               ? "var(--color-text-muted)"
               : "var(--color-bear)"
         }
-        sub={macro.funding_stress.stress_score < 0.3 ? "calm" : macro.funding_stress.stress_score < 0.6 ? "watch" : "stress"}
+        sub={
+          macro.funding_stress.stress_score < 0.3
+            ? "calm"
+            : macro.funding_stress.stress_score < 0.6
+              ? "watch"
+              : "stress"
+        }
       />
       <TickerCell
         label="Curve"

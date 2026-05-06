@@ -37,10 +37,9 @@ export default async function HourlyVolPage({ params }: PageProps) {
   const slug = asset.toUpperCase();
   if (!SUPPORTED_ASSETS.has(slug)) notFound();
 
-  const report = await apiGet<HourlyVolOut>(
-    `/v1/hourly-volatility/${slug}?window_days=30`,
-    { revalidate: 300 },
-  );
+  const report = await apiGet<HourlyVolOut>(`/v1/hourly-volatility/${slug}?window_days=30`, {
+    revalidate: 300,
+  });
 
   return (
     <main className="container mx-auto max-w-5xl px-6 py-12">
@@ -49,7 +48,10 @@ export default async function HourlyVolPage({ params }: PageProps) {
           Accueil
         </Link>
         <span className="mx-2">/</span>
-        <Link href={`/sessions/${slug}`} className="hover:text-[var(--color-text-primary)] underline">
+        <Link
+          href={`/sessions/${slug}`}
+          className="hover:text-[var(--color-text-primary)] underline"
+        >
           {slug.replace(/_/g, "/")}
         </Link>
         <span className="mx-2">/</span>
@@ -64,8 +66,8 @@ export default async function HourlyVolPage({ params }: PageProps) {
           {slug.replace(/_/g, "/")}
         </h1>
         <p className="mt-2 max-w-2xl text-sm text-[var(--color-text-secondary)]">
-          Médiane du |log-rendement| par heure UTC sur 30 jours. Quand cet
-          actif bouge vraiment vs quand il dort.
+          Médiane du |log-rendement| par heure UTC sur 30 jours. Quand cet actif bouge vraiment vs
+          quand il dort.
         </p>
       </header>
 
@@ -202,8 +204,8 @@ function SessionAverages({ report }: { report: HourlyVolOut }) {
         ))}
       </div>
       <p className="mt-3 text-[11px] text-[var(--color-text-muted)]">
-        1 bp = 0.01 % de variation moyenne par bar 1-min. Des moyennes
-        élevées sur la session Londres/NY confirment la fenêtre de trading.
+        1 bp = 0.01 % de variation moyenne par bar 1-min. Des moyennes élevées sur la session
+        Londres/NY confirment la fenêtre de trading.
       </p>
     </section>
   );

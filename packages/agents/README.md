@@ -20,14 +20,14 @@ Routing decisions :
   Couche-2 → Haiku 4.5 effort=low (CF Free tunnel 100 s edge cap
   rules out Sonnet medium for the time being).
 
-| Agent        | Primary model       | Fallback chain         | Cadence                  | Layer        |
-| ------------ | ------------------- | ---------------------- | ------------------------ | ------------ |
-| Macro        | Claude Haiku 4.5    | Cerebras → Groq        | every 4h offset +75 min  | Couche 2     |
-| CB-NLP       | Claude Haiku 4.5    | Cerebras → Groq        | every 4h offset +15 min  | Couche 2     |
-| News-NLP     | Claude Haiku 4.5    | Cerebras → Groq        | every 4h offset +45 min  | Couche 2     |
-| Sentiment    | Claude Haiku 4.5    | Cerebras → Groq HV     | every 6h offset +30 min  | Couche 2     |
-| Positioning  | Claude Haiku 4.5    | Cerebras → Groq HV     | every 6h offset +90 min  | Couche 2     |
-| Critic       | (in `critic/`)      | local Pydantic AI Agent (no runner) | per session-card  | Couche 1 gate |
+| Agent       | Primary model    | Fallback chain                      | Cadence                 | Layer         |
+| ----------- | ---------------- | ----------------------------------- | ----------------------- | ------------- |
+| Macro       | Claude Haiku 4.5 | Cerebras → Groq                     | every 4h offset +75 min | Couche 2      |
+| CB-NLP      | Claude Haiku 4.5 | Cerebras → Groq                     | every 4h offset +15 min | Couche 2      |
+| News-NLP    | Claude Haiku 4.5 | Cerebras → Groq                     | every 4h offset +45 min | Couche 2      |
+| Sentiment   | Claude Haiku 4.5 | Cerebras → Groq HV                  | every 6h offset +30 min | Couche 2      |
+| Positioning | Claude Haiku 4.5 | Cerebras → Groq HV                  | every 6h offset +90 min | Couche 2      |
+| Critic      | (in `critic/`)   | local Pydantic AI Agent (no runner) | per session-card        | Couche 1 gate |
 
 The 5 Couche-2 agents share the `FallbackChain` adapter
 (`fallback.py`). When `claude=ClaudeRunnerConfig.from_env()` is set,
@@ -45,9 +45,9 @@ edge timeout) fails fast — retrying would hit the same wall.
 
 Couche-2 calls go through `apps/claude-runner`:
 
-  `POST /v1/agent-task`
-  Body: `{ system, prompt, model, effort }` →
-  Response: `{ status, output_text, raw_claude_json, duration_ms }`
+`POST /v1/agent-task`
+Body: `{ system, prompt, model, effort }` →
+Response: `{ status, output_text, raw_claude_json, duration_ms }`
 
 The adapter injects the JSON Schema of the agent's `output_type`
 into the prompt tail so Claude returns valid `MacroAgentOutput` /

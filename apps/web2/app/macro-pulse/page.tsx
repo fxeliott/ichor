@@ -252,11 +252,7 @@ export default async function MacroPulsePage() {
   );
 }
 
-function CrossAssetHeatmapSection({
-  liveHeatmap,
-}: {
-  liveHeatmap: CrossAssetHeatmap | null;
-}) {
+function CrossAssetHeatmapSection({ liveHeatmap }: { liveHeatmap: CrossAssetHeatmap | null }) {
   // Use live API data when available ; fall back to the seed (CROSS_ASSET)
   // when the heatmap endpoint is offline OR returns rows with all-null
   // cells (cold-start, FRED collector lagging).

@@ -4,7 +4,7 @@
 
 Continuation of the 2026-05-05 marathon. Audit revealed
 `n_couche2_outputs_7d = 0` in `/v1/admin/pipeline-health` despite 5
-ichor-couche2-* timers being active on Hetzner. Mission for this
+ichor-couche2-\* timers being active on Hetzner. Mission for this
 session : root-cause + close the loop end-to-end so Couche-2 actually
 emits structured Pydantic outputs into `couche2_outputs`.
 
@@ -15,8 +15,9 @@ API keys).
 ## Root causes uncovered (2 distinct bugs in series)
 
 ### Bug 1 — Ghost-env systemd unit
+
 `scripts/hetzner/register-cron-couche2.sh` was the only one of 38
-ichor-* unit files that referenced `/dev/shm/ichor-secrets.env` and
+ichor-\* unit files that referenced `/dev/shm/ichor-secrets.env` and
 `/usr/local/bin/ichor-decrypt-secrets` — a tmpfs-encrypted secrets
 design that was never deployed. All 5 Couche-2 services failed at
 ExecStartPre with "No such file or directory" before Python even ran.
@@ -26,6 +27,7 @@ the other 38 services use ; redeployed via SSH. Services now reach
 Python.
 
 ### Bug 2 — ADR-021 was a paper ADR
+
 [ADR-021](decisions/ADR-021-couche2-via-claude-not-fallback.md) stated
 Claude is primary for Couche-2, but the implementation in
 `packages/agents/src/ichor_agents/agents/*.py` only ever constructed
@@ -39,14 +41,16 @@ because no API keys were ever provisioned for the fallbacks either.
 ## What shipped this session
 
 ### `apps/claude-runner` — new endpoint
+
 - `POST /v1/agent-task` — generic Claude single-shot for Couche-2.
   Body : `{system, prompt, model, effort}`. Reuses the same rate
   limiter and subprocess semaphore as `/v1/briefing-task` so all
   traffic shares one Max 20x quota envelope.
   ([main.py:255-355](../apps/claude-runner/src/ichor_claude_runner/main.py:255),
-   [models.py:62-110](../apps/claude-runner/src/ichor_claude_runner/models.py:62))
+  [models.py:62-110](../apps/claude-runner/src/ichor_claude_runner/models.py:62))
 
 ### `packages/agents` — Claude adapter + chain rewiring
+
 - New module `claude_runner.py` :
   `ClaudeRunnerConfig` + `call_agent_task` adapter, with
   - JSON-fence stripping
@@ -65,11 +69,13 @@ because no API keys were ever provisioned for the fallbacks either.
   primary.
 
 ### `apps/api/src/ichor_api/cli/run_couche2_agent.py`
+
 - `model_used` now reads `chain.last_success` instead of hard-coding
   `providers[0]`. Pre-2026-05-06 this lied whenever Claude (now
   primary) was used.
 
 ### Tests
+
 - `packages/agents/tests/test_claude_runner.py` — 15 new tests
   (config, schema-hint, retry-on-503, fallback wiring).
 - `apps/claude-runner/tests/test_agent_task_endpoint.py` — 4 new tests
@@ -78,6 +84,7 @@ because no API keys were ever provisioned for the fallbacks either.
   tests.
 
 ### `docs/decisions/ADR-023`
+
 [ADR-023](decisions/ADR-023-couche2-haiku-not-sonnet-on-free-cf-tunnel.md)
 documents the Sonnet → Haiku downgrade for Couche-2. Empirical
 finding : Free-tier Cloudflare Tunnel imposes 100 s edge timeout ;
@@ -89,13 +96,13 @@ default-mapping table of ADR-021.
 
 Manual triggers of all 5 Couche-2 services :
 
-| Agent       | model_used    | payload chars | Status |
-| ----------- | ------------- | ------------- | ------ |
-| macro       | claude:haiku  | 1444          | OK     |
-| cb_nlp      | claude:haiku  | 3537          | OK     |
-| news_nlp    | claude:haiku  | 1804          | OK     |
-| sentiment   | claude:haiku  | 308           | OK     |
-| positioning | claude:haiku  | 1148          | OK     |
+| Agent       | model_used   | payload chars | Status |
+| ----------- | ------------ | ------------- | ------ |
+| macro       | claude:haiku | 1444          | OK     |
+| cb_nlp      | claude:haiku | 3537          | OK     |
+| news_nlp    | claude:haiku | 1804          | OK     |
+| sentiment   | claude:haiku | 308           | OK     |
+| positioning | claude:haiku | 1148          | OK     |
 
 `couche2_outputs` is now alive. The 24/7 Couche-2 timers (registered
 2026-05-05, schedule in `register-cron-couche2.sh`) will pick up the
@@ -116,7 +123,7 @@ correct flow on their next firing without further intervention.
 - The Cloudflare Tunnel ingress points to port 8766 (managed
   remotely on the Cloudflare side, not the local `config.yml`).
   Verified by inspecting the cloudflared log : `Updated to new
-  configuration ... service: http://localhost:8766`.
+configuration ... service: http://localhost:8766`.
 
 ## Security note flagged for a future sprint
 

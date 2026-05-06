@@ -143,9 +143,7 @@ export default async function TodayPage() {
   const apiOnline = bundleOnline || calOnline || ffOnline;
   const triggers: Trigger[] = merged.length > 0 ? merged : MOCK_TRIGGERS;
   const eventsCount = apiOnline ? merged.length : null;
-  const topSessions: TodaySessionPreview[] | null = bundleOnline
-    ? bundle.top_sessions
-    : null;
+  const topSessions: TodaySessionPreview[] | null = bundleOnline ? bundle.top_sessions : null;
 
   return (
     <div className="container mx-auto max-w-6xl px-6 py-12">
@@ -214,10 +212,7 @@ function LiveSessionCard({
   const ideas = session.ideas;
   const drivers = session.confluence_drivers;
   const confluenceScore = drivers
-    ? Math.max(
-        0,
-        Math.min(10, 5 + drivers.reduce((s, d) => s + d.contribution * 5, 0)),
-      )
+    ? Math.max(0, Math.min(10, 5 + drivers.reduce((s, d) => s + d.contribution * 5, 0)))
     : 5.0;
   return (
     <SessionCard

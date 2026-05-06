@@ -65,13 +65,13 @@ and the persisted `session_card_audit` row :
 
 Five surgical fixes, all shipped in a single sprint :
 
-| Bug | Fix | File |
-|---|---|---|
-| 1 | `SessionType = Literal["pre_londres", "pre_ny", "ny_mid", "ny_close", "event_driven"]` | `packages/ichor_brain/src/ichor_brain/types.py:20` |
-| 2 | `_VALID_SESSIONS` extended to match `run_session_cards_batch.py:54` | `apps/api/src/ichor_api/cli/run_session_card.py:30` |
-| 3 | New migration drops + recreates the CHECK with the 5-value set | `apps/api/migrations/versions/0027_session_type_extend_ny.py` |
-| 4 | Exponential-backoff retry envelope (5/15/45 s) on HTTP 503/429; 524 fails fast | `packages/ichor_brain/src/ichor_brain/runner_client.py:103-160` |
-| 5 | `bar_ts` → `bar_date` (with `.date()` coercion on the cutoff) in 2 services | `services/analogues.py`, `services/ml_signals.py` |
+| Bug | Fix                                                                                    | File                                                            |
+| --- | -------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| 1   | `SessionType = Literal["pre_londres", "pre_ny", "ny_mid", "ny_close", "event_driven"]` | `packages/ichor_brain/src/ichor_brain/types.py:20`              |
+| 2   | `_VALID_SESSIONS` extended to match `run_session_cards_batch.py:54`                    | `apps/api/src/ichor_api/cli/run_session_card.py:30`             |
+| 3   | New migration drops + recreates the CHECK with the 5-value set                         | `apps/api/migrations/versions/0027_session_type_extend_ny.py`   |
+| 4   | Exponential-backoff retry envelope (5/15/45 s) on HTTP 503/429; 524 fails fast         | `packages/ichor_brain/src/ichor_brain/runner_client.py:103-160` |
+| 5   | `bar_ts` → `bar_date` (with `.date()` coercion on the cutoff) in 2 services            | `services/analogues.py`, `services/ml_signals.py`               |
 
 Five tests added to
 `packages/ichor_brain/tests/test_runner_client_retry.py` covering :
