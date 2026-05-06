@@ -2,8 +2,15 @@
 # Python workspaces (apps/api, apps/claude-runner, packages/agents,
 # packages/ml, packages/shared-types) use uv per-package and are not
 # part of pnpm.
+#
+# 2026-05-06 — `apps/web` was removed from this workspace as part of
+# the D.3 sprint (ADR-018 frontend rebuild). All 6 routes that lived
+# only in apps/web were ported to apps/web2 (sessions index,
+# briefings/[id], hourly-volatility/[asset], assets/[code], confluence,
+# confluence/history). The apps/web directory remains on disk as a
+# read-only reference until Phase C completes the design-system port ;
+# it no longer receives pnpm install / build / dependabot updates.
 packages:
-  - "apps/web"
   - "apps/web2"
   - "packages/ui"
 

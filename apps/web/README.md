@@ -1,13 +1,27 @@
-# `apps/web` — Ichor dashboard
+# `apps/web` — Ichor dashboard (DEPRECATED)
 
-Next.js 15 + Tailwind v4 + shadcn/ui + lightweight-charts v5.2 + motion v12.
+> **DEPRECATED 2026-05-06** — replaced by [`apps/web2`](../web2/) (ADR-018).
+>
+> The 6 routes that lived only here (`/sessions` index,
+> `/briefings/[id]`, `/hourly-volatility/[asset]`, `/assets/[code]`,
+> `/confluence`, `/confluence/history`) were ported to `apps/web2`
+> during the D.3 sprint of 2026-05-06. This package is no longer part
+> of the pnpm workspace (see `pnpm-workspace.yaml`) and stops receiving
+> tooling, dependabot, or CI runs from now on.
+>
+> The directory is kept on disk as a read-only reference for design
+> tokens / Tailwind class patterns until Phase C completes the design
+> system port. Once Phase C ships, this directory will be moved to
+> `archive/2026-05-XX-web1-decommissioned/`.
+
+## Historical context (Next.js 15 + Tailwind v4 + shadcn/ui + lightweight-charts v5.2 + motion v12)
 
 Deployed to Cloudflare Pages on `app-ichor.pages.dev` during Phase 0
 (domain `ichor.app` deferred — see `docs/decisions/ADR-002`).
 
-## Phase 0 status
+### Phase 0 status (frozen 2026-05-06)
 
-🚧 Skeleton only. Real implementation Phase 0 Week 4 (steps 25-32).
+🛑 Decommissioned. Phase 0 dashboard work continues in `apps/web2`.
 
 ## Stack rationale (verified 2026-05-02)
 
