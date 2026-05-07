@@ -46,8 +46,17 @@ for (const { path, label } of PIVOT_ROUTES) {
   });
 }
 
+/** Minimal axe violation shape — narrow type kept local so we don't pull
+ * the @axe-core/playwright types into the spec import surface. */
+type AxeViolation = {
+  id: string;
+  impact?: string | null;
+  description?: string;
+  helpUrl?: string;
+};
+
 /** Pretty-printer used in the assertion message — Playwright dumps it on failure. */
-function formatViolations(violations: ReturnType<typeof noopViolations>): string {
+function formatViolations(violations: AxeViolation[]): string {
   if (!violations || violations.length === 0) return "";
   return [
     "axe violations on pivot route:",
@@ -57,10 +66,4 @@ function formatViolations(violations: ReturnType<typeof noopViolations>): string
         (v.helpUrl ? ` (${v.helpUrl})` : "")
     ),
   ].join("\n");
-}
-
-// Type-safe helper so we don't import the axe types at the call site —
-// keeps the import surface symmetric with the fixture.
-function noopViolations(): never[] {
-  return [];
 }
