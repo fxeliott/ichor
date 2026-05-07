@@ -368,6 +368,27 @@ PLAN_ALERTS: tuple[AlertDef, ...] = (
         ),
     ),
     AlertDef(
+        "YIELD_CURVE_INVERSION_DEEP",
+        "warning",
+        "Yield curve deep inversion T10Y2Y={value:+.2f}%",
+        "t10y2y_spread_pct",
+        -0.50,
+        "below",
+        description=(
+            "Detects deep inversion of 10y - 2y Treasury spread (FRED:T10Y2Y). "
+            "Threshold -0.50 pp (= -50 bps) per NY Fed + academic literature. "
+            "Historically: every inversion since 1976 preceded a US recession "
+            "(except 1998 false signal), median lag ~14 months (range 6-24). "
+            "2022-2024 inversion (-108 bps trough, 25 months) is the SECOND "
+            "deepest in FRED series — not yet followed by recession (anomaly). "
+            "Magnitude doesn't predict severity (-19 bps in 2006 -> GFC ; "
+            "-240 bps in 1980 -> brief recession). Counterintuitive : recessions "
+            "tend to begin AFTER un-inversion, not during inversion. v2 sister "
+            "alert can detect un-inversion event. Source: FRED:T10Y2Y. "
+            "Cf services/yield_curve_inversion_check.py + ADR-046."
+        ),
+    ),
+    AlertDef(
         "VIX_TERM_INVERSION",
         "warning",
         "VIX term backwardation ratio={value:.4f}",
@@ -558,8 +579,8 @@ def get_alert_def(code: str) -> AlertDef:
 
 
 def assert_catalog_complete() -> None:
-    """Sanity check at startup: total = 48 alerts, all unique codes."""
+    """Sanity check at startup: total = 49 alerts, all unique codes."""
     codes = [a.code for a in ALL_ALERTS]
     assert len(codes) == len(set(codes)), f"Duplicate alert codes: {codes}"
-    assert len(ALL_ALERTS) == 48, f"Expected 48 alerts, got {len(ALL_ALERTS)}"
+    assert len(ALL_ALERTS) == 49, f"Expected 49 alerts, got {len(ALL_ALERTS)}"
     assert len(CRISIS_TRIGGERS) >= 5, f"Expected ≥5 crisis triggers, got {len(CRISIS_TRIGGERS)}"
