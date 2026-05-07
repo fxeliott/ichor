@@ -42,6 +42,49 @@ export async function apiGet<T>(path: string, opts: ApiFetchOptions = {}): Promi
   }
 }
 
+/**
+ * POST/PUT/DELETE wrapper. Returns the parsed response body on 2xx,
+ * `null` on any error. Caller is responsible for picking the right
+ * `method`. Used by mutation client components (e.g. /journal).
+ *
+ * NB: client-side fetch — this hits the SAME-origin proxy (Next route
+ * `/api/[...path]/proxy`) when called from the browser, NOT the
+ * Hetzner backend directly (CORS would block it). When called from a
+ * Server Action it goes straight to API_BASE.
+ */
+export async function apiMutate<TRes, TBody = unknown>(
+  path: string,
+  body: TBody,
+  opts: { method?: "POST" | "PUT" | "PATCH" | "DELETE"; baseUrl?: string } = {}
+): Promise<TRes | null> {
+  // Client-side calls go through the same-origin proxy (next.config
+  // rewrites /v1/*). Server-side calls use API_BASE directly.
+  const isBrowser = typeof window !== "undefined";
+  const base = opts.baseUrl ?? (isBrowser ? "" : API_BASE);
+  const url = path.startsWith("http") ? path : `${base}${path}`;
+  const method = opts.method ?? "POST";
+
+  try {
+    const res = await fetch(url, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: method === "DELETE" ? undefined : JSON.stringify(body),
+      cache: "no-store",
+    });
+    if (!res.ok) {
+      console.warn(`[api] ${method} ${url} → ${res.status} ${res.statusText}`);
+      return null;
+    }
+    if (res.status === 204) return null; // No Content
+    return (await res.json()) as TRes;
+  } catch (err) {
+    console.warn(
+      `[api] ${method} ${url} → network error: ${err instanceof Error ? err.message : err}`
+    );
+    return null;
+  }
+}
+
 // ─────────────────────── Response shapes (subset) ───────────────────────
 // Mirrors apps/api/src/ichor_api/schemas.py.
 // Keep narrow: only fields actually consumed by frontend pages.

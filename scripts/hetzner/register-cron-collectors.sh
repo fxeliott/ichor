@@ -47,7 +47,7 @@ declare -A SCHEDULES=(
 # timeout. Other collectors stay at the default 120 s.
 
 for collector in "${!SCHEDULES[@]}"; do
-  cat > /etc/systemd/system/ichor-collector-${collector}.timer <<EOF
+  cat > /etc/systemd/system/ichor-collector-"${collector}".timer <<EOF
 [Unit]
 Description=Ichor collector trigger (${collector})
 
@@ -65,7 +65,7 @@ done
 systemctl daemon-reload
 
 for collector in "${!SCHEDULES[@]}"; do
-  systemctl enable --now ichor-collector-${collector}.timer
+  systemctl enable --now ichor-collector-"${collector}".timer
 done
 
 echo "=== Installed collector timers ==="
@@ -74,5 +74,5 @@ systemctl list-timers --no-pager | grep ichor-collector || true
 echo ""
 echo "Next runs:"
 for collector in "${!SCHEDULES[@]}"; do
-  systemctl list-timers ichor-collector-${collector}.timer --no-pager 2>&1 | tail -2 | head -1
+  systemctl list-timers ichor-collector-"${collector}".timer --no-pager 2>&1 | tail -2 | head -1
 done
