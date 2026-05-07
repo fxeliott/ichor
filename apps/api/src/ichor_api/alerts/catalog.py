@@ -198,6 +198,24 @@ PLAN_ALERTS: tuple[AlertDef, ...] = (
         ),
     ),
     AlertDef(
+        "TARIFF_SHOCK",
+        "warning",
+        "Burst narrative tarif count_z={value:+.2f}",
+        "tariff_count_z",
+        2.0,
+        "above",
+        description=(
+            "GDELT 2.0 article-burst detector on tariff narrative (tariff, trade war, "
+            "Section 301/232/122, IEEPA, USTR, protectionism, reciprocal tariff, ART "
+            "program, Liberation Day, etc). Combined gate: today's article count "
+            "z-score >= 2.0 AGAINST trailing 30d daily-count baseline AND avg(tone) "
+            "<= -1.5. Macro-broad (USD/CNH, USD/MXN, EUR/USD, gold, equity risk "
+            "premia react). 2026 context: post-SCOTUS Learning Resources v Trump, "
+            "Section 301 wave (76 simultaneous investigations, March 2026). Source: "
+            "gdelt:tariff_filter. Cf services/tariff_shock_check.py + ADR-037."
+        ),
+    ),
+    AlertDef(
         "COT_NET_FLIP", "warning", "COT positionnement net flip {asset}", "cot_net_z", 2.0, "above"
     ),
     AlertDef(
@@ -365,8 +383,8 @@ def get_alert_def(code: str) -> AlertDef:
 
 
 def assert_catalog_complete() -> None:
-    """Sanity check at startup: total = 38 alerts, all unique codes."""
+    """Sanity check at startup: total = 39 alerts, all unique codes."""
     codes = [a.code for a in ALL_ALERTS]
     assert len(codes) == len(set(codes)), f"Duplicate alert codes: {codes}"
-    assert len(ALL_ALERTS) == 38, f"Expected 38 alerts, got {len(ALL_ALERTS)}"
+    assert len(ALL_ALERTS) == 39, f"Expected 39 alerts, got {len(ALL_ALERTS)}"
     assert len(CRISIS_TRIGGERS) >= 5, f"Expected ≥5 crisis triggers, got {len(CRISIS_TRIGGERS)}"
