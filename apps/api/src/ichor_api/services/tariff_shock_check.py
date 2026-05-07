@@ -58,8 +58,15 @@ from .alerts_runner import check_metric
 # `industrial` / `industry`. We apply a strict Python regex post-filter
 # with word boundaries to reject those false positives before counting.
 #
-# List built from 2026 macro research (SCOTUS Learning Resources v Trump,
-# USTR Section 301 wave, Section 122 BOP, IEEPA pivot, ART program).
+# List built from 2026 macro research :
+#   - SCOTUS Learning Resources v Trump (2026-02-20) — IEEPA pivot
+#   - USTR Section 301 wave (76 simultaneous investigations, March 2026)
+#   - Section 122 BOP 10% surcharge (expires 2026-07-24)
+#   - Section 321 de minimis exemption ended Aug 2025 / postal Feb 2026
+#   - CFIUS inbound investment review (foreign-control acquisitions)
+#   - E.O. 14105 + COINS Act NDAA FY2026 outbound investment regime
+#   - BIS Entity List enforcement
+#   - BIOSECURE Act (China biotech outbound)
 TARIFF_KEYWORDS: tuple[str, ...] = (
     "tariff",
     "trade war",
@@ -67,6 +74,7 @@ TARIFF_KEYWORDS: tuple[str, ...] = (
     "section 301",
     "section 232",
     "section 122",
+    "section 321",  # de minimis exemption (Tariff Act 1930)
     "ustr",
     "protectionism",
     "reciprocal tariff",
@@ -77,12 +85,17 @@ TARIFF_KEYWORDS: tuple[str, ...] = (
     "trade dispute",
     "trade tension",
     "trade barrier",
+    "de minimis",  # Section 321 exemption end (Aug 2025 / Feb 2026 postal)
+    "cfius",  # Committee on Foreign Investment in the US
+    "outbound investment",  # E.O. 14105 / COINS Act
+    "entity list",  # BIS Entity List
+    "biosecure",  # BIOSECURE Act (China biotech outbound)
 )
 
 # Strict regex post-filter — applied in Python AFTER the SQL ILIKE
 # pre-filter to reject substring-collision false positives. Each pattern
-# uses word boundaries (\b) where appropriate. Acronyms (USTR, IEEPA)
-# are case-SENSITIVE because the lowercase form only appears inside
+# uses word boundaries (\b) where appropriate. Acronyms (USTR, IEEPA,
+# CFIUS) are case-SENSITIVE because the lowercase form only appears inside
 # longer words ("industrial", "ieep ASSAS" etc) — never as standalone
 # tokens in news copy.
 _TARIFF_PATTERNS: tuple[re.Pattern[str], ...] = (
@@ -91,6 +104,7 @@ _TARIFF_PATTERNS: tuple[re.Pattern[str], ...] = (
     re.compile(r"\bsection 301\b", re.IGNORECASE),
     re.compile(r"\bsection 232\b", re.IGNORECASE),
     re.compile(r"\bsection 122\b", re.IGNORECASE),
+    re.compile(r"\bsection 321\b", re.IGNORECASE),
     re.compile(r"\bUSTR\b"),  # case-SENSITIVE — `ustr` inside `industrial` is a false positive
     re.compile(r"\bprotectionism\b", re.IGNORECASE),
     re.compile(r"\breciprocal tariff", re.IGNORECASE),  # + plural
@@ -101,6 +115,11 @@ _TARIFF_PATTERNS: tuple[re.Pattern[str], ...] = (
     re.compile(r"\btrade dispute", re.IGNORECASE),
     re.compile(r"\btrade tension", re.IGNORECASE),
     re.compile(r"\btrade barrier", re.IGNORECASE),
+    re.compile(r"\bde minimis\b", re.IGNORECASE),  # Section 321 exemption end
+    re.compile(r"\bCFIUS\b"),  # case-SENSITIVE acronym
+    re.compile(r"\boutbound investment", re.IGNORECASE),  # E.O. 14105 / COINS Act
+    re.compile(r"\bentity list\b", re.IGNORECASE),  # BIS Entity List
+    re.compile(r"\bBIOSECURE\b", re.IGNORECASE),  # BIOSECURE Act
 )
 
 

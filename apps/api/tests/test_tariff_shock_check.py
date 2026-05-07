@@ -284,15 +284,71 @@ def test_dataclass_shape():
 
 
 def test_tariff_keywords_includes_2026_macro_terms():
-    """The 2026 tariff regime hinges on Section 301, IEEPA, and Section
-    122 — verify those are in the filter list (post-SCOTUS Learning
-    Resources v Trump pivot)."""
+    """The 2026 tariff regime hinges on Section 301, IEEPA, Section 122,
+    de minimis, CFIUS, outbound investment, entity list — verify those
+    are in the filter list (post-SCOTUS Learning Resources v Trump pivot
+    + COINS Act FY2026 NDAA + Section 321 exemption end Aug 2025)."""
     keywords = set(svc.TARIFF_KEYWORDS)
+    # Original 2026 macro context (PR #25)
     assert "section 301" in keywords
     assert "ieepa" in keywords
     assert "section 122" in keywords
     assert "ustr" in keywords
     assert "tariff" in keywords
+    # Expansion (this PR) — capital-flow + de minimis vectors
+    assert "section 321" in keywords
+    assert "de minimis" in keywords
+    assert "cfius" in keywords
+    assert "outbound investment" in keywords
+    assert "entity list" in keywords
+    assert "biosecure" in keywords
+
+
+def test_title_matches_tariff_accepts_expansion_keywords():
+    """The 5 new keywords (Section 321 / de minimis / CFIUS / outbound
+    investment / entity list / BIOSECURE) MUST trigger the regex
+    post-filter on legitimate-context titles."""
+    # Section 321 / de minimis (Trump 2025-2026 exemption end)
+    assert svc._title_matches_tariff("Section 321 de minimis exemption ended August 2025")
+    assert svc._title_matches_tariff(
+        "Postal de minimis transition starts February 28, 2026"
+    )
+    # CFIUS (inbound investment review)
+    assert svc._title_matches_tariff(
+        "CFIUS blocks Chinese acquisition of semiconductor maker"
+    )
+    # Outbound investment / E.O. 14105 / COINS Act
+    assert svc._title_matches_tariff(
+        "Treasury Final Rule on outbound investment program takes effect Jan 2026"
+    )
+    assert svc._title_matches_tariff(
+        "Outbound Investment restrictions tighten under COINS Act"
+    )
+    # Entity List
+    assert svc._title_matches_tariff(
+        "BIS adds 11 Chinese entities to Entity List for AI chip diversion"
+    )
+    # BIOSECURE Act
+    assert svc._title_matches_tariff("BIOSECURE Act passes House, targets WuXi AppTec")
+
+
+def test_title_matches_tariff_rejects_expansion_keyword_collisions():
+    """Word-boundary regex must reject substring collisions on the new
+    keywords too — guard against future regressions."""
+    # `cfius` should not match `cfiusa` or `cfius-style` if not a separate token
+    # ↳ \bCFIUS\b case-sensitive ensures only standalone CFIUS matches
+    assert not svc._title_matches_tariff(
+        "Industrial production index rises in March data"
+    )
+    # `de minimis` requires both words — partial should not match
+    assert not svc._title_matches_tariff(
+        "Some other minimis-style threshold considered"
+    )
+    # `outbound investment` must be the phrase — single words don't match
+    assert not svc._title_matches_tariff("Outbound flights resumed yesterday")
+    assert not svc._title_matches_tariff("Investment grade bonds rallied")
+    # `entity list` requires both words
+    assert not svc._title_matches_tariff("List of entities removed from review")
 
 
 def test_title_matches_tariff_rejects_substring_collisions():
