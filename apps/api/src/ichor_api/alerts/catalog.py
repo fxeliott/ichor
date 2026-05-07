@@ -125,6 +125,21 @@ PLAN_ALERTS: tuple[AlertDef, ...] = (
     ),
     AlertDef("ECB_TONE_SHIFT", "warning", "BCE ton shift {value:+.2f}", "ecb_tone_z", 1.5, "above"),
     AlertDef(
+        "DATA_SURPRISE_Z",
+        "warning",
+        "Surprise macro {asset} z={value:+.2f}",
+        "data_surprise_z",
+        2.0,
+        "above",
+        description=(
+            "Citi-style Eco Surprise proxy : (last - rolling_mean_24) / rolling_std_24 "
+            "on key US macro releases (PAYEMS, UNRATE, CPIAUCSL, PCEPI, INDPRO, GDPC1). "
+            "Polarity-corrected so positive = positive economic surprise. UNRATE is "
+            "inverted. Fires when |z| >= 2.0 on any constituent series, source-stamped "
+            "FRED:<series_id>. Cf services/surprise_index.py + ADR-033."
+        ),
+    ),
+    AlertDef(
         "COT_NET_FLIP", "warning", "COT positionnement net flip {asset}", "cot_net_z", 2.0, "above"
     ),
     AlertDef(
@@ -292,8 +307,8 @@ def get_alert_def(code: str) -> AlertDef:
 
 
 def assert_catalog_complete() -> None:
-    """Sanity check at startup: total = 33 alerts, all unique codes."""
+    """Sanity check at startup: total = 34 alerts, all unique codes."""
     codes = [a.code for a in ALL_ALERTS]
     assert len(codes) == len(set(codes)), f"Duplicate alert codes: {codes}"
-    assert len(ALL_ALERTS) == 33, f"Expected 33 alerts, got {len(ALL_ALERTS)}"
+    assert len(ALL_ALERTS) == 34, f"Expected 34 alerts, got {len(ALL_ALERTS)}"
     assert len(CRISIS_TRIGGERS) >= 5, f"Expected ≥5 crisis triggers, got {len(CRISIS_TRIGGERS)}"
