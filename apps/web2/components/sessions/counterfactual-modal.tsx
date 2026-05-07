@@ -1,24 +1,23 @@
 "use client";
 
 /**
- * CounterfactualModal — Pass 5 counterfactual exploration UI (Phase B.5a scaffold).
+ * CounterfactualModal — Pass 5 counterfactual exploration UI (Phase B.5a v2).
  *
  * Pipeline: `packages/ichor_brain/src/ichor_brain/passes/counterfactual.py`
- * + table `session_card_counterfactuals` exist server-side. This component is
- * the trader-facing surface — "what would have happened if regime quadrant
- * had been X instead of Y?".
+ * + table `session_card_counterfactuals` exist server-side. This component
+ * is the trader-facing surface — "what would have happened if X had been
+ * scrubbed from the picture?".
  *
- * V1 scope (this scaffold):
- *  - Modal (Radix Dialog wrapper) keyed off the session_card_audit.id.
- *  - Display 1-2 counterfactual passes, side-by-side with the actual card.
- *  - Mock data when /v1/counterfactual?session_card_id=X returns null
- *    (typical: counterfactual hasn't been computed for older cards yet).
- *  - Read-only — no recompute button (the weekly cron does that).
+ * V2 wiring (this file):
+ *  - When `sessionCardId` is non-null → POST /v1/sessions/{id}/counterfactual
+ *    with the trader's scrubbed_event prompt.
+ *  - Loading state + error state + offline fallback to MOCK_BRANCHES.
+ *  - Persists 1 most recent computation per session card in component
+ *    state (no localStorage — these are computed values, not user notes).
  *
- * V2 (next session):
- *  - Real fetch to /v1/counterfactual endpoint.
- *  - Tree view of branching scenarios.
- *  - "Copy thesis as text" for journal cross-reference.
+ * V3 (next session):
+ *  - Multi-branch tree view (chained scrubs).
+ *  - "Copy thesis as text" → integration with /journal.
  *  - Brier-tracked counterfactual prob delta, color-coded.
  *
  * Why a modal not a route: counterfactuals are a drill-down ON a card,
@@ -28,6 +27,7 @@
 
 import * as Dialog from "@radix-ui/react-dialog";
 import { useState } from "react";
+import { apiMutate } from "@/lib/api";
 
 interface Props {
   /** Session card audit id; null when card is mock-only. */
@@ -43,6 +43,22 @@ interface CounterfactualBranch {
   thesis: string;
   conviction: number;
   delta_pp: number;
+  drivers?: string[];
+}
+
+interface CounterfactualResponse {
+  session_card_id: string;
+  asset: string;
+  original_generated_at: string;
+  original_bias: string;
+  original_conviction_pct: number;
+  asked_at: string;
+  scrubbed_event: string;
+  counterfactual_bias: string;
+  counterfactual_conviction_pct: number;
+  delta_narrative: string;
+  new_dominant_drivers: string[];
+  confidence_delta: number;
 }
 
 const MOCK_BRANCHES: CounterfactualBranch[] = [
@@ -62,8 +78,51 @@ const MOCK_BRANCHES: CounterfactualBranch[] = [
   },
 ];
 
+const PROMPT_SUGGESTIONS = [
+  "If the ECB had stayed neutral",
+  "If DXY had broken above 106",
+  "If real yields had reversed +20bps",
+  "If regime had been haven_bid",
+];
+
 export function CounterfactualModal({ sessionCardId, asset, session, actualThesis }: Props) {
   const [open, setOpen] = useState(false);
+  const [scrubInput, setScrubInput] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [computed, setComputed] = useState<CounterfactualBranch[]>([]);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  async function compute() {
+    if (!scrubInput.trim() || !sessionCardId || busy) return;
+    setBusy(true);
+    setErrorMsg(null);
+    try {
+      const result = await apiMutate<CounterfactualResponse, { scrubbed_event: string }>(
+        `/v1/sessions/${sessionCardId}/counterfactual`,
+        { scrubbed_event: scrubInput.trim() },
+      );
+      if (!result) {
+        setErrorMsg(
+          "API offline ou Pass 5 indisponible — affichage des branches mock à titre indicatif.",
+        );
+        return;
+      }
+      const branch: CounterfactualBranch = {
+        label: scrubInput.trim(),
+        thesis: result.delta_narrative,
+        conviction: Math.round(result.counterfactual_conviction_pct),
+        delta_pp: Math.round(result.counterfactual_conviction_pct - result.original_conviction_pct),
+        drivers: result.new_dominant_drivers,
+      };
+      setComputed((prev) => [branch, ...prev].slice(0, 5));
+      setScrubInput("");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const branchesToShow = computed.length > 0 ? computed : MOCK_BRANCHES;
+  const isMock = computed.length === 0;
 
   return (
     <Dialog.Root open={open} onOpenChange={setOpen}>
@@ -80,11 +139,11 @@ export function CounterfactualModal({ sessionCardId, asset, session, actualThesi
 
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
-        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[min(90vw,720px)] max-h-[85vh] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-6 shadow-2xl focus:outline-none">
+        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 max-h-[85vh] w-[min(90vw,720px)] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-6 shadow-2xl focus:outline-none">
           <Dialog.Title className="font-mono text-xs uppercase tracking-widest text-[var(--color-text-muted)]">
             Counterfactual · Pass 5
           </Dialog.Title>
-          <Dialog.Description className="mt-1 mb-4 text-sm text-[var(--color-text-secondary)]">
+          <Dialog.Description className="mb-4 mt-1 text-sm text-[var(--color-text-secondary)]">
             Branches alternatives pour <span className="font-mono">{asset}</span> ·{" "}
             <span className="font-mono">{session}</span>
             {sessionCardId ? (
@@ -93,10 +152,61 @@ export function CounterfactualModal({ sessionCardId, asset, session, actualThesi
               </span>
             ) : (
               <span className="ml-2 font-mono text-[10px] text-[var(--color-text-muted)]">
-                (mock — endpoint /v1/counterfactual non câblé)
+                (carte mock — Pass 5 désactivé)
               </span>
             )}
           </Dialog.Description>
+
+          {sessionCardId ? (
+            <section
+              aria-label="Compute counterfactual"
+              className="mb-4 rounded-md border border-[var(--color-border-subtle)] bg-[var(--color-bg-elevated)]/40 p-3"
+            >
+              <label
+                htmlFor="scrub-event"
+                className="mb-1 block font-mono text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]"
+              >
+                Évènement à retirer (scrub) — Claude raisonnera sans
+              </label>
+              <textarea
+                id="scrub-event"
+                value={scrubInput}
+                onChange={(e) => setScrubInput(e.target.value)}
+                rows={2}
+                placeholder="Ex: If the ECB hawkish tone had not happened…"
+                className="w-full rounded border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)] px-2 py-1 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:border-[var(--color-accent-cobalt)] focus:outline-none"
+                maxLength={500}
+              />
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={compute}
+                  disabled={!scrubInput.trim() || busy}
+                  className="rounded border border-[var(--color-border-default)] bg-[var(--color-bg-elevated)] px-3 py-1 font-mono text-[11px] uppercase tracking-widest text-[var(--color-text-primary)] transition-colors hover:border-[var(--color-accent-cobalt)] hover:text-[var(--color-accent-cobalt)] disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {busy ? "Pass 5 en cours…" : "Compute (Pass 5)"}
+                </button>
+                {PROMPT_SUGGESTIONS.map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => setScrubInput(s)}
+                    className="rounded border border-[var(--color-border-subtle)] px-2 py-1 font-mono text-[10px] uppercase tracking-widest text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text-primary)]"
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+              {errorMsg ? (
+                <p
+                  aria-live="polite"
+                  className="mt-2 font-mono text-[10px] text-[var(--color-warn)]"
+                >
+                  {errorMsg}
+                </p>
+              ) : null}
+            </section>
+          ) : null}
 
           {actualThesis ? (
             <section
@@ -111,7 +221,7 @@ export function CounterfactualModal({ sessionCardId, asset, session, actualThesi
           ) : null}
 
           <ol className="space-y-3">
-            {MOCK_BRANCHES.map((b, i) => (
+            {branchesToShow.map((b, i) => (
               <li
                 key={i}
                 className="rounded-md border border-[var(--color-border-subtle)] bg-[var(--color-bg-elevated)]/30 p-3"
@@ -131,13 +241,26 @@ export function CounterfactualModal({ sessionCardId, asset, session, actualThesi
                   </span>
                 </p>
                 <p className="text-sm text-[var(--color-text-secondary)]">{b.thesis}</p>
+                {b.drivers && b.drivers.length > 0 ? (
+                  <ul className="mt-2 flex flex-wrap gap-1 font-mono text-[10px] text-[var(--color-text-muted)]">
+                    {b.drivers.slice(0, 5).map((d) => (
+                      <li
+                        key={d}
+                        className="rounded border border-[var(--color-border-subtle)] bg-[var(--color-bg-elevated)] px-1.5 py-0.5"
+                      >
+                        {d}
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
               </li>
             ))}
           </ol>
 
           <p className="mt-4 font-mono text-[10px] text-[var(--color-text-muted)]">
-            Counterfactuals computed by `passes/counterfactual.py` weekly cron; data câblage backend
-            Phase B.5a v2.
+            {isMock
+              ? "Branches mock affichées — saisis un scrubbed_event ci-dessus pour déclencher Pass 5 réel."
+              : `${computed.length} branche(s) computed via Pass 5 (Voie D, model=haiku low).`}
           </p>
 
           <Dialog.Close asChild>

@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, JetBrains_Mono, Fraunces } from "next/font/google";
 
+import { RegimeAmbientProvider } from "@/components/ambient/regime-ambient-provider";
 import { CommandPalette } from "@/components/cmdk/command-palette";
 import { MotionProvider } from "@/components/motion/motion-provider";
 import { TopNav } from "@/components/nav/top-nav";
@@ -79,20 +80,25 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           Aller au contenu principal
         </a>
         <MotionProvider>
-          {/* EU AI Act Article 50 §1 + §5 — permanent AI disclosure (not dismissible). */}
-          <AIDisclosureBanner />
-          {/* Phase A.9.4 — global navigation between 41 routes (was previously
+          {/* Phase C QW1 — global macro regime quadrant ambient tint
+              (data-regime attribute set on <html> from a zustand store
+              persisted in localStorage). */}
+          <RegimeAmbientProvider>
+            {/* EU AI Act Article 50 §1 + §5 — permanent AI disclosure (not dismissible). */}
+            <AIDisclosureBanner />
+            {/* Phase A.9.4 — global navigation between 41 routes (was previously
               missing entirely — only the WCAG skip link bridged routes). */}
-          <TopNav />
-          <main id="main" className="relative">
-            {children}
-          </main>
-          {/* Phase A.9.5 — global Cmd+K palette (Bloomberg-style nav flow). */}
-          <CommandPalette />
-          {/* Phase A.9.3 — sonner-backed global toast surface. */}
-          <Toaster />
-          {/* AMF DOC-2008-23 + MiFID 2 + EU AI Act §50 §4 boundary statement. */}
-          <LegalFooter />
+            <TopNav />
+            <main id="main" className="relative">
+              {children}
+            </main>
+            {/* Phase A.9.5 — global Cmd+K palette (Bloomberg-style nav flow). */}
+            <CommandPalette />
+            {/* Phase A.9.3 — sonner-backed global toast surface. */}
+            <Toaster />
+            {/* AMF DOC-2008-23 + MiFID 2 + EU AI Act §50 §4 boundary statement. */}
+            <LegalFooter />
+          </RegimeAmbientProvider>
         </MotionProvider>
       </body>
     </html>

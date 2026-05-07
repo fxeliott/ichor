@@ -55,7 +55,7 @@ export async function apiGet<T>(path: string, opts: ApiFetchOptions = {}): Promi
 export async function apiMutate<TRes, TBody = unknown>(
   path: string,
   body: TBody,
-  opts: { method?: "POST" | "PUT" | "PATCH" | "DELETE"; baseUrl?: string } = {}
+  opts: { method?: "POST" | "PUT" | "PATCH" | "DELETE"; baseUrl?: string } = {},
 ): Promise<TRes | null> {
   // Client-side calls go through the same-origin proxy (next.config
   // rewrites /v1/*). Server-side calls use API_BASE directly.
@@ -68,7 +68,7 @@ export async function apiMutate<TRes, TBody = unknown>(
     const res = await fetch(url, {
       method,
       headers: { "Content-Type": "application/json" },
-      body: method === "DELETE" ? undefined : JSON.stringify(body),
+      body: method === "DELETE" ? null : JSON.stringify(body),
       cache: "no-store",
     });
     if (!res.ok) {
@@ -79,7 +79,7 @@ export async function apiMutate<TRes, TBody = unknown>(
     return (await res.json()) as TRes;
   } catch (err) {
     console.warn(
-      `[api] ${method} ${url} → network error: ${err instanceof Error ? err.message : err}`
+      `[api] ${method} ${url} → network error: ${err instanceof Error ? err.message : err}`,
     );
     return null;
   }
