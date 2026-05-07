@@ -326,6 +326,28 @@ PLAN_ALERTS: tuple[AlertDef, ...] = (
         ),
     ),
     AlertDef(
+        "DOLLAR_SMILE_BREAK",
+        "warning",
+        "Dollar smile broken — US-driven instability ({value:.0f}/4)",
+        "dollar_smile_conditions_met",
+        4,
+        "above",
+        description=(
+            "Detects the 'broken smile' / 'crooked smile' / 'US-driven "
+            "instability' regime that classic Dollar Smile (Stephen Jen 2001) "
+            "doesn't handle. 4-condition AND gate: term_premium_z > +2 "
+            "(fiscal stress) AND dxy_z < -1 (USD weakening) AND vix_z < +1 "
+            "(not panic — distinguishes from classic LEFT smile) AND "
+            "hy_oas_z < +1 (no credit stress — distinguishes from funding "
+            "stress). When all 4 align: US itself becomes source of "
+            "instability, safe-haven bid evaporates, $26T unhedged foreign "
+            "USD assets create exit loop. Per Stephen Jen Bloomberg "
+            "2025-11-12 + Wellington 'Crooked Smile' April 2025 + Eurizon "
+            "SLJ Capital 2026 outlook. Source: FRED:THREEFYTP10+DTWEXBGS+"
+            "VIXCLS+BAMLH0A0HYM2. Cf services/dollar_smile_check.py + ADR-043."
+        ),
+    ),
+    AlertDef(
         "COT_NET_FLIP", "warning", "COT positionnement net flip {asset}", "cot_net_z", 2.0, "above"
     ),
     AlertDef(
@@ -493,8 +515,8 @@ def get_alert_def(code: str) -> AlertDef:
 
 
 def assert_catalog_complete() -> None:
-    """Sanity check at startup: total = 45 alerts, all unique codes."""
+    """Sanity check at startup: total = 46 alerts, all unique codes."""
     codes = [a.code for a in ALL_ALERTS]
     assert len(codes) == len(set(codes)), f"Duplicate alert codes: {codes}"
-    assert len(ALL_ALERTS) == 45, f"Expected 45 alerts, got {len(ALL_ALERTS)}"
+    assert len(ALL_ALERTS) == 46, f"Expected 46 alerts, got {len(ALL_ALERTS)}"
     assert len(CRISIS_TRIGGERS) >= 5, f"Expected ≥5 crisis triggers, got {len(CRISIS_TRIGGERS)}"
