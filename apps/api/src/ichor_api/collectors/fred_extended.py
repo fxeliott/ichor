@@ -34,6 +34,14 @@ EXTENDED_SERIES_TO_POLL: tuple[str, ...] = (
     "DFII5",  # 5Y TIPS real yield
     "DFII10",  # 10Y TIPS real yield (PRIMARY gold driver)
     "DFII30",  # 30Y TIPS real yield
+    # ─── Term premium (Phase E.2 / ADR-041) ───
+    # Kim-Wright model term premium on 10Y zero-coupon Treasury.
+    # NB: FRED hosts the KW model under THREEFYTP10 ; the strict ACM
+    # series (Adrian-Crump-Moench) lives on the NY Fed website only.
+    # Per Federal Reserve note 2017-04-03, KW and ACM agree to within
+    # bps once survey-rate-expectations are matched. We use KW because
+    # it's free, daily, and FRED-hosted.
+    "THREEFYTP10",
     # ─── Inflation expectations ───
     "T5YIE",  # 5Y breakeven inflation
     "T10YIE",  # 10Y breakeven inflation
