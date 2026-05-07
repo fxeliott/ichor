@@ -43,6 +43,7 @@ ROADMAP D.5.b. ADR-037.
 from __future__ import annotations
 
 import math
+import re
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, timedelta
 
@@ -52,12 +53,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..models import GdeltEvent
 from .alerts_runner import check_metric
 
-# Tariff narrative keywords. Case-insensitive substring match against
-# gdelt_events.title. List built from 2026 macro research (SCOTUS
-# Learning Resources v Trump, USTR Section 301 wave, Section 122 BOP,
-# IEEPA pivot, ART program). Keep terms broad enough to catch news
-# variation across English-language outlets ("import duty" / "import
-# duties" / "duties" alone).
+# Tariff narrative keywords (SQL pre-filter shortlist). ILIKE %kw% in
+# Postgres is permissive and over-fetches : e.g. `ustr` matches inside
+# `industrial` / `industry`. We apply a strict Python regex post-filter
+# with word boundaries to reject those false positives before counting.
+#
+# List built from 2026 macro research (SCOTUS Learning Resources v Trump,
+# USTR Section 301 wave, Section 122 BOP, IEEPA pivot, ART program).
 TARIFF_KEYWORDS: tuple[str, ...] = (
     "tariff",
     "trade war",
@@ -76,6 +78,38 @@ TARIFF_KEYWORDS: tuple[str, ...] = (
     "trade tension",
     "trade barrier",
 )
+
+# Strict regex post-filter — applied in Python AFTER the SQL ILIKE
+# pre-filter to reject substring-collision false positives. Each pattern
+# uses word boundaries (\b) where appropriate. Acronyms (USTR, IEEPA)
+# are case-SENSITIVE because the lowercase form only appears inside
+# longer words ("industrial", "ieep ASSAS" etc) — never as standalone
+# tokens in news copy.
+_TARIFF_PATTERNS: tuple[re.Pattern[str], ...] = (
+    re.compile(r"\btariff", re.IGNORECASE),  # tariff, tariffs, tariff-related
+    re.compile(r"\btrade[ -]war", re.IGNORECASE),  # trade war, trade-war, trade-warring
+    re.compile(r"\bsection 301\b", re.IGNORECASE),
+    re.compile(r"\bsection 232\b", re.IGNORECASE),
+    re.compile(r"\bsection 122\b", re.IGNORECASE),
+    re.compile(r"\bUSTR\b"),  # case-SENSITIVE — `ustr` inside `industrial` is a false positive
+    re.compile(r"\bprotectionism\b", re.IGNORECASE),
+    re.compile(r"\breciprocal tariff", re.IGNORECASE),  # + plural
+    re.compile(r"\bIEEPA\b"),  # case-SENSITIVE
+    re.compile(r"\bART program\b"),  # case-SENSITIVE — `art program` collides with `smart program` etc
+    re.compile(r"\bLiberation Day\b", re.IGNORECASE),
+    re.compile(r"\bimport (?:duty|duties)\b", re.IGNORECASE),
+    re.compile(r"\btrade dispute", re.IGNORECASE),
+    re.compile(r"\btrade tension", re.IGNORECASE),
+    re.compile(r"\btrade barrier", re.IGNORECASE),
+)
+
+
+def _title_matches_tariff(title: str) -> bool:
+    """Strict regex check : title contains ANY tariff pattern with proper
+    word boundaries. Used as Python post-filter after the permissive SQL
+    ILIKE pre-fetch — rejects substring-collision false positives like
+    `ustr` matching `industrial`."""
+    return any(p.search(title) for p in _TARIFF_PATTERNS)
 
 # Trailing distribution length for the count z-score.
 COUNT_ZSCORE_WINDOW_DAYS = 30
@@ -142,8 +176,11 @@ async def _fetch_tariff_articles(
     keyword (case-insensitive). Returns (seendate, title, tone) tuples
     oldest-first.
 
-    The filter is applied in SQL (OR of ILIKE patterns) so we don't ship
-    the full 30d article volume into Python only to filter.
+    Two-stage filter :
+      1. SQL ILIKE on TARIFF_KEYWORDS — permissive pre-fetch (catches
+         everything we might want, including some substring collisions)
+      2. Python regex on _TARIFF_PATTERNS — strict word-boundary check
+         that rejects false positives like `ustr` matching `industrial`
     """
     cutoff = datetime.now(UTC) - timedelta(days=days)
     filters = or_(*(GdeltEvent.title.ilike(f"%{kw}%") for kw in TARIFF_KEYWORDS))
@@ -153,7 +190,12 @@ async def _fetch_tariff_articles(
         .order_by(GdeltEvent.seendate.asc())
     )
     rows = (await session.execute(stmt)).all()
-    return [(r[0], r[1], float(r[2])) for r in rows]
+    # Strict Python post-filter to reject substring-collision false positives
+    return [
+        (r[0], r[1], float(r[2]))
+        for r in rows
+        if _title_matches_tariff(r[1])
+    ]
 
 
 def _bucket_by_day(
@@ -285,6 +327,7 @@ async def evaluate_tariff_shock(
                 "n_articles_today": n_today,
                 "title_sample": today_titles,
                 "tariff_keywords_used": list(TARIFF_KEYWORDS),
+                "tariff_patterns_used": [p.pattern for p in _TARIFF_PATTERNS],
                 "source": "gdelt:tariff_filter",
             },
         )

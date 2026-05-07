@@ -293,3 +293,50 @@ def test_tariff_keywords_includes_2026_macro_terms():
     assert "section 122" in keywords
     assert "ustr" in keywords
     assert "tariff" in keywords
+
+
+def test_title_matches_tariff_rejects_substring_collisions():
+    """The original SQL-only filter false-positives on `ustr` inside
+    `industrial`/`industry`/`industrie`. The Python post-filter MUST
+    reject those."""
+    # False positives — ustr appears as substring inside other words
+    assert not svc._title_matches_tariff(
+        "U.S. Cement Industry Economic Forecast Reflects War with Iran"
+    )
+    assert not svc._title_matches_tariff("ACT Govt Workers Vote For Industrial Action")
+    assert not svc._title_matches_tariff(
+        "India Auto Industry Faces Risks from Middle East Conflict After Record Sales"
+    )
+    assert not svc._title_matches_tariff(
+        "Trawell Co., risultati 2025 in linea con il piano industriale"
+    )
+    # `art program` should not match `smart program` / `start programme`
+    assert not svc._title_matches_tariff("New smart program launched in Q3")
+    assert not svc._title_matches_tariff("Restart programmed for next quarter")
+
+
+def test_title_matches_tariff_accepts_legit_tariff_titles():
+    """Real tariff news SHOULD match."""
+    assert svc._title_matches_tariff("Trump tariffs hit China steel exports")
+    assert svc._title_matches_tariff("USTR Launches Section 301 Investigation Against EU")
+    assert svc._title_matches_tariff(
+        "Trade war escalates as Beijing retaliates with reciprocal tariffs"
+    )
+    assert svc._title_matches_tariff("IEEPA pivot: Section 122 BOP surcharge takes effect")
+    assert svc._title_matches_tariff("Liberation Day tariff anniversary marks one year")
+    assert svc._title_matches_tariff("New import duties announced on Mexican avocados")
+    assert svc._title_matches_tariff("Import duty hike to 25% on Chinese EVs")
+    assert svc._title_matches_tariff("ART program signed with India this morning")
+    assert svc._title_matches_tariff("US protectionism reaches new heights in Q2 2026")
+    assert svc._title_matches_tariff("Trade-war risk premium spikes on US10Y")
+
+
+def test_title_matches_tariff_case_sensitivity_for_acronyms():
+    """USTR / IEEPA / ART program are case-SENSITIVE in the regex —
+    the lowercase form only appears as substring inside other words."""
+    # Uppercase acronym form — must match
+    assert svc._title_matches_tariff("USTR statement on Section 301")
+    assert svc._title_matches_tariff("IEEPA invalidation upheld by SCOTUS")
+    # Lowercase substring form — must NOT match
+    assert not svc._title_matches_tariff("Industrial output up 2% in March")
+    assert not svc._title_matches_tariff("ieepa-style overreach criticized in editorial")
