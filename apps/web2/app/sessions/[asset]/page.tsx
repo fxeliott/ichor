@@ -16,6 +16,9 @@ import {
   type CrossAssetItem,
   type Driver,
 } from "@/components/ui";
+import { CounterfactualModal } from "@/components/sessions/counterfactual-modal";
+import { PinButton } from "@/components/sessions/pin-button";
+import { SessionTabs } from "@/components/sessions/session-tabs";
 import { apiGet, isLive, type CalibrationSummary, type SessionCardList } from "@/lib/api";
 
 const SUPPORTED_ASSETS = [
@@ -123,7 +126,7 @@ export default async function SessionAssetPage({ params }: PageProps) {
   return (
     <div className="container mx-auto max-w-7xl px-6 py-12">
       <Header display={display} slug={slug} apiOnline={apiOnline} cardsCount={cardsCount} />
-      <div className="grid gap-8 lg:grid-cols-[1fr_320px]">
+      <div className="grid gap-8 lg:grid-cols-[1fr_320px]" id="section-top">
         <main className="space-y-8">
           <SessionCard
             asset={display}
@@ -202,7 +205,7 @@ export default async function SessionAssetPage({ params }: PageProps) {
 
         <aside className="space-y-6">
           <RegimeAside />
-          <SessionTabs activeTab="overview" />
+          <SessionTabs asset={slug} />
           <AnaloguesPreview />
         </aside>
       </div>
@@ -217,7 +220,7 @@ function Header({
   cardsCount,
 }: {
   display: string;
-  slug: string;
+  slug: AssetSlug;
   apiOnline: boolean;
   cardsCount: number | null;
 }) {
@@ -248,6 +251,14 @@ function Header({
             {slug.toLowerCase()}
           </span>
         </h1>
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <PinButton asset={slug} />
+          <CounterfactualModal
+            sessionCardId={null}
+            asset={slug}
+            session="london"
+          />
+        </div>
       </div>
       <BiasIndicator bias="bull" value={1.42} unit="%" size="lg" withGlow />
     </header>
@@ -273,7 +284,10 @@ function MechanismsSection() {
     },
   ];
   return (
-    <section className="rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-6 shadow-[var(--shadow-sm)]">
+    <section
+      id="section-mechanisms"
+      className="rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-6 shadow-[var(--shadow-sm)]"
+    >
       <h2 className="mb-4 font-mono text-xs uppercase tracking-widest text-[var(--color-text-muted)]">
         Mechanisms · how this thesis transmits to the price
       </h2>
@@ -397,33 +411,6 @@ function RegimeAside() {
         Risk-on · désinflation modérée
       </p>
     </div>
-  );
-}
-
-function SessionTabs({ activeTab }: { activeTab: string }) {
-  const tabs = ["overview", "chart", "sources", "scenarios", "notes"];
-  return (
-    <nav
-      aria-label="Section tabs"
-      className="rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-2"
-    >
-      <ul className="flex flex-col gap-0.5">
-        {tabs.map((t) => (
-          <li key={t}>
-            <button
-              type="button"
-              className="block w-full rounded px-3 py-1.5 text-left font-mono text-xs uppercase tracking-widest transition-colors"
-              style={{
-                color: t === activeTab ? "var(--color-text-primary)" : "var(--color-text-muted)",
-                background: t === activeTab ? "var(--color-bg-elevated)" : "transparent",
-              }}
-            >
-              {t}
-            </button>
-          </li>
-        ))}
-      </ul>
-    </nav>
   );
 }
 
