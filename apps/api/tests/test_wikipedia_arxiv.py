@@ -2,19 +2,16 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date
 
 from ichor_api.collectors.arxiv_qfin import (
-    WATCHED_CATEGORIES,
     parse_arxiv_response,
     supported_categories,
 )
 from ichor_api.collectors.wikipedia_pageviews import (
-    WATCHED_ARTICLES,
     parse_pageviews_response,
     supported_articles,
 )
-
 
 # ── Wikipedia ────────────────────────────────────────────────────────
 

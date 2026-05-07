@@ -66,7 +66,7 @@ _FACTOR_NAMES: tuple[str, ...] = (
 def _equal_weights() -> dict[str, float]:
     n = len(_FACTOR_NAMES)
     w = 1.0 / n
-    return {name: w for name in _FACTOR_NAMES}
+    return dict.fromkeys(_FACTOR_NAMES, w)
 
 
 async def _aggregate_brier(

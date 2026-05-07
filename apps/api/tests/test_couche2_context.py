@@ -12,7 +12,6 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-
 from ichor_api.services.couche2_context import (
     Couche2Context,
     _truncate,
@@ -23,7 +22,6 @@ from ichor_api.services.couche2_context import (
     build_positioning_context,
     build_sentiment_context,
 )
-
 
 # ── helpers ─────────────────────────────────────────────────────────
 

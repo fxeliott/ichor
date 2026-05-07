@@ -5,10 +5,9 @@ from __future__ import annotations
 from unittest.mock import AsyncMock
 
 import pytest
-
 from ichor_api.services.csp_middleware import (
-    CSPSecurityHeadersMiddleware,
     _BASE_HEADERS,
+    CSPSecurityHeadersMiddleware,
     _build_csp,
 )
 

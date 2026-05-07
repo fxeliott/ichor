@@ -114,12 +114,14 @@ metadata is necessary but not sufficient.
 ## Implementation
 
 Code already shipped in commit `19f2a68` :
+
 - `apps/web2/components/ui/ai-disclosure-banner.tsx` (NEW)
 - `apps/web2/components/ui/legal-footer.tsx` (NEW)
 - `apps/web2/app/layout.tsx` (banner + footer mounted)
 - `apps/web2/app/methodology/page.tsx` (disclosure depth target)
 
 Verified at 2026-05-06 :
+
 - Banner visible on every route
 - Footer visible at scroll bottom of every route
 - Names Claude Opus 4.7 (model identifier per EU CoP marking spec)

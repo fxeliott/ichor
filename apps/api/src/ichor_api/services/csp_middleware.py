@@ -38,7 +38,6 @@ References:
 from __future__ import annotations
 
 import secrets
-from collections.abc import Awaitable, Callable
 from typing import Any
 
 # Static security headers — precomputed once at module load to keep

@@ -31,7 +31,6 @@ from ichor_agents.agents import (
     make_sentiment_chain,
 )
 
-
 # ── chain construction smoke ────────────────────────────────────────
 
 

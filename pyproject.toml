@@ -61,11 +61,36 @@ ignore = [
     "RUF012",  # mutable class default (1 site, intentional cache)
     "RUF100",  # unused noqa — flagged after auto-fix sometimes ; remove later
     "B008",    # FastAPI canonical pattern: `param: T = Depends(provider)`
+    # Phase A.1 followup tracker — rules reactivated incrementally as
+    # the legacy code is rewritten:
+    "ASYNC230", # blocking open() in async fn ; legacy CLI runners use sync IO
+    "RUF005",   # tuple/list concat ; codebase prefers + for tuple builders
+    "RUF059",   # unused unpacked variable ; legacy pattern in collector returns
+    "S314",     # xml stdlib used in places where input is trusted (Atom feeds
+                # from arxiv/Wikipedia have known schema). Migration to
+                # defusedxml is partial — completed in collectors/arxiv_qfin
+                # but services/* still pending.
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**/*.py" = ["S101", "S105", "S106"]
+# Tests use `assert` (S101), can hardcode credential-shaped strings
+# (S105/S106 are false-positive on test fixtures), can deliberately
+# assert against blind Exception (B017 — sometimes the test asserts
+# that *anything* raised, ergonomic for protocol-fuzzing tests).
+# Glob covers both `tests/<file>.py` AND `tests/<dir>/<file>.py` from
+# any package root.
+"**/tests/*.py" = ["S101", "S105", "S106", "B017", "F841", "B007", "DTZ001", "PIE810"]
+"**/tests/**/*.py" = ["S101", "S105", "S106", "B017", "F841", "B007", "DTZ001", "PIE810"]
+"tests/*.py" = ["S101", "S105", "S106", "B017", "F841", "B007", "DTZ001", "PIE810"]
+"tests/**/*.py" = ["S101", "S105", "S106", "B017", "F841", "B007", "DTZ001", "PIE810"]
 "**/conftest.py" = ["S101"]
+# Cross-package imports of audit_log/csp/rate_limit middleware happen
+# AFTER all standard imports — circular-import avoidance, justified.
+"**/main.py" = ["E402"]
+# CLI runners do conditional imports based on get_args() resolution
+# of typing.Literal — same pattern as ADR-031 SessionType derivation.
+"**/run_session_card.py" = ["E402"]
+"**/run_session_cards_batch.py" = ["E402"]
 
 [tool.ruff.format]
 quote-style = "double"

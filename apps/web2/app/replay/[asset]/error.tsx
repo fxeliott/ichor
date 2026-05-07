@@ -43,7 +43,9 @@ export default function ReplayError({ error, reset }: Props) {
         .
       </p>
       {error.digest ? (
-        <p className="font-mono text-xs text-[var(--color-text-tertiary)]">digest: {error.digest}</p>
+        <p className="font-mono text-xs text-[var(--color-text-tertiary)]">
+          digest: {error.digest}
+        </p>
       ) : null}
       <div className="mt-2 flex gap-3">
         <button

@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
-
 from ichor_api.services.analogue_library import supported_archetype_ids
 
 
@@ -93,9 +92,8 @@ def test_archetypes_distinct_shapes() -> None:
 
 @_skip_no_ml
 def test_dtw_matcher_finds_self_match_distance_zero() -> None:
-    from ichor_ml.analogues.dtw import DTWAnalogueMatcher
-
     from ichor_api.services.analogue_library import build_archetype_library
+    from ichor_ml.analogues.dtw import DTWAnalogueMatcher
 
     lib = build_archetype_library()
     matcher = DTWAnalogueMatcher(lib)
@@ -107,9 +105,8 @@ def test_dtw_matcher_finds_self_match_distance_zero() -> None:
 
 @_skip_no_ml
 def test_dtw_matcher_distinguishes_calm_from_panic() -> None:
-    from ichor_ml.analogues.dtw import DTWAnalogueMatcher
-
     from ichor_api.services.analogue_library import build_archetype_library
+    from ichor_ml.analogues.dtw import DTWAnalogueMatcher
 
     lib = build_archetype_library()
     matcher = DTWAnalogueMatcher(lib)

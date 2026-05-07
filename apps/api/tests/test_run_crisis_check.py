@@ -11,7 +11,6 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-
 from ichor_api.cli.run_crisis_check import (
     _CRISIS_ACTIVE_CODE,
     _CRISIS_RESOLVED_CODE,

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-
 from ichor_api.cli.run_prediction_outlier import _LOOKBACK_DAYS, _MIN_OBS
 
 

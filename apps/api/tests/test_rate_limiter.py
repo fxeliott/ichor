@@ -9,7 +9,6 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-
 from ichor_api.services.rate_limiter import (
     PER_ROUTE_LIMITS,
     RateLimitMiddleware,

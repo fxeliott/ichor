@@ -10,7 +10,6 @@ return canned JSON. Verifies:
 
 from __future__ import annotations
 
-import asyncio
 from collections.abc import Iterator
 
 import pytest
@@ -94,7 +93,7 @@ def test_agent_task_timeout(client, monkeypatch) -> None:
     from ichor_claude_runner import main as main_mod
 
     async def fake_run_claude(prompt: str, **kw):
-        raise asyncio.TimeoutError()
+        raise TimeoutError()
 
     monkeypatch.setattr(main_mod, "run_claude", fake_run_claude)
 

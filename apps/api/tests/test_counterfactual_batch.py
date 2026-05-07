@@ -3,10 +3,9 @@
 from __future__ import annotations
 
 import pytest
-
 from ichor_api.cli.run_counterfactual_batch import (
-    ASSETS,
     _DEFAULT_SCRUB,
+    ASSETS,
     _pick_scrub_event,
 )
 

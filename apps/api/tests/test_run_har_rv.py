@@ -3,14 +3,11 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from types import SimpleNamespace
-
-import pytest
 
 from ichor_api.cli.run_har_rv import (
-    WATCHED_ASSETS,
     _LOOKBACK_DAYS,
     _MIN_DAYS_FOR_FIT,
+    WATCHED_ASSETS,
     _daily_rv_from_bars,
 )
 

@@ -63,7 +63,7 @@ def _plateau(level: float, jitter: float = 0.5, n: int = 28, seed: int = 7) -> n
 # ── Library ─────────────────────────────────────────────────────────
 
 
-def build_archetype_library() -> "list[HistoricalEvent]":
+def build_archetype_library() -> list[HistoricalEvent]:
     """Return 8 archetypes encoding the canonical macro-stress shapes.
 
     Patterns are pre-z-scored so DTWAnalogueMatcher's distance compares

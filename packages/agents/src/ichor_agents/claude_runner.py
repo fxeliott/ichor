@@ -81,7 +81,7 @@ class ClaudeRunnerConfig:
         model: str = "sonnet",
         effort: str = "medium",
         timeout_sec: float = 300.0,
-    ) -> "ClaudeRunnerConfig | None":
+    ) -> ClaudeRunnerConfig | None:
         url = (os.environ.get("ICHOR_API_CLAUDE_RUNNER_URL") or "").strip()
         if not url:
             return None
@@ -186,7 +186,7 @@ async def call_agent_task(
     last_error: str | None = None
     body: dict | None = None
     async with httpx.AsyncClient(timeout=cfg.timeout_sec) as client:
-        for attempt, delay in enumerate(((0.0,) + backoff)):
+        for attempt, delay in enumerate((0.0,) + backoff):
             if delay > 0:
                 await asyncio.sleep(delay)
             try:

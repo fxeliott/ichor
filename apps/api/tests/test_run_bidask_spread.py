@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-
 from ichor_api.cli.run_bidask_spread_check import (
     _BASELINE_HOURS,
     _PIP_MULTIPLIER,

@@ -22,6 +22,7 @@ from .cot_position import CotPosition
 # Phase 2
 from .couche2_output import Couche2Output
 from .economic_event import EconomicEvent
+from .finra_short_volume import FinraShortVolume
 
 # Phase 1 Living Macro Entity collectors
 from .fred_observation import FredObservation
@@ -39,9 +40,11 @@ from .polygon_intraday import PolygonIntradayBar
 from .polymarket_snapshot import PolymarketSnapshot
 from .post_mortem import PostMortem
 from .prediction import Prediction
-from .finra_short_volume import FinraShortVolume
 from .session_card_audit import SessionCardAudit
 from .session_card_counterfactual import SessionCardCounterfactual
+
+# Phase B.5d v2 — trader's private journal (out of ADR-017 boundary)
+from .trader_note import TraderNote
 
 __all__ = [
     "Alert",
@@ -73,4 +76,5 @@ __all__ = [
     "Prediction",
     "SessionCardAudit",
     "SessionCardCounterfactual",
+    "TraderNote",
 ]

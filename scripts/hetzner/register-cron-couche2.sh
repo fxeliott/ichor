@@ -55,7 +55,7 @@ declare -A SCHEDULES=(
 )
 
 for kind in "${!SCHEDULES[@]}"; do
-  cat > /etc/systemd/system/ichor-couche2-${kind}.timer <<EOF
+  cat > /etc/systemd/system/ichor-couche2-"${kind}".timer <<EOF
 [Unit]
 Description=Ichor Couche-2 trigger (${kind})
 
@@ -74,7 +74,7 @@ systemctl daemon-reload
 
 # Enable + start
 for kind in "${!SCHEDULES[@]}"; do
-  systemctl enable --now ichor-couche2-${kind}.timer
+  systemctl enable --now ichor-couche2-"${kind}".timer
 done
 
 echo "=== Installed timers ==="
@@ -83,5 +83,5 @@ systemctl list-timers --no-pager | grep ichor-couche2
 echo ""
 echo "Next runs:"
 for kind in "${!SCHEDULES[@]}"; do
-  systemctl list-timers ichor-couche2-${kind}.timer --no-pager 2>&1 | tail -2 | head -1
+  systemctl list-timers ichor-couche2-"${kind}".timer --no-pager 2>&1 | tail -2 | head -1
 done

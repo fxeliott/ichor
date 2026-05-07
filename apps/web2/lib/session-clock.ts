@@ -16,13 +16,7 @@
 // from H-4h to H+1h around the briefing tick, which matches /today's
 // display contract ("calendar filtered on H-4h → H+1h sessions").
 
-export type SessionWindow =
-  | "pre_londres"
-  | "pre_ny"
-  | "ny_mid"
-  | "ny_close"
-  | "idle"
-  | "weekend";
+export type SessionWindow = "pre_londres" | "pre_ny" | "ny_mid" | "ny_close" | "idle" | "weekend";
 
 interface WindowDef {
   id: Exclude<SessionWindow, "idle" | "weekend">;

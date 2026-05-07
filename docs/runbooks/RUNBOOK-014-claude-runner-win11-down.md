@@ -7,12 +7,14 @@
 ## Trigger
 
 Any of :
+
 - `curl https://claude-runner.fxmilyapp.com/healthz` returns 5xx, timeout, or connection refused.
 - Hetzner-side `Couche-2 agent fallback active` logs spike (cf SESSION_LOG handoff).
 - `/v1/admin/pipeline-health` shows briefings or session-cards stale > 1h.
 - ntfy/journal alerts on Win11 box (when Phase A.4.b notification path is configured for the runner).
 
 Verify scope first :
+
 ```powershell
 # Win11 box
 Get-Service IchorClaudeRunner
@@ -31,6 +33,7 @@ Get-Service IchorClaudeRunner
 ```
 
 Common states observed on this project :
+
 - **`Paused`** : the documented dormant state since 2026-05-02 because
   `ICHOR_RUNNER_ENVIRONMENT=development` was lost from the NSSM env-var
   list. Workaround = standalone uvicorn (see Recovery path B).

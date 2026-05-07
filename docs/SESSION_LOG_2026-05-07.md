@@ -17,30 +17,30 @@
 
 ## Scope by category
 
-| Area | Files | +LOC | -LOC | Notes |
-|---|---:|---:|---:|---|
-| `apps/api/` | 12 | 316 | 35 | Event-loop x4 CLI fix + /metrics + Langfuse lifecycle + audit_log immuable |
-| `apps/web2/` | 28 | 1288 | 5 | UX baseline (TopNav/cmdk/sonner/MobileGate) + Phase B (a11y/lighthouse/per-segment boundaries) + next.config security headers |
-| `packages/` | 15 | 282 | 66 | Couche-2 ADR-023 docstrings + VALID_SESSION_TYPES + Langfuse @observe shims + 5 patches |
-| `docs/` | 12 | 2108 | 4 | 6 ADRs (026-032) + 3 RUNBOOKs (014-016) + ROADMAP REV5 |
-| `scripts/` | 6 | 281 | 0 | OnFailure systemd + register-cron-{rr25,liquidity,cb-tone} canonical pattern |
-| `.github/` | 4 | 202 | 6 | Wave 5 CI ramp + web2-a11y workflow + web2-lighthouse workflow |
+| Area         | Files | +LOC | -LOC | Notes                                                                                                                         |
+| ------------ | ----: | ---: | ---: | ----------------------------------------------------------------------------------------------------------------------------- |
+| `apps/api/`  |    12 |  316 |   35 | Event-loop x4 CLI fix + /metrics + Langfuse lifecycle + audit_log immuable                                                    |
+| `apps/web2/` |    28 | 1288 |    5 | UX baseline (TopNav/cmdk/sonner/MobileGate) + Phase B (a11y/lighthouse/per-segment boundaries) + next.config security headers |
+| `packages/`  |    15 |  282 |   66 | Couche-2 ADR-023 docstrings + VALID_SESSION_TYPES + Langfuse @observe shims + 5 patches                                       |
+| `docs/`      |    12 | 2108 |    4 | 6 ADRs (026-032) + 3 RUNBOOKs (014-016) + ROADMAP REV5                                                                        |
+| `scripts/`   |     6 |  281 |    0 | OnFailure systemd + register-cron-{rr25,liquidity,cb-tone} canonical pattern                                                  |
+| `.github/`   |     4 |  202 |    6 | Wave 5 CI ramp + web2-a11y workflow + web2-lighthouse workflow                                                                |
 
 ## Commits chronological
 
-| # | Hash | Subject | Phase |
-|---|---|---|---|
-| 1 | `b5b6fd6` | chore(cleanup): event-loop fix x4 CLI + drop shared-types stub + ADR-023 + runbooks index | A.1 |
-| 2 | `42c6823` | ci(wave5): coverage gate + shellcheck + structural lint hetzner scripts | A.3 |
-| 3 | `39580a2` | feat(observability): Prometheus /metrics endpoint via fastapi-instrumentator | A.4.a |
-| 4 | `d295577` | feat(systemd): OnFailure drop-ins on 28 services + ntfy notify-template | A.4.b |
-| 5 | `8eac82c` | docs(adr): 029 EU AI Act §50 + 030 ResolveCron protection + 031 SessionType single source | A.5 |
-| 6 | `f4e3005` | feat(audit): immutable audit_log via BEFORE UPDATE/DELETE trigger + RUNBOOK-014/015 | A.7.partial |
-| 7 | `4d5e76c` | feat(web2): UX baseline — TopNav + cmdk palette + sonner + MobileGate + NOW dyn | A.9 |
-| 8 | `7151d94` | docs(roadmap): REV5 — Phases 0+A.1+A.2+A.3+A.4.a/b+A.5+A.7.partial+A.9 shipped | meta |
-| 9 | `719d511` | feat(observability): Langfuse @observe on 4-pass + Couche-2 (ADR-032) | A.4.c |
-| 10 | `b26419e` | feat(web2): Phase B frontend infra — WCAG 2.2 AA + Lighthouse CI + per-segment boundaries | B |
-| 11 | `44de15f` | fix(web2): exclude e2e/ from tsc + gitignore .serena/ | B (fix) |
+| #   | Hash      | Subject                                                                                   | Phase       |
+| --- | --------- | ----------------------------------------------------------------------------------------- | ----------- |
+| 1   | `b5b6fd6` | chore(cleanup): event-loop fix x4 CLI + drop shared-types stub + ADR-023 + runbooks index | A.1         |
+| 2   | `42c6823` | ci(wave5): coverage gate + shellcheck + structural lint hetzner scripts                   | A.3         |
+| 3   | `39580a2` | feat(observability): Prometheus /metrics endpoint via fastapi-instrumentator              | A.4.a       |
+| 4   | `d295577` | feat(systemd): OnFailure drop-ins on 28 services + ntfy notify-template                   | A.4.b       |
+| 5   | `8eac82c` | docs(adr): 029 EU AI Act §50 + 030 ResolveCron protection + 031 SessionType single source | A.5         |
+| 6   | `f4e3005` | feat(audit): immutable audit_log via BEFORE UPDATE/DELETE trigger + RUNBOOK-014/015       | A.7.partial |
+| 7   | `4d5e76c` | feat(web2): UX baseline — TopNav + cmdk palette + sonner + MobileGate + NOW dyn           | A.9         |
+| 8   | `7151d94` | docs(roadmap): REV5 — Phases 0+A.1+A.2+A.3+A.4.a/b+A.5+A.7.partial+A.9 shipped            | meta        |
+| 9   | `719d511` | feat(observability): Langfuse @observe on 4-pass + Couche-2 (ADR-032)                     | A.4.c       |
+| 10  | `b26419e` | feat(web2): Phase B frontend infra — WCAG 2.2 AA + Lighthouse CI + per-segment boundaries | B           |
+| 11  | `44de15f` | fix(web2): exclude e2e/ from tsc + gitignore .serena/                                     | B (fix)     |
 
 ## Phase A.4.c Langfuse @observe — what was wired
 
@@ -72,6 +72,7 @@ at shutdown BEFORE engine.dispose() (worker thread is daemonic).
 ## Phase B Frontend infra — what was wired
 
 ### Surface security (`apps/web2/next.config.ts`)
+
 - async `headers()` with HSTS 1y+subdomains, X-Frame-Options DENY,
   X-Content-Type-Options nosniff, strict Referrer-Policy, denied
   Permissions-Policy.
@@ -82,6 +83,7 @@ at shutdown BEFORE engine.dispose() (worker thread is daemonic).
   path = Next 16 cacheComponents migration).
 
 ### WCAG 2.2 AA (ADR-026/027)
+
 - `apps/web2/e2e/fixtures/a11y.ts` — shared `makeAxeBuilder` fixture
   tagged `["wcag2a","wcag2aa","wcag21a","wcag21aa","wcag22aa"]`.
 - `apps/web2/e2e/a11y.spec.ts` — 5 pivot routes × axe scan, 0 violations
@@ -89,11 +91,13 @@ at shutdown BEFORE engine.dispose() (worker thread is daemonic).
 - `.github/workflows/web2-a11y.yml` — runs on every PR.
 
 ### Performance budget (ADR-026)
+
 - `apps/web2/lighthouserc.json` — perf ≥0.9 / a11y ≥0.95 / LCP ≤2500ms
   / TBT ≤200ms (INP proxy) / CLS ≤0.1 / interactive ≤3500ms.
 - `.github/workflows/web2-lighthouse.yml`.
 
 ### Per-segment boundaries (ADR-026)
+
 - 5 pivot routes × {loading.tsx, error.tsx} = 10 new files:
   /today, /sessions/[asset], /replay/[asset], /scenarios/[asset], /admin.
 
@@ -123,6 +127,7 @@ workflows `web2-a11y.yml` and `web2-lighthouse.yml` will fail at
 `pnpm install --frozen-lockfile` until this runs.
 
 Command (annonce préalable per guard-rails):
+
 ```bash
 cd D:\Ichor\.claude\worktrees\blissful-lewin-22e261
 pnpm install
@@ -144,16 +149,19 @@ ssh ichor-hetzner 'sudo journalctl -u ichor-api.service \
 ```
 
 Two réseau-sortante hops (pip install + systemctl restart). Per ADR-032
-+ RUNBOOK-016 deployment note.
+
+- RUNBOOK-016 deployment note.
 
 ### 4. Worktree rationalisation
 
 Currently 3 worktrees co-exist:
+
 - `D:\Ichor` (main, 44ec15a)
 - `D:\Ichor\.claude\worktrees\blissful-lewin-22e261` (this work, +11 commits)
 - `D:\Ichor\.claude\worktrees\trusting-faraday-6ba8fc` (clean, my CWD)
 
 After push + merge, prune blissful-lewin + trusting-faraday:
+
 ```bash
 git worktree remove D:\Ichor\.claude\worktrees\blissful-lewin-22e261
 git worktree remove D:\Ichor\.claude\worktrees\trusting-faraday-6ba8fc
@@ -161,17 +169,17 @@ git worktree remove D:\Ichor\.claude\worktrees\trusting-faraday-6ba8fc
 
 ## Next session priority menu (ranked)
 
-| # | Phase | Estimated | Risk | Blocker |
-|---|---|---|---|---|
-| 1 | **B.5 partial — Counterfactual UI scaffold** | 3-4 h | low | none — code-only |
-| 2 | **B.5 partial — SessionTabs câblées (4 dead buttons in `/sessions/[asset]:404-428`)** | 1 h | low | none |
-| 3 | **B.5 partial — pin/favorite asset (localStorage)** | 1 h | low | none |
-| 4 | **C QW — globals.css OKLCH migration** | 2-3 h | low | none |
-| 5 | **D.0 — Capability 5 (Claude tools runtime)** | 6-8 h | medium | needs runner /v1/structured-prompt endpoint design |
-| 6 | **D.1 — Brier V2 adoption-promotion job** | 3-4 h | medium | needs holdout ≥30 sessions |
-| 7 | **D.5.a — DATA_SURPRISE_Z (NFP/CPI/Core PCE/ISM)** | 4-6 h | medium | needs ForexFactory consensus collector |
-| 8 | **E — Conformal prediction wrapper Brier V2** | 4-5 h | high | depends on D.1 |
-| 9 | **F.1 — Routines POC** | 2 h | low | needs Eliot Routines eligibility check |
+| #   | Phase                                                                                 | Estimated | Risk   | Blocker                                            |
+| --- | ------------------------------------------------------------------------------------- | --------- | ------ | -------------------------------------------------- |
+| 1   | **B.5 partial — Counterfactual UI scaffold**                                          | 3-4 h     | low    | none — code-only                                   |
+| 2   | **B.5 partial — SessionTabs câblées (4 dead buttons in `/sessions/[asset]:404-428`)** | 1 h       | low    | none                                               |
+| 3   | **B.5 partial — pin/favorite asset (localStorage)**                                   | 1 h       | low    | none                                               |
+| 4   | **C QW — globals.css OKLCH migration**                                                | 2-3 h     | low    | none                                               |
+| 5   | **D.0 — Capability 5 (Claude tools runtime)**                                         | 6-8 h     | medium | needs runner /v1/structured-prompt endpoint design |
+| 6   | **D.1 — Brier V2 adoption-promotion job**                                             | 3-4 h     | medium | needs holdout ≥30 sessions                         |
+| 7   | **D.5.a — DATA_SURPRISE_Z (NFP/CPI/Core PCE/ISM)**                                    | 4-6 h     | medium | needs ForexFactory consensus collector             |
+| 8   | **E — Conformal prediction wrapper Brier V2**                                         | 4-5 h     | high   | depends on D.1                                     |
+| 9   | **F.1 — Routines POC**                                                                | 2 h       | low    | needs Eliot Routines eligibility check             |
 
 ## Verification done this session
 
@@ -216,7 +224,7 @@ git worktree remove D:\Ichor\.claude\worktrees\trusting-faraday-6ba8fc
   by greps in commit messages where applicable).
 - ADR-009 Voie D — **no anthropic SDK** added; Langfuse v4 has no
   Anthropic dep transitively (verified via the optional pydantic-ai-slim
-  + httpx baseline).
+  - httpx baseline).
 - ADR-029 EU AI Act §50 — surface unchanged, banner + footer stay live;
   Phase B's CSP doesn't mask them (no `frame-ancestors`/`object-src`
   rule that conflicts).

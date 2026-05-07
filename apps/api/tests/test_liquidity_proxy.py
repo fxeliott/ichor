@@ -11,7 +11,6 @@ from datetime import date
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-
 from ichor_api.services.liquidity_proxy import (
     LiquidityProxyReading,
     assess_liquidity_proxy,

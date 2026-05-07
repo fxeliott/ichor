@@ -241,7 +241,7 @@ D:\Ichor
   `prometheus-fastapi-instrumentator 7.1.0`) ; toute la stack
   Prometheus était silencieusement aveugle, maintenant fonctionnelle.
 - A.4.b ✅ — `OnFailure=ichor-notify@%n.service` drop-ins systemd
-  installés sur 28 services ichor-* ; template `[email protected]` +
+  installés sur 28 services ichor-\* ; template `[email protected]` +
   worker `/opt/ichor/scripts/notify-failure.sh` + log
   `/var/log/ichor-failures.log` + (optionnel) ntfy webhook.
   Chaîne testée end-to-end (`ichor-test-fail.service` → log écrit).

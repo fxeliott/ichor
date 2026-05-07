@@ -7,6 +7,7 @@
 ## Trigger
 
 ### Planned cadence (preventive)
+
 - Every **90 days** for app-level secrets (FRED API key, Polygon
   API key, etc.) — calendar entry in Eliot's task list.
 - Every **60 days** for SSH keys (root + ichor user on Hetzner).
@@ -14,6 +15,7 @@
   secrets in `infra/secrets/*.age`).
 
 ### Compromise (reactive)
+
 - A secret leaks publicly (committed to git, posted in screenshot, etc.).
 - Eliot's laptop is lost / stolen.
 - An external service flags an API key as compromised.
@@ -24,20 +26,20 @@
 `docs/SPEC_V2_HARDENING.md:84-90` defines the cadence ; this RUNBOOK
 makes the procedure concrete.
 
-| Secret | Storage | Cadence | Reset cost |
-|---|---|---|---|
-| FRED API key | `/etc/ichor/api.env` (Hetzner) | 90 d | 5 min |
-| Polygon API key | `/etc/ichor/api.env` | 90 d | 5 min |
-| Cloudflare API token | sops `infra/secrets/cf-api.age` | 90 d | 10 min |
-| CF Access service token | `infra/secrets/cf-access.age` | 90 d | 15 min (when wired Phase A.7) |
-| age master key | `~/.config/sops/age/keys.txt` (Eliot's machines) | 12 mo | 30 min |
-| Hetzner SSH ED25519 (root) | `~/.ssh/id_ed25519_ichor` | 60 d | 15 min — see RUNBOOK-002 |
-| Postgres `ichor` role pwd | `/etc/ichor/api.env` (DB_URL) | 90 d | 20 min |
-| Redis pwd | `/etc/ichor/api.env` (REDIS_URL) | 90 d | 10 min |
-| wal-g R2 creds | sops `infra/secrets/wal-g-r2.age` | 90 d | 15 min |
-| VAPID keys (web push) | `apps/web2/.env.production` | 12 mo | depends on subscriber count (each device must re-subscribe) |
-| Langfuse public + secret key | `/etc/ichor/api.env` | 90 d | 5 min |
-| ntfy topic (when wired) | `/etc/ichor/ntfy.env` | 6 mo | 1 min |
+| Secret                       | Storage                                          | Cadence | Reset cost                                                  |
+| ---------------------------- | ------------------------------------------------ | ------- | ----------------------------------------------------------- |
+| FRED API key                 | `/etc/ichor/api.env` (Hetzner)                   | 90 d    | 5 min                                                       |
+| Polygon API key              | `/etc/ichor/api.env`                             | 90 d    | 5 min                                                       |
+| Cloudflare API token         | sops `infra/secrets/cf-api.age`                  | 90 d    | 10 min                                                      |
+| CF Access service token      | `infra/secrets/cf-access.age`                    | 90 d    | 15 min (when wired Phase A.7)                               |
+| age master key               | `~/.config/sops/age/keys.txt` (Eliot's machines) | 12 mo   | 30 min                                                      |
+| Hetzner SSH ED25519 (root)   | `~/.ssh/id_ed25519_ichor`                        | 60 d    | 15 min — see RUNBOOK-002                                    |
+| Postgres `ichor` role pwd    | `/etc/ichor/api.env` (DB_URL)                    | 90 d    | 20 min                                                      |
+| Redis pwd                    | `/etc/ichor/api.env` (REDIS_URL)                 | 90 d    | 10 min                                                      |
+| wal-g R2 creds               | sops `infra/secrets/wal-g-r2.age`                | 90 d    | 15 min                                                      |
+| VAPID keys (web push)        | `apps/web2/.env.production`                      | 12 mo   | depends on subscriber count (each device must re-subscribe) |
+| Langfuse public + secret key | `/etc/ichor/api.env`                             | 90 d    | 5 min                                                       |
+| ntfy topic (when wired)      | `/etc/ichor/ntfy.env`                            | 6 mo    | 1 min                                                       |
 
 ## Diagnosis (compromise case)
 
@@ -48,6 +50,7 @@ git log --all -S "<the_actual_value>" 2>&1
 ```
 
 If a secret is in git history :
+
 - **DO NOT** simply remove it from the latest commit.
 - Treat the value as **fully compromised** — assume scrapers found it within 24h.
 - Rotate immediately, then optionally rewrite history (`git filter-repo`
@@ -102,6 +105,7 @@ For SSH keys, see RUNBOOK-002 — the canonical procedure with atomic
 `authorized_keys` swap and KVM fallback.
 
 For the age master key (rare — annual) :
+
 - Generate the new keypair (`age-keygen`).
 - Re-encrypt every `infra/secrets/*.age` file with the new public key
   (sops `--add-age <new_pub_key>` then `--rm-age <old_pub_key>`).
@@ -128,9 +132,9 @@ sudo journalctl -u ichor-api.service -p err --since "5 minutes ago"
 Append to `docs/dr-tests/secrets-rotation-log.md` :
 
 ```markdown
-| Date       | Secret                | Cause       | Operator | Verified |
-| ---------- | --------------------- | ----------- | -------- | -------- |
-| 2026-05-06 | FRED API key (90d)    | scheduled   | Eliot    | ✓        |
+| Date       | Secret             | Cause     | Operator | Verified |
+| ---------- | ------------------ | --------- | -------- | -------- |
+| 2026-05-06 | FRED API key (90d) | scheduled | Eliot    | ✓        |
 ```
 
 This log is the audit trail (Article 16 MiFID-grade if Ichor research

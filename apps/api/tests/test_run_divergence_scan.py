@@ -13,7 +13,6 @@ from ichor_agents.predictions.divergence import (
     MatchedMarket,
     PredictionMarket,
 )
-
 from ichor_api.cli.run_divergence_scan import _alert_severity, _alert_title
 
 

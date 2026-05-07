@@ -42,12 +42,14 @@ export default function TodayError({ error, reset }: Props) {
         Le data-pool d&apos;aujourd&apos;hui n&apos;a pas pu être assemblé.
       </h1>
       <p className="max-w-prose text-[var(--color-text-secondary)]">
-        Une session-card ou un collector amont a échoué. Tu peux retenter
-        immédiatement ou attendre le prochain rafraîchissement ISR (60 s). Si le problème persiste,
-        vérifie <code>/admin</code> pour le pipeline-health.
+        Une session-card ou un collector amont a échoué. Tu peux retenter immédiatement ou attendre
+        le prochain rafraîchissement ISR (60 s). Si le problème persiste, vérifie{" "}
+        <code>/admin</code> pour le pipeline-health.
       </p>
       {error.digest ? (
-        <p className="font-mono text-xs text-[var(--color-text-tertiary)]">digest: {error.digest}</p>
+        <p className="font-mono text-xs text-[var(--color-text-tertiary)]">
+          digest: {error.digest}
+        </p>
       ) : null}
       <div className="mt-2 flex gap-3">
         <button

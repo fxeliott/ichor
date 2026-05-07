@@ -94,7 +94,8 @@ export function JournalEditor() {
       >
         {initialAsset ? (
           <p className="mb-2 font-mono text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
-            Tag pré-rempli : <span className="text-[var(--color-text-primary)]">{initialAsset}</span>
+            Tag pré-rempli :{" "}
+            <span className="text-[var(--color-text-primary)]">{initialAsset}</span>
           </p>
         ) : null}
         <label htmlFor="journal-body" className="sr-only">
@@ -141,7 +142,9 @@ export function JournalEditor() {
           Dernières entrées · {entries.length}/{MAX_ENTRIES}
         </h2>
         {entries.length === 0 ? (
-          <p className="text-sm text-[var(--color-text-secondary)]">Aucune entrée pour l&apos;instant.</p>
+          <p className="text-sm text-[var(--color-text-secondary)]">
+            Aucune entrée pour l&apos;instant.
+          </p>
         ) : (
           <ol className="space-y-3">
             {entries.map((e) => (
@@ -150,12 +153,19 @@ export function JournalEditor() {
                 className="rounded-md border border-[var(--color-border-subtle)] bg-[var(--color-bg-elevated)]/50 p-3"
               >
                 <p className="mb-1 flex items-baseline gap-3 font-mono text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
-                  <span>{new Date(e.ts).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })}</span>
+                  <span>
+                    {new Date(e.ts).toLocaleString("fr-FR", {
+                      dateStyle: "short",
+                      timeStyle: "short",
+                    })}
+                  </span>
                   {e.asset ? (
                     <span className="text-[var(--color-accent-cobalt)]">{e.asset}</span>
                   ) : null}
                 </p>
-                <p className="whitespace-pre-wrap text-sm text-[var(--color-text-primary)]">{e.body}</p>
+                <p className="whitespace-pre-wrap text-sm text-[var(--color-text-primary)]">
+                  {e.body}
+                </p>
               </li>
             ))}
           </ol>

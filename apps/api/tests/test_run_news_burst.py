@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-
 from ichor_api.cli.run_news_burst_scan import (
     _BASELINE_HOURS,
     _BURST_WINDOW_MIN,

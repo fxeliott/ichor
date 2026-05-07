@@ -35,15 +35,17 @@ export default function ScenariosError({ error, reset }: Props) {
       </h1>
       <p className="max-w-prose text-[var(--color-text-secondary)]">
         Le tree-builder dépend des passes 2 (asset specialization) + 3 (stress) ; si l&apos;une des
-        deux a flagué &laquo;&nbsp;blocked&nbsp;&raquo; via le Critic, l&apos;arbre est tronqué et la
-        page refuse de rendre. Va sur{" "}
+        deux a flagué &laquo;&nbsp;blocked&nbsp;&raquo; via le Critic, l&apos;arbre est tronqué et
+        la page refuse de rendre. Va sur{" "}
         <Link href="/sessions" className="underline hover:text-[var(--color-text-primary)]">
           /sessions
         </Link>{" "}
         pour voir la conviction et l&apos;état Critic.
       </p>
       {error.digest ? (
-        <p className="font-mono text-xs text-[var(--color-text-tertiary)]">digest: {error.digest}</p>
+        <p className="font-mono text-xs text-[var(--color-text-tertiary)]">
+          digest: {error.digest}
+        </p>
       ) : null}
       <div className="mt-2 flex gap-3">
         <button
