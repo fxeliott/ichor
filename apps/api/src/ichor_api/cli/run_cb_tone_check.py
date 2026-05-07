@@ -47,6 +47,18 @@ async def run(*, persist: bool, cbs: list[str], lookback_hours: int) -> int:
     return 0
 
 
+async def _main(persist: bool, cbs: list[str], lookback_hours: int) -> int:
+    """Entrypoint async qui dispose l'engine dans le même event loop que run().
+
+    Garde-fou contre `RuntimeError: Event loop is closed` (asyncpg conn liée au loop).
+    """
+    try:
+        return await run(persist=persist, cbs=cbs, lookback_hours=lookback_hours)
+    finally:
+        if persist:
+            await get_engine().dispose()
+
+
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(prog="run_cb_tone_check")
     parser.add_argument("--persist", action="store_true")
@@ -58,13 +70,9 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--lookback-hours", type=int, default=24)
     args = parser.parse_args(argv[1:])
     cbs = [args.cb] if args.cb else sorted(CB_TO_METRIC.keys())
-    try:
-        return asyncio.run(
-            run(persist=args.persist, cbs=cbs, lookback_hours=args.lookback_hours)
-        )
-    finally:
-        if args.persist:
-            asyncio.run(get_engine().dispose())
+    return asyncio.run(
+        _main(persist=args.persist, cbs=cbs, lookback_hours=args.lookback_hours)
+    )
 
 
 if __name__ == "__main__":

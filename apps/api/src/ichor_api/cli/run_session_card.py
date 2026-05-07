@@ -27,11 +27,11 @@ from ..db import get_engine, get_sessionmaker
 log = structlog.get_logger(__name__)
 
 
-# 5 session windows aligned with run_session_cards_batch.py + the
-# SessionType Literal in ichor_brain. The drift between this set
-# and the batch set silently killed every ny_mid/ny_close run since
-# 2026-05-04 (cf SESSION_LOG_2026-05-06.md).
-_VALID_SESSIONS = {"pre_londres", "pre_ny", "ny_mid", "ny_close", "event_driven"}
+# Single source of truth — derived from `SessionType` Literal via
+# `get_args` in ichor_brain.types. Closes the drift bug from ADR-024
+# (where this set was hardcoded and went out of sync with the batch
+# wrapper) — see ADR-031.
+from ichor_brain.types import VALID_SESSION_TYPES as _VALID_SESSIONS
 
 
 async def _run(asset: str, session_type: str, *, live: bool) -> int:
