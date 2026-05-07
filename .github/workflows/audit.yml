@@ -29,7 +29,6 @@ jobs:
           - apps/claude-runner
           - packages/agents
           - packages/ml
-          - packages/shared-types
     steps:
       - uses: actions/checkout@v4
 

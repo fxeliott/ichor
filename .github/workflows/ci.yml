@@ -71,7 +71,8 @@ jobs:
 
   # -------------------------------------------------------------------------
   # Python workspaces (apps/api, apps/claude-runner, packages/agents,
-  # packages/ml, packages/shared-types) — discovered dynamically
+  # packages/ml) — discovered dynamically. packages/shared-types removed
+  # in Phase A.1.3 cleanup (was a stub never imported, cf ADR-031).
   # -------------------------------------------------------------------------
   python:
     name: Python • ruff + mypy + pytest
@@ -85,7 +86,6 @@ jobs:
           - apps/claude-runner
           - packages/agents
           - packages/ml
-          - packages/shared-types
     steps:
       - uses: actions/checkout@v4
 
@@ -108,9 +108,9 @@ jobs:
 
       - name: Ruff check (Phase 1 — blocking)
         working-directory: ${{ matrix.package }}
-        # 2026-05-05 ramp : ruff check is now blocking on all 5 packages.
+        # 2026-05-05 ramp : ruff check is now blocking on all packages.
         # All packages were verified clean at this commit (apps/api +
-        # apps/claude-runner + packages/{agents,ml,shared-types}). The
+        # apps/claude-runner + packages/{agents,ml}). The
         # legacy noisy rules (S110/S112/S608/S311/B904/E741/RUF001-003/
         # ASYNC109/DTZ007/DTZ011/RUF012/RUF100/B008) are silenced via
         # [tool.ruff.lint.ignore] in root pyproject.toml.
@@ -142,11 +142,76 @@ jobs:
             has_tests=true
           fi
           if [ "$has_tests" = true ]; then
-            uv run pytest -ra
+            # Wave 5 ramp (2026-05-06) — coverage gate on apps/api only.
+            # 771 tests passing at this commit ; floor set conservatively
+            # at 60% to ramp up over time without blocking the current
+            # green build. Bump to 70% in a follow-up once we measure.
+            if [ "${{ matrix.package }}" = "apps/api" ]; then
+              uv run pytest -ra --cov=src/ichor_api --cov-report=term-missing --cov-fail-under=60
+            else
+              uv run pytest -ra
+            fi
           else
             echo "::notice::No tests in ${{ matrix.package }} yet (Phase 0 skeleton)"
             exit 0
           fi
+
+  # -------------------------------------------------------------------------
+  # Shell lint — register-cron-*.sh scripts (post-2026-05-04 incident
+  # protection, cf ADR-030). Catches structural drift before scp+sudo bash.
+  # -------------------------------------------------------------------------
+  shell-lint:
+    name: Shell • shellcheck on register-cron scripts
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install shellcheck
+        run: sudo apt-get install -y --no-install-recommends shellcheck
+
+      - name: Shellcheck on register-cron-*.sh
+        run: |
+          set -e
+          fail=0
+          for f in scripts/hetzner/register-cron-*.sh; do
+            echo "::group::shellcheck $f"
+            shellcheck -x "$f" || fail=1
+            echo "::endgroup::"
+          done
+          if [ "$fail" -ne 0 ]; then
+            echo "::error::shellcheck reported issues — see groups above. Fix before scp+sudo bash on Hetzner."
+            exit 1
+          fi
+          echo "::notice::shellcheck clean on $(ls scripts/hetzner/register-cron-*.sh | wc -l) register-cron scripts."
+
+      - name: Structural lint (canonical contract clauses, cf ADR-030)
+        run: |
+          set -e
+          fail=0
+          for f in scripts/hetzner/register-cron-*.sh; do
+            # Strict literal clauses (must match exactly)
+            for clause in 'Type=oneshot' 'User=ichor' 'systemctl daemon-reload' 'enable --now'; do
+              if ! grep -q -F "$clause" "$f"; then
+                echo "::error file=$f::missing canonical clause '$clause' (ADR-030)"
+                fail=1
+              fi
+            done
+            # Pattern clauses (path may legitimately differ — e.g. briefings
+            # uses /dev/shm/ichor-secrets.env for tunnel creds)
+            if ! grep -qE '^EnvironmentFile=' "$f"; then
+              echo "::error file=$f::missing 'EnvironmentFile=' directive (ADR-030)"
+              fail=1
+            fi
+            if ! grep -qE '^WorkingDirectory=' "$f"; then
+              echo "::error file=$f::missing 'WorkingDirectory=' directive (ADR-030)"
+              fail=1
+            fi
+          done
+          if [ "$fail" -ne 0 ]; then
+            exit 1
+          fi
+          echo "::notice::All register-cron-*.sh match the ADR-030 canonical contract."
 
   # -------------------------------------------------------------------------
   # Ansible lint
