@@ -348,6 +348,29 @@ PLAN_ALERTS: tuple[AlertDef, ...] = (
         ),
     ),
     AlertDef(
+        "VIX_TERM_INVERSION",
+        "warning",
+        "VIX term backwardation ratio={value:.4f}",
+        "vix_term_ratio",
+        1.0,
+        "above",
+        description=(
+            "Detects VIX term-structure inversion (backwardation) — when "
+            "1-month implied vol VIXCLS > 3-month implied vol VXVCLS. The "
+            "ratio crossing 1.0 signals near-term stress exceeding longer-"
+            "dated expectations. RARE — historically coincides with major "
+            "stress: 2008 GFC, 2011 US debt downgrade, 2015 China devaluation, "
+            "Feb 2018 Volmageddon, late-2018 sell-off, March 2020 COVID. "
+            "Empirical 2010-2017 (Macrosynergy/QuantSeeker): inverted curve "
+            "has SIGNIFICANT positive relation with subsequent SPX returns "
+            "= contrarian signal often near bottoms. Trader use: reduce "
+            "dip-buying aggression, expect overnight gap risk, watch for "
+            "all-clear ratio < 1.0 reset (e.g. April 2020 marked durable "
+            "bottom). Source: FRED:VIXCLS+VXVCLS. Cf services/vix_term_check.py "
+            "+ ADR-044."
+        ),
+    ),
+    AlertDef(
         "COT_NET_FLIP", "warning", "COT positionnement net flip {asset}", "cot_net_z", 2.0, "above"
     ),
     AlertDef(
@@ -515,8 +538,8 @@ def get_alert_def(code: str) -> AlertDef:
 
 
 def assert_catalog_complete() -> None:
-    """Sanity check at startup: total = 46 alerts, all unique codes."""
+    """Sanity check at startup: total = 47 alerts, all unique codes."""
     codes = [a.code for a in ALL_ALERTS]
     assert len(codes) == len(set(codes)), f"Duplicate alert codes: {codes}"
-    assert len(ALL_ALERTS) == 46, f"Expected 46 alerts, got {len(ALL_ALERTS)}"
+    assert len(ALL_ALERTS) == 47, f"Expected 47 alerts, got {len(ALL_ALERTS)}"
     assert len(CRISIS_TRIGGERS) >= 5, f"Expected ≥5 crisis triggers, got {len(CRISIS_TRIGGERS)}"
