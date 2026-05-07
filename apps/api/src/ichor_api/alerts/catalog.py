@@ -140,6 +140,21 @@ PLAN_ALERTS: tuple[AlertDef, ...] = (
         ),
     ),
     AlertDef(
+        "REAL_YIELD_GOLD_DIVERGENCE",
+        "warning",
+        "XAU/DFII10 corr divergence {asset} z={value:+.2f}",
+        "real_yield_gold_div_z",
+        2.0,
+        "above",
+        description=(
+            "60d rolling correlation between XAU (FRED:GOLDAMGBD228NLBM) and 10Y TIPS "
+            "real yield (FRED:DFII10). Historical baseline ~ -0.5 to -0.7 (carry channel). "
+            "Z-score against trailing 250d distribution of rolling-corr ; fires when |z| "
+            ">= 2.0. Divergence = gold no longer driven by real yields — geopol premium, "
+            "intervention, debasement narrative. Cf services/real_yield_gold_check.py + ADR-034."
+        ),
+    ),
+    AlertDef(
         "COT_NET_FLIP", "warning", "COT positionnement net flip {asset}", "cot_net_z", 2.0, "above"
     ),
     AlertDef(
@@ -307,8 +322,8 @@ def get_alert_def(code: str) -> AlertDef:
 
 
 def assert_catalog_complete() -> None:
-    """Sanity check at startup: total = 34 alerts, all unique codes."""
+    """Sanity check at startup: total = 35 alerts, all unique codes."""
     codes = [a.code for a in ALL_ALERTS]
     assert len(codes) == len(set(codes)), f"Duplicate alert codes: {codes}"
-    assert len(ALL_ALERTS) == 34, f"Expected 34 alerts, got {len(ALL_ALERTS)}"
+    assert len(ALL_ALERTS) == 35, f"Expected 35 alerts, got {len(ALL_ALERTS)}"
     assert len(CRISIS_TRIGGERS) >= 5, f"Expected ≥5 crisis triggers, got {len(CRISIS_TRIGGERS)}"
