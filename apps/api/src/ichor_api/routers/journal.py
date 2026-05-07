@@ -28,7 +28,7 @@ from datetime import UTC, datetime
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from pydantic import BaseModel, Field
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -116,13 +116,11 @@ async def create_entry(
     return JournalEntryOut.model_validate(note)
 
 
-@router.delete(
-    "/{entry_id}", status_code=status.HTTP_204_NO_CONTENT, response_class=None
-)
+@router.delete("/{entry_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_entry(
     entry_id: UUID,
     session: Annotated[AsyncSession, Depends(get_session)],
-) -> None:
+) -> Response:
     """Delete one journal entry.
 
     Trader-controlled — unlike `audit_log` (immutable, append-only via
@@ -137,3 +135,4 @@ async def delete_entry(
         )
     await session.delete(obj)
     await session.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
