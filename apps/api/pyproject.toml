@@ -24,6 +24,9 @@ dependencies = [
     "numpy>=1.26.0",
     # Phase 2: Polygon Forex WebSocket subscriber (VPIN microstructure feed).
     "websockets>=14.0",
+    # Phase A.4 observability — exposes /metrics for Prometheus scrape
+    # (was scraped silently failing because the endpoint didn't exist).
+    "prometheus-fastapi-instrumentator>=7.0.0",
 ]
 
 [project.optional-dependencies]
