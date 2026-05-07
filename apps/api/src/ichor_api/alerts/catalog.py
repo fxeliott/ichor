@@ -183,6 +183,21 @@ PLAN_ALERTS: tuple[AlertDef, ...] = (
         ),
     ),
     AlertDef(
+        "GEOPOL_FLASH",
+        "warning",
+        "Burst geopolitique AI-GPR z={value:+.2f}",
+        "ai_gpr_z",
+        2.0,
+        "above",
+        description=(
+            "AI-GPR daily index (Caldara-Iacoviello 2022 AER ; AI version SF Fed 2026). "
+            "Z-score of latest reading vs trailing 30d distribution. |z| >= 2.0 = "
+            "significant geopolitical risk repricing — affects FX havens (XAU, JPY, "
+            "CHF, USD) bidirectionally per dollar smile regime. Source: "
+            "matteoiacoviello.com/ai_gpr.html. Cf services/geopol_flash_check.py + ADR-036."
+        ),
+    ),
+    AlertDef(
         "COT_NET_FLIP", "warning", "COT positionnement net flip {asset}", "cot_net_z", 2.0, "above"
     ),
     AlertDef(
@@ -350,8 +365,8 @@ def get_alert_def(code: str) -> AlertDef:
 
 
 def assert_catalog_complete() -> None:
-    """Sanity check at startup: total = 37 alerts, all unique codes."""
+    """Sanity check at startup: total = 38 alerts, all unique codes."""
     codes = [a.code for a in ALL_ALERTS]
     assert len(codes) == len(set(codes)), f"Duplicate alert codes: {codes}"
-    assert len(ALL_ALERTS) == 37, f"Expected 37 alerts, got {len(ALL_ALERTS)}"
+    assert len(ALL_ALERTS) == 38, f"Expected 38 alerts, got {len(ALL_ALERTS)}"
     assert len(CRISIS_TRIGGERS) >= 5, f"Expected ≥5 crisis triggers, got {len(CRISIS_TRIGGERS)}"
