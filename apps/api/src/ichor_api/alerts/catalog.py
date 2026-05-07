@@ -155,6 +155,34 @@ PLAN_ALERTS: tuple[AlertDef, ...] = (
         ),
     ),
     AlertDef(
+        "QUAD_WITCHING",
+        "info",
+        "Quad-witching T-{value:.0f} ({asset})",
+        "quad_witching_t_minus",
+        5,
+        "below",
+        description=(
+            "Proximity flag for the 4 annual quad-witching Fridays (3rd Friday of "
+            "Mar/Jun/Sep/Dec). Fires T-5 through T-0. Volume 2-3x normal, gamma "
+            "re-pricing pops, dealer rebalancing risk. SPX/NDX-impacted. "
+            "Cf services/quad_witching_check.py + ADR-035."
+        ),
+    ),
+    AlertDef(
+        "OPEX_GAMMA_PEAK",
+        "info",
+        "Monthly OPEX T-{value:.0f} ({asset})",
+        "opex_t_minus",
+        2,
+        "below",
+        description=(
+            "Proximity flag for monthly options expiration (3rd Friday of every month). "
+            "Fires T-2 through T-0. Less violent than quad witching but same gamma-unwind "
+            "dynamics ; flag T-1 so trader anticipates dealer positioning shift Friday AM. "
+            "Cf services/quad_witching_check.py + ADR-035."
+        ),
+    ),
+    AlertDef(
         "COT_NET_FLIP", "warning", "COT positionnement net flip {asset}", "cot_net_z", 2.0, "above"
     ),
     AlertDef(
@@ -322,8 +350,8 @@ def get_alert_def(code: str) -> AlertDef:
 
 
 def assert_catalog_complete() -> None:
-    """Sanity check at startup: total = 35 alerts, all unique codes."""
+    """Sanity check at startup: total = 37 alerts, all unique codes."""
     codes = [a.code for a in ALL_ALERTS]
     assert len(codes) == len(set(codes)), f"Duplicate alert codes: {codes}"
-    assert len(ALL_ALERTS) == 35, f"Expected 35 alerts, got {len(ALL_ALERTS)}"
+    assert len(ALL_ALERTS) == 37, f"Expected 37 alerts, got {len(ALL_ALERTS)}"
     assert len(CRISIS_TRIGGERS) >= 5, f"Expected ≥5 crisis triggers, got {len(CRISIS_TRIGGERS)}"
