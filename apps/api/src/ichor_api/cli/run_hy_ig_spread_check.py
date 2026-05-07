@@ -34,6 +34,12 @@ async def _main(*, persist: bool) -> int:
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(description="HY_IG_SPREAD_DIVERGENCE check")
     parser.add_argument(
+        "--persist",
+        dest="persist",
+        action="store_true",
+        help="Write to alerts table (default behavior)",
+    )
+    parser.add_argument(
         "--no-persist",
         dest="persist",
         action="store_false",
