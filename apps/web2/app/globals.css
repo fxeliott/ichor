@@ -162,6 +162,49 @@ body {
   font-feature-settings: "ss01", "cv11";
 }
 
+/* ── Phase C QW1 — regime ambient tints ───────────────── */
+/* Subtle radial gradient tint applied at the document root based on
+ * the macro regime quadrant. Values are deliberately faint (≤ 6% alpha)
+ * so the text contrast budget set above (WCAG 2.2 AA §1.4.3 / §1.4.11)
+ * is not eroded. The data-regime attribute is set by
+ * <RegimeAmbientProvider /> from the zustand store.
+ *
+ * Why radial: pulls the eye toward content gravity (centred), avoids the
+ * "background filled with color" effect that flat overlays produce.
+ *
+ * @media (prefers-reduced-motion: reduce) — no ambient transition is used
+ * here; the gradient is static and CSS-only, so reduced-motion users see
+ * the same surface as everyone else (no animation to disable).
+ */
+html[data-regime] body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image: radial-gradient(
+    ellipse 80% 60% at 50% 0%,
+    var(--regime-ambient-stop-1, transparent) 0%,
+    transparent 70%
+  );
+}
+
+html[data-regime="risk_on"] body::before {
+  --regime-ambient-stop-1: rgba(52, 211, 153, 0.05); /* bull green wash */
+}
+
+html[data-regime="haven_bid"] body::before {
+  --regime-ambient-stop-1: rgba(120, 94, 240, 0.06); /* violet flight wash */
+}
+
+html[data-regime="stagflation"] body::before {
+  --regime-ambient-stop-1: rgba(193, 95, 60, 0.05); /* warm sienna wash */
+}
+
+html[data-regime="growth_scare"] body::before {
+  --regime-ambient-stop-1: rgba(30, 64, 175, 0.06); /* deep cobalt wash */
+}
+
 body {
   scrollbar-gutter: stable;
 }
