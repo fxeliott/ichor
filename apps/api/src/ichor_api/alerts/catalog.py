@@ -368,6 +368,30 @@ PLAN_ALERTS: tuple[AlertDef, ...] = (
         ),
     ),
     AlertDef(
+        "YIELD_CURVE_UN_INVERSION_EVENT",
+        "critical",
+        "Yield curve un-inversion event ({value:.0f}/2 conditions)",
+        "yield_curve_un_inversion_conditions",
+        2,
+        "above",
+        crisis_mode=False,
+        description=(
+            "Sister alert to YIELD_CURVE_INVERSION_DEEP (ADR-046). Fires on "
+            "the un-inversion event — when T10Y2Y crosses back from negative "
+            "to positive AFTER having been deeply inverted (≤ -30 bps within "
+            "last 60d). Per Cleveland Fed + NY Fed research, recessions don't "
+            "start during inversion — they typically begin AFTER un-inversion. "
+            "The un-inversion signals the market expects aggressive Fed "
+            "easing, which historically coincides with recession onset. "
+            "Severity critical because this is the IMMINENT-RECESSION "
+            "trigger (vs deep-inversion alert = leading-by-12-24-month). "
+            "2024 example: T10Y2Y un-inverted Aug 2024 after 25-month "
+            "inversion (longest in FRED series, -108 bps trough). 2026 "
+            "current state: +49 bps normalized. Cf "
+            "services/yield_curve_un_inversion_check.py + ADR-047."
+        ),
+    ),
+    AlertDef(
         "YIELD_CURVE_INVERSION_DEEP",
         "warning",
         "Yield curve deep inversion T10Y2Y={value:+.2f}%",
@@ -579,8 +603,8 @@ def get_alert_def(code: str) -> AlertDef:
 
 
 def assert_catalog_complete() -> None:
-    """Sanity check at startup: total = 49 alerts, all unique codes."""
+    """Sanity check at startup: total = 50 alerts, all unique codes."""
     codes = [a.code for a in ALL_ALERTS]
     assert len(codes) == len(set(codes)), f"Duplicate alert codes: {codes}"
-    assert len(ALL_ALERTS) == 49, f"Expected 49 alerts, got {len(ALL_ALERTS)}"
+    assert len(ALL_ALERTS) == 50, f"Expected 50 alerts, got {len(ALL_ALERTS)}"
     assert len(CRISIS_TRIGGERS) >= 5, f"Expected ≥5 crisis triggers, got {len(CRISIS_TRIGGERS)}"
