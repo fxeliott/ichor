@@ -106,7 +106,7 @@ declare -A SCHEDULES=(
 )
 
 for name in "${!SCHEDULES[@]}"; do
-  cat > /etc/systemd/system/ichor-collector-${name}.timer <<EOF
+  cat > /etc/systemd/system/ichor-collector-"${name}".timer <<EOF
 [Unit]
 Description=Ichor collector trigger (${name})
 
@@ -125,7 +125,7 @@ systemctl daemon-reload
 
 # Enable + start
 for name in "${!SCHEDULES[@]}"; do
-  systemctl enable --now ichor-collector-${name}.timer
+  systemctl enable --now ichor-collector-"${name}".timer
 done
 
 echo "=== Installed Phase 2 collector timers (${#SCHEDULES[@]}) ==="
@@ -134,5 +134,5 @@ systemctl list-timers --no-pager | grep ichor-collector
 echo ""
 echo "Next runs:"
 for name in "${!SCHEDULES[@]}"; do
-  systemctl list-timers ichor-collector-${name}.timer --no-pager 2>&1 | tail -2 | head -1
+  systemctl list-timers ichor-collector-"${name}".timer --no-pager 2>&1 | tail -2 | head -1
 done

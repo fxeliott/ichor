@@ -50,7 +50,7 @@ declare -A SCHEDULES=(
 )
 
 for type in "${!SCHEDULES[@]}"; do
-  cat > /etc/systemd/system/ichor-briefing-${type}.timer <<EOF
+  cat > /etc/systemd/system/ichor-briefing-"${type}".timer <<EOF
 [Unit]
 Description=Ichor briefing trigger (${type})
 
@@ -69,7 +69,7 @@ systemctl daemon-reload
 
 # Enable + start (timers only — services trigger on schedule)
 for type in "${!SCHEDULES[@]}"; do
-  systemctl enable --now ichor-briefing-${type}.timer
+  systemctl enable --now ichor-briefing-"${type}".timer
 done
 
 echo "=== Installed timers ==="
@@ -78,5 +78,5 @@ systemctl list-timers --no-pager | grep ichor-briefing
 echo ""
 echo "Next runs:"
 for type in "${!SCHEDULES[@]}"; do
-  systemctl list-timers ichor-briefing-${type}.timer --no-pager 2>&1 | tail -2 | head -1
+  systemctl list-timers ichor-briefing-"${type}".timer --no-pager 2>&1 | tail -2 | head -1
 done
