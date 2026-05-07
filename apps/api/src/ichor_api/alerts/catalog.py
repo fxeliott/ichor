@@ -232,6 +232,24 @@ PLAN_ALERTS: tuple[AlertDef, ...] = (
         ),
     ),
     AlertDef(
+        "GEOPOL_REGIME_STRUCTURAL",
+        "info",
+        "Regime structurel geopol z_252d={value:+.2f}",
+        "ai_gpr_z_252d",
+        2.0,
+        "above",
+        description=(
+            "Structural-window companion to GEOPOL_FLASH (ADR-036). 252-day rolling "
+            "z-score on AI-GPR daily index — captures slow-build escalations "
+            "(Russia-Ukraine cumulative arc, Taiwan-strait gradual militarization, "
+            "US-China multi-year decoupling) that the 30d window dampens because "
+            "the rolling baseline drifts up with the absolute risk level. Severity "
+            "info: structural shifts are context flags not actionable signals. The "
+            "warning-level GEOPOL_FLASH remains the trader-actionable pathway. "
+            "Cf services/geopol_regime_check.py + ADR-039."
+        ),
+    ),
+    AlertDef(
         "COT_NET_FLIP", "warning", "COT positionnement net flip {asset}", "cot_net_z", 2.0, "above"
     ),
     AlertDef(
@@ -399,8 +417,8 @@ def get_alert_def(code: str) -> AlertDef:
 
 
 def assert_catalog_complete() -> None:
-    """Sanity check at startup: total = 40 alerts, all unique codes."""
+    """Sanity check at startup: total = 41 alerts, all unique codes."""
     codes = [a.code for a in ALL_ALERTS]
     assert len(codes) == len(set(codes)), f"Duplicate alert codes: {codes}"
-    assert len(ALL_ALERTS) == 40, f"Expected 40 alerts, got {len(ALL_ALERTS)}"
+    assert len(ALL_ALERTS) == 41, f"Expected 41 alerts, got {len(ALL_ALERTS)}"
     assert len(CRISIS_TRIGGERS) >= 5, f"Expected ≥5 crisis triggers, got {len(CRISIS_TRIGGERS)}"
