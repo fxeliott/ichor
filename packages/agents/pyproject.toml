@@ -24,6 +24,13 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# Phase A.4.c (ADR-032) — Langfuse tracing. Optional so unit tests + CI
+# can install ichor-agents without a hard dep on langfuse; the @observe
+# shim in `ichor_agents.observability` falls back to a no-op decorator
+# when the lib is absent.
+observability = [
+    "langfuse>=4.0.0",
+]
 dev = [
     "pytest>=8.3.0",
     "pytest-asyncio>=0.25.0",

@@ -31,6 +31,8 @@ from dataclasses import dataclass
 import httpx
 import structlog
 
+from .observability import observe
+
 log = structlog.get_logger(__name__)
 
 
@@ -135,6 +137,7 @@ def _schema_hint(output_type: type) -> str:
     )
 
 
+@observe(as_type="generation", name="couche2_agent_task")
 async def call_agent_task(
     cfg: ClaudeRunnerConfig,
     *,

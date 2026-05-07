@@ -21,6 +21,7 @@ from pydantic_ai import Agent
 from pydantic_ai.exceptions import ModelHTTPError, UserError
 
 from .claude_runner import ClaudeRunnerConfig, ClaudeRunnerError, call_agent_task
+from .observability import observe
 from .providers import MissingCredentials, ProviderConfig, build_model
 
 log = structlog.get_logger(__name__)
@@ -56,6 +57,7 @@ class FallbackChain:
     the most recent run() call. Read this AFTER run() to log/persist
     accurate provenance. None when the chain has not yet succeeded."""
 
+    @observe(name="couche2_chain")
     async def run(
         self,
         user_prompt: str,
