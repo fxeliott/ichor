@@ -368,6 +368,28 @@ PLAN_ALERTS: tuple[AlertDef, ...] = (
         ),
     ),
     AlertDef(
+        "TREASURY_VOL_SPIKE",
+        "warning",
+        "Treasury realized vol spike z={value:+.2f}",
+        "treasury_realized_vol_z",
+        2.0,
+        "above",
+        description=(
+            "MOVE Index proxy via DGS10 30d realized vol annualized. Z-score "
+            "vs trailing 252d distribution. Fires when |z| >= 2.0. Closes "
+            "ADR-042 followup (MACRO_QUARTET missed MOVE dimension because "
+            "FRED doesn't host actual ICE BofAML MOVE Index — Bloomberg/Cboe "
+            "DataShop only). Realized-vol = 1m-lagged backward-looking proxy. "
+            "Stress regime (z>0): bonds sell off + USD haven bid + gold rally "
+            "+ HY OAS widening. Complacency regime (z<0): vol crush, watch "
+            "for upside breakouts. Industry-standard MOVE thresholds (for "
+            "context): <80 calm, 80-120 typical, >120 moderate stress, >150 "
+            "high stress, 2008 GFC peak ~264, March 2023 SVB ~200. Current "
+            "April 2026 MOVE ~70 (ultra-calm). Source: FRED:DGS10. Cf "
+            "services/treasury_vol_check.py + ADR-048."
+        ),
+    ),
+    AlertDef(
         "YIELD_CURVE_UN_INVERSION_EVENT",
         "critical",
         "Yield curve un-inversion event ({value:.0f}/2 conditions)",
@@ -603,8 +625,8 @@ def get_alert_def(code: str) -> AlertDef:
 
 
 def assert_catalog_complete() -> None:
-    """Sanity check at startup: total = 50 alerts, all unique codes."""
+    """Sanity check at startup: total = 51 alerts, all unique codes."""
     codes = [a.code for a in ALL_ALERTS]
     assert len(codes) == len(set(codes)), f"Duplicate alert codes: {codes}"
-    assert len(ALL_ALERTS) == 50, f"Expected 50 alerts, got {len(ALL_ALERTS)}"
+    assert len(ALL_ALERTS) == 51, f"Expected 51 alerts, got {len(ALL_ALERTS)}"
     assert len(CRISIS_TRIGGERS) >= 5, f"Expected ≥5 crisis triggers, got {len(CRISIS_TRIGGERS)}"
