@@ -1,0 +1,65 @@
+name: web2-a11y
+
+# WCAG 2.2 AA gate (ADR-026/027). Runs Playwright + @axe-core/playwright
+# against `next start` on the 5 pivot routes. Failure means a PR
+# introduced an axe violation on a pivot — block before review.
+
+on:
+  pull_request:
+    paths:
+      - "apps/web2/**"
+      - "packages/ui/**"
+      - ".github/workflows/web2-a11y.yml"
+  push:
+    branches: [main]
+    paths:
+      - "apps/web2/**"
+      - "packages/ui/**"
+
+concurrency:
+  group: web2-a11y-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  axe:
+    name: axe-core WCAG 2.2 AA — pivot routes
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build web2
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"
+        run: pnpm --filter @ichor/web2 build
+
+      - name: Install Playwright browsers (chromium only)
+        run: pnpm --filter @ichor/web2 exec playwright install --with-deps chromium
+
+      - name: Run axe accessibility suite
+        env:
+          # Use production server for accurate axe scan (no dev overlays).
+          PLAYWRIGHT_BASE_URL: "http://localhost:3001"
+          # Stub the API rewrites against the local mock (no Hetzner reachable from CI).
+          ICHOR_API_PROXY_TARGET: "http://127.0.0.1:8000"
+        run: pnpm --filter @ichor/web2 exec playwright test e2e/a11y.spec.ts --reporter=github
+
+      - name: Upload Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-axe-report
+          path: apps/web2/playwright-report
+          retention-days: 7
