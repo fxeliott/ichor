@@ -12,14 +12,14 @@ Phase A.3 of the ROADMAP delivered a Wave 5 CI ramp on
 - `pytest --cov-fail-under=70` gate on `apps/api`.
 - `shellcheck` linting on `scripts/hetzner/register-cron-*.sh`.
 - Structural lint asserting the canonical systemd unit pattern (cf
-  ADR-030) on every register-cron-*.sh.
+  ADR-030) on every register-cron-\*.sh.
 - `lint` + `apps/api mypy` blocking (D.4 commit `17899e1` from main).
 
 This ADR ratifies the Wave 5 strategy and freezes the **ramp
 posture**: which gates are blocking today, which stay `continue-on-error`
 on which packages, and the path to making them all blocking.
 
-The 2026-05-04 incident (5 services down via a register-cron-*.sh
+The 2026-05-04 incident (5 services down via a register-cron-\*.sh
 edit, cf ADR-030) is the proximate driver: an existing CI without
 shellcheck would have caught the `Type=simple` swap at PR time. We
 have to harden incrementally — flipping every flag at once would
@@ -32,29 +32,29 @@ the noise.
 
 ### Stage 1 — Already blocking (today, post-commit `42c6823`)
 
-| Gate | Scope | Status |
-|---|---|---|
-| `eslint --max-warnings 0` | apps/web2 + packages/* | blocking |
-| `tsc --noEmit` | apps/web2 + packages/ui | blocking |
-| `mypy --strict` | apps/api | blocking |
-| `pytest --cov-fail-under=70` | apps/api | blocking |
-| `shellcheck` | scripts/hetzner/register-cron-*.sh | blocking |
-| Structural lint (Type=oneshot, EnvironmentFile, User=ichor) | scripts/hetzner/register-cron-*.sh | blocking |
-| `vitest run` | apps/web2 | blocking |
-| `playwright test e2e/smoke.spec.ts` | apps/web2 | blocking |
+| Gate                                                        | Scope                               | Status   |
+| ----------------------------------------------------------- | ----------------------------------- | -------- |
+| `eslint --max-warnings 0`                                   | apps/web2 + packages/\*             | blocking |
+| `tsc --noEmit`                                              | apps/web2 + packages/ui             | blocking |
+| `mypy --strict`                                             | apps/api                            | blocking |
+| `pytest --cov-fail-under=70`                                | apps/api                            | blocking |
+| `shellcheck`                                                | scripts/hetzner/register-cron-\*.sh | blocking |
+| Structural lint (Type=oneshot, EnvironmentFile, User=ichor) | scripts/hetzner/register-cron-\*.sh | blocking |
+| `vitest run`                                                | apps/web2                           | blocking |
+| `playwright test e2e/smoke.spec.ts`                         | apps/web2                           | blocking |
 
 ### Stage 2 — Continue-on-error (Phase A.3 + B / today)
 
 Packages NOT yet enforced because surfacing existing issues as
 failures would mask real regressions:
 
-| Gate | Scope | Why deferred |
-|---|---|---|
+| Gate            | Scope              | Why deferred                                       |
+| --------------- | ------------------ | -------------------------------------------------- |
 | `mypy --strict` | apps/claude-runner | 12 type errors today (fixture-heavy fastapi tests) |
-| `mypy --strict` | packages/agents | Pydantic AI typing partial coverage |
-| `mypy --strict` | packages/ml | optional optimum/transformers typing missing |
-| `pytest` | apps/claude-runner | 17 tests pass but no coverage gate |
-| `pytest` | packages/ml | 0 tests today (Phase D.2 to add) |
+| `mypy --strict` | packages/agents    | Pydantic AI typing partial coverage                |
+| `mypy --strict` | packages/ml        | optional optimum/transformers typing missing       |
+| `pytest`        | apps/claude-runner | 17 tests pass but no coverage gate                 |
+| `pytest`        | packages/ml        | 0 tests today (Phase D.2 to add)                   |
 
 These will be flipped to blocking **package-by-package** as each
 package's noise floor is cleared by a dedicated cleanup PR.
@@ -63,21 +63,21 @@ package's noise floor is cleared by a dedicated cleanup PR.
 
 Added in subsequent ADRs:
 
-| Gate | When | ADR |
-|---|---|---|
-| `@axe-core/playwright` 5 pivot routes | Phase B (now) | ADR-026/027 |
-| `@lhci/cli` Lighthouse CI | Phase B (now) | ADR-026 |
-| `@axe-core/playwright` 36 remaining routes | Phase B.2 | ADR-027 |
-| `golden-path.spec.ts` | Phase B.2 | ADR-027 |
-| RUM endpoint + assertions | Phase B.5 | ADR-026 followup |
+| Gate                                       | When          | ADR              |
+| ------------------------------------------ | ------------- | ---------------- |
+| `@axe-core/playwright` 5 pivot routes      | Phase B (now) | ADR-026/027      |
+| `@lhci/cli` Lighthouse CI                  | Phase B (now) | ADR-026          |
+| `@axe-core/playwright` 36 remaining routes | Phase B.2     | ADR-027          |
+| `golden-path.spec.ts`                      | Phase B.2     | ADR-027          |
+| RUM endpoint + assertions                  | Phase B.5     | ADR-026 followup |
 
 ### Operational rules
 
 - **Never flip a gate to blocking with known noise**. Run locally
   first, fix or grandfather, then flip.
 - **Document the flip in this ADR's amendments section** with a date
-  + commit hash. ADR-028 is the source of truth for Wave 5 ramp
-  posture.
+  - commit hash. ADR-028 is the source of truth for Wave 5 ramp
+    posture.
 - **A blocking gate that flakes is downgraded to `continue-on-error`
   immediately** (with a TODO + 1-week SLA to fix). Flaky gates erode
   trust faster than absent gates.

@@ -16,14 +16,13 @@ from __future__ import annotations
 
 import asyncio
 import sys
-from datetime import date, timedelta
+from datetime import UTC, date, datetime, timedelta
+from typing import Any
 
 import httpx
 
-from ..collectors.ai_gpr import fetch_latest as fetch_ai_gpr
-from ..collectors.central_bank_speeches import poll_all as poll_cb_speeches
-from ..collectors.cot import poll_all_assets as poll_cot
 from ..collectors.aaii import fetch_latest_aaii
+from ..collectors.ai_gpr import fetch_latest as fetch_ai_gpr
 from ..collectors.arxiv_qfin import fetch_qfin_recent
 from ..collectors.binance_funding import poll_all as poll_binance_funding
 from ..collectors.bls import SERIES_TO_POLL as _BLS_SERIES
@@ -31,6 +30,8 @@ from ..collectors.bls import fetch_series as fetch_bls_series
 from ..collectors.bluesky import poll_watchlist as poll_bluesky
 from ..collectors.boe_iadb import SERIES_TO_POLL as _BOE_SERIES
 from ..collectors.boe_iadb import fetch_series as fetch_boe_series
+from ..collectors.central_bank_speeches import poll_all as poll_cb_speeches
+from ..collectors.cot import poll_all_assets as poll_cot
 from ..collectors.crypto_fear_greed import fetch_fng_history
 from ..collectors.defillama import poll_all as poll_defillama
 from ..collectors.dts_treasury import fetch_operating_cash, latest_tga_close
@@ -39,14 +40,6 @@ from ..collectors.ecb_sdmx import fetch_series as fetch_ecb_series
 from ..collectors.eia_petroleum import fetch_steo, fetch_weekly_petroleum_stocks
 from ..collectors.finra_short import fetch_daily_short_volume
 from ..collectors.flashalpha import poll_all as poll_flashalpha
-from ..collectors.gex_yfinance import poll_all as poll_gex_yfinance
-from ..collectors.polygon_news import fetch_news as fetch_polygon_news
-from ..collectors.polygon_news import relevant_to_ichor_universe
-from ..collectors.reddit import fetch_subreddit
-from ..collectors.reddit import persist_to_news_items as persist_reddit_news
-from ..collectors.treasury_auction import fetch_recent_auctions
-from ..collectors.vix_live import fetch_vix
-from ..collectors.wikipedia_pageviews import poll_all as poll_wikipedia_pageviews
 from ..collectors.forex_factory import (
     fetch_ff_calendar,
 )
@@ -56,13 +49,21 @@ from ..collectors.forex_factory import (
 from ..collectors.fred import poll_all as poll_fred
 from ..collectors.fred_extended import merged_series as fred_merged_series
 from ..collectors.gdelt import poll_all as poll_gdelt
+from ..collectors.gex_yfinance import poll_all as poll_gex_yfinance
 from ..collectors.kalshi import poll_all as poll_kalshi
 from ..collectors.manifold import poll_all as poll_manifold
 from ..collectors.market_data import poll_all as poll_market_data
 from ..collectors.polygon import fetch_aggs
 from ..collectors.polygon import supported_assets as polygon_assets
+from ..collectors.polygon_news import fetch_news as fetch_polygon_news
+from ..collectors.polygon_news import relevant_to_ichor_universe
 from ..collectors.polymarket import poll_all as poll_polymarket
+from ..collectors.reddit import fetch_subreddit
+from ..collectors.reddit import persist_to_news_items as persist_reddit_news
 from ..collectors.rss import poll_all as poll_rss
+from ..collectors.treasury_auction import AuctionResult, fetch_recent_auctions
+from ..collectors.vix_live import fetch_vix
+from ..collectors.wikipedia_pageviews import poll_all as poll_wikipedia_pageviews
 from ..config import get_settings
 from ..db import get_engine, get_sessionmaker
 
@@ -501,9 +502,10 @@ async def _run_vix_live(*, persist: bool) -> int:
         f"at {snap.fetched_at.isoformat()})"
     )
     if persist:
+        from sqlalchemy import desc, select
+
         from ..models import FredObservation
         from ..services.alerts_runner import check_metric
-        from sqlalchemy import select, desc
 
         sm = get_sessionmaker()
         async with sm() as session:
@@ -593,7 +595,6 @@ async def _run_bls(*, persist: bool) -> int:
     fred_observations with series_id='BLS_<id>'.
     """
     from datetime import UTC as _UTC
-    from datetime import date as _date
     from datetime import datetime as _dt
 
     settings = get_settings()
@@ -731,6 +732,7 @@ async def _run_finra_short(*, persist: bool) -> int:
     if persist and rows:
         from datetime import UTC as _UTC
         from datetime import datetime as _dt
+
         from sqlalchemy import select
 
         from ..models import FinraShortVolume
@@ -1076,6 +1078,7 @@ async def _run_binance_funding(*, persist: bool) -> int:
     BINANCE_FUNDING_ANN_{symbol} (linearly annualized)."""
     from datetime import UTC as _UTC
     from datetime import datetime as _dt
+
     from sqlalchemy.dialects.postgresql import insert as pg_insert
 
     from ..collectors.binance_funding import annualize_rate
@@ -1089,10 +1092,10 @@ async def _run_binance_funding(*, persist: bool) -> int:
             f"(ann ≈ {ann:+.1%})"
         )
     if persist and records:
-        from ..models import FredObservation
-
         # Aggregate per (symbol, day) — mean funding rate.
         from collections import defaultdict
+
+        from ..models import FredObservation
 
         bucket: dict[tuple[str, object], list[float]] = defaultdict(list)
         fetched: dict[tuple[str, object], _dt] = {}
@@ -1277,7 +1280,7 @@ async def _run_treasury_auction(*, persist: bool) -> int:
         n_persisted = 0
         n_alerts = 0
         # We alert on the most recent auction per (type, term) only.
-        latest_by_kind: dict[tuple[str, str], "AuctionResult"] = {}
+        latest_by_kind: dict[tuple[str, str], AuctionResult] = {}
         for r in rows:
             key = (r.security_type, r.security_term)
             cur = latest_by_kind.get(key)
@@ -1356,8 +1359,6 @@ async def _run_reddit(*, persist: bool) -> int:
     4 subreddits (wallstreetbets, forex, stockmarket, Gold) per
     AUDIT_V3 §sentiment.
     """
-    from datetime import UTC as _UTC
-    from datetime import datetime as _dt
 
     SUBREDDITS: tuple[str, ...] = (
         "wallstreetbets",

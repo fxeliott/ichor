@@ -89,7 +89,12 @@ const ACTIONS: PaletteAction[] = [
   },
   // Analyse
   { id: "confluence", label: "Confluence factors", group: "Analyse", href: "/confluence" },
-  { id: "correlations", label: "Cross-asset correlations", group: "Analyse", href: "/correlations" },
+  {
+    id: "correlations",
+    label: "Cross-asset correlations",
+    group: "Analyse",
+    href: "/correlations",
+  },
   { id: "yield-curve", label: "Yield curve", group: "Analyse", href: "/yield-curve" },
   {
     id: "knowledge-graph",

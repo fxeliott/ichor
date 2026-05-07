@@ -65,7 +65,8 @@ export function usePinnedAssets() {
   const togglePin = useCallback((asset: AssetSlug) => {
     setPins((current) => {
       const idx = current.indexOf(asset);
-      const next = idx >= 0 ? current.filter((a) => a !== asset) : [asset, ...current].slice(0, MAX_PINS);
+      const next =
+        idx >= 0 ? current.filter((a) => a !== asset) : [asset, ...current].slice(0, MAX_PINS);
       writePins(next);
       return next;
     });

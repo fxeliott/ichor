@@ -34,11 +34,13 @@ export default function AdminError({ error, reset }: Props) {
       </h1>
       <p className="max-w-prose text-[var(--color-text-secondary)]">
         Le endpoint <code>/v1/admin/pipeline-health</code> a échoué. La cause la plus probable :
-        Postgres ou Redis sont indisponibles côté Hetzner. Si <code>/admin</code> elle-même
-        ne se charge pas, vérifie d&apos;abord <code>curl /healthz</code> sur l&apos;API.
+        Postgres ou Redis sont indisponibles côté Hetzner. Si <code>/admin</code> elle-même ne se
+        charge pas, vérifie d&apos;abord <code>curl /healthz</code> sur l&apos;API.
       </p>
       {error.digest ? (
-        <p className="font-mono text-xs text-[var(--color-text-tertiary)]">digest: {error.digest}</p>
+        <p className="font-mono text-xs text-[var(--color-text-tertiary)]">
+          digest: {error.digest}
+        </p>
       ) : null}
       <div className="mt-2 flex gap-3">
         <button

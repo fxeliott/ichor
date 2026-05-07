@@ -80,7 +80,7 @@ async def _compute_for_asset(session, *, asset: str, since: datetime):
 
     latest = float(result.vpin.iloc[-1])
     p99 = float(result.vpin.quantile(0.99))
-    return latest, p99, int(len(result.vpin))
+    return latest, p99, len(result.vpin)
 
 
 async def run(*, persist: bool, lookback_hours: int = _LOOKBACK_HOURS) -> int:
@@ -118,6 +118,7 @@ async def run(*, persist: bool, lookback_hours: int = _LOOKBACK_HOURS) -> int:
 
             if persist:
                 from datetime import UTC as _UTC
+
                 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
                 from ..models import FredObservation

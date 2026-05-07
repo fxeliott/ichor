@@ -26,7 +26,7 @@ import sys
 from datetime import UTC, datetime, timedelta
 
 import structlog
-from sqlalchemy import desc, select
+from sqlalchemy import select
 
 from ..db import get_engine, get_sessionmaker
 from ..models import FredObservation
@@ -37,7 +37,7 @@ _LOOKBACK_DAYS = 28
 _MIN_OBS_FOR_MATCH = 20  # we need at least 20 of 28 days
 
 
-async def _load_vix_pattern(session) -> "list[float] | None":
+async def _load_vix_pattern(session) -> list[float] | None:
     """Pull the last 28 days of VIX (close), padded if missing."""
     cutoff = (datetime.now(UTC) - timedelta(days=_LOOKBACK_DAYS + 5)).date()
     stmt = (

@@ -22,11 +22,11 @@ Source :
 from __future__ import annotations
 
 import re
-import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
+import defusedxml.ElementTree as ET  # noqa: N817 — alias kept for stdlib parity
 import httpx
 
 ARXIV_BASE = "http://export.arxiv.org/api/query"

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-
 from ichor_api.cli.run_brier_drift_check import _MIN_OBS_PER_WEEK
 
 

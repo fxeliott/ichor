@@ -34,8 +34,8 @@ export default function SessionAssetError({ error, reset }: Props) {
         L&apos;asset n&apos;a pas pu être chargé.
       </h1>
       <p className="max-w-prose text-[var(--color-text-secondary)]">
-        Soit l&apos;asset n&apos;existe pas dans le whitelist, soit la
-        session-card de la fenêtre courante n&apos;est pas encore persistée. Vérifie{" "}
+        Soit l&apos;asset n&apos;existe pas dans le whitelist, soit la session-card de la fenêtre
+        courante n&apos;est pas encore persistée. Vérifie{" "}
         <Link href="/sessions" className="underline hover:text-[var(--color-text-primary)]">
           la liste des assets
         </Link>{" "}
@@ -46,7 +46,9 @@ export default function SessionAssetError({ error, reset }: Props) {
         pour l&apos;état du pipeline.
       </p>
       {error.digest ? (
-        <p className="font-mono text-xs text-[var(--color-text-tertiary)]">digest: {error.digest}</p>
+        <p className="font-mono text-xs text-[var(--color-text-tertiary)]">
+          digest: {error.digest}
+        </p>
       ) : null}
       <div className="mt-2 flex gap-3">
         <button

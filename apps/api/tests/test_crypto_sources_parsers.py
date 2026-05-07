@@ -9,8 +9,6 @@ from __future__ import annotations
 
 from datetime import UTC, date, datetime
 
-import pytest
-
 from ichor_api.collectors.binance_funding import (
     annualize_rate,
     parse_funding_response,
@@ -24,7 +22,6 @@ from ichor_api.collectors.defillama import (
     parse_chain_tvl_response,
     parse_stablecoins_response,
 )
-
 
 # ── DeFiLlama ────────────────────────────────────────────────────────
 

@@ -48,24 +48,21 @@ interface CounterfactualBranch {
 const MOCK_BRANCHES: CounterfactualBranch[] = [
   {
     label: "If regime had been haven_bid",
-    thesis: "EUR/USD aurait probablement reculé sous 1.075 sur le bid sur safe assets ; la conviction long aurait basculé en short modéré (DXY headwind dominant).",
+    thesis:
+      "EUR/USD aurait probablement reculé sous 1.075 sur le bid sur safe assets ; la conviction long aurait basculé en short modéré (DXY headwind dominant).",
     conviction: 38,
     delta_pp: -34,
   },
   {
     label: "If ECB had stayed neutral",
-    thesis: "Le mécanisme 3 (CB-NLP hawkish) tombe ; le setup garde un biais long mais la conviction tombe à 55% (sous le seuil de 60% pour signal fort).",
+    thesis:
+      "Le mécanisme 3 (CB-NLP hawkish) tombe ; le setup garde un biais long mais la conviction tombe à 55% (sous le seuil de 60% pour signal fort).",
     conviction: 55,
     delta_pp: -17,
   },
 ];
 
-export function CounterfactualModal({
-  sessionCardId,
-  asset,
-  session,
-  actualThesis,
-}: Props) {
+export function CounterfactualModal({ sessionCardId, asset, session, actualThesis }: Props) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -82,12 +79,8 @@ export function CounterfactualModal({
       </Dialog.Trigger>
 
       <Dialog.Portal>
-        <Dialog.Overlay
-          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0"
-        />
-        <Dialog.Content
-          className="fixed left-1/2 top-1/2 z-50 w-[min(90vw,720px)] max-h-[85vh] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-6 shadow-2xl focus:outline-none"
-        >
+        <Dialog.Overlay className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
+        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[min(90vw,720px)] max-h-[85vh] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-6 shadow-2xl focus:outline-none">
           <Dialog.Title className="font-mono text-xs uppercase tracking-widest text-[var(--color-text-muted)]">
             Counterfactual · Pass 5
           </Dialog.Title>
@@ -129,9 +122,7 @@ export function CounterfactualModal({
                     conv {b.conviction}%{" "}
                     <span
                       className={
-                        b.delta_pp >= 0
-                          ? "text-[var(--color-bull)]"
-                          : "text-[var(--color-bear)]"
+                        b.delta_pp >= 0 ? "text-[var(--color-bull)]" : "text-[var(--color-bear)]"
                       }
                     >
                       ({b.delta_pp > 0 ? "+" : ""}
@@ -145,8 +136,8 @@ export function CounterfactualModal({
           </ol>
 
           <p className="mt-4 font-mono text-[10px] text-[var(--color-text-muted)]">
-            Counterfactuals computed by `passes/counterfactual.py` weekly cron;
-            data câblage backend Phase B.5a v2.
+            Counterfactuals computed by `passes/counterfactual.py` weekly cron; data câblage backend
+            Phase B.5a v2.
           </p>
 
           <Dialog.Close asChild>
@@ -155,7 +146,9 @@ export function CounterfactualModal({
               aria-label="Fermer le panneau Counterfactual"
               className="absolute right-3 top-3 rounded text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-accent-cobalt)]"
             >
-              <span aria-hidden="true" className="font-mono text-lg leading-none">×</span>
+              <span aria-hidden="true" className="font-mono text-lg leading-none">
+                ×
+              </span>
             </button>
           </Dialog.Close>
         </Dialog.Content>

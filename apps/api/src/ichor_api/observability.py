@@ -108,4 +108,4 @@ def get_langfuse_client() -> Any:
     return _langfuse_client
 
 
-__all__ = ["init_langfuse", "flush_langfuse", "get_langfuse_client"]
+__all__ = ["flush_langfuse", "get_langfuse_client", "init_langfuse"]

@@ -21,6 +21,7 @@ from .economic_events import router as economic_events_router
 from .geopolitics import router as geopolitics_router
 from .graph import router as graph_router
 from .hourly_volatility import router as hourly_volatility_router
+from .journal import router as journal_router
 from .macro_pulse import router as macro_pulse_router
 from .market import router as market_router
 from .narratives import router as narratives_router
@@ -56,6 +57,7 @@ __all__ = [
     "geopolitics_router",
     "graph_router",
     "hourly_volatility_router",
+    "journal_router",
     "macro_pulse_router",
     "market_router",
     "narratives_router",

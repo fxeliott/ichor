@@ -31,17 +31,16 @@ type AxeFixture = {
 export const test = base.extend<AxeFixture>({
   makeAxeBuilder: async ({ page }, use) => {
     const makeAxeBuilder = () =>
-      new AxeBuilder({ page })
-        .withTags([
-          "wcag2a",
-          "wcag2aa",
-          "wcag21a",
-          "wcag21aa",
-          // WCAG 2.2 AA additions: focus-not-obscured-minimum, target-size,
-          // dragging-movements, etc. Required to satisfy ADR-026 and the
-          // 2026-08-02 EU AI Act §50 surface-floor compliance posture.
-          "wcag22aa",
-        ]);
+      new AxeBuilder({ page }).withTags([
+        "wcag2a",
+        "wcag2aa",
+        "wcag21a",
+        "wcag21aa",
+        // WCAG 2.2 AA additions: focus-not-obscured-minimum, target-size,
+        // dragging-movements, etc. Required to satisfy ADR-026 and the
+        // 2026-08-02 EU AI Act §50 surface-floor compliance posture.
+        "wcag22aa",
+      ]);
     await use(makeAxeBuilder);
   },
 });

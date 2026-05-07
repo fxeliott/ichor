@@ -13,13 +13,11 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-
 from ichor_api.services.risk_reversal_check import (
     _MIN_HISTORY,
     _zscore,
     evaluate_rr25,
 )
-
 
 # ── pure z-score helper ────────────────────────────────────────────
 

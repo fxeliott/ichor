@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-
 from ichor_api.cli.run_news_tone_scorer import _BATCH_SIZE, _MAX_AGE_HOURS, _signed_score
 
 

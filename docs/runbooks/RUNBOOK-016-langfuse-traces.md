@@ -16,6 +16,7 @@
 ## Trigger
 
 Any of:
+
 - A 4-pass run completed (row in `session_card_audit`) but no trace
   visible in https://langfuse.ichor.internal under
   `name="session_card_4pass"` after >2 minutes.
@@ -85,6 +86,7 @@ ssh ichor-hetzner 'docker logs --since 10m ichor-langfuse-web-1 2>&1 \
 
 Look for "ingestion queue" warnings or 429s. If ClickHouse is the
 bottleneck:
+
 ```bash
 ssh ichor-hetzner 'docker exec ichor-langfuse-clickhouse-1 \
     clickhouse-client -q "SELECT count() FROM traces \
@@ -152,12 +154,12 @@ traces are observability not source-of-truth.
 
 Once traces are flowing, common analyses:
 
-| Question | Filter |
-|---|---|
-| Which 4-pass took longest in the last 24h? | `name="session_card_4pass"` sorted by duration desc |
-| Did any Pass 3 (stress) take >100s (CF edge cap)? | `name="couche1_runner_call"` + tag `pass=3` (todo: add tag) + duration ≥100s |
-| Which Couche-2 agent fell back to Cerebras most? | `name="couche2_chain"` + metadata.last_success contains "cerebras" |
-| Show all traces for a specific session card | search trace ID = `session_card_audit.id`, todo: persist trace id in DB column |
+| Question                                          | Filter                                                                         |
+| ------------------------------------------------- | ------------------------------------------------------------------------------ |
+| Which 4-pass took longest in the last 24h?        | `name="session_card_4pass"` sorted by duration desc                            |
+| Did any Pass 3 (stress) take >100s (CF edge cap)? | `name="couche1_runner_call"` + tag `pass=3` (todo: add tag) + duration ≥100s   |
+| Which Couche-2 agent fell back to Cerebras most?  | `name="couche2_chain"` + metadata.last_success contains "cerebras"             |
+| Show all traces for a specific session card       | search trace ID = `session_card_audit.id`, todo: persist trace id in DB column |
 
 ## Post-incident
 

@@ -14,10 +14,8 @@ from __future__ import annotations
 
 import math
 from datetime import UTC, datetime, timedelta
-from types import SimpleNamespace
 
 import pytest
-
 from ichor_api.collectors.gex_yfinance import (
     _CALL_DEALER_SIGN,
     _CONTRACT_MULTIPLIER,
@@ -28,7 +26,6 @@ from ichor_api.collectors.gex_yfinance import (
     bs_gamma,
     supported_tickers,
 )
-
 
 # ── Black-Scholes gamma ──────────────────────────────────────────────
 

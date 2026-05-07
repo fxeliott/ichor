@@ -70,7 +70,7 @@ async def _load_bars_for_asset(session, *, asset: str, since: datetime):
     return (await session.execute(stmt)).all()
 
 
-def _daily_rv_from_bars(rows) -> "list[tuple[date, float]]":
+def _daily_rv_from_bars(rows) -> list[tuple[date, float]]:
     """Aggregate (bar_ts, close) → list of (date, realized_vol).
 
     RV_d = sqrt(sum_{t in d} (log(close_t / close_{t-1}))^2).
@@ -80,7 +80,6 @@ def _daily_rv_from_bars(rows) -> "list[tuple[date, float]]":
 
     daily: dict[date, float] = {}
     last_close: float | None = None
-    last_date: date | None = None
 
     for ts, close in rows:
         if close is None or close <= 0:
@@ -90,7 +89,6 @@ def _daily_rv_from_bars(rows) -> "list[tuple[date, float]]":
             r = math.log(float(close) / last_close)
             daily[d] = daily.get(d, 0.0) + r * r
         last_close = float(close)
-        last_date = d
 
     # Take square root for RV (annualized factor not needed — we work
     # with raw realized variance throughout, the HAR regression is

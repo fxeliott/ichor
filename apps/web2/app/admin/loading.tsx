@@ -16,10 +16,7 @@ export default function AdminLoading() {
       <div className="mb-8 h-10 w-48 animate-pulse rounded-md bg-[var(--color-bg-elevated)]" />
       <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-4">
         {Array.from({ length: 4 }).map((_, i) => (
-          <div
-            key={i}
-            className="h-24 animate-pulse rounded-lg bg-[var(--color-bg-elevated)]/40"
-          />
+          <div key={i} className="h-24 animate-pulse rounded-lg bg-[var(--color-bg-elevated)]/40" />
         ))}
       </div>
       <div className="space-y-2">

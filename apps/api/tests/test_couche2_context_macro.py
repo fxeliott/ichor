@@ -8,7 +8,6 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-
 from ichor_api.services.couche2_context import (
     _MACRO_FRED_SERIES,
     build_macro_context,

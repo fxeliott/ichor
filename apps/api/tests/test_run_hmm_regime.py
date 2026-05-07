@@ -3,12 +3,11 @@
 from __future__ import annotations
 
 import pytest
-
 from ichor_api.cli.run_hmm_regime import (
-    WATCHED_ASSETS,
     _LOOKBACK_DAYS,
     _MIN_DAYS_FOR_FIT,
     _STATE_LABELS,
+    WATCHED_ASSETS,
 )
 
 

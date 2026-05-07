@@ -24,6 +24,7 @@ the surface to be production-grade:
    reflex-ergonomics, no jank, no surprise, INP <200 ms always.
 
 Today (2026-05-07), web2 has:
+
 - Skip link (✅), AI disclosure banner (✅), legal footer (✅),
   WCAG 2.2 AA color contrast bundle (✅, commit 4c31600).
 - 0 axe-core test running in CI — no automated regression gate.
@@ -164,7 +165,7 @@ Phase B drop landed on `claude/blissful-lewin-22e261`:
   `axe-core`, `@lhci/cli`, `lighthouse` to devDependencies (pnpm
   install pending Eliot annonce — réseau sortante action).
 - `.github/workflows/web2-a11y.yml` (NEW) — runs `pnpm test:e2e --
-  a11y.spec.ts` against `pnpm start` on every push touching
+a11y.spec.ts` against `pnpm start` on every push touching
   `apps/web2/`.
 - `.github/workflows/web2-lighthouse.yml` (NEW) — runs
   `npx @lhci/cli autorun` against the same build.

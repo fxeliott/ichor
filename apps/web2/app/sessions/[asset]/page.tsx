@@ -253,11 +253,7 @@ function Header({
         </h1>
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <PinButton asset={slug} />
-          <CounterfactualModal
-            sessionCardId={null}
-            asset={slug}
-            session="london"
-          />
+          <CounterfactualModal sessionCardId={null} asset={slug} session="london" />
         </div>
       </div>
       <BiasIndicator bias="bull" value={1.42} unit="%" size="lg" withGlow />

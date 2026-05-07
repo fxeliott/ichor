@@ -7,17 +7,15 @@ model download.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-
 from ichor_api.services.cb_tone_check import (
     _MIN_HISTORY,
     _zscore,
     evaluate_cb_tone,
 )
-
 
 # ── pure z-score helper ────────────────────────────────────────────
 

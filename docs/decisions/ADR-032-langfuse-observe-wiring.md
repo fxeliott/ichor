@@ -30,14 +30,15 @@ short-lived hosts (FastAPI, AWS Lambda).
 **Wire `@observe` at three semantic layers**, with one trace per
 session card and per-LLM-call generations linked beneath:
 
-| Trace level     | Decorator                                        | Where                                                              |
-|-----------------|--------------------------------------------------|--------------------------------------------------------------------|
-| Trace 4-pass    | `@observe(name="session_card_4pass")`            | `ichor_brain.orchestrator.Orchestrator.run`                        |
-| Generation L1   | `@observe(as_type="generation", name="couche1_runner_call")` | `ichor_brain.runner_client.HttpRunnerClient.run`         |
-| Trace L2 chain  | `@observe(name="couche2_chain")`                 | `ichor_agents.fallback.FallbackChain.run`                          |
-| Generation L2   | `@observe(as_type="generation", name="couche2_agent_task")` | `ichor_agents.claude_runner.call_agent_task`              |
+| Trace level    | Decorator                                                    | Where                                            |
+| -------------- | ------------------------------------------------------------ | ------------------------------------------------ |
+| Trace 4-pass   | `@observe(name="session_card_4pass")`                        | `ichor_brain.orchestrator.Orchestrator.run`      |
+| Generation L1  | `@observe(as_type="generation", name="couche1_runner_call")` | `ichor_brain.runner_client.HttpRunnerClient.run` |
+| Trace L2 chain | `@observe(name="couche2_chain")`                             | `ichor_agents.fallback.FallbackChain.run`        |
+| Generation L2  | `@observe(as_type="generation", name="couche2_agent_task")`  | `ichor_agents.claude_runner.call_agent_task`     |
 
 This produces a clean parent-child hierarchy in the Langfuse UI:
+
 ```
 session_card_4pass (4-pass orchestrator)
 ├── couche1_runner_call (Pass 1 régime)
@@ -45,7 +46,9 @@ session_card_4pass (4-pass orchestrator)
 ├── couche1_runner_call (Pass 3 stress)
 └── couche1_runner_call (Pass 4 invalidation)
 ```
+
 And independently, each Couche-2 agent run produces:
+
 ```
 couche2_chain (FallbackChain.run)
 └── couche2_agent_task (call_agent_task — Claude path)
@@ -79,6 +82,7 @@ the `prometheus-fastapi-instrumentator` wrap landed in Phase A.4.a.
 
 `apps/api/src/ichor_api/observability.py` owns the `Langfuse` client
 singleton. The FastAPI lifespan calls:
+
 - `init_langfuse()` at startup — reads keys from settings, constructs
   the client, swallows any exception (boot must not fail on
   observability flakes).
@@ -147,7 +151,7 @@ the runtime env doesn't have the lib.
 Rejected. OTel is already wired (`opentelemetry-instrumentation-fastapi`
 in `apps/api/pyproject.toml:20`) and gives us HTTP middleware traces,
 but not LLM-specific concepts (`as_type="generation"`, prompt
-versioning, score creation). Langfuse v4 sits *on top* of OTel for
+versioning, score creation). Langfuse v4 sits _on top_ of OTel for
 its propagation; the decorator is the right abstraction for LLM
 flows.
 
@@ -186,6 +190,7 @@ this ADR):
 
 Hetzner: `ssh ichor-hetzner '/opt/ichor/api/.venv/bin/pip install langfuse>=4.0.0'`
 then `sudo systemctl restart ichor-api.service`. Verify traces flow:
+
 ```bash
 curl -X POST http://127.0.0.1:8000/v1/sessions/run-cards \
      -H 'Content-Type: application/json' \

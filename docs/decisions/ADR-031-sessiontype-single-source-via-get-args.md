@@ -26,10 +26,10 @@ silently rejected those session windows with `unknown session_type`
 before even hitting the runner.
 
 ADR-024 §close reaffirmed the bug class but explicitly deferred the
-single-source-of-truth fix : *"the two CLI runners still carry their
+single-source-of-truth fix : _"the two CLI runners still carry their
 own `_VALID_SESSIONS` set. A future drift is possible. Pin
 `_VALID_SESSIONS` to a single source of truth across both CLI
-entrypoints"*.
+entrypoints"_.
 
 This ADR closes that debt.
 
@@ -117,6 +117,7 @@ Wrong abstraction.
 ## Implementation
 
 Single commit, 3 files modified :
+
 - `packages/ichor_brain/src/ichor_brain/types.py:26-33` (`VALID_SESSION_TYPES` + `__all__` update)
 - `apps/api/src/ichor_api/cli/run_session_card.py:34` (import replace hardcoded set)
 - `apps/api/src/ichor_api/cli/run_session_cards_batch.py:54` (idem)

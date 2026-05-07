@@ -18,7 +18,6 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-
 from ichor_api.alerts.evaluator import AlertHit
 from ichor_api.services.alerts_runner import (
     _DEDUP_WINDOW,
@@ -26,7 +25,6 @@ from ichor_api.services.alerts_runner import (
     check_gex_alerts,
     check_metric,
 )
-
 
 # ── helpers ─────────────────────────────────────────────────────────
 

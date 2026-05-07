@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-
 from ichor_api.cli.run_concept_drift import (
     _LOOKBACK_DAYS,
     _MIN_OBS_FOR_FIT,

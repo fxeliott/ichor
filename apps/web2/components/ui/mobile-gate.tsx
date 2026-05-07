@@ -47,9 +47,7 @@ export function MobileGate({ feature, userEmail, breakpoint = 768 }: MobileGateP
   // Strict optional typing : only forward userEmail when set, otherwise
   // omit the prop entirely (vs passing `undefined` which fails
   // `exactOptionalPropertyTypes`).
-  const blockerProps = userEmail
-    ? { feature, currentUrl, userEmail }
-    : { feature, currentUrl };
+  const blockerProps = userEmail ? { feature, currentUrl, userEmail } : { feature, currentUrl };
 
   return <MobileBlocker {...blockerProps} />;
 }

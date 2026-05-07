@@ -30,10 +30,7 @@ const PIVOT_ROUTES: { path: string; label: string }[] = [
 ];
 
 for (const { path, label } of PIVOT_ROUTES) {
-  test(`${label} (${path}) has no axe WCAG 2.2 AA violations`, async ({
-    page,
-    makeAxeBuilder,
-  }) => {
+  test(`${label} (${path}) has no axe WCAG 2.2 AA violations`, async ({ page, makeAxeBuilder }) => {
     await page.goto(path, { waitUntil: "networkidle" });
 
     const results = await makeAxeBuilder().analyze();
@@ -63,7 +60,7 @@ function formatViolations(violations: AxeViolation[]): string {
     ...violations.map(
       (v) =>
         `  • [${v.impact ?? "?"}] ${v.id}: ${v.description ?? ""}` +
-        (v.helpUrl ? ` (${v.helpUrl})` : "")
+        (v.helpUrl ? ` (${v.helpUrl})` : ""),
     ),
   ].join("\n");
 }
