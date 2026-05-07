@@ -17,7 +17,9 @@ BAMLH0A0HYM2, etc.) calls `check_metric()` after persistence, which :
      short de-dup window so flapping doesn't spam.
 
 ADR-022 §alerts integration. Crisis Mode auto-detection follows in
-a separate cron (services/crisis_mode_runner) on top of this stream.
+a separate cron — see `alerts/crisis_mode.py` (`assess_crisis`) +
+`cli/run_crisis_check.py` (5-min systemd timer `ichor-crisis-check`)
+which composite-fires CRISIS_MODE_ACTIVE/RESOLVED on top of this stream.
 """
 
 from __future__ import annotations

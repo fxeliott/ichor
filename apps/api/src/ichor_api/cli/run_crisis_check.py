@@ -234,23 +234,35 @@ async def run(*, persist: bool, min_concurrent: int = 2, lookback_min: int = 60)
     return 0
 
 
+async def _main(persist: bool, min_concurrent: int, lookback_min: int) -> int:
+    """Entrypoint async qui dispose l'engine dans le même event loop que run().
+
+    Garde-fou contre `RuntimeError: Event loop is closed` (asyncpg conn liée au loop).
+    """
+    try:
+        return await run(
+            persist=persist,
+            min_concurrent=min_concurrent,
+            lookback_min=lookback_min,
+        )
+    finally:
+        if persist:
+            await get_engine().dispose()
+
+
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(prog="run_crisis_check")
     parser.add_argument("--persist", action="store_true")
     parser.add_argument("--min-concurrent", type=int, default=2)
     parser.add_argument("--lookback-min", type=int, default=_DEDUP_WINDOW_MIN)
     args = parser.parse_args(argv[1:])
-    try:
-        return asyncio.run(
-            run(
-                persist=args.persist,
-                min_concurrent=args.min_concurrent,
-                lookback_min=args.lookback_min,
-            )
+    return asyncio.run(
+        _main(
+            persist=args.persist,
+            min_concurrent=args.min_concurrent,
+            lookback_min=args.lookback_min,
         )
-    finally:
-        if args.persist:
-            asyncio.run(get_engine().dispose())
+    )
 
 
 if __name__ == "__main__":

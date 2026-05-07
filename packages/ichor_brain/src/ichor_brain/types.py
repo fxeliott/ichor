@@ -11,7 +11,7 @@ under the macro-frameworks doctrine ("100% conviction never exists").
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Annotated, Any, Literal
+from typing import Annotated, Any, Literal, get_args
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -22,6 +22,15 @@ SessionType = Literal["pre_londres", "pre_ny", "ny_mid", "ny_close", "event_driv
 were registered as systemd timers (cf scripts/hetzner/) but missing
 from this Literal — every batch since 2026-05-04 14:23 was rejected
 with `unknown session_type` before even hitting the runner."""
+
+VALID_SESSION_TYPES: frozenset[str] = frozenset(get_args(SessionType))
+"""Single source of truth for runtime validation across CLI runners.
+
+Derived directly from `SessionType` — adding/removing a window in the
+Literal automatically updates this set. Replaces the hardcoded
+`_VALID_SESSIONS = {...}` duplicates that drifted in
+`run_session_card.py` vs `run_session_cards_batch.py` (cf ADR-024 fix 2,
+note "future drift is possible" — closed by ADR-031)."""
 BiasDirection = Literal["long", "short", "neutral"]
 RegimeQuadrant = Literal[
     "haven_bid",
@@ -166,6 +175,7 @@ class SessionCard(BaseModel):
 
 __all__ = [
     "SessionType",
+    "VALID_SESSION_TYPES",
     "BiasDirection",
     "RegimeQuadrant",
     "CriticVerdict",

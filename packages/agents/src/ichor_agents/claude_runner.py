@@ -63,9 +63,11 @@ class ClaudeRunnerConfig:
     runner_url: str
     cf_access_client_id: str | None = None
     cf_access_client_secret: str | None = None
-    model: str = "sonnet"
-    """ADR-021 mapping: sonnet for CB-NLP/News-NLP/Macro,
-    haiku for Sentiment/Positioning."""
+    model: str = "haiku"
+    """ADR-023 mapping (supersedes ADR-021): Haiku 4.5 effort=low for the
+    5 Couche-2 agents (CB-NLP, News-NLP, Macro, Sentiment, Positioning).
+    Sonnet medium was the original ADR-021 mapping but exceeds the
+    Cloudflare Free tunnel 100 s edge cap (60-130 s observed)."""
 
     effort: str = "medium"
     timeout_sec: float = 300.0

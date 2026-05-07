@@ -69,15 +69,25 @@ async def run(*, persist: bool) -> int:
     return 0
 
 
+async def _main(persist: bool) -> int:
+    """Entrypoint async qui dispose l'engine dans le même event loop que run().
+
+    Garde-fou pour le `RuntimeError: Event loop is closed` : asyncpg attache la
+    connexion au loop courant ; si on appelle `asyncio.run(get_engine().dispose())`
+    après `asyncio.run(run(...))`, c'est un nouveau loop et asyncpg crashe.
+    """
+    try:
+        return await run(persist=persist)
+    finally:
+        if persist:
+            await get_engine().dispose()
+
+
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(prog="run_rr25_check")
     parser.add_argument("--persist", action="store_true")
     args = parser.parse_args(argv[1:])
-    try:
-        return asyncio.run(run(persist=args.persist))
-    finally:
-        if args.persist:
-            asyncio.run(get_engine().dispose())
+    return asyncio.run(_main(persist=args.persist))
 
 
 if __name__ == "__main__":

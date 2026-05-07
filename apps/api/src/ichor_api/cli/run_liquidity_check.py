@@ -67,16 +67,24 @@ async def run(*, persist: bool, lookback_days: int = 5) -> int:
     return 0
 
 
+async def _main(persist: bool, lookback_days: int) -> int:
+    """Entrypoint async qui dispose l'engine dans le même event loop que run().
+
+    Garde-fou contre `RuntimeError: Event loop is closed` (asyncpg conn liée au loop).
+    """
+    try:
+        return await run(persist=persist, lookback_days=lookback_days)
+    finally:
+        if persist:
+            await get_engine().dispose()
+
+
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(prog="run_liquidity_check")
     parser.add_argument("--persist", action="store_true")
     parser.add_argument("--lookback-days", type=int, default=5)
     args = parser.parse_args(argv[1:])
-    try:
-        return asyncio.run(run(persist=args.persist, lookback_days=args.lookback_days))
-    finally:
-        if args.persist:
-            asyncio.run(get_engine().dispose())
+    return asyncio.run(_main(persist=args.persist, lookback_days=args.lookback_days))
 
 
 if __name__ == "__main__":

@@ -86,7 +86,14 @@ async def recent(
 
 
 async def purge_older_than(session: AsyncSession, *, days: int = 365) -> int:
-    """Hard-delete rows older than `days`. Cron-friendly. Returns deleted count."""
+    """Hard-delete rows older than `days`. Cron-friendly. Returns deleted count.
+
+    Migration 0028 made `audit_log` append-only via a BEFORE UPDATE OR DELETE
+    trigger that raises unless `ichor.audit_purge_mode = 'on'` is set on the
+    connection. The `SET LOCAL` here scopes that GUC to this transaction
+    only — any concurrent or subsequent DELETE without the flag still fails.
+    """
+    await session.execute(text("SET LOCAL ichor.audit_purge_mode = 'on'"))
     res = await session.execute(
         text("DELETE FROM audit_log WHERE ts < (now() - make_interval(days => :d))"),
         {"d": int(days)},

@@ -51,7 +51,7 @@ _DEFAULT_ASSETS: tuple[str, ...] = (
     "SPX500_USD",
 )
 
-_VALID_SESSIONS = {"pre_londres", "pre_ny", "ny_mid", "ny_close", "event_driven"}
+from ichor_brain.types import VALID_SESSION_TYPES as _VALID_SESSIONS  # ADR-031: single source
 
 
 async def _run_batch(
