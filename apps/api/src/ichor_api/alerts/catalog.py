@@ -216,6 +216,22 @@ PLAN_ALERTS: tuple[AlertDef, ...] = (
         ),
     ),
     AlertDef(
+        "MEGACAP_EARNINGS_T_1",
+        "info",
+        "Mag-7 earnings T-{value:.0f} ({asset})",
+        "megacap_t_minus_days",
+        1,
+        "below",
+        description=(
+            "Magnificent 7 earnings T-1 proximity flag. Iterates AAPL/MSFT/GOOGL/AMZN/"
+            "META/NVDA/TSLA via yfinance and fires when any has earnings within T-1 "
+            "(today or tomorrow). Mag-7 ~ 27% of S&P 500 earnings power 2026 (Zacks); "
+            "binary catalyst impacts SPX/NDX vol skew, dealer gamma, USD haven demand "
+            "if expected miss. Source: yfinance:earnings_calendar. asset = ticker for "
+            "trader drill-back. Cf services/megacap_earnings_check.py + ADR-038."
+        ),
+    ),
+    AlertDef(
         "COT_NET_FLIP", "warning", "COT positionnement net flip {asset}", "cot_net_z", 2.0, "above"
     ),
     AlertDef(
@@ -383,8 +399,8 @@ def get_alert_def(code: str) -> AlertDef:
 
 
 def assert_catalog_complete() -> None:
-    """Sanity check at startup: total = 39 alerts, all unique codes."""
+    """Sanity check at startup: total = 40 alerts, all unique codes."""
     codes = [a.code for a in ALL_ALERTS]
     assert len(codes) == len(set(codes)), f"Duplicate alert codes: {codes}"
-    assert len(ALL_ALERTS) == 39, f"Expected 39 alerts, got {len(ALL_ALERTS)}"
+    assert len(ALL_ALERTS) == 40, f"Expected 40 alerts, got {len(ALL_ALERTS)}"
     assert len(CRISIS_TRIGGERS) >= 5, f"Expected ≥5 crisis triggers, got {len(CRISIS_TRIGGERS)}"
