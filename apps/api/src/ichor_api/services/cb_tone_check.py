@@ -34,17 +34,23 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
-from sqlalchemy import desc, select
+from sqlalchemy import desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models import CbSpeech, FredObservation
 from .alerts_runner import check_metric
 
-# Map catalog metric → CB code in cb_speeches.central_bank
-# (the collector normalizes these — see central_bank_speeches.py).
+# Map catalog metric → CB code in cb_speeches.central_bank.
+# Note : the collector stores mixed-case values (`'Fed'`, `'BoE'`,
+# `'BoJ'`, `'ECB'`) but this map uses upper-case keys for case-stable
+# CLI args. The DB query uses `func.upper()` for case-insensitive
+# matching (see _read_recent_speeches) so collector storage variation
+# is transparent.
 CB_TO_METRIC: dict[str, str] = {
     "FED": "fomc_tone_z",
     "ECB": "ecb_tone_z",
+    "BOE": "boe_tone_z",
+    "BOJ": "boj_tone_z",
 }
 
 _MIN_HISTORY = 30  # ≥ 30 d before z is statistically meaningful
@@ -80,11 +86,27 @@ def _zscore(values: list[float], current: float) -> float | None:
 async def _read_recent_speeches(
     session: AsyncSession, *, cb: str, lookback_hours: int
 ) -> list[CbSpeech]:
+    """Case-insensitive read of recent speeches for a CB code.
+
+    The collector stores mixed-case values (`'Fed'`, `'BoE'`, `'BoJ'`,
+    `'ECB'`) but service callers pass upper-case (`'FED'`, `'BOE'`,
+    `'BOJ'`, `'ECB'`). We normalize on read with `func.upper()` so the
+    query is robust to collector schema drift.
+
+    Pre-2026-05-07 fix : the query used `==` directly which caused a
+    silent zero-row return when collector vs caller case mismatched
+    (FOMC_TONE_SHIFT was firing 'no FED speech' for weeks despite
+    actual data in DB). Hotfix in PR #32 (Phase D.5.d).
+    """
     cutoff = datetime.now(UTC) - timedelta(hours=lookback_hours)
+    cb_upper = cb.upper()
     rows = (
         await session.execute(
             select(CbSpeech)
-            .where(CbSpeech.central_bank == cb, CbSpeech.published_at >= cutoff)
+            .where(
+                func.upper(CbSpeech.central_bank) == cb_upper,
+                CbSpeech.published_at >= cutoff,
+            )
             .order_by(desc(CbSpeech.published_at))
         )
     ).scalars().all()

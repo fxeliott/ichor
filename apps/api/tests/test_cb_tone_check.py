@@ -142,18 +142,84 @@ async def test_z_score_computed_when_history_sufficient() -> None:
 
 @pytest.mark.asyncio
 async def test_unmapped_cb_skips_alert_but_still_persists() -> None:
-    """A CB code not in CB_TO_METRIC (e.g. 'BOJ') must not crash —
-    we persist the tone series + return the result, just don't
-    fire the catalog alert."""
+    """A CB code not in CB_TO_METRIC (e.g. 'PBoC') must not crash —
+    we persist the tone series + return the result, just don't fire
+    the catalog alert.
+
+    Post-D.5.d (PR #32) BOE+BOJ are now mapped, so we test with PBOC
+    which remains unmapped."""
     speeches = [_mock_speech("text")]
     session = _build_session(speeches=speeches, history_values=[0.0] * 50)
-    # persist=False so we don't actually write
     result = await evaluate_cb_tone(
-        session, cb="BOJ", scorer=lambda t: 0.1, persist=False
+        session, cb="PBOC", scorer=lambda t: 0.1, persist=False
+    )
+    assert result.cb == "PBOC"
+    assert result.series_id == "PBOC_TONE_NET"
+    assert result.net_hawkish == pytest.approx(0.1)
+
+
+@pytest.mark.asyncio
+async def test_boe_tone_path_now_wired() -> None:
+    """Phase D.5.d: BOE_TONE_SHIFT is now in CB_TO_METRIC."""
+    from ichor_api.services.cb_tone_check import CB_TO_METRIC
+
+    assert "BOE" in CB_TO_METRIC
+    assert CB_TO_METRIC["BOE"] == "boe_tone_z"
+
+    speeches = [_mock_speech("BoE Bailey hawkish energy shock"), _mock_speech("Pill")]
+    scores = iter([0.5, 0.7])
+
+    def scorer(text: str) -> float:
+        return next(scores)
+
+    session = _build_session(speeches=speeches, history_values=[0.0] * 50)
+    result = await evaluate_cb_tone(
+        session, cb="BOE", scorer=scorer, persist=False
+    )
+    assert result.cb == "BOE"
+    assert result.series_id == "BOE_TONE_NET"
+    assert result.n_speeches == 2
+    assert result.net_hawkish == pytest.approx(0.6, abs=1e-9)
+
+
+@pytest.mark.asyncio
+async def test_boj_tone_path_now_wired() -> None:
+    """Phase D.5.d: BOJ_TONE_SHIFT is now in CB_TO_METRIC."""
+    from ichor_api.services.cb_tone_check import CB_TO_METRIC
+
+    assert "BOJ" in CB_TO_METRIC
+    assert CB_TO_METRIC["BOJ"] == "boj_tone_z"
+
+    speeches = [_mock_speech("BoJ Ueda gradual normalization")]
+    session = _build_session(speeches=speeches, history_values=[0.0] * 50)
+    result = await evaluate_cb_tone(
+        session, cb="BOJ", scorer=lambda t: -0.3, persist=False
     )
     assert result.cb == "BOJ"
     assert result.series_id == "BOJ_TONE_NET"
-    assert result.net_hawkish == pytest.approx(0.1)
+    assert result.net_hawkish == pytest.approx(-0.3)
+
+
+def test_threshold_constants_match_catalog():
+    """Single source of truth — bridge ↔ catalog default_threshold for
+    all 4 wired CB tone alerts."""
+    from ichor_api.alerts.catalog import get_alert_def
+
+    fomc = get_alert_def("FOMC_TONE_SHIFT")
+    assert fomc.metric_name == "fomc_tone_z"
+    assert fomc.default_threshold == 1.5
+
+    ecb = get_alert_def("ECB_TONE_SHIFT")
+    assert ecb.metric_name == "ecb_tone_z"
+    assert ecb.default_threshold == 1.5
+
+    boe = get_alert_def("BOE_TONE_SHIFT")
+    assert boe.metric_name == "boe_tone_z"
+    assert boe.default_threshold == 1.5
+
+    boj = get_alert_def("BOJ_TONE_SHIFT")
+    assert boj.metric_name == "boj_tone_z"
+    assert boj.default_threshold == 1.5
 
 
 @pytest.mark.asyncio

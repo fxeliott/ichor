@@ -125,6 +125,42 @@ PLAN_ALERTS: tuple[AlertDef, ...] = (
     ),
     AlertDef("ECB_TONE_SHIFT", "warning", "BCE ton shift {value:+.2f}", "ecb_tone_z", 1.5, "above"),
     AlertDef(
+        "BOE_TONE_SHIFT",
+        "warning",
+        "BoE ton shift {value:+.2f}",
+        "boe_tone_z",
+        1.5,
+        "above",
+        description=(
+            "Bank of England MPC tone shift detector. FOMC-Roberta zero-shot "
+            "transfer (gtfintechlab) on cb_speeches WHERE central_bank='BoE'. "
+            "Aggregates net_hawkish across last 24h speeches, persists into "
+            "fred_observations BOE_TONE_NET, computes 90d rolling z. Fires "
+            "when |z| >= 1.5. Drives GBP/USD + GBP/JPY repricing. 2026 context: "
+            "BoE pivoted hawkish March 2026 post Middle-East energy shock; "
+            "Bailey centrist between Pill/Greene/Mann hawks and Dhingra/Taylor "
+            "doves. Cf services/cb_tone_check.py + ADR-040."
+        ),
+    ),
+    AlertDef(
+        "BOJ_TONE_SHIFT",
+        "warning",
+        "BoJ ton shift {value:+.2f}",
+        "boj_tone_z",
+        1.5,
+        "above",
+        description=(
+            "Bank of Japan tone shift detector. FOMC-Roberta zero-shot transfer "
+            "on cb_speeches WHERE central_bank='BoJ'. Aggregates net_hawkish "
+            "across last 24h speeches, persists into fred_observations "
+            "BOJ_TONE_NET, computes 90d rolling z. Fires when |z| >= 1.5. "
+            "Drives USD/JPY (intervention sensitivity at 158+) + JPY carry "
+            "trades. 2026 context: post-2024 negative rates exit + YCC end, "
+            "Ueda gradual normalization with shunto-wage as anchor. Cf "
+            "services/cb_tone_check.py + ADR-040."
+        ),
+    ),
+    AlertDef(
         "DATA_SURPRISE_Z",
         "warning",
         "Surprise macro {asset} z={value:+.2f}",
@@ -417,8 +453,8 @@ def get_alert_def(code: str) -> AlertDef:
 
 
 def assert_catalog_complete() -> None:
-    """Sanity check at startup: total = 41 alerts, all unique codes."""
+    """Sanity check at startup: total = 43 alerts, all unique codes."""
     codes = [a.code for a in ALL_ALERTS]
     assert len(codes) == len(set(codes)), f"Duplicate alert codes: {codes}"
-    assert len(ALL_ALERTS) == 41, f"Expected 41 alerts, got {len(ALL_ALERTS)}"
+    assert len(ALL_ALERTS) == 43, f"Expected 43 alerts, got {len(ALL_ALERTS)}"
     assert len(CRISIS_TRIGGERS) >= 5, f"Expected ≥5 crisis triggers, got {len(CRISIS_TRIGGERS)}"
