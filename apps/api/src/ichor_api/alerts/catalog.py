@@ -607,6 +607,23 @@ AUDIT_V2_ALERTS: tuple[AlertDef, ...] = (
         "above",
         crisis_mode=True,
     ),
+    AlertDef(
+        "HY_IG_SPREAD_DIVERGENCE",
+        "warning",
+        "HY-IG spread divergence z={value:+.2f}",
+        "hy_ig_spread_z",
+        2.0,
+        "above",
+        description=(
+            "Credit-cycle inflection detector. (HY OAS - IG OAS) z-score "
+            "vs trailing 90d distribution. Fires when |z| >= 2.0. "
+            "z>+2 = expansion (HY widens > IG = late-cycle credit stress); "
+            "z<-2 = compression (HY tightens > IG = early flight-to-quality). "
+            "Per Macrosynergy + InvestmentGrade Q1 2026: HY-IG differential "
+            "front-runs HY OAS spikes by 2-4 weeks. Source: "
+            "FRED:BAMLH0A0HYM2-BAMLC0A0CM. cf ADR-049."
+        ),
+    ),
 )
 
 ALL_ALERTS: tuple[AlertDef, ...] = PLAN_ALERTS + AUDIT_V2_ALERTS
@@ -628,5 +645,5 @@ def assert_catalog_complete() -> None:
     """Sanity check at startup: total = 51 alerts, all unique codes."""
     codes = [a.code for a in ALL_ALERTS]
     assert len(codes) == len(set(codes)), f"Duplicate alert codes: {codes}"
-    assert len(ALL_ALERTS) == 51, f"Expected 51 alerts, got {len(ALL_ALERTS)}"
+    assert len(ALL_ALERTS) == 52, f"Expected 52 alerts, got {len(ALL_ALERTS)}"
     assert len(CRISIS_TRIGGERS) >= 5, f"Expected ≥5 crisis triggers, got {len(CRISIS_TRIGGERS)}"
