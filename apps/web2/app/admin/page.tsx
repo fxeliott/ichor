@@ -5,6 +5,7 @@
 // pill so the page never crashes — see lib/api.ts contract.
 
 import { MetricTooltip } from "@/components/ui";
+import { MobileGate } from "@/components/ui/mobile-gate";
 import { apiGet, isLive, type AdminStatus } from "@/lib/api";
 import { assessFreshness, formatAge, TIER_COLOR } from "@/lib/freshness";
 
@@ -135,6 +136,7 @@ export default async function AdminPage() {
   const nWarn = freshness.filter((f) => f.tier === "warn").length;
   return (
     <div className="container mx-auto max-w-5xl px-6 py-12">
+      <MobileGate feature="le tableau d'admin pipeline-health" />
       <header className="mb-8 space-y-3">
         <p className="font-mono text-xs uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
           Admin · live health snapshot{" "}

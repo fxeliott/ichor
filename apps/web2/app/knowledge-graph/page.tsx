@@ -9,6 +9,7 @@
 // import-on-demand strategy to avoid bundle bloat.
 
 import { MetricTooltip } from "@/components/ui";
+import { MobileGate } from "@/components/ui/mobile-gate";
 import { apiGet, isLive, type GraphPayload } from "@/lib/api";
 
 type NodeKind = "asset" | "factor" | "event" | "regime";
@@ -98,6 +99,7 @@ export default async function KnowledgeGraphPage() {
 
   return (
     <div className="container mx-auto max-w-5xl px-6 py-12">
+      <MobileGate feature="le knowledge graph" />
       <header className="mb-6 space-y-3">
         <p className="font-mono text-xs uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
           Knowledge graph · relations causales{" "}

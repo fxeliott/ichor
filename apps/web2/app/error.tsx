@@ -16,6 +16,7 @@
  *      with a tracking hint (digest from React 19) for ops triage.
  */
 
+import Link from "next/link";
 import { useEffect } from "react";
 
 interface Props {
@@ -70,12 +71,12 @@ export default function RootError({ error, reset }: Props) {
         >
           Retenter
         </button>
-        <a
+        <Link
           href="/"
           className="rounded-lg border border-[var(--color-border)] px-4 py-2 font-mono text-sm text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text-primary)]"
         >
           Retour accueil
-        </a>
+        </Link>
       </div>
     </main>
   );
