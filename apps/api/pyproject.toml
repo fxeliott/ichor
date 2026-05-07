@@ -27,6 +27,12 @@ dependencies = [
     # Phase A.4 observability — exposes /metrics for Prometheus scrape
     # (was scraped silently failing because the endpoint didn't exist).
     "prometheus-fastapi-instrumentator>=7.0.0",
+    # Phase A.4.c (ADR-032) — Langfuse @observe traces on the 4-pass
+    # orchestrator + 5 Couche-2 agents. SDK v4 (March 2026 rewrite) is
+    # required for the bare `from langfuse import observe` import.
+    # Self-hosted Langfuse v3 docker stack lives on Hetzner under
+    # /opt/ichor/langfuse (cf infra/ansible/roles/langfuse/).
+    "langfuse>=4.0.0",
 ]
 
 [project.optional-dependencies]

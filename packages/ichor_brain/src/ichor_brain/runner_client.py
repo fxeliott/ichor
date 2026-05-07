@@ -26,6 +26,8 @@ from typing import Any
 import httpx
 import structlog
 
+from .observability import observe
+
 log = structlog.get_logger(__name__)
 
 
@@ -113,6 +115,7 @@ class HttpRunnerClient(RunnerClient):
         self._timeout_sec = timeout_sec
         self._default_assets = default_assets
 
+    @observe(as_type="generation", name="couche1_runner_call")
     async def run(self, call: RunnerCall) -> RunnerResponse:
         url = f"{self._base_url}/v1/briefing-task"
         payload = {

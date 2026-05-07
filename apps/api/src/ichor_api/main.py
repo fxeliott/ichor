@@ -87,7 +87,20 @@ async def lifespan(app: FastAPI):
         start_invalidation_subscriber(settings.redis_url)
     except Exception as exc:
         log.warning("api.feature_flags.subscriber_start_failed", error=str(exc))
+
+    # Phase A.4.c — Langfuse client lifecycle (ADR-032).
+    # Boot-safe: init returns None when keys absent or lib missing; all
+    # @observe decorators downstream are fail-soft no-ops in that case.
+    from .observability import flush_langfuse, init_langfuse
+
+    init_langfuse()
+
     yield
+    # Drain Langfuse worker queue BEFORE engine dispose so any in-flight
+    # session-card trace finishes serialising while the DB pool is still
+    # alive (the SDK's worker thread is daemonic and would otherwise be
+    # killed on process exit).
+    flush_langfuse()
     try:
         await stop_invalidation_subscriber()
     except Exception as exc:

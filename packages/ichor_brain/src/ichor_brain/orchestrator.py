@@ -20,6 +20,7 @@ from typing import Any, Protocol
 import structlog
 
 from .cache import hash_pool
+from .observability import observe
 from .passes import (
     AssetPass,
     InvalidationPass,
@@ -107,6 +108,7 @@ class Orchestrator:
         self._critic_fn = critic_fn or _default_critic_fn
         self._model_id = model_id
 
+    @observe(name="session_card_4pass")
     async def run(
         self,
         *,
