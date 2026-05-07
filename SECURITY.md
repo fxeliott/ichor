@@ -1,8 +1,25 @@
 # Security policy
 
-Ichor is a private, single-operator project (Eliot, France). It produces
-financial research; the surface area is small but the data is sensitive
-(market signals, alerts, persona prompts, R2 backups).
+Ichor is a single-operator research project (Eliot, France). It produces
+financial macro research; the surface area is small but the data sensitivity
+is high (market signals, alerts, persona prompts, R2 backups).
+
+**Repository visibility (2026-05-07)** : the source code is **public** on
+GitHub, but **all secrets are SOPS+age encrypted** at rest in
+`infra/secrets/*.env` (AES-256-GCM, age-recipient-only decrypt). The age
+private key is **never** committed and lives only on Eliot's Win11
+`%APPDATA%\sops\age\keys.txt` + USB vault. A reader of the public repo
+learns the architecture, the trading framework, and the operational
+runbooks — but cannot decrypt any actual credential. Security hardening
+applied alongside the visibility flip :
+
+- Branch protection on `main` (no force-push, no deletion, linear history).
+- Default workflow permissions = read-only (`actions/permissions/workflow`).
+- Secret scanning + push protection enabled (GitHub Advanced Security,
+  free on public repos).
+- Dependabot security updates auto-PR for known CVEs.
+- Required reviews via `required_pull_request_reviews` deferred for
+  single-operator velocity ; relevant only when a contributor joins.
 
 This file documents the **security model**, the **disclosure process**, and
 the **known boundaries** of trust.
@@ -110,8 +127,10 @@ When a security incident is suspected :
 - **Quarterly DR drill** : execute [RUNBOOK-010](docs/runbooks/RUNBOOK-010-walg-restore-drill.md).
   Last record : [`docs/dr-tests/2026-Q2-walg-drill.md`](docs/dr-tests/2026-Q2-walg-drill.md).
 - **age private keys** backed up on USB vault (E:\), separate from laptop.
-- **GitHub repo** is private; even a hostile reader of `main` learns the
-  architecture but not the secrets (SOPS-encrypted).
+- **GitHub repo** is **public** (since 2026-05-07) ; a reader of `main`
+  learns the architecture but cannot decrypt the SOPS-encrypted secrets
+  in `infra/secrets/*.env` without the age private key (which is not in
+  the repo, ever).
 
 ## Acknowledged residual risks (Phase 0)
 
@@ -120,7 +139,11 @@ When a security incident is suspected :
   Access (free for ≤ 50 users) + service-token JWT verify.
 - **No HSM for age keys.** Keys live as files. Acceptable for solo Phase 0;
   consider YubiKey-PIV for Phase 2+.
-- **No SAST in CI.** Only dependency audit + secret scanning. Adding
-  CodeQL or Semgrep is on the Phase 1 backlog.
+- **No SAST in CI.** Only dependency audit + secret scanning. CodeQL is
+  free for public repos and should be enabled in a follow-up via
+  `github/codeql-action` workflow.
+- **No GPG-signed commits enforced.** `required_signatures: false` on
+  `main` because Eliot uses HTTPS git auth. Considered for Phase 2 if a
+  contributor joins.
 - **No `predictions_audit` row-level access controls.** Single-tenant for
   now; if multi-tenant ever appears, RLS must be added.
