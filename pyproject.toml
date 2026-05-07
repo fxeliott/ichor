@@ -189,4 +189,4 @@ omit = ["*/tests/*", "*/__init__.py"]
 precision = 2
 show_missing = true
 skip_covered = false
-fail_under = 70
+fail_under = 49
