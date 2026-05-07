@@ -348,6 +348,26 @@ PLAN_ALERTS: tuple[AlertDef, ...] = (
         ),
     ),
     AlertDef(
+        "TERM_PREMIUM_STRUCTURAL_252D",
+        "info",
+        "Term premium structural z_252d={value:+.2f}",
+        "term_premium_z_252d",
+        2.0,
+        "above",
+        description=(
+            "Structural-window companion to TERM_PREMIUM_REPRICING (ADR-041, "
+            "90d). 252-day rolling z-score on FRED:THREEFYTP10 (Kim-Wright "
+            "10y term premium). Captures slow-build fiscal regime shifts "
+            "(Trump fiscal expansion arc 2025-2027, Treasury supply-demand "
+            "imbalance, sovereign debt repricing cycle) that the 90d window "
+            "dampens because rolling baseline drifts up with absolute level. "
+            "Severity info: structural shifts are context flags. The "
+            "warning-level TERM_PREMIUM_REPRICING remains the trader-"
+            "actionable pathway. Cf services/term_premium_structural_check.py "
+            "+ ADR-045."
+        ),
+    ),
+    AlertDef(
         "VIX_TERM_INVERSION",
         "warning",
         "VIX term backwardation ratio={value:.4f}",
@@ -538,8 +558,8 @@ def get_alert_def(code: str) -> AlertDef:
 
 
 def assert_catalog_complete() -> None:
-    """Sanity check at startup: total = 47 alerts, all unique codes."""
+    """Sanity check at startup: total = 48 alerts, all unique codes."""
     codes = [a.code for a in ALL_ALERTS]
     assert len(codes) == len(set(codes)), f"Duplicate alert codes: {codes}"
-    assert len(ALL_ALERTS) == 47, f"Expected 47 alerts, got {len(ALL_ALERTS)}"
+    assert len(ALL_ALERTS) == 48, f"Expected 48 alerts, got {len(ALL_ALERTS)}"
     assert len(CRISIS_TRIGGERS) >= 5, f"Expected ≥5 crisis triggers, got {len(CRISIS_TRIGGERS)}"
