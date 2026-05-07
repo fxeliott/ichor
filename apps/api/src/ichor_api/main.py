@@ -103,6 +103,24 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# Phase A.4 observability — Prometheus /metrics endpoint.
+# Wraps the Instrumentator in a try/except so a missing or broken lib
+# never blocks API boot. Without /metrics the Prometheus scrape config
+# (`infra/ansible/roles/observability/files/prometheus.yml:18-20`)
+# silently fails — but the API itself stays up.
+try:
+    from prometheus_fastapi_instrumentator import Instrumentator
+
+    Instrumentator(
+        should_group_status_codes=True,
+        should_ignore_untemplated=True,
+        should_respect_env_var=False,
+        excluded_handlers=["/healthz", "/metrics"],
+    ).instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
+    log.info("api.metrics_enabled")
+except Exception as _metrics_exc:  # pragma: no cover — fail-soft observability
+    log.warning("api.metrics_disabled", error=str(_metrics_exc)[:200])
+
 # CORS for the Cloudflare Pages dashboard
 _settings = get_settings()
 app.add_middleware(
