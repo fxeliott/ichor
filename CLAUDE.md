@@ -1,7 +1,7 @@
 # Ichor — Claude Code project memory
 
 > Auto-injected at every session start. Keep terse and current.
-> Last sync: 2026-05-06.
+> Last sync: 2026-05-06 20:45 CEST (post-Phase 0 + Phase A.1).
 
 ## What this repo is
 
@@ -19,13 +19,15 @@ backend, Node 22 LTS for the frontend.
 D:\Ichor
 ├── apps/
 │   ├── api/                  FastAPI + Alembic + SQLAlchemy 2 async
-│   │                         34 routers, 53 endpoints, 24 CLI runners,
-│   │                         24 models, 37 collectors, 44 services
+│   │                         34 routers, 53 endpoints, 25 CLI runners,
+│   │                         24 models, 37 collectors, 47 services
 │   ├── claude-runner/        FastAPI Win11 wrapper around `claude -p`
 │   │                         /v1/briefing-task + /v1/agent-task
-│   ├── web/                  legacy Phase 1 dashboard (deprecated, coexist)
+│   ├── web/                  legacy Phase 1 dashboard (read-only ref ; retired
+│   │                         from pnpm-workspace 2026-05-06 ; 5 routes ported
+│   │                         to web2 in commit `de80335`)
 │   └── web2/                 Next.js 15.5 + React 19 + Tailwind v4 + motion 12
-│                             35 routes SSR + ISR. Hooks dir empty (TODO).
+│                             41 routes SSR + ISR. Hooks dir empty (TODO).
 └── packages/
     ├── ichor_brain/          4-pass orchestrator (regime → asset → stress → invalidation)
     │                         + Pass 5 counterfactual. HttpRunnerClient with retry.
@@ -33,9 +35,12 @@ D:\Ichor
     │                         positioning, macro). All on Claude Haiku low (ADR-023).
     ├── ml/                   HAR-RV, HMM, DTW, FinBERT-tone, FOMC-Roberta,
     │                         ADWIN, Brier optimizer, 7 bias trainers (ADR-022)
-    ├── ui/                   shadcn-style 15 components, used by apps/web only
-    └── shared-types/         STUB — empty package, never imported
+    └── ui/                   shadcn-style 15 components, used by apps/web only
 ```
+
+> `packages/shared-types` was removed in Phase A.1.3 cleanup (was a stub
+> never imported, cf ADR-031). CI matrices in `.github/workflows/{ci,audit}.yml`
+> updated accordingly.
 
 ## Critical invariants (DO NOT BREAK)
 
@@ -71,9 +76,14 @@ D:\Ichor
   **Currently no auth** — `require_cf_access=false`. Public endpoint
   drainable. Sprint dedicated to wire CF Access service token pending.
 
-## Latest migrations
+## Latest migrations (head 0028)
 
-- **head 0027** — `0027_session_type_extend_ny.py` extends the
+- **head 0028** — `0028_audit_log_immutable_trigger.py` makes
+  `audit_log` append-only via a BEFORE UPDATE OR DELETE trigger.
+  Sanctioned purge path = `SET LOCAL ichor.audit_purge_mode='on'`
+  in the same transaction (used by `purge_older_than`). MiFID-grade
+  audit trail (cf ADR-029, Phase A.7 hardening).
+- **0027** — `0027_session_type_extend_ny.py` extends the
   `session_card_audit` CHECK constraint to include `ny_mid` and
   `ny_close` (cf. ADR-024).
 - **0026** — `session_card_audit.drivers` JSONB for Brier V2
@@ -187,21 +197,57 @@ D:\Ichor
 | FED_FUNDS_REPRICE    | DORMANT                            | moyen (no FRED feed for ZQ futures, approx via DFF+OIS)                                                                                                                                                |
 | ECB_DEPO_REPRICE     | DORMANT                            | difficile (no free Eurex €STR feed)                                                                                                                                                                    |
 
-## Things that are subtly broken or deferred
+## Things that are subtly broken or deferred (post Phase 0 + A.1)
 
-- `apps/web` legacy active with 5 routes never ported to web2
-  (`/assets/[code]`, `/briefings/[id]`, `/confluence`, `/sessions`
-  index, `/hourly-volatility/[asset]`).
-- `apps/web2` 0 `loading.tsx`/`error.tsx`/`not-found.tsx` on 35 routes,
-  CF Access not wired client-side.
-- `lightweight-charts 5.2.0` listed as web2 dep, **0 imports**.
-- Couche-2 docstrings still cite ADR-021 Sonnet (mapping
-  superseded by ADR-023).
-- `packages/agents/README.md` says "Cerebras primary, Sonnet
-  fallback" — outdated (cf. ADR-021/023).
-- `packages/shared-types` is a stub (no `src/`).
-- Wave 5 CI (mypy + pytest blocking + coverage gate) deferred since
-  2026-05-05.
-- All package READMEs say "Phase 0 skeleton only" while LIVE in prod.
-- `audit.log` (~/.claude) figé depuis 2026-05-01 — hook PostToolUse
-  à diagnostiquer.
+- `apps/web` legacy retired from pnpm-workspace 2026-05-06 ; 5 routes
+  portées vers web2 (commit `de80335`). 25 page.tsx restent on-disk
+  comme référence read-only.
+- `apps/web2` 1 boundary global pour loading.tsx/error.tsx/not-found.tsx ;
+  per-segment manquant sur 41 routes (Phase B cible).
+- CF Access service token pas wired sur claude-runner.fxmilyapp.com
+  (Phase A.7).
+- `crisis_mode_runner` mentionné dans `alerts_runner.py:20` mais
+  **absent du repo** — Crisis Mode composite N≥2 non câblé (Phase A.2).
+- Wave 5 CI : ruff blocking 4 packages ✓, mypy blocking apps/api seul,
+  pytest auto-skip si pas de tests/, coverage gate absent (Phase A.3).
+- Capability 5 ADR-017 absente : Claude tools en runtime
+  (WebSearch/WebFetch/query_db/calc/rag_historical) pas câblés
+  dans 4-pass — modèle reçoit text-only via data_pool précompilé
+  (gap doctrinal, Phase D.0).
+
+## Recently fixed (2026-05-06 evening, Phase 0 + A.1 + A.2 + A.3 + A.4.a/b + A.5 + A.7.partial)
+
+- Phase 0 ✅ — 3 alertes activées Hetzner : RR25 (Mon..Fri 14:05+21:30),
+  LIQUIDITY (Mon..Fri 04:30 after dts_treasury), FOMC_TONE_SHIFT
+  (Mon..Fri 21:00). transformers 5.8.0 + torch 2.11.0+cpu installés.
+  ECB_TONE_SHIFT differé Phase D (calibration ECB requise).
+- A.1.1 ✅ — `audit.log` global hook migré : convention 2026 stdin JSON
+  via scripts dédiés `~/.claude/hooks/post_tool_audit.ps1` etc.
+- A.1.2 ✅ — `RuntimeError: Event loop is closed` corrigé dans 3 CLI
+  runners (rr25/liquidity/cb_tone) + déployé Hetzner + 3 runs propres
+  vérifiés post-fix.
+- A.1.3 ✅ — `_VALID_SESSIONS` single-source via `get_args(SessionType)`
+  exposé en `VALID_SESSION_TYPES` dans `ichor_brain.types` (ADR-031) ;
+  index `docs/runbooks/README.md` 3 liens cassés corrigés ; Couche-2
+  docstrings ADR-021 → ADR-023 ; `packages/shared-types` supprimé du
+  repo + matrice CI.
+- A.2 ✅ — crisis_mode_runner re-cadré (déjà câblé sous nom différent
+  `cli/run_crisis_check.py` + `alerts/crisis_mode.py` + timer actif),
+  Event loop fix appliqué + commentaire `alerts_runner.py` corrigé.
+- A.3 ✅ — Wave 5 CI durci : coverage gate apps/api 60% + nouveau job
+  `shell-lint` shellcheck + structural lint sur `register-cron-*.sh`
+  (clauses canoniques ADR-030 vérifiées).
+- A.4.a ✅ — `/metrics` FastAPI endpoint LIVE (Prometheus
+  `prometheus-fastapi-instrumentator 7.1.0`) ; toute la stack
+  Prometheus était silencieusement aveugle, maintenant fonctionnelle.
+- A.4.b ✅ — `OnFailure=ichor-notify@%n.service` drop-ins systemd
+  installés sur 28 services ichor-* ; template `[email protected]` +
+  worker `/opt/ichor/scripts/notify-failure.sh` + log
+  `/var/log/ichor-failures.log` + (optionnel) ntfy webhook.
+  Chaîne testée end-to-end (`ichor-test-fail.service` → log écrit).
+- A.5 ✅ — 3 ADRs ratifiés : 029 (EU AI Act §50 + AMF DOC-2008-23),
+  030 (ResolveCron protection post-2026-05-04), 031 (SessionType
+  single source via get_args).
+- A.7.partial ✅ — RUNBOOK-014 (claude-runner Win11 down) + RUNBOOK-015
+  (secrets rotation 90d/60d/12mo) + `audit_log` immuable Postgres
+  trigger (migration 0028) testé end-to-end.
