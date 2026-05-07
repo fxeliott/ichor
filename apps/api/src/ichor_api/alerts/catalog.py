@@ -286,6 +286,26 @@ PLAN_ALERTS: tuple[AlertDef, ...] = (
         ),
     ),
     AlertDef(
+        "TERM_PREMIUM_REPRICING",
+        "warning",
+        "Term premium repricing z={value:+.2f}",
+        "term_premium_z",
+        2.0,
+        "above",
+        description=(
+            "10-year Treasury term premium repricing detector. Z-score of "
+            "FRED:THREEFYTP10 (Kim-Wright model) latest reading vs trailing "
+            "90d distribution. Fires when |z| >= 2.0. Expansion regime "
+            "(z > 0) drives gold up, USD weak, mortgage rates up despite "
+            "Fed cuts (long-end disconnect, Bond Vigilante regime, fiscal-"
+            "stress narrative). Contraction regime (z < 0) drives flight-"
+            "to-quality bond bid + USD strong. 2026 macro context: term "
+            "premium expanding due to Trump fiscal expansion + Fed "
+            "independence questions per Hartford/SSGA/NY Life outlooks. "
+            "Cf services/term_premium_check.py + ADR-041."
+        ),
+    ),
+    AlertDef(
         "COT_NET_FLIP", "warning", "COT positionnement net flip {asset}", "cot_net_z", 2.0, "above"
     ),
     AlertDef(
@@ -453,8 +473,8 @@ def get_alert_def(code: str) -> AlertDef:
 
 
 def assert_catalog_complete() -> None:
-    """Sanity check at startup: total = 43 alerts, all unique codes."""
+    """Sanity check at startup: total = 44 alerts, all unique codes."""
     codes = [a.code for a in ALL_ALERTS]
     assert len(codes) == len(set(codes)), f"Duplicate alert codes: {codes}"
-    assert len(ALL_ALERTS) == 43, f"Expected 43 alerts, got {len(ALL_ALERTS)}"
+    assert len(ALL_ALERTS) == 44, f"Expected 44 alerts, got {len(ALL_ALERTS)}"
     assert len(CRISIS_TRIGGERS) >= 5, f"Expected ≥5 crisis triggers, got {len(CRISIS_TRIGGERS)}"
