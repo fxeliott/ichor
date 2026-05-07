@@ -8,6 +8,7 @@
 // API is unreachable.
 
 import { MetricTooltip } from "@/components/ui";
+import { MobileGate } from "@/components/ui/mobile-gate";
 import { apiGet, isLive, type SessionCard, type SessionCardList } from "@/lib/api";
 
 import { ReplayClient, type ReplaySnapshot } from "./replay-client";
@@ -131,6 +132,7 @@ export default async function ReplayPage({ params }: PageProps) {
 
   return (
     <div className="container mx-auto max-w-4xl px-6 py-12">
+      <MobileGate feature="le replay time-machine" />
       <header className="mb-8 space-y-3">
         <p className="font-mono text-xs uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
           Time-machine replay · {display}{" "}

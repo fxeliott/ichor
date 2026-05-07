@@ -28,8 +28,13 @@ import {
   adaptTodayBundleToTriggers,
   dedupeAndSortTriggers,
 } from "@/lib/today-adapters";
-
-const NOW = "2026-05-04T07:42:00.000Z";
+// Phase A.9.1 — replaces the previously hardcoded NOW that froze /today
+// on a single fixed moment (2026-05-04T07:42:00Z). Computed server-side
+// per request — the page is `revalidate: 30` (cf SessionCard fetches
+// below) so the value refreshes at most every 30s, fast enough to
+// reflect a session window transition (boundaries are 06:00 / 08:30 /
+// 12:00 / 13:30 / 16:30 / 18:00 / 21:00 / 22:30 Paris).
+const NOW = new Date().toISOString();
 
 const MOCK_TRIGGERS: Trigger[] = [
   {

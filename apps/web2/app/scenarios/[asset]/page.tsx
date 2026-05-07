@@ -10,6 +10,7 @@
 // in the pill.
 
 import { BiasIndicator, MetricTooltip } from "@/components/ui";
+import { MobileGate } from "@/components/ui/mobile-gate";
 import {
   apiGet,
   isLive,
@@ -140,6 +141,7 @@ export default async function ScenariosPage({ params }: PageProps) {
 
   return (
     <div className="container mx-auto max-w-6xl px-6 py-12">
+      <MobileGate feature="le comparateur de scénarios 3-pannes" />
       <header className="mb-8 flex flex-wrap items-baseline justify-between gap-3">
         <div>
           <p className="font-mono text-xs uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
