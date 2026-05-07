@@ -210,13 +210,16 @@ async def evaluate_cb_tone(
     if scorer is None:
         # Lazy-import the model wrapper. This is the only place the
         # ML stack is touched at runtime ; tests pass a mock scorer.
+        # Phase D.5.d (ADR-040) : per-CB models from gtfintechlab 2025
+        # series (FED / ECB / BoE / BoJ each have their own fine-tuned
+        # roberta-base ~0.4B params).
         from ichor_ml.nlp.fomc_roberta import (
             aggregate_fomc_chunks,
-            score_long_fomc_text,
+            score_long_text_for_cb,
         )
 
         def scorer(text: str) -> float:  # noqa: PLR0912
-            scores = score_long_fomc_text(text)
+            scores = score_long_text_for_cb(text, cb=cb_norm)
             return float(aggregate_fomc_chunks(scores)["net_hawkish"])
 
     # Pick the most informative text per speech : prefer summary,
