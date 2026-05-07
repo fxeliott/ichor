@@ -1,0 +1,37 @@
+{
+  "ci": {
+    "collect": {
+      "startServerCommand": "pnpm start",
+      "startServerReadyPattern": "Ready in",
+      "url": [
+        "http://localhost:3001/",
+        "http://localhost:3001/today",
+        "http://localhost:3001/sessions/EUR_USD",
+        "http://localhost:3001/admin",
+        "http://localhost:3001/calibration"
+      ],
+      "numberOfRuns": 3,
+      "settings": {
+        "preset": "desktop",
+        "skipAudits": ["uses-http2"]
+      }
+    },
+    "assert": {
+      "assertions": {
+        "categories:performance": ["error", { "minScore": 0.9 }],
+        "categories:accessibility": ["error", { "minScore": 0.95 }],
+        "categories:best-practices": ["warn", { "minScore": 0.9 }],
+        "categories:seo": ["warn", { "minScore": 0.85 }],
+        "largest-contentful-paint": ["error", { "maxNumericValue": 2500 }],
+        "total-blocking-time": ["error", { "maxNumericValue": 200 }],
+        "cumulative-layout-shift": ["error", { "maxNumericValue": 0.1 }],
+        "interactive": ["error", { "maxNumericValue": 3500 }],
+        "speed-index": ["warn", { "maxNumericValue": 3000 }],
+        "total-byte-weight": ["warn", { "maxNumericValue": 1500000 }]
+      }
+    },
+    "upload": {
+      "target": "temporary-public-storage"
+    }
+  }
+}

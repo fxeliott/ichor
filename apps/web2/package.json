@@ -37,12 +37,16 @@
     "zustand": "5.0.12"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.11.2",
+    "@lhci/cli": "^0.15.1",
     "@playwright/test": "^1.49.1",
     "@tailwindcss/postcss": "4.2.4",
     "@types/node": "22.19.17",
     "@types/react": "19.0.0",
     "@types/react-dom": "19.0.0",
     "@vitest/coverage-v8": "^2.1.9",
+    "axe-core": "^4.11.3",
+    "lighthouse": "^12.4.0",
     "tailwindcss": "4.2.4",
     "typescript": "5.9.3",
     "vitest": "^2.1.9"

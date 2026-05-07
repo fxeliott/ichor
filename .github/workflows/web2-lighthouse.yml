@@ -1,0 +1,67 @@
+name: web2-lighthouse
+
+# Lighthouse CI assertions on 5 routes × 3 runs (ADR-026 thresholds).
+# LCP ≤ 2500 ms, TBT ≤ 200 ms, CLS ≤ 0.1, perf ≥ 0.9, a11y ≥ 0.95.
+# TBT serves as the lab proxy for INP per 2026 best practices.
+
+on:
+  pull_request:
+    paths:
+      - "apps/web2/**"
+      - "packages/ui/**"
+      - "apps/web2/lighthouserc.json"
+      - ".github/workflows/web2-lighthouse.yml"
+  push:
+    branches: [main]
+    paths:
+      - "apps/web2/**"
+      - "packages/ui/**"
+
+concurrency:
+  group: web2-lighthouse-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lhci:
+    name: Lighthouse CI — perf + a11y budgets
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build web2 (production)
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"
+        run: pnpm --filter @ichor/web2 build
+
+      - name: Run Lighthouse CI
+        working-directory: apps/web2
+        env:
+          # No upstream API in CI — proxy points at local 8000 which won't answer,
+          # but rewrites still resolve. Lighthouse measures the static + RSC payload
+          # which is what matters for the budget gate.
+          ICHOR_API_PROXY_TARGET: "http://127.0.0.1:8000"
+        run: |
+          pnpm exec lhci autorun \
+            --config=./lighthouserc.json \
+            --upload.target=temporary-public-storage
+
+      - name: Upload Lighthouse reports on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lighthouse-reports
+          path: apps/web2/.lighthouseci
+          retention-days: 7
