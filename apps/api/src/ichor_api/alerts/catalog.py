@@ -306,6 +306,26 @@ PLAN_ALERTS: tuple[AlertDef, ...] = (
         ),
     ),
     AlertDef(
+        "MACRO_QUARTET_STRESS",
+        "warning",
+        "Macro quartet stress {value:.0f}/4 dims aligned",
+        "quartet_stress_count",
+        3,
+        "above",
+        description=(
+            "Composite 4-dimension stress regime detector. Z-score of DXY "
+            "(DTWEXBGS) + 10Y (DGS10) + VIX (VIXCLS) + HY OAS (BAMLH0A0HYM2) "
+            "each on rolling 90d. Fires when N >= 3 of 4 dimensions are "
+            "|z| > 2.0 (3-of-4 alignment per TORVAQ + OFR FSI methodology). "
+            "Regime tagged 'stress' (all positive z), 'complacency' (all "
+            "negative z), or 'mixed' (no directional consensus). Adds the "
+            "credit-stress dimension that the original macro trinity missed "
+            "— without HY OAS, March 2020 COVID + 2008 GFC funding-stress "
+            "regimes are systematically under-detected. Cf "
+            "services/macro_quartet_check.py + ADR-042."
+        ),
+    ),
+    AlertDef(
         "COT_NET_FLIP", "warning", "COT positionnement net flip {asset}", "cot_net_z", 2.0, "above"
     ),
     AlertDef(
@@ -473,8 +493,8 @@ def get_alert_def(code: str) -> AlertDef:
 
 
 def assert_catalog_complete() -> None:
-    """Sanity check at startup: total = 44 alerts, all unique codes."""
+    """Sanity check at startup: total = 45 alerts, all unique codes."""
     codes = [a.code for a in ALL_ALERTS]
     assert len(codes) == len(set(codes)), f"Duplicate alert codes: {codes}"
-    assert len(ALL_ALERTS) == 44, f"Expected 44 alerts, got {len(ALL_ALERTS)}"
+    assert len(ALL_ALERTS) == 45, f"Expected 45 alerts, got {len(ALL_ALERTS)}"
     assert len(CRISIS_TRIGGERS) >= 5, f"Expected ≥5 crisis triggers, got {len(CRISIS_TRIGGERS)}"
