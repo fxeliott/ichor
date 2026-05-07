@@ -87,16 +87,21 @@ models:
     license: Apache-2.0
     intended_use: "Per-headline tone classification feeding NEWS_REGIME_SHIFT trigger"
 
-  - id: fomc-roberta-v0
-    family: fomc_roberta
+  - id: cb-stance-multi-cb-v1
+    family: cb_stance_classifier
     asset: "*"
     horizon_hours: 24
-    status: scaffolded # promoted from `planned` 2026-05-03
-    impl: packages/ml/src/ichor_ml/nlp/fomc_roberta.py
-    model_card: packages/ml/model_cards/fomc-roberta-v0.md
-    upstream_model: gtfintechlab/fomc-roberta-large
-    license: "see HuggingFace model page"
-    intended_use: "FOMC statement / minutes hawkish-dovish scoring — drives Fed-tone bias signal"
+    status: shipped # 2026-05-07 (PR #34, ADR-040) — replaces fomc-roberta-v0 scaffold
+    impl: packages/ml/src/ichor_ml/nlp/fomc_roberta.py # legacy path, multi-CB inside
+    model_card: packages/ml/model_cards/fomc-roberta-v0.md # being migrated to cb-stance-multi-v1.md
+    upstream_models:
+      FED: gtfintechlab/model_federal_reserve_system_stance_label
+      ECB: gtfintechlab/model_european_central_bank_stance_label
+      BOE: gtfintechlab/model_bank_of_england_stance_label
+      BOJ: gtfintechlab/model_bank_of_japan_stance_label
+    license: CC-BY-NC-SA 4.0  # gtfintechlab 2025 series
+    intended_use: "Per-CB hawkish/dovish/neutral/irrelevant stance classification — drives FOMC/ECB/BOE/BOJ tone-shift alerts (ADR-040)"
+    superseded_upstream: gtfintechlab/fomc-roberta-large  # deprecated/removed from HF Hub 2025
 
   # ──────────────────── Bias predictors per asset ────────────────────
   # Phase 0 W2 step 12 — these all need real OANDA M1 OHLCV data first.
