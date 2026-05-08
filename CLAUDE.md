@@ -123,7 +123,7 @@ D:\Ichor
 
 ## Phase II Layer 1 progress (Wave 35)
 
-**14 / 30 priority sources collected (47 %), 10 / 14 surfaced data_pool (71 %).**
+**14 / 30 priority sources collected (47 %), 13 / 14 surfaced data_pool (93 %).**
 
 Custom collectors live :
 - `cboe_skew_observations` (Wave 24, Yahoo `^SKEW`, daily 23:30 Paris)
@@ -132,17 +132,32 @@ Custom collectors live :
 - `treasury_tic_holdings` (Wave 32, ticdata.treasury.gov `mfhhis01.txt`,
   daily 03:00 Paris with idempotent dedup)
 
-FRED extended adds (Waves 23/24/28/34) :
+FRED extended adds (Waves 23 / 24 / 28 / 34 / 40 / 42) ≈ 50 valid series :
 - Fed H.4.1 detail : WSHOSHO + WSHOMCB + WRESBAL
 - Atlanta nowcasts : GDPNOW + PCENOW
 - CBOE vol surface : GVZCLS + OVXCLS + RVXCLS
 - OECD CLI 7 regions : USA + G7 + JPN + DEU + GBR + CHN + EA19
+- Labor + uncertainty + recession (W40) : ICSA + IC4WSA + USREC + USEPUINDXD
+  + CIVPART + AHETPI + ATLSBUSRGEP
+- FX rates (W42) : DEXJPUS + DEXUSEU + DEXCHUS + DEXCAUS + DEXSZUS +
+  DEXUSAL + DEXUSNZ
+- Fed monetary stance (W42) : FEDFUNDS + EFFR + DFEDTARU + DFEDTARL
+- Inflation expectations (W42) : EXPINF1YR
+- Financial conditions (W42) : NFCI + ANFCI + STLFSI4 + TEDRATE + AAA + BAA
+- Macro composites (W42) : CFNAI + CFNAIDIFF + PSAVERT + UMCSENT + MCUMFN
+- Yield curve detail (W42) : DGS1 + DGS3 + DGS7 + DGS20 + T10YFF
+- Cleanup waves 37b/c : 7 ghost FRED series removed (silent 400-fails fixed)
 
-data_pool sections live (35, was 29 pre-Wave 26) — new in Phase II :
+data_pool sections live (37, was 29 pre-Wave 26) — new in Phase II :
 `tail_risk` (SKEW + VVIX + GVZ + OVX + RVX), `tff_positioning`
 (per-asset 4-class + Δw/w + smart-money divergence ⚠), `treasury_tic`
 (top-10 holders + 3y trend, China -20.5 %), `oecd_cli` (7 regions +
-China-vs-rest divergence flag).
+China-vs-rest divergence flag), `labor_uncertainty` (jobless / EPU /
+recession / wage-inflation, W41), `fed_financial` (Fed Funds target
+band + EFFR position + NFCI/ANFCI/FSI4 + BAA-AAA spread + 1y inflation
+expectations, W43). Polymarket section (W39) categorized in 6 buckets
+(Monetary policy / Macro indicators / Geopolitics / US politics /
+Crypto-macro / Other).
 
 ADR-055 ratifies DOLLAR_SMILE_BREAK gate 4-of-4 → 5-of-5 with SKEW as
 5th condition + graceful_none warm-up tolerance (preserves ADR-043
