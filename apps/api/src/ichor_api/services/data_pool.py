@@ -419,6 +419,108 @@ async def _section_tail_risk_skew(session: AsyncSession) -> tuple[str, list[str]
     return "\n".join(lines), sources
 
 
+async def _section_fed_financial(session: AsyncSession) -> tuple[str, list[str]]:
+    """## Fed monetary stance + financial conditions composite (Wave 43).
+
+    Surfaces 8 of the 27 wave-42 FRED additions that are most trader-
+    actionable for Pass 1 régime + Pass 2 mechanism citations.
+
+    Pillar A: Fed Funds target band + EFFR position within range.
+    Pillar B: Financial conditions composites (Chicago NFCI / ANFCI,
+              St Louis FSI4) — negative = looser than average, positive
+              = tighter (régime-flagging).
+    Pillar C: Credit cycle gauge (BAA-AAA spread).
+    Pillar D: Forward inflation expectations (1y) vs 2% target.
+    """
+    sources: list[str] = []
+    lines: list[str] = ["## Fed monetary stance + financial conditions"]
+
+    # ── Pillar A: Fed Funds target range + EFFR position ──
+    upper = await _latest_fred(session, "DFEDTARU", max_age_days=30)
+    lower = await _latest_fred(session, "DFEDTARL", max_age_days=30)
+    effr = await _latest_fred(session, "EFFR", max_age_days=14)
+    if upper and lower and effr:
+        lo, hi, e = lower[0], upper[0], effr[0]
+        # Position within range : 0 = at lower bound, 1 = at upper bound
+        pos = (e - lo) / (hi - lo) if hi > lo else 0.5
+        if pos < 0.25:
+            band = "near lower bound (dovish drift)"
+        elif pos > 0.75:
+            band = "near upper bound (pressure to hike)"
+        else:
+            band = "mid-range (stable)"
+        lines.append(
+            f"- Fed Funds target = [{lo:.2f} %, {hi:.2f} %] — EFFR = {e:.2f} % "
+            f"({pos*100:.0f}%% in range, {band}, FRED:DFEDTARU+L+EFFR, "
+            f"{effr[1]:%Y-%m-%d})"
+        )
+        sources.extend(["FRED:DFEDTARU", "FRED:DFEDTARL", "FRED:EFFR"])
+
+    # ── Pillar B: Financial conditions composites ──
+    nfci = await _latest_fred(session, "NFCI", max_age_days=14)
+    anfci = await _latest_fred(session, "ANFCI", max_age_days=14)
+    stl = await _latest_fred(session, "STLFSI4", max_age_days=14)
+    if nfci or anfci or stl:
+        lines.append("### Financial conditions composites")
+        if nfci is not None:
+            v = nfci[0]
+            flag = "TIGHTER than avg" if v > 0 else "looser than avg"
+            lines.append(
+                f"- Chicago NFCI = {v:+.3f} — {flag} (FRED:NFCI, {nfci[1]:%Y-%m-%d})"
+            )
+            sources.append("FRED:NFCI")
+        if anfci is not None:
+            v = anfci[0]
+            flag = "TIGHTER" if v > 0 else "looser"
+            lines.append(
+                f"- Chicago ANFCI (macro-adjusted) = {v:+.3f} — {flag}"
+                f" (FRED:ANFCI, {anfci[1]:%Y-%m-%d})"
+            )
+            sources.append("FRED:ANFCI")
+        if stl is not None:
+            v = stl[0]
+            flag = "STRESS" if v > 1 else ("elevated" if v > 0 else "calm")
+            lines.append(
+                f"- St Louis FSI4 = {v:+.2f} — {flag}"
+                f" (FRED:STLFSI4, {stl[1]:%Y-%m-%d})"
+            )
+            sources.append("FRED:STLFSI4")
+
+    # ── Pillar C: Credit cycle gauge (BAA-AAA spread) ──
+    aaa = await _latest_fred(session, "AAA", max_age_days=14)
+    baa = await _latest_fred(session, "BAA", max_age_days=14)
+    if aaa and baa:
+        spread = baa[0] - aaa[0]
+        if spread >= 1.5:
+            band = "credit STRESS (>150 bp)"
+        elif spread >= 1.0:
+            band = "elevated (100-150 bp)"
+        elif spread >= 0.7:
+            band = "normal (70-100 bp)"
+        else:
+            band = "compressed (<70 bp, complacency)"
+        lines.append(
+            f"- BAA-AAA spread = {spread*100:.0f} bp "
+            f"(BAA={baa[0]:.2f} % vs AAA={aaa[0]:.2f} %) — {band}"
+            f" (FRED:BAA+AAA, {baa[1]:%Y-%m})"
+        )
+        sources.extend(["FRED:BAA", "FRED:AAA"])
+
+    # ── Pillar D: Forward inflation expectations vs 2% target ──
+    exp = await _latest_fred(session, "EXPINF1YR", max_age_days=45)
+    if exp is not None:
+        v = exp[0]
+        target_gap = v - 2.0
+        flag = "above target" if target_gap > 0.5 else ("near target" if abs(target_gap) <= 0.5 else "below target")
+        lines.append(
+            f"- 1y expected inflation (Cleveland model) = {v:.2f} % "
+            f"(target gap {target_gap:+.2f}, {flag}) (FRED:EXPINF1YR, {exp[1]:%Y-%m})"
+        )
+        sources.append("FRED:EXPINF1YR")
+
+    return "\n".join(lines), sources
+
+
 async def _section_labor_uncertainty(session: AsyncSession) -> tuple[str, list[str]]:
     """## Labor + uncertainty + recession régime (Wave 41).
 
@@ -1248,6 +1350,12 @@ async def build_data_pool(
     # Jobless claims band + EPU band + wage-inflation + USREC flag.
     lab_md, lab_src = await _section_labor_uncertainty(session)
     sections.append(("labor_uncertainty", lab_md, lab_src))
+
+    # Wave 43 — Fed monetary stance + financial conditions (8 FRED series
+    # from wave 42 batch). Fed Funds target band + EFFR position +
+    # NFCI/ANFCI/FSI4 + BAA-AAA credit spread + 1y inflation expectations.
+    fed_md, fed_src = await _section_fed_financial(session)
+    sections.append(("fed_financial", fed_md, fed_src))
 
     yc_md, yc_src = await _section_yield_curve(session)
     sections.append(("yield_curve", yc_md, yc_src))
