@@ -419,6 +419,63 @@ async def _section_tail_risk_skew(session: AsyncSession) -> tuple[str, list[str]
     return "\n".join(lines), sources
 
 
+async def _section_oecd_cli(session: AsyncSession) -> tuple[str, list[str]]:
+    """## OECD Composite Leading Indicators — global cycle régime.
+
+    CLI > 100 = above trend (expansion); < 100 = below trend (slowdown).
+    Turning points lead GDP by 6-9 months. Surfaces 7 CLIs in DB
+    (Wave 34): US / G7 / Japan / Germany / UK / China / EA19.
+
+    Critical signal — China-vs-rest divergence: when global G7 > 100
+    but China < 100, commodity demand impulse weakens unilaterally
+    (bearish AUD/CAD via copper, mining proxy).
+    """
+    cli_series: tuple[tuple[str, str], ...] = (
+        ("USALOLITOAASTSAM", "USA"),
+        ("G7LOLITOAASTSAM", "G7"),
+        ("JPNLOLITOAASTSAM", "Japan"),
+        ("DEULOLITOAASTSAM", "Germany"),
+        ("GBRLOLITOAASTSAM", "UK"),
+        ("CHNLOLITOAASTSAM", "China"),
+        ("EA19LOLITOAASTSAM", "EA19"),
+    )
+
+    sources: list[str] = []
+    lines: list[str] = ["## OECD CLI (composite leading indicators)"]
+
+    readings: dict[str, tuple[float, datetime]] = {}
+    for series_id, label in cli_series:
+        # CLI is monthly, ~5-week lag — use 90-day cutoff (vs default 14d).
+        v = await _latest_fred(session, series_id, max_age_days=90)
+        if v is None:
+            lines.append(f"- {label}: n/a (FRED:{series_id})")
+            continue
+        readings[label] = v
+        val, when = v
+        regime = "expansion" if val >= 100 else "slowdown"
+        arrow = "▲" if val >= 100 else "▼"
+        lines.append(
+            f"- {label:8s} = {val:.2f} {arrow} ({regime}, "
+            f"FRED:{series_id}, {when:%Y-%m})"
+        )
+        sources.append(f"FRED:{series_id}")
+
+    # China-vs-rest divergence flag (trader-actionable signal)
+    if "China" in readings and ("G7" in readings or "USA" in readings):
+        china_val = readings["China"][0]
+        anchor = readings.get("G7") or readings["USA"]
+        anchor_val = anchor[0]
+        gap = anchor_val - china_val
+        if china_val < 100 and anchor_val > 100 and gap > 1.0:
+            lines.append(
+                f"- ⚠ China divergence: G7/US > 100 (expansion) "
+                f"while China < 100 (slowdown), gap = {gap:+.2f}"
+                f" — bearish commodity demand impulse (AUD/CAD copper risk)"
+            )
+
+    return "\n".join(lines), sources
+
+
 async def _section_treasury_tic(session: AsyncSession) -> tuple[str, list[str]]:
     """## Treasury TIC — top foreign holders + 12-month trend per major.
 
@@ -1054,6 +1111,11 @@ async def build_data_pool(
     # repatriation narrative.
     tic_md, tic_src = await _section_treasury_tic(session)
     sections.append(("treasury_tic", tic_md, tic_src))
+
+    # Wave 35 — OECD CLI cycle régime (US / G7 / Japan / Germany / UK /
+    # China / EA19). Above/below 100 classifier + China divergence flag.
+    cli_md, cli_src = await _section_oecd_cli(session)
+    sections.append(("oecd_cli", cli_md, cli_src))
 
     yc_md, yc_src = await _section_yield_curve(session)
     sections.append(("yield_curve", yc_md, yc_src))
