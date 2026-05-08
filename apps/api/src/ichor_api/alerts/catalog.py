@@ -608,6 +608,25 @@ AUDIT_V2_ALERTS: tuple[AlertDef, ...] = (
         crisis_mode=True,
     ),
     AlertDef(
+        "MACRO_QUINTET_STRESS",
+        "warning",
+        "Macro quintet stress {value:.0f}/5 dimensions aligned",
+        "quintet_stress_count",
+        4,
+        "above",
+        description=(
+            "Composite 5-dim z-score (DXY + 10Y + VIX + HY OAS + Treasury "
+            "realized vol). Fires when N >= 4 of 5 dimensions are |z| > 2σ "
+            "aligned (4-of-5 threshold, stricter than quartet 3-of-4 for "
+            "specificity given 5 independent axes). Closes ADR-048 followup "
+            "(upgrade MACRO_QUARTET to QUINTET via Treasury vol). 3 régimes : "
+            "stress (N+ aligned positive), complacency (N- aligned negative), "
+            "mixed (extreme without consensus). Source: "
+            "FRED:DTWEXBGS+DGS10+VIXCLS+BAMLH0A0HYM2+DGS10_realized_vol. "
+            "cf ADR-051."
+        ),
+    ),
+    AlertDef(
         "HY_IG_SPREAD_DIVERGENCE",
         "warning",
         "HY-IG spread divergence z={value:+.2f}",
@@ -645,5 +664,5 @@ def assert_catalog_complete() -> None:
     """Sanity check at startup: total = 51 alerts, all unique codes."""
     codes = [a.code for a in ALL_ALERTS]
     assert len(codes) == len(set(codes)), f"Duplicate alert codes: {codes}"
-    assert len(ALL_ALERTS) == 52, f"Expected 52 alerts, got {len(ALL_ALERTS)}"
+    assert len(ALL_ALERTS) == 53, f"Expected 53 alerts, got {len(ALL_ALERTS)}"
     assert len(CRISIS_TRIGGERS) >= 5, f"Expected ≥5 crisis triggers, got {len(CRISIS_TRIGGERS)}"
