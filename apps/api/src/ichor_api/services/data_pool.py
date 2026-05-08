@@ -639,19 +639,42 @@ async def _section_oecd_cli(session: AsyncSession) -> tuple[str, list[str]]:
     lines: list[str] = ["## OECD CLI (composite leading indicators)"]
 
     readings: dict[str, tuple[float, datetime]] = {}
+    # Wave 45: pull last 14 monthly observations (slightly more than 1y)
+    # to compute 3m + 12m direction deltas.
+    cutoff = datetime.now(UTC).date() - timedelta(days=500)
     for series_id, label in cli_series:
-        # CLI is monthly, ~5-week lag — use 90-day cutoff (vs default 14d).
-        v = await _latest_fred(session, series_id, max_age_days=90)
-        if v is None:
+        stmt = (
+            select(FredObservation.observation_date, FredObservation.value)
+            .where(
+                FredObservation.series_id == series_id,
+                FredObservation.observation_date >= cutoff,
+                FredObservation.value.is_not(None),
+            )
+            .order_by(desc(FredObservation.observation_date))
+            .limit(14)
+        )
+        hist = list((await session.execute(stmt)).all())
+        if not hist:
             lines.append(f"- {label}: n/a (FRED:{series_id})")
             continue
-        readings[label] = v
-        val, when = v
-        regime = "expansion" if val >= 100 else "slowdown"
-        arrow = "▲" if val >= 100 else "▼"
+        cur_obs, cur_val = hist[0]
+        readings[label] = (float(cur_val), datetime.combine(cur_obs, datetime.min.time(), tzinfo=UTC))
+        regime = "expansion" if float(cur_val) >= 100 else "slowdown"
+        arrow = "▲" if float(cur_val) >= 100 else "▼"
+        # 3m + 12m deltas
+        deltas: list[str] = []
+        if len(hist) > 3:
+            d3 = float(cur_val) - float(hist[3][1])
+            d3_dir = "↗" if d3 > 0.1 else ("↘" if d3 < -0.1 else "→")
+            deltas.append(f"Δ3m {d3:+.2f} {d3_dir}")
+        if len(hist) > 12:
+            d12 = float(cur_val) - float(hist[12][1])
+            d12_dir = "↗" if d12 > 0.5 else ("↘" if d12 < -0.5 else "→")
+            deltas.append(f"Δ12m {d12:+.2f} {d12_dir}")
+        delta_str = f", {', '.join(deltas)}" if deltas else ""
         lines.append(
-            f"- {label:8s} = {val:.2f} {arrow} ({regime}, "
-            f"FRED:{series_id}, {when:%Y-%m})"
+            f"- {label:8s} = {float(cur_val):.2f} {arrow} ({regime}{delta_str}, "
+            f"FRED:{series_id}, {cur_obs:%Y-%m})"
         )
         sources.append(f"FRED:{series_id}")
 
@@ -820,7 +843,12 @@ async def _section_tff_positioning(
 
 
 async def _section_cot(session: AsyncSession, asset: str) -> tuple[str, list[str]]:
-    """## COT positioning — latest weekly Disaggregated row for the asset."""
+    """## COT positioning — latest weekly Disaggregated row for the asset.
+
+    Wave 45 enriched: Δw/w + Δ4w + Δ12w trend deltas on managed_money_net
+    to surface positioning regime shifts (acceleration / deceleration /
+    reversal) rather than just a static snapshot.
+    """
     market = _COT_MARKET_BY_ASSET.get(asset)
     if market is None:
         return "", []
@@ -828,18 +856,38 @@ async def _section_cot(session: AsyncSession, asset: str) -> tuple[str, list[str
         select(CotPosition)
         .where(CotPosition.market_code == market)
         .order_by(desc(CotPosition.report_date))
-        .limit(2)
+        .limit(13)  # ~3 months of weekly data for Δ12w computation
     )
     rows = list((await session.execute(stmt)).scalars().all())
     if not rows:
         return f"## COT positioning ({asset}, market={market})\n- n/a", []
     cur = rows[0]
-    delta = (cur.managed_money_net - rows[1].managed_money_net) if len(rows) > 1 else None
-    delta_str = f", Δw/w {delta:+,}" if delta is not None else ""
+    deltas: list[str] = []
+    if len(rows) > 1:
+        d1 = cur.managed_money_net - rows[1].managed_money_net
+        deltas.append(f"Δw/w {d1:+,}")
+    if len(rows) > 4:
+        d4 = cur.managed_money_net - rows[4].managed_money_net
+        deltas.append(f"Δ4w {d4:+,}")
+    if len(rows) > 12:
+        d12 = cur.managed_money_net - rows[12].managed_money_net
+        deltas.append(f"Δ12w {d12:+,}")
+    delta_str = f", {', '.join(deltas)}" if deltas else ""
+
+    # Detect acceleration / reversal patterns
+    pattern = ""
+    if len(rows) > 4:
+        d1w = cur.managed_money_net - rows[1].managed_money_net if len(rows) > 1 else 0
+        d4w = cur.managed_money_net - rows[4].managed_money_net
+        if d1w * d4w < 0 and abs(d4w) > 5000:
+            pattern = " — ⚠ trend reversal w/w"
+        elif abs(d1w) > 0.3 * abs(d4w) and abs(d4w) > 10_000:
+            pattern = " — accelerating"
+
     sources = [f"CFTC:COT:{market}@{cur.report_date.isoformat()}"]
     md = (
         f"## COT positioning ({asset}, market={market})\n"
-        f"- managed_money_net = {cur.managed_money_net:+,}{delta_str} "
+        f"- managed_money_net = {cur.managed_money_net:+,}{delta_str}{pattern} "
         f"(swap_dealer_net={cur.swap_dealer_net:+,}, "
         f"open_interest={cur.open_interest:,}, "
         f"report_date={cur.report_date:%Y-%m-%d})"
