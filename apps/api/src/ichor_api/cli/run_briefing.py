@@ -343,8 +343,26 @@ async def _post_to_claude_runner(
     assets: list[str],
     context: str,
 ) -> dict[str, Any]:
-    """POST to the claude-runner tunnel. Returns the parsed response JSON."""
-    url = settings.claude_runner_url.rstrip("/") + "/v1/briefing-task"
+    """POST to the claude-runner tunnel using async + polling pattern.
+
+    Per ADR-053 : the legacy synchronous /v1/briefing-task endpoint hits
+    Cloudflare Tunnel's 100s edge timeout (524) on claude CLI subprocess
+    durations >100s (typical for large data_pool prompts ~150KB).
+
+    Async pattern :
+      1. POST /v1/briefing-task/async → 202 Accepted + task_id (fast)
+      2. Poll /v1/briefing-task/async/{task_id} every 5s until status
+         == 'done' or 'error'. Each poll <1s so Cloudflare doesn't cap.
+      3. Total wall-time bounded by 600s (10min) — upper bound on claude
+         CLI processing.
+
+    Returns the same BriefingTaskResponse JSON envelope as the legacy
+    endpoint.
+    """
+    import time
+
+    base_url = settings.claude_runner_url.rstrip("/")
+    submit_url = f"{base_url}/v1/briefing-task/async"
     headers = {
         "Content-Type": "application/json",
         "CF-Access-Client-Id": settings.cf_access_client_id,
@@ -357,10 +375,47 @@ async def _post_to_claude_runner(
         "model": "opus" if briefing_type in {"weekly", "crisis"} else "sonnet",
         "effort": "high" if briefing_type in {"weekly", "crisis", "ny_close"} else "medium",
     }
-    async with httpx.AsyncClient(timeout=420) as client:
-        r = await client.post(url, headers=headers, json=payload)
+    max_total_sec = 600.0
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        # 1. Submit
+        r = await client.post(submit_url, headers=headers, json=payload)
         r.raise_for_status()
-        return r.json()
+        accepted = r.json()
+        task_id = accepted["task_id"]
+        poll_path = accepted.get("poll_url") or f"/v1/briefing-task/async/{task_id}"
+        poll_url = f"{base_url}{poll_path}"
+        poll_interval = accepted.get("poll_interval_sec", 5)
+
+        log.info("cli.briefing.async_submitted", task_id=task_id)
+
+        # 2. Poll until done or error
+        started = time.monotonic()
+        poll_count = 0
+        while True:
+            poll_count += 1
+            if time.monotonic() - started > max_total_sec:
+                raise TimeoutError(
+                    f"async briefing task {task_id} did not complete within "
+                    f"{max_total_sec}s (poll_count={poll_count})"
+                )
+            await asyncio.sleep(poll_interval)
+            pr = await client.get(poll_url, headers=headers)
+            pr.raise_for_status()
+            status_body = pr.json()
+            task_status = status_body.get("status")
+            if task_status == "done":
+                log.info(
+                    "cli.briefing.async_completed",
+                    task_id=task_id,
+                    poll_count=poll_count,
+                    elapsed_sec=status_body.get("elapsed_sec"),
+                )
+                return status_body.get("result") or {}
+            if task_status == "error":
+                raise RuntimeError(
+                    f"async briefing task {task_id} crashed: {status_body.get('error')}"
+                )
+            # else: 'pending' or 'running', continue polling
 
 
 async def main(briefing_type: str) -> int:
