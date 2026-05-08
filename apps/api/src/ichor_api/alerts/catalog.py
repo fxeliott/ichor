@@ -328,23 +328,26 @@ PLAN_ALERTS: tuple[AlertDef, ...] = (
     AlertDef(
         "DOLLAR_SMILE_BREAK",
         "warning",
-        "Dollar smile broken — US-driven instability ({value:.0f}/4)",
+        "Dollar smile broken — US-driven instability ({value:.0f}/5)",
         "dollar_smile_conditions_met",
-        4,
+        5,
         "above",
         description=(
             "Detects the 'broken smile' / 'crooked smile' / 'US-driven "
             "instability' regime that classic Dollar Smile (Stephen Jen 2001) "
-            "doesn't handle. 4-condition AND gate: term_premium_z > +2 "
-            "(fiscal stress) AND dxy_z < -1 (USD weakening) AND vix_z < +1 "
-            "(not panic — distinguishes from classic LEFT smile) AND "
-            "hy_oas_z < +1 (no credit stress — distinguishes from funding "
-            "stress). When all 4 align: US itself becomes source of "
-            "instability, safe-haven bid evaporates, $26T unhedged foreign "
-            "USD assets create exit loop. Per Stephen Jen Bloomberg "
-            "2025-11-12 + Wellington 'Crooked Smile' April 2025 + Eurizon "
-            "SLJ Capital 2026 outlook. Source: FRED:THREEFYTP10+DTWEXBGS+"
-            "VIXCLS+BAMLH0A0HYM2. Cf services/dollar_smile_check.py + ADR-043."
+            "doesn't handle. 5-condition AND gate (ADR-043 + ADR-055 wave 27): "
+            "term_premium_z > +2 (fiscal stress) AND dxy_z < -1 (USD weakening) "
+            "AND vix_z < +1 (not panic — distinguishes from classic LEFT smile) "
+            "AND hy_oas_z < +1 (no credit stress — distinguishes from funding "
+            "stress) AND skew_z > +1 (CBOE SKEW elevated tail-bid — gracefully "
+            "passes during the SKEW collector warm-up window <60d). When all 5 "
+            "align: US itself becomes source of instability, tail risk priced "
+            "in OOM SPX options, safe-haven bid evaporates, $26T unhedged "
+            "foreign USD assets create exit loop. Per Stephen Jen Bloomberg "
+            "2025-11-12 + Wellington 'Crooked Smile' April 2025 + Eurizon SLJ "
+            "Capital 2026 outlook. Source: FRED:THREEFYTP10+DTWEXBGS+VIXCLS+"
+            "BAMLH0A0HYM2 + CBOE:SKEW. Cf services/dollar_smile_check.py + "
+            "ADR-043 + ADR-055."
         ),
     ),
     AlertDef(

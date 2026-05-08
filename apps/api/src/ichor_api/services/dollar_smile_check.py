@@ -1,4 +1,4 @@
-"""DOLLAR_SMILE_BREAK alert wiring (Phase E.3).
+"""DOLLAR_SMILE_BREAK alert wiring (Phase E.3, extended Wave 27).
 
 Detects the **"broken smile" / "US-driven instability" regime** —
 the case Stephen Jen's classic Dollar Smile framework (2001) doesn't
@@ -14,6 +14,7 @@ The broken smile (Wellington / Stephen Jen 2025-2026 warnings) :
 
     Term premium expanding + DXY weakening
     + VIX not panicking + HY OAS not blowing out
+    + CBOE SKEW elevated (tail risk priced in)
     = US itself becomes source of instability
     = safe-haven bid evaporates
     = $26T unhedged foreign-held assets create exit loop
@@ -23,23 +24,34 @@ during tariff panic. Per Stephen Jen Bloomberg 2025-11-12 : USD could
 fall ~13.5% during Trump second term ; left side of smile threatened
 by fiscal imprudence + Fed independence questions.
 
-Detection logic (4-condition composite AND gate) :
+Detection logic — 5-condition composite AND gate (ADR-055 wave 27,
+extends original 4-condition ADR-043) :
 
   1. term_premium_z > +2.0 (TERM_PREMIUM_REPRICING-style expansion)
   2. dxy_z < -1.0 (USD weakening)
   3. vix_z < +1.0 (not panic — distinguishes from classic left-side smile)
   4. hy_oas_z < +1.0 (no systemic credit stress — distinguishes from
      funding-stress regime)
+  5. skew_z > +1.0 OR insufficient history (graceful) — tail-risk
+     pricing in OOM SPX options that VIX (ATM-only) misses
 
-When ALL 4 conditions align, fire DOLLAR_SMILE_BREAK. The gate is
+When ALL 5 conditions align, fire DOLLAR_SMILE_BREAK. The gate is
 deliberately a logical AND because each condition by itself is
 ambiguous — only the simultaneous alignment is informative.
 
-Source-stamping (ADR-017) :
-  - extra_payload.source = "FRED:THREEFYTP10+DTWEXBGS+VIXCLS+BAMLH0A0HYM2"
-  - extra_payload includes all 4 z-scores + per-condition pass/fail
+Back-compat note (Wave 27): historically the gate was 4-of-4 (ADR-043).
+We raised the floor to 5-of-5 by adding SKEW as condition 5. To avoid
+silent breakage during the SKEW collector warm-up window (≥60d
+required for credible z-score, see _MIN_ZSCORE_HISTORY), the SKEW
+condition gracefully passes when history is insufficient. That mirrors
+exactly the pre-wave-27 behaviour until ~mid-July 2026 when the SKEW
+table accumulates enough history.
 
-ROADMAP E.3. ADR-043.
+Source-stamping (ADR-017) :
+  - extra_payload.source = "FRED:THREEFYTP10+DTWEXBGS+VIXCLS+BAMLH0A0HYM2 + CBOE:SKEW"
+  - extra_payload includes all 5 z-scores + per-condition pass/fail
+
+ROADMAP E.3. ADR-043 (original) + ADR-055 (SKEW extension wave 27).
 """
 
 from __future__ import annotations
@@ -51,25 +63,31 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..models import FredObservation
+from ..models import CboeSkewObservation, FredObservation
 from .alerts_runner import check_metric
 
-# 4 input series for the composite gate.
+# 4 FRED-hosted input series (ADR-043).
 TERM_PREMIUM_SERIES = "THREEFYTP10"  # KW 10y term premium
 DXY_SERIES = "DTWEXBGS"              # Trade-weighted USD broad
 VIX_SERIES = "VIXCLS"                # CBOE Volatility Index
 HY_OAS_SERIES = "BAMLH0A0HYM2"       # ICE BofA HY Option-Adjusted Spread
+
+# 5th input — CBOE SKEW Index (ADR-055 wave 27 extension).
+# Sourced from cboe_skew_observations table populated by collectors.cboe_skew
+# (Yahoo Finance public chart endpoint for ^SKEW, daily).
+# Voie D-compliant: free, no API key.
 
 # Per-condition thresholds.
 TERM_PREMIUM_EXPANSION_FLOOR: float = 2.0   # term_premium_z > this
 DXY_WEAKNESS_CEILING: float = -1.0          # dxy_z < this
 VIX_NOT_PANIC_CEILING: float = 1.0          # vix_z < this (not panic)
 HY_OAS_NOT_STRESS_CEILING: float = 1.0      # hy_oas_z < this (not systemic)
+SKEW_ELEVATED_FLOOR: float = 1.0            # skew_z > this (tail bid)
 
-# Composite alert threshold. 4 of 4 conditions must align for the
-# regime to be unambiguous. Anything less is interpretable as classic
-# smile or noise.
-ALERT_CONDITIONS_FLOOR: int = 4
+# Composite alert threshold. ADR-055 wave 27: raised to 5-of-5 by
+# adding SKEW as 5th condition. SKEW gracefully passes when history
+# < _MIN_ZSCORE_HISTORY (preserves ADR-043 back-compat during warm-up).
+ALERT_CONDITIONS_FLOOR: int = 5
 
 # Window parameter.
 ZSCORE_WINDOW_DAYS = 90
@@ -158,20 +176,55 @@ async def _compute_zscore_for_series(
     return _zscore(history, current)
 
 
+async def _compute_zscore_for_cboe_skew(session: AsyncSession) -> float | None:
+    """Fetch + compute the z-score for CBOE SKEW (Wave 27, ADR-055).
+
+    Reads cboe_skew_observations populated by the cboe_skew collector
+    (Yahoo Finance ^SKEW). Returns None if history is degenerate
+    (less than _MIN_ZSCORE_HISTORY observations) — caller treats None
+    as 'graceful skip' so the wave 27 extension preserves ADR-043
+    back-compat during the SKEW table warm-up window.
+    """
+    cutoff = datetime.now(UTC).date() - timedelta(days=ZSCORE_WINDOW_DAYS + 14)
+    stmt = (
+        select(CboeSkewObservation.observation_date, CboeSkewObservation.skew_value)
+        .where(CboeSkewObservation.observation_date >= cutoff)
+        .order_by(desc(CboeSkewObservation.observation_date))
+    )
+    rows = list((await session.execute(stmt)).all())
+    if not rows:
+        return None
+    rows.reverse()
+    values = [float(r[1]) for r in rows if r[1] is not None]
+    if not values:
+        return None
+    current = values[-1]
+    history = values[:-1][-ZSCORE_WINDOW_DAYS:]
+    return _zscore(history, current)
+
+
 def _evaluate_condition(
     name: str,
     z: float | None,
     threshold: float,
     operator: str,
+    *,
+    graceful_none: bool = False,
 ) -> ConditionState:
-    """One condition of the gate. operator must be '>' or '<'."""
+    """One condition of the gate. operator must be '>' or '<'.
+
+    `graceful_none=True` (Wave 27): when z is None (e.g. SKEW history
+    not warm yet), treat the condition as PASSING. This is required for
+    the ADR-055 5th condition to preserve ADR-043 back-compat during
+    the SKEW table warm-up window (~60 days post-collector launch).
+    """
     if z is None:
         return ConditionState(
             name=name,
             z_score=None,
             threshold=threshold,
             operator=operator,
-            passes=False,
+            passes=graceful_none,
         )
     passes = (z > threshold) if operator == ">" else (z < threshold)
     return ConditionState(
@@ -197,6 +250,8 @@ async def evaluate_dollar_smile_break(
     z_dxy = await _compute_zscore_for_series(session, DXY_SERIES)
     z_vix = await _compute_zscore_for_series(session, VIX_SERIES)
     z_hy_oas = await _compute_zscore_for_series(session, HY_OAS_SERIES)
+    # Wave 27 / ADR-055: 5th condition — CBOE SKEW elevated tail risk.
+    z_skew = await _compute_zscore_for_cboe_skew(session)
 
     conditions = [
         _evaluate_condition(
@@ -223,8 +278,20 @@ async def evaluate_dollar_smile_break(
             HY_OAS_NOT_STRESS_CEILING,
             "<",
         ),
+        # Graceful None=PASS for SKEW: warm-up window mirror ADR-043 4-of-4.
+        # Once SKEW has ≥60 days history, the gate becomes strict 5-of-5.
+        _evaluate_condition(
+            "skew_elevated_tail_risk",
+            z_skew,
+            SKEW_ELEVATED_FLOOR,
+            ">",
+            graceful_none=True,
+        ),
     ]
     n_passing = sum(1 for c in conditions if c.passes)
+    n_total = len(conditions)
+    skew_warm = z_skew is not None
+    tail_amplified = skew_warm and conditions[-1].passes
 
     smile_regime = "us_driven_instability" if n_passing == ALERT_CONDITIONS_FLOOR else ""
 
@@ -232,8 +299,9 @@ async def evaluate_dollar_smile_break(
         f"{c.name}={'PASS' if c.passes else 'fail'}({c.z_score})" for c in conditions
     )
     note = (
-        f"dollar_smile · {n_passing}/4 conditions met "
-        f"(regime={smile_regime or 'classic_or_noise'}) | {breakdown}"
+        f"dollar_smile · {n_passing}/{n_total} conditions met "
+        f"(regime={smile_regime or 'classic_or_noise'}, "
+        f"tail_amplified={tail_amplified}, skew_warm={skew_warm}) | {breakdown}"
     )
 
     fired = False
@@ -250,6 +318,9 @@ async def evaluate_dollar_smile_break(
                 "z_dxy": z_dxy,
                 "z_vix": z_vix,
                 "z_hy_oas": z_hy_oas,
+                "z_skew": z_skew,
+                "skew_warm": skew_warm,
+                "tail_amplified": tail_amplified,
                 "conditions": [
                     {
                         "name": c.name,
@@ -262,7 +333,7 @@ async def evaluate_dollar_smile_break(
                 ],
                 "source": (
                     f"FRED:{TERM_PREMIUM_SERIES}+{DXY_SERIES}+"
-                    f"{VIX_SERIES}+{HY_OAS_SERIES}"
+                    f"{VIX_SERIES}+{HY_OAS_SERIES} + CBOE:SKEW"
                 ),
             },
         )
