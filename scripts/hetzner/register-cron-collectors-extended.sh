@@ -99,6 +99,10 @@ declare -A SCHEDULES=(
   # Used alongside SKEW to characterize the full vol-surface state.
   # Wave 29 Phase II Layer 1 add. Voie D-compliant (no API key).
   [cboe_vvix]="*-*-* 23:35:00 Europe/Paris"
+  # CME ZQ Fed Funds futures front-month — daily 23:40 Paris (after CBOT
+  # ZQ close 17:00 ET ≈ 23:00 Paris). Source: Yahoo Finance ZQ=F. Implied
+  # EFFR = 100 - ZQ_price. Wave 47 mini-FedWatch DIY.
+  [cme_zq]="*-*-* 23:40:00 Europe/Paris"
   [cot]="Sat *-*-* 02:00:00 Europe/Paris"
   # CFTC TFF (Traders in Financial Futures) weekly — published Friday
   # ~15:30 ET (~21:30 Paris), data Tuesday close. Poll Saturday 02:30 Paris.

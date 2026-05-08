@@ -506,6 +506,22 @@ async def _section_fed_financial(session: AsyncSession) -> tuple[str, list[str]]
         )
         sources.extend(["FRED:BAA", "FRED:AAA"])
 
+    # ── Pillar C-bis : ZQ implied EFFR vs current EFFR (Wave 47) ──
+    zq = await _latest_fred(session, "ZQ_FRONT_IMPLIED_EFFR", max_age_days=14)
+    if zq is not None and effr is not None:
+        spread_bps = (zq[0] - effr[0]) * 100
+        if spread_bps < -10:
+            move = f"CUT priced ({spread_bps:.0f}bp dovish)"
+        elif spread_bps > 10:
+            move = f"HIKE priced ({spread_bps:+.0f}bp hawkish)"
+        else:
+            move = f"no move ({spread_bps:+.0f}bp, status quo)"
+        lines.append(
+            f"- ZQ front-month implied EFFR = {zq[0]:.3f} % vs actual EFFR "
+            f"{effr[0]:.3f} % — {move} (CBOT ZQ=F via Yahoo, {zq[1]:%Y-%m-%d})"
+        )
+        sources.append("CME:ZQ_FRONT_IMPLIED_EFFR")
+
     # ── Pillar D: Forward inflation expectations vs 2% target ──
     exp = await _latest_fred(session, "EXPINF1YR", max_age_days=45)
     if exp is not None:

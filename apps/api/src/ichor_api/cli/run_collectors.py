@@ -332,6 +332,62 @@ async def _run_cboe_vvix(*, persist: bool) -> int:
     return 0 if obs else 1
 
 
+async def _run_cme_zq(*, persist: bool) -> int:
+    """Pull CME ZQ Fed Funds futures front-month implied EFFR (Yahoo)."""
+    from datetime import UTC as _UTC
+    from datetime import datetime as _dt
+
+    from ..collectors.cme_zq_futures import poll_all as poll_cme_zq
+
+    rows = await poll_cme_zq()
+    print(f"CME ZQ · {len(rows)} daily observations fetched")
+    if rows:
+        latest = max(rows, key=lambda r: r.observation_date)
+        print(
+            f"  latest: {latest.observation_date} ZQ={latest.zq_price:.3f} "
+            f"→ implied EFFR={latest.implied_effr:.3f}%"
+        )
+    if persist and rows:
+        from sqlalchemy import select as sa_select
+
+        from ..models import FredObservation
+
+        sm = get_sessionmaker()
+        n = 0
+        async with sm() as session:
+            existing_dates = {
+                d
+                for (d,) in (
+                    await session.execute(
+                        sa_select(FredObservation.observation_date).where(
+                            FredObservation.series_id == "ZQ_FRONT_IMPLIED_EFFR"
+                        )
+                    )
+                ).all()
+            }
+            for r in rows:
+                if r.observation_date in existing_dates:
+                    continue
+                for series_id, value in (
+                    ("ZQ_FRONT_PRICE", r.zq_price),
+                    ("ZQ_FRONT_IMPLIED_EFFR", r.implied_effr),
+                ):
+                    session.add(
+                        FredObservation(
+                            observation_date=r.observation_date,
+                            created_at=_dt.now(_UTC),
+                            series_id=series_id,
+                            value=float(value),
+                            fetched_at=r.fetched_at,
+                        )
+                    )
+                n += 1
+            if n:
+                await session.commit()
+        print(f"CME ZQ · persisted {n} new dated rows (×2 series each)")
+    return 0 if rows else 1
+
+
 async def _run_treasury_tic(*, persist: bool) -> int:
     """Pull Treasury TIC Major Foreign Holders monthly snapshot."""
     from ..collectors.treasury_tic import poll_all as poll_treasury_tic
@@ -1731,6 +1787,7 @@ async def _main(target: str, *, persist: bool) -> int:
         "ai_gpr": _run_ai_gpr,
         "cboe_skew": _run_cboe_skew,
         "cboe_vvix": _run_cboe_vvix,
+        "cme_zq": _run_cme_zq,
         "treasury_tic": _run_treasury_tic,
         "cftc_tff": _run_cftc_tff,
         "cot": _run_cot,
