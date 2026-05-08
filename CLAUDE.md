@@ -1,7 +1,8 @@
 # Ichor — Claude Code project memory
 
 > Auto-injected at every session start. Keep terse and current.
-> Last sync: 2026-05-06 20:45 CEST (post-Phase 0 + Phase A.1).
+> Last sync: 2026-05-08 15:30 CEST (post-Wave 23 — BLOCKER #2 closed
+> via ADR-054 stdin pipe + Phase II Layer 1 quickwins).
 
 ## What this repo is
 
@@ -19,22 +20,30 @@ backend, Node 22 LTS for the frontend.
 D:\Ichor
 ├── apps/
 │   ├── api/                  FastAPI + Alembic + SQLAlchemy 2 async
-│   │                         34 routers, 53 endpoints, 25 CLI runners,
-│   │                         24 models, 37 collectors, 47 services
+│   │                         35 routers, 53 endpoints, 43 CLI runners,
+│   │                         26 models, 37 collectors, 62 services
+│   │                         (head migration: 0029_trader_notes)
 │   ├── claude-runner/        FastAPI Win11 wrapper around `claude -p`
-│   │                         /v1/briefing-task + /v1/agent-task
+│   │                         /v1/briefing-task[/async] + /v1/agent-task
+│   │                         stdin-pipe contract for prompt (ADR-054)
+│   │                         async-polling for >100s tasks (ADR-053)
 │   ├── web/                  legacy Phase 1 dashboard (read-only ref ; retired
 │   │                         from pnpm-workspace 2026-05-06 ; 5 routes ported
 │   │                         to web2 in commit `de80335`)
 │   └── web2/                 Next.js 15.5 + React 19 + Tailwind v4 + motion 12
-│                             41 routes SSR + ISR. Hooks dir empty (TODO).
+│                             42 routes SSR + ISR. `hooks/` dir absent
+│                             (custom hooks live in `lib/use-*.ts`).
 └── packages/
     ├── ichor_brain/          4-pass orchestrator (regime → asset → stress → invalidation)
-    │                         + Pass 5 counterfactual. HttpRunnerClient with retry.
+    │                         + Pass 5 counterfactual. HttpRunnerClient async
+    │                         polling default (ADR-053). Capability 5 scaffold
+    │                         only (`tools_registry.py`, ADR-050).
     ├── agents/               5 Couche-2 agents (cb_nlp, news_nlp, sentiment,
     │                         positioning, macro). All on Claude Haiku low (ADR-023).
-    ├── ml/                   HAR-RV, HMM, DTW, FinBERT-tone, FOMC-Roberta,
-    │                         ADWIN, Brier optimizer, 7 bias trainers (ADR-022)
+    │                         Wired to data_pool via `services/couche2_context`.
+    ├── ml/                   HAR-RV, HMM, DTW, FinBERT-tone, multi-CB-RoBERTa
+    │                         (FED/ECB/BOE/BOJ per ADR-040), ADWIN, Brier optimizer
+    │                         V2 (env-gated), 6 bias trainers (ADR-022).
     └── ui/                   shadcn-style 15 components, used by apps/web only
 ```
 
@@ -70,15 +79,23 @@ D:\Ichor
   `ICHOR_RUNNER_ENVIRONMENT=development` was lost from its env list ;
   a standalone uvicorn on port 8766 is the active runner, kept alive
   via `scripts/windows/start-claude-runner-standalone.bat` in the
-  user Startup folder.
+  user Startup folder. Rate limit raised 30→120 req/h (Wave 23) to
+  fit a full 4-pass × 8-asset session-card sweep.
 - **Cloudflare Tunnel** `claude-runner.fxmilyapp.com` → 127.0.0.1:8766
   (managed-config side, NOT in the local `~/.cloudflared/config.yml`).
-  **Currently no auth** — `require_cf_access=false`. Public endpoint
-  drainable. Sprint dedicated to wire CF Access service token pending.
+  CF Access service token DEPLOYED on Hetzner side
+  (`ICHOR_API_CF_ACCESS_CLIENT_ID=…`, expires 2027-05-06). Win11 runner
+  itself still runs with `require_cf_access=false` (development mode)
+  — the Hetzner→Cloudflare→Win11 path is auth-gated end-to-end via
+  CF Access on the tunnel.
 
-## Latest migrations (head 0028)
+## Latest migrations (head 0029)
 
-- **head 0028** — `0028_audit_log_immutable_trigger.py` makes
+- **head 0029** — `0029_trader_notes.py` adds the `trader_notes` table
+  for the `/journal` route (Phase B.5d). Annotations per card / per
+  session / per asset (cap 10 000 chars). OUT of ADR-017 boundary
+  surface (it's user notes, not bias output).
+- **0028** — `0028_audit_log_immutable_trigger.py` makes
   `audit_log` append-only via a BEFORE UPDATE OR DELETE trigger.
   Sanctioned purge path = `SET LOCAL ichor.audit_purge_mode='on'`
   in the same transaction (used by `purge_older_than`). MiFID-grade
@@ -91,8 +108,28 @@ D:\Ichor
   2026-05-06 (cf. ADR-025). Activation gated on
   `ICHOR_API_BRIER_V2_ENABLED=true` env flag.
 
-## Recent ADRs (2026-05-06)
+## Recent ADRs (2026-05-08 wave 20-23)
 
+- [ADR-054](docs/decisions/ADR-054-claude-runner-stdin-pipe-windows-argv-limit.md)
+  **claude-runner stdin pipe** — pipe `prompt` via stdin to bypass
+  Windows `CreateProcessW` 32 768-char `lpCommandLine` limit. Pre-fix
+  6 of 8 assets crashed `[WinError 206]` on data_pool > 17 KB ;
+  post-fix all 8 persist DB live verified. (BLOCKER #2 closed.)
+- [ADR-053](docs/decisions/ADR-053-claude-runner-async-polling-refactor.md)
+  **claude-runner async + polling** — POST `/v1/briefing-task/async`
+  → 202 + task_id ; GET poll every 5 s. Bypass Cloudflare 100 s edge
+  timeout that silently broke 4 briefing types since 2026-05-06.
+  (BLOCKER #1 closed wave 20.)
+- [ADR-050](docs/decisions/ADR-050-capability-5-tools-runtime.md)
+  **Capability 5 scaffold only** — 5 tools (web_search, web_fetch,
+  query_db, calc, rag_historical) registered with JSON schemas in
+  `tools_registry.py`. Handlers raise `NotImplementedError` ; runtime
+  wiring deferred Phase D.0.
+- [ADR-049](docs/decisions/ADR-049-hy-ig-spread-divergence-alert.md)
+  HY-IG spread z-score 90d (credit cycle inflection). Catalog 51→52.
+- [ADR-052](docs/decisions/ADR-052-term-premium-intraday-30d-alert.md)
+  TERM_PREMIUM_INTRADAY_30D — completes term premium trinity (30d/90d/252d).
+  Catalog 53→54 (current head).
 - [ADR-025](docs/decisions/ADR-025-brier-optimizer-v2-projected-sgd.md)
   Brier optimizer V2 — projected SGD on the per-factor drivers matrix.
   New CLI `run_brier_optimizer_v2.py`, three helpers added to
