@@ -95,6 +95,10 @@ declare -A SCHEDULES=(
   # Source: Yahoo Finance public chart endpoint for ^SKEW (Voie D-compliant,
   # no API key, no paid tier). Wave 24 Phase II Layer 1 add.
   [cboe_skew]="*-*-* 23:30:00 Europe/Paris"
+  # CBOE VVIX (vol of VIX) daily — same Yahoo path as SKEW, +5 min stagger.
+  # Used alongside SKEW to characterize the full vol-surface state.
+  # Wave 29 Phase II Layer 1 add. Voie D-compliant (no API key).
+  [cboe_vvix]="*-*-* 23:35:00 Europe/Paris"
   [cot]="Sat *-*-* 02:00:00 Europe/Paris"
   # CFTC TFF (Traders in Financial Futures) weekly — published Friday
   # ~15:30 ET (~21:30 Paris), data Tuesday close. Poll Saturday 02:30 Paris.

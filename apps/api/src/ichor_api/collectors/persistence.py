@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models import (
     CboeSkewObservation,
+    CboeVvixObservation,
     CbSpeech,
     CftcTffObservation,
     CotPosition,
@@ -32,6 +33,7 @@ from ..models import (
 )
 from .ai_gpr import AiGprObservation
 from .cboe_skew import CboeSkewObservation as CboeSkewObservationData
+from .cboe_vvix import CboeVvixObservation as CboeVvixObservationData
 from .central_bank_speeches import CentralBankSpeech
 from .cftc_tff import CftcTffObservation as CftcTffObservationData
 from .cot import CotPosition as CotPositionData
@@ -462,6 +464,50 @@ async def persist_cboe_skew_observations(
         await session.commit()
     log.info(
         "cboe_skew.persisted",
+        total=len(obs),
+        inserted=inserted,
+        skipped=len(obs) - inserted,
+    )
+    return inserted
+
+
+async def persist_cboe_vvix_observations(
+    session: AsyncSession, obs: Iterable[CboeVvixObservationData]
+) -> int:
+    """Insert CBOE VVIX daily observations, skipping existing dates.
+
+    Same dedup pattern as cboe_skew: one row per `observation_date`.
+    Idempotent — re-running the same poll inserts zero rows.
+    """
+    obs = list(obs)
+    if not obs:
+        return 0
+    dates = {o.observation_date for o in obs}
+    existing_rows = (
+        await session.execute(
+            select(CboeVvixObservation.observation_date).where(
+                CboeVvixObservation.observation_date.in_(dates)
+            )
+        )
+    ).all()
+    existing: set[date_type] = {r[0] for r in existing_rows}
+    now = datetime.now(UTC)
+    inserted = 0
+    for o in obs:
+        if o.observation_date in existing:
+            continue
+        session.add(
+            CboeVvixObservation(
+                observation_date=o.observation_date,
+                vvix_value=o.vvix_value,
+                fetched_at=o.fetched_at,
+            )
+        )
+        inserted += 1
+    if inserted:
+        await session.commit()
+    log.info(
+        "cboe_vvix.persisted",
         total=len(obs),
         inserted=inserted,
         skipped=len(obs) - inserted,
