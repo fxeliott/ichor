@@ -19,6 +19,9 @@ from .cb_speech import CbSpeech
 
 # Phase II Layer 1 — CBOE SKEW Index daily (Wave 24)
 from .cboe_skew_observation import CboeSkewObservation
+
+# Phase II Layer 1 — CFTC TFF weekly positioning (Wave 25)
+from .cftc_tff_observation import CftcTffObservation
 from .confluence_history import ConfluenceHistory
 from .cot_position import CotPosition
 
@@ -56,6 +59,7 @@ __all__ = [
     "Briefing",
     "CbSpeech",
     "CboeSkewObservation",
+    "CftcTffObservation",
     "ConfluenceHistory",
     "CotPosition",
     # Phase 2

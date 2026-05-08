@@ -313,6 +313,31 @@ async def _run_cboe_skew(*, persist: bool) -> int:
     return 0 if obs else 1
 
 
+async def _run_cftc_tff(*, persist: bool) -> int:
+    """Pull weekly CFTC TFF (Traders in Financial Futures) from Socrata."""
+    from ..collectors.cftc_tff import poll_all as poll_cftc_tff
+
+    obs = await poll_cftc_tff()
+    n_markets = len({o.market_code for o in obs})
+    n_dates = len({o.report_date for o in obs})
+    print(f"CFTC TFF · {len(obs)} rows fetched ({n_markets} markets × {n_dates} dates)")
+    if obs:
+        latest = max(obs, key=lambda o: (o.report_date, o.market_code))
+        lev_net = latest.lev_money_long - latest.lev_money_short
+        print(
+            f"  latest: {latest.report_date} {latest.market_name[:50]}  "
+            f"OI={latest.open_interest:,} LevFunds_net={lev_net:+,}"
+        )
+    if persist:
+        from ..collectors.persistence import persist_cftc_tff_observations
+
+        sm = get_sessionmaker()
+        async with sm() as session:
+            inserted = await persist_cftc_tff_observations(session, obs)
+        print(f"CFTC TFF · persisted {inserted} new rows")
+    return 0 if obs else 1
+
+
 async def _run_cot(*, persist: bool) -> int:
     """Pull weekly CFTC Disaggregated Futures Only for tracked markets."""
     by_code = await poll_cot()
@@ -1659,6 +1684,7 @@ async def _main(target: str, *, persist: bool) -> int:
         "gdelt": _run_gdelt,
         "ai_gpr": _run_ai_gpr,
         "cboe_skew": _run_cboe_skew,
+        "cftc_tff": _run_cftc_tff,
         "cot": _run_cot,
         "cb_speeches": _run_cb_speeches,
         "kalshi": _run_kalshi,
