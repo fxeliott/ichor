@@ -687,18 +687,52 @@ async def _section_prediction_markets(
     poly_unique.sort(key=lambda x: -(x.volume_usd or 0))
     poly_top = poly_unique[:15]
 
+    # Wave 39 — categorize macro markets for clearer Pass 2 mechanism
+    # citations. Buckets cover the 5 dominant trader-relevant themes.
+    def _category(question: str) -> str:
+        q = question.lower()
+        if any(kw in q for kw in ("fed", "fomc", "rate cut", "rate hike", "basis point", "ecb", "boj", "boe ", "rba")):
+            return "Monetary policy"
+        if any(kw in q for kw in ("recession", "gdp", "cpi", "inflation", "pce", "unemployment", "nfp", "payroll", "jobless", "ppi")):
+            return "Macro indicators"
+        if any(kw in q for kw in ("russia", "ukraine", "iran", "israel", "china", "taiwan", "war", "ceasefire", "sanctions", "tariff")):
+            return "Geopolitics"
+        if any(kw in q for kw in ("trump", "biden", "harris", "election", "congress", "debt ceiling", "shutdown", "fiscal")):
+            return "US politics"
+        if any(kw in q for kw in ("bitcoin", "btc", "ethereum", "eth", "crypto", "etf approval")):
+            return "Crypto-macro"
+        return "Other"
+
+    by_cat: dict[str, list[PolymarketSnapshot]] = {}
+    for r in poly_top:
+        by_cat.setdefault(_category(r.question), []).append(r)
+
     sections.append(f"### Polymarket (top 15 by 24h volume, of {len(poly_unique)} fresh)")
     if not poly_top:
         sections.append("- (no fresh snapshots)")
     else:
-        for r in poly_top:
-            yes = r.last_prices[0] if (r.last_prices and len(r.last_prices) > 0) else None
-            yes_str = f"YES={yes:.2f}" if yes is not None else "YES=n/a"
-            vol_str = f"${(r.volume_usd or 0) / 1e6:.1f}M" if r.volume_usd else "$?"
-            sections.append(
-                f"- {r.question[:80]} → {yes_str} vol={vol_str} (slug:{r.slug})"
-            )
-            sources.append(f"polymarket:{r.slug}")
+        # Render in priority order so Pass 1/2 see the most-relevant theme first
+        cat_order = (
+            "Monetary policy",
+            "Macro indicators",
+            "Geopolitics",
+            "US politics",
+            "Crypto-macro",
+            "Other",
+        )
+        for cat in cat_order:
+            cat_rows = by_cat.get(cat) or []
+            if not cat_rows:
+                continue
+            sections.append(f"#### {cat}")
+            for r in cat_rows:
+                yes = r.last_prices[0] if (r.last_prices and len(r.last_prices) > 0) else None
+                yes_str = f"YES={yes:.2f}" if yes is not None else "YES=n/a"
+                vol_str = f"${(r.volume_usd or 0) / 1e6:.1f}M" if r.volume_usd else "$?"
+                sections.append(
+                    f"- {r.question[:80]} → {yes_str} vol={vol_str} (slug:{r.slug})"
+                )
+                sources.append(f"polymarket:{r.slug}")
 
     # Kalshi
     kal_rows = list(
