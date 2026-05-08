@@ -92,7 +92,12 @@ declare -A SCHEDULES=(
   [gdelt]="*:0/30"
   [ai_gpr]="*-*-* 23:00:00 Europe/Paris"
   [cot]="Sat *-*-* 02:00:00 Europe/Paris"
-  [central_bank_speeches]="*-*-* 00,04,08,12,16,20:15:00 Europe/Paris"
+  # Note: collector module is `central_bank_speeches.py` but exposed under
+  # the canonical short name `cb_speeches` in run_collectors.py:33 (alias).
+  # Keep the timer aligned with the CLI target name to avoid the
+  # systemd timer creating a service that exits 2 (INVALIDARGUMENT).
+  # Doublon `central_bank_speeches.timer` removed on Hetzner 2026-05-08.
+  [cb_speeches]="*-*-* 00,04,08,12,16,20:15:00 Europe/Paris"
   [kalshi]="*:0/15"
   [manifold]="*:0/15"
   [polygon_news]="*:0/30"
