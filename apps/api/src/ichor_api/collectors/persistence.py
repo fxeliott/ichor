@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..models import (
     CboeSkewObservation,
     CbSpeech,
+    CftcTffObservation,
     CotPosition,
     FredObservation,
     GdeltEvent,
@@ -32,6 +33,7 @@ from ..models import (
 from .ai_gpr import AiGprObservation
 from .cboe_skew import CboeSkewObservation as CboeSkewObservationData
 from .central_bank_speeches import CentralBankSpeech
+from .cftc_tff import CftcTffObservation as CftcTffObservationData
 from .cot import CotPosition as CotPositionData
 from .fred import FredObservation as FredObservationData
 from .gdelt import GdeltArticle
@@ -460,6 +462,67 @@ async def persist_cboe_skew_observations(
         await session.commit()
     log.info(
         "cboe_skew.persisted",
+        total=len(obs),
+        inserted=inserted,
+        skipped=len(obs) - inserted,
+    )
+    return inserted
+
+
+async def persist_cftc_tff_observations(
+    session: AsyncSession, obs: Iterable[CftcTffObservationData]
+) -> int:
+    """Insert CFTC TFF weekly rows, skipping (report_date, market_code) dupes.
+
+    Per-row commit is overkill (rows are independent + small) — single
+    bulk commit at end. ~15 markets × 8 weeks lookback = ~120 rows max
+    per poll, well under the bulk-commit safe band.
+    """
+    obs = list(obs)
+    if not obs:
+        return 0
+
+    dates = {o.report_date for o in obs}
+    codes = {o.market_code for o in obs}
+    existing_rows = (
+        await session.execute(
+            select(CftcTffObservation.report_date, CftcTffObservation.market_code).where(
+                CftcTffObservation.report_date.in_(dates),
+                CftcTffObservation.market_code.in_(codes),
+            )
+        )
+    ).all()
+    existing: set[tuple[date_type, str]] = {(r[0], r[1]) for r in existing_rows}
+
+    inserted = 0
+    for o in obs:
+        if (o.report_date, o.market_code) in existing:
+            continue
+        session.add(
+            CftcTffObservation(
+                report_date=o.report_date,
+                market_code=o.market_code,
+                market_name=o.market_name,
+                commodity_name=o.commodity_name,
+                open_interest=o.open_interest,
+                dealer_long=o.dealer_long,
+                dealer_short=o.dealer_short,
+                asset_mgr_long=o.asset_mgr_long,
+                asset_mgr_short=o.asset_mgr_short,
+                lev_money_long=o.lev_money_long,
+                lev_money_short=o.lev_money_short,
+                other_rept_long=o.other_rept_long,
+                other_rept_short=o.other_rept_short,
+                nonrept_long=o.nonrept_long,
+                nonrept_short=o.nonrept_short,
+                fetched_at=o.fetched_at,
+            )
+        )
+        inserted += 1
+    if inserted:
+        await session.commit()
+    log.info(
+        "cftc_tff.persisted",
         total=len(obs),
         inserted=inserted,
         skipped=len(obs) - inserted,

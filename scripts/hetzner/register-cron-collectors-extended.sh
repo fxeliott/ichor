@@ -96,6 +96,13 @@ declare -A SCHEDULES=(
   # no API key, no paid tier). Wave 24 Phase II Layer 1 add.
   [cboe_skew]="*-*-* 23:30:00 Europe/Paris"
   [cot]="Sat *-*-* 02:00:00 Europe/Paris"
+  # CFTC TFF (Traders in Financial Futures) weekly — published Friday
+  # ~15:30 ET (~21:30 Paris), data Tuesday close. Poll Saturday 02:30 Paris.
+  # Source: CFTC Socrata SODA endpoint resource gpe5-46if (TFF Futures-Only).
+  # Wave 25 Phase II Layer 1 add. Provides 4-class positioning (Dealer /
+  # AssetMgr / LevFunds / Other / Nonrept) per market, used for smart-money
+  # divergence detection and macro-fund positioning intelligence.
+  [cftc_tff]="Sat *-*-* 02:30:00 Europe/Paris"
   # Note: collector module is `central_bank_speeches.py` but exposed under
   # the canonical short name `cb_speeches` in run_collectors.py:33 (alias).
   # Keep the timer aligned with the CLI target name to avoid the
