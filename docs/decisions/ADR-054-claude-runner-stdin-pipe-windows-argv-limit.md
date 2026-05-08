@@ -93,7 +93,7 @@ tool call. That works but:
 
 - adds one round-trip (a Read tool call) → +500 ms latency per pass.
 - requires `--allowedTools "Read"` and a temp-file lifecycle (mkstemp
-  + cleanup) not currently in scope.
+  - cleanup) not currently in scope.
 - changes the semantics: claude sees the content as "tool output"
   rather than user input, which alters cache-breakpoint behaviour.
 
@@ -103,7 +103,7 @@ stdin cap of claude CLI v2.1.128.
 
 ### Why not raise Windows `LongPathsEnabled` registry key
 
-`LongPathsEnabled=1` only affects file *path* length (260 → 32 767),
+`LongPathsEnabled=1` only affects file _path_ length (260 → 32 767),
 not the `CreateProcessW` command-line limit. The 32 768-char argv cap
 is a hard Win32 API contract — there is no flag to bypass it.
 
@@ -146,10 +146,10 @@ is a hard Win32 API contract — there is no flag to bypass it.
 
 ## Verification
 
-| Test | Pre-fix | Post-fix |
-|---|---|---|
-| Local pytest (22 cases) | 17 pass | 22 pass (+5 new) |
-| Live POST /async with 46 KB prompt | not run | success 26 s |
+| Test                                                      | Pre-fix            | Post-fix                 |
+| --------------------------------------------------------- | ------------------ | ------------------------ |
+| Local pytest (22 cases)                                   | 17 pass            | 22 pass (+5 new)         |
+| Live POST /async with 46 KB prompt                        | not run            | success 26 s             |
 | Hetzner ichor-session-cards@pre_ny GBP_USD (27 740 chars) | crash WinError 206 | persist DB approved 84 s |
 
 ## Linked
