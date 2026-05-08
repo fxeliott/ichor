@@ -12,9 +12,11 @@ from __future__ import annotations
 import asyncio
 import time
 from contextlib import asynccontextmanager
+from uuid import UUID
 
 import structlog
 from fastapi import Depends, FastAPI, HTTPException, status
+from pydantic import BaseModel
 
 from . import __version__
 from .auth import verify_cf_access
@@ -36,6 +38,58 @@ log = structlog.get_logger(__name__)
 _subprocess_semaphore: asyncio.Semaphore
 _rate_limiter: HourlyRateLimiter
 _in_flight = 0
+
+# Async task store : task_id -> {"status": "pending"|"running"|"done"|"error",
+# "result": BriefingTaskResponse | None, "error": str | None,
+# "started_at": float, "kind": "briefing"|"agent"}
+# In-memory only — restart loses pending tasks (acceptable, polling client
+# will time out and re-queue). MAX size enforced via _async_task_gc().
+_async_tasks: dict[str, dict] = {}
+_ASYNC_TASK_TTL_SEC = 1800  # 30 min : task results purged after that
+_ASYNC_TASK_MAX = 100  # keep last 100 max
+
+
+def _async_task_gc() -> None:
+    """Garbage-collect old async task results.
+
+    Runs O(n) on every new task — fine since n <= MAX. Removes entries
+    older than TTL or beyond MAX (oldest first).
+    """
+    now = time.monotonic()
+    # Remove TTL-expired
+    expired = [
+        tid for tid, t in _async_tasks.items()
+        if t["status"] in ("done", "error") and now - t["started_at"] > _ASYNC_TASK_TTL_SEC
+    ]
+    for tid in expired:
+        _async_tasks.pop(tid, None)
+    # Cap MAX
+    if len(_async_tasks) > _ASYNC_TASK_MAX:
+        # sort by started_at, drop oldest
+        sorted_tids = sorted(_async_tasks.items(), key=lambda kv: kv[1]["started_at"])
+        for tid, _ in sorted_tids[: len(_async_tasks) - _ASYNC_TASK_MAX]:
+            _async_tasks.pop(tid, None)
+
+
+class AsyncTaskAccepted(BaseModel):
+    """Returned from POST /v1/briefing-task/async — 202 Accepted."""
+
+    task_id: UUID
+    status: str = "pending"
+    poll_url: str
+    poll_interval_sec: int = 5
+
+
+class AsyncTaskStatus(BaseModel):
+    """Returned from GET /v1/briefing-task/async/{task_id}."""
+
+    task_id: UUID
+    status: str
+    """'pending' (queued), 'running' (subprocess in flight),
+    'done' (result available), 'error' (failed), 'unknown' (not found)."""
+    elapsed_sec: float | None = None
+    result: BriefingTaskResponse | None = None
+    error: str | None = None
 
 
 _PERSONAS_ROOT = __import__("pathlib").Path(__file__).resolve().parent / "personas"
@@ -361,4 +415,182 @@ async def usage(
         "requests_last_hour": _rate_limiter.current_count(),
         "rate_limit_remaining": _rate_limiter.remaining(),
         "version": __version__,
+        "async_tasks_in_store": len(_async_tasks),
     }
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# ASYNC TASK ENDPOINTS — fix for Cloudflare Tunnel 100s edge cap
+# ─────────────────────────────────────────────────────────────────────────
+# The legacy POST /v1/briefing-task is synchronous : the subprocess takes
+# 60-180s typical, occasionally >100s on large data_pool prompts → Cloudflare
+# 524 timeout. The async pattern below decouples submit from result :
+#   1. POST /v1/briefing-task/async → 202 Accepted + task_id (immediate)
+#   2. Background asyncio.create_task() runs claude subprocess
+#   3. GET /v1/briefing-task/async/{task_id} → status (each poll < 1s,
+#      well under Cloudflare 100s edge cap)
+#   4. Hetzner polls every 5s until status == "done" or "error"
+# Total wall time : same as before. Per-HTTP-call wall time : << 100s.
+# Concurrency / rate-limit guards still enforced on submission.
+
+
+async def _run_briefing_background(
+    task_id: str,
+    req: BriefingTaskRequest,
+    settings: Settings,
+) -> None:
+    """Background task that runs the claude subprocess and stores the result."""
+    global _in_flight
+    started = time.monotonic()
+    _async_tasks[task_id]["status"] = "running"
+    try:
+        async with _subprocess_semaphore:
+            _in_flight += 1
+            try:
+                result = await run_claude(
+                    prompt=req.context_markdown,
+                    settings=settings,
+                    model=req.model,
+                    effort=req.effort,
+                )
+            finally:
+                _in_flight -= 1
+        duration_ms = int((time.monotonic() - started) * 1000)
+        briefing_md = result.get("result")
+        if not briefing_md:
+            text_blocks = [
+                b.get("text", "") for b in result.get("content", []) if b.get("type") == "text"
+            ]
+            briefing_md = "\n\n".join(text_blocks).strip() or None
+        response = BriefingTaskResponse(
+            task_id=req.task_id,
+            status="success",
+            briefing_markdown=briefing_md,
+            raw_claude_json=result,
+            duration_ms=duration_ms,
+        )
+        _async_tasks[task_id]["status"] = "done"
+        _async_tasks[task_id]["result"] = response
+    except TimeoutError:
+        _async_tasks[task_id]["status"] = "done"
+        _async_tasks[task_id]["result"] = BriefingTaskResponse(
+            task_id=req.task_id,
+            status="timeout",
+            error_message=f"Claude subprocess exceeded {settings.claude_timeout_sec}s",
+            duration_ms=int((time.monotonic() - started) * 1000),
+        )
+    except ClaudeSubprocessError as e:
+        _async_tasks[task_id]["status"] = "done"
+        _async_tasks[task_id]["result"] = BriefingTaskResponse(
+            task_id=req.task_id,
+            status="subprocess_error",
+            error_message=str(e),
+            duration_ms=int((time.monotonic() - started) * 1000),
+        )
+    except Exception as e:
+        log.exception("claude_runner.async_task.crashed", task_id=task_id)
+        _async_tasks[task_id]["status"] = "error"
+        _async_tasks[task_id]["error"] = f"{type(e).__name__}: {e}"
+
+
+@app.post(
+    "/v1/briefing-task/async",
+    response_model=AsyncTaskAccepted,
+    status_code=status.HTTP_202_ACCEPTED,
+    responses={
+        202: {"description": "Task accepted, poll status via /v1/briefing-task/async/{task_id}"},
+        401: {"description": "Cloudflare Access JWT invalid"},
+        429: {"description": "Rate limit exceeded"},
+        503: {"description": "All concurrent slots busy"},
+    },
+)
+async def briefing_task_async(
+    req: BriefingTaskRequest,
+    identity: str = Depends(verify_cf_access),
+    settings: Settings = Depends(get_settings),
+) -> AsyncTaskAccepted:
+    """Submit a briefing task asynchronously. Returns 202 + task_id immediately.
+
+    Caller polls GET /v1/briefing-task/async/{task_id} every 5s until the
+    status field equals 'done' or 'error'. Each poll completes in <100ms,
+    so Cloudflare's 100s edge timeout is no longer a hard cap on briefing
+    duration.
+
+    Concurrency guards (rate_limiter, subprocess_semaphore) are still
+    enforced — the background task acquires the semaphore before launching
+    the subprocess. If you submit 5 async tasks back-to-back, only one
+    runs at a time (max_concurrent_subprocess=1).
+    """
+    if not _rate_limiter.try_acquire():
+        log.warning(
+            "claude_runner.async.rate_limited",
+            task_id=str(req.task_id),
+            requester=identity,
+            window_count=_rate_limiter.current_count(),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Hourly rate limit exceeded — Max 20x quota self-protection",
+        )
+
+    # GC old completed tasks before adding new one
+    _async_task_gc()
+
+    task_id = str(req.task_id)
+    _async_tasks[task_id] = {
+        "status": "pending",
+        "result": None,
+        "error": None,
+        "started_at": time.monotonic(),
+        "kind": "briefing",
+    }
+
+    log.info(
+        "claude_runner.async_task.accepted",
+        task_id=task_id,
+        briefing_type=req.briefing_type,
+        assets=req.assets,
+        model=req.model,
+        requester=identity,
+    )
+
+    # Spawn background task — store reference to prevent GC (RUF006)
+    bg_task = asyncio.create_task(_run_briefing_background(task_id, req, settings))
+    _async_tasks[task_id]["_bg_task"] = bg_task
+
+    return AsyncTaskAccepted(
+        task_id=req.task_id,
+        status="pending",
+        poll_url=f"/v1/briefing-task/async/{task_id}",
+        poll_interval_sec=5,
+    )
+
+
+@app.get(
+    "/v1/briefing-task/async/{task_id}",
+    response_model=AsyncTaskStatus,
+    responses={
+        200: {"description": "Task status (poll until status='done' or 'error')"},
+        401: {"description": "Cloudflare Access JWT invalid"},
+        404: {"description": "task_id unknown (expired or never submitted)"},
+    },
+)
+async def briefing_task_async_status(
+    task_id: str,
+    identity: str = Depends(verify_cf_access),
+) -> AsyncTaskStatus:
+    """Poll the status of an async briefing task. Each call is fast (<100ms)."""
+    task = _async_tasks.get(task_id)
+    if task is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"task_id {task_id} unknown (expired after {_ASYNC_TASK_TTL_SEC}s, or never submitted)",
+        )
+    elapsed = time.monotonic() - task["started_at"]
+    return AsyncTaskStatus(
+        task_id=UUID(task_id),
+        status=task["status"],
+        elapsed_sec=round(elapsed, 1),
+        result=task["result"],
+        error=task["error"],
+    )

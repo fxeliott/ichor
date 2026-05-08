@@ -105,6 +105,9 @@ class HttpRunnerClient(RunnerClient):
         cf_access_client_secret: str,
         timeout_sec: float = 420.0,
         default_assets: tuple[str, ...] = ("EUR_USD",),
+        use_async_endpoint: bool = True,
+        poll_interval_sec: float = 5.0,
+        poll_max_total_sec: float = 600.0,
     ):
         self._base_url = base_url.rstrip("/")
         self._headers = {
@@ -114,9 +117,113 @@ class HttpRunnerClient(RunnerClient):
         }
         self._timeout_sec = timeout_sec
         self._default_assets = default_assets
+        self._use_async_endpoint = use_async_endpoint
+        self._poll_interval_sec = poll_interval_sec
+        self._poll_max_total_sec = poll_max_total_sec
 
     @observe(as_type="generation", name="couche1_runner_call")
     async def run(self, call: RunnerCall) -> RunnerResponse:
+        """Submit a briefing task. Uses async+polling pattern by default
+        to bypass Cloudflare's 100s edge timeout (claude CLI processing
+        can exceed this on large data_pool prompts)."""
+        if self._use_async_endpoint:
+            return await self._run_async_polling(call)
+        return await self._run_legacy_sync(call)
+
+    async def _run_async_polling(self, call: RunnerCall) -> RunnerResponse:
+        """Async + polling pattern (recommended).
+
+        1. POST /v1/briefing-task/async → 202 + task_id (fast, <2s)
+        2. GET /v1/briefing-task/async/{task_id} every poll_interval_sec
+           until status == 'done' or 'error'
+        3. Each poll completes in <1s so Cloudflare 100s edge cap doesn't
+           apply to the briefing's actual subprocess wall-time.
+
+        Total wall-time bounded by poll_max_total_sec (default 600s = 10min),
+        which is the upper bound on claude CLI processing for the largest
+        briefings (typical: 60-180s).
+        """
+        submit_url = f"{self._base_url}/v1/briefing-task/async"
+        payload = {
+            "briefing_type": "crisis",
+            "assets": list(self._default_assets),
+            "context_markdown": _wrap_with_system(call.system, call.prompt),
+            "model": call.model,
+            "effort": call.effort,
+        }
+        # Submission backoff for 503/429 (rate-limit, busy concurrency).
+        backoff = (5.0, 15.0, 45.0)
+        last_status: int | None = None
+        accepted_body: dict | None = None
+        # Keep one HTTP client open for both submit + poll (connection reuse).
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            for attempt, delay in enumerate((0.0,) + backoff):
+                if delay > 0:
+                    await asyncio.sleep(delay)
+                r = await client.post(submit_url, headers=self._headers, json=payload)
+                last_status = r.status_code
+                if r.status_code in (429, 503):
+                    log.info(
+                        "runner_client.async.submit_retry",
+                        status=r.status_code,
+                        attempt=attempt + 1,
+                    )
+                    if attempt < len(backoff):
+                        continue
+                if r.status_code == 202:
+                    accepted_body = r.json()
+                    break
+                r.raise_for_status()
+            if accepted_body is None:
+                raise httpx.HTTPStatusError(
+                    f"runner busy after retries (last status={last_status})",
+                    request=httpx.Request("POST", submit_url),
+                    response=httpx.Response(last_status or 503),
+                )
+
+            task_id = accepted_body["task_id"]
+            poll_path = accepted_body.get("poll_url") or f"/v1/briefing-task/async/{task_id}"
+            poll_url = f"{self._base_url}{poll_path}"
+            log.info("runner_client.async.submitted", task_id=task_id)
+
+            # Poll loop — short interval, bounded by poll_max_total_sec.
+            poll_started = asyncio.get_event_loop().time()
+            poll_count = 0
+            while True:
+                poll_count += 1
+                if asyncio.get_event_loop().time() - poll_started > self._poll_max_total_sec:
+                    raise TimeoutError(
+                        f"async briefing task {task_id} did not complete within "
+                        f"{self._poll_max_total_sec}s (poll_count={poll_count})"
+                    )
+                await asyncio.sleep(self._poll_interval_sec)
+                pr = await client.get(poll_url, headers=self._headers)
+                pr.raise_for_status()
+                status_body = pr.json()
+                task_status = status_body.get("status")
+                if task_status in ("done", "error"):
+                    log.info(
+                        "runner_client.async.completed",
+                        task_id=task_id,
+                        status=task_status,
+                        elapsed_sec=status_body.get("elapsed_sec"),
+                        poll_count=poll_count,
+                    )
+                    if task_status == "error":
+                        raise RuntimeError(
+                            f"async briefing task {task_id} crashed: {status_body.get('error')}"
+                        )
+                    body = status_body.get("result") or {}
+                    return RunnerResponse(
+                        text=body.get("briefing_markdown") or "",
+                        raw=body,
+                        duration_ms=int(body.get("duration_ms") or 0),
+                    )
+                # status in ("pending", "running") — keep polling
+
+    async def _run_legacy_sync(self, call: RunnerCall) -> RunnerResponse:
+        """Legacy synchronous path — kept for back-compat. Subject to
+        Cloudflare 100s edge timeout (524 errors on large prompts)."""
         url = f"{self._base_url}/v1/briefing-task"
         payload = {
             "briefing_type": "crisis",
@@ -125,8 +232,6 @@ class HttpRunnerClient(RunnerClient):
             "model": call.model,
             "effort": call.effort,
         }
-        # Backoff schedule for transient 503/429: 5s, 15s, 45s. Total
-        # worst-case ~65s, well under Cloudflare's 100s edge cap.
         backoff = (5.0, 15.0, 45.0)
         last_status: int | None = None
         body: dict | None = None
@@ -141,11 +246,9 @@ class HttpRunnerClient(RunnerClient):
                         "runner_client.retry",
                         status=r.status_code,
                         attempt=attempt + 1,
-                        next_delay_s=backoff[attempt] if attempt < len(backoff) else None,
                     )
                     if attempt < len(backoff):
                         continue
-                    # Out of retries — let raise_for_status surface the error
                 r.raise_for_status()
                 body = r.json()
                 break
