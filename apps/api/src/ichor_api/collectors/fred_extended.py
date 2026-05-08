@@ -75,6 +75,12 @@ EXTENDED_SERIES_TO_POLL: tuple[str, ...] = (
     "VXVCLS",  # VIX 3-month (term structure with VIXCLS)
     "GVZCLS",  # CBOE Gold ETF Volatility Index (GLD vol — XAU exposure)
     "OVXCLS",  # CBOE Crude Oil ETF Volatility Index (USO vol — energy exposure)
+    # ─── Vol surface completion (Phase II Layer 1, Wave 28) ───
+    # RVX = CBOE Russell 2000 Volatility Index. Small-cap-vol completes
+    # the equity vol surface (VIX large-cap + RVX small-cap + VXV term).
+    # VVIX (vol of VIX) is NOT on FRED — would require separate Yahoo
+    # collector, deferred to a future wave.
+    "RVXCLS",  # CBOE Russell 2000 Volatility Index (small-cap vol)
     # ─── Sentiment / risk appetite ───
     "UMCSENT",  # U Michigan Consumer Sentiment (monthly)
     "CSCICP03USM665S",  # OECD US Composite Consumer Confidence Index
