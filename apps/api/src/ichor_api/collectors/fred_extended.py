@@ -99,6 +99,17 @@ EXTENDED_SERIES_TO_POLL: tuple[str, ...] = (
     "IRLTLT01DEM156N",  # Germany 10y (for EUR-USD spread)
     "IRLTLT01JPM156N",  # Japan 10y (for USD-JPY)
     "IRLTLT01GBM156N",  # UK 10y (for GBP-USD)
+    # ─── OECD CLI (Composite Leading Indicators) — Wave 34 ───
+    # Monthly. >100 = above trend (expansion), <100 = below trend
+    # (slowdown). Turning points lead GDP by 6-9 months. FRED redistributes
+    # OECD CLI series under XXXLOLITOAASTSAM (Amplitude Adjusted) naming.
+    "USALOLITOAASTSAM",  # United States CLI (amplitude adjusted)
+    "G7LOLITOAASTSAM",  # G7 aggregate CLI
+    "JPNLOLITOAASTSAM",  # Japan CLI
+    "DEULOLITOAASTSAM",  # Germany CLI
+    "GBRLOLITOAASTSAM",  # UK CLI
+    "CHNLOLITOAASTSAM",  # China CLI (non-OECD member, observed)
+    "EA19LOLITOAASTSAM",  # Euro Area 19 CLI
 )
 
 
