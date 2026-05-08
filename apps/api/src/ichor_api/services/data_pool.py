@@ -643,7 +643,8 @@ async def _section_tail_risk_skew(session: AsyncSession) -> tuple[str, list[str]
             f"mean {sum(values) / len(values):.2f}, n={len(values)})"
         )
         sources.append(f"CBOE:SKEW@{latest.observation_date.isoformat()}")
-        lines.append("- SKEW: n/a (collector hasn't filled the table)")
+    # else branch removed wave 52 (was emitting duplicate 'SKEW: n/a' even
+    # when SKEW had a valid reading right above — bug cosmetic)
 
     # ── VVIX (vol-of-vol) — wave 30 add ──
     vvix_stmt = (
@@ -1002,7 +1003,8 @@ async def _section_oecd_cli(session: AsyncSession) -> tuple[str, list[str]]:
         ("DEULOLITOAASTSAM", "Germany"),
         ("GBRLOLITOAASTSAM", "UK"),
         ("CHNLOLITOAASTSAM", "China"),
-        ("EA19LOLITOAASTSAM", "EA19"),
+        # NB: EA19LOLITOAASTSAM was here — last data Nov 2022 on FRED
+        # (likely discontinued). Removed wave 52 to avoid 'n/a' clutter.
     )
 
     sources: list[str] = []
