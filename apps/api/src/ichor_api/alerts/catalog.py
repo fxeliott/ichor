@@ -608,6 +608,22 @@ AUDIT_V2_ALERTS: tuple[AlertDef, ...] = (
         crisis_mode=True,
     ),
     AlertDef(
+        "TERM_PREMIUM_INTRADAY_30D",
+        "warning",
+        "Term premium intra-month z={value:+.2f}",
+        "term_premium_z_30d",
+        2.0,
+        "above",
+        description=(
+            "30d acute companion to TERM_PREMIUM_REPRICING (90d, ADR-041) + "
+            "TERM_PREMIUM_STRUCTURAL_252D (252d, ADR-045). Catches intra-month "
+            "event-driven shifts (auction tail, debt-ceiling cliff, FOMC press "
+            "conference reaction, USTR tariff escalation, Fed-independence "
+            "headline). Regime tag : expansion (z>+2) | contraction (z<-2). "
+            "Source: FRED:THREEFYTP10 (Kim-Wright 10y term premium). cf ADR-052."
+        ),
+    ),
+    AlertDef(
         "MACRO_QUINTET_STRESS",
         "warning",
         "Macro quintet stress {value:.0f}/5 dimensions aligned",
@@ -664,5 +680,5 @@ def assert_catalog_complete() -> None:
     """Sanity check at startup: total = 51 alerts, all unique codes."""
     codes = [a.code for a in ALL_ALERTS]
     assert len(codes) == len(set(codes)), f"Duplicate alert codes: {codes}"
-    assert len(ALL_ALERTS) == 53, f"Expected 53 alerts, got {len(ALL_ALERTS)}"
+    assert len(ALL_ALERTS) == 54, f"Expected 54 alerts, got {len(ALL_ALERTS)}"
     assert len(CRISIS_TRIGGERS) >= 5, f"Expected ≥5 crisis triggers, got {len(CRISIS_TRIGGERS)}"
