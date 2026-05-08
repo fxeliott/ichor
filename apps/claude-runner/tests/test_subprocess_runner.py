@@ -18,7 +18,6 @@ from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-
 from ichor_claude_runner.config import Settings
 from ichor_claude_runner.subprocess_runner import run_claude
 
