@@ -49,7 +49,8 @@ EXTENDED_SERIES_TO_POLL: tuple[str, ...] = (
     # ─── Credit spreads ───
     "BAMLH0A0HYM2",  # HY OAS (already in fred.py)
     "BAMLC0A0CM",  # IG OAS
-    "BAMLEMHYHYTRIV",  # EM HY total return (sentiment proxy)
+    # NB BAMLEMHYHYTRIV was here — FRED renamed/removed it (400) — dropped
+    # wave 37 alongside other ghost series cleanup.
     # ─── Liquidity ───
     "WALCL",  # Fed balance sheet (already)
     "WTREGEN",  # Treasury General Account (already)
@@ -88,11 +89,11 @@ EXTENDED_SERIES_TO_POLL: tuple[str, ...] = (
     # ─── Energy ───
     "DCOILWTICO",  # WTI (already)
     "DCOILBRENTEU",  # Brent
-    "DGASRGW",  # Gasoline
+    "GASREGW",  # US Regular All Formulations Gas Price (was DGASRGW which 400s)
     "DHHNGSP",  # Henry Hub natural gas
     # ─── Commodities ───
-    "GOLDAMGBD228NLBM",  # Gold London PM (already)
-    "PALLFNFUSDM",  # Palladium
+    # NB GOLDAMGBD228NLBM (Gold London PM) and PALLFNFUSDM (Palladium) were
+    # here — FRED renamed/removed them (400) — dropped wave 37 cleanup.
     # ─── Macro hard data already covered in fred.py ───
     # CPIAUCSL, PCEPI, PAYEMS, UNRATE, GDPC1, INDPRO, SOFR, DFF
     # ─── Foreign rate differentials ───
@@ -110,11 +111,8 @@ EXTENDED_SERIES_TO_POLL: tuple[str, ...] = (
     "GBRLOLITOAASTSAM",  # UK CLI
     "CHNLOLITOAASTSAM",  # China CLI (non-OECD member, observed)
     "EA19LOLITOAASTSAM",  # Euro Area 19 CLI
-    # ─── NFIB Small Business Optimism — Wave 37 ───
-    # Monthly. Composite of 10 subcomponents (hiring plans, capex, sales,
-    # earnings, inventory, expansion plans, etc.). Strong leading indicator
-    # for US private capex + employment cycle. >100 = above long-term avg.
-    "NFIBOI",
+    # NB NFIBOI is NOT on FRED (web search misled — FRED returns 400).
+    # NFIB is direct from nfib.com only — custom collector path needed.
 )
 
 
