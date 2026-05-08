@@ -14,6 +14,7 @@ from ichor_api.services.data_pool import (
     _DOLLAR_SMILE_SERIES,
     _MACRO_TRINITY_SERIES,
     _RATE_DIFF_PAIRS,
+    _TFF_MARKET_BY_ASSET,
     DataPool,
 )
 
@@ -72,6 +73,28 @@ def test_rate_diff_pairs_cover_all_fx_majors() -> None:
     """All FX pairs (5 majors) must have a foreign 10Y series for the
     rate differential computation. XAU + indices are excluded by design."""
     assert set(_RATE_DIFF_PAIRS.keys()) == {"EUR_USD", "GBP_USD", "USD_JPY", "AUD_USD", "USD_CAD"}
+
+
+def test_tff_markets_cover_phase1_universe_including_spx() -> None:
+    """TFF tracks all 8 Phase-1 assets (incl. SPX500 E-Mini code 13874A)."""
+    tff_keys = set(_TFF_MARKET_BY_ASSET.keys())
+    assert tff_keys <= PHASE1_ASSETS, f"unknown asset in TFF map: {tff_keys - PHASE1_ASSETS}"
+    # TFF covers SPX500 unlike COT — verify the strict superset.
+    assert "SPX500_USD" in tff_keys
+    assert len(tff_keys) == 8
+
+
+def test_tff_market_codes_match_collector_constants() -> None:
+    """data_pool._TFF_MARKET_BY_ASSET must agree with collectors.cftc_tff
+    MARKET_TO_ASSET — drift between the two is the cause of the
+    'unknown target' bug class (cf ADR-024 / 030)."""
+    from ichor_api.collectors.cftc_tff import MARKET_TO_ASSET as TFF_COLLECTOR_MAP
+
+    for asset, code in _TFF_MARKET_BY_ASSET.items():
+        assert TFF_COLLECTOR_MAP.get(code) == asset, (
+            f"TFF map drift: data_pool says {asset}={code}, "
+            f"collector says {code}={TFF_COLLECTOR_MAP.get(code)!r}"
+        )
 
 
 def test_macro_trinity_includes_dxy_us10y_vix() -> None:
