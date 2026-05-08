@@ -55,6 +55,18 @@ EXTENDED_SERIES_TO_POLL: tuple[str, ...] = (
     "WTREGEN",  # Treasury General Account (already)
     "RRPONTSYD",  # Reverse Repo (already)
     "M2SL",  # M2 (already)
+    # ─── Fed H.4.1 detail (Phase II Layer 1, Wave 23) ───
+    # WALCL is a single number; the H.4.1 sub-components below let us
+    # disaggregate balance-sheet drivers (active QT vs runoff).
+    "WSHOSHO",  # Treasuries held outright (UST runoff cap signal)
+    "WSHOMCB",  # MBS held outright (mortgage convexity / housing channel)
+    "WRESBAL",  # Reserve balances at Federal Reserve Banks
+    # ─── Macro nowcasts (Phase II Layer 1, Wave 23) ───
+    # Atlanta Fed GDPNow: real-time GDP nowcast updated 6-7×/month after
+    # each headline release. Critical for regime classification (PCE/IPP/
+    # net exports nowcasts feed the dollar smile + risk appetite blocks).
+    "GDPNOW",  # Atlanta Fed GDP nowcast (composite)
+    "PCENOW",  # Atlanta Fed PCE component nowcast
     # ─── Dollar smile / FX ───
     "DTWEXBGS",  # Trade-weighted dollar broad (DXY proxy, already)
     "DTWEXAFEGS",  # Trade-weighted dollar advanced foreign economies
