@@ -26,7 +26,9 @@ from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models import (
+    CboeSkewObservation,
     CbSpeech,
+    CftcTffObservation,
     CotPosition,
     FredObservation,
     GdeltEvent,
@@ -158,6 +160,22 @@ _COT_MARKET_BY_ASSET: dict[str, str] = {
     "NAS100_USD": "209742",  # E-MINI NASDAQ-100
     # SPX500 E-Mini code not in collectors/cot.py yet — when added there,
     # mirror it here so the COT section auto-fills.
+}
+
+# CFTC TFF (Traders in Financial Futures) market codes per Phase-1 asset.
+# Mirrors collectors/cftc_tff.py:MARKET_TO_ASSET — the canonical numeric
+# (or alphanumeric) CFTC identifiers. TFF disaggregates open interest
+# into 4 trader classes (Dealer / AssetMgr / LevFunds / Other / Nonrept)
+# so we can detect smart-money divergence per asset.
+_TFF_MARKET_BY_ASSET: dict[str, str] = {
+    "EUR_USD": "099741",
+    "GBP_USD": "096742",
+    "USD_JPY": "097741",  # JPY positioning is inverted vs USD/JPY pair
+    "AUD_USD": "232741",
+    "USD_CAD": "090741",  # CAD positioning inverted
+    "XAU_USD": "088691",
+    "NAS100_USD": "209742",
+    "SPX500_USD": "13874A",  # E-MINI S&P 500 (TFF covers it; COT collector doesn't yet)
 }
 
 # Polygon ticker per asset (mirrors collectors/polygon.py).
@@ -305,6 +323,106 @@ async def _section_polygon_intraday(session: AsyncSession, asset: str) -> tuple[
         )
         sources.append(f"polygon:{row.ticker}@{row.bar_ts.isoformat()}")
     return "\n".join(lines), sources
+
+
+async def _section_tail_risk_skew(session: AsyncSession) -> tuple[str, list[str]]:
+    """## Tail risk (CBOE SKEW) — latest daily reading + 30d band.
+
+    SKEW measures the OOM tail-risk component of S&P 500 returns that
+    VIX (ATM-only) misses. 100 = neutral; 130-150 = elevated; >150 =
+    fat-tail panic priced in. Macro-broad section (Pass 1 reads it for
+    régime classification, Pass 2 for dollar-smile-break correlation).
+    """
+    cutoff = datetime.now(UTC).date() - timedelta(days=45)
+    stmt = (
+        select(CboeSkewObservation)
+        .where(CboeSkewObservation.observation_date >= cutoff)
+        .order_by(desc(CboeSkewObservation.observation_date))
+        .limit(30)
+    )
+    rows = list((await session.execute(stmt)).scalars().all())
+    if not rows:
+        return ("## Tail risk (CBOE SKEW)\n- n/a (collector hasn't filled the table)", [])
+    latest = rows[0]
+    sources = [f"CBOE:SKEW@{latest.observation_date.isoformat()}"]
+    band: str
+    if latest.skew_value >= 150:
+        band = "panic priced in (>150)"
+    elif latest.skew_value >= 130:
+        band = "elevated stress (130-150)"
+    elif latest.skew_value >= 115:
+        band = "modest tail bid (115-130)"
+    else:
+        band = "neutral / complacent (<115)"
+    # 30d range to surface volatility of the tail itself.
+    values = [r.skew_value for r in rows]
+    md = (
+        "## Tail risk (CBOE SKEW)\n"
+        f"- latest = {latest.skew_value:.2f} on {latest.observation_date:%Y-%m-%d} — {band}\n"
+        f"- 30d range = [{min(values):.2f}, {max(values):.2f}], "
+        f"30d mean = {sum(values) / len(values):.2f} (n={len(values)})\n"
+        f"- source: CBOE:SKEW@{latest.observation_date.isoformat()}"
+    )
+    return md, sources
+
+
+async def _section_tff_positioning(
+    session: AsyncSession, asset: str
+) -> tuple[str, list[str]]:
+    """## TFF positioning — latest CFTC TFF 4-class breakdown for the asset.
+
+    Surfaces the smart-money divergence signal (LevFunds vs AssetMgr)
+    + dealer absorbing inventory. Per-asset, weekly cadence. Skip if the
+    asset is not in the TFF tracked-market whitelist.
+    """
+    market = _TFF_MARKET_BY_ASSET.get(asset)
+    if market is None:
+        return "", []
+    stmt = (
+        select(CftcTffObservation)
+        .where(CftcTffObservation.market_code == market)
+        .order_by(desc(CftcTffObservation.report_date))
+        .limit(2)
+    )
+    rows = list((await session.execute(stmt)).scalars().all())
+    if not rows:
+        return f"## TFF positioning ({asset}, market={market})\n- n/a", []
+    cur = rows[0]
+    prev = rows[1] if len(rows) > 1 else None
+
+    dealer_net = cur.dealer_long - cur.dealer_short
+    am_net = cur.asset_mgr_long - cur.asset_mgr_short
+    lev_net = cur.lev_money_long - cur.lev_money_short
+    other_net = cur.other_rept_long - cur.other_rept_short
+
+    if prev is not None:
+        dealer_dw = (prev.dealer_long - prev.dealer_short) - dealer_net
+        # Trader convention: Δw/w in the OWN direction (positive = longer this week)
+        dealer_dw = -dealer_dw
+        am_dw = am_net - (prev.asset_mgr_long - prev.asset_mgr_short)
+        lev_dw = lev_net - (prev.lev_money_long - prev.lev_money_short)
+        delta_str = (
+            f", Δw/w (Dealer {dealer_dw:+,}, AM {am_dw:+,}, LevFunds {lev_dw:+,})"
+        )
+    else:
+        delta_str = ""
+
+    # Smart-money divergence flag : LevFunds and AssetMgr on opposite sides.
+    divergence = ""
+    if lev_net != 0 and am_net != 0 and (lev_net > 0) != (am_net > 0):
+        divergence = (
+            "\n- ⚠ smart-money divergence: LevFunds and AssetMgr opposite sides"
+        )
+
+    sources = [f"CFTC:TFF:{market}@{cur.report_date.isoformat()}"]
+    md = (
+        f"## TFF positioning ({asset}, market={market})\n"
+        f"- Dealer net = {dealer_net:+,}, AssetMgr net = {am_net:+,}, "
+        f"LevFunds net = {lev_net:+,}, Other net = {other_net:+,} "
+        f"(open_interest={cur.open_interest:,}, report_date={cur.report_date:%Y-%m-%d})"
+        f"{delta_str}{divergence}"
+    )
+    return md, sources
 
 
 async def _section_cot(session: AsyncSession, asset: str) -> tuple[str, list[str]]:
@@ -765,6 +883,13 @@ async def build_data_pool(
     ra_md, ra_src = await _section_risk_appetite(session)
     sections.append(("risk_appetite", ra_md, ra_src))
 
+    # Wave 26 Phase II — surface CBOE SKEW (tail risk regime) into the
+    # macro-broad block, alongside vix_term + risk_appetite. Pass 1 reads
+    # this for régime classification (panic vs complacent), Pass 2 for
+    # dollar-smile-break detection.
+    skew_md, skew_src = await _section_tail_risk_skew(session)
+    sections.append(("tail_risk", skew_md, skew_src))
+
     yc_md, yc_src = await _section_yield_curve(session)
     sections.append(("yield_curve", yc_md, yc_src))
 
@@ -814,6 +939,14 @@ async def build_data_pool(
     cot_md, cot_src = await _section_cot(session, asset)
     if cot_md:
         sections.append(("cot", cot_md, cot_src))
+
+    # Wave 26 Phase II — surface CFTC TFF 4-class positioning per asset.
+    # Asset-conditional via _TFF_MARKET_BY_ASSET (skip if unmapped). Sister
+    # to _section_cot (Disaggregated) but TFF is the financial-futures-only
+    # report with the AssetMgr / LevFunds split that COT lacks.
+    tff_md, tff_src = await _section_tff_positioning(session, asset)
+    if tff_md:
+        sections.append(("tff_positioning", tff_md, tff_src))
 
     pm_md, pm_src = await _section_prediction_markets(session)
     sections.append(("prediction_markets", pm_md, pm_src))
