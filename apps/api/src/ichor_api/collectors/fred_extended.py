@@ -71,8 +71,10 @@ EXTENDED_SERIES_TO_POLL: tuple[str, ...] = (
     "DTWEXBGS",  # Trade-weighted dollar broad (DXY proxy, already)
     "DTWEXAFEGS",  # Trade-weighted dollar advanced foreign economies
     # ─── Vol ───
-    "VIXCLS",  # VIX
+    "VIXCLS",  # VIX (already)
     "VXVCLS",  # VIX 3-month (term structure with VIXCLS)
+    "GVZCLS",  # CBOE Gold ETF Volatility Index (GLD vol — XAU exposure)
+    "OVXCLS",  # CBOE Crude Oil ETF Volatility Index (USO vol — energy exposure)
     # ─── Sentiment / risk appetite ───
     "UMCSENT",  # U Michigan Consumer Sentiment (monthly)
     "CSCICP03USM665S",  # OECD US Composite Consumer Confidence Index
