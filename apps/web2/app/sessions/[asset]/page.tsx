@@ -15,6 +15,7 @@ import {
   SessionCard,
   type CrossAssetItem,
   type Driver,
+  type Trigger,
 } from "@/components/ui";
 import { CounterfactualModal } from "@/components/sessions/counterfactual-modal";
 import { PinButton } from "@/components/sessions/pin-button";
@@ -49,7 +50,9 @@ const ASSET_DISPLAY: Record<string, string> = {
   SPX500_USD: "SPX500",
 };
 
-const NOW = "2026-05-04T07:42:00.000Z";
+// Today fallback for timestamp display when no live card yet (cold start).
+// Real timestamp comes from latestCard.generated_at when available.
+const TODAY_FALLBACK_TIMESTAMP = new Date().toISOString();
 
 // TODO(sprint-cross-asset-wiring): replace this fallback with a fetch
 // against /v1/correlations (matrix) projected onto the 6 reference
@@ -123,6 +126,66 @@ export default async function SessionAssetPage({ params }: PageProps) {
   const liveTradePlan = latestCard?.trade_plan ?? null;
   const liveThesis = latestCard?.thesis ?? null;
 
+  // ── Live wiring : convert latestCard structured fields to component props ──
+  // Map bias_direction (long/short/neutral) → SessionCard bias enum (bull/bear/neutral)
+  const liveBias: "bull" | "bear" | "neutral" =
+    latestCard?.bias_direction === "long"
+      ? "bull"
+      : latestCard?.bias_direction === "short"
+        ? "bear"
+        : "neutral";
+
+  const liveConvictionValue = latestCard?.conviction_pct ?? null;
+  const liveMagnitudeLow = latestCard?.magnitude_pips_low ?? null;
+  const liveMagnitudeHigh = latestCard?.magnitude_pips_high ?? null;
+
+  // Pip unit varies per asset : pips for FX/XAU, bps for indices (basis points)
+  const magnitudeUnit: "pips" | "bps" =
+    slug === "NAS100_USD" || slug === "SPX500_USD" ? "bps" : "pips";
+
+  // Map catalysts JSONB → Trigger[]. Defensive cast since type is `unknown`.
+  const liveTriggers: Trigger[] | null = (() => {
+    const cats = latestCard?.catalysts;
+    if (!cats || !Array.isArray(cats)) return null;
+    type CatalystShape = {
+      event?: string;
+      time?: string;
+      expected_impact?: string;
+    };
+    return (cats as CatalystShape[])
+      .filter((c) => c.event && c.time)
+      .slice(0, 5)
+      .map((c, i) => ({
+        id: `live-${i}`,
+        label: c.event!,
+        scheduledAt: c.time!,
+        importance: (c.expected_impact === "high"
+          ? "high"
+          : c.expected_impact === "medium"
+            ? "medium"
+            : "low") as "high" | "medium" | "low",
+      }));
+  })();
+
+  // Invalidation reuses the trade_plan's invalidation_level + condition (canonical).
+  const liveInvalidation = liveTradePlan
+    ? {
+        level: liveTradePlan.invalidation_level,
+        condition: liveTradePlan.invalidation_condition,
+      }
+    : null;
+
+  const liveIdeas = latestCard?.ideas ?? null;
+  const liveCalibration = latestCard?.calibration ?? null;
+  // SessionCard accepts london | ny | asia. Map pre_ny → ny, event_driven →
+  // asia (closest match for off-hours), default → london.
+  const liveSessionMapped: "london" | "ny" | "asia" =
+    latestCard?.session_type === "pre_ny"
+      ? "ny"
+      : latestCard?.session_type === "event_driven"
+        ? "asia"
+        : "london";
+
   return (
     <div className="container mx-auto max-w-7xl px-6 py-12">
       <Header display={display} slug={slug} apiOnline={apiOnline} cardsCount={cardsCount} />
@@ -130,46 +193,58 @@ export default async function SessionAssetPage({ params }: PageProps) {
         <main className="space-y-8">
           <SessionCard
             asset={display}
-            session="london"
-            timestamp={NOW}
-            conviction={{ bias: "bull", value: 72 }}
-            magnitude={{ low: 18, high: 32, unit: "pips" }}
+            session={liveSessionMapped}
+            timestamp={latestCard?.generated_at ?? TODAY_FALLBACK_TIMESTAMP}
+            conviction={{
+              bias: latestCard ? liveBias : "neutral",
+              value: liveConvictionValue ?? 0,
+            }}
+            magnitude={{
+              low: liveMagnitudeLow ?? 0,
+              high: liveMagnitudeHigh ?? 0,
+              unit: magnitudeUnit,
+            }}
             thesis={
               liveThesis ??
-              "EUR support technique 1.0820 + ECB hawkish bias prévu 8h30 + DXY weakness post-PCE faible. Setup long sur retest 1.0850–1.0860 H1."
+              "Live thesis pending — first session card will populate this slot once produced by the 4-pass orchestrator."
             }
-            triggers={[
-              {
-                id: "t1",
-                label: "ECB Lagarde speech",
-                scheduledAt: "2026-05-04T08:30:00.000Z",
-                importance: "high",
-              },
-              {
-                id: "t2",
-                label: "EU CPI Flash",
-                scheduledAt: "2026-05-04T09:00:00.000Z",
-                importance: "high",
-              },
-              {
-                id: "t3",
-                label: "US ISM Mfg",
-                scheduledAt: "2026-05-04T14:00:00.000Z",
-                importance: "medium",
-              },
-            ]}
-            invalidation={{
-              level: 1.082,
-              condition: "close H1 sous le low Asian session",
-            }}
+            triggers={
+              liveTriggers ?? [
+                {
+                  id: "t1",
+                  label: "Pending live catalysts",
+                  scheduledAt: TODAY_FALLBACK_TIMESTAMP,
+                  importance: "low",
+                },
+              ]
+            }
+            invalidation={
+              liveInvalidation ?? {
+                level: 0,
+                condition:
+                  "Pending live invalidation (populated by 4-pass orchestrator).",
+              }
+            }
             crossAsset={CROSS_FALLBACK}
-            ideas={{
-              top: "Long zone 1.0850–1.0860 retest",
-              supporting: ["DXY breakdown 105.20", "Real yield diff favorable"],
-              risks: ["Surprise dovish Lagarde", "US10Y >4.30 squeeze"],
-            }}
+            ideas={
+              liveIdeas ?? {
+                top: "Pending live trade idea",
+                supporting: [
+                  "Drivers will populate once Claude produces structured output",
+                ],
+                risks: ["Pending live risks"],
+              }
+            }
             confluence={{ score: 7.2, drivers: liveDrivers ?? DRIVERS_FALLBACK }}
-            calibration={{ brier: 0.142, sampleSize: 87, trend: "bull" }}
+            calibration={
+              liveCalibration
+                ? {
+                    brier: liveCalibration.brier,
+                    sampleSize: liveCalibration.sample_size,
+                    trend: liveCalibration.trend,
+                  }
+                : { brier: 0, sampleSize: 0, trend: "neutral" }
+            }
             trade={
               liveTradePlan
                 ? {
@@ -182,13 +257,15 @@ export default async function SessionAssetPage({ params }: PageProps) {
                     partialScheme: liveTradePlan.partial_scheme,
                   }
                 : {
-                    entryLow: 1.085,
-                    entryHigh: 1.086,
-                    invalidationLevel: 1.082,
-                    invalidationCondition: "close H1",
-                    tpRR3: 1.094,
-                    tpRR15: 1.13,
-                    partialScheme: "90 % @ RR3 · trail 10 % vers RR15+",
+                    entryLow: 0,
+                    entryHigh: 0,
+                    invalidationLevel: 0,
+                    invalidationCondition:
+                      "Pending live trade plan from 4-pass orchestrator",
+                    tpRR3: 0,
+                    tpRR15: 0,
+                    partialScheme:
+                      "Trade plan not yet produced (cold start — first session card pending)",
                   }
             }
           />
