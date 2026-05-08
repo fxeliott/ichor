@@ -91,6 +91,10 @@ declare -A SCHEDULES=(
   [fred_extended]="*-*-* 06,18:30:00 Europe/Paris"
   [gdelt]="*:0/30"
   [ai_gpr]="*-*-* 23:00:00 Europe/Paris"
+  # CBOE SKEW daily — published 16:15 ET (~22:15 Paris), poll 23:30 Paris.
+  # Source: Yahoo Finance public chart endpoint for ^SKEW (Voie D-compliant,
+  # no API key, no paid tier). Wave 24 Phase II Layer 1 add.
+  [cboe_skew]="*-*-* 23:30:00 Europe/Paris"
   [cot]="Sat *-*-* 02:00:00 Europe/Paris"
   # Note: collector module is `central_bank_speeches.py` but exposed under
   # the canonical short name `cb_speeches` in run_collectors.py:33 (alias).

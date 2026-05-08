@@ -15,6 +15,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models import (
+    CboeSkewObservation,
     CbSpeech,
     CotPosition,
     FredObservation,
@@ -29,6 +30,7 @@ from ..models import (
     PolymarketSnapshot,
 )
 from .ai_gpr import AiGprObservation
+from .cboe_skew import CboeSkewObservation as CboeSkewObservationData
 from .central_bank_speeches import CentralBankSpeech
 from .cot import CotPosition as CotPositionData
 from .fred import FredObservation as FredObservationData
@@ -418,6 +420,50 @@ async def persist_gpr_observations(session: AsyncSession, obs: Iterable[AiGprObs
     if inserted:
         await session.commit()
     log.info("gpr.persisted", total=len(obs), inserted=inserted)
+    return inserted
+
+
+async def persist_cboe_skew_observations(
+    session: AsyncSession, obs: Iterable[CboeSkewObservationData]
+) -> int:
+    """Insert CBOE SKEW daily observations, skipping existing dates.
+
+    Same dedup pattern as AI-GPR: one row per `observation_date`.
+    Idempotent — re-running the same poll inserts zero rows.
+    """
+    obs = list(obs)
+    if not obs:
+        return 0
+    dates = {o.observation_date for o in obs}
+    existing_rows = (
+        await session.execute(
+            select(CboeSkewObservation.observation_date).where(
+                CboeSkewObservation.observation_date.in_(dates)
+            )
+        )
+    ).all()
+    existing: set[date_type] = {r[0] for r in existing_rows}
+    now = datetime.now(UTC)
+    inserted = 0
+    for o in obs:
+        if o.observation_date in existing:
+            continue
+        session.add(
+            CboeSkewObservation(
+                observation_date=o.observation_date,
+                skew_value=o.skew_value,
+                fetched_at=o.fetched_at,
+            )
+        )
+        inserted += 1
+    if inserted:
+        await session.commit()
+    log.info(
+        "cboe_skew.persisted",
+        total=len(obs),
+        inserted=inserted,
+        skipped=len(obs) - inserted,
+    )
     return inserted
 
 

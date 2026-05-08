@@ -16,6 +16,9 @@ from .base import Base
 from .bias_signal import BiasSignal
 from .briefing import Briefing
 from .cb_speech import CbSpeech
+
+# Phase II Layer 1 — CBOE SKEW Index daily (Wave 24)
+from .cboe_skew_observation import CboeSkewObservation
 from .confluence_history import ConfluenceHistory
 from .cot_position import CotPosition
 
@@ -52,6 +55,7 @@ __all__ = [
     "BiasSignal",
     "Briefing",
     "CbSpeech",
+    "CboeSkewObservation",
     "ConfluenceHistory",
     "CotPosition",
     # Phase 2

@@ -294,6 +294,25 @@ async def _run_ai_gpr(*, persist: bool) -> int:
     return 0 if obs else 1
 
 
+async def _run_cboe_skew(*, persist: bool) -> int:
+    """Pull daily CBOE SKEW Index from Yahoo Finance public chart endpoint."""
+    from ..collectors.cboe_skew import poll_all as poll_cboe_skew
+
+    obs = await poll_cboe_skew()
+    print(f"CBOE SKEW · {len(obs)} daily observations fetched")
+    if obs:
+        latest = max(obs, key=lambda o: o.observation_date)
+        print(f"  latest: {latest.observation_date} = {latest.skew_value:.2f}")
+    if persist:
+        from ..collectors.persistence import persist_cboe_skew_observations
+
+        sm = get_sessionmaker()
+        async with sm() as session:
+            inserted = await persist_cboe_skew_observations(session, obs)
+        print(f"CBOE SKEW · persisted {inserted} new rows")
+    return 0 if obs else 1
+
+
 async def _run_cot(*, persist: bool) -> int:
     """Pull weekly CFTC Disaggregated Futures Only for tracked markets."""
     by_code = await poll_cot()
@@ -1639,6 +1658,7 @@ async def _main(target: str, *, persist: bool) -> int:
         "fred": _run_fred,
         "gdelt": _run_gdelt,
         "ai_gpr": _run_ai_gpr,
+        "cboe_skew": _run_cboe_skew,
         "cot": _run_cot,
         "cb_speeches": _run_cb_speeches,
         "kalshi": _run_kalshi,
