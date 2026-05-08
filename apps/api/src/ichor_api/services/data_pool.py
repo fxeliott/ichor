@@ -27,6 +27,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models import (
     CboeSkewObservation,
+    CboeVvixObservation,
     CbSpeech,
     CftcTffObservation,
     CotPosition,
@@ -367,8 +368,36 @@ async def _section_tail_risk_skew(session: AsyncSession) -> tuple[str, list[str]
             f"mean {sum(values) / len(values):.2f}, n={len(values)})"
         )
         sources.append(f"CBOE:SKEW@{latest.observation_date.isoformat()}")
-    else:
         lines.append("- SKEW: n/a (collector hasn't filled the table)")
+
+    # ── VVIX (vol-of-vol) — wave 30 add ──
+    vvix_stmt = (
+        select(CboeVvixObservation)
+        .where(CboeVvixObservation.observation_date >= cutoff)
+        .order_by(desc(CboeVvixObservation.observation_date))
+        .limit(30)
+    )
+    vvix_rows = list((await session.execute(vvix_stmt)).scalars().all())
+    if vvix_rows:
+        v_latest = vvix_rows[0]
+        if v_latest.vvix_value >= 140:
+            v_band = "vol-surface blowup territory (>140)"
+        elif v_latest.vvix_value >= 100:
+            v_band = "elevated turbulence (>100)"
+        elif v_latest.vvix_value >= 85:
+            v_band = "modest bid (~85-100)"
+        else:
+            v_band = "calm vol-surface (<85)"
+        v_vals = [r.vvix_value for r in vvix_rows]
+        lines.append(
+            f"- VVIX (vol of VIX) = {v_latest.vvix_value:.2f} on "
+            f"{v_latest.observation_date:%Y-%m-%d} — {v_band} "
+            f"(30d range [{min(v_vals):.2f}, {max(v_vals):.2f}], "
+            f"mean {sum(v_vals) / len(v_vals):.2f}, n={len(v_vals)})"
+        )
+        sources.append(f"CBOE:VVIX@{v_latest.observation_date.isoformat()}")
+    else:
+        lines.append("- VVIX: n/a (collector hasn't filled the table)")
 
     # ── Sister vol indices via FRED ──
     for series_id, label in (
