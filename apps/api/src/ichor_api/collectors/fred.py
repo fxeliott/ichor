@@ -24,7 +24,8 @@ FRED_BASE = "https://api.stlouisfed.org/fred"
 SERIES_TO_POLL: tuple[str, ...] = (
     # Credit
     "BAMLH0A0HYM2",  # HY OAS spread
-    "BAMLC0A0CMTRIV",  # IG OAS spread
+    # NB BAMLC0A0CMTRIV (IG OAS) was here — FRED 400s, renamed/removed.
+    # BAMLC0A0CM (canonical IG OAS) is in fred_extended.py.
     # Vol
     "VIXCLS",  # VIX
     # Rates
@@ -48,7 +49,9 @@ SERIES_TO_POLL: tuple[str, ...] = (
     "DTWEXBGS",  # Trade-weighted dollar (broad)
     # Commodities
     "DCOILWTICO",  # WTI crude
-    "GOLDAMGBD228NLBM",  # Gold London PM fix
+    # NB GOLDAMGBD228NLBM (Gold London PM fix) was here — FRED 400s,
+    # renamed/removed — dropped wave 37b. No FRED-hosted gold price as of
+    # 2026-05; gold via XAU spot from polygon C:XAUUSD already covered.
 )
 
 
