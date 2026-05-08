@@ -89,9 +89,22 @@ D:\Ichor
   — the Hetzner→Cloudflare→Win11 path is auth-gated end-to-end via
   CF Access on the tunnel.
 
-## Latest migrations (head 0029)
+## Latest migrations (head 0033)
 
-- **head 0029** — `0029_trader_notes.py` adds the `trader_notes` table
+- **head 0033** — `0033_treasury_tic_holdings.py` (Wave 32) adds
+  `treasury_tic_holdings` for monthly Major Foreign Holders. 38
+  countries × 12 months persisted live 2026-05-08 with Dec 2025 Grand
+  Total $9270.9B — China decline -20.5% / 3y is the canonical Stephen
+  Jen "broken smile" foreign-repatriation signal.
+- **0032** — `0032_cboe_vvix_observations.py` (Wave 29) — daily VVIX
+  (vol of VIX) closes via Yahoo `^VVIX`. ~85 neutral / >100 elevated /
+  >140 vol-surface blowup territory.
+- **0031** — `0031_cftc_tff_observations.py` (Wave 25) — weekly CFTC
+  TFF positioning, 4-class breakdown (Dealer / AssetMgr / LevFunds /
+  Other / Nonrept). Smart-money divergence detection per asset.
+- **0030** — `0030_cboe_skew_observations.py` (Wave 24) — daily CBOE
+  SKEW Index. Tail-risk regime classifier (4-tier band).
+- **0029** — `0029_trader_notes.py` adds the `trader_notes` table
   for the `/journal` route (Phase B.5d). Annotations per card / per
   session / per asset (cap 10 000 chars). OUT of ADR-017 boundary
   surface (it's user notes, not bias output).
@@ -108,8 +121,38 @@ D:\Ichor
   2026-05-06 (cf. ADR-025). Activation gated on
   `ICHOR_API_BRIER_V2_ENABLED=true` env flag.
 
-## Recent ADRs (2026-05-08 wave 20-23)
+## Phase II Layer 1 progress (Wave 35)
 
+**14 / 30 priority sources collected (47 %), 10 / 14 surfaced data_pool (71 %).**
+
+Custom collectors live :
+- `cboe_skew_observations` (Wave 24, Yahoo `^SKEW`, daily 23:30 Paris)
+- `cftc_tff_observations` (Wave 25, Socrata `gpe5-46if`, weekly Sat 02:30)
+- `cboe_vvix_observations` (Wave 29, Yahoo `^VVIX`, daily 23:35 Paris)
+- `treasury_tic_holdings` (Wave 32, ticdata.treasury.gov `mfhhis01.txt`,
+  daily 03:00 Paris with idempotent dedup)
+
+FRED extended adds (Waves 23/24/28/34) :
+- Fed H.4.1 detail : WSHOSHO + WSHOMCB + WRESBAL
+- Atlanta nowcasts : GDPNOW + PCENOW
+- CBOE vol surface : GVZCLS + OVXCLS + RVXCLS
+- OECD CLI 7 regions : USA + G7 + JPN + DEU + GBR + CHN + EA19
+
+data_pool sections live (35, was 29 pre-Wave 26) — new in Phase II :
+`tail_risk` (SKEW + VVIX + GVZ + OVX + RVX), `tff_positioning`
+(per-asset 4-class + Δw/w + smart-money divergence ⚠), `treasury_tic`
+(top-10 holders + 3y trend, China -20.5 %), `oecd_cli` (7 regions +
+China-vs-rest divergence flag).
+
+ADR-055 ratifies DOLLAR_SMILE_BREAK gate 4-of-4 → 5-of-5 with SKEW as
+5th condition + graceful_none warm-up tolerance (preserves ADR-043
+behavior <60 d, becomes strict-er after).
+
+## Recent ADRs (2026-05-08 wave 20-35)
+
+- [ADR-055](docs/decisions/ADR-055-dollar-smile-break-skew-extension.md)
+  **DOLLAR_SMILE_BREAK extended with SKEW** — 5-of-5 gate + graceful-None
+  warm-up. Strict-er than ADR-043 once SKEW history ≥ 60 d.
 - [ADR-054](docs/decisions/ADR-054-claude-runner-stdin-pipe-windows-argv-limit.md)
   **claude-runner stdin pipe** — pipe `prompt` via stdin to bypass
   Windows `CreateProcessW` 32 768-char `lpCommandLine` limit. Pre-fix
