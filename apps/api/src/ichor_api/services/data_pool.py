@@ -419,6 +419,99 @@ async def _section_tail_risk_skew(session: AsyncSession) -> tuple[str, list[str]
     return "\n".join(lines), sources
 
 
+async def _section_labor_uncertainty(session: AsyncSession) -> tuple[str, list[str]]:
+    """## Labor + uncertainty + recession régime (Wave 41).
+
+    Surfaces 7 FRED indicators:
+      - ICSA + IC4WSA: weekly jobless claims (5-day lead on NFP cycle)
+      - USREC: NBER recession indicator (binary 0/1)
+      - USEPUINDXD: Baker-Bloom-Davis Economic Policy Uncertainty daily
+      - CIVPART: labor force participation rate
+      - AHETPI: average hourly earnings (wage-inflation gauge)
+      - ATLSBUSRGEP: Atlanta Fed business inflation expectations (1y)
+
+    Pass 1 régime + Pass 2 mechanism citation for labor cycle / wage
+    inflation / policy-uncertainty narrative.
+    """
+    sources: list[str] = []
+    lines: list[str] = ["## Labor + uncertainty régime (FRED)"]
+
+    # Recession flag
+    rec = await _latest_fred(session, "USREC", max_age_days=60)
+    if rec is not None:
+        flag = "RECESSION" if rec[0] >= 0.5 else "no recession"
+        lines.append(f"- NBER recession (USREC) = {rec[0]:.0f} — {flag} ({rec[1]:%Y-%m})")
+        sources.append("FRED:USREC")
+
+    # Jobless claims with band
+    icsa = await _latest_fred(session, "ICSA", max_age_days=21)
+    ic4 = await _latest_fred(session, "IC4WSA", max_age_days=21)
+    if icsa is not None:
+        v = icsa[0]
+        if v < 200_000:
+            band = "very tight labor (<200k)"
+        elif v < 250_000:
+            band = "healthy (200-250k)"
+        elif v < 350_000:
+            band = "softening (250-350k)"
+        else:
+            band = "recession-territory (>350k)"
+        ic4_str = f", 4w MA = {ic4[0]:,.0f}" if ic4 else ""
+        lines.append(
+            f"- Initial claims = {v:,.0f}{ic4_str} — {band} (FRED:ICSA, {icsa[1]:%Y-%m-%d})"
+        )
+        sources.append("FRED:ICSA")
+        if ic4:
+            sources.append("FRED:IC4WSA")
+
+    # Policy uncertainty
+    epu = await _latest_fred(session, "USEPUINDXD", max_age_days=14)
+    if epu is not None:
+        v = epu[0]
+        if v >= 300:
+            band = "extreme (>300)"
+        elif v >= 200:
+            band = "elevated (200-300)"
+        elif v >= 100:
+            band = "modest (100-200)"
+        else:
+            band = "low (<100)"
+        lines.append(
+            f"- US Economic Policy Uncertainty (Baker-Bloom-Davis) = {v:.1f} — {band}"
+            f" (FRED:USEPUINDXD, {epu[1]:%Y-%m-%d})"
+        )
+        sources.append("FRED:USEPUINDXD")
+
+    # Wage-inflation
+    ahe = await _latest_fred(session, "AHETPI", max_age_days=60)
+    biz = await _latest_fred(session, "ATLSBUSRGEP", max_age_days=60)
+    if ahe is not None:
+        lines.append(
+            f"- Avg hourly earnings (production) = ${ahe[0]:.2f} "
+            f"(FRED:AHETPI, {ahe[1]:%Y-%m})"
+        )
+        sources.append("FRED:AHETPI")
+    if biz is not None:
+        v = biz[0]
+        flag = "above 2 % target" if v > 2 else "at/below target"
+        lines.append(
+            f"- Atlanta Fed business inflation expectations 1y = {v:.2f} %"
+            f" — {flag} (FRED:ATLSBUSRGEP, {biz[1]:%Y-%m})"
+        )
+        sources.append("FRED:ATLSBUSRGEP")
+
+    # Labor force participation
+    civ = await _latest_fred(session, "CIVPART", max_age_days=60)
+    if civ is not None:
+        lines.append(
+            f"- Labor force participation rate = {civ[0]:.1f} %"
+            f" (FRED:CIVPART, {civ[1]:%Y-%m})"
+        )
+        sources.append("FRED:CIVPART")
+
+    return "\n".join(lines), sources
+
+
 async def _section_oecd_cli(session: AsyncSession) -> tuple[str, list[str]]:
     """## OECD Composite Leading Indicators — global cycle régime.
 
@@ -1150,6 +1243,11 @@ async def build_data_pool(
     # China / EA19). Above/below 100 classifier + China divergence flag.
     cli_md, cli_src = await _section_oecd_cli(session)
     sections.append(("oecd_cli", cli_md, cli_src))
+
+    # Wave 41 — Labor + uncertainty + recession régime (7 FRED series).
+    # Jobless claims band + EPU band + wage-inflation + USREC flag.
+    lab_md, lab_src = await _section_labor_uncertainty(session)
+    sections.append(("labor_uncertainty", lab_md, lab_src))
 
     yc_md, yc_src = await _section_yield_curve(session)
     sections.append(("yield_curve", yc_md, yc_src))
