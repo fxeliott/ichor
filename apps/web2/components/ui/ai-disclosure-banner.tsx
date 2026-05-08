@@ -15,7 +15,7 @@
 // Persona Claude Opus 4.7 named explicitly per §50 deployer disclosure
 // patterns (see EU Code of Practice on marking & labelling, Dec 2025 draft).
 //
-// Reference: ADR-XXX (EU AI Act §50 compliance), researcher report 2026-05-06.
+// Reference: ADR-029 (EU AI Act §50 + AMF DOC-2008-23 disclosure), researcher report 2026-05-06.
 
 export function AIDisclosureBanner() {
   return (

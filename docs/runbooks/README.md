@@ -8,7 +8,7 @@ and slow brain. Be procedural, list every command, link to dashboards.
 
 `RUNBOOK-NNN-short-slug.md` — sequential, never reordered.
 
-## Index (2026-05-06 — 15 runbooks, all written)
+## Index (2026-05-09 — 16 runbooks, all written)
 
 | ID  | File                                                                    | Trigger                                              |
 | --- | ----------------------------------------------------------------------- | ---------------------------------------------------- |
@@ -27,6 +27,7 @@ and slow brain. Be procedural, list every command, link to dashboards.
 | 013 | [Claude Max quota saturated](RUNBOOK-013-claude-max-quota-saturated.md) | Max 20x weekly cap hit — degrade to fallback chain   |
 | 014 | [claude-runner Win11 down](RUNBOOK-014-claude-runner-win11-down.md)     | NSSM service stopped / paused, Couche-1+2 chain 5xx  |
 | 015 | [Secrets rotation](RUNBOOK-015-secrets-rotation.md)                     | Planned cadence (90d/60d/12mo) or compromise event   |
+| 016 | [Langfuse traces](RUNBOOK-016-langfuse-traces.md)                       | Langfuse trace pipeline broken / public_key warning  |
 
 ## Template
 

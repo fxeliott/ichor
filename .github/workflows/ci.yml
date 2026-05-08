@@ -85,6 +85,7 @@ jobs:
           - apps/api
           - apps/claude-runner
           - packages/agents
+          - packages/ichor_brain
           - packages/ml
     steps:
       - uses: actions/checkout@v4

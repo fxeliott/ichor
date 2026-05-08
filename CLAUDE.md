@@ -1,7 +1,7 @@
 # Ichor — Claude Code project memory
 
 > Auto-injected at every session start. Keep terse and current.
-> Last sync: 2026-05-08 15:30 CEST (post-Wave 23 — BLOCKER #2 closed
+> Last sync: 2026-05-09 (post-Wave 55 — production health restore: claude-runner Win11 restart + central_bank_speeches timer definitively killed + Couche-2 5 agents restored + 4 doc index drifts fixed
 > via ADR-054 stdin pipe + Phase II Layer 1 quickwins).
 
 ## What this repo is

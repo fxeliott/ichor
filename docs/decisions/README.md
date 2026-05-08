@@ -31,6 +31,36 @@
 | [023](ADR-023-couche2-haiku-not-sonnet-on-free-cf-tunnel.md) | Accepted | Couche-2 → Claude Haiku low (CF Free 100s tunnel cap)           | 2026-05-06 |
 | [024](ADR-024-session-cards-five-bug-fix.md)                 | Accepted | session-cards 4-pass — five-bug fix and ny_mid/ny_close enable  | 2026-05-06 |
 | [025](ADR-025-brier-optimizer-v2-projected-sgd.md)           | Accepted | Brier optimizer V2 — projected SGD on per-factor drivers matrix | 2026-05-06 |
+| [026](ADR-026-frontend-perfection-wcag22aa-lighthouse.md)    | Accepted | Frontend WCAG 2.2 AA + Lighthouse CI gates                      | 2026-05-07 |
+| [027](ADR-027-playwright-golden-paths-axe-core.md)           | Accepted | Playwright golden paths + axe-core a11y                         | 2026-05-07 |
+| [028](ADR-028-wave5-ci-strategy-incremental.md)              | Accepted | Wave 5 CI strategy — incremental ramp                           | 2026-05-07 |
+| [029](ADR-029-eu-ai-act-50-amf-doc-2008-23-disclosure.md)    | Accepted | EU AI Act §50 + AMF DOC-2008-23 disclosure surface              | 2026-05-07 |
+| [030](ADR-030-resolvecron-protection-post-incident.md)       | Accepted | register-cron-*.sh canonical protection (post-incident)         | 2026-05-07 |
+| [031](ADR-031-sessiontype-single-source-via-get-args.md)     | Accepted | SessionType single source via `get_args(SessionType)`           | 2026-05-07 |
+| [032](ADR-032-langfuse-observe-wiring.md)                    | Accepted | Langfuse @observe wiring (Phase A.4.c)                          | 2026-05-07 |
+| [033](ADR-033-data-surprise-z-alert.md)                      | Accepted | DATA_SURPRISE_Z alert (Phase D.5)                               | 2026-05-07 |
+| [034](ADR-034-real-yield-gold-divergence-alert.md)           | Accepted | REAL_YIELD_GOLD_DIVERGENCE alert                                | 2026-05-07 |
+| [035](ADR-035-quad-witching-alert.md)                        | Accepted | QUAD_WITCHING alert                                             | 2026-05-07 |
+| [036](ADR-036-geopol-flash-event-alert.md)                   | Accepted | GEOPOL_FLASH_EVENT alert                                        | 2026-05-07 |
+| [037](ADR-037-tariff-shock-alert.md)                         | Accepted | TARIFF_SHOCK alert                                              | 2026-05-07 |
+| [038](ADR-038-megacap-earnings-window-alert.md)              | Accepted | MEGACAP_EARNINGS_WINDOW alert                                   | 2026-05-07 |
+| [039](ADR-039-geopol-regime-structural-alert.md)             | Accepted | GEOPOL_REGIME_STRUCTURAL alert                                  | 2026-05-07 |
+| [040](ADR-040-multi-cb-tone-foundation.md)                   | Accepted | Multi-CB tone foundation (FED + ECB + BoE + BoJ)                | 2026-05-07 |
+| [041](ADR-041-term-premium-repricing-alert.md)               | Accepted | TERM_PREMIUM_REPRICING alert                                    | 2026-05-07 |
+| [042](ADR-042-macro-quartet-stress-alert.md)                 | Accepted | MACRO_QUARTET_STRESS alert (4-of-4 composite)                   | 2026-05-07 |
+| [043](ADR-043-dollar-smile-break-alert.md)                   | Accepted | DOLLAR_SMILE_BREAK alert (Stephen Jen 2025-26 thesis)           | 2026-05-07 |
+| [044](ADR-044-vix-term-inversion-alert.md)                   | Accepted | VIX_TERM_INVERSION alert                                        | 2026-05-07 |
+| [045](ADR-045-term-premium-structural-252d-alert.md)         | Accepted | TERM_PREMIUM_STRUCTURAL_252D alert                              | 2026-05-07 |
+| [046](ADR-046-yield-curve-inversion-deep-alert.md)           | Accepted | YIELD_CURVE_INVERSION_DEEP alert                                | 2026-05-07 |
+| [047](ADR-047-yield-curve-un-inversion-event-alert.md)       | Accepted | YIELD_CURVE_UN_INVERSION_EVENT alert                            | 2026-05-07 |
+| [048](ADR-048-treasury-vol-spike-alert.md)                   | Accepted | TREASURY_VOL_SPIKE alert                                        | 2026-05-07 |
+| [049](ADR-049-hy-ig-spread-divergence-alert.md)              | Accepted | HY_IG_SPREAD_DIVERGENCE alert                                   | 2026-05-07 |
+| [050](ADR-050-capability-5-tools-runtime.md)                 | Accepted | Capability 5 tools runtime scaffold (wiring deferred Phase D.0) | 2026-05-08 |
+| [051](ADR-051-macro-quintet-stress-alert.md)                 | Accepted | MACRO_QUINTET_STRESS alert (5-dim composite)                    | 2026-05-08 |
+| [052](ADR-052-term-premium-intraday-30d-alert.md)            | Accepted | TERM_PREMIUM_INTRADAY_30D alert                                 | 2026-05-08 |
+| [053](ADR-053-claude-runner-async-polling-refactor.md)       | Accepted | claude-runner async + polling (CF 100s edge timeout fix)        | 2026-05-08 |
+| [054](ADR-054-claude-runner-stdin-pipe-windows-argv-limit.md) | Accepted | claude-runner stdin pipe (Windows argv 32K limit BLOCKER #2)    | 2026-05-08 |
+| [055](ADR-055-dollar-smile-break-skew-extension.md)          | Accepted | DOLLAR_SMILE_BREAK extended with SKEW (4-of-4 → 5-of-5)         | 2026-05-08 |
 
 > **Note**: SPEC_V2_HARDENING.md §4 originally referred to "ADR-008 to
 > ADR-011 prévus" for Phase 2 decisions. Those numbers were already taken
