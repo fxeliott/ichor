@@ -8,8 +8,43 @@ from __future__ import annotations
 
 from ichor_api.collectors.polymarket import (
     WATCHED_SLUGS,
+    _is_macro_question,
     _parse_market,
 )
+
+
+# ───────────────────────── Macro keyword filter (Wave 31) ──────────────────
+
+
+def test_macro_filter_matches_fed_questions() -> None:
+    assert _is_macro_question("Will the Fed cut rates in June 2026?")
+    assert _is_macro_question("FOMC dot plot revision Q3?")
+
+
+def test_macro_filter_matches_geopolitics() -> None:
+    assert _is_macro_question("Russia-Ukraine ceasefire by end of 2026?")
+    assert _is_macro_question("Will Iran strike a deal with US?")
+
+
+def test_macro_filter_matches_us_politics_with_macro_impact() -> None:
+    assert _is_macro_question("Trump 2026 tariff > 25 % on China?")
+    assert _is_macro_question("US debt ceiling fight before October?")
+
+
+def test_macro_filter_rejects_sports_and_entertainment() -> None:
+    assert not _is_macro_question("Will the Lakers win the NBA finals?")
+    assert not _is_macro_question("Will Drake release a new album?")
+    assert not _is_macro_question("UFC 300 champion?")
+
+
+def test_macro_filter_rejects_empty() -> None:
+    assert not _is_macro_question("")
+    assert not _is_macro_question("   ")
+
+
+def test_macro_filter_case_insensitive() -> None:
+    assert _is_macro_question("FED HIKE COMING?")
+    assert _is_macro_question("Recession in 2026?")
 
 
 def test_parse_normal_binary_market() -> None:
