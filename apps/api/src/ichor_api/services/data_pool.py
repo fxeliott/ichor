@@ -326,44 +326,67 @@ async def _section_polygon_intraday(session: AsyncSession, asset: str) -> tuple[
 
 
 async def _section_tail_risk_skew(session: AsyncSession) -> tuple[str, list[str]]:
-    """## Tail risk (CBOE SKEW) — latest daily reading + 30d band.
+    """## Vol surface — CBOE SKEW + sister vol indices (Wave 28).
 
-    SKEW measures the OOM tail-risk component of S&P 500 returns that
-    VIX (ATM-only) misses. 100 = neutral; 130-150 = elevated; >150 =
-    fat-tail panic priced in. Macro-broad section (Pass 1 reads it for
-    régime classification, Pass 2 for dollar-smile-break correlation).
+    Full volatility surface in one section:
+      - SKEW    : OOM tail-risk component VIX misses (S&P 500)
+      - GVZCLS  : Gold ETF vol (XAU exposure)
+      - OVXCLS  : Crude Oil ETF vol (energy exposure)
+      - RVXCLS  : Russell 2000 vol (small-cap exposure, completes vs VIX)
+
+    Macro-broad section: Pass 1 reads for régime classification, Pass 2
+    for dollar-smile-break correlation + asset-specific vol exposure.
     """
+    sources: list[str] = []
+    lines: list[str] = ["## Vol surface (CBOE)"]
+
+    # ── SKEW (custom table) ──
     cutoff = datetime.now(UTC).date() - timedelta(days=45)
-    stmt = (
+    skew_stmt = (
         select(CboeSkewObservation)
         .where(CboeSkewObservation.observation_date >= cutoff)
         .order_by(desc(CboeSkewObservation.observation_date))
         .limit(30)
     )
-    rows = list((await session.execute(stmt)).scalars().all())
-    if not rows:
-        return ("## Tail risk (CBOE SKEW)\n- n/a (collector hasn't filled the table)", [])
-    latest = rows[0]
-    sources = [f"CBOE:SKEW@{latest.observation_date.isoformat()}"]
-    band: str
-    if latest.skew_value >= 150:
-        band = "panic priced in (>150)"
-    elif latest.skew_value >= 130:
-        band = "elevated stress (130-150)"
-    elif latest.skew_value >= 115:
-        band = "modest tail bid (115-130)"
+    skew_rows = list((await session.execute(skew_stmt)).scalars().all())
+    if skew_rows:
+        latest = skew_rows[0]
+        if latest.skew_value >= 150:
+            band = "panic priced in (>150)"
+        elif latest.skew_value >= 130:
+            band = "elevated stress (130-150)"
+        elif latest.skew_value >= 115:
+            band = "modest tail bid (115-130)"
+        else:
+            band = "neutral / complacent (<115)"
+        values = [r.skew_value for r in skew_rows]
+        lines.append(
+            f"- SKEW (S&P tail) = {latest.skew_value:.2f} on "
+            f"{latest.observation_date:%Y-%m-%d} — {band} "
+            f"(30d range [{min(values):.2f}, {max(values):.2f}], "
+            f"mean {sum(values) / len(values):.2f}, n={len(values)})"
+        )
+        sources.append(f"CBOE:SKEW@{latest.observation_date.isoformat()}")
     else:
-        band = "neutral / complacent (<115)"
-    # 30d range to surface volatility of the tail itself.
-    values = [r.skew_value for r in rows]
-    md = (
-        "## Tail risk (CBOE SKEW)\n"
-        f"- latest = {latest.skew_value:.2f} on {latest.observation_date:%Y-%m-%d} — {band}\n"
-        f"- 30d range = [{min(values):.2f}, {max(values):.2f}], "
-        f"30d mean = {sum(values) / len(values):.2f} (n={len(values)})\n"
-        f"- source: CBOE:SKEW@{latest.observation_date.isoformat()}"
-    )
-    return md, sources
+        lines.append("- SKEW: n/a (collector hasn't filled the table)")
+
+    # ── Sister vol indices via FRED ──
+    for series_id, label in (
+        ("GVZCLS", "GVZ (gold vol)"),
+        ("OVXCLS", "OVX (oil vol)"),
+        ("RVXCLS", "RVX (small-cap vol)"),
+    ):
+        v = await _latest_fred(session, series_id)
+        if v is None:
+            lines.append(f"- {label}: n/a (FRED:{series_id})")
+            continue
+        val, when = v
+        lines.append(
+            f"- {label} = {val:.2f} (FRED:{series_id}, {when:%Y-%m-%d})"
+        )
+        sources.append(f"FRED:{series_id}")
+
+    return "\n".join(lines), sources
 
 
 async def _section_tff_positioning(
