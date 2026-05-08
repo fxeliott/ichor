@@ -151,12 +151,129 @@ async def fetch_market(
     return _parse_market(slug, market)
 
 
+# ────────────────────────── Top-100 macro discovery ──────────────────────
+#
+# Wave 31 add — supplément WATCHED_SLUGS with the most-traded macro markets.
+# Polymarket's gamma /markets endpoint supports volume sorting + active
+# filter. We pull the top N by 24h volume then filter Python-side to keep
+# only macro-relevant questions (the platform also has sports + entertainment
+# + crypto-only that we don't care about for pre-trade FX/macro research).
+
+# Keywords used to filter top markets to macro/geopolitics scope. Match is
+# case-insensitive substring on the `question` text. List intentionally
+# permissive — false-positives (e.g. "fed" in "feeds") are rare in practice
+# and noise filtered out at data_pool aggregation level.
+_MACRO_KEYWORDS: tuple[str, ...] = (
+    # Monetary policy
+    "fed", "fomc", "rate cut", "rate hike", "basis point",
+    "ecb", "european central bank", "boe", "bank of england",
+    "boj", "bank of japan", "rba", "boc", "snb",
+    # Macro indicators
+    "recession", "gdp", "cpi", "inflation", "pce", "ppi",
+    "unemployment", "nfp", "payroll", "jobs report", "jobless",
+    # FX / commodities
+    "dollar", "usd", "euro", "yen", "yuan", "ruble",
+    "gold", "oil", "wti", "brent", "opec", "natural gas",
+    # Geopolitics
+    "russia", "ukraine", "china", "taiwan", "iran", "israel",
+    "war", "ceasefire", "sanctions", "tariff",
+    # US politics + fiscal
+    "trump", "biden", "harris", "election", "congress",
+    "debt ceiling", "shutdown", "fiscal",
+    # Crypto-macro overlap
+    "bitcoin", "ethereum", "btc", "etf approval",
+    # Treasury / yields
+    "treasury", "yield", "bond", "auction",
+)
+
+
+def _is_macro_question(question: str) -> bool:
+    """Return True if the market question matches at least one macro
+    keyword. Case-insensitive substring match."""
+    if not question:
+        return False
+    lowered = question.lower()
+    return any(kw in lowered for kw in _MACRO_KEYWORDS)
+
+
+async def fetch_top_macro_markets(
+    *,
+    client: httpx.AsyncClient,
+    limit: int = 200,
+    timeout: float = 30.0,
+) -> list[PolymarketSnapshot]:
+    """Fetch top `limit` markets by 24h volume, filter to macro-only.
+
+    Polymarket gamma /markets supports:
+      - active=true       : not yet resolved
+      - closed=false      : trading still open
+      - order=volume24hr  : sort by 24h volume desc
+      - limit / offset    : pagination
+
+    We pull `limit` (default 200) and Python-side filter via _MACRO_KEYWORDS
+    to keep the macro / geopolitics subset. Empirically ~30-50 % match the
+    macro filter on a healthy day, giving us ~60-100 macro markets.
+    """
+    try:
+        r = await client.get(
+            f"{GAMMA_BASE}/markets",
+            params={
+                "active": "true",
+                "closed": "false",
+                "order": "volume24hr",
+                "ascending": "false",
+                "limit": limit,
+            },
+            timeout=timeout,
+            follow_redirects=True,
+        )
+        r.raise_for_status()
+        data = r.json()
+    except httpx.HTTPError as e:
+        log.warning("polymarket.top_fetch_failed", error=str(e))
+        return []
+
+    if not isinstance(data, list):
+        log.warning("polymarket.top_unexpected_shape", type=type(data).__name__)
+        return []
+
+    out: list[PolymarketSnapshot] = []
+    for market in data:
+        if not isinstance(market, dict):
+            continue
+        question = str(market.get("question") or market.get("title") or "")
+        if not _is_macro_question(question):
+            continue
+        # Synthesize slug if absent from payload
+        slug = str(market.get("slug") or market.get("id") or "")
+        if not slug:
+            continue
+        snap = _parse_market(slug, market)
+        if snap is not None:
+            out.append(snap)
+    log.info("polymarket.top_macro_filtered", total=len(data), kept=len(out))
+    return out
+
+
 async def poll_all(
     slugs: tuple[str, ...] = WATCHED_SLUGS,
     *,
     concurrency: int = 4,
+    include_top_macro: bool = True,
+    top_limit: int = 200,
 ) -> list[PolymarketSnapshot]:
-    """Poll every slug in parallel; bounded by concurrency."""
+    """Poll WATCHED_SLUGS + top macro markets by 24h volume.
+
+    Two paths combined:
+      - WATCHED_SLUGS : the curated FOMC/ECB/recession baseline (always
+        polled regardless of volume — these are the priors we want even
+        if the market is thin today).
+      - Top macro by volume (Wave 31) : the breadth layer — best-traded
+        macro/geopolitics markets globally on Polymarket today.
+
+    Dedup is on (slug). When include_top_macro=False, falls back to
+    legacy slug-only behaviour (back-compat).
+    """
     sem = asyncio.Semaphore(concurrency)
 
     async def _one(slug: str, client: httpx.AsyncClient) -> PolymarketSnapshot | None:
@@ -164,6 +281,19 @@ async def poll_all(
             return await fetch_market(slug, client=client)
 
     async with httpx.AsyncClient() as client:
-        results = await asyncio.gather(*(_one(s, client) for s in slugs))
+        slug_results = await asyncio.gather(*(_one(s, client) for s in slugs))
+        slug_snaps = [r for r in slug_results if r is not None]
 
-    return [r for r in results if r is not None]
+        if not include_top_macro:
+            return slug_snaps
+
+        # Append top-macro discovery, dedup on slug.
+        seen_slugs = {s.slug for s in slug_snaps}
+        top_snaps = await fetch_top_macro_markets(client=client, limit=top_limit)
+        for s in top_snaps:
+            if s.slug in seen_slugs:
+                continue
+            seen_slugs.add(s.slug)
+            slug_snaps.append(s)
+
+    return slug_snaps
