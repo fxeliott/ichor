@@ -368,6 +368,120 @@ async def _section_executive_summary(session: AsyncSession) -> tuple[str, list[s
 
     lines.append(f"- 🎯 **REGIME : {regime.upper().replace('_', ' ')}** — {rationale}")
 
+    # Wave 53 — confidence score (heuristic: count matched conditions vs
+    # template) + per-asset bias hint. NOT a directional trade signal
+    # (ADR-017 boundary preserved) — just a regime-consistent priming for
+    # Pass 2 narrative generation.
+    confidence = 0.0
+    if regime == "crisis":
+        # 1 of 3 conditions to fire = low conf, 3 of 3 = high
+        c = 0
+        if skew is not None and skew >= 150:
+            c += 1
+        if vix is not None and vix >= 30:
+            c += 1
+        if hy_oas is not None and hy_oas >= 6.0:
+            c += 1
+        confidence = c / 3.0
+    elif regime == "broken_smile":
+        # 4 conditions; all must hold. Confidence based on margin above thresholds.
+        margins: list[float] = []
+        if term_prem is not None:
+            margins.append(min(1.0, max(0.0, (term_prem - 0.0) / 0.5)))
+        if vix is not None:
+            margins.append(min(1.0, max(0.0, (22 - vix) / 5)))
+        if hy_oas is not None:
+            margins.append(min(1.0, max(0.0, (4.5 - hy_oas) / 1.0)))
+        if skew is not None:
+            margins.append(min(1.0, max(0.0, (skew - 130) / 20.0)))
+        confidence = sum(margins) / len(margins) if margins else 0.0
+    elif regime == "stagflation":
+        margins = []
+        if cli_us is not None:
+            margins.append(min(1.0, max(0.0, (100 - cli_us) / 2.0)))
+        if expinf is not None:
+            margins.append(min(1.0, max(0.0, (expinf - 2.5) / 1.0)))
+        confidence = sum(margins) / len(margins) if margins else 0.0
+    elif regime == "risk_off":
+        margins = []
+        if vix is not None:
+            margins.append(min(1.0, max(0.0, (vix - 22) / 8.0)))
+        if hy_oas is not None:
+            margins.append(min(1.0, max(0.0, (hy_oas - 5.0) / 2.0)))
+        confidence = max(margins) if margins else 0.0
+    elif regime == "goldilocks":
+        margins = []
+        if cli_us is not None:
+            margins.append(min(1.0, max(0.0, (cli_us - 100) / 2.0)))
+        if nfci is not None:
+            margins.append(min(1.0, max(0.0, -nfci / 0.5)))
+        if expinf is not None:
+            margins.append(1.0 if 1.5 <= expinf <= 2.5 else 0.0)
+        confidence = sum(margins) / len(margins) if margins else 0.0
+    elif regime == "risk_on":
+        margins = []
+        if nfci is not None:
+            margins.append(min(1.0, max(0.0, (-0.3 - nfci) / 0.5)))
+        if skew is not None:
+            margins.append(min(1.0, max(0.0, (130 - skew) / 15.0)))
+        if vix is not None:
+            margins.append(min(1.0, max(0.0, (18 - vix) / 5.0)))
+        confidence = sum(margins) / len(margins) if margins else 0.0
+
+    # Per-regime asset-class bias hint (Pass 2 priming, ADR-017 compliant —
+    # describes the macro-consistent observation, NOT a trade signal).
+    bias_hints: dict[str, dict[str, str]] = {
+        "broken_smile": {
+            "fx_majors": "USD-bearish (USD weakness despite vol calm)",
+            "xau": "USD-weak + tail-risk-elevated → gold supportive",
+            "us_equity_indices": "Mixed (Fed accommodative but USD weakness offsets)",
+            "treasuries": "Term-prem expansion → curve steepening",
+        },
+        "crisis": {
+            "fx_majors": "USD-haven bid except USD/JPY (JPY haven)",
+            "xau": "Bid (flight to quality)",
+            "us_equity_indices": "Sharp downside, vol spike",
+            "treasuries": "Bid (duration safe haven)",
+        },
+        "stagflation": {
+            "fx_majors": "USD-mixed (cuts priced but inflation persists)",
+            "xau": "Bid (real-yield compression + inflation hedge)",
+            "us_equity_indices": "Defensive sectors, growth underperforms",
+            "treasuries": "TIPS outperform nominals",
+        },
+        "risk_off": {
+            "fx_majors": "USD bid, EUR/AUD/NZD weak (carry unwind)",
+            "xau": "Bid (haven, but real yields can offset)",
+            "us_equity_indices": "Downside, vol spike",
+            "treasuries": "Bid (haven duration)",
+        },
+        "goldilocks": {
+            "fx_majors": "USD soft (Fed neutral) + EUR/AUD bid",
+            "xau": "Range-bound (no panic, no inflation surge)",
+            "us_equity_indices": "Bid (low vol + earnings tailwind)",
+            "treasuries": "Range-bound mid-curve",
+        },
+        "risk_on": {
+            "fx_majors": "USD soft + AUD/NZD/EM bid (carry on)",
+            "xau": "Soft (real yields compress relative)",
+            "us_equity_indices": "Strong bid (complacency)",
+            "treasuries": "Curve steepens (no haven bid)",
+        },
+        "transitional": {
+            "fx_majors": "Mixed signals, await clearer template",
+            "xau": "Range-bound",
+            "us_equity_indices": "Range-bound",
+            "treasuries": "Range-bound",
+        },
+    }
+    lines.append(
+        f"  └─ confidence ≈ {confidence:.2f} (heuristic margin vs threshold)"
+    )
+    bias_for_regime = bias_hints.get(regime, {})
+    if bias_for_regime:
+        bias_md = " | ".join(f"{k}: {v}" for k, v in bias_for_regime.items())
+        lines.append(f"  └─ asset-class bias hints (ADR-017 priming, not signals): {bias_md}")
+
     # ── 1. Macro régime ──
     g7 = await _latest_fred(session, "G7LOLITOAASTSAM", max_age_days=90)
     chn = await _latest_fred(session, "CHNLOLITOAASTSAM", max_age_days=90)
