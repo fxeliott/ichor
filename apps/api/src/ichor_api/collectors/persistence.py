@@ -30,6 +30,7 @@ from ..models import (
     PolygonGexSnapshot,
     PolygonIntradayBar,
     PolymarketSnapshot,
+    TreasuryTicHolding,
 )
 from .ai_gpr import AiGprObservation
 from .cboe_skew import CboeSkewObservation as CboeSkewObservationData
@@ -38,6 +39,7 @@ from .central_bank_speeches import CentralBankSpeech
 from .cftc_tff import CftcTffObservation as CftcTffObservationData
 from .cot import CotPosition as CotPositionData
 from .fred import FredObservation as FredObservationData
+from .treasury_tic import TreasuryTicHolding as TreasuryTicHoldingData
 from .gdelt import GdeltArticle
 from .gex_yfinance import DealerGexSnapshot
 from .kalshi import KalshiMarketSnapshot
@@ -619,6 +621,53 @@ async def persist_cot_positions(
     if inserted:
         await session.commit()
     log.info("cot.persisted", total=len(positions), inserted=inserted)
+    return inserted
+
+
+async def persist_treasury_tic_holdings(
+    session: AsyncSession, holdings: Iterable[TreasuryTicHoldingData]
+) -> int:
+    """Insert TIC monthly foreign holdings, skipping (country, month) dupes.
+
+    Idempotent: re-running the same poll inserts zero rows. Re-runs after
+    a new TIC release add only the newest period for every country.
+    """
+    holdings = list(holdings)
+    if not holdings:
+        return 0
+    countries = {h.country for h in holdings}
+    months = {h.observation_month for h in holdings}
+    existing_rows = (
+        await session.execute(
+            select(TreasuryTicHolding.country, TreasuryTicHolding.observation_month).where(
+                TreasuryTicHolding.country.in_(countries),
+                TreasuryTicHolding.observation_month.in_(months),
+            )
+        )
+    ).all()
+    existing: set[tuple[str, date_type]] = {(r[0], r[1]) for r in existing_rows}
+    now = datetime.now(UTC)
+    inserted = 0
+    for h in holdings:
+        if (h.country, h.observation_month) in existing:
+            continue
+        session.add(
+            TreasuryTicHolding(
+                observation_month=h.observation_month,
+                country=h.country[:64],
+                holdings_bn_usd=h.holdings_bn_usd,
+                fetched_at=h.fetched_at or now,
+            )
+        )
+        inserted += 1
+    if inserted:
+        await session.commit()
+    log.info(
+        "treasury_tic.persisted",
+        total=len(holdings),
+        inserted=inserted,
+        skipped=len(holdings) - inserted,
+    )
     return inserted
 
 

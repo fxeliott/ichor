@@ -55,6 +55,9 @@ from .session_card_counterfactual import SessionCardCounterfactual
 # Phase B.5d v2 — trader's private journal (out of ADR-017 boundary)
 from .trader_note import TraderNote
 
+# Phase II Layer 1 — Treasury TIC monthly foreign holdings (Wave 32)
+from .treasury_tic_holding import TreasuryTicHolding
+
 __all__ = [
     "Alert",
     "Base",
@@ -89,4 +92,5 @@ __all__ = [
     "SessionCardAudit",
     "SessionCardCounterfactual",
     "TraderNote",
+    "TreasuryTicHolding",
 ]

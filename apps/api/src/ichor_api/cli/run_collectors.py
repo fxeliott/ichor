@@ -332,6 +332,33 @@ async def _run_cboe_vvix(*, persist: bool) -> int:
     return 0 if obs else 1
 
 
+async def _run_treasury_tic(*, persist: bool) -> int:
+    """Pull Treasury TIC Major Foreign Holders monthly snapshot."""
+    from ..collectors.treasury_tic import poll_all as poll_treasury_tic
+
+    holdings = await poll_treasury_tic()
+    n_countries = len({h.country for h in holdings})
+    n_months = len({h.observation_month for h in holdings})
+    print(
+        f"Treasury TIC · {len(holdings)} holdings rows fetched "
+        f"({n_countries} countries × {n_months} months)"
+    )
+    if holdings:
+        latest = max(h.observation_month for h in holdings)
+        recent = [h for h in holdings if h.observation_month == latest]
+        print(f"  latest period: {latest}")
+        for h in sorted(recent, key=lambda x: -x.holdings_bn_usd)[:5]:
+            print(f"    {h.country:30s}  {h.holdings_bn_usd:>8.1f}  bn USD")
+    if persist:
+        from ..collectors.persistence import persist_treasury_tic_holdings
+
+        sm = get_sessionmaker()
+        async with sm() as session:
+            inserted = await persist_treasury_tic_holdings(session, holdings)
+        print(f"Treasury TIC · persisted {inserted} new rows")
+    return 0 if holdings else 1
+
+
 async def _run_cftc_tff(*, persist: bool) -> int:
     """Pull weekly CFTC TFF (Traders in Financial Futures) from Socrata."""
     from ..collectors.cftc_tff import poll_all as poll_cftc_tff
@@ -1704,6 +1731,7 @@ async def _main(target: str, *, persist: bool) -> int:
         "ai_gpr": _run_ai_gpr,
         "cboe_skew": _run_cboe_skew,
         "cboe_vvix": _run_cboe_vvix,
+        "treasury_tic": _run_treasury_tic,
         "cftc_tff": _run_cftc_tff,
         "cot": _run_cot,
         "cb_speeches": _run_cb_speeches,

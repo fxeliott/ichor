@@ -107,6 +107,11 @@ declare -A SCHEDULES=(
   # AssetMgr / LevFunds / Other / Nonrept) per market, used for smart-money
   # divergence detection and macro-fund positioning intelligence.
   [cftc_tff]="Sat *-*-* 02:30:00 Europe/Paris"
+  # Treasury TIC Major Foreign Holders monthly. Releases ~3rd week of M+1.
+  # Calendar 2026: Jan 15 / Feb 18 / Mar 18 / Apr 15 / May 18 / Jun 18 /
+  # Jul 14 / Aug 17. Poll daily 03:00 Paris is conservative — the file
+  # rarely updates, idempotent dedup catches no-op runs.
+  [treasury_tic]="*-*-* 03:00:00 Europe/Paris"
   # Note: collector module is `central_bank_speeches.py` but exposed under
   # the canonical short name `cb_speeches` in run_collectors.py:33 (alias).
   # Keep the timer aligned with the CLI target name to avoid the
