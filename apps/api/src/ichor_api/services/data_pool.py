@@ -241,22 +241,132 @@ async def _latest_fred(
 
 
 async def _section_executive_summary(session: AsyncSession) -> tuple[str, list[str]]:
-    """## Executive summary (Wave 50) — 5-bullet synthesis at top of pool.
+    """## Executive summary (Waves 50+51) — regime label + 5-bullet synthesis at top.
 
-    Aggregates the most actionable signals from across all 37 sections so
-    Pass 1 régime classification has a high-conviction snapshot before
-    diving into details. Each bullet has 1-2 quantified signals + a
-    source-stamp.
+    Wave 51 adds a master regime classifier as bullet 0:
+      - crisis        : VIX panic / SKEW > 150 / HY-OAS spike (flight to quality)
+      - broken_smile  : DXY weak + term premium up + VIX modest + HY calm
+                        (Stephen Jen US-driven instability)
+      - stagflation   : US CLI < 100 + EXPINF1YR > 2.5 + jobless rising
+      - risk_off      : VIX elevated + HY-OAS elevated (classic LEFT smile)
+      - goldilocks    : US CLI > 100 + NFCI loose + EXPINF1YR near target
+      - risk_on       : NFCI < 0 + SKEW low + VIX low
+      - transitional  : doesn't match clear regime template
 
-    Bullets cover the 5 dimensions Eliot's vision asks for:
-      1. Macro régime (CLI cycle + financial conditions)
-      2. Vol surface (SKEW / VVIX tail + vol-of-vol)
-      3. Smart-money positioning (TFF divergence count)
-      4. Foreign demand (TIC China trend)
-      5. Forward Fed path (ZQ curve direction)
+    Wave 50 5-bullet synthesis follows for detail.
     """
     sources: list[str] = []
     lines: list[str] = ["## Executive summary"]
+
+    # ── 0. Master regime classifier (Wave 51) ──
+    # Pull snapshot of canonical signals; bucket into 7-regime taxonomy.
+    skew_latest_row = (
+        await session.execute(
+            select(CboeSkewObservation)
+            .order_by(desc(CboeSkewObservation.observation_date))
+            .limit(1)
+        )
+    ).scalars().first()
+    vvix_latest_row = (
+        await session.execute(
+            select(CboeVvixObservation)
+            .order_by(desc(CboeVvixObservation.observation_date))
+            .limit(1)
+        )
+    ).scalars().first()
+    vix_v = await _latest_fred(session, "VIXCLS", max_age_days=7)
+    hy_oas_v = await _latest_fred(session, "BAMLH0A0HYM2", max_age_days=14)
+    dxy_v = await _latest_fred(session, "DTWEXBGS", max_age_days=14)
+    nfci_v = await _latest_fred(session, "NFCI", max_age_days=14)
+    cli_us_v = await _latest_fred(session, "USALOLITOAASTSAM", max_age_days=90)
+    expinf_v = await _latest_fred(session, "EXPINF1YR", max_age_days=45)
+    icsa_v = await _latest_fred(session, "ICSA", max_age_days=14)
+    term_v = await _latest_fred(session, "THREEFYTP10", max_age_days=30)
+
+    skew = skew_latest_row.skew_value if skew_latest_row else None
+    vvix = vvix_latest_row.vvix_value if vvix_latest_row else None
+    vix = vix_v[0] if vix_v else None
+    hy_oas = hy_oas_v[0] if hy_oas_v else None
+    nfci = nfci_v[0] if nfci_v else None
+    cli_us = cli_us_v[0] if cli_us_v else None
+    expinf = expinf_v[0] if expinf_v else None
+    icsa = icsa_v[0] if icsa_v else None
+    term_prem = term_v[0] if term_v else None
+
+    regime: str = "transitional"
+    rationale: str = "no clear template match"
+
+    # Crisis takes priority — panic / fat-tail conditions
+    if (skew is not None and skew >= 150) or (vix is not None and vix >= 30) or (
+        hy_oas is not None and hy_oas >= 6.0
+    ):
+        regime = "crisis"
+        rationale = (
+            f"SKEW={skew} VIX={vix} HY-OAS={hy_oas}% — flight to quality"
+        )
+    # Broken smile (Stephen Jen US-driven instability)
+    elif (
+        term_prem is not None
+        and term_prem > 0.0
+        and vix is not None
+        and vix < 22
+        and hy_oas is not None
+        and hy_oas < 4.5
+        and skew is not None
+        and skew >= 130
+    ):
+        regime = "broken_smile"
+        rationale = (
+            f"term-prem {term_prem:+.2f}%% + VIX {vix:.1f} (modest) + HY-OAS "
+            f"{hy_oas:.2f}%% (calm) + SKEW {skew:.0f} (elevated) — US-driven "
+            "instability per Stephen Jen 2025-26"
+        )
+    # Stagflation
+    elif (
+        cli_us is not None
+        and cli_us < 100
+        and expinf is not None
+        and expinf > 2.5
+    ):
+        regime = "stagflation"
+        rationale = (
+            f"US CLI {cli_us:.2f} (<100, slowdown) + EXPINF1YR {expinf:.2f}%% "
+            "(>2.5%% above target) — growth slowing while inflation persists"
+        )
+    # Risk-off (classic LEFT smile)
+    elif (vix is not None and vix > 22) or (hy_oas is not None and hy_oas > 5.0):
+        regime = "risk_off"
+        rationale = f"VIX {vix} HY-OAS {hy_oas}%% — classic stress, USD bid"
+    # Goldilocks
+    elif (
+        cli_us is not None
+        and cli_us > 100
+        and nfci is not None
+        and nfci < 0
+        and expinf is not None
+        and 1.5 <= expinf <= 2.5
+    ):
+        regime = "goldilocks"
+        rationale = (
+            f"CLI {cli_us:.2f}▲ + NFCI {nfci:+.2f} (loose) + EXPINF1YR "
+            f"{expinf:.2f}%% near target — growth in trend, calm vol"
+        )
+    # Risk-on (loose conditions, low vol)
+    elif (
+        nfci is not None
+        and nfci < -0.3
+        and skew is not None
+        and skew < 130
+        and vix is not None
+        and vix < 18
+    ):
+        regime = "risk_on"
+        rationale = (
+            f"NFCI {nfci:+.2f} (loose) + SKEW {skew:.0f} + VIX {vix:.1f} — "
+            "complacent, equity bid"
+        )
+
+    lines.append(f"- 🎯 **REGIME : {regime.upper().replace('_', ' ')}** — {rationale}")
 
     # ── 1. Macro régime ──
     g7 = await _latest_fred(session, "G7LOLITOAASTSAM", max_age_days=90)
