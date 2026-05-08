@@ -122,6 +122,42 @@ EXTENDED_SERIES_TO_POLL: tuple[str, ...] = (
     "CIVPART",  # Labor Force Participation Rate (monthly)
     "AHETPI",  # Average Hourly Earnings of Production Workers (wage-inflation)
     "ATLSBUSRGEP",  # Atlanta Fed Business Inflation Expectations (1y horizon)
+    # ─── Wave 42 mega batch : FX / Fed / financial conditions / curve detail ───
+    # All FRED-hosted, validated 200 on 2026-05-08. Config-only.
+    # FX rates (daily, complement Polygon FX feed for cross-checks)
+    "DEXJPUS",   # JPY per USD
+    "DEXUSEU",   # USD per EUR (note Eurozone convention)
+    "DEXCHUS",   # CNY per USD (yuan)
+    "DEXCAUS",   # CAD per USD
+    "DEXSZUS",   # CHF per USD
+    "DEXUSAL",   # USD per AUD
+    "DEXUSNZ",   # USD per NZD
+    # Fed monetary stance
+    "FEDFUNDS",  # Fed Funds effective monthly
+    "EFFR",      # Effective Fed Funds Rate daily
+    "DFEDTARU",  # Fed Funds Target Range Upper
+    "DFEDTARL",  # Fed Funds Target Range Lower
+    # Inflation expectations
+    "EXPINF1YR",  # 1-year expected inflation (Cleveland Fed model)
+    # Financial conditions composites
+    "NFCI",      # Chicago Fed National Financial Conditions Index
+    "ANFCI",     # Adjusted NFCI (controls for macro)
+    "STLFSI4",   # St Louis Fed Financial Stress Index v4
+    "TEDRATE",   # TED spread (3M LIBOR–OIS) — funding-stress proxy (legacy)
+    "AAA",       # Moody's AAA corporate bond yield
+    "BAA",       # Moody's BAA corporate bond yield (BAA-AAA spread = credit cycle)
+    # Macro composite indicators
+    "CFNAI",     # Chicago Fed National Activity Index (real-time growth pulse)
+    "CFNAIDIFF", # CFNAI diffusion (breadth of contributors)
+    "PSAVERT",   # Personal Saving Rate
+    "UMCSENT",   # U Mich Consumer Sentiment (already added — kept for completeness)
+    "MCUMFN",    # Manufacturing Capacity Utilization
+    # Yield curve detail (gap-fill the points we don't have)
+    "DGS1",      # 1Y Treasury
+    "DGS3",      # 3Y Treasury
+    "DGS7",      # 7Y Treasury
+    "DGS20",     # 20Y Treasury
+    "T10YFF",    # 10Y minus Fed Funds (curve steepness vs policy)
 )
 
 
