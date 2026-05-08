@@ -113,6 +113,15 @@ EXTENDED_SERIES_TO_POLL: tuple[str, ...] = (
     "EA19LOLITOAASTSAM",  # Euro Area 19 CLI
     # NB NFIBOI is NOT on FRED (web search misled — FRED returns 400).
     # NFIB is direct from nfib.com only — custom collector path needed.
+    # ─── Labor + recession + uncertainty — Wave 40 ───
+    # Weekly + monthly indicators absent from base SERIES_TO_POLL.
+    "ICSA",  # Initial Jobless Claims (weekly, leading employment)
+    "IC4WSA",  # 4-week MA Jobless Claims (smoothed)
+    "USREC",  # NBER Recession Indicator (binary 0/1, contemporaneous)
+    "USEPUINDXD",  # US Economic Policy Uncertainty Index (Baker-Bloom-Davis daily)
+    "CIVPART",  # Labor Force Participation Rate (monthly)
+    "AHETPI",  # Average Hourly Earnings of Production Workers (wage-inflation)
+    "ATLSBUSRGEP",  # Atlanta Fed Business Inflation Expectations (1y horizon)
 )
 
 
