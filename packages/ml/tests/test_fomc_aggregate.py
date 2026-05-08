@@ -36,11 +36,16 @@ def _score(haw: float, dov: float, neu: float) -> FomcToneScore:
 
 def test_aggregate_empty_returns_zero_baseline() -> None:
     res = aggregate_fomc_chunks([])
+    # 4-class FOMC-Roberta (Phase D.5.d / ADR-040): includes IRRELEVANT
+    # bucket excluded from net_hawkish + diagnostic counters.
     assert res == {
         "net_hawkish": 0.0,
         "mean_hawkish": 0.0,
         "mean_dovish": 0.0,
         "mean_neutral": 0.0,
+        "mean_irrelevant": 0.0,
+        "n_relevant_chunks": 0,
+        "n_total_chunks": 0,
     }
 
 

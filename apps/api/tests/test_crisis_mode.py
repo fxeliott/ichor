@@ -32,9 +32,12 @@ def test_catalog_complete_count_and_unique() -> None:
 
 
 def test_catalog_breakdown() -> None:
-    assert len(PLAN_ALERTS) == 28
-    assert len(AUDIT_V2_ALERTS) == 5
-    assert len(ALL_ALERTS) == 33
+    # Counts match assert_catalog_complete() in catalog.py.
+    # If you bump the catalog, update both here AND the assert in catalog.py.
+    # Phase D.5 + Phase E shipped 21 alerts wave 1-22 (33→54 total).
+    assert len(PLAN_ALERTS) == 46
+    assert len(AUDIT_V2_ALERTS) == 8
+    assert len(ALL_ALERTS) == 54
 
 
 def test_catalog_severity_values_valid() -> None:
