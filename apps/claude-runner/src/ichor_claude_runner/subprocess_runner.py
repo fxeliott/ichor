@@ -75,10 +75,18 @@ async def run_claude(
             )
         persona_text = settings.persona_file.read_text(encoding="utf-8")
 
+    # ADR-054 — pipe `prompt` via stdin instead of argv to bypass the
+    # Windows CreateProcessW 32 768-char `lpCommandLine` limit. Persona
+    # (~7 KB) stays in argv via --append-system-prompt; the data_pool
+    # prompt (up to 200 KB by Pydantic contract, typical 15-30 KB) goes
+    # through stdin. Without this, briefings + Couche-2 calls on assets
+    # with rich data_pool (≥17 KB) crash with `WinError 206`.
     cmd = [
         settings.claude_binary,
         "-p",
-        prompt,
+        # Short task wrapper kept in argv so claude has a non-empty
+        # `-p` argument; the actual content arrives via stdin.
+        "Read the task and full context piped via stdin, then respond per the system prompt.",
         "--output-format",
         "json",
         "--model",
@@ -90,18 +98,26 @@ async def run_claude(
         persona_text,
     ]
 
-    log.info("claude.subprocess.start", model=model, effort=effort, prompt_len=len(prompt))
+    log.info(
+        "claude.subprocess.start",
+        model=model,
+        effort=effort,
+        prompt_len=len(prompt),
+        stdin_pipe=True,
+    )
     start = time.monotonic()
 
     proc = await asyncio.create_subprocess_exec(
         *cmd,
+        stdin=asyncio.subprocess.PIPE,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
         cwd=str(workdir),
     )
     try:
         stdout, stderr = await asyncio.wait_for(
-            proc.communicate(), timeout=settings.claude_timeout_sec
+            proc.communicate(input=prompt.encode("utf-8")),
+            timeout=settings.claude_timeout_sec,
         )
     except TimeoutError:
         proc.kill()
