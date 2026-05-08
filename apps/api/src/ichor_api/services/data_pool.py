@@ -240,6 +240,170 @@ async def _latest_fred(
     )
 
 
+async def _section_executive_summary(session: AsyncSession) -> tuple[str, list[str]]:
+    """## Executive summary (Wave 50) — 5-bullet synthesis at top of pool.
+
+    Aggregates the most actionable signals from across all 37 sections so
+    Pass 1 régime classification has a high-conviction snapshot before
+    diving into details. Each bullet has 1-2 quantified signals + a
+    source-stamp.
+
+    Bullets cover the 5 dimensions Eliot's vision asks for:
+      1. Macro régime (CLI cycle + financial conditions)
+      2. Vol surface (SKEW / VVIX tail + vol-of-vol)
+      3. Smart-money positioning (TFF divergence count)
+      4. Foreign demand (TIC China trend)
+      5. Forward Fed path (ZQ curve direction)
+    """
+    sources: list[str] = []
+    lines: list[str] = ["## Executive summary"]
+
+    # ── 1. Macro régime ──
+    g7 = await _latest_fred(session, "G7LOLITOAASTSAM", max_age_days=90)
+    chn = await _latest_fred(session, "CHNLOLITOAASTSAM", max_age_days=90)
+    nfci = await _latest_fred(session, "NFCI", max_age_days=14)
+    macro_pieces: list[str] = []
+    if g7 and chn:
+        if g7[0] >= 100 and chn[0] < 100:
+            macro_pieces.append(
+                f"OECD G7 {g7[0]:.2f}▲ vs China {chn[0]:.2f}▼ = ⚠ China divergence "
+                "(bearish AUD/CAD copper)"
+            )
+            sources.extend(["FRED:G7LOLITOAASTSAM", "FRED:CHNLOLITOAASTSAM"])
+        elif g7[0] >= 100 and chn[0] >= 100:
+            macro_pieces.append(
+                f"OECD G7 {g7[0]:.2f}▲ + China {chn[0]:.2f}▲ = synchronized expansion"
+            )
+            sources.extend(["FRED:G7LOLITOAASTSAM", "FRED:CHNLOLITOAASTSAM"])
+        elif g7[0] < 100 and chn[0] < 100:
+            macro_pieces.append(
+                f"OECD G7 {g7[0]:.2f}▼ + China {chn[0]:.2f}▼ = global slowdown"
+            )
+            sources.extend(["FRED:G7LOLITOAASTSAM", "FRED:CHNLOLITOAASTSAM"])
+    if nfci:
+        flag = "TIGHTER" if nfci[0] > 0 else "looser-than-avg"
+        macro_pieces.append(f"NFCI {nfci[0]:+.2f} ({flag})")
+        sources.append("FRED:NFCI")
+    if macro_pieces:
+        lines.append(f"- 📊 Macro régime : {' · '.join(macro_pieces)}")
+
+    # ── 2. Vol surface ──
+    skew_stmt = (
+        select(CboeSkewObservation)
+        .order_by(desc(CboeSkewObservation.observation_date))
+        .limit(1)
+    )
+    skew_row = (await session.execute(skew_stmt)).scalars().first()
+    vvix_stmt = (
+        select(CboeVvixObservation)
+        .order_by(desc(CboeVvixObservation.observation_date))
+        .limit(1)
+    )
+    vvix_row = (await session.execute(vvix_stmt)).scalars().first()
+    vol_pieces: list[str] = []
+    if skew_row:
+        band = (
+            "PANIC>150"
+            if skew_row.skew_value >= 150
+            else "elevated 130-150"
+            if skew_row.skew_value >= 130
+            else "modest 115-130"
+            if skew_row.skew_value >= 115
+            else "neutral <115"
+        )
+        vol_pieces.append(f"SKEW {skew_row.skew_value:.0f} ({band})")
+        sources.append(f"CBOE:SKEW@{skew_row.observation_date.isoformat()}")
+    if vvix_row:
+        v_band = (
+            "BLOWUP>140"
+            if vvix_row.vvix_value >= 140
+            else "elevated >100"
+            if vvix_row.vvix_value >= 100
+            else "modest 85-100"
+            if vvix_row.vvix_value >= 85
+            else "calm <85"
+        )
+        vol_pieces.append(f"VVIX {vvix_row.vvix_value:.0f} ({v_band})")
+        sources.append(f"CBOE:VVIX@{vvix_row.observation_date.isoformat()}")
+    if vol_pieces:
+        lines.append(f"- 🌋 Vol surface : {' · '.join(vol_pieces)}")
+
+    # ── 3. Smart-money positioning (TFF divergence count across assets) ──
+    # Latest report_date
+    latest_tff_dt = (
+        await session.execute(
+            select(CftcTffObservation.report_date)
+            .order_by(desc(CftcTffObservation.report_date))
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+    if latest_tff_dt is not None:
+        tff_rows = list(
+            (
+                await session.execute(
+                    select(CftcTffObservation).where(
+                        CftcTffObservation.report_date == latest_tff_dt
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
+        divergent: list[str] = []
+        for r in tff_rows:
+            am_net = r.asset_mgr_long - r.asset_mgr_short
+            lev_net = r.lev_money_long - r.lev_money_short
+            if am_net != 0 and lev_net != 0 and (am_net > 0) != (lev_net > 0):
+                divergent.append(r.market_code)
+        if divergent:
+            lines.append(
+                f"- 💰 Smart-money divergence : {len(divergent)}/{len(tff_rows)} markets "
+                f"({', '.join(divergent[:5])}{'...' if len(divergent) > 5 else ''}, "
+                f"week {latest_tff_dt:%Y-%m-%d})"
+            )
+            sources.append(f"CFTC:TFF:WEEK@{latest_tff_dt.isoformat()}")
+
+    # ── 4. Foreign demand (TIC China trend) ──
+    china_now = (
+        await session.execute(
+            select(TreasuryTicHolding)
+            .where(TreasuryTicHolding.country == "China, Mainland")
+            .order_by(desc(TreasuryTicHolding.observation_month))
+            .limit(36)
+        )
+    ).scalars().all()
+    china_now_list = list(china_now)
+    if len(china_now_list) >= 2:
+        cur = china_now_list[0]
+        old = china_now_list[-1]
+        delta = cur.holdings_bn_usd - old.holdings_bn_usd
+        pct = delta / old.holdings_bn_usd * 100 if old.holdings_bn_usd else 0
+        arrow = "↓" if delta < 0 else "↑"
+        lines.append(
+            f"- 🌏 Foreign demand : China Treasury {arrow} ${delta:+.0f}b "
+            f"({pct:+.1f}%) from ${old.holdings_bn_usd:.0f}b "
+            f"({old.observation_month:%b%y}) to ${cur.holdings_bn_usd:.0f}b "
+            f"({cur.observation_month:%b%y})"
+        )
+        sources.append(f"TIC:MFH:CHN@{cur.observation_month.isoformat()}")
+
+    # ── 5. Forward Fed path (ZQ curve direction) ──
+    front = await _latest_fred(session, "ZQ_FRONT_IMPLIED_EFFR", max_age_days=14)
+    far = await _latest_fred(session, "ZQ_F27_IMPLIED_EFFR", max_age_days=14)
+    if front and far:
+        delta_bps = (far[0] - front[0]) * 100
+        if delta_bps < -10:
+            tone = f"DOVISH curve (front={front[0]:.2f}% → Jan27={far[0]:.2f}%, {delta_bps:+.0f}bp)"
+        elif delta_bps > 10:
+            tone = f"HAWKISH curve (front={front[0]:.2f}% → Jan27={far[0]:.2f}%, {delta_bps:+.0f}bp)"
+        else:
+            tone = f"FLAT curve (front={front[0]:.2f}% → Jan27={far[0]:.2f}%, {delta_bps:+.0f}bp = no net move)"
+        lines.append(f"- 🏛️ Forward Fed : {tone}")
+        sources.append("CME:ZQ_curve")
+
+    return "\n".join(lines), sources
+
+
 async def _section_macro_trinity(session: AsyncSession) -> tuple[str, list[str]]:
     """## Macro trinity — DXY / US10Y / VIX, last value with date."""
     lines = ["## Macro trinity (FRED, latest)"]
@@ -1462,6 +1626,13 @@ async def build_data_pool(
 
     macro_md, macro_src = await _section_macro_trinity(session)
     sections.append(("macro_trinity", macro_md, macro_src))
+
+    # Wave 50 — Executive summary (insert AT TOP via re-prepend below).
+    # Rationale: Pass 1 brain reads top-down for régime classification,
+    # so 5-bullet synthesis at top primes the model with the highest-
+    # conviction signals before details. Sources included for citation.
+    exec_md, exec_src = await _section_executive_summary(session)
+    sections.insert(0, ("executive_summary", exec_md, exec_src))
 
     smile_md, smile_src = await _section_dollar_smile(session)
     sections.append(("dollar_smile", smile_md, smile_src))
