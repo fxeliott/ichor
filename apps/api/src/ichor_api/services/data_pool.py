@@ -552,6 +552,56 @@ async def _section_fed_financial(session: AsyncSession) -> tuple[str, list[str]]
                     f"(low {mn_lbl}={mn:.3f}%, high {mx_lbl}={mx:.3f}%)"
                 )
 
+        # ── Pillar C-quater (Wave 49) : per-meeting CME-style probabilities ──
+        # CME FedWatch methodology approximates probability of a 25-bp move
+        # at meeting M from the spread between pre-meeting and post-meeting
+        # contract month implied EFFR. Simple linear formula:
+        #     P(cut) ≈ max(0, (pre_meeting - post_meeting) / 0.25) capped 1.0
+        #     P(hike) ≈ max(0, (post_meeting - pre_meeting) / 0.25) capped 1.0
+        # FOMC 2026 calendar : Jun 16-17 / Jul 28-29 / Sep 15-16 /
+        # Oct 27-28 / Dec 8-9. Map each to (pre_month_code, post_month_code).
+        fomc_meetings_2026 = (
+            ("Jun FOMC", "M26", "N26"),  # Jun 16-17 → use M26 pre, N26 post
+            ("Jul FOMC", "N26", "Q26"),  # Jul 28-29 → N26 pre, Q26 post
+            ("Sep FOMC", "U26", "V26"),  # Sep 15-16 → U26 pre, V26 post
+            ("Oct FOMC", "V26", "X26"),  # Oct 27-28 → V26 pre, X26 post
+            ("Dec FOMC", "Z26", "F27"),  # Dec 8-9 → Z26 pre, F27 post
+        )
+        pts_dict = {lbl: v for lbl, v in forward_pts}
+        # Map month-code → forward_pts label (e.g. "M26" → "Jun26")
+        code_to_label = {
+            "K26": "May26", "M26": "Jun26", "N26": "Jul26", "Q26": "Aug26",
+            "U26": "Sep26", "V26": "Oct26", "X26": "Nov26", "Z26": "Dec26",
+            "F27": "Jan27",
+        }
+        prob_lines: list[str] = []
+        for fomc_label, pre_code, post_code in fomc_meetings_2026:
+            pre_lbl = code_to_label.get(pre_code)
+            post_lbl = code_to_label.get(post_code)
+            if pre_lbl is None or post_lbl is None:
+                continue
+            pre_v = pts_dict.get(pre_lbl)
+            post_v = pts_dict.get(post_lbl)
+            if pre_v is None or post_v is None:
+                continue
+            spread_bp = (post_v - pre_v) * 100
+            if spread_bp < -5:  # 5bp threshold for noise
+                p_cut = min(1.0, max(0.0, -spread_bp / 25.0))
+                prob_lines.append(
+                    f"  {fomc_label} : ~{p_cut*100:.0f}% probability of 25bp cut "
+                    f"(spread {spread_bp:+.1f}bp pre→post)"
+                )
+            elif spread_bp > 5:
+                p_hike = min(1.0, max(0.0, spread_bp / 25.0))
+                prob_lines.append(
+                    f"  {fomc_label} : ~{p_hike*100:.0f}% probability of 25bp hike "
+                    f"(spread {spread_bp:+.1f}bp pre→post)"
+                )
+            # else: no_move dominant, skip line
+        if prob_lines:
+            lines.append("- FedWatch DIY per-meeting probabilities (CME formula):")
+            lines.extend(prob_lines)
+
     # ── Pillar D: Forward inflation expectations vs 2% target ──
     exp = await _latest_fred(session, "EXPINF1YR", max_age_days=45)
     if exp is not None:
