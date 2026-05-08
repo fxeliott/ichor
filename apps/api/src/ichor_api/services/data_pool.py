@@ -39,6 +39,7 @@ from ..models import (
     NewsItem,
     PolygonIntradayBar,
     PolymarketSnapshot,
+    TreasuryTicHolding,
 )
 from . import cb_intervention as cb_intervention_svc
 
@@ -418,6 +419,95 @@ async def _section_tail_risk_skew(session: AsyncSession) -> tuple[str, list[str]
     return "\n".join(lines), sources
 
 
+async def _section_treasury_tic(session: AsyncSession) -> tuple[str, list[str]]:
+    """## Treasury TIC — top foreign holders + 12-month trend per major.
+
+    Macro-broad section reading treasury_tic_holdings (Wave 32 collector).
+    Surfaces:
+      - Top 10 foreign holders at the latest reporting period
+      - 3y trend for the 5 largest holders (Japan / China / UK / Belgium /
+        Canada) — China decline is the canonical Stephen Jen "broken
+        smile" signal of foreign repatriation feeding USD-as-source-of-
+        instability regime.
+
+    Cadence : monthly with ~6-week lag. Pass 1 reads for régime, Pass 2
+    cites for mechanisms (foreign demand / repatriation).
+    """
+    # Latest period
+    latest_month_row = (
+        await session.execute(
+            select(TreasuryTicHolding.observation_month)
+            .order_by(desc(TreasuryTicHolding.observation_month))
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+    if latest_month_row is None:
+        return ("## Treasury TIC (foreign holders)\n- n/a (collector empty)", [])
+
+    # Top 10 holders at latest period (skip Grand Total + All Other roll-ups)
+    rows = list(
+        (
+            await session.execute(
+                select(TreasuryTicHolding)
+                .where(TreasuryTicHolding.observation_month == latest_month_row)
+                .order_by(desc(TreasuryTicHolding.holdings_bn_usd))
+            )
+        )
+        .scalars()
+        .all()
+    )
+    sources = [f"TIC:MFH@{latest_month_row.isoformat()}"]
+    lines = [f"## Treasury TIC (foreign holders, {latest_month_row:%b %Y})"]
+
+    grand_total = next((r for r in rows if "Grand Total" in r.country), None)
+    if grand_total is not None:
+        lines.append(
+            f"- Grand Total foreign-held = ${grand_total.holdings_bn_usd:,.1f} bn"
+        )
+    country_rows = [
+        r for r in rows
+        if r.country not in {"Grand Total", "All Other", "For. Official"}
+        and not r.country.startswith(" ")
+    ]
+    lines.append("### Top 10 holders")
+    for r in country_rows[:10]:
+        lines.append(f"- {r.country:30s}  ${r.holdings_bn_usd:>8.1f} bn")
+
+    # 3y trend (current vs 36 months earlier) for top 5
+    top5 = [r.country for r in country_rows[:5]]
+    trend_lines: list[str] = []
+    for country in top5:
+        hist = list(
+            (
+                await session.execute(
+                    select(TreasuryTicHolding)
+                    .where(TreasuryTicHolding.country == country)
+                    .order_by(desc(TreasuryTicHolding.observation_month))
+                    .limit(36)
+                )
+            )
+            .scalars()
+            .all()
+        )
+        if len(hist) < 24:
+            continue  # need at least 24 months for a meaningful 3y compare
+        cur = hist[0]
+        old = hist[-1]
+        delta = cur.holdings_bn_usd - old.holdings_bn_usd
+        pct = (delta / old.holdings_bn_usd * 100) if old.holdings_bn_usd else 0
+        arrow = "↓" if delta < 0 else ("↑" if delta > 0 else "→")
+        trend_lines.append(
+            f"- {country:25s} {old.observation_month:%b%y} ${old.holdings_bn_usd:.0f}b "
+            f"{arrow} {cur.observation_month:%b%y} ${cur.holdings_bn_usd:.0f}b "
+            f"(Δ ${delta:+.0f}b, {pct:+.1f}%)"
+        )
+    if trend_lines:
+        lines.append("### 3y trend top-5")
+        lines.extend(trend_lines)
+
+    return "\n".join(lines), sources
+
+
 async def _section_tff_positioning(
     session: AsyncSession, asset: str
 ) -> tuple[str, list[str]]:
@@ -513,27 +603,44 @@ async def _section_prediction_markets(
     sources: list[str] = []
     sections: list[str] = ["## Prediction markets (last 12h, top 5 per venue)"]
 
-    # Polymarket
-    poly_rows = list(
+    # Polymarket — wave 33: dedup per slug (latest snapshot only) +
+    # rank by volume_usd DESC. With wave 31 top-100 macro discovery,
+    # we now have 80+ markets in flight; surface the top 15 by volume.
+    poly_raw = list(
         (
             await session.execute(
                 select(PolymarketSnapshot)
                 .where(PolymarketSnapshot.fetched_at >= cutoff)
                 .order_by(desc(PolymarketSnapshot.fetched_at))
-                .limit(5)
+                .limit(500)
             )
         )
         .scalars()
         .all()
     )
-    sections.append("### Polymarket")
-    if not poly_rows:
+    # Latest snapshot per slug
+    seen_slugs: set[str] = set()
+    poly_unique: list[PolymarketSnapshot] = []
+    for r in poly_raw:
+        if r.slug in seen_slugs:
+            continue
+        seen_slugs.add(r.slug)
+        poly_unique.append(r)
+    # Rank by volume desc, top 15
+    poly_unique.sort(key=lambda x: -(x.volume_usd or 0))
+    poly_top = poly_unique[:15]
+
+    sections.append(f"### Polymarket (top 15 by 24h volume, of {len(poly_unique)} fresh)")
+    if not poly_top:
         sections.append("- (no fresh snapshots)")
     else:
-        for r in poly_rows:
+        for r in poly_top:
             yes = r.last_prices[0] if (r.last_prices and len(r.last_prices) > 0) else None
             yes_str = f"YES={yes:.2f}" if yes is not None else "YES=n/a"
-            sections.append(f"- {r.question[:90]} → {yes_str} (slug:{r.slug})")
+            vol_str = f"${(r.volume_usd or 0) / 1e6:.1f}M" if r.volume_usd else "$?"
+            sections.append(
+                f"- {r.question[:80]} → {yes_str} vol={vol_str} (slug:{r.slug})"
+            )
             sources.append(f"polymarket:{r.slug}")
 
     # Kalshi
@@ -941,6 +1048,12 @@ async def build_data_pool(
     # dollar-smile-break detection.
     skew_md, skew_src = await _section_tail_risk_skew(session)
     sections.append(("tail_risk", skew_md, skew_src))
+
+    # Wave 33 — Treasury TIC foreign holdings monthly (12-month view).
+    # Pass 1 régime + Pass 2 mechanism citation for foreign demand /
+    # repatriation narrative.
+    tic_md, tic_src = await _section_treasury_tic(session)
+    sections.append(("treasury_tic", tic_md, tic_src))
 
     yc_md, yc_src = await _section_yield_curve(session)
     sections.append(("yield_curve", yc_md, yc_src))
