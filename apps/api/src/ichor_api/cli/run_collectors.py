@@ -333,19 +333,40 @@ async def _run_cboe_vvix(*, persist: bool) -> int:
 
 
 async def _run_cme_zq(*, persist: bool) -> int:
-    """Pull CME ZQ Fed Funds futures front-month implied EFFR (Yahoo)."""
+    """Pull CME ZQ Fed Funds futures — front-month + 9-month forward curve.
+
+    Wave 47: front-month only (`ZQ=F`).
+    Wave 48: + 9-month forward sweep (ZQK26..ZQF27) for FedWatch DIY
+    forward EFFR curve. Persists each contract under synthetic series:
+        ZQ_<MONTHCODE>_PRICE
+        ZQ_<MONTHCODE>_IMPLIED_EFFR
+    Plus the historical front-month time-series:
+        ZQ_FRONT_PRICE
+        ZQ_FRONT_IMPLIED_EFFR
+    """
     from datetime import UTC as _UTC
     from datetime import datetime as _dt
 
-    from ..collectors.cme_zq_futures import poll_all as poll_cme_zq
+    from ..collectors.cme_zq_futures import (
+        fetch_multi_month,
+        poll_all as poll_cme_zq,
+    )
 
     rows = await poll_cme_zq()
-    print(f"CME ZQ · {len(rows)} daily observations fetched")
+    print(f"CME ZQ · {len(rows)} front-month daily observations fetched")
     if rows:
         latest = max(rows, key=lambda r: r.observation_date)
         print(
-            f"  latest: {latest.observation_date} ZQ={latest.zq_price:.3f} "
+            f"  latest front: {latest.observation_date} ZQ={latest.zq_price:.3f} "
             f"→ implied EFFR={latest.implied_effr:.3f}%"
+        )
+    # Wave 48 — multi-month forward curve
+    multi_rows = await fetch_multi_month()
+    print(f"CME ZQ · {len(multi_rows)} forward contracts fetched")
+    for m in multi_rows:
+        print(
+            f"  {m.month_code} ({m.month_label}): ZQ={m.zq_price:.3f} "
+            f"→ implied EFFR={m.implied_effr:.3f}%"
         )
     if persist and rows:
         from sqlalchemy import select as sa_select
@@ -382,9 +403,44 @@ async def _run_cme_zq(*, persist: bool) -> int:
                         )
                     )
                 n += 1
-            if n:
+            # Wave 48 — persist forward curve. Always over-write today's
+            # snapshot for each contract month (1 row per contract per day).
+            multi_n = 0
+            for m in multi_rows:
+                price_sid = f"ZQ_{m.month_code}_PRICE"
+                effr_sid = f"ZQ_{m.month_code}_IMPLIED_EFFR"
+                # Dedup on (series_id, observation_date)
+                existing = (
+                    await session.execute(
+                        sa_select(FredObservation.series_id).where(
+                            FredObservation.observation_date == m.observation_date,
+                            FredObservation.series_id.in_([price_sid, effr_sid]),
+                        )
+                    )
+                ).all()
+                existing_set = {row[0] for row in existing}
+                for series_id, value in (
+                    (price_sid, m.zq_price),
+                    (effr_sid, m.implied_effr),
+                ):
+                    if series_id in existing_set:
+                        continue
+                    session.add(
+                        FredObservation(
+                            observation_date=m.observation_date,
+                            created_at=_dt.now(_UTC),
+                            series_id=series_id,
+                            value=float(value),
+                            fetched_at=m.fetched_at,
+                        )
+                    )
+                    multi_n += 1
+            if n or multi_n:
                 await session.commit()
-        print(f"CME ZQ · persisted {n} new dated rows (×2 series each)")
+        print(
+            f"CME ZQ · persisted {n} front-month dated rows + {multi_n} "
+            f"forward-curve rows"
+        )
     return 0 if rows else 1
 
 

@@ -522,6 +522,36 @@ async def _section_fed_financial(session: AsyncSession) -> tuple[str, list[str]]
         )
         sources.append("CME:ZQ_FRONT_IMPLIED_EFFR")
 
+    # ── Pillar C-ter : ZQ forward EFFR curve (Wave 48 multi-month) ──
+    # Pull each forward contract's implied EFFR; surface compactly.
+    forward_codes = ("K26", "M26", "N26", "Q26", "U26", "V26", "X26", "Z26", "F27")
+    forward_labels = (
+        "May26", "Jun26", "Jul26", "Aug26", "Sep26", "Oct26",
+        "Nov26", "Dec26", "Jan27",
+    )
+    forward_pts: list[tuple[str, float]] = []
+    for code, label in zip(forward_codes, forward_labels, strict=False):
+        fv = await _latest_fred(session, f"ZQ_{code}_IMPLIED_EFFR", max_age_days=7)
+        if fv is None:
+            continue
+        forward_pts.append((label, fv[0]))
+        sources.append(f"CME:ZQ_{code}_IMPLIED_EFFR")
+    if forward_pts:
+        curve_str = " · ".join(f"{lbl}={v:.3f}%" for lbl, v in forward_pts)
+        lines.append(f"- ZQ forward EFFR curve : {curve_str}")
+        # Min/max + range = market expectation amplitude
+        if len(forward_pts) >= 3:
+            mn = min(v for _, v in forward_pts)
+            mx = max(v for _, v in forward_pts)
+            mn_lbl = next(lbl for lbl, v in forward_pts if v == mn)
+            mx_lbl = next(lbl for lbl, v in forward_pts if v == mx)
+            range_bps = (mx - mn) * 100
+            if range_bps > 5:
+                lines.append(
+                    f"- ZQ curve range = {range_bps:.0f} bp "
+                    f"(low {mn_lbl}={mn:.3f}%, high {mx_lbl}={mx:.3f}%)"
+                )
+
     # ── Pillar D: Forward inflation expectations vs 2% target ──
     exp = await _latest_fred(session, "EXPINF1YR", max_age_days=45)
     if exp is not None:

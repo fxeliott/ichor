@@ -148,9 +148,106 @@ async def poll_all(
     return await fetch_recent(range_window=range_window)
 
 
+# ────────────────────────── Wave 48 multi-month sweep ──────────────────
+#
+# CME FedWatch methodology requires 30-Day Federal Funds Futures contracts
+# bracketing each FOMC meeting. By fetching 9-12 forward months we can
+# reconstruct the market-implied EFFR forward curve and derive per-meeting
+# move probabilities (full FedWatch DIY, future iteration).
+#
+# Yahoo symbols use {Z}{Q}{Month-code}{2-digit-year}.{exchange-suffix}
+# Month codes (CME standard) :
+#   F=Jan G=Feb H=Mar J=Apr K=May M=Jun N=Jul Q=Aug U=Sep V=Oct X=Nov Z=Dec
+# Exchange suffix : .CBT (Chicago Board of Trade)
+
+# Static list of upcoming contract month tickers (rolling refresh annually
+# as years pass; comments tag the FOMC meeting month each contract straddles).
+ZQ_FORWARD_TICKERS: tuple[tuple[str, str, str], ...] = (
+    # (yahoo_ticker, month_code, label_for_persistence)
+    ("ZQK26.CBT", "K26", "May 2026"),  # straddles no-FOMC May
+    ("ZQM26.CBT", "M26", "Jun 2026"),  # FOMC Jun 16-17
+    ("ZQN26.CBT", "N26", "Jul 2026"),  # post-Jun, pre-Jul FOMC Jul 28-29
+    ("ZQQ26.CBT", "Q26", "Aug 2026"),  # post-Jul FOMC
+    ("ZQU26.CBT", "U26", "Sep 2026"),  # FOMC Sep 15-16
+    ("ZQV26.CBT", "V26", "Oct 2026"),  # FOMC Oct 27-28
+    ("ZQX26.CBT", "X26", "Nov 2026"),
+    ("ZQZ26.CBT", "Z26", "Dec 2026"),  # FOMC Dec 8-9
+    ("ZQF27.CBT", "F27", "Jan 2027"),  # post-Dec FOMC
+)
+
+
+@dataclass(frozen=True)
+class ZqMultiContract:
+    """Snapshot of one ZQ contract month at one point in time."""
+
+    month_code: str  # K26, M26, ...
+    month_label: str  # "May 2026", ...
+    observation_date: date
+    zq_price: float
+    implied_effr: float
+    fetched_at: datetime
+
+
+async def fetch_multi_month(
+    *, client: httpx.AsyncClient | None = None, timeout: float = 30.0
+) -> list[ZqMultiContract]:
+    """Fetch latest close for each ZQ_FORWARD_TICKERS contract.
+
+    Returns one ZqMultiContract per available contract (ones that 404 are
+    silently skipped). Used to reconstruct the forward EFFR curve per the
+    CME FedWatch methodology.
+    """
+    own_client = client is None
+    if own_client:
+        client = httpx.AsyncClient(timeout=timeout, headers=_HEADERS)
+    out: list[ZqMultiContract] = []
+    fetched = datetime.now(UTC)
+    try:
+        for ticker, code, label in ZQ_FORWARD_TICKERS:
+            url = f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker}"
+            try:
+                r = await client.get(url, params={"interval": "1d", "range": "5d"})
+                r.raise_for_status()
+                payload = r.json()
+            except (httpx.HTTPError, ValueError) as e:
+                log.warning("cme_zq.multi_fetch_failed", ticker=ticker, error=str(e)[:80])
+                continue
+            try:
+                result = (payload.get("chart") or {}).get("result") or [None]
+                if not result or not result[0]:
+                    continue
+                meta = result[0].get("meta") or {}
+                price = meta.get("regularMarketPrice")
+                ts = meta.get("regularMarketTime")
+                if price is None or ts is None:
+                    continue
+                obs_date = datetime.fromtimestamp(int(ts), tz=UTC).date()
+                p = float(price)
+                out.append(
+                    ZqMultiContract(
+                        month_code=code,
+                        month_label=label,
+                        observation_date=obs_date,
+                        zq_price=p,
+                        implied_effr=100.0 - p,
+                        fetched_at=fetched,
+                    )
+                )
+            except (KeyError, TypeError, ValueError) as e:
+                log.warning("cme_zq.multi_parse_failed", ticker=ticker, error=str(e)[:80])
+                continue
+    finally:
+        if own_client:
+            await client.aclose()
+    return out
+
+
 __all__ = [
     "ZQ_CHART_URL",
+    "ZQ_FORWARD_TICKERS",
     "ZqFuturesObservation",
+    "ZqMultiContract",
+    "fetch_multi_month",
     "fetch_recent",
     "parse_chart_response",
     "poll_all",
