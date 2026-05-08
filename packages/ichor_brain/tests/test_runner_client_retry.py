@@ -19,11 +19,15 @@ async def _no_op() -> None:
 
 
 def _make_client(transport: httpx.MockTransport) -> HttpRunnerClient:
+    # use_async_endpoint=False : these tests cover the legacy sync path
+    # (/v1/briefing-task). Async polling path is tested separately in
+    # test_runner_client_async.py.
     return HttpRunnerClient(
         base_url="https://runner.example.com",
         cf_access_client_id="id",
         cf_access_client_secret="secret",
         timeout_sec=5.0,
+        use_async_endpoint=False,
     )
 
 
