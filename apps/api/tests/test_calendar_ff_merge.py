@@ -152,11 +152,15 @@ async def test_ff_dedup_against_existing_event_same_label_region_date() -> None:
     + SEP") are intentionally NOT deduped — they may carry different
     metadata."""
     rows = [
-        # Match exactly the static CB label "BoE rate decision" on 2026-05-07
+        # Match exactly the static CB label "BoE rate decision" on 2026-06-18.
+        # NOTE: when bumping to a year past 2026, replace the date with a
+        # static BoE meeting that's STILL IN THE FUTURE relative to today
+        # (per `economic_calendar.py:_STATIC_CB_MEETINGS`). Past dates get
+        # filtered by the horizon window and the test fails with N=0.
         _ff_row(
             currency="GBP",
             title="BoE rate decision",
-            scheduled_at=datetime(2026, 5, 7, 11, 0, tzinfo=UTC),
+            scheduled_at=datetime(2026, 6, 18, 11, 0, tzinfo=UTC),
             forecast=None,
             previous=None,
         )
@@ -166,7 +170,7 @@ async def test_ff_dedup_against_existing_event_same_label_region_date() -> None:
     boe = [
         e
         for e in rep.events
-        if e.label.lower() == "boe rate decision" and e.when.year == 2026 and e.when.month == 5
+        if e.label.lower() == "boe rate decision" and e.when.year == 2026 and e.when.month == 6
     ]
     # Exact match → only the static CB row survives, FF dropped.
     assert len(boe) == 1
