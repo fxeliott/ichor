@@ -26,7 +26,7 @@ EntityKind = Literal["company", "country", "person", "currency", "commodity"]
 class Entity(BaseModel):
     kind: EntityKind
     name: str
-    mentions: int = Field(ge=1)
+    mentions: int = Field(ge=0)
 
 
 class Narrative(BaseModel):
