@@ -110,6 +110,11 @@ EXTENDED_SERIES_TO_POLL: tuple[str, ...] = (
     "GBRLOLITOAASTSAM",  # UK CLI
     "CHNLOLITOAASTSAM",  # China CLI (non-OECD member, observed)
     "EA19LOLITOAASTSAM",  # Euro Area 19 CLI
+    # ─── NFIB Small Business Optimism — Wave 37 ───
+    # Monthly. Composite of 10 subcomponents (hiring plans, capex, sales,
+    # earnings, inventory, expansion plans, etc.). Strong leading indicator
+    # for US private capex + employment cycle. >100 = above long-term avg.
+    "NFIBOI",
 )
 
 
