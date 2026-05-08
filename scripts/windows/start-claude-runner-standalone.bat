@@ -20,6 +20,12 @@ set ICHOR_RUNNER_LOG_LEVEL=INFO
 set ICHOR_RUNNER_REQUIRE_CF_ACCESS=false
 set ICHOR_RUNNER_CLAUDE_BINARY=C:\Users\eliot\.local\bin\claude.exe
 set ICHOR_RUNNER_ENVIRONMENT=development
+REM 8 assets x 4 passes per session-card batch = 32 reqs in ~15 min.
+REM Default rate_limit_per_hour=30 throttles the 8th asset on a clean
+REM batch (observed 2026-05-08 wave 23 SPX500 429). Raise to 120/h
+REM (~2 reqs/min sustainable) so a full 4-pass session-card sweep
+REM plus concurrent Couche-2 traffic fits under quota.
+set ICHOR_RUNNER_RATE_LIMIT_PER_HOUR=120
 
 cd /d D:\Ichor\apps\claude-runner
 
