@@ -70,6 +70,7 @@
 | [073](ADR-073-nfib-sbet-pdf-collector.md)                    | Accepted | NFIB SBET PDF collector (SBOI + Uncertainty Index)              | 2026-05-09 |
 | [074](ADR-074-myfxbook-replaces-oanda-orderbook.md)          | Accepted | MyFXBook Community Outlook replaces discontinued OANDA orderbook | 2026-05-09 |
 | [075](ADR-075-cross-asset-matrix-v2.md)                      | Accepted | Cross-asset matrix v2 — 6-dim macro state + per-asset bias tags | 2026-05-09 |
+| [076](ADR-076-frontend-mock-fallback-pattern.md)             | Accepted | Frontend MOCK_* are graceful fallbacks — keep the pattern       | 2026-05-09 |
 | [071](ADR-071-capability-5-deferral-client-tools-only.md)    | Accepted | Capability 5 deferral — client tools only, sequence pre-reqs    | 2026-05-09 |
 
 > **Note**: SPEC_V2_HARDENING.md §4 originally referred to "ADR-008 to
