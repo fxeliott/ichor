@@ -64,6 +64,9 @@ from .prediction import Prediction
 from .session_card_audit import SessionCardAudit
 from .session_card_counterfactual import SessionCardCounterfactual
 
+# Capability 5 PRE-2 — append-only tool-call audit (ADR-071, W73+)
+from .tool_call_audit import ToolCallAudit
+
 # Phase B.5d v2 — trader's private journal (out of ADR-017 boundary)
 from .trader_note import TraderNote
 
@@ -107,6 +110,7 @@ __all__ = [
     "Prediction",
     "SessionCardAudit",
     "SessionCardCounterfactual",
+    "ToolCallAudit",
     "TraderNote",
     "TreasuryTicHolding",
 ]
