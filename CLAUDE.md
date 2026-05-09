@@ -1,7 +1,7 @@
 # Ichor — Claude Code project memory
 
 > Auto-injected at every session start. Keep terse and current.
-> Last sync: 2026-05-09 late evening (post-W87 — Cap5 STEP-5 orchestrator tool wiring + ADR-078 CI guard).
+> Last sync: 2026-05-09 deep night (post-W88 — EU AI Act §50.2 watermark middleware + ADR-079).
 
 ## What this repo is
 
@@ -102,8 +102,15 @@ D:\Ichor
   trigger (0028, ADR-029), trader_notes (0029), CBOE SKEW (0030),
   CFTC TFF (0031), CBOE VVIX (0032), Treasury TIC (0033).
 
-## Recent ADRs (2026-05-09 batch — 11 ADRs)
+## Recent ADRs (2026-05-09 batch — 12 ADRs)
 
+- [ADR-079](docs/decisions/ADR-079-eu-ai-act-50-2-watermark-middleware.md)
+  EU AI Act §50.2 machine-readable watermark middleware (W88) —
+  `AIWatermarkMiddleware` tags 5 LLM-derived route prefixes with
+  `X-Ichor-AI-{Generated,Provider,Generated-At,Disclosure}` headers.
+  Closes the §50.2 enforcement deadline 2026-08-02 (T-3 mois).
+  Complementary to ADR-029's web2 disclosure surface (§50.5
+  human-readable). 10 unit tests pass.
 - [ADR-078](docs/decisions/ADR-078-cap5-query-db-excludes-trader-notes.md)
   Capability 5 `query_db` allowlist excludes `trader_notes` (W86) —
   permanent invariant : `trader_notes`, `audit_log`, `tool_call_audit`,
@@ -284,6 +291,25 @@ D:\Ichor
   field (W81 candidate, 1h estimate).
 - Polymarket `WHALES` constant in `polymarket/page.tsx` — no backend
   trade-tape collector yet (W82 candidate, separate ADR needed).
+
+## Recently fixed (2026-05-09 deep night — EU AI Act §50.2 watermark)
+
+- **W88** ✅ — EU AI Act Article 50(2) machine-readable watermark
+  middleware. New `apps/api/src/ichor_api/middleware/ai_watermark.py`
+  (`AIWatermarkMiddleware`, ~110 LOC, Starlette `BaseHTTPMiddleware`).
+  Mounted in `main.py` between `RateLimitMiddleware` (inside) and
+  `CSPSecurityHeadersMiddleware` (outside). Tags 5 LLM-derived route
+  prefixes (`/v1/briefings`, `/v1/sessions`, `/v1/post-mortems`,
+  `/v1/today`, `/v1/scenarios`) with 4 headers : `X-Ichor-AI-Generated`,
+  `X-Ichor-AI-Provider`, `X-Ichor-AI-Generated-At` (RFC3339 UTC),
+  `X-Ichor-AI-Disclosure`. Pure-data routes (`/v1/market`, `/v1/fred`,
+  `/v1/correlations`, etc.) deliberately excluded. Path-prefix tuple
+  match is allocation-free hot path. 3 new Settings fields :
+  `ai_watermarked_route_prefixes`, `ai_provider_tag`,
+  `ai_disclosure_url`. 10 unit tests pass (`tests/test_ai_watermark_middleware.py`).
+  ADR-079 ratified — closes EU AI Act §50.2 enforcement deadline
+  (2026-08-02 ferme, T-3 mois) on the API surface, complementary to
+  ADR-029's web2 disclosure surface.
 
 ## Recently fixed (2026-05-09 late evening — Cap5 STEP-5 + ADR-078 guard)
 

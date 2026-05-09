@@ -56,6 +56,30 @@ class Settings(BaseSettings):
     refuses to start without one. Defense-in-depth alongside the
     Cloudflare Access JWT on the edge (PRE-1)."""
 
+    # --- EU AI Act §50.2 watermark middleware (W88, ADR-079) ---
+    ai_watermarked_route_prefixes: list[str] = Field(
+        default_factory=lambda: [
+            "/v1/briefings",
+            "/v1/sessions",
+            "/v1/post-mortems",
+            "/v1/today",
+            "/v1/scenarios",
+        ]
+    )
+    """Path prefixes whose responses get the X-Ichor-AI-* watermark
+    headers. Must enumerate every route that surfaces LLM-derived
+    content. Pure-data collector routes (/v1/market, /v1/fred, ...)
+    stay OUT. EU AI Act Article 50(2) deadline = 2026-08-02."""
+
+    ai_provider_tag: str = "anthropic-claude-opus-4-7"
+    """Identifier surfaced via X-Ichor-AI-Provider. Bumped on model
+    upgrade (each upgrade also gets an ADR per ADR-029 §Cons)."""
+
+    ai_disclosure_url: str = "https://app-ichor.pages.dev/legal/ai-disclosure"
+    """URL surfaced via X-Ichor-AI-Disclosure. Must resolve to a
+    human-readable disclosure page (EU AI Act §50.5 — clear and
+    distinguishable, with WCAG-accessible content)."""
+
     # --- LLM providers (Couche 2 24/7) ---
     cerebras_api_key: str = ""
     groq_api_key: str = ""

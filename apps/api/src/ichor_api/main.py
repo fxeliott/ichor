@@ -171,6 +171,20 @@ app.add_middleware(
     redis_client=make_redis_client(_settings.redis_url),
     budget_per_min=120,
 )
+
+# EU AI Act §50.2 — machine-readable watermark on LLM-derived routes
+# (W88, ADR-079). Mounted INSIDE CSP (so CSP cannot strip the headers)
+# and OUTSIDE rate-limiter (so 429 paths still carry the watermark
+# when their body is LLM-derived). Enforcement date 2026-08-02.
+from .middleware import AIWatermarkMiddleware  # noqa: E402
+
+app.add_middleware(
+    AIWatermarkMiddleware,
+    watermarked_prefixes=_settings.ai_watermarked_route_prefixes,
+    provider_tag=_settings.ai_provider_tag,
+    disclosure_url=_settings.ai_disclosure_url,
+)
+
 # CSP + security headers — outermost layer so every response (even
 # rate-limited 429s) carries the policy.
 app.add_middleware(CSPSecurityHeadersMiddleware)
