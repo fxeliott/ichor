@@ -68,3 +68,19 @@ repos:
       - id: conventional-pre-commit
         stages: [commit-msg]
         args: [feat, fix, chore, docs, refactor, perf, test, build, ci, revert, style]
+
+  # ---- Doctrinal invariant CI guards (W90, ADR-081 / W91) ----
+  # Local hook : runs `test_invariants_ichor.py` on every commit so
+  # ADR-017 (no BUY/SELL), ADR-009 (Voie D), ADR-023 (Couche-2 Haiku),
+  # ADR-029 / ADR-077 (audit trigger immutability), ADR-079 / ADR-080
+  # (watermark single source of truth) violations are caught locally
+  # BEFORE push. Same test runs in GitHub Actions CI as a backstop.
+  - repo: local
+    hooks:
+      - id: ichor-invariants
+        name: Ichor doctrinal invariants (ADR-081)
+        entry: apps/api/.venv/Scripts/python.exe -m pytest apps/api/tests/test_invariants_ichor.py -q --no-header
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-commit]

@@ -325,6 +325,90 @@ def test_tool_call_audit_immutable_trigger_present() -> None:
 # ────────────────────────── ADR-079 ──────────────────────────
 
 
+# ────────────────────────── ADR-017 cap 95 ──────────────────────────
+
+
+def test_conviction_pct_capped_at_95() -> None:
+    """ADR-017 + ADR-022 : Pass-2 `conviction_pct` and Pass-3
+    `revised_conviction_pct` are capped at 95.0. Macro-frameworks
+    doctrine : "100 % conviction never exists" — anything above 95 %
+    is a red flag, not a bug to fix the cap. Catches accidental
+    `Field(ge=0.0, le=100.0)` regression on any future schema edit.
+
+    Implementation reads the source text directly (no import) so the
+    test runs even when the apps/api venv doesn't have ichor_brain
+    installed.
+    """
+    types_path = _REPO_ROOT / "packages" / "ichor_brain" / "src" / "ichor_brain" / "types.py"
+    if not types_path.exists():
+        pytest.skip(f"types.py not found at {types_path}")
+
+    text = types_path.read_text(encoding="utf-8")
+    for field_name in ("conviction_pct", "revised_conviction_pct"):
+        # Match : `conviction_pct: float = Field(ge=0.0, le=95.0)`
+        # Field(...) args are kept on one line in this codebase ; if the
+        # convention ever changes we'll need a multi-line aware parser.
+        pattern = rf"\b{field_name}\s*:\s*float\s*=\s*Field\(([^)]+)\)"
+        match = re.search(pattern, text)
+        assert match, (
+            f"ADR-017 sanity : {field_name} field not found (or its Field(...) "
+            f"signature changed) in {types_path.name}. The cap-95 test must be "
+            "updated to track the new shape."
+        )
+        args = match.group(1)
+        assert re.search(r"\ble\s*=\s*95\.0\b", args), (
+            f"ADR-017 violated : {field_name} Field(...) has args {args!r} but "
+            "is missing `le=95.0`. Macro-frameworks doctrine : 100 % conviction "
+            "never exists. Cap MUST be 95.0 — anything above is a red flag, "
+            "not a bug to fix the cap."
+        )
+
+
+# ────────────────────────── ADR-079 exclusion ──────────────────────────
+
+
+def test_pure_data_routes_excluded_from_watermark() -> None:
+    """ADR-079 §"Pure-data routes excluded" + ADR-080 §"Pure-data routes" :
+    routes that return collector outputs (FRED, market data, calendar,
+    /v1/tools/*, /healthz, /metrics) MUST NOT be in the watermark
+    prefix set. Watermarking pure-data is legally incorrect — EU AI
+    Act §50.2 applies to AI-generated content only.
+
+    This is a NEGATIVE guard : adding any of these prefixes to the
+    default would silently flip the legal posture.
+    """
+    from ichor_api.middleware.ai_watermark import DEFAULT_WATERMARKED_PREFIXES
+
+    forbidden_prefixes = [
+        "/v1/tools",  # Capability 5 client tools — data-only return shape (ADR-077)
+        "/v1/market",  # OHLCV from Stooq / yfinance / Polygon
+        "/v1/fred",  # FRED Observations passthrough
+        "/v1/calendar",  # ForexFactory metadata
+        "/v1/sources",  # static metadata
+        "/v1/correlations",  # computed from collector outputs
+        "/v1/macro-pulse",  # idem
+        "/healthz",  # infra
+        "/livez",  # infra
+        "/readyz",  # infra
+        "/metrics",  # infra (Prometheus)
+        "/.well-known",  # discovery (W89, served by separate code path)
+    ]
+    leaked: list[str] = []
+    for prefix in forbidden_prefixes:
+        for watermarked in DEFAULT_WATERMARKED_PREFIXES:
+            # Forbidden prefix matches if any watermarked prefix is a
+            # prefix of it OR vice versa (covers both "/v1/tools" being
+            # added AND a longer "/v1/tools/special" being added).
+            if watermarked.startswith(prefix) or prefix.startswith(watermarked):
+                leaked.append(f"{prefix!r} <-> {watermarked!r}")
+    assert leaked == [], (
+        "ADR-079 violated : pure-data / infra routes leaked into "
+        f"DEFAULT_WATERMARKED_PREFIXES. EU AI Act §50.2 applies to "
+        "AI-generated content only — collector outputs and infra "
+        "endpoints must stay unwatermarked. Conflicts :\n" + "\n".join(leaked)
+    )
+
+
 def test_ai_watermark_default_prefixes_match_settings() -> None:
     """ADR-079 + ADR-080 : the W88 middleware default prefix tuple,
     the W89 well-known endpoint inventory, and the Settings field

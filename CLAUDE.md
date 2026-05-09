@@ -1,7 +1,7 @@
 # Ichor — Claude Code project memory
 
 > Auto-injected at every session start. Keep terse and current.
-> Last sync: 2026-05-09 deep night (post-W90 — doctrinal invariant CI guards + ADR-081).
+> Last sync: 2026-05-10 (post-W91 — pre-commit hook + extended invariants ADR-017 cap + ADR-079 negative guard).
 
 ## What this repo is
 
@@ -308,6 +308,20 @@ D:\Ichor
   field (W81 candidate, 1h estimate).
 - Polymarket `WHALES` constant in `polymarket/page.tsx` — no backend
   trade-tape collector yet (W82 candidate, separate ADR needed).
+
+## Recently fixed (2026-05-10 — invariant CI extension + pre-commit)
+
+- **W91** ✅ — Doctrinal invariant CI guards extension + pre-commit
+  hook (extends ADR-081). 2 new tests bring the tracked set from 7
+  to 9 : `test_conviction_pct_capped_at_95` (ADR-017/022 cap-95
+  source-inspection regex on `packages/ichor_brain/types.py`) and
+  `test_pure_data_routes_excluded_from_watermark` (ADR-079/080
+  NEGATIVE guard — `/v1/tools`, `/v1/market`, `/v1/fred`, `/v1/calendar`,
+  `/v1/sources`, `/v1/correlations`, `/v1/macro-pulse`, `/healthz`,
+  `/livez`, `/readyz`, `/metrics`, `/.well-known` MUST NOT leak
+  into the watermark set). Pre-commit hook `ichor-invariants` added
+  to `.pre-commit-config.yaml` so violations are caught locally
+  before push (CI runs the same test as backstop). 9 tests in 2.4s.
 
 ## Recently fixed (2026-05-09 deep night — doctrinal invariant CI guards)
 

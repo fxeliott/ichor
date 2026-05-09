@@ -48,7 +48,7 @@ gets one test (or two : forbidden + positive). Adding a new invariant
 to the surface = extending this file + extending the table below in
 this ADR.
 
-### Tracked invariants (W90 initial set)
+### Tracked invariants (W90 initial set + W91 extension)
 
 | # | ADR             | Test name                                                | What it catches |
 | - | --------------- | -------------------------------------------------------- | --------------- |
@@ -59,6 +59,34 @@ this ADR.
 | 5 | ADR-029         | `test_audit_log_immutable_trigger_present`               | Migration 0028 still defines `BEFORE UPDATE OR DELETE` + `RAISE EXCEPTION` + sanctioned-purge GUC. |
 | 6 | ADR-077 / PRE-2 | `test_tool_call_audit_immutable_trigger_present`         | Migration 0038 mirrors the audit_log pattern (Capability 5 audit chain). |
 | 7 | ADR-079 / 080   | `test_ai_watermark_default_prefixes_match_settings`      | `AIWatermarkMiddleware.DEFAULT_WATERMARKED_PREFIXES` agrees with `Settings.ai_watermarked_route_prefixes`. Single-source-of-truth alignment ; catches drift where one is updated without the other. |
+| 8 | ADR-017 / 022   | `test_conviction_pct_capped_at_95`                       | `AssetSpecialization.conviction_pct` and `StressTest.revised_conviction_pct` keep `Field(le=95.0)`. Catches accidental loosening to 100. Macro-frameworks doctrine : "100 % conviction never exists". (W91) |
+| 9 | ADR-079 / 080   | `test_pure_data_routes_excluded_from_watermark`          | NEGATIVE guard — `/v1/tools`, `/v1/market`, `/v1/fred`, `/v1/calendar`, `/v1/sources`, `/v1/correlations`, `/v1/macro-pulse`, `/healthz`, `/livez`, `/readyz`, `/metrics`, `/.well-known` MUST NOT be in `DEFAULT_WATERMARKED_PREFIXES`. Watermarking pure-data routes is legally incorrect (§50.2 applies to AI-generated content only). (W91) |
+
+### Pre-commit integration (W91)
+
+`.pre-commit-config.yaml` now declares a local hook
+`ichor-invariants` that runs `apps/api/tests/test_invariants_ichor.py`
+on every commit. Violations are caught locally **before push** ; the
+GitHub Actions CI runs the same test as a backstop. Configuration :
+
+```yaml
+- repo: local
+  hooks:
+    - id: ichor-invariants
+      name: Ichor doctrinal invariants (ADR-081)
+      entry: apps/api/.venv/Scripts/python.exe -m pytest apps/api/tests/test_invariants_ichor.py -q --no-header
+      language: system
+      pass_filenames: false
+      always_run: true
+      stages: [pre-commit]
+```
+
+The `entry` path is Win11-flavoured (uses `.venv\Scripts`). On
+Linux dev environments (CI, future Hetzner-side dev), the venv path
+adapts via `apps/api/.venv/bin/python` — pre-commit on Linux uses
+the same `language: system` pattern but the `Scripts` segment
+becomes `bin`. A platform-aware shim is a W92 follow-up if cross-OS
+dev becomes a regular pattern.
 
 ### Tracked invariants — already CI-guarded elsewhere (cross-reference)
 
