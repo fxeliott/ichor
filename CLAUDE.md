@@ -1,7 +1,7 @@
 # Ichor — Claude Code project memory
 
 > Auto-injected at every session start. Keep terse and current.
-> Last sync: 2026-05-09 evening (post-W85 — Capability 5 STEP-3 MCP server wire).
+> Last sync: 2026-05-09 late evening (post-W86 — Cap5 STEP-4 RunnerCall.tools plumbing + ADR-078 trader_notes exclusion).
 
 ## What this repo is
 
@@ -19,8 +19,9 @@ backend, Node 22 LTS for the frontend.
 D:\Ichor
 ├── apps/
 │   ├── api/                  FastAPI + Alembic + SQLAlchemy 2 async
-│   │                         35 routers (+ /v1/tools W85), 26 CLI runners,
-│   │                         28 models, 41 collectors, 49 services
+│   │                         35 routers / 58 endpoints (+ /v1/tools W85),
+│   │                         33 ORM models, 44 collectors, 66 services,
+│   │                         42 CLI runners (alerts + brain passes + ML),
 │   │                         data_pool = 43 sections (W79 cross-asset matrix v2)
 │   ├── claude-runner/        FastAPI Win11 wrapper around `claude -p`
 │   │                         /v1/briefing-task + /v1/agent-task
@@ -81,11 +82,15 @@ D:\Ichor
   **Currently no auth** — `require_cf_access=false`. Public endpoint
   drainable. Sprint dedicated to wire CF Access service token pending.
 
-## Latest migrations (head 0037)
+## Latest migrations (head 0038)
 
-- **head 0037** — `0037_myfxbook_outlooks.py` (W77, ADR-074) — retail
+- **head 0038** — `0038_tool_call_audit.py` (W80, Cap5 PRE-2,
+  ADR-077 §"Audit row shape") — immutable trigger mirror of
+  audit_log. Verified live 2026-05-09. Empty table by design until
+  STEP-5 orchestrator agentic loop wires up.
+- **0037** — `0037_myfxbook_outlooks.py` (W77, ADR-074) — retail
   FX positioning hypertable. LIVE 2026-05-09: 6 pair snapshots every
-  4 h.
+  4 h. AUDUSD 88 % short retail = extreme contrarian flag.
 - **0036** — `0036_nfib_sbet_observations.py` (W74, ADR-073) — NFIB
   SBET monthly. LIVE: March 2026 SBOI=95.8 / Uncertainty=92.
 - **0035** — `0035_cleveland_fed_nowcasts.py` (W72, ADR-070) — daily
@@ -97,8 +102,14 @@ D:\Ichor
   trigger (0028, ADR-029), trader_notes (0029), CBOE SKEW (0030),
   CFTC TFF (0031), CBOE VVIX (0032), Treasury TIC (0033).
 
-## Recent ADRs (2026-05-09 batch — 10 ADRs)
+## Recent ADRs (2026-05-09 batch — 11 ADRs)
 
+- [ADR-078](docs/decisions/ADR-078-cap5-query-db-excludes-trader-notes.md)
+  Capability 5 `query_db` allowlist excludes `trader_notes` (W86) —
+  permanent invariant : `trader_notes`, `audit_log`, `tool_call_audit`,
+  `feature_flags` form the forbidden set never readable by the 4-pass
+  orchestrator. AMF DOC-2008-23 criterion 3 (personnalisation) stays
+  unchecked by construction. CI guard test pending (W87).
 - [ADR-077](docs/decisions/ADR-077-capability-5-mcp-server-wire.md)
   Capability 5 STEP-3 MCP server (W85) — `apps/ichor-mcp` on Win11
   forwards `query_db` + `calc` to apps/api `/v1/tools/*` over HTTPS.
@@ -246,9 +257,17 @@ D:\Ichor
   PRE-2 tool_call_audit migration = ✅ W80 ;
   STEP-1 sqlglot whitelist = ✅ W83 ;
   STEP-2 calc dispatcher = ✅ W84 ;
-  STEP-3 MCP server = ✅ **W85 (this commit, ADR-077)** ;
-  STEP-4 RunnerCall.tools plumbing = ⏳ next ;
-  STEP-5 orchestrator agentic loop = ⏳ depends STEP-4 + PRE-1 ;
+  STEP-3 MCP server = ✅ W85 (ADR-077) ;
+  STEP-4 RunnerCall.tools plumbing = ✅ **W86 (this commit, ADR-078
+  bonus)** — RunnerCall + BriefingTaskRequest + AgentTaskRequest
+  carry `mcp_config / allowed_tools / max_turns` ; subprocess_runner
+  writes mcp_config to tempfile and adds `--mcp-config` `--strict-mcp-config`
+  `--allowedTools` `--max-turns` to the claude CLI invocation ;
+  agentic loop driven by Claude CLI itself (orchestrator stays
+  single-shot per recherche web 2026-05-09) ;
+  STEP-5 orchestrator wire-up = ⏳ depends PRE-1 (set RunnerCall
+  fields when constructing pass calls + add tool result rendering
+  in Pass aggregator) ;
   STEP-6 integration test = ⏳ final.
   Server tools (`web_search`/`web_fetch`) **excluded** — billed by
   Anthropic since 2026-04, violate Voie D.
@@ -264,6 +283,33 @@ D:\Ichor
   field (W81 candidate, 1h estimate).
 - Polymarket `WHALES` constant in `polymarket/page.tsx` — no backend
   trade-tape collector yet (W82 candidate, separate ADR needed).
+
+## Recently fixed (2026-05-09 late evening — Cap5 STEP-4 + housekeeping)
+
+- **W86** ✅ — Capability 5 STEP-4 RunnerCall.tools plumbing.
+  `packages/ichor_brain/runner_client.py` `RunnerCall` dataclass
+  gains 3 fields (`mcp_config: dict | None`, `allowed_tools:
+  tuple[str, ...] | None`, `max_turns: int = 0`) ; payload submit
+  in `_run_async_polling` + `_run_legacy_sync` forwards them
+  conditionally to claude-runner ; `apps/claude-runner/models.py`
+  `BriefingTaskRequest` + `AgentTaskRequest` mirror the same fields
+  with Pydantic caps (max_turns 0..20, allowed_tools max 16,
+  mcp_config max 8 top-level keys) ; `subprocess_runner.run_claude`
+  writes mcp_config to a tempfile (Windows `delete=False` for the
+  spawned subprocess lock), adds `--mcp-config <path>
+  --strict-mcp-config --allowedTools <csv> --max-turns N` to the
+  CLI argv when set, cleans up in `finally`. 4 sites of `await
+  run_claude(...)` in main.py threaded (sync briefing + async
+  briefing + sync agent + async agent). All pre-W86 callers stay
+  byte-compatible (None defaults). ADR-078 bonus.
+  Architecture validated by web research : claude CLI handles the
+  agentic tool_use→tool_result loop entirely in-process when
+  `--mcp-config` is provided ; orchestrator stays single round-trip.
+- **W86 housekeeping** — Hooks user-scope `%USERPROFILE%` →
+  `C:/Users/eliot` fix in `~/.claude/settings.json` (CC 2.1.128
+  Rust spawn no longer expands the cmd.exe variable, so all 11
+  hooks were silently exiting 127). audit.log + secret_scanner +
+  pre_tool_destructive restored.
 
 ## Recently fixed (2026-05-09 evening — Capability 5 STEP-3 wave)
 

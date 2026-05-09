@@ -46,9 +46,7 @@ class Pass(ABC, Generic[T]):
 # ─────────────────────── shared parsing helpers ────────────────────────
 
 
-_FENCED_JSON_RE = re.compile(
-    r"```(?:json)?\s*(\{.*?\})\s*```", re.DOTALL | re.IGNORECASE
-)
+_FENCED_JSON_RE = re.compile(r"```(?:json)?\s*(\{.*?\})\s*```", re.DOTALL | re.IGNORECASE)
 _BARE_JSON_RE = re.compile(r"(\{.*\})", re.DOTALL)
 
 
@@ -75,6 +73,4 @@ def extract_json_block(text: str) -> dict[str, Any]:
         except json.JSONDecodeError:
             continue
 
-    raise PassError(
-        f"could not extract JSON from response (first 200 chars): {text[:200]!r}"
-    )
+    raise PassError(f"could not extract JSON from response (first 200 chars): {text[:200]!r}")

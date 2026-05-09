@@ -28,6 +28,24 @@ class BriefingTaskRequest(BaseModel):
     effort: Literal["low", "medium", "high", "xhigh", "max"] = "medium"
     """Effort level — quality vs latency. high/xhigh for briefings, low for drill-downs."""
 
+    mcp_config: dict | None = Field(default=None, max_length=8)
+    """Optional MCP servers spec for Capability 5 (W86 STEP-4, ADR-077).
+    Shape : `{"mcpServers": {"<name>": {"type": "stdio", "command": "...",
+    "args": [...], "env": {...}}}}`. When set, the runner writes it to
+    a tempfile and spawns `claude -p --mcp-config <path> --strict-mcp-config`.
+    Keep the dict small — Pydantic enforces top-level key cap to prevent
+    accidental large payloads (the actual schema is validated lazily by
+    Claude CLI)."""
+
+    allowed_tools: list[str] | None = Field(default=None, max_length=16)
+    """Optional tool allowlist for `--allowedTools`. Each entry is a
+    fully-qualified MCP tool name (e.g. `mcp__ichor__query_db`). None =
+    no allowlist passed (still gated by `--strict-mcp-config`)."""
+
+    max_turns: int = Field(default=0, ge=0, le=20)
+    """Max agentic loop iterations (`--max-turns`). 0 = omit flag (CLI
+    default). Cap at 20 to bound runaway tool-use cost."""
+
 
 class BriefingTaskResponse(BaseModel):
     task_id: UUID
@@ -86,6 +104,19 @@ class AgentTaskRequest(BaseModel):
     effort: Literal["low", "medium", "high", "xhigh", "max"] = "medium"
     """Lower than briefing default — Couche-2 runs frequently and the
     output schema is smaller than a full briefing."""
+
+    mcp_config: dict | None = Field(default=None, max_length=8)
+    """Optional MCP servers spec — same shape as BriefingTaskRequest.
+    Couche-2 agents will rarely use this (their job is to extract
+    facts from a fixed window), but the field is symmetric in case
+    a future agent type benefits from query_db lookup."""
+
+    allowed_tools: list[str] | None = Field(default=None, max_length=16)
+    """Optional `--allowedTools` allowlist. Same semantics as
+    BriefingTaskRequest."""
+
+    max_turns: int = Field(default=0, ge=0, le=20)
+    """Max agentic loop iterations. Same cap as briefing (20)."""
 
 
 class AgentTaskResponse(BaseModel):

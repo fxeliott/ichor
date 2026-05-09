@@ -58,7 +58,8 @@ def _async_task_gc() -> None:
     now = time.monotonic()
     # Remove TTL-expired
     expired = [
-        tid for tid, t in _async_tasks.items()
+        tid
+        for tid, t in _async_tasks.items()
         if t["status"] in ("done", "error") and now - t["started_at"] > _ASYNC_TASK_TTL_SEC
     ]
     for tid in expired:
@@ -265,6 +266,9 @@ async def briefing_task(
                 settings=settings,
                 model=req.model,
                 effort=req.effort,
+                mcp_config=req.mcp_config,
+                allowed_tools=req.allowed_tools,
+                max_turns=req.max_turns,
             )
         except TimeoutError:
             return BriefingTaskResponse(
@@ -372,6 +376,9 @@ async def agent_task(
                 model=req.model,
                 effort=req.effort,
                 persona_text=req.system,
+                mcp_config=req.mcp_config,
+                allowed_tools=req.allowed_tools,
+                max_turns=req.max_turns,
             )
         except TimeoutError:
             return AgentTaskResponse(
@@ -454,6 +461,9 @@ async def _run_briefing_background(
                     settings=settings,
                     model=req.model,
                     effort=req.effort,
+                    mcp_config=req.mcp_config,
+                    allowed_tools=req.allowed_tools,
+                    max_turns=req.max_turns,
                 )
             finally:
                 _in_flight -= 1
@@ -626,6 +636,9 @@ async def _run_agent_background(
                     model=req.model,
                     effort=req.effort,
                     persona_text=req.system,
+                    mcp_config=req.mcp_config,
+                    allowed_tools=req.allowed_tools,
+                    max_turns=req.max_turns,
                 )
             finally:
                 _in_flight -= 1

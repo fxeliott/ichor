@@ -317,9 +317,7 @@ BY_NAME: dict[str, ToolDef] = {t.name: t for t in CAPABILITY_5_TOOLS}
 def get_tool(name: str) -> ToolDef:
     """Lookup a tool by name. Raises KeyError if unknown."""
     if name not in BY_NAME:
-        raise KeyError(
-            f"Unknown Capability-5 tool: {name!r}. Valid: {sorted(BY_NAME)}"
-        )
+        raise KeyError(f"Unknown Capability-5 tool: {name!r}. Valid: {sorted(BY_NAME)}")
     return BY_NAME[name]
 
 
@@ -330,11 +328,7 @@ def tools_for_pass(pass_num: int) -> tuple[ToolDef, ...]:
     """
     if pass_num not in (1, 2, 3, 4):
         raise ValueError(f"pass_num must be in 1..4, got {pass_num}")
-    return tuple(
-        t
-        for t in CAPABILITY_5_TOOLS
-        if t.in_scope_v1 and pass_num in t.primary_passes
-    )
+    return tuple(t for t in CAPABILITY_5_TOOLS if t.in_scope_v1 and pass_num in t.primary_passes)
 
 
 def to_anthropic_tool_param(tool: ToolDef) -> dict[str, Any]:
@@ -388,7 +382,9 @@ def _handler_query_db(query: str, max_rows: int = 100) -> dict[str, Any]:
     )
 
 
-def _handler_calc(operation: str, values: list[float], params: dict | None = None) -> dict[str, Any]:
+def _handler_calc(
+    operation: str, values: list[float], params: dict | None = None
+) -> dict[str, Any]:
     """Placeholder — Phase D.0 wiring will implement pure stdlib math dispatcher."""
     raise NotImplementedError(
         "calc handler is scaffolded only. Phase D.0 wiring PR will "

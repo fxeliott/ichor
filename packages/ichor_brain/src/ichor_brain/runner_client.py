@@ -33,7 +33,15 @@ log = structlog.get_logger(__name__)
 
 @dataclass(frozen=True)
 class RunnerCall:
-    """One LLM request : prompt + persona + model/effort knobs."""
+    """One LLM request : prompt + persona + model/effort knobs.
+
+    Capability 5 fields (W86 STEP-4, ADR-077) — when `mcp_config` is
+    non-None the claude-runner spawns `claude -p --mcp-config <temp>
+    --strict-mcp-config --allowedTools <list> --max-turns N`. The
+    agentic tool_use→tool_result loop is then driven entirely by the
+    Claude CLI (the orchestrator stays single-shot). When None the
+    runner falls back to the pre-W86 prompt-only invocation.
+    """
 
     prompt: str
     system: str
@@ -41,6 +49,17 @@ class RunnerCall:
     effort: str = "high"
     cache_key: str | None = None
     """Optional opaque cache key (anthropic prompt-cache breakpoint)."""
+    mcp_config: dict[str, Any] | None = None
+    """Optional MCP servers spec — `{"mcpServers": {...}}`. When set,
+    claude-runner writes it to a temp JSON and passes
+    `--mcp-config <path> --strict-mcp-config`. None = no tool use."""
+    allowed_tools: tuple[str, ...] | None = None
+    """Optional tool allowlist — passed verbatim to `--allowedTools`.
+    Frozen as a tuple so RunnerCall stays hashable. None = no
+    restriction (still bounded by `--strict-mcp-config`)."""
+    max_turns: int = 0
+    """Max agentic loop iterations. 0 = do not pass `--max-turns`
+    (CLI default). Recommended 5-10 for Ichor 4-pass briefings."""
 
 
 @dataclass(frozen=True)
@@ -82,9 +101,7 @@ class InMemoryRunnerClient(RunnerClient):
         if callable(self._responses):
             return self._responses(call)
         if not self._responses:
-            raise RuntimeError(
-                "InMemoryRunnerClient exhausted: more calls than scripted responses"
-            )
+            raise RuntimeError("InMemoryRunnerClient exhausted: more calls than scripted responses")
         return self._responses.pop(0)
 
 
@@ -144,13 +161,22 @@ class HttpRunnerClient(RunnerClient):
         briefings (typical: 60-180s).
         """
         submit_url = f"{self._base_url}/v1/briefing-task/async"
-        payload = {
+        payload: dict[str, Any] = {
             "briefing_type": "crisis",
             "assets": list(self._default_assets),
             "context_markdown": _wrap_with_system(call.system, call.prompt),
             "model": call.model,
             "effort": call.effort,
         }
+        # W86 STEP-4 — Capability 5 tool fields (only sent when set,
+        # so pre-W86 callers without tools wired stay byte-compatible
+        # with the existing claude-runner request shape).
+        if call.mcp_config is not None:
+            payload["mcp_config"] = call.mcp_config
+        if call.allowed_tools is not None:
+            payload["allowed_tools"] = list(call.allowed_tools)
+        if call.max_turns > 0:
+            payload["max_turns"] = call.max_turns
         # Submission backoff for 503/429 (rate-limit, busy concurrency).
         backoff = (5.0, 15.0, 45.0)
         last_status: int | None = None
@@ -225,13 +251,20 @@ class HttpRunnerClient(RunnerClient):
         """Legacy synchronous path — kept for back-compat. Subject to
         Cloudflare 100s edge timeout (524 errors on large prompts)."""
         url = f"{self._base_url}/v1/briefing-task"
-        payload = {
+        payload: dict[str, Any] = {
             "briefing_type": "crisis",
             "assets": list(self._default_assets),
             "context_markdown": _wrap_with_system(call.system, call.prompt),
             "model": call.model,
             "effort": call.effort,
         }
+        # W86 STEP-4 — Capability 5 tool fields, see _run_async_polling.
+        if call.mcp_config is not None:
+            payload["mcp_config"] = call.mcp_config
+        if call.allowed_tools is not None:
+            payload["allowed_tools"] = list(call.allowed_tools)
+        if call.max_turns > 0:
+            payload["max_turns"] = call.max_turns
         backoff = (5.0, 15.0, 45.0)
         last_status: int | None = None
         body: dict | None = None

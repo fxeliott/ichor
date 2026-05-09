@@ -8,13 +8,24 @@ Why subprocess instead of Anthropic SDK:
   `claude` binary that he uses interactively.
 
   This is a deliberate Voie D choice (see docs/decisions/ADR-009).
+
+W86 STEP-4 (Capability 5 wiring, ADR-077) — when `mcp_config` is
+provided, the wrapper writes it to a temp JSON and adds
+`--mcp-config <path> --strict-mcp-config --allowedTools ... --max-turns N`
+to the Claude CLI invocation. The agentic tool_use loop is driven
+entirely by Claude CLI itself ; the orchestrator stays single-shot
+(see ADR-077 §"Loop ownership").
 """
 
 from __future__ import annotations
 
 import asyncio
 import json
+import os
+import tempfile
 import time
+from collections.abc import Sequence
+from pathlib import Path
 from typing import Any
 
 import structlog
@@ -35,6 +46,9 @@ async def run_claude(
     model: str = "opus",
     effort: str = "medium",
     persona_text: str | None = None,
+    mcp_config: dict[str, Any] | None = None,
+    allowed_tools: Sequence[str] | None = None,
+    max_turns: int = 0,
 ) -> dict[str, Any]:
     """Run `claude -p <prompt>` and return the parsed JSON envelope.
 
@@ -98,31 +112,61 @@ async def run_claude(
         persona_text,
     ]
 
+    # ADR-077 / W86 STEP-4 — Capability 5 tool wiring. When mcp_config
+    # is provided, materialise it to a tempfile (Windows requires
+    # delete=False because the spawned subprocess holds the file lock)
+    # and append the flag set. tempfile is cleaned up in `finally` after
+    # `proc.communicate()` returns.
+    mcp_config_path: Path | None = None
+    if mcp_config is not None:
+        fd, raw_path = tempfile.mkstemp(suffix=".json", prefix="ichor-mcp-")
+        os.close(fd)
+        mcp_config_path = Path(raw_path)
+        mcp_config_path.write_text(json.dumps(mcp_config), encoding="utf-8")
+        cmd.extend(
+            [
+                "--mcp-config",
+                str(mcp_config_path),
+                "--strict-mcp-config",
+            ]
+        )
+        if allowed_tools:
+            cmd.extend(["--allowedTools", ",".join(allowed_tools)])
+        if max_turns > 0:
+            cmd.extend(["--max-turns", str(max_turns)])
+
     log.info(
         "claude.subprocess.start",
         model=model,
         effort=effort,
         prompt_len=len(prompt),
         stdin_pipe=True,
+        mcp_wired=mcp_config_path is not None,
+        allowed_tools=list(allowed_tools) if allowed_tools else None,
+        max_turns=max_turns,
     )
     start = time.monotonic()
 
-    proc = await asyncio.create_subprocess_exec(
-        *cmd,
-        stdin=asyncio.subprocess.PIPE,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
-        cwd=str(workdir),
-    )
     try:
-        stdout, stderr = await asyncio.wait_for(
-            proc.communicate(input=prompt.encode("utf-8")),
-            timeout=settings.claude_timeout_sec,
+        proc = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdin=asyncio.subprocess.PIPE,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+            cwd=str(workdir),
         )
-    except TimeoutError:
-        proc.kill()
-        await proc.wait()
-        raise
+        try:
+            stdout, stderr = await asyncio.wait_for(
+                proc.communicate(input=prompt.encode("utf-8")),
+                timeout=settings.claude_timeout_sec,
+            )
+        except TimeoutError:
+            proc.kill()
+            await proc.wait()
+            raise
+    finally:
+        if mcp_config_path is not None:
+            mcp_config_path.unlink(missing_ok=True)
 
     duration = time.monotonic() - start
 

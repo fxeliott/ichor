@@ -108,6 +108,4 @@ class CounterfactualPass(Pass[CounterfactualReading]):
         try:
             return CounterfactualReading.model_validate(obj)
         except Exception as e:
-            raise PassError(
-                f"counterfactual pass: validation failed — {e}"
-            ) from e
+            raise PassError(f"counterfactual pass: validation failed — {e}") from e

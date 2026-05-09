@@ -69,6 +69,7 @@ def _default_critic_fn(
         asset_whitelist=asset_whitelist,
     )
 
+
 log = structlog.get_logger(__name__)
 
 
@@ -165,9 +166,7 @@ class Orchestrator:
 
         # Pass 3 — bull-case stress-test
         call3 = RunnerCall(
-            prompt=self._stress.build_prompt(
-                specialization=spec, asset_data=asset_data
-            ),
+            prompt=self._stress.build_prompt(specialization=spec, asset_data=asset_data),
             system=self._stress.system_prompt,
             model="opus",
             effort="high",
@@ -254,8 +253,7 @@ def _assemble_narrative(
     parts: list[str] = []
     parts.append(f"Régime quadrant: {regime.quadrant}. {regime.rationale}")
     parts.append(
-        f"Asset {spec.asset}: bias {spec.bias_direction} at "
-        f"{spec.conviction_pct:.0f}% conviction."
+        f"Asset {spec.asset}: bias {spec.bias_direction} at {spec.conviction_pct:.0f}% conviction."
     )
     for m in spec.mechanisms:
         claim = m.get("claim")
