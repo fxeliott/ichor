@@ -25,6 +25,9 @@ from .cboe_vvix_observation import CboeVvixObservation
 
 # Phase II Layer 1 — CFTC TFF weekly positioning (Wave 25)
 from .cftc_tff_observation import CftcTffObservation
+
+# Phase II — Cleveland Fed daily inflation nowcast (Wave 72)
+from .cleveland_fed_nowcast import ClevelandFedNowcast
 from .confluence_history import ConfluenceHistory
 from .cot_position import CotPosition
 
@@ -70,6 +73,7 @@ __all__ = [
     "CboeSkewObservation",
     "CboeVvixObservation",
     "CftcTffObservation",
+    "ClevelandFedNowcast",
     "ConfluenceHistory",
     "CotPosition",
     # Phase 2

@@ -30,6 +30,7 @@ from ..models import (
     CboeVvixObservation,
     CbSpeech,
     CftcTffObservation,
+    ClevelandFedNowcast,
     CotPosition,
     FredObservation,
     GdeltEvent,
@@ -1280,6 +1281,110 @@ async def _section_treasury_tic(session: AsyncSession) -> tuple[str, list[str]]:
     return "\n".join(lines), sources
 
 
+async def _section_cleveland_fed_nowcast(
+    session: AsyncSession,
+) -> tuple[str, list[str]]:
+    """## Cleveland Fed inflation nowcast — daily CPI/PCE forecast.
+
+    Surfaces the latest 4-measure × 3-horizon nowcast plus Δ vs the
+    most recent prior revision (>=3 calendar days back).
+    Useful for Pass 2 surprise-vs-consensus thesis.
+
+    Cadence : daily ~16:00 Paris.
+    """
+    # Latest revision date.
+    latest_rev_row = (
+        await session.execute(
+            select(ClevelandFedNowcast.revision_date)
+            .order_by(desc(ClevelandFedNowcast.revision_date))
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+    if latest_rev_row is None:
+        return ("## Cleveland Fed nowcast\n- n/a (collector empty)", [])
+
+    rows = list(
+        (
+            await session.execute(
+                select(ClevelandFedNowcast).where(
+                    ClevelandFedNowcast.revision_date == latest_rev_row
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    if not rows:
+        return ("## Cleveland Fed nowcast\n- n/a (collector empty)", [])
+
+    sources = [f"CLEVELAND_FED:NOWCAST@{latest_rev_row.isoformat()}"]
+    lines = [f"## Cleveland Fed nowcast (revised {latest_rev_row:%Y-%m-%d})"]
+
+    # Group by horizon, sort canonically.
+    by_horizon: dict[str, list[ClevelandFedNowcast]] = {}
+    for r in rows:
+        by_horizon.setdefault(r.horizon, []).append(r)
+
+    measure_order = ("CPI", "CoreCPI", "PCE", "CorePCE")
+    for horizon_label in ("yoy", "qoq", "mom"):
+        if horizon_label not in by_horizon:
+            continue
+        h_rows = {r.measure: r for r in by_horizon[horizon_label]}
+        target = next(iter(by_horizon[horizon_label])).target_period
+        suffix = " (annualised)" if horizon_label in {"qoq", "mom"} else ""
+        lines.append(f"### {horizon_label.upper()} target {target:%b %Y}{suffix}")
+        line_parts: list[str] = []
+        for m in measure_order:
+            r = h_rows.get(m)
+            if r is None:
+                continue
+            line_parts.append(f"{m}={r.nowcast_value:.2f}%")
+        if line_parts:
+            lines.append("- " + " · ".join(line_parts))
+
+    # Δ vs prior revision (look at the previous distinct revision date).
+    prior_rev_row = (
+        await session.execute(
+            select(ClevelandFedNowcast.revision_date)
+            .where(ClevelandFedNowcast.revision_date < latest_rev_row)
+            .order_by(desc(ClevelandFedNowcast.revision_date))
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+    if prior_rev_row is not None:
+        prior_rows = list(
+            (
+                await session.execute(
+                    select(ClevelandFedNowcast).where(
+                        ClevelandFedNowcast.revision_date == prior_rev_row
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
+        prior_map = {(r.measure, r.horizon, r.target_period): r for r in prior_rows}
+        delta_lines: list[str] = []
+        # Focus the delta narrative on YoY which is the headline-print metric.
+        yoy_rows = [r for r in rows if r.horizon == "yoy"]
+        for r in sorted(
+            yoy_rows,
+            key=lambda x: measure_order.index(x.measure) if x.measure in measure_order else 99,
+        ):
+            prior = prior_map.get((r.measure, r.horizon, r.target_period))
+            if prior is None:
+                continue
+            delta = r.nowcast_value - prior.nowcast_value
+            arrow = "↑" if delta > 0 else ("↓" if delta < 0 else "→")
+            delta_lines.append(f"{r.measure}{arrow}{delta:+.2f}")
+        if delta_lines:
+            lines.append(
+                f"### Δ YoY vs prior rev {prior_rev_row:%Y-%m-%d}: " + " · ".join(delta_lines)
+            )
+
+    return "\n".join(lines), sources
+
+
 async def _section_nyfed_mct(session: AsyncSession) -> tuple[str, list[str]]:
     """## NY Fed Multivariate Core Trend — persistent inflation trend.
 
@@ -2022,6 +2127,12 @@ async def build_data_pool(
     # + Pass 2 mechanism citation for Fed reaction-function thesis.
     mct_md, mct_src = await _section_nyfed_mct(session)
     sections.append(("nyfed_mct", mct_md, mct_src))
+
+    # Wave 72 — Cleveland Fed daily inflation nowcast (CPI / Core CPI / PCE
+    # / Core PCE × MoM / QoQ / YoY). Higher-frequency point-in-time forecast
+    # complementing MCT trend. Pass 2 cites for surprise-vs-consensus thesis.
+    cln_md, cln_src = await _section_cleveland_fed_nowcast(session)
+    sections.append(("cleveland_fed_nowcast", cln_md, cln_src))
 
     # Wave 41 — Labor + uncertainty + recession régime (7 FRED series).
     # Jobless claims band + EPU band + wage-inflation + USREC flag.

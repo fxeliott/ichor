@@ -121,6 +121,12 @@ declare -A SCHEDULES=(
   # (~10:00 ET = 16:00 Paris). Poll daily 17:00 Paris is conservative —
   # CSV is small (~70 KB), idempotent dedup catches no-op runs.
   [nyfed_mct]="*-*-* 17:00:00 Europe/Paris"
+  # Cleveland Fed inflation nowcast daily (Wave 72).
+  # Released ~10:00 ET = 16:00 Paris every business day. Poll daily
+  # 17:30 Paris (after release + buffer). 12 rows per run (4 measures
+  # × 3 horizons), idempotent dedup on (measure, horizon, target,
+  # revision) so re-polls inside the same revision day are no-ops.
+  [cleveland_fed_nowcast]="*-*-* 17:30:00 Europe/Paris"
   # Note: collector module is `central_bank_speeches.py` but exposed under
   # the canonical short name `cb_speeches` in run_collectors.py:33 (alias).
   # Keep the timer aligned with the CLI target name to avoid the

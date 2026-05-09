@@ -468,6 +468,27 @@ async def _run_treasury_tic(*, persist: bool) -> int:
     return 0 if holdings else 1
 
 
+async def _run_cleveland_fed_nowcast(*, persist: bool) -> int:
+    """Pull Cleveland Fed inflation nowcast (W72) — 4 measures × 3 horizons."""
+    from ..collectors.cleveland_fed_nowcast import poll_all as poll_cleveland
+
+    obs = await poll_cleveland()
+    print(f"Cleveland Fed nowcast · {len(obs)} rows fetched")
+    for r in sorted(obs, key=lambda x: (x.horizon, x.measure)):
+        print(
+            f"  {r.horizon}  {r.measure:8s}  target={r.target_period}  "
+            f"rev={r.revision_date}  value={r.nowcast_value:.3f}%"
+        )
+    if persist:
+        from ..collectors.persistence import persist_cleveland_fed_nowcasts
+
+        sm = get_sessionmaker()
+        async with sm() as session:
+            inserted = await persist_cleveland_fed_nowcasts(session, obs)
+        print(f"Cleveland Fed nowcast · persisted {inserted} new rows")
+    return 0 if obs else 1
+
+
 async def _run_nyfed_mct(*, persist: bool) -> int:
     """Pull NY Fed Multivariate Core Trend monthly inflation (W71)."""
     from ..collectors.nyfed_mct import poll_all as poll_nyfed_mct
@@ -1863,6 +1884,7 @@ async def _main(target: str, *, persist: bool) -> int:
         "cme_zq": _run_cme_zq,
         "treasury_tic": _run_treasury_tic,
         "nyfed_mct": _run_nyfed_mct,
+        "cleveland_fed_nowcast": _run_cleveland_fed_nowcast,
         "cftc_tff": _run_cftc_tff,
         "cot": _run_cot,
         "cb_speeches": _run_cb_speeches,

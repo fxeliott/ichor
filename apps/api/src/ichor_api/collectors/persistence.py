@@ -19,6 +19,7 @@ from ..models import (
     CboeVvixObservation,
     CbSpeech,
     CftcTffObservation,
+    ClevelandFedNowcast,
     CotPosition,
     FredObservation,
     GdeltEvent,
@@ -38,6 +39,9 @@ from .cboe_skew import CboeSkewObservation as CboeSkewObservationData
 from .cboe_vvix import CboeVvixObservation as CboeVvixObservationData
 from .central_bank_speeches import CentralBankSpeech
 from .cftc_tff import CftcTffObservation as CftcTffObservationData
+from .cleveland_fed_nowcast import (
+    ClevelandFedNowcastObservation as ClevelandFedNowcastData,
+)
 from .cot import CotPosition as CotPositionData
 from .fred import FredObservation as FredObservationData
 from .gdelt import GdeltArticle
@@ -669,6 +673,67 @@ async def persist_treasury_tic_holdings(
         total=len(holdings),
         inserted=inserted,
         skipped=len(holdings) - inserted,
+    )
+    return inserted
+
+
+async def persist_cleveland_fed_nowcasts(
+    session: AsyncSession, observations: Iterable[ClevelandFedNowcastData]
+) -> int:
+    """Insert Cleveland Fed nowcast rows, skipping
+    (measure, horizon, target_period, revision_date) tuples already known.
+
+    Idempotent: re-running the same poll inserts zero rows.
+    """
+    observations = list(observations)
+    if not observations:
+        return 0
+    measures = {o.measure for o in observations}
+    horizons = {o.horizon for o in observations}
+    targets = {o.target_period for o in observations}
+    revisions = {o.revision_date for o in observations}
+    existing_rows = (
+        await session.execute(
+            select(
+                ClevelandFedNowcast.measure,
+                ClevelandFedNowcast.horizon,
+                ClevelandFedNowcast.target_period,
+                ClevelandFedNowcast.revision_date,
+            ).where(
+                ClevelandFedNowcast.measure.in_(measures),
+                ClevelandFedNowcast.horizon.in_(horizons),
+                ClevelandFedNowcast.target_period.in_(targets),
+                ClevelandFedNowcast.revision_date.in_(revisions),
+            )
+        )
+    ).all()
+    existing: set[tuple[str, str, date_type, date_type]] = {
+        (r[0], r[1], r[2], r[3]) for r in existing_rows
+    }
+    now = datetime.now(UTC)
+    inserted = 0
+    for o in observations:
+        key = (o.measure, o.horizon, o.target_period, o.revision_date)
+        if key in existing:
+            continue
+        session.add(
+            ClevelandFedNowcast(
+                revision_date=o.revision_date,
+                measure=o.measure[:32],
+                horizon=o.horizon[:8],
+                target_period=o.target_period,
+                nowcast_value=o.nowcast_value,
+                fetched_at=o.fetched_at or now,
+            )
+        )
+        inserted += 1
+    if inserted:
+        await session.commit()
+    log.info(
+        "cleveland_fed_nowcast.persisted",
+        total=len(observations),
+        inserted=inserted,
+        skipped=len(observations) - inserted,
     )
     return inserted
 
