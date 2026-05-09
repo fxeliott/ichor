@@ -28,7 +28,7 @@ from .passes import (
     RegimePass,
     StressPass,
 )
-from .runner_client import RunnerCall, RunnerClient
+from .runner_client import RunnerCall, RunnerClient, ToolConfig
 from .types import (
     AssetSpecialization,
     CriticDecision,
@@ -100,6 +100,7 @@ class Orchestrator:
         invalidation_pass: Pass[InvalidationConditions] | None = None,
         critic_fn: CriticFn | None = None,
         model_id: str = "claude-opus-4-7",
+        tool_config: ToolConfig | None = None,
     ):
         self._runner = runner
         self._regime = regime_pass or RegimePass()
@@ -108,6 +109,22 @@ class Orchestrator:
         self._invalidation = invalidation_pass or InvalidationPass()
         self._critic_fn = critic_fn or _default_critic_fn
         self._model_id = model_id
+        self._tool_config = tool_config
+
+    def _tool_fields_for(self, pass_kind: str) -> dict[str, Any]:
+        """W87 STEP-5 — emit Capability 5 tool fields for a RunnerCall
+        when the pass is in `tool_config.enabled_for_passes`. Returns
+        `{}` (no fields, pre-W87 behaviour) otherwise.
+
+        Pass kind strings : "regime", "asset", "stress", "invalidation".
+        """
+        if self._tool_config is None or pass_kind not in self._tool_config.enabled_for_passes:
+            return {}
+        return {
+            "mcp_config": self._tool_config.mcp_config,
+            "allowed_tools": self._tool_config.allowed_tools,
+            "max_turns": self._tool_config.max_turns,
+        }
 
     @observe(name="session_card_4pass")
     async def run(
@@ -130,6 +147,7 @@ class Orchestrator:
             model="opus",
             effort="high",
             cache_key=f"framework::{self._regime.name}",
+            **self._tool_fields_for("regime"),
         )
         runner_calls.append(call1)
         resp1 = await self._runner.run(call1)
@@ -152,6 +170,7 @@ class Orchestrator:
             model="opus",
             effort="high",
             cache_key=f"framework::{self._asset.name}::{asset.upper()}",
+            **self._tool_fields_for("asset"),
         )
         runner_calls.append(call2)
         resp2 = await self._runner.run(call2)
@@ -171,6 +190,7 @@ class Orchestrator:
             model="opus",
             effort="high",
             cache_key=f"framework::{self._stress.name}",
+            **self._tool_fields_for("stress"),
         )
         runner_calls.append(call3)
         resp3 = await self._runner.run(call3)
@@ -189,6 +209,7 @@ class Orchestrator:
             model="opus",
             effort="high",
             cache_key=f"framework::{self._invalidation.name}",
+            **self._tool_fields_for("invalidation"),
         )
         runner_calls.append(call4)
         resp4 = await self._runner.run(call4)

@@ -39,12 +39,8 @@ def test_registry_known_tool_names():
 
 def test_each_tool_declares_adr_017_constraint():
     for tool in CAPABILITY_5_TOOLS:
-        assert tool.adr_017_constraint, (
-            f"Tool {tool.name!r} missing ADR-017 constraint"
-        )
-        assert len(tool.adr_017_constraint) > 30, (
-            f"Tool {tool.name!r} ADR-017 constraint too brief"
-        )
+        assert tool.adr_017_constraint, f"Tool {tool.name!r} missing ADR-017 constraint"
+        assert len(tool.adr_017_constraint) > 30, f"Tool {tool.name!r} ADR-017 constraint too brief"
 
 
 def test_each_tool_has_description():

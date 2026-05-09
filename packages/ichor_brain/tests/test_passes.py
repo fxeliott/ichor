@@ -73,9 +73,16 @@ def test_asset_supported_set_covers_all_phase1_assets() -> None:
     """Phase 1.2 (CHUNK 8 2026-05-03) shipped the 7 missing frameworks
     so no Phase-1 asset falls back to the generic rubric anymore."""
     expected = {
-        "EUR_USD", "GBP_USD", "USD_JPY", "AUD_USD", "USD_CAD",
-        "XAU_USD", "NAS100_USD", "SPX500_USD",
-        "US100", "US30",  # ADR-017 ticker aliases
+        "EUR_USD",
+        "GBP_USD",
+        "USD_JPY",
+        "AUD_USD",
+        "USD_CAD",
+        "XAU_USD",
+        "NAS100_USD",
+        "SPX500_USD",
+        "US100",
+        "US30",  # ADR-017 ticker aliases
     }
     assert expected.issubset(set(supported_assets()))
 

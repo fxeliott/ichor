@@ -1,7 +1,7 @@
 # Ichor — Claude Code project memory
 
 > Auto-injected at every session start. Keep terse and current.
-> Last sync: 2026-05-09 late evening (post-W86 — Cap5 STEP-4 RunnerCall.tools plumbing + ADR-078 trader_notes exclusion).
+> Last sync: 2026-05-09 late evening (post-W87 — Cap5 STEP-5 orchestrator tool wiring + ADR-078 CI guard).
 
 ## What this repo is
 
@@ -258,17 +258,18 @@ D:\Ichor
   STEP-1 sqlglot whitelist = ✅ W83 ;
   STEP-2 calc dispatcher = ✅ W84 ;
   STEP-3 MCP server = ✅ W85 (ADR-077) ;
-  STEP-4 RunnerCall.tools plumbing = ✅ **W86 (this commit, ADR-078
-  bonus)** — RunnerCall + BriefingTaskRequest + AgentTaskRequest
-  carry `mcp_config / allowed_tools / max_turns` ; subprocess_runner
-  writes mcp_config to tempfile and adds `--mcp-config` `--strict-mcp-config`
-  `--allowedTools` `--max-turns` to the claude CLI invocation ;
-  agentic loop driven by Claude CLI itself (orchestrator stays
-  single-shot per recherche web 2026-05-09) ;
-  STEP-5 orchestrator wire-up = ⏳ depends PRE-1 (set RunnerCall
-  fields when constructing pass calls + add tool result rendering
-  in Pass aggregator) ;
-  STEP-6 integration test = ⏳ final.
+  STEP-4 RunnerCall.tools plumbing = ✅ W86 (`bf780f7`, ADR-078) ;
+  STEP-5 orchestrator tool wiring = ✅ **W87 (this commit)** —
+  `ToolConfig` dataclass in `runner_client.py` + `tool_config`
+  argument on `Orchestrator` ; helper `_tool_fields_for(pass_kind)`
+  emits `mcp_config / allowed_tools / max_turns` to RunnerCall when
+  the pass is in `enabled_for_passes` (default `{"regime","asset"}`,
+  Pass-3 stress and Pass-4 invalidation excluded — they operate on
+  prior-pass narrative not raw market data) ; CI guard test
+  `test_tool_query_db_allowlist_guard.py` enforces ADR-078 forbidden
+  set ; 5 orchestrator tool-wiring tests + 4 allowlist guard tests
+  green locally ;
+  STEP-6 integration test = ⏳ final (depends PRE-1 in prod).
   Server tools (`web_search`/`web_fetch`) **excluded** — billed by
   Anthropic since 2026-04, violate Voie D.
 - WGC quarterly XLSX collector deferred — license requires explicit
@@ -283,6 +284,30 @@ D:\Ichor
   field (W81 candidate, 1h estimate).
 - Polymarket `WHALES` constant in `polymarket/page.tsx` — no backend
   trade-tape collector yet (W82 candidate, separate ADR needed).
+
+## Recently fixed (2026-05-09 late evening — Cap5 STEP-5 + ADR-078 guard)
+
+- **W87** ✅ — Capability 5 STEP-5 orchestrator tool wiring +
+  ADR-078 CI guard test. New `ToolConfig` dataclass in
+  `packages/ichor_brain/runner_client.py` (mcp_config / allowed_tools
+  tuple / max_turns / enabled_for_passes frozenset). `Orchestrator`
+  accepts optional `tool_config` ; helper `_tool_fields_for(pass_kind)`
+  emits the 3 fields to RunnerCall for each enabled pass. Default
+  enables tools on Pass-1 (regime) + Pass-2 (asset) only — Pass-3
+  stress and Pass-4 invalidation operate on prior-pass narrative,
+  no marginal lift from tool access. Backward-compat preserved
+  (`tool_config=None` is a strict zero-diff). New tests :
+  `apps/api/tests/test_tool_query_db_allowlist_guard.py` (4 tests
+  enforcing ADR-078 forbidden set ∩ ALLOWED_TABLES = ∅) +
+  `packages/ichor_brain/tests/test_orchestrator_tool_wiring.py`
+  (5 tests : pre-W87 zero-diff baseline / default Pass-1+2 wiring /
+  custom enabled_for_passes filter / empty set disables everywhere /
+  ToolConfig hashable). 84 pass ichor_brain + 73 pass apps/api tool
+  suite.
+- **W87 housekeeping** — Cleanup orphan worktrees `inspiring-
+  tereshkova-1de00b` (byte-identical to main pre-W85) and
+  `zealous-banzai-efc1c7` (W85 source, mergé bf780f7's parent).
+  Local branches deleted.
 
 ## Recently fixed (2026-05-09 late evening — Cap5 STEP-4 + housekeeping)
 

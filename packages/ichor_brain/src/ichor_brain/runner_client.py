@@ -63,6 +63,47 @@ class RunnerCall:
 
 
 @dataclass(frozen=True)
+class ToolConfig:
+    """Capability 5 wiring config for the Orchestrator (W87 STEP-5).
+
+    When attached to an Orchestrator, the passes named in
+    `enabled_for_passes` receive tool fields in their RunnerCall and
+    can issue mcp__ichor__query_db / mcp__ichor__calc invocations
+    during their reasoning. Pass-3 stress and Pass-4 invalidation are
+    excluded by default because they operate on prior-pass narrative
+    output, not raw market data, so tool access provides no marginal
+    lift and adds audit cost.
+
+    The allowlist of tables that `query_db` can read lives at the
+    `apps/api` layer (`services/tool_query_db.ALLOWED_TABLES`,
+    enforced by sqlglot AST parser, ADR-077). The forbidden set
+    (`trader_notes`, `audit_log`, `tool_call_audit`, `feature_flags`)
+    is documented in ADR-078 and CI-guarded by
+    `test_tool_query_db_allowlist_guard.py`.
+    """
+
+    mcp_config: dict[str, Any]
+    """`{"mcpServers": {...}}` shape. Forwarded verbatim to
+    claude-runner, which writes it to a tempfile and passes it to
+    `claude -p --mcp-config <path>`."""
+
+    allowed_tools: tuple[str, ...]
+    """Tools the model is allowed to invoke. Verbatim
+    `--allowedTools` argument. Frozen as tuple so ToolConfig stays
+    hashable."""
+
+    max_turns: int = 8
+    """Cap on the agentic tool_use loop iterations."""
+
+    enabled_for_passes: frozenset[str] = frozenset({"regime", "asset"})
+    """Set of pass kinds eligible for tool wiring. Pass kinds are the
+    short strings 'regime', 'asset', 'stress', 'invalidation'
+    (matching the orchestrator's internal naming, not the Pass
+    class's public `.name` attribute which can be longer / locale-
+    specific)."""
+
+
+@dataclass(frozen=True)
 class RunnerResponse:
     """One LLM response."""
 

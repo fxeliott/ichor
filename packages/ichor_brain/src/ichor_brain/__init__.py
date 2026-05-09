@@ -16,6 +16,7 @@ from .runner_client import (
     RunnerCall,
     RunnerClient,
     RunnerResponse,
+    ToolConfig,
 )
 from .types import (
     AssetSpecialization,
@@ -35,6 +36,7 @@ __all__ = [
     "RunnerResponse",
     "InMemoryRunnerClient",
     "HttpRunnerClient",
+    "ToolConfig",
     "SessionCard",
     "SessionType",
     "BiasDirection",

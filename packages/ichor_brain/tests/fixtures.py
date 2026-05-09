@@ -32,7 +32,7 @@ ASSET_OK_JSON = {
     "magnitude_pips_low": 25.0,
     "magnitude_pips_high": 60.0,
     "timing_window_start": "2026-05-04T07:00:00+00:00",
-    "timing_window_end":   "2026-05-04T15:00:00+00:00",
+    "timing_window_end": "2026-05-04T15:00:00+00:00",
     "mechanisms": [
         {
             "claim": "US-DE 10Y diff widened +12bps in the last 5 sessions",
