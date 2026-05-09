@@ -594,3 +594,167 @@ async def briefing_task_async_status(
         result=task["result"],
         error=task["error"],
     )
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# WAVE 67 — AGENT-TASK ASYNC ENDPOINTS (Couche-2 5xx CF Tunnel structural fix)
+# ─────────────────────────────────────────────────────────────────────────
+# Same pattern as briefing-task/async (W20 ADR-053) but for Couche-2
+# agents (cb_nlp, news_nlp, sentiment, positioning, macro). The legacy
+# /v1/agent-task is synchronous and trips Cloudflare 100s edge cap when
+# Haiku takes 100-130s on big prompts (cb_nlp 5KB, news_nlp 12KB).
+
+
+async def _run_agent_background(
+    task_id: str,
+    req: AgentTaskRequest,
+    settings: Settings,
+) -> None:
+    """Background task that runs the claude subprocess (agent-task variant)."""
+    global _in_flight
+    started = time.monotonic()
+    _async_tasks[task_id]["status"] = "running"
+    try:
+        async with _subprocess_semaphore:
+            _in_flight += 1
+            try:
+                result = await run_claude(
+                    prompt=req.prompt,
+                    settings=settings,
+                    model=req.model,
+                    effort=req.effort,
+                    persona_text=req.system,
+                )
+            finally:
+                _in_flight -= 1
+        duration_ms = int((time.monotonic() - started) * 1000)
+        output_text = result.get("result")
+        if not output_text:
+            text_blocks = [
+                b.get("text", "") for b in result.get("content", []) if b.get("type") == "text"
+            ]
+            output_text = "\n\n".join(text_blocks).strip() or None
+        response = AgentTaskResponse(
+            task_id=req.task_id,
+            status="success",
+            output_text=output_text,
+            raw_claude_json=result,
+            duration_ms=duration_ms,
+        )
+        _async_tasks[task_id]["status"] = "done"
+        _async_tasks[task_id]["result"] = response
+    except TimeoutError:
+        _async_tasks[task_id]["status"] = "done"
+        _async_tasks[task_id]["result"] = AgentTaskResponse(
+            task_id=req.task_id,
+            status="timeout",
+            error_message=f"Claude subprocess exceeded {settings.claude_timeout_sec}s",
+            duration_ms=int((time.monotonic() - started) * 1000),
+        )
+    except ClaudeSubprocessError as e:
+        _async_tasks[task_id]["status"] = "done"
+        _async_tasks[task_id]["result"] = AgentTaskResponse(
+            task_id=req.task_id,
+            status="subprocess_error",
+            error_message=str(e),
+            duration_ms=int((time.monotonic() - started) * 1000),
+        )
+    except Exception as e:
+        log.exception("claude_runner.agent_async.crashed", task_id=task_id)
+        _async_tasks[task_id]["status"] = "error"
+        _async_tasks[task_id]["error"] = f"{type(e).__name__}: {e}"
+
+
+@app.post(
+    "/v1/agent-task/async",
+    response_model=AsyncTaskAccepted,
+    status_code=status.HTTP_202_ACCEPTED,
+    responses={
+        202: {"description": "Task accepted, poll status via /v1/agent-task/async/{task_id}"},
+        401: {"description": "Cloudflare Access JWT invalid"},
+        429: {"description": "Rate limit exceeded"},
+    },
+)
+async def agent_task_async(
+    req: AgentTaskRequest,
+    identity: str = Depends(verify_cf_access),
+    settings: Settings = Depends(get_settings),
+) -> AsyncTaskAccepted:
+    """Submit an agent task asynchronously. Wave 67 mirror of briefing-task/async.
+
+    Couche-2 agents (cb_nlp, news_nlp, sentiment, positioning, macro) use
+    this to bypass the Cloudflare Tunnel 100s edge timeout that hits Haiku
+    big-prompt runs.
+    """
+    if not _rate_limiter.try_acquire():
+        log.warning(
+            "claude_runner.agent_async.rate_limited",
+            task_id=str(req.task_id),
+            requester=identity,
+            window_count=_rate_limiter.current_count(),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Hourly rate limit exceeded — Max 20x quota self-protection",
+        )
+
+    _async_task_gc()
+
+    task_id = str(req.task_id)
+    _async_tasks[task_id] = {
+        "status": "pending",
+        "result": None,
+        "error": None,
+        "started_at": time.monotonic(),
+        "kind": "agent",
+    }
+
+    log.info(
+        "claude_runner.agent_async.accepted",
+        task_id=task_id,
+        model=req.model,
+        effort=req.effort,
+        prompt_len=len(req.prompt),
+        system_len=len(req.system),
+        requester=identity,
+    )
+
+    bg_task = asyncio.create_task(_run_agent_background(task_id, req, settings))
+    _async_tasks[task_id]["_bg_task"] = bg_task
+
+    return AsyncTaskAccepted(
+        task_id=req.task_id,
+        status="pending",
+        poll_url=f"/v1/agent-task/async/{task_id}",
+        poll_interval_sec=5,
+    )
+
+
+@app.get(
+    "/v1/agent-task/async/{task_id}",
+    response_model=AsyncTaskStatus,
+    responses={
+        200: {"description": "Task status (poll until status='done' or 'error')"},
+        401: {"description": "Cloudflare Access JWT invalid"},
+        404: {"description": "task_id unknown (expired or never submitted)"},
+    },
+)
+async def agent_task_async_status(
+    task_id: str,
+    identity: str = Depends(verify_cf_access),
+) -> AsyncTaskStatus:
+    """Poll the status of an async agent task. Each call <100ms."""
+    task = _async_tasks.get(task_id)
+    if task is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"task_id {task_id} unknown (expired after {_ASYNC_TASK_TTL_SEC}s, or never submitted)",
+        )
+    elapsed = time.monotonic() - task["started_at"]
+    return AsyncTaskStatus(
+        task_id=UUID(task_id),
+        status=task["status"],
+        elapsed_sec=round(elapsed, 1),
+        result=task["result"],
+        error=task["error"],
+    )

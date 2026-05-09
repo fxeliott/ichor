@@ -247,3 +247,166 @@ async def call_agent_task(
         raise ClaudeRunnerOutputError(
             f"output failed Pydantic validation: {type(e).__name__}: {str(e)[:300]}"
         ) from e
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# WAVE 67 — async polling client (CF Tunnel 100s edge cap structural fix)
+# ─────────────────────────────────────────────────────────────────────────
+
+
+@observe(as_type="generation", name="couche2_agent_task_async")
+async def call_agent_task_async(
+    cfg: ClaudeRunnerConfig,
+    *,
+    system: str,
+    prompt: str,
+    output_type: type | None = None,
+    poll_interval_sec: float = 5.0,
+    poll_timeout_sec: float = 600.0,
+):
+    """Submit a Couche-2 agent task via /v1/agent-task/async + poll until done.
+
+    Wave 67 mirror of HttpRunnerClient async pattern (ADR-053). Bypasses
+    Cloudflare Tunnel 100s edge timeout by decoupling submit from result
+    fetch. Each HTTP call (submit + each poll) completes in <1s.
+
+    Args:
+        cfg: ClaudeRunnerConfig (runner URL + auth + model/effort).
+        system: persona text passed to claude as --append-system-prompt.
+        prompt: user prompt (data_pool context for Couche-2).
+        output_type: optional Pydantic BaseModel subclass for typed return.
+        poll_interval_sec: poll cadence (5s default — matches Hetzner cron).
+        poll_timeout_sec: total budget before giving up (10 min default).
+
+    Returns: raw text or validated output_type instance.
+
+    Raises: ClaudeRunnerError / ClaudeRunnerOutputError on failure.
+    """
+    import time
+    from uuid import uuid4
+
+    submit_url = f"{cfg.runner_url}/v1/agent-task/async"
+    headers: dict[str, str] = {"Content-Type": "application/json"}
+    if cfg.cf_access_client_id and cfg.cf_access_client_secret:
+        headers["CF-Access-Client-Id"] = cfg.cf_access_client_id
+        headers["CF-Access-Client-Secret"] = cfg.cf_access_client_secret
+
+    full_prompt = prompt
+    if output_type is not None:
+        full_prompt = prompt + _schema_hint(output_type)
+
+    task_id = str(uuid4())
+    payload = {
+        "task_id": task_id,
+        "system": system,
+        "prompt": full_prompt,
+        "model": cfg.model,
+        "effort": cfg.effort,
+    }
+
+    log.info(
+        "agents.claude_runner.async.try",
+        model=cfg.model,
+        effort=cfg.effort,
+        prompt_len=len(prompt),
+        system_len=len(system),
+        task_id=task_id,
+    )
+
+    started = time.monotonic()
+
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        # Submit (must respond in <100s; the runner immediately returns 202)
+        try:
+            r = await client.post(submit_url, headers=headers, json=payload)
+        except httpx.HTTPError as e:
+            raise ClaudeRunnerError(f"async submit unreachable: {e}") from e
+
+        if r.status_code == 429:
+            raise ClaudeRunnerError(
+                f"runner rate-limited: {r.text[:200]}"
+            )
+        if r.status_code != 202:
+            raise ClaudeRunnerError(
+                f"async submit returned HTTP {r.status_code}: {r.text[:300]}"
+            )
+
+        accepted = r.json()
+        poll_url = f"{cfg.runner_url}{accepted.get('poll_url')}"
+
+        # Poll loop
+        poll_count = 0
+        while True:
+            elapsed = time.monotonic() - started
+            if elapsed > poll_timeout_sec:
+                raise ClaudeRunnerError(
+                    f"async poll timeout after {poll_timeout_sec}s "
+                    f"(task_id={task_id})"
+                )
+            await asyncio.sleep(poll_interval_sec)
+            poll_count += 1
+            try:
+                pr = await client.get(poll_url, headers=headers)
+            except httpx.HTTPError as e:
+                # Transient poll error — try again next iteration
+                log.warning(
+                    "agents.claude_runner.async.poll_transient",
+                    task_id=task_id,
+                    poll_count=poll_count,
+                    error=str(e)[:80],
+                )
+                continue
+
+            if pr.status_code == 404:
+                raise ClaudeRunnerError(
+                    f"async task expired or unknown: {pr.text[:200]}"
+                )
+            if pr.status_code != 200:
+                raise ClaudeRunnerError(
+                    f"async poll HTTP {pr.status_code}: {pr.text[:200]}"
+                )
+
+            poll = pr.json()
+            poll_status = poll.get("status")
+            if poll_status in ("done", "error"):
+                log.info(
+                    "agents.claude_runner.async.completed",
+                    task_id=task_id,
+                    poll_count=poll_count,
+                    elapsed_sec=round(elapsed, 1),
+                    status=poll_status,
+                )
+                if poll_status == "error":
+                    raise ClaudeRunnerError(
+                        f"async task error: {poll.get('error') or 'unknown'}"
+                    )
+                # done — extract result
+                result = poll.get("result") or {}
+                rstatus = result.get("status")
+                if rstatus != "success":
+                    raise ClaudeRunnerError(
+                        f"async result status={rstatus}: "
+                        f"{result.get('error_message') or 'no message'}"
+                    )
+                text = result.get("output_text") or ""
+                if not text:
+                    raise ClaudeRunnerError("async runner returned empty output_text")
+
+                log.info(
+                    "agents.claude_runner.ok",
+                    duration_ms=result.get("duration_ms"),
+                    output_len=len(text),
+                    via="async",
+                )
+
+                if output_type is None:
+                    return text
+
+                cleaned = _strip_json_fence(text)
+                try:
+                    return output_type.model_validate_json(cleaned)
+                except Exception as e:
+                    raise ClaudeRunnerOutputError(
+                        f"output failed Pydantic validation: {type(e).__name__}: {str(e)[:300]}"
+                    ) from e
+            # else status pending / running — continue polling

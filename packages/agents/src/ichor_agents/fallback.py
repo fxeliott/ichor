@@ -20,7 +20,12 @@ import structlog
 from pydantic_ai import Agent
 from pydantic_ai.exceptions import ModelHTTPError, UserError
 
-from .claude_runner import ClaudeRunnerConfig, ClaudeRunnerError, call_agent_task
+from .claude_runner import (
+    ClaudeRunnerConfig,
+    ClaudeRunnerError,
+    call_agent_task,
+    call_agent_task_async,
+)
 from .observability import observe
 from .providers import MissingCredentials, ProviderConfig, build_model
 
@@ -52,6 +57,12 @@ class FallbackChain:
     """ADR-021 primary brain. None = skip Claude path entirely (test
     mode, or runner not configured in this env)."""
 
+    use_async_endpoint: bool = True
+    """Wave 67 — when True, use /v1/agent-task/async + polling pattern
+    (mirror ADR-053). Bypasses Cloudflare Tunnel 100s edge cap that
+    intermittently 524s on cb_nlp/news_nlp big-prompt runs. Set False
+    only for tests / legacy scenarios."""
+
     last_success: str | None = field(default=None, init=False, repr=False)
     """Provider:model string of whichever path returned successfully on
     the most recent run() call. Read this AFTER run() to log/persist
@@ -75,12 +86,21 @@ class FallbackChain:
 
         if self.claude is not None:
             try:
-                result = await call_agent_task(
-                    self.claude,
-                    system=self.system_prompt,
-                    prompt=user_prompt,
-                    output_type=self.output_type,
-                )
+                # Wave 67 — async polling pattern by default (CF 100s fix)
+                if self.use_async_endpoint:
+                    result = await call_agent_task_async(
+                        self.claude,
+                        system=self.system_prompt,
+                        prompt=user_prompt,
+                        output_type=self.output_type,
+                    )
+                else:
+                    result = await call_agent_task(
+                        self.claude,
+                        system=self.system_prompt,
+                        prompt=user_prompt,
+                        output_type=self.output_type,
+                    )
                 self.last_success = f"claude:{self.claude.model}"
                 return result
             except ClaudeRunnerError as e:
