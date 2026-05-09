@@ -79,18 +79,38 @@ async def run_one(kind: str, *, hours: int = 6) -> int:
     output: Any = None
     err: str | None = None
     model_used = "unknown"
-    try:
-        log.info("couche2.run.start", kind=kind)
-        output = await chain.run(ctx.body)
-        # FallbackChain populates last_success with the provider:model
-        # of whichever path actually returned (Claude / Cerebras / Groq).
-        # Pre-2026-05-06 this was hard-coded to providers[0] which lied
-        # whenever Claude (now primary per ADR-021) was used.
-        model_used = chain.last_success or "unknown"
-        log.info("couche2.run.ok", kind=kind, model=model_used)
-    except Exception as exc:
-        err = repr(exc)[:1000]
-        log.warning("couche2.run.failed", kind=kind, error=err)
+    # Wave 66 — internal retry on transient 5xx (CF Tunnel 502/524 + 503
+    # while another subprocess in flight). cb_nlp + news_nlp big-prompt
+    # paths intermittently breach the CF 100s edge cap on legacy sync
+    # endpoint /v1/agent-task. One retry with 60s sleep recovers most
+    # cases without the structural async migration (deferred Phase D.1).
+    log.info("couche2.run.start", kind=kind)
+    max_attempts = 2
+    for attempt in range(max_attempts):
+        try:
+            output = await chain.run(ctx.body)
+            model_used = chain.last_success or "unknown"
+            log.info("couche2.run.ok", kind=kind, model=model_used, attempt=attempt + 1)
+            err = None
+            break
+        except Exception as exc:
+            err = repr(exc)[:1000]
+            transient_5xx = any(
+                marker in err
+                for marker in ("HTTP 502", "HTTP 503", "HTTP 504", "HTTP 524")
+            )
+            if attempt < max_attempts - 1 and transient_5xx:
+                log.info(
+                    "couche2.run.retry_5xx",
+                    kind=kind,
+                    attempt=attempt + 1,
+                    error_marker="transient_5xx",
+                    next_delay_s=60,
+                )
+                await asyncio.sleep(60)
+                continue
+            log.warning("couche2.run.failed", kind=kind, error=err, attempts=attempt + 1)
+            break
 
     duration_ms = int((time.monotonic() - started) * 1000)
 
