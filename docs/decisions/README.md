@@ -61,6 +61,7 @@
 | [053](ADR-053-claude-runner-async-polling-refactor.md)       | Accepted | claude-runner async + polling (CF 100s edge timeout fix)        | 2026-05-08 |
 | [054](ADR-054-claude-runner-stdin-pipe-windows-argv-limit.md) | Accepted | claude-runner stdin pipe (Windows argv 32K limit BLOCKER #2)    | 2026-05-08 |
 | [055](ADR-055-dollar-smile-break-skew-extension.md)          | Accepted | DOLLAR_SMILE_BREAK extended with SKEW (4-of-4 → 5-of-5)         | 2026-05-08 |
+| [067](ADR-067-couche2-async-polling-migration.md)            | Accepted | Couche-2 async polling migration (CF 100s structural fix)       | 2026-05-09 |
 
 > **Note**: SPEC_V2_HARDENING.md §4 originally referred to "ADR-008 to
 > ADR-011 prévus" for Phase 2 decisions. Those numbers were already taken
