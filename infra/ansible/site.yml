@@ -39,6 +39,9 @@
     - { role: n8n, tags: [n8n] }
     - { role: cloudflared, tags: [cloudflared, tunnel] }
     - { role: ichor_api, tags: [api, ichor_api] }
+    # ichor_packages MUST come after ichor_api: it uses the venv created
+    # by ichor_api to pip install -e the 3 internal packages.
+    - { role: ichor_packages, tags: [api, ichor_api, packages, ichor_packages] }
 
   post_tasks:
     - name: Final health check — services must be running

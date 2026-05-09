@@ -1,0 +1,112 @@
+---
+# Role: ichor_packages — sync the 3 internal Python packages from the
+# monorepo (packages/{agents,ichor_brain,ml}) to /opt/ichor/packages-staging/
+# on Hetzner so the Couche-2 systemd timers find their imports.
+#
+# Why this role exists (Wave 76 — ADR-072):
+#   On 2026-05-08 (W67 deploy), Couche-2 was failing because
+#   /opt/ichor/packages-staging/agents/src/ichor_agents/observability.py
+#   was missing. A manual scp restored it. To prevent the regression,
+#   ALL three packages are now synchronized declaratively here.
+#
+# Idempotent: rsync delete=true keeps the staging tree in lockstep with
+# the source-of-truth in the monorepo. PYTHONPATH for ichor-api +
+# ichor-collector@ + ichor-couche2@ services already includes
+# /opt/ichor/packages-staging/{agents,ichor_brain,ml}/src.
+
+- name: Ensure /opt/ichor/packages-staging base dir
+  ansible.builtin.file:
+    path: /opt/ichor/packages-staging
+    state: directory
+    owner: ichor
+    group: ichor
+    mode: "0755"
+
+- name: Sync packages/agents source
+  ansible.builtin.synchronize:
+    src: "{{ playbook_dir }}/../../packages/agents/"
+    dest: /opt/ichor/packages-staging/agents/
+    recursive: true
+    delete: true
+    rsync_opts:
+      - "--exclude=.venv"
+      - "--exclude=__pycache__"
+      - "--exclude=.pytest_cache"
+      - "--exclude=*.egg-info"
+      - "--exclude=node_modules"
+  delegate_to: "{{ inventory_hostname }}"
+
+- name: Sync packages/ichor_brain source
+  ansible.builtin.synchronize:
+    src: "{{ playbook_dir }}/../../packages/ichor_brain/"
+    dest: /opt/ichor/packages-staging/ichor_brain/
+    recursive: true
+    delete: true
+    rsync_opts:
+      - "--exclude=.venv"
+      - "--exclude=__pycache__"
+      - "--exclude=.pytest_cache"
+      - "--exclude=*.egg-info"
+      - "--exclude=node_modules"
+  delegate_to: "{{ inventory_hostname }}"
+
+- name: Sync packages/ml source
+  ansible.builtin.synchronize:
+    src: "{{ playbook_dir }}/../../packages/ml/"
+    dest: /opt/ichor/packages-staging/ml/
+    recursive: true
+    delete: true
+    rsync_opts:
+      - "--exclude=.venv"
+      - "--exclude=__pycache__"
+      - "--exclude=.pytest_cache"
+      - "--exclude=*.egg-info"
+      - "--exclude=node_modules"
+  delegate_to: "{{ inventory_hostname }}"
+
+- name: Fix ownership across packages-staging
+  ansible.builtin.file:
+    path: /opt/ichor/packages-staging
+    state: directory
+    owner: ichor
+    group: ichor
+    recurse: true
+
+- name: Bust pycache across packages-staging (force reload after sync)
+  ansible.builtin.shell: |
+    find /opt/ichor/packages-staging -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null
+    find /opt/ichor/packages-staging -type f -name '*.pyc' -delete 2>/dev/null
+    exit 0
+  changed_when: false
+  args:
+    executable: /bin/bash
+
+- name: Install internal packages editable into the ichor-api venv
+  ansible.builtin.shell: |
+    source /opt/ichor/api/.venv/bin/activate
+    /usr/local/bin/uv pip install -e /opt/ichor/packages-staging/agents
+    /usr/local/bin/uv pip install -e /opt/ichor/packages-staging/ichor_brain
+    /usr/local/bin/uv pip install -e /opt/ichor/packages-staging/ml
+  args:
+    executable: /bin/bash
+  become: true
+  become_user: ichor
+  register: _pkg_install
+  changed_when: "'Installed' in _pkg_install.stdout or 'Successfully' in _pkg_install.stdout"
+  failed_when:
+    - _pkg_install.rc != 0
+    - "'No project found' not in _pkg_install.stderr"
+
+- name: Verify shim observability.py is present (regression guard W67)
+  ansible.builtin.stat:
+    path: /opt/ichor/packages-staging/agents/src/ichor_agents/observability.py
+  register: _obs_stat
+
+- name: Fail if shim missing
+  ansible.builtin.fail:
+    msg: |
+      observability.py shim missing at /opt/ichor/packages-staging/agents/src/ichor_agents/observability.py
+      after sync. This is the W67 regression guard — investigate the rsync src path
+      ({{ playbook_dir }}/../../packages/agents/src/ichor_agents/observability.py)
+      and confirm the monorepo file exists.
+  when: not _obs_stat.stat.exists
