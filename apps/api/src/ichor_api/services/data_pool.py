@@ -1387,6 +1387,232 @@ async def _section_cleveland_fed_nowcast(
     return "\n".join(lines), sources
 
 
+def _band(value: float | None, thresholds: tuple[float, ...], labels: tuple[str, ...]) -> str:
+    """Classify `value` into a band given (sorted ascending) thresholds.
+
+    `len(labels) == len(thresholds) + 1`. Returns "n/a" for None input.
+    """
+    if value is None:
+        return "n/a"
+    for threshold, label in zip(thresholds, labels[:-1], strict=False):
+        if value < threshold:
+            return label
+    return labels[-1]
+
+
+async def _section_cross_asset_matrix(
+    session: AsyncSession,
+) -> tuple[str, list[str]]:
+    """## Cross-asset matrix v2 — 6 macro dimensions + per-asset bias guide.
+
+    Aggregates the macro-research surface into a single structured
+    section that Pass 1 régime classifier + Pass 2 mechanism citation
+    can both consume directly. Six dimensions, each normalized into a
+    qualitative band:
+
+      1. Inflation persistence (NY Fed MCT trend, W71)
+      2. Inflation surprise (Cleveland nowcast Core PCE YoY vs MCT, W72)
+      3. Liquidity / financial conditions (FRED NFCI, W42)
+      4. Tail-risk regime (CBOE SKEW, W24)
+      5. Volatility regime (VIX, FRED VIXCLS)
+      6. Small-business sentiment (NFIB SBOI, W74)
+
+    Followed by a per-asset directional-bias guide (8 Ichor pairs) that
+    summarizes how each dimension typically pressures the asset in the
+    current band. Bias is a qualitative tag (`+`/`-`/`?`) anchored on
+    macro theory, not curve-fitting — the orchestrator's Critic
+    re-weights it. ADR-017 boundary: this is research framing, never
+    a trade signal.
+    """
+    sources: list[str] = []
+    lines: list[str] = ["## Cross-asset matrix (W79)"]
+
+    # ── 1. Inflation persistence (MCT trend) ──
+    mct_row = (
+        await session.execute(
+            select(NyfedMctObservation)
+            .order_by(desc(NyfedMctObservation.observation_month))
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+    mct_value = mct_row.mct_trend_pct if mct_row else None
+    mct_band = _band(
+        mct_value,
+        (2.25, 2.75, 3.25),
+        ("anchored", "near-target", "above-target", "unanchored"),
+    )
+    if mct_row is not None:
+        sources.append(f"NYFED:MCT@{mct_row.observation_month.isoformat()}")
+
+    # ── 2. Inflation surprise (Cleveland Core PCE YoY vs MCT) ──
+    nowcast_row = (
+        await session.execute(
+            select(ClevelandFedNowcast)
+            .where(
+                ClevelandFedNowcast.measure == "CorePCE",
+                ClevelandFedNowcast.horizon == "yoy",
+            )
+            .order_by(desc(ClevelandFedNowcast.revision_date))
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+    nowcast_value: float | None = nowcast_row.nowcast_value if nowcast_row else None
+    surprise_pts = (
+        nowcast_value - mct_value if (nowcast_value is not None and mct_value is not None) else None
+    )
+    surprise_band = _band(
+        surprise_pts,
+        (-0.50, -0.10, 0.10, 0.50),
+        ("downside-strong", "downside", "neutral", "upside", "upside-strong"),
+    )
+    if nowcast_row is not None:
+        sources.append(f"CLEVELAND_FED:NOWCAST@{nowcast_row.revision_date.isoformat()}")
+
+    # ── 3. Liquidity / financial conditions (NFCI) ──
+    nfci_v = await _latest_fred(session, "NFCI", max_age_days=14)
+    nfci_value = nfci_v[0] if nfci_v else None
+    nfci_band = _band(
+        nfci_value,
+        (-0.5, 0.0, 0.5),
+        ("loose", "mild-loose", "mild-tight", "tight"),
+    )
+    if nfci_v:
+        sources.append("FRED:NFCI")
+
+    # ── 4. Tail-risk regime (CBOE SKEW) ──
+    skew_row = (
+        await session.execute(
+            select(CboeSkewObservation)
+            .order_by(desc(CboeSkewObservation.observation_date))
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+    skew_value = skew_row.skew_value if skew_row else None
+    skew_band = _band(
+        skew_value, (135.0, 145.0, 155.0), ("calm", "normal", "elevated", "tail-fear")
+    )
+    if skew_row is not None:
+        sources.append(f"CBOE:SKEW@{skew_row.observation_date.isoformat()}")
+
+    # ── 5. Volatility regime (VIX) ──
+    vix_v = await _latest_fred(session, "VIXCLS", max_age_days=7)
+    vix_value = vix_v[0] if vix_v else None
+    vix_band = _band(vix_value, (15.0, 22.0, 30.0), ("complacent", "normal", "elevated", "panic"))
+    if vix_v:
+        sources.append("FRED:VIXCLS")
+
+    # ── 6. Small-business sentiment (NFIB SBOI) ──
+    sbet_row = (
+        await session.execute(
+            select(NfibSbetObservation).order_by(desc(NfibSbetObservation.report_month)).limit(1)
+        )
+    ).scalar_one_or_none()
+    sbet_value = sbet_row.sboi if sbet_row else None
+    sbet_band = _band(
+        sbet_value, (95.0, 98.0, 102.0), ("recession-pre", "below-avg", "soft", "expansionary")
+    )
+    if sbet_row is not None:
+        sources.append(f"NFIB:SBET@{sbet_row.report_month.isoformat()}")
+
+    if not sources:
+        return ("", [])  # nothing to surface — caller skips append
+
+    # ── Dimension table ──
+    lines.append("")
+    lines.append("| # | Dimension | Value | Band |")
+    lines.append("|---|---|---|---|")
+    rows = [
+        ("1", "Inflation persistence (MCT)", mct_value, mct_band, "%"),
+        ("2", "Inflation surprise (CorePCE - MCT)", surprise_pts, surprise_band, " pts"),
+        ("3", "Liquidity (NFCI)", nfci_value, nfci_band, ""),
+        ("4", "Tail risk (SKEW)", skew_value, skew_band, ""),
+        ("5", "Volatility (VIX)", vix_value, vix_band, ""),
+        ("6", "Small-biz sentiment (SBOI)", sbet_value, sbet_band, ""),
+    ]
+    for n, name, val, band, unit in rows:
+        v = "n/a" if val is None else f"{val:.2f}{unit}"
+        lines.append(f"| {n} | {name} | {v} | {band} |")
+
+    # ── Per-asset directional-bias guide ──
+    # Heuristic mapping (NOT a trade signal — ADR-017 research framing).
+    # Reads the 6 dimensions and projects qualitative pressure per asset.
+    inflation_pressure_up = mct_value is not None and mct_value >= 2.75
+    liquidity_tight = nfci_value is not None and nfci_value >= 0.0
+    tail_fear = skew_band in {"elevated", "tail-fear"}
+    vol_elevated = vix_band in {"elevated", "panic"}
+    sentiment_weak = sbet_band in {"recession-pre", "below-avg"}
+
+    lines.append("")
+    lines.append("### Per-asset macro-pressure tags (research only, ADR-017)")
+    asset_hints: list[tuple[str, list[str]]] = []
+
+    def asset(name: str, hints: list[str]) -> tuple[str, list[str]]:
+        return name, hints
+
+    eur_usd: list[str] = []
+    if liquidity_tight:
+        eur_usd.append("USD-bid (NFCI tight)")
+    if vol_elevated:
+        eur_usd.append("USD-bid (vol regime)")
+    if inflation_pressure_up:
+        eur_usd.append("Fed-on-hold supports USD")
+    asset_hints.append(asset("EUR_USD", eur_usd or ["balanced"]))
+
+    gbp_usd: list[str] = list(eur_usd)
+    if sentiment_weak:
+        gbp_usd.append("UK growth-tail downside")
+    asset_hints.append(asset("GBP_USD", gbp_usd or ["balanced"]))
+
+    usd_jpy: list[str] = []
+    if vol_elevated or tail_fear:
+        usd_jpy.append("JPY-bid (safe haven)")
+    if inflation_pressure_up:
+        usd_jpy.append("UST yield up → USD-bid")
+    asset_hints.append(asset("USD_JPY", usd_jpy or ["balanced"]))
+
+    aud_usd: list[str] = []
+    if liquidity_tight or tail_fear:
+        aud_usd.append("AUD-soft (risk-off)")
+    if inflation_pressure_up:
+        aud_usd.append("commodity tail-up support")
+    asset_hints.append(asset("AUD_USD", aud_usd or ["balanced"]))
+
+    usd_cad: list[str] = []
+    if vol_elevated:
+        usd_cad.append("USD-bid (vol regime)")
+    asset_hints.append(asset("USD_CAD", usd_cad or ["balanced"]))
+
+    xau_usd: list[str] = []
+    if inflation_pressure_up:
+        xau_usd.append("real-yield support (++)")
+    if tail_fear or vol_elevated:
+        xau_usd.append("safe-haven flow (++)")
+    if liquidity_tight:
+        xau_usd.append("USD-strength counter-pressure (-)")
+    asset_hints.append(asset("XAU_USD", xau_usd or ["balanced"]))
+
+    nas: list[str] = []
+    if inflation_pressure_up:
+        nas.append("duration headwind (-)")
+    if liquidity_tight:
+        nas.append("multiple-compression risk (-)")
+    if vol_elevated:
+        nas.append("vol-of-vol drag (-)")
+    asset_hints.append(asset("NAS100_USD", nas or ["balanced"]))
+
+    spx: list[str] = []
+    if liquidity_tight or tail_fear:
+        spx.append("risk-off pressure (-)")
+    if sentiment_weak:
+        spx.append("earnings-tail downside (-)")
+    asset_hints.append(asset("SPX500_USD", spx or ["balanced"]))
+
+    for asset_name, hints in asset_hints:
+        lines.append(f"- **{asset_name}** : {' · '.join(hints)}")
+
+    return "\n".join(lines), sources
+
+
 async def _section_myfxbook_outlook(
     session: AsyncSession,
 ) -> tuple[str, list[str]]:
@@ -2245,6 +2471,14 @@ async def build_data_pool(
     fxb_md, fxb_src = await _section_myfxbook_outlook(session)
     if fxb_src:  # only append if we actually have data
         sections.append(("myfxbook_outlook", fxb_md, fxb_src))
+
+    # Wave 79 — Cross-asset matrix v2: 6 macro dimensions normalized to
+    # qualitative bands + per-asset directional-bias guide. Aggregates
+    # the inflation pillar (W71/W72), liquidity (FRED W42), tail risk
+    # (CBOE SKEW), sentiment (NFIB W74) into one structured surface.
+    cam_md, cam_src = await _section_cross_asset_matrix(session)
+    if cam_src:
+        sections.append(("cross_asset_matrix", cam_md, cam_src))
 
     # Wave 41 — Labor + uncertainty + recession régime (7 FRED series).
     # Jobless claims band + EPU band + wage-inflation + USREC flag.
