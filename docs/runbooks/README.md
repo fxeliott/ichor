@@ -8,7 +8,7 @@ and slow brain. Be procedural, list every command, link to dashboards.
 
 `RUNBOOK-NNN-short-slug.md` — sequential, never reordered.
 
-## Index (2026-05-09 — 16 runbooks, all written)
+## Index (2026-05-09 — 17 runbooks, all written)
 
 | ID  | File                                                                    | Trigger                                              |
 | --- | ----------------------------------------------------------------------- | ---------------------------------------------------- |
@@ -28,6 +28,7 @@ and slow brain. Be procedural, list every command, link to dashboards.
 | 014 | [claude-runner Win11 down](RUNBOOK-014-claude-runner-win11-down.md)     | NSSM service stopped / paused, Couche-1+2 chain 5xx  |
 | 015 | [Secrets rotation](RUNBOOK-015-secrets-rotation.md)                     | Planned cadence (90d/60d/12mo) or compromise event   |
 | 016 | [Langfuse traces](RUNBOOK-016-langfuse-traces.md)                       | Langfuse trace pipeline broken / public_key warning  |
+| 017 | [MyFXBook activation](RUNBOOK-017-myfxbook-activation.md)               | Turn the W77 collector from dormant to live          |
 
 ## Template
 
