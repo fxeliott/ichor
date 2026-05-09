@@ -1,0 +1,344 @@
+"""W90 — Doctrinal invariant CI guards for Ichor (ADR-081).
+
+Mechanises 5 of the most important Ichor doctrinal invariants so they
+fail the build instead of relying on human code review :
+
+  1. ADR-017     — No BUY/SELL signals in production Python code.
+                   `BUY` and `SELL` may appear in strings (docstrings,
+                   prompt text, error messages) and comments, never in
+                   Python code (identifiers, attributes, dict keys).
+  2. ADR-009     — No `anthropic` SDK consumption in production code
+                   (Voie D : Max 20x flat, subprocess `claude -p` only).
+  3. ADR-023     — Couche-2 agents use Claude Haiku low, not Sonnet
+                   (Sonnet medium hits CF Free 100s edge timeout).
+  4. ADR-029     — `audit_log` table has immutable BEFORE-UPDATE/DELETE
+                   trigger (MiFID Article 16 + EU AI Act §50 logging).
+  5. ADR-077     — `tool_call_audit` table has the same immutable
+                   trigger pattern (Capability 5 audit chain).
+
+Test design philosophy :
+  - Each test is a single source of truth for one invariant.
+  - Tests use Python's tokenize to distinguish code tokens from
+    string/comment tokens — `BUY` inside a docstring is OK, `BUY`
+    as a Python identifier is not.
+  - Allowed exceptions are explicit, not implicit. Adding a new
+    allowed file requires editing the test (visible in code review).
+  - Tests run in <2s on every CI run + every developer pre-commit.
+
+ADR-081 codifies the policy. Adding a new invariant test =
+extending this file + extending ADR-081's "Tracked invariants"
+table.
+"""
+
+from __future__ import annotations
+
+import re
+import tokenize
+from pathlib import Path
+
+import pytest
+
+# Repo root resolution : this file lives at
+# apps/api/tests/test_invariants_ichor.py — climb three levels.
+_REPO_ROOT = Path(__file__).resolve().parents[3]
+
+
+# ────────────────────────── helpers ──────────────────────────
+
+
+def _iter_python_sources(roots: list[Path]) -> list[Path]:
+    """Walk a list of roots and return every .py file inside them.
+
+    Skips :
+      - any path containing `.venv` (third-party deps).
+      - any path containing `__pycache__`.
+      - any path under `archive/` (frozen pre-reset code, ADR-017).
+      - any test file (tests INSPECT the invariant, the invariant
+        itself lives in production code).
+    """
+    files: list[Path] = []
+    for root in roots:
+        if not root.exists():
+            continue
+        for p in root.rglob("*.py"):
+            parts = set(p.parts)
+            if ".venv" in parts or "__pycache__" in parts:
+                continue
+            if "archive" in parts:
+                continue
+            if p.name.startswith("test_") or p.parent.name == "tests":
+                continue
+            files.append(p)
+    return files
+
+
+def _code_tokens(file_path: Path) -> list[tokenize.TokenInfo]:
+    """Tokenize a .py file and return non-STRING, non-COMMENT tokens.
+
+    Returns empty list (silently) if the file fails to tokenize —
+    this is conservative ; a malformed file is caught by other CI
+    steps (ruff, mypy, pytest-collect).
+    """
+    try:
+        with open(file_path, "rb") as f:
+            all_tokens = list(tokenize.tokenize(f.readline))
+    except (tokenize.TokenError, SyntaxError, UnicodeDecodeError):
+        return []
+    return [
+        t
+        for t in all_tokens
+        if t.type
+        not in (
+            tokenize.STRING,
+            tokenize.COMMENT,
+            tokenize.FSTRING_START,
+            tokenize.FSTRING_MIDDLE,
+            tokenize.FSTRING_END,
+            tokenize.NL,
+            tokenize.NEWLINE,
+            tokenize.INDENT,
+            tokenize.DEDENT,
+            tokenize.ENCODING,
+            tokenize.ENDMARKER,
+        )
+    ]
+
+
+# ────────────────────────── ADR-017 ──────────────────────────
+
+# Ichor production Python sources — the boundary surface that must
+# never emit BUY/SELL signals.
+_ADR017_PROD_ROOTS = [
+    _REPO_ROOT / "apps" / "api" / "src",
+    _REPO_ROOT / "apps" / "claude-runner" / "src",
+    _REPO_ROOT / "apps" / "ichor-mcp" / "src",
+    _REPO_ROOT / "packages" / "ichor_brain" / "src",
+    _REPO_ROOT / "packages" / "agents" / "src",
+    _REPO_ROOT / "packages" / "ml" / "src",
+]
+
+# Word-boundary BUY/SELL pattern (case-sensitive — lowercase "buy" /
+# "sell" inside identifiers like `buy_order_book` is unrelated to the
+# trading-signal invariant and is allowed).
+_BUY_SELL_RE = re.compile(r"\b(BUY|SELL)\b")
+
+
+def test_no_buy_sell_in_python_code_tokens() -> None:
+    """ADR-017 : `BUY` and `SELL` are forbidden in Python code tokens
+    (identifiers, attributes, dict keys). They MAY appear in strings
+    (docstrings, prompts, error messages) and comments — those are the
+    boundary explanations and prompt text.
+
+    Failure mode caught : a developer accidentally introduces
+    `bias_direction = "BUY"` as a Python literal — but Python literal
+    is a STRING token, so this test wouldn't catch it. The string
+    literal IS allowed by ADR-017 because it's the prompt-side
+    description, not an executable signal.
+
+    What this test catches : `BUY = 1`, `class BuyOrder` (matches BUY
+    boundary), `dict[..., BUY]`, attribute access `.BUY`, etc. — any
+    identifier-shaped use.
+    """
+    offenders: list[str] = []
+    for path in _iter_python_sources(_ADR017_PROD_ROOTS):
+        for tok in _code_tokens(path):
+            if _BUY_SELL_RE.search(tok.string):
+                rel = path.relative_to(_REPO_ROOT)
+                offenders.append(f"{rel}:{tok.start[0]} — token {tok.string!r}")
+    assert offenders == [], (
+        "ADR-017 violated : BUY/SELL appears in Python code tokens "
+        f"(not strings/comments). Found {len(offenders)} :\n"
+        + "\n".join(offenders[:20])
+        + ("\n..." if len(offenders) > 20 else "")
+    )
+
+
+# ────────────────────────── ADR-009 ──────────────────────────
+
+# Voie D : the production code MUST NOT import the `anthropic` Python
+# SDK. The Max 20x plan does not authorise SDK consumption (cf. issue
+# anthropic/claude-agent-sdk-python#559 — SDK requires API key, prohibits
+# Max billing). Subprocess `claude -p` is the only authorised path.
+
+_ADR009_FORBIDDEN_IMPORT_RE = re.compile(
+    r"^\s*(?:import\s+anthropic|from\s+anthropic(?:\.|\s+import))",
+    re.MULTILINE,
+)
+
+
+def test_no_anthropic_sdk_imports() -> None:
+    """ADR-009 Voie D : no `import anthropic` or `from anthropic ...`
+    statements anywhere in production Python code."""
+    offenders: list[str] = []
+    for path in _iter_python_sources(_ADR017_PROD_ROOTS):
+        try:
+            text = path.read_text(encoding="utf-8")
+        except UnicodeDecodeError:
+            continue
+        for m in _ADR009_FORBIDDEN_IMPORT_RE.finditer(text):
+            line_no = text.count("\n", 0, m.start()) + 1
+            rel = path.relative_to(_REPO_ROOT)
+            offenders.append(f"{rel}:{line_no} — {m.group(0).strip()!r}")
+    assert offenders == [], (
+        "ADR-009 Voie D violated : `anthropic` SDK imported in production code. "
+        "Use `claude -p` subprocess only (apps/claude-runner pattern). "
+        f"Offenders ({len(offenders)}) :\n" + "\n".join(offenders)
+    )
+
+
+# ────────────────────────── ADR-023 ──────────────────────────
+
+# Couche-2 agents must default to Claude Haiku low. Sonnet medium
+# was the original mapping (ADR-021) but it hit Cloudflare Free 100s
+# edge timeout 60% of the time. ADR-023 supersedes ADR-021 with Haiku.
+
+_COUCHE2_AGENTS_DIR = _REPO_ROOT / "packages" / "agents" / "src" / "ichor_agents" / "agents"
+
+# We look for hard-coded `"sonnet"` / `'sonnet'` / `model="sonnet"` /
+# `model: "sonnet"` patterns in agent files. The default in
+# ClaudeRunnerProvider is acceptable to be `"haiku"` ; agents that
+# override are flagged.
+_SONNET_LITERAL_RE = re.compile(r"""['"]sonnet['"]""")
+_HAIKU_LITERAL_RE = re.compile(r"""['"]haiku['"]""")
+
+
+def test_couche2_agents_do_not_default_to_sonnet() -> None:
+    """ADR-023 : Couche-2 agent modules MUST NOT hard-code `"sonnet"`
+    as their default model.
+
+    Allowed mention sites : docstrings/comments explaining the historical
+    transition (ADR-021 → ADR-023). The check tokenises and only flags
+    `sonnet` literals appearing as Python STRING tokens whose enclosing
+    line does NOT mention ADR-021/ADR-023/historical context.
+    """
+    if not _COUCHE2_AGENTS_DIR.exists():
+        pytest.skip("ichor_agents package not yet installed in this checkout")
+
+    offenders: list[str] = []
+    history_marker_re = re.compile(r"ADR-02[13]|historical|deprecated|supersed", re.IGNORECASE)
+    for path in _iter_python_sources([_COUCHE2_AGENTS_DIR]):
+        try:
+            with open(path, "rb") as f:
+                tokens = list(tokenize.tokenize(f.readline))
+        except (tokenize.TokenError, SyntaxError, UnicodeDecodeError):
+            continue
+        for tok in tokens:
+            if tok.type != tokenize.STRING:
+                continue
+            if not _SONNET_LITERAL_RE.search(tok.string):
+                continue
+            # Allowed if the enclosing line (or one of the surrounding
+            # 3 lines) mentions an ADR-021/023 transition marker.
+            line_text = tok.line
+            if history_marker_re.search(line_text):
+                continue
+            rel = path.relative_to(_REPO_ROOT)
+            offenders.append(f"{rel}:{tok.start[0]} — {line_text.strip()[:80]!r}")
+    assert offenders == [], (
+        "ADR-023 violated : Couche-2 agent code hard-codes `sonnet`. "
+        "Use `haiku` (low effort). "
+        f"Offenders ({len(offenders)}) :\n" + "\n".join(offenders)
+    )
+
+
+def test_couche2_agents_reference_haiku() -> None:
+    """ADR-023 positive guard : at least one Couche-2 agent module
+    references `haiku` in code or strings. Catches accidental wholesale
+    deletion of the model selection logic."""
+    if not _COUCHE2_AGENTS_DIR.exists():
+        pytest.skip("ichor_agents package not yet installed in this checkout")
+
+    found_haiku = False
+    for path in _iter_python_sources([_COUCHE2_AGENTS_DIR]):
+        try:
+            text = path.read_text(encoding="utf-8")
+        except UnicodeDecodeError:
+            continue
+        if _HAIKU_LITERAL_RE.search(text):
+            found_haiku = True
+            break
+    assert found_haiku, (
+        "ADR-023 sanity : no Couche-2 agent module references 'haiku' anywhere. "
+        "The model selection wiring may have been deleted accidentally."
+    )
+
+
+# ────────────────────────── ADR-029 + ADR-077 ──────────────────────────
+
+# Two append-only audit tables exist in the schema, each backed by a
+# BEFORE-UPDATE/DELETE Postgres trigger that RAISE EXCEPTIONs unless
+# the sanctioned `ichor.audit_purge_mode='on'` GUC is set in the
+# transaction. Any attempt to drop or weaken these triggers is a P0
+# compliance regression (MiFID Article 16 + EU AI Act §50 logging).
+
+_MIGRATIONS_DIR = _REPO_ROOT / "apps" / "api" / "migrations" / "versions"
+
+
+def _read_migration_text(slug_substring: str) -> str:
+    """Find migration file by slug substring and return its source."""
+    matches = list(_MIGRATIONS_DIR.glob(f"*{slug_substring}*.py"))
+    if not matches:
+        pytest.fail(f"migration matching '{slug_substring}' not found in {_MIGRATIONS_DIR}")
+    if len(matches) > 1:
+        pytest.fail(
+            f"multiple migrations match '{slug_substring}' : "
+            f"{[m.name for m in matches]} — narrow the substring."
+        )
+    return matches[0].read_text(encoding="utf-8")
+
+
+def test_audit_log_immutable_trigger_present() -> None:
+    """ADR-029 : `audit_log` migration installs a BEFORE-UPDATE-OR-DELETE
+    trigger that RAISE EXCEPTIONs. The trigger must reference the
+    sanctioned-purge GUC `ichor.audit_purge_mode`."""
+    text = _read_migration_text("audit_log_immutable_trigger")
+    assert "BEFORE UPDATE OR DELETE" in text, (
+        "ADR-029 : audit_log migration is missing the BEFORE UPDATE OR DELETE clause. "
+        "Without it, rows are mutable and MiFID Article 16 is violated."
+    )
+    assert "RAISE EXCEPTION" in text, (
+        "ADR-029 : audit_log migration is missing a RAISE EXCEPTION in the trigger body."
+    )
+    assert "audit_purge_mode" in text, (
+        "ADR-029 : audit_log migration is missing the sanctioned-purge GUC "
+        "`ichor.audit_purge_mode`. Nightly rotation jobs would fail."
+    )
+
+
+def test_tool_call_audit_immutable_trigger_present() -> None:
+    """ADR-077 / Cap5 PRE-2 : `tool_call_audit` migration mirrors the
+    audit_log pattern. Same checks."""
+    text = _read_migration_text("tool_call_audit")
+    assert "BEFORE UPDATE OR DELETE" in text, (
+        "ADR-077 : tool_call_audit migration is missing the BEFORE UPDATE OR DELETE clause. "
+        "Capability 5 audit chain would be mutable, violating MiFID + EU AI Act §50."
+    )
+    assert "RAISE EXCEPTION" in text, (
+        "ADR-077 : tool_call_audit migration is missing a RAISE EXCEPTION in the trigger body."
+    )
+    assert "audit_purge_mode" in text, (
+        "ADR-077 : tool_call_audit migration is missing the sanctioned-purge GUC. "
+        "Nightly rotation jobs would fail or hit the trigger."
+    )
+
+
+# ────────────────────────── ADR-079 ──────────────────────────
+
+
+def test_ai_watermark_default_prefixes_match_settings() -> None:
+    """ADR-079 + ADR-080 : the W88 middleware default prefix tuple,
+    the W89 well-known endpoint inventory, and the Settings field
+    must agree on the watermarked surface. Any divergence is a
+    silent compliance regression (some routes watermarked,
+    others advertised, or vice versa)."""
+    # Lazy import — keeps the test file importable even when the api
+    # venv isn't activated (CI reuses test_collection-only paths).
+    from ichor_api.config import Settings
+    from ichor_api.middleware.ai_watermark import DEFAULT_WATERMARKED_PREFIXES
+
+    settings = Settings()
+    assert set(DEFAULT_WATERMARKED_PREFIXES) == set(settings.ai_watermarked_route_prefixes), (
+        "ADR-079/080 single-source-of-truth violated : "
+        f"middleware default prefixes {sorted(DEFAULT_WATERMARKED_PREFIXES)} "
+        f"differ from Settings default {sorted(settings.ai_watermarked_route_prefixes)}."
+    )

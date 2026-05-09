@@ -1,7 +1,7 @@
 # Ichor — Claude Code project memory
 
 > Auto-injected at every session start. Keep terse and current.
-> Last sync: 2026-05-09 deep night (post-W89 — disclosure surface contract /legal + /methodology + /.well-known/ai-content + ADR-080).
+> Last sync: 2026-05-09 deep night (post-W90 — doctrinal invariant CI guards + ADR-081).
 
 ## What this repo is
 
@@ -102,8 +102,17 @@ D:\Ichor
   trigger (0028, ADR-029), trader_notes (0029), CBOE SKEW (0030),
   CFTC TFF (0031), CBOE VVIX (0032), Treasury TIC (0033).
 
-## Recent ADRs (2026-05-09 batch — 13 ADRs)
+## Recent ADRs (2026-05-09 batch — 14 ADRs)
 
+- [ADR-081](docs/decisions/ADR-081-doctrinal-invariant-ci-guards.md)
+  Doctrinal invariant CI guards (W90) — single test module
+  `test_invariants_ichor.py` mechanises ADR-017 (no BUY/SELL),
+  ADR-009 (Voie D), ADR-023 (Couche-2 Haiku not Sonnet), ADR-029
+  (audit_log immutable), ADR-077 (tool_call_audit immutable),
+  ADR-079/080 (watermark single-source-of-truth). 7 tests in 2.6s
+  using Python `tokenize`. Adds the canonical reference for
+  invariant mechanisation policy ; future ADRs cite "CI-guarded
+  by …" or "INFORMAL — CI guard pending W?".
 - [ADR-080](docs/decisions/ADR-080-disclosure-surface-contract.md)
   Disclosure surface contract — `/legal/ai-disclosure`, `/methodology`,
   `/.well-known/ai-content` (W89). Closes silent 404 regression on
@@ -299,6 +308,23 @@ D:\Ichor
   field (W81 candidate, 1h estimate).
 - Polymarket `WHALES` constant in `polymarket/page.tsx` — no backend
   trade-tape collector yet (W82 candidate, separate ADR needed).
+
+## Recently fixed (2026-05-09 deep night — doctrinal invariant CI guards)
+
+- **W90** ✅ — Doctrinal invariant CI guards (ADR-081). Mechanises
+  5 of the most consequential Ichor invariants — never trade signals
+  (ADR-017), Voie D (ADR-009), Couche-2 Haiku low (ADR-023), audit
+  immutability (ADR-029 + ADR-077), watermark single-source-of-truth
+  (ADR-079 + ADR-080). New module `apps/api/tests/test_invariants_ichor.py`
+  (~250 LOC, 7 tests, runs in 2.6s). Uses Python `tokenize` to
+  distinguish code tokens from STRING/COMMENT tokens — catches
+  identifier-shaped uses of `BUY`/`SELL` while allowing them in
+  docstrings/prompts. Catches `import anthropic`. Catches Couche-2
+  drift back to Sonnet. Catches accidental migration trigger
+  weakening. Catches W88/W89 single-source-of-truth drift between
+  middleware DEFAULT_WATERMARKED_PREFIXES and Settings field. Now
+  every CI run + every developer pre-commit (W91 follow-up) gate
+  the doctrinal surface mechanically.
 
 ## Recently fixed (2026-05-09 deep night — disclosure surface contract)
 
