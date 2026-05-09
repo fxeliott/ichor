@@ -88,7 +88,9 @@ class AsyncTaskStatus(BaseModel):
     """'pending' (queued), 'running' (subprocess in flight),
     'done' (result available), 'error' (failed), 'unknown' (not found)."""
     elapsed_sec: float | None = None
-    result: BriefingTaskResponse | None = None
+    # Wave 67 — accept BriefingTaskResponse (briefing async) OR
+    # AgentTaskResponse (agent async). Union avoids Pydantic 500 on serialize.
+    result: BriefingTaskResponse | AgentTaskResponse | None = None
     error: str | None = None
 
 
