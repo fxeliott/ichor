@@ -398,3 +398,64 @@ class HealthDetailedOut(HealthOut):
     unack_alerts_critical: int
     unack_alerts_warning: int
     collectors: list[CollectorLag]
+
+
+# ─────────────────────────────────────────────────────────────────────
+# Capability 5 client-tool wire schemas (W85, ADR-071 STEP-3 / ADR-077)
+# ─────────────────────────────────────────────────────────────────────
+# Sit in front of `services.tool_query_db` and `services.tool_calc`.
+# Consumed by the Win11 apps/ichor-mcp stdio server (which forwards
+# every MCP tool call to /v1/tools/* over HTTPS), so the DB credentials
+# stay on Hetzner and the immutable tool_call_audit row gets inserted
+# atomically with the same async session that ran the tool body.
+
+
+class _ToolAuditFields(BaseModel):
+    """Shared audit-trail fields. Mirror tool_call_audit columns."""
+
+    agent_kind: str = Field(
+        default="manual",
+        max_length=64,
+        description=(
+            "4-pass agent that invoked the tool (e.g. 'pass1_regime', "
+            "'pass5_counterfactual'). Default 'manual' for ad-hoc CLI "
+            "invocations from `claude -p --mcp-config`."
+        ),
+    )
+    pass_index: int = Field(
+        default=1,
+        ge=1,
+        le=5,
+        description="Orchestrator pass index. Pass 5 = counterfactual.",
+    )
+    session_card_id: UUID | None = Field(
+        default=None,
+        description="FK to session_card_audit when invoked inside a 4-pass run.",
+    )
+
+
+class ToolQueryDbIn(_ToolAuditFields):
+    sql: str = Field(min_length=1, max_length=8192)
+    max_rows: int | None = Field(default=None, ge=1, le=1000)
+
+
+class ToolQueryDbOut(BaseModel):
+    rows: list[dict[str, Any]]
+    duration_ms: int
+    tables_referenced: list[str]
+    truncated: bool = Field(
+        description="True when the result set was capped to max_rows / HARD_MAX_ROWS."
+    )
+
+
+class ToolCalcIn(_ToolAuditFields):
+    operation: str = Field(min_length=1, max_length=64)
+    values: list[float] = Field(min_length=1, max_length=10000)
+    params: dict[str, Any] = Field(default_factory=dict)
+
+
+class ToolCalcOut(BaseModel):
+    # Shape varies per op (float for percentile / annualize_vol / correlation,
+    # list[float] otherwise). Use `Any` to avoid coercion gymnastics.
+    result: Any
+    duration_ms: int

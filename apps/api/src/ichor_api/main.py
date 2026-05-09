@@ -45,6 +45,7 @@ from .routers import (
     sessions_router,
     sources_router,
     today_router,
+    tools_router,
     trade_plan_router,
     ws_router,
     yield_curve_router,
@@ -70,6 +71,17 @@ async def lifespan(app: FastAPI):
         raise RuntimeError(
             "Refusing to start: CORS origins contains '*' in production. "
             "Set ICHOR_API_CORS_ORIGINS to an explicit list of allowed origins."
+        )
+    # SECURITY: refuse to start in production without the Capability 5
+    # client-tool service token. The /v1/tools/* routes execute SQL on
+    # behalf of the Win11 MCP server — without the token, anyone with
+    # network reach to apps/api could drive the whitelisted SELECT
+    # surface. ADR-077 § Auth.
+    if settings.environment == "production" and not settings.tool_service_token.strip():
+        raise RuntimeError(
+            "Refusing to start: ICHOR_API_TOOL_SERVICE_TOKEN unset in "
+            "production. /v1/tools/* would be exposed without "
+            "service-token enforcement (ADR-077)."
         )
     log.info(
         "api.startup",
@@ -197,6 +209,7 @@ app.include_router(today_router)
 app.include_router(push_router)
 app.include_router(admin_router)
 app.include_router(yield_curve_router)
+app.include_router(tools_router)
 app.include_router(ws_router)
 
 

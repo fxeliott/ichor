@@ -33,6 +33,9 @@ dependencies = [
     # Self-hosted Langfuse v3 docker stack lives on Hetzner under
     # /opt/ichor/langfuse (cf infra/ansible/roles/langfuse/).
     "langfuse>=4.0.0",
+    # Capability 5 STEP-1 (W83, ADR-071) — sqlglot AST whitelist parser
+    # used by `services.tool_query_db.validate_query`. Pure-Python.
+    "sqlglot>=25.0.0",
 ]
 
 [project.optional-dependencies]

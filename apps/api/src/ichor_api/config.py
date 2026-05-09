@@ -48,6 +48,14 @@ class Settings(BaseSettings):
     cf_access_client_id: str = ""
     cf_access_client_secret: str = ""
 
+    # --- Capability 5 client-tool service token (W85, ADR-077) ---
+    tool_service_token: str = ""
+    """Shared secret presented by the Win11 apps/ichor-mcp stdio server
+    on every POST to /v1/tools/* via the `X-Ichor-Tool-Token` header.
+    Empty value disables the guard (dev only) — production lifespan
+    refuses to start without one. Defense-in-depth alongside the
+    Cloudflare Access JWT on the edge (PRE-1)."""
+
     # --- LLM providers (Couche 2 24/7) ---
     cerebras_api_key: str = ""
     groq_api_key: str = ""

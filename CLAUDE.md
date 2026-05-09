@@ -1,7 +1,7 @@
 # Ichor — Claude Code project memory
 
 > Auto-injected at every session start. Keep terse and current.
-> Last sync: 2026-05-09 15:30 CEST (post-Phase II 11-commit batch W70-W79).
+> Last sync: 2026-05-09 evening (post-W85 — Capability 5 STEP-3 MCP server wire).
 
 ## What this repo is
 
@@ -19,11 +19,15 @@ backend, Node 22 LTS for the frontend.
 D:\Ichor
 ├── apps/
 │   ├── api/                  FastAPI + Alembic + SQLAlchemy 2 async
-│   │                         34 routers, 53 endpoints, 26 CLI runners,
+│   │                         35 routers (+ /v1/tools W85), 26 CLI runners,
 │   │                         28 models, 41 collectors, 49 services
 │   │                         data_pool = 43 sections (W79 cross-asset matrix v2)
 │   ├── claude-runner/        FastAPI Win11 wrapper around `claude -p`
 │   │                         /v1/briefing-task + /v1/agent-task
+│   ├── ichor-mcp/            **W85** Win11 stdio MCP server (Capability 5
+│   │                         STEP-3, ADR-077). Forwards mcp__ichor__query_db /
+│   │                         mcp__ichor__calc to apps/api `/v1/tools/*`. NO
+│   │                         DB credentials on Win11 by design.
 │   ├── web/                  legacy Phase 1 dashboard (read-only ref ; retired
 │   │                         from pnpm-workspace 2026-05-06 ; 5 routes ported
 │   │                         to web2 in commit `de80335`)
@@ -93,8 +97,14 @@ D:\Ichor
   trigger (0028, ADR-029), trader_notes (0029), CBOE SKEW (0030),
   CFTC TFF (0031), CBOE VVIX (0032), Treasury TIC (0033).
 
-## Recent ADRs (2026-05-09 batch — 9 ADRs)
+## Recent ADRs (2026-05-09 batch — 10 ADRs)
 
+- [ADR-077](docs/decisions/ADR-077-capability-5-mcp-server-wire.md)
+  Capability 5 STEP-3 MCP server (W85) — `apps/ichor-mcp` on Win11
+  forwards `query_db` + `calc` to apps/api `/v1/tools/*` over HTTPS.
+  Three-layer auth (X-Ichor-Tool-Token + CF Access PRE-1 + Postgres
+  grants). HTTP wrapper chosen over direct DB to keep credentials
+  off Win11 + centralise tool_call_audit immutability.
 - [ADR-076](docs/decisions/ADR-076-frontend-mock-fallback-pattern.md)
   Frontend `MOCK_*` are graceful fallbacks behind `isLive()`, not
   hardcoded mocks — keep the pattern. CLAUDE.md tech-debt line
@@ -228,14 +238,20 @@ D:\Ichor
 - **CF Access service token NOT wired** sur
   `claude-runner.fxmilyapp.com` — **PRE-1 blocker for Capability 5
   Phase D.0** wiring (cf ADR-071).
-- **`tool_call_audit` migration NOT yet shipped** — PRE-2 blocker for
-  Capability 5 Phase D.0. ADR-029 MiFID compliance requires the
-  immutable trigger pattern (mirror of `audit_log` 0028).
-- Capability 5 = scaffolded only (registry + 22 tests, ADR-050) but
-  wiring deferred per ADR-071 with the 6-step sequence (PRE-1, PRE-2,
-  STEP-1..STEP-5, STEP-6 integration test). Server tools
-  (`web_search`/`web_fetch`) **excluded** from scope — they're
-  metered by Anthropic since 2026-04 and violate Voie D.
+- ~~**`tool_call_audit` migration NOT yet shipped** — PRE-2 blocker~~
+  ✅ shipped W80 (commit `274d8e3`, migration 0038, immutable trigger
+  verified live).
+- Capability 5 wiring (ADR-071 6-step sequence) progress :
+  PRE-1 CF Access service token = ⏳ pending Eliot manual ;
+  PRE-2 tool_call_audit migration = ✅ W80 ;
+  STEP-1 sqlglot whitelist = ✅ W83 ;
+  STEP-2 calc dispatcher = ✅ W84 ;
+  STEP-3 MCP server = ✅ **W85 (this commit, ADR-077)** ;
+  STEP-4 RunnerCall.tools plumbing = ⏳ next ;
+  STEP-5 orchestrator agentic loop = ⏳ depends STEP-4 + PRE-1 ;
+  STEP-6 integration test = ⏳ final.
+  Server tools (`web_search`/`web_fetch`) **excluded** — billed by
+  Anthropic since 2026-04, violate Voie D.
 - WGC quarterly XLSX collector deferred — license requires explicit
   WGC consent for systematic extraction; private-research framing OK
   but not yet validated. (W75 candidate, `gold-demand-by-country` hub
@@ -248,6 +264,18 @@ D:\Ichor
   field (W81 candidate, 1h estimate).
 - Polymarket `WHALES` constant in `polymarket/page.tsx` — no backend
   trade-tape collector yet (W82 candidate, separate ADR needed).
+
+## Recently fixed (2026-05-09 evening — Capability 5 STEP-3 wave)
+
+- **W85** ✅ — Capability 5 STEP-3 MCP server. New `apps/ichor-mcp`
+  (Win11 stdio, lowlevel SDK, lifespan-managed httpx) +
+  `apps/api/.../routers/tools.py` (POST `/v1/tools/{query_db,calc}`,
+  audit-first dedicated session). Three-layer auth :
+  `X-Ichor-Tool-Token` (production lifespan refuses empty) +
+  CF Access PRE-1 (header pass-through, optional today) + Postgres
+  grants. CI matrix updated (`apps/ichor-mcp` added to `.github/
+  workflows/{ci,audit}.yml`). 12 unit tests apps/api +
+  12 unit tests apps/ichor-mcp green locally. ADR-077.
 
 ## Recently fixed (2026-05-09 — 11 commits Phase II batch)
 

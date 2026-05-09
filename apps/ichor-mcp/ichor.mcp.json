@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "ichor": {
+      "command": "python",
+      "args": ["-m", "ichor_mcp.server"],
+      "env": {
+        "ICHOR_MCP_API_BASE_URL": "https://api.fxmilyapp.com",
+        "ICHOR_MCP_API_SERVICE_TOKEN": "${ICHOR_MCP_API_SERVICE_TOKEN}",
+        "ICHOR_MCP_CF_ACCESS_CLIENT_ID": "${ICHOR_MCP_CF_ACCESS_CLIENT_ID}",
+        "ICHOR_MCP_CF_ACCESS_CLIENT_SECRET": "${ICHOR_MCP_CF_ACCESS_CLIENT_SECRET}",
+        "ICHOR_MCP_LOG_LEVEL": "INFO"
+      }
+    }
+  }
+}

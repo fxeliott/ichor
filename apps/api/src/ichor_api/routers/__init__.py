@@ -35,6 +35,7 @@ from .scenarios import router as scenarios_router
 from .sessions import router as sessions_router
 from .sources import router as sources_router
 from .today import router as today_router
+from .tools import router as tools_router
 from .trade_plan import router as trade_plan_router
 from .ws import router as ws_router
 from .yield_curve import router as yield_curve_router
@@ -71,6 +72,7 @@ __all__ = [
     "sessions_router",
     "sources_router",
     "today_router",
+    "tools_router",
     "trade_plan_router",
     "ws_router",
     "yield_curve_router",
