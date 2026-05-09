@@ -44,6 +44,9 @@ from .kalshi_market import KalshiMarket
 from .manifold_market import ManifoldMarket
 from .market_data import MarketDataBar
 from .news_item import NewsItem
+
+# Phase II — NY Fed Multivariate Core Trend monthly (Wave 71)
+from .nyfed_mct_observation import NyfedMctObservation
 from .polygon_gex_snapshot import PolygonGexSnapshot
 from .polygon_intraday import PolygonIntradayBar
 from .polymarket_snapshot import PolymarketSnapshot
@@ -84,6 +87,7 @@ __all__ = [
     "ManifoldMarket",
     "MarketDataBar",
     "NewsItem",
+    "NyfedMctObservation",
     "PolygonGexSnapshot",
     "PolygonIntradayBar",
     "PolymarketSnapshot",

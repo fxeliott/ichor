@@ -153,9 +153,7 @@ async def _run_polymarket(*, persist: bool) -> int:
                 n_alerts += len(hits)
             if n_alerts:
                 await session.commit()
-        print(
-            f"Polymarket · persisted {inserted} snapshots, {n_alerts} shift alerts"
-        )
+        print(f"Polymarket · persisted {inserted} snapshots, {n_alerts} shift alerts")
     return 0 if snaps else 1
 
 
@@ -349,6 +347,8 @@ async def _run_cme_zq(*, persist: bool) -> int:
 
     from ..collectors.cme_zq_futures import (
         fetch_multi_month,
+    )
+    from ..collectors.cme_zq_futures import (
         poll_all as poll_cme_zq,
     )
 
@@ -437,10 +437,7 @@ async def _run_cme_zq(*, persist: bool) -> int:
                     multi_n += 1
             if n or multi_n:
                 await session.commit()
-        print(
-            f"CME ZQ · persisted {n} front-month dated rows + {multi_n} "
-            f"forward-curve rows"
-        )
+        print(f"CME ZQ · persisted {n} front-month dated rows + {multi_n} forward-curve rows")
     return 0 if rows else 1
 
 
@@ -469,6 +466,30 @@ async def _run_treasury_tic(*, persist: bool) -> int:
             inserted = await persist_treasury_tic_holdings(session, holdings)
         print(f"Treasury TIC · persisted {inserted} new rows")
     return 0 if holdings else 1
+
+
+async def _run_nyfed_mct(*, persist: bool) -> int:
+    """Pull NY Fed Multivariate Core Trend monthly inflation (W71)."""
+    from ..collectors.nyfed_mct import poll_all as poll_nyfed_mct
+
+    obs = await poll_nyfed_mct()
+    print(f"NY Fed MCT · {len(obs)} monthly observations fetched")
+    if obs:
+        latest = max(obs, key=lambda o: o.observation_month)
+        print(
+            f"  latest = {latest.observation_month} : "
+            f"MCT={latest.mct_trend_pct:.2f}%  "
+            f"headlinePCE={latest.headline_pce_yoy}%  "
+            f"corePCE={latest.core_pce_yoy}%"
+        )
+    if persist:
+        from ..collectors.persistence import persist_nyfed_mct
+
+        sm = get_sessionmaker()
+        async with sm() as session:
+            inserted = await persist_nyfed_mct(session, obs)
+        print(f"NY Fed MCT · persisted {inserted} new rows")
+    return 0 if obs else 1
 
 
 async def _run_cftc_tff(*, persist: bool) -> int:
@@ -560,7 +581,7 @@ async def _run_cot(*, persist: bool) -> int:
                     continue
                 mean = sum(hist_arr) / len(hist_arr)
                 var = sum((x - mean) ** 2 for x in hist_arr) / max(1, len(hist_arr) - 1)
-                std = var ** 0.5
+                std = var**0.5
                 if std <= 0:
                     continue
                 z = (float(pos.managed_money_net) - mean) / std
@@ -945,16 +966,11 @@ async def _run_finra_short(*, persist: bool) -> int:
             # Idempotency : the (symbol, trade_date) UNIQUE constraint
             # prevents duplicate rows on cron retries. Pre-filter here
             # for cleaner counts + to avoid swallowing IntegrityErrors.
-            existing_stmt = (
-                select(FinraShortVolume.symbol, FinraShortVolume.trade_date)
-                .where(
-                    FinraShortVolume.symbol.in_({r.symbol for r in rows}),
-                    FinraShortVolume.trade_date.in_({r.trade_date for r in rows}),
-                )
+            existing_stmt = select(FinraShortVolume.symbol, FinraShortVolume.trade_date).where(
+                FinraShortVolume.symbol.in_({r.symbol for r in rows}),
+                FinraShortVolume.trade_date.in_({r.trade_date for r in rows}),
             )
-            existing = {
-                (s, d) for s, d in (await session.execute(existing_stmt)).all()
-            }
+            existing = {(s, d) for s, d in (await session.execute(existing_stmt)).all()}
             for r in rows:
                 if (r.symbol, r.trade_date) in existing:
                     continue
@@ -972,10 +988,7 @@ async def _run_finra_short(*, persist: bool) -> int:
                 )
                 n_inserted += 1
             await session.commit()
-        print(
-            f"FINRA short · persisted {n_inserted} new rows "
-            f"({len(rows) - n_inserted} dedup)"
-        )
+        print(f"FINRA short · persisted {n_inserted} new rows ({len(rows) - n_inserted} dedup)")
     return 0 if rows else 1
 
 
@@ -1052,7 +1065,9 @@ async def _run_bluesky(*, persist: bool) -> int:
                         source_kind="social",
                         title=(p.text[:200] or "(no text)"),
                         summary=p.text or None,
-                        url=f"https://bsky.app/profile/{p.author_handle}/post/{p.uri.split('/')[-1]}"[:1024],
+                        url=f"https://bsky.app/profile/{p.author_handle}/post/{p.uri.split('/')[-1]}"[
+                            :1024
+                        ],
                         published_at=p.created_at,
                         guid_hash=guid_hash,
                         raw_categories=None,
@@ -1392,16 +1407,20 @@ async def _run_wikipedia_pageviews(*, persist: bool) -> int:
                 # Truncate article to fit String(64) series_id
                 short_art = o.article.replace(" ", "_")[:48]
                 sid = f"WIKI_PV_{short_art}"[:64]
-                stmt = pg_insert(FredObservation).values(
-                    id=__import__("uuid").uuid4(),
-                    observation_date=o.observation_date,
-                    created_at=_dt.now(_UTC),
-                    series_id=sid,
-                    value=float(o.views),
-                    fetched_at=o.fetched_at,
-                ).on_conflict_do_update(
-                    constraint="uq_fred_series_date",
-                    set_={"value": float(o.views), "fetched_at": o.fetched_at},
+                stmt = (
+                    pg_insert(FredObservation)
+                    .values(
+                        id=__import__("uuid").uuid4(),
+                        observation_date=o.observation_date,
+                        created_at=_dt.now(_UTC),
+                        series_id=sid,
+                        value=float(o.views),
+                        fetched_at=o.fetched_at,
+                    )
+                    .on_conflict_do_update(
+                        constraint="uq_fred_series_date",
+                        set_={"value": float(o.views), "fetched_at": o.fetched_at},
+                    )
                 )
                 await session.execute(stmt)
                 n += 1
@@ -1495,31 +1514,39 @@ async def _run_treasury_auction(*, persist: bool) -> int:
                 short_term = r.security_term.replace(" ", "")[:12]
                 if r.high_yield is not None:
                     sid = f"TREASURY_AUC_HIGH_{short_type}_{short_term}"[:64]
-                    stmt = pg_insert(FredObservation).values(
-                        id=__import__("uuid").uuid4(),
-                        observation_date=r.issue_date,
-                        created_at=_dt.now(_UTC),
-                        series_id=sid,
-                        value=float(r.high_yield),
-                        fetched_at=r.fetched_at,
-                    ).on_conflict_do_update(
-                        constraint="uq_fred_series_date",
-                        set_={"value": float(r.high_yield)},
+                    stmt = (
+                        pg_insert(FredObservation)
+                        .values(
+                            id=__import__("uuid").uuid4(),
+                            observation_date=r.issue_date,
+                            created_at=_dt.now(_UTC),
+                            series_id=sid,
+                            value=float(r.high_yield),
+                            fetched_at=r.fetched_at,
+                        )
+                        .on_conflict_do_update(
+                            constraint="uq_fred_series_date",
+                            set_={"value": float(r.high_yield)},
+                        )
                     )
                     await session.execute(stmt)
                     n_persisted += 1
                 if r.bid_to_cover_ratio is not None:
                     sid = f"TREASURY_AUC_BTC_{short_type}_{short_term}"[:64]
-                    stmt = pg_insert(FredObservation).values(
-                        id=__import__("uuid").uuid4(),
-                        observation_date=r.issue_date,
-                        created_at=_dt.now(_UTC),
-                        series_id=sid,
-                        value=float(r.bid_to_cover_ratio),
-                        fetched_at=r.fetched_at,
-                    ).on_conflict_do_update(
-                        constraint="uq_fred_series_date",
-                        set_={"value": float(r.bid_to_cover_ratio)},
+                    stmt = (
+                        pg_insert(FredObservation)
+                        .values(
+                            id=__import__("uuid").uuid4(),
+                            observation_date=r.issue_date,
+                            created_at=_dt.now(_UTC),
+                            series_id=sid,
+                            value=float(r.bid_to_cover_ratio),
+                            fetched_at=r.fetched_at,
+                        )
+                        .on_conflict_do_update(
+                            constraint="uq_fred_series_date",
+                            set_={"value": float(r.bid_to_cover_ratio)},
+                        )
                     )
                     await session.execute(stmt)
                     n_persisted += 1
@@ -1546,9 +1573,7 @@ async def _run_treasury_auction(*, persist: bool) -> int:
                 )
                 n_alerts += len(hits)
             await session.commit()
-        print(
-            f"Treasury auctions · upserted {n_persisted} rows, {n_alerts} tail alerts"
-        )
+        print(f"Treasury auctions · upserted {n_persisted} rows, {n_alerts} tail alerts")
     return 0 if rows else 1
 
 
@@ -1599,9 +1624,7 @@ async def _run_yfinance_options(*, persist: bool) -> int:
     snaps = await poll_gex_yfinance()
     print(f"yfinance options · {len(snaps)} GEX snapshots computed")
     for s in snaps:
-        gex_str = (
-            f"{s.dealer_gex_total / 1e9:+.2f}bn$" if s.dealer_gex_total is not None else "n/a"
-        )
+        gex_str = f"{s.dealer_gex_total / 1e9:+.2f}bn$" if s.dealer_gex_total is not None else "n/a"
         flip_str = f"{s.gamma_flip:.0f}" if s.gamma_flip is not None else "n/a"
         print(
             f"  [{s.asset:6s}] spot={s.spot:.2f} gex={gex_str} flip={flip_str} "
@@ -1799,16 +1822,12 @@ async def _run_polygon(*, persist: bool, lookback_days: int = 1) -> int:
                 if asset in FX_PEG_REFS:
                     ref = FX_PEG_REFS[asset]
                     if ref == "rolling30":
-                        recent = [
-                            float(b.close) for b in all_bars if b.asset == asset
-                        ][-30:]
+                        recent = [float(b.close) for b in all_bars if b.asset == asset][-30:]
                         ref_level = sum(recent) / len(recent) if len(recent) >= 5 else None
                     else:
                         ref_level = float(ref)
                     if ref_level is not None and ref_level > 0:
-                        peg_dev_pct = (
-                            abs(float(bar.close) - ref_level) / ref_level * 100.0
-                        )
+                        peg_dev_pct = abs(float(bar.close) - ref_level) / ref_level * 100.0
                         peg_hits = await check_metric(
                             session,
                             metric_name="fx_peg_dev",
@@ -1823,9 +1842,7 @@ async def _run_polygon(*, persist: bool, lookback_days: int = 1) -> int:
                         n_alerts += len(peg_hits)
             if n_alerts:
                 await session.commit()
-        print(
-            f"Polygon · persisted {inserted} new rows, {n_alerts} alerts triggered"
-        )
+        print(f"Polygon · persisted {inserted} new rows, {n_alerts} alerts triggered")
     return 0 if all_bars else 1
 
 
@@ -1845,6 +1862,7 @@ async def _main(target: str, *, persist: bool) -> int:
         "cboe_vvix": _run_cboe_vvix,
         "cme_zq": _run_cme_zq,
         "treasury_tic": _run_treasury_tic,
+        "nyfed_mct": _run_nyfed_mct,
         "cftc_tff": _run_cftc_tff,
         "cot": _run_cot,
         "cb_speeches": _run_cb_speeches,

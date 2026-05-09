@@ -116,6 +116,11 @@ declare -A SCHEDULES=(
   # Jul 14 / Aug 17. Poll daily 03:00 Paris is conservative — the file
   # rarely updates, idempotent dedup catches no-op runs.
   [treasury_tic]="*-*-* 03:00:00 Europe/Paris"
+  # NY Fed Multivariate Core Trend monthly inflation (Wave 71).
+  # Released ~1st business day of the month following BEA PCE print
+  # (~10:00 ET = 16:00 Paris). Poll daily 17:00 Paris is conservative —
+  # CSV is small (~70 KB), idempotent dedup catches no-op runs.
+  [nyfed_mct]="*-*-* 17:00:00 Europe/Paris"
   # Note: collector module is `central_bank_speeches.py` but exposed under
   # the canonical short name `cb_speeches` in run_collectors.py:33 (alias).
   # Keep the timer aligned with the CLI target name to avoid the

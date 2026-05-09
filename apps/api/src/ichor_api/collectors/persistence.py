@@ -27,6 +27,7 @@ from ..models import (
     ManifoldMarket,
     MarketDataBar,
     NewsItem,
+    NyfedMctObservation,
     PolygonGexSnapshot,
     PolygonIntradayBar,
     PolymarketSnapshot,
@@ -39,15 +40,16 @@ from .central_bank_speeches import CentralBankSpeech
 from .cftc_tff import CftcTffObservation as CftcTffObservationData
 from .cot import CotPosition as CotPositionData
 from .fred import FredObservation as FredObservationData
-from .treasury_tic import TreasuryTicHolding as TreasuryTicHoldingData
 from .gdelt import GdeltArticle
 from .gex_yfinance import DealerGexSnapshot
 from .kalshi import KalshiMarketSnapshot
 from .manifold import ManifoldSnapshot
 from .market_data import MarketDataPoint
+from .nyfed_mct import NyfedMctObservation as NyfedMctObservationData
 from .polygon import PolygonBar
 from .polymarket import PolymarketSnapshot as PolymarketSnapshotData
 from .rss import NewsItem as NewsItemData
+from .treasury_tic import TreasuryTicHolding as TreasuryTicHoldingData
 
 log = structlog.get_logger(__name__)
 
@@ -671,6 +673,55 @@ async def persist_treasury_tic_holdings(
     return inserted
 
 
+async def persist_nyfed_mct(
+    session: AsyncSession, observations: Iterable[NyfedMctObservationData]
+) -> int:
+    """Insert NY Fed MCT monthly observations, skipping months already known.
+
+    Idempotent: re-running the same poll inserts zero rows. Re-runs after
+    a new MCT release add only the newest month(s).
+    """
+    observations = list(observations)
+    if not observations:
+        return 0
+    months = {o.observation_month for o in observations}
+    existing_rows = (
+        await session.execute(
+            select(NyfedMctObservation.observation_month).where(
+                NyfedMctObservation.observation_month.in_(months),
+            )
+        )
+    ).all()
+    existing: set[date_type] = {r[0] for r in existing_rows}
+    now = datetime.now(UTC)
+    inserted = 0
+    for o in observations:
+        if o.observation_month in existing:
+            continue
+        session.add(
+            NyfedMctObservation(
+                observation_month=o.observation_month,
+                mct_trend_pct=o.mct_trend_pct,
+                headline_pce_yoy=o.headline_pce_yoy,
+                core_pce_yoy=o.core_pce_yoy,
+                goods_pct=o.goods_pct,
+                services_ex_housing_pct=o.services_ex_housing_pct,
+                housing_pct=o.housing_pct,
+                fetched_at=o.fetched_at or now,
+            )
+        )
+        inserted += 1
+    if inserted:
+        await session.commit()
+    log.info(
+        "nyfed_mct.persisted",
+        total=len(observations),
+        inserted=inserted,
+        skipped=len(observations) - inserted,
+    )
+    return inserted
+
+
 async def persist_cb_speeches(session: AsyncSession, speeches: Iterable[CentralBankSpeech]) -> int:
     """Insert central-bank speeches, skipping URLs already known."""
     speeches = list(speeches)
@@ -761,9 +812,7 @@ async def persist_manifold_snapshots(
     return len(snaps)
 
 
-async def persist_gex_snapshots(
-    session: AsyncSession, snaps: Iterable[DealerGexSnapshot]
-) -> int:
+async def persist_gex_snapshots(session: AsyncSession, snaps: Iterable[DealerGexSnapshot]) -> int:
     """Persist dealer GEX snapshots into the gex_snapshots table.
 
     Source-agnostic — accepts snapshots from gex_yfinance or any future

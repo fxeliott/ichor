@@ -63,6 +63,7 @@
 | [055](ADR-055-dollar-smile-break-skew-extension.md)          | Accepted | DOLLAR_SMILE_BREAK extended with SKEW (4-of-4 → 5-of-5)         | 2026-05-08 |
 | [067](ADR-067-couche2-async-polling-migration.md)            | Accepted | Couche-2 async polling migration (CF 100s structural fix)       | 2026-05-09 |
 | [068](ADR-068-cb-nlp-prompt-redesign-content-refusal.md)     | Accepted | cb_nlp prompt redesign — Claude content refusal fix             | 2026-05-09 |
+| [069](ADR-069-nyfed-mct-collector-replaces-uig.md)           | Accepted | NY Fed MCT collector replaces discontinued FRED UIGFULL         | 2026-05-09 |
 
 > **Note**: SPEC_V2_HARDENING.md §4 originally referred to "ADR-008 to
 > ADR-011 prévus" for Phase 2 decisions. Those numbers were already taken

@@ -37,6 +37,7 @@ from ..models import (
     KalshiMarket,
     ManifoldMarket,
     NewsItem,
+    NyfedMctObservation,
     PolygonIntradayBar,
     PolymarketSnapshot,
     TreasuryTicHolding,
@@ -261,19 +262,27 @@ async def _section_executive_summary(session: AsyncSession) -> tuple[str, list[s
     # ── 0. Master regime classifier (Wave 51) ──
     # Pull snapshot of canonical signals; bucket into 7-regime taxonomy.
     skew_latest_row = (
-        await session.execute(
-            select(CboeSkewObservation)
-            .order_by(desc(CboeSkewObservation.observation_date))
-            .limit(1)
+        (
+            await session.execute(
+                select(CboeSkewObservation)
+                .order_by(desc(CboeSkewObservation.observation_date))
+                .limit(1)
+            )
         )
-    ).scalars().first()
+        .scalars()
+        .first()
+    )
     vvix_latest_row = (
-        await session.execute(
-            select(CboeVvixObservation)
-            .order_by(desc(CboeVvixObservation.observation_date))
-            .limit(1)
+        (
+            await session.execute(
+                select(CboeVvixObservation)
+                .order_by(desc(CboeVvixObservation.observation_date))
+                .limit(1)
+            )
         )
-    ).scalars().first()
+        .scalars()
+        .first()
+    )
     vix_v = await _latest_fred(session, "VIXCLS", max_age_days=7)
     hy_oas_v = await _latest_fred(session, "BAMLH0A0HYM2", max_age_days=14)
     dxy_v = await _latest_fred(session, "DTWEXBGS", max_age_days=14)
@@ -297,13 +306,13 @@ async def _section_executive_summary(session: AsyncSession) -> tuple[str, list[s
     rationale: str = "no clear template match"
 
     # Crisis takes priority — panic / fat-tail conditions
-    if (skew is not None and skew >= 150) or (vix is not None and vix >= 30) or (
-        hy_oas is not None and hy_oas >= 6.0
+    if (
+        (skew is not None and skew >= 150)
+        or (vix is not None and vix >= 30)
+        or (hy_oas is not None and hy_oas >= 6.0)
     ):
         regime = "crisis"
-        rationale = (
-            f"SKEW={skew} VIX={vix} HY-OAS={hy_oas}% — flight to quality"
-        )
+        rationale = f"SKEW={skew} VIX={vix} HY-OAS={hy_oas}% — flight to quality"
     # Broken smile (Stephen Jen US-driven instability)
     elif (
         term_prem is not None
@@ -322,12 +331,7 @@ async def _section_executive_summary(session: AsyncSession) -> tuple[str, list[s
             "instability per Stephen Jen 2025-26"
         )
     # Stagflation
-    elif (
-        cli_us is not None
-        and cli_us < 100
-        and expinf is not None
-        and expinf > 2.5
-    ):
+    elif cli_us is not None and cli_us < 100 and expinf is not None and expinf > 2.5:
         regime = "stagflation"
         rationale = (
             f"US CLI {cli_us:.2f} (<100, slowdown) + EXPINF1YR {expinf:.2f}%% "
@@ -362,8 +366,7 @@ async def _section_executive_summary(session: AsyncSession) -> tuple[str, list[s
     ):
         regime = "risk_on"
         rationale = (
-            f"NFCI {nfci:+.2f} (loose) + SKEW {skew:.0f} + VIX {vix:.1f} — "
-            "complacent, equity bid"
+            f"NFCI {nfci:+.2f} (loose) + SKEW {skew:.0f} + VIX {vix:.1f} — complacent, equity bid"
         )
 
     lines.append(f"- 🎯 **REGIME : {regime.upper().replace('_', ' ')}** — {rationale}")
@@ -474,9 +477,7 @@ async def _section_executive_summary(session: AsyncSession) -> tuple[str, list[s
             "treasuries": "Range-bound",
         },
     }
-    lines.append(
-        f"  └─ confidence ≈ {confidence:.2f} (heuristic margin vs threshold)"
-    )
+    lines.append(f"  └─ confidence ≈ {confidence:.2f} (heuristic margin vs threshold)")
     bias_for_regime = bias_hints.get(regime, {})
     if bias_for_regime:
         bias_md = " | ".join(f"{k}: {v}" for k, v in bias_for_regime.items())
@@ -500,9 +501,7 @@ async def _section_executive_summary(session: AsyncSession) -> tuple[str, list[s
             )
             sources.extend(["FRED:G7LOLITOAASTSAM", "FRED:CHNLOLITOAASTSAM"])
         elif g7[0] < 100 and chn[0] < 100:
-            macro_pieces.append(
-                f"OECD G7 {g7[0]:.2f}▼ + China {chn[0]:.2f}▼ = global slowdown"
-            )
+            macro_pieces.append(f"OECD G7 {g7[0]:.2f}▼ + China {chn[0]:.2f}▼ = global slowdown")
             sources.extend(["FRED:G7LOLITOAASTSAM", "FRED:CHNLOLITOAASTSAM"])
     if nfci:
         flag = "TIGHTER" if nfci[0] > 0 else "looser-than-avg"
@@ -513,15 +512,11 @@ async def _section_executive_summary(session: AsyncSession) -> tuple[str, list[s
 
     # ── 2. Vol surface ──
     skew_stmt = (
-        select(CboeSkewObservation)
-        .order_by(desc(CboeSkewObservation.observation_date))
-        .limit(1)
+        select(CboeSkewObservation).order_by(desc(CboeSkewObservation.observation_date)).limit(1)
     )
     skew_row = (await session.execute(skew_stmt)).scalars().first()
     vvix_stmt = (
-        select(CboeVvixObservation)
-        .order_by(desc(CboeVvixObservation.observation_date))
-        .limit(1)
+        select(CboeVvixObservation).order_by(desc(CboeVvixObservation.observation_date)).limit(1)
     )
     vvix_row = (await session.execute(vvix_stmt)).scalars().first()
     vol_pieces: list[str] = []
@@ -589,13 +584,17 @@ async def _section_executive_summary(session: AsyncSession) -> tuple[str, list[s
 
     # ── 4. Foreign demand (TIC China trend) ──
     china_now = (
-        await session.execute(
-            select(TreasuryTicHolding)
-            .where(TreasuryTicHolding.country == "China, Mainland")
-            .order_by(desc(TreasuryTicHolding.observation_month))
-            .limit(36)
+        (
+            await session.execute(
+                select(TreasuryTicHolding)
+                .where(TreasuryTicHolding.country == "China, Mainland")
+                .order_by(desc(TreasuryTicHolding.observation_month))
+                .limit(36)
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     china_now_list = list(china_now)
     if len(china_now_list) >= 2:
         cur = china_now_list[0]
@@ -619,7 +618,9 @@ async def _section_executive_summary(session: AsyncSession) -> tuple[str, list[s
         if delta_bps < -10:
             tone = f"DOVISH curve (front={front[0]:.2f}% → Jan27={far[0]:.2f}%, {delta_bps:+.0f}bp)"
         elif delta_bps > 10:
-            tone = f"HAWKISH curve (front={front[0]:.2f}% → Jan27={far[0]:.2f}%, {delta_bps:+.0f}bp)"
+            tone = (
+                f"HAWKISH curve (front={front[0]:.2f}% → Jan27={far[0]:.2f}%, {delta_bps:+.0f}bp)"
+            )
         else:
             tone = f"FLAT curve (front={front[0]:.2f}% → Jan27={far[0]:.2f}%, {delta_bps:+.0f}bp = no net move)"
         lines.append(f"- 🏛️ Forward Fed : {tone}")
@@ -800,9 +801,7 @@ async def _section_tail_risk_skew(session: AsyncSession) -> tuple[str, list[str]
             lines.append(f"- {label}: n/a (FRED:{series_id})")
             continue
         val, when = v
-        lines.append(
-            f"- {label} = {val:.2f} (FRED:{series_id}, {when:%Y-%m-%d})"
-        )
+        lines.append(f"- {label} = {val:.2f} (FRED:{series_id}, {when:%Y-%m-%d})")
         sources.append(f"FRED:{series_id}")
 
     return "\n".join(lines), sources
@@ -840,7 +839,7 @@ async def _section_fed_financial(session: AsyncSession) -> tuple[str, list[str]]
             band = "mid-range (stable)"
         lines.append(
             f"- Fed Funds target = [{lo:.2f} %, {hi:.2f} %] — EFFR = {e:.2f} % "
-            f"({pos*100:.0f}%% in range, {band}, FRED:DFEDTARU+L+EFFR, "
+            f"({pos * 100:.0f}%% in range, {band}, FRED:DFEDTARU+L+EFFR, "
             f"{effr[1]:%Y-%m-%d})"
         )
         sources.extend(["FRED:DFEDTARU", "FRED:DFEDTARL", "FRED:EFFR"])
@@ -854,9 +853,7 @@ async def _section_fed_financial(session: AsyncSession) -> tuple[str, list[str]]
         if nfci is not None:
             v = nfci[0]
             flag = "TIGHTER than avg" if v > 0 else "looser than avg"
-            lines.append(
-                f"- Chicago NFCI = {v:+.3f} — {flag} (FRED:NFCI, {nfci[1]:%Y-%m-%d})"
-            )
+            lines.append(f"- Chicago NFCI = {v:+.3f} — {flag} (FRED:NFCI, {nfci[1]:%Y-%m-%d})")
             sources.append("FRED:NFCI")
         if anfci is not None:
             v = anfci[0]
@@ -869,10 +866,7 @@ async def _section_fed_financial(session: AsyncSession) -> tuple[str, list[str]]
         if stl is not None:
             v = stl[0]
             flag = "STRESS" if v > 1 else ("elevated" if v > 0 else "calm")
-            lines.append(
-                f"- St Louis FSI4 = {v:+.2f} — {flag}"
-                f" (FRED:STLFSI4, {stl[1]:%Y-%m-%d})"
-            )
+            lines.append(f"- St Louis FSI4 = {v:+.2f} — {flag} (FRED:STLFSI4, {stl[1]:%Y-%m-%d})")
             sources.append("FRED:STLFSI4")
 
     # ── Pillar C: Credit cycle gauge (BAA-AAA spread) ──
@@ -889,7 +883,7 @@ async def _section_fed_financial(session: AsyncSession) -> tuple[str, list[str]]
         else:
             band = "compressed (<70 bp, complacency)"
         lines.append(
-            f"- BAA-AAA spread = {spread*100:.0f} bp "
+            f"- BAA-AAA spread = {spread * 100:.0f} bp "
             f"(BAA={baa[0]:.2f} % vs AAA={aaa[0]:.2f} %) — {band}"
             f" (FRED:BAA+AAA, {baa[1]:%Y-%m})"
         )
@@ -915,8 +909,15 @@ async def _section_fed_financial(session: AsyncSession) -> tuple[str, list[str]]
     # Pull each forward contract's implied EFFR; surface compactly.
     forward_codes = ("K26", "M26", "N26", "Q26", "U26", "V26", "X26", "Z26", "F27")
     forward_labels = (
-        "May26", "Jun26", "Jul26", "Aug26", "Sep26", "Oct26",
-        "Nov26", "Dec26", "Jan27",
+        "May26",
+        "Jun26",
+        "Jul26",
+        "Aug26",
+        "Sep26",
+        "Oct26",
+        "Nov26",
+        "Dec26",
+        "Jan27",
     )
     forward_pts: list[tuple[str, float]] = []
     for code, label in zip(forward_codes, forward_labels, strict=False):
@@ -959,8 +960,14 @@ async def _section_fed_financial(session: AsyncSession) -> tuple[str, list[str]]
         pts_dict = {lbl: v for lbl, v in forward_pts}
         # Map month-code → forward_pts label (e.g. "M26" → "Jun26")
         code_to_label = {
-            "K26": "May26", "M26": "Jun26", "N26": "Jul26", "Q26": "Aug26",
-            "U26": "Sep26", "V26": "Oct26", "X26": "Nov26", "Z26": "Dec26",
+            "K26": "May26",
+            "M26": "Jun26",
+            "N26": "Jul26",
+            "Q26": "Aug26",
+            "U26": "Sep26",
+            "V26": "Oct26",
+            "X26": "Nov26",
+            "Z26": "Dec26",
             "F27": "Jan27",
         }
         prob_lines: list[str] = []
@@ -977,13 +984,13 @@ async def _section_fed_financial(session: AsyncSession) -> tuple[str, list[str]]
             if spread_bp < -5:  # 5bp threshold for noise
                 p_cut = min(1.0, max(0.0, -spread_bp / 25.0))
                 prob_lines.append(
-                    f"  {fomc_label} : ~{p_cut*100:.0f}% probability of 25bp cut "
+                    f"  {fomc_label} : ~{p_cut * 100:.0f}% probability of 25bp cut "
                     f"(spread {spread_bp:+.1f}bp pre→post)"
                 )
             elif spread_bp > 5:
                 p_hike = min(1.0, max(0.0, spread_bp / 25.0))
                 prob_lines.append(
-                    f"  {fomc_label} : ~{p_hike*100:.0f}% probability of 25bp hike "
+                    f"  {fomc_label} : ~{p_hike * 100:.0f}% probability of 25bp hike "
                     f"(spread {spread_bp:+.1f}bp pre→post)"
                 )
             # else: no_move dominant, skip line
@@ -996,7 +1003,11 @@ async def _section_fed_financial(session: AsyncSession) -> tuple[str, list[str]]
     if exp is not None:
         v = exp[0]
         target_gap = v - 2.0
-        flag = "above target" if target_gap > 0.5 else ("near target" if abs(target_gap) <= 0.5 else "below target")
+        flag = (
+            "above target"
+            if target_gap > 0.5
+            else ("near target" if abs(target_gap) <= 0.5 else "below target")
+        )
         lines.append(
             f"- 1y expected inflation (Cleveland model) = {v:.2f} % "
             f"(target gap {target_gap:+.2f}, {flag}) (FRED:EXPINF1YR, {exp[1]:%Y-%m})"
@@ -1074,8 +1085,7 @@ async def _section_labor_uncertainty(session: AsyncSession) -> tuple[str, list[s
     biz = await _latest_fred(session, "ATLSBUSRGEP", max_age_days=60)
     if ahe is not None:
         lines.append(
-            f"- Avg hourly earnings (production) = ${ahe[0]:.2f} "
-            f"(FRED:AHETPI, {ahe[1]:%Y-%m})"
+            f"- Avg hourly earnings (production) = ${ahe[0]:.2f} (FRED:AHETPI, {ahe[1]:%Y-%m})"
         )
         sources.append("FRED:AHETPI")
     if biz is not None:
@@ -1091,8 +1101,7 @@ async def _section_labor_uncertainty(session: AsyncSession) -> tuple[str, list[s
     civ = await _latest_fred(session, "CIVPART", max_age_days=60)
     if civ is not None:
         lines.append(
-            f"- Labor force participation rate = {civ[0]:.1f} %"
-            f" (FRED:CIVPART, {civ[1]:%Y-%m})"
+            f"- Labor force participation rate = {civ[0]:.1f} % (FRED:CIVPART, {civ[1]:%Y-%m})"
         )
         sources.append("FRED:CIVPART")
 
@@ -1144,7 +1153,10 @@ async def _section_oecd_cli(session: AsyncSession) -> tuple[str, list[str]]:
             lines.append(f"- {label}: n/a (FRED:{series_id})")
             continue
         cur_obs, cur_val = hist[0]
-        readings[label] = (float(cur_val), datetime.combine(cur_obs, datetime.min.time(), tzinfo=UTC))
+        readings[label] = (
+            float(cur_val),
+            datetime.combine(cur_obs, datetime.min.time(), tzinfo=UTC),
+        )
         regime = "expansion" if float(cur_val) >= 100 else "slowdown"
         arrow = "▲" if float(cur_val) >= 100 else "▼"
         # 3m + 12m deltas
@@ -1222,11 +1234,10 @@ async def _section_treasury_tic(session: AsyncSession) -> tuple[str, list[str]]:
 
     grand_total = next((r for r in rows if "Grand Total" in r.country), None)
     if grand_total is not None:
-        lines.append(
-            f"- Grand Total foreign-held = ${grand_total.holdings_bn_usd:,.1f} bn"
-        )
+        lines.append(f"- Grand Total foreign-held = ${grand_total.holdings_bn_usd:,.1f} bn")
     country_rows = [
-        r for r in rows
+        r
+        for r in rows
         if r.country not in {"Grand Total", "All Other", "For. Official"}
         and not r.country.startswith(" ")
     ]
@@ -1269,9 +1280,81 @@ async def _section_treasury_tic(session: AsyncSession) -> tuple[str, list[str]]:
     return "\n".join(lines), sources
 
 
-async def _section_tff_positioning(
-    session: AsyncSession, asset: str
-) -> tuple[str, list[str]]:
+async def _section_nyfed_mct(session: AsyncSession) -> tuple[str, list[str]]:
+    """## NY Fed Multivariate Core Trend — persistent inflation trend.
+
+    Replaces the discontinued FRED UIGFULL series. Surfaces the most
+    recent MCT trend value + 6-month and 12-month deltas + the 3-sector
+    decomposition (Goods / Services ex housing / Housing) so Pass 1 can
+    classify the inflation régime (anchored vs unanchored) and Pass 2
+    can cite the mechanism (which sector is driving persistence).
+
+    Cadence : monthly with ~4-week lag (released 1st business day of the
+    month following the BEA PCE print, ~10:00 ET).
+    """
+    rows = list(
+        (
+            await session.execute(
+                select(NyfedMctObservation)
+                .order_by(desc(NyfedMctObservation.observation_month))
+                .limit(13)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    if not rows:
+        return ("## NY Fed MCT (PCE trend)\n- n/a (collector empty)", [])
+
+    cur = rows[0]
+    sources = [f"NYFED:MCT@{cur.observation_month.isoformat()}"]
+    lines = [f"## NY Fed MCT (PCE trend, {cur.observation_month:%b %Y})"]
+
+    # Headline
+    lines.append(f"- MCT trend = {cur.mct_trend_pct:.2f}%")
+    if cur.headline_pce_yoy is not None:
+        lines.append(f"- Headline PCE YoY = {cur.headline_pce_yoy:.2f}%")
+    if cur.core_pce_yoy is not None:
+        lines.append(f"- Core PCE YoY     = {cur.core_pce_yoy:.2f}%")
+
+    # Deltas — m6 vs m12
+    if len(rows) >= 7:
+        d6 = cur.mct_trend_pct - rows[6].mct_trend_pct
+        lines.append(f"- Δ MCT 6m = {d6:+.2f} pts (vs {rows[6].observation_month:%b%y})")
+    if len(rows) >= 13:
+        d12 = cur.mct_trend_pct - rows[12].mct_trend_pct
+        lines.append(f"- Δ MCT 12m = {d12:+.2f} pts (vs {rows[12].observation_month:%b%y})")
+
+    # Régime classifier — qualitative anchored / unanchored bands.
+    # Fed 2 % target, 2.5 % is the "above target tolerable" upper band cited
+    # by Powell 2024-Q3, 3 % is the "uncomfortable persistence" threshold.
+    regime: str
+    if cur.mct_trend_pct < 2.25:
+        regime = "anchored (below target tolerance)"
+    elif cur.mct_trend_pct < 2.75:
+        regime = "near target (cuts-tolerable band)"
+    elif cur.mct_trend_pct < 3.25:
+        regime = "above target (cuts-on-hold band)"
+    else:
+        regime = "unanchored (hike-pressure band)"
+    lines.append(f"- Régime = {regime}")
+
+    # 3-sector decomposition (where is the trend coming from?)
+    sector_parts: list[str] = []
+    if cur.goods_pct is not None:
+        sector_parts.append(f"Goods {cur.goods_pct:+.2f}")
+    if cur.services_ex_housing_pct is not None:
+        sector_parts.append(f"Svc-ex-H {cur.services_ex_housing_pct:+.2f}")
+    if cur.housing_pct is not None:
+        sector_parts.append(f"Housing {cur.housing_pct:+.2f}")
+    if sector_parts:
+        lines.append("### Sector contribution")
+        lines.append("- " + " · ".join(sector_parts))
+
+    return "\n".join(lines), sources
+
+
+async def _section_tff_positioning(session: AsyncSession, asset: str) -> tuple[str, list[str]]:
     """## TFF positioning — latest CFTC TFF 4-class breakdown for the asset.
 
     Surfaces the smart-money divergence signal (LevFunds vs AssetMgr)
@@ -1304,18 +1387,14 @@ async def _section_tff_positioning(
         dealer_dw = -dealer_dw
         am_dw = am_net - (prev.asset_mgr_long - prev.asset_mgr_short)
         lev_dw = lev_net - (prev.lev_money_long - prev.lev_money_short)
-        delta_str = (
-            f", Δw/w (Dealer {dealer_dw:+,}, AM {am_dw:+,}, LevFunds {lev_dw:+,})"
-        )
+        delta_str = f", Δw/w (Dealer {dealer_dw:+,}, AM {am_dw:+,}, LevFunds {lev_dw:+,})"
     else:
         delta_str = ""
 
     # Smart-money divergence flag : LevFunds and AssetMgr on opposite sides.
     divergence = ""
     if lev_net != 0 and am_net != 0 and (lev_net > 0) != (am_net > 0):
-        divergence = (
-            "\n- ⚠ smart-money divergence: LevFunds and AssetMgr opposite sides"
-        )
+        divergence = "\n- ⚠ smart-money divergence: LevFunds and AssetMgr opposite sides"
 
     sources = [f"CFTC:TFF:{market}@{cur.report_date.isoformat()}"]
     md = (
@@ -1420,13 +1499,66 @@ async def _section_prediction_markets(
     # citations. Buckets cover the 5 dominant trader-relevant themes.
     def _category(question: str) -> str:
         q = question.lower()
-        if any(kw in q for kw in ("fed", "fomc", "rate cut", "rate hike", "basis point", "ecb", "boj", "boe ", "rba")):
+        if any(
+            kw in q
+            for kw in (
+                "fed",
+                "fomc",
+                "rate cut",
+                "rate hike",
+                "basis point",
+                "ecb",
+                "boj",
+                "boe ",
+                "rba",
+            )
+        ):
             return "Monetary policy"
-        if any(kw in q for kw in ("recession", "gdp", "cpi", "inflation", "pce", "unemployment", "nfp", "payroll", "jobless", "ppi")):
+        if any(
+            kw in q
+            for kw in (
+                "recession",
+                "gdp",
+                "cpi",
+                "inflation",
+                "pce",
+                "unemployment",
+                "nfp",
+                "payroll",
+                "jobless",
+                "ppi",
+            )
+        ):
             return "Macro indicators"
-        if any(kw in q for kw in ("russia", "ukraine", "iran", "israel", "china", "taiwan", "war", "ceasefire", "sanctions", "tariff")):
+        if any(
+            kw in q
+            for kw in (
+                "russia",
+                "ukraine",
+                "iran",
+                "israel",
+                "china",
+                "taiwan",
+                "war",
+                "ceasefire",
+                "sanctions",
+                "tariff",
+            )
+        ):
             return "Geopolitics"
-        if any(kw in q for kw in ("trump", "biden", "harris", "election", "congress", "debt ceiling", "shutdown", "fiscal")):
+        if any(
+            kw in q
+            for kw in (
+                "trump",
+                "biden",
+                "harris",
+                "election",
+                "congress",
+                "debt ceiling",
+                "shutdown",
+                "fiscal",
+            )
+        ):
             return "US politics"
         if any(kw in q for kw in ("bitcoin", "btc", "ethereum", "eth", "crypto", "etf approval")):
             return "Crypto-macro"
@@ -1458,9 +1590,7 @@ async def _section_prediction_markets(
                 yes = r.last_prices[0] if (r.last_prices and len(r.last_prices) > 0) else None
                 yes_str = f"YES={yes:.2f}" if yes is not None else "YES=n/a"
                 vol_str = f"${(r.volume_usd or 0) / 1e6:.1f}M" if r.volume_usd else "$?"
-                sections.append(
-                    f"- {r.question[:80]} → {yes_str} vol={vol_str} (slug:{r.slug})"
-                )
+                sections.append(f"- {r.question[:80]} → {yes_str} vol={vol_str} (slug:{r.slug})")
                 sources.append(f"polymarket:{r.slug}")
 
     # Kalshi
@@ -1886,6 +2016,12 @@ async def build_data_pool(
     # China / EA19). Above/below 100 classifier + China divergence flag.
     cli_md, cli_src = await _section_oecd_cli(session)
     sections.append(("oecd_cli", cli_md, cli_src))
+
+    # Wave 71 — NY Fed Multivariate Core Trend (PCE inflation trend).
+    # Replaces discontinued UIGFULL. Pass 1 régime (anchored vs un-anchored)
+    # + Pass 2 mechanism citation for Fed reaction-function thesis.
+    mct_md, mct_src = await _section_nyfed_mct(session)
+    sections.append(("nyfed_mct", mct_md, mct_src))
 
     # Wave 41 — Labor + uncertainty + recession régime (7 FRED series).
     # Jobless claims band + EPU band + wage-inflation + USREC flag.
