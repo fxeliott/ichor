@@ -132,6 +132,11 @@ declare -A SCHEDULES=(
   # Daily poll at 12:30 Paris is conservative — idempotent dedup on
   # report_month catches 28 of 30 no-op days each month.
   [nfib_sbet]="*-*-* 12:30:00 Europe/Paris"
+  # MyFXBook Community Outlook retail FX positioning (Wave 77).
+  # Free tier 100 req/24h limit (login + outlook = 2 calls per fetch).
+  # Cadence every 4h = 6 fetches/day = 12 calls — well under limit.
+  # DORMANT until ICHOR_API_MYFXBOOK_EMAIL + _PASSWORD env vars set.
+  [myfxbook_outlook]="*-*-* 00,04,08,12,16,20:00:00 Europe/Paris"
   # Note: collector module is `central_bank_speeches.py` but exposed under
   # the canonical short name `cb_speeches` in run_collectors.py:33 (alias).
   # Keep the timer aligned with the CLI target name to avoid the

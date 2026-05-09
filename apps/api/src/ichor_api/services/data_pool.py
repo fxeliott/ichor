@@ -37,6 +37,7 @@ from ..models import (
     GprObservation,
     KalshiMarket,
     ManifoldMarket,
+    MyfxbookOutlook,
     NewsItem,
     NfibSbetObservation,
     NyfedMctObservation,
@@ -1386,6 +1387,53 @@ async def _section_cleveland_fed_nowcast(
     return "\n".join(lines), sources
 
 
+async def _section_myfxbook_outlook(
+    session: AsyncSession,
+) -> tuple[str, list[str]]:
+    """## MyFXBook Community Outlook — retail FX positioning.
+
+    Contrarian sentiment indicator. Reports the latest snapshot per
+    Ichor pair plus a contrarian flag (>=75 % one-side). Empty (no
+    sources) when collector is dormant — caller skips append.
+    """
+    # Latest fetch_at (single point representing one outlook snapshot
+    # across all pairs). All pairs in a fetch share the same fetched_at.
+    latest_at = (
+        await session.execute(
+            select(MyfxbookOutlook.fetched_at).order_by(desc(MyfxbookOutlook.fetched_at)).limit(1)
+        )
+    ).scalar_one_or_none()
+    if latest_at is None:
+        return ("", [])  # dormant — caller skips
+
+    rows = list(
+        (
+            await session.execute(
+                select(MyfxbookOutlook).where(MyfxbookOutlook.fetched_at == latest_at)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    if not rows:
+        return ("", [])
+
+    sources = [f"MYFXBOOK:OUTLOOK@{latest_at.isoformat()}"]
+    lines = [f"## MyFXBook Community Outlook ({latest_at:%Y-%m-%d %H:%M UTC})"]
+    lines.append(
+        "_Contrarian retail FX positioning. Self-selection bias — MyFXBook-linked traders only._"
+    )
+    for r in sorted(rows, key=lambda x: x.pair):
+        flag = ""
+        if r.long_pct >= 75:
+            flag = " ⚠ retail-long-extreme"
+        elif r.short_pct >= 75:
+            flag = " ⚠ retail-short-extreme"
+        lines.append(f"- {r.pair:8s}  long={r.long_pct:5.1f}%  short={r.short_pct:5.1f}%{flag}")
+
+    return "\n".join(lines), sources
+
+
 async def _section_nfib_sbet(session: AsyncSession) -> tuple[str, list[str]]:
     """## NFIB SBET — small business sentiment leading indicator.
 
@@ -2190,6 +2238,13 @@ async def build_data_pool(
     # régime (recession-precursor when SBOI < 95 + Uncertainty > 95).
     nfib_md, nfib_src = await _section_nfib_sbet(session)
     sections.append(("nfib_sbet", nfib_md, nfib_src))
+
+    # Wave 77 — MyFXBook Community Outlook retail FX positioning.
+    # Contrarian sentiment indicator. Skipped silently if collector
+    # dormant (env vars unset).
+    fxb_md, fxb_src = await _section_myfxbook_outlook(session)
+    if fxb_src:  # only append if we actually have data
+        sections.append(("myfxbook_outlook", fxb_md, fxb_src))
 
     # Wave 41 — Labor + uncertainty + recession régime (7 FRED series).
     # Jobless claims band + EPU band + wage-inflation + USREC flag.

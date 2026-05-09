@@ -27,6 +27,7 @@ from ..models import (
     KalshiMarket,
     ManifoldMarket,
     MarketDataBar,
+    MyfxbookOutlook,
     NewsItem,
     NfibSbetObservation,
     NyfedMctObservation,
@@ -50,6 +51,7 @@ from .gex_yfinance import DealerGexSnapshot
 from .kalshi import KalshiMarketSnapshot
 from .manifold import ManifoldSnapshot
 from .market_data import MarketDataPoint
+from .myfxbook_outlook import MyfxbookOutlookSnapshot as MyfxbookOutlookData
 from .nfib_sbet import NfibSbetObservation as NfibSbetObservationData
 from .nyfed_mct import NyfedMctObservation as NyfedMctObservationData
 from .polygon import PolygonBar
@@ -738,6 +740,33 @@ async def persist_cleveland_fed_nowcasts(
         skipped=len(observations) - inserted,
     )
     return inserted
+
+
+async def persist_myfxbook_outlooks(
+    session: AsyncSession, snapshots: Iterable[MyfxbookOutlookData]
+) -> int:
+    """Insert MyFXBook Community Outlook snapshots. No dedup — historical view."""
+    snapshots = list(snapshots)
+    if not snapshots:
+        return 0
+    for s in snapshots:
+        session.add(
+            MyfxbookOutlook(
+                fetched_at=s.fetched_at,
+                pair=s.pair[:16],
+                long_pct=s.long_pct,
+                short_pct=s.short_pct,
+                long_volume=s.long_volume,
+                short_volume=s.short_volume,
+                avg_long_price=s.avg_long_price,
+                avg_short_price=s.avg_short_price,
+                long_positions=s.long_positions,
+                short_positions=s.short_positions,
+            )
+        )
+    await session.commit()
+    log.info("myfxbook.persisted", count=len(snapshots))
+    return len(snapshots)
 
 
 async def persist_nfib_sbet(

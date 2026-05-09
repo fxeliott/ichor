@@ -46,6 +46,9 @@ from .gpr_observation import GprObservation
 from .kalshi_market import KalshiMarket
 from .manifold_market import ManifoldMarket
 from .market_data import MarketDataBar
+
+# Phase II — MyFXBook Community Outlook retail FX positioning (Wave 77)
+from .myfxbook_outlook import MyfxbookOutlook
 from .news_item import NewsItem
 
 # Phase II — NFIB Small Business Economic Trends monthly (Wave 74)
@@ -93,6 +96,7 @@ __all__ = [
     "KalshiMarket",
     "ManifoldMarket",
     "MarketDataBar",
+    "MyfxbookOutlook",
     "NewsItem",
     "NfibSbetObservation",
     "NyfedMctObservation",

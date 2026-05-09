@@ -468,6 +468,25 @@ async def _run_treasury_tic(*, persist: bool) -> int:
     return 0 if holdings else 1
 
 
+async def _run_myfxbook_outlook(*, persist: bool) -> int:
+    """Pull MyFXBook Community Outlook (W77, dormant unless creds set)."""
+    from ..collectors.myfxbook_outlook import poll_all as poll_myfxbook
+
+    rows = await poll_myfxbook()
+    print(f"MyFXBook Community Outlook · {len(rows)} pair snapshots")
+    for r in rows:
+        print(f"  {r.pair:8s}  long={r.long_pct:.1f}%  short={r.short_pct:.1f}%")
+    if persist and rows:
+        from ..collectors.persistence import persist_myfxbook_outlooks
+
+        sm = get_sessionmaker()
+        async with sm() as session:
+            inserted = await persist_myfxbook_outlooks(session, rows)
+        print(f"MyFXBook Community Outlook · persisted {inserted} new rows")
+    # Return 0 even when no rows: dormant mode is not a failure.
+    return 0
+
+
 async def _run_nfib_sbet(*, persist: bool) -> int:
     """Pull NFIB Small Business Economic Trends monthly headline (W74)."""
     from ..collectors.nfib_sbet import poll_all as poll_nfib_sbet
@@ -1907,6 +1926,7 @@ async def _main(target: str, *, persist: bool) -> int:
         "nyfed_mct": _run_nyfed_mct,
         "cleveland_fed_nowcast": _run_cleveland_fed_nowcast,
         "nfib_sbet": _run_nfib_sbet,
+        "myfxbook_outlook": _run_myfxbook_outlook,
         "cftc_tff": _run_cftc_tff,
         "cot": _run_cot,
         "cb_speeches": _run_cb_speeches,
