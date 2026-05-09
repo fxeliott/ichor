@@ -38,6 +38,7 @@ from ..models import (
     KalshiMarket,
     ManifoldMarket,
     NewsItem,
+    NfibSbetObservation,
     NyfedMctObservation,
     PolygonIntradayBar,
     PolymarketSnapshot,
@@ -1385,6 +1386,56 @@ async def _section_cleveland_fed_nowcast(
     return "\n".join(lines), sources
 
 
+async def _section_nfib_sbet(session: AsyncSession) -> tuple[str, list[str]]:
+    """## NFIB SBET — small business sentiment leading indicator.
+
+    Surfaces the latest SBOI + Uncertainty Index + a régime classifier
+    based on the historical (1986-) base. SBOI < 95 + Uncertainty > 95
+    is the recession-precursor signature seen in 2007 and 2019.
+    """
+    rows = list(
+        (
+            await session.execute(
+                select(NfibSbetObservation)
+                .order_by(desc(NfibSbetObservation.report_month))
+                .limit(13)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    if not rows:
+        return ("## NFIB SBET\n- n/a (collector empty)", [])
+
+    cur = rows[0]
+    sources = [f"NFIB:SBET@{cur.report_month.isoformat()}"]
+    lines = [f"## NFIB SBET ({cur.report_month:%b %Y})"]
+    lines.append(f"- SBOI = {cur.sboi:.1f} (52y avg ≈ 98.0)")
+    if cur.uncertainty_index is not None:
+        lines.append(f"- Uncertainty Index = {cur.uncertainty_index:.0f}")
+
+    # Régime classifier — anchored on 52y average + recession signature.
+    if cur.sboi < 95 and (cur.uncertainty_index is not None and cur.uncertainty_index > 95):
+        regime = "recession-precursor (SBOI <95 + Uncertainty >95)"
+    elif cur.sboi < 95:
+        regime = "below-average sentiment"
+    elif cur.sboi < 100:
+        regime = "soft (below 1986 base)"
+    else:
+        regime = "expansionary"
+    lines.append(f"- Régime = {regime}")
+
+    # Δ MoM and Δ 12m
+    if len(rows) >= 2:
+        d1 = cur.sboi - rows[1].sboi
+        lines.append(f"- Δ SBOI 1m = {d1:+.1f} pts (vs {rows[1].report_month:%b%y})")
+    if len(rows) >= 13:
+        d12 = cur.sboi - rows[12].sboi
+        lines.append(f"- Δ SBOI 12m = {d12:+.1f} pts (vs {rows[12].report_month:%b%y})")
+
+    return "\n".join(lines), sources
+
+
 async def _section_nyfed_mct(session: AsyncSession) -> tuple[str, list[str]]:
     """## NY Fed Multivariate Core Trend — persistent inflation trend.
 
@@ -2133,6 +2184,12 @@ async def build_data_pool(
     # complementing MCT trend. Pass 2 cites for surprise-vs-consensus thesis.
     cln_md, cln_src = await _section_cleveland_fed_nowcast(session)
     sections.append(("cleveland_fed_nowcast", cln_md, cln_src))
+
+    # Wave 74 — NFIB Small Business Economic Trends monthly. Leading
+    # indicator of small-business hiring + capex + sentiment. Pass 1
+    # régime (recession-precursor when SBOI < 95 + Uncertainty > 95).
+    nfib_md, nfib_src = await _section_nfib_sbet(session)
+    sections.append(("nfib_sbet", nfib_md, nfib_src))
 
     # Wave 41 — Labor + uncertainty + recession régime (7 FRED series).
     # Jobless claims band + EPU band + wage-inflation + USREC flag.

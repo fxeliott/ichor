@@ -127,6 +127,11 @@ declare -A SCHEDULES=(
   # × 3 horizons), idempotent dedup on (measure, horizon, target,
   # revision) so re-polls inside the same revision day are no-ops.
   [cleveland_fed_nowcast]="*-*-* 17:30:00 Europe/Paris"
+  # NFIB Small Business Economic Trends monthly (Wave 74).
+  # Released ~2nd Tuesday of each month, ~06:00 ET = 12:00 Paris.
+  # Daily poll at 12:30 Paris is conservative — idempotent dedup on
+  # report_month catches 28 of 30 no-op days each month.
+  [nfib_sbet]="*-*-* 12:30:00 Europe/Paris"
   # Note: collector module is `central_bank_speeches.py` but exposed under
   # the canonical short name `cb_speeches` in run_collectors.py:33 (alias).
   # Keep the timer aligned with the CLI target name to avoid the

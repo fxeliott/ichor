@@ -48,6 +48,9 @@ from .manifold_market import ManifoldMarket
 from .market_data import MarketDataBar
 from .news_item import NewsItem
 
+# Phase II — NFIB Small Business Economic Trends monthly (Wave 74)
+from .nfib_sbet_observation import NfibSbetObservation
+
 # Phase II — NY Fed Multivariate Core Trend monthly (Wave 71)
 from .nyfed_mct_observation import NyfedMctObservation
 from .polygon_gex_snapshot import PolygonGexSnapshot
@@ -91,6 +94,7 @@ __all__ = [
     "ManifoldMarket",
     "MarketDataBar",
     "NewsItem",
+    "NfibSbetObservation",
     "NyfedMctObservation",
     "PolygonGexSnapshot",
     "PolygonIntradayBar",

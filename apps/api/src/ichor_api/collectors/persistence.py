@@ -28,6 +28,7 @@ from ..models import (
     ManifoldMarket,
     MarketDataBar,
     NewsItem,
+    NfibSbetObservation,
     NyfedMctObservation,
     PolygonGexSnapshot,
     PolygonIntradayBar,
@@ -49,6 +50,7 @@ from .gex_yfinance import DealerGexSnapshot
 from .kalshi import KalshiMarketSnapshot
 from .manifold import ManifoldSnapshot
 from .market_data import MarketDataPoint
+from .nfib_sbet import NfibSbetObservation as NfibSbetObservationData
 from .nyfed_mct import NyfedMctObservation as NyfedMctObservationData
 from .polygon import PolygonBar
 from .polymarket import PolymarketSnapshot as PolymarketSnapshotData
@@ -731,6 +733,48 @@ async def persist_cleveland_fed_nowcasts(
         await session.commit()
     log.info(
         "cleveland_fed_nowcast.persisted",
+        total=len(observations),
+        inserted=inserted,
+        skipped=len(observations) - inserted,
+    )
+    return inserted
+
+
+async def persist_nfib_sbet(
+    session: AsyncSession, observations: Iterable[NfibSbetObservationData]
+) -> int:
+    """Insert NFIB SBET monthly rows, skipping report_month already known."""
+    observations = list(observations)
+    if not observations:
+        return 0
+    months = {o.report_month for o in observations}
+    existing_rows = (
+        await session.execute(
+            select(NfibSbetObservation.report_month).where(
+                NfibSbetObservation.report_month.in_(months),
+            )
+        )
+    ).all()
+    existing: set[date_type] = {r[0] for r in existing_rows}
+    now = datetime.now(UTC)
+    inserted = 0
+    for o in observations:
+        if o.report_month in existing:
+            continue
+        session.add(
+            NfibSbetObservation(
+                report_month=o.report_month,
+                sboi=o.sboi,
+                uncertainty_index=o.uncertainty_index,
+                source_pdf_url=o.source_pdf_url[:512],
+                fetched_at=o.fetched_at or now,
+            )
+        )
+        inserted += 1
+    if inserted:
+        await session.commit()
+    log.info(
+        "nfib_sbet.persisted",
         total=len(observations),
         inserted=inserted,
         skipped=len(observations) - inserted,
