@@ -1,8 +1,7 @@
 # Ichor — Claude Code project memory
 
 > Auto-injected at every session start. Keep terse and current.
-> Last sync: 2026-05-09 (post-Wave 55 — production health restore: claude-runner Win11 restart + central_bank_speeches timer definitively killed + Couche-2 5 agents restored + 4 doc index drifts fixed
-> via ADR-054 stdin pipe + Phase II Layer 1 quickwins).
+> Last sync: 2026-05-09 15:30 CEST (post-Phase II 11-commit batch W70-W79).
 
 ## What this repo is
 
@@ -20,30 +19,23 @@ backend, Node 22 LTS for the frontend.
 D:\Ichor
 ├── apps/
 │   ├── api/                  FastAPI + Alembic + SQLAlchemy 2 async
-│   │                         35 routers, 53 endpoints, 43 CLI runners,
-│   │                         26 models, 37 collectors, 62 services
-│   │                         (head migration: 0029_trader_notes)
+│   │                         34 routers, 53 endpoints, 26 CLI runners,
+│   │                         28 models, 41 collectors, 49 services
+│   │                         data_pool = 43 sections (W79 cross-asset matrix v2)
 │   ├── claude-runner/        FastAPI Win11 wrapper around `claude -p`
-│   │                         /v1/briefing-task[/async] + /v1/agent-task
-│   │                         stdin-pipe contract for prompt (ADR-054)
-│   │                         async-polling for >100s tasks (ADR-053)
+│   │                         /v1/briefing-task + /v1/agent-task
 │   ├── web/                  legacy Phase 1 dashboard (read-only ref ; retired
 │   │                         from pnpm-workspace 2026-05-06 ; 5 routes ported
 │   │                         to web2 in commit `de80335`)
 │   └── web2/                 Next.js 15.5 + React 19 + Tailwind v4 + motion 12
-│                             42 routes SSR + ISR. `hooks/` dir absent
-│                             (custom hooks live in `lib/use-*.ts`).
+│                             41 routes SSR + ISR. Hooks dir empty (TODO).
 └── packages/
     ├── ichor_brain/          4-pass orchestrator (regime → asset → stress → invalidation)
-    │                         + Pass 5 counterfactual. HttpRunnerClient async
-    │                         polling default (ADR-053). Capability 5 scaffold
-    │                         only (`tools_registry.py`, ADR-050).
+    │                         + Pass 5 counterfactual. HttpRunnerClient with retry.
     ├── agents/               5 Couche-2 agents (cb_nlp, news_nlp, sentiment,
     │                         positioning, macro). All on Claude Haiku low (ADR-023).
-    │                         Wired to data_pool via `services/couche2_context`.
-    ├── ml/                   HAR-RV, HMM, DTW, FinBERT-tone, multi-CB-RoBERTa
-    │                         (FED/ECB/BOE/BOJ per ADR-040), ADWIN, Brier optimizer
-    │                         V2 (env-gated), 6 bias trainers (ADR-022).
+    ├── ml/                   HAR-RV, HMM, DTW, FinBERT-tone, FOMC-Roberta,
+    │                         ADWIN, Brier optimizer, 7 bias trainers (ADR-022)
     └── ui/                   shadcn-style 15 components, used by apps/web only
 ```
 
@@ -79,125 +71,60 @@ D:\Ichor
   `ICHOR_RUNNER_ENVIRONMENT=development` was lost from its env list ;
   a standalone uvicorn on port 8766 is the active runner, kept alive
   via `scripts/windows/start-claude-runner-standalone.bat` in the
-  user Startup folder. Rate limit raised 30→120 req/h (Wave 23) to
-  fit a full 4-pass × 8-asset session-card sweep.
+  user Startup folder.
 - **Cloudflare Tunnel** `claude-runner.fxmilyapp.com` → 127.0.0.1:8766
   (managed-config side, NOT in the local `~/.cloudflared/config.yml`).
-  CF Access service token DEPLOYED on Hetzner side
-  (`ICHOR_API_CF_ACCESS_CLIENT_ID=…`, expires 2027-05-06). Win11 runner
-  itself still runs with `require_cf_access=false` (development mode)
-  — the Hetzner→Cloudflare→Win11 path is auth-gated end-to-end via
-  CF Access on the tunnel.
+  **Currently no auth** — `require_cf_access=false`. Public endpoint
+  drainable. Sprint dedicated to wire CF Access service token pending.
 
-## Latest migrations (head 0033)
+## Latest migrations (head 0037)
 
-- **head 0033** — `0033_treasury_tic_holdings.py` (Wave 32) adds
-  `treasury_tic_holdings` for monthly Major Foreign Holders. 38
-  countries × 12 months persisted live 2026-05-08 with Dec 2025 Grand
-  Total $9270.9B — China decline -20.5% / 3y is the canonical Stephen
-  Jen "broken smile" foreign-repatriation signal.
-- **0032** — `0032_cboe_vvix_observations.py` (Wave 29) — daily VVIX
-  (vol of VIX) closes via Yahoo `^VVIX`. ~85 neutral / >100 elevated /
-  >140 vol-surface blowup territory.
-- **0031** — `0031_cftc_tff_observations.py` (Wave 25) — weekly CFTC
-  TFF positioning, 4-class breakdown (Dealer / AssetMgr / LevFunds /
-  Other / Nonrept). Smart-money divergence detection per asset.
-- **0030** — `0030_cboe_skew_observations.py` (Wave 24) — daily CBOE
-  SKEW Index. Tail-risk regime classifier (4-tier band).
-- **0029** — `0029_trader_notes.py` adds the `trader_notes` table
-  for the `/journal` route (Phase B.5d). Annotations per card / per
-  session / per asset (cap 10 000 chars). OUT of ADR-017 boundary
-  surface (it's user notes, not bias output).
-- **0028** — `0028_audit_log_immutable_trigger.py` makes
-  `audit_log` append-only via a BEFORE UPDATE OR DELETE trigger.
-  Sanctioned purge path = `SET LOCAL ichor.audit_purge_mode='on'`
-  in the same transaction (used by `purge_older_than`). MiFID-grade
-  audit trail (cf ADR-029, Phase A.7 hardening).
-- **0027** — `0027_session_type_extend_ny.py` extends the
-  `session_card_audit` CHECK constraint to include `ny_mid` and
-  `ny_close` (cf. ADR-024).
-- **0026** — `session_card_audit.drivers` JSONB for Brier V2
-  per-factor SGD (cf. ADR-022). Column shipped, optimizer V2 SHIPPED
-  2026-05-06 (cf. ADR-025). Activation gated on
-  `ICHOR_API_BRIER_V2_ENABLED=true` env flag.
+- **head 0037** — `0037_myfxbook_outlooks.py` (W77, ADR-074) — retail
+  FX positioning hypertable. LIVE 2026-05-09: 6 pair snapshots every
+  4 h.
+- **0036** — `0036_nfib_sbet_observations.py` (W74, ADR-073) — NFIB
+  SBET monthly. LIVE: March 2026 SBOI=95.8 / Uncertainty=92.
+- **0035** — `0035_cleveland_fed_nowcasts.py` (W72, ADR-070) — daily
+  4×3 inflation nowcast (CPI/Core CPI/PCE/Core PCE × MoM/QoQ/YoY).
+- **0034** — `0034_nyfed_mct_observations.py` (W71, ADR-069) — NY Fed
+  Multivariate Core Trend monthly (replaces UIGFULL). 795 rows
+  backfilled 1960-01 → 2026-03.
+- **0028 → 0033** — Phase II Layer 1 collectors: audit_log immutable
+  trigger (0028, ADR-029), trader_notes (0029), CBOE SKEW (0030),
+  CFTC TFF (0031), CBOE VVIX (0032), Treasury TIC (0033).
 
-## Phase II Layer 1 progress (Wave 35)
+## Recent ADRs (2026-05-09 batch — 9 ADRs)
 
-**14 / 30 priority sources collected (47 %), 13 / 14 surfaced data_pool (93 %).**
-
-Custom collectors live :
-- `cboe_skew_observations` (Wave 24, Yahoo `^SKEW`, daily 23:30 Paris)
-- `cftc_tff_observations` (Wave 25, Socrata `gpe5-46if`, weekly Sat 02:30)
-- `cboe_vvix_observations` (Wave 29, Yahoo `^VVIX`, daily 23:35 Paris)
-- `treasury_tic_holdings` (Wave 32, ticdata.treasury.gov `mfhhis01.txt`,
-  daily 03:00 Paris with idempotent dedup)
-
-FRED extended adds (Waves 23 / 24 / 28 / 34 / 40 / 42) ≈ 50 valid series :
-- Fed H.4.1 detail : WSHOSHO + WSHOMCB + WRESBAL
-- Atlanta nowcasts : GDPNOW + PCENOW
-- CBOE vol surface : GVZCLS + OVXCLS + RVXCLS
-- OECD CLI 7 regions : USA + G7 + JPN + DEU + GBR + CHN + EA19
-- Labor + uncertainty + recession (W40) : ICSA + IC4WSA + USREC + USEPUINDXD
-  + CIVPART + AHETPI + ATLSBUSRGEP
-- FX rates (W42) : DEXJPUS + DEXUSEU + DEXCHUS + DEXCAUS + DEXSZUS +
-  DEXUSAL + DEXUSNZ
-- Fed monetary stance (W42) : FEDFUNDS + EFFR + DFEDTARU + DFEDTARL
-- Inflation expectations (W42) : EXPINF1YR
-- Financial conditions (W42) : NFCI + ANFCI + STLFSI4 + TEDRATE + AAA + BAA
-- Macro composites (W42) : CFNAI + CFNAIDIFF + PSAVERT + UMCSENT + MCUMFN
-- Yield curve detail (W42) : DGS1 + DGS3 + DGS7 + DGS20 + T10YFF
-- Cleanup waves 37b/c : 7 ghost FRED series removed (silent 400-fails fixed)
-
-data_pool sections live (37, was 29 pre-Wave 26) — new in Phase II :
-`tail_risk` (SKEW + VVIX + GVZ + OVX + RVX), `tff_positioning`
-(per-asset 4-class + Δw/w + smart-money divergence ⚠), `treasury_tic`
-(top-10 holders + 3y trend, China -20.5 %), `oecd_cli` (7 regions +
-China-vs-rest divergence flag), `labor_uncertainty` (jobless / EPU /
-recession / wage-inflation, W41), `fed_financial` (Fed Funds target
-band + EFFR position + NFCI/ANFCI/FSI4 + BAA-AAA spread + 1y inflation
-expectations, W43). Polymarket section (W39) categorized in 6 buckets
-(Monetary policy / Macro indicators / Geopolitics / US politics /
-Crypto-macro / Other).
-
-ADR-055 ratifies DOLLAR_SMILE_BREAK gate 4-of-4 → 5-of-5 with SKEW as
-5th condition + graceful_none warm-up tolerance (preserves ADR-043
-behavior <60 d, becomes strict-er after).
-
-## Recent ADRs (2026-05-08 wave 20-35)
-
-- [ADR-055](docs/decisions/ADR-055-dollar-smile-break-skew-extension.md)
-  **DOLLAR_SMILE_BREAK extended with SKEW** — 5-of-5 gate + graceful-None
-  warm-up. Strict-er than ADR-043 once SKEW history ≥ 60 d.
-- [ADR-054](docs/decisions/ADR-054-claude-runner-stdin-pipe-windows-argv-limit.md)
-  **claude-runner stdin pipe** — pipe `prompt` via stdin to bypass
-  Windows `CreateProcessW` 32 768-char `lpCommandLine` limit. Pre-fix
-  6 of 8 assets crashed `[WinError 206]` on data_pool > 17 KB ;
-  post-fix all 8 persist DB live verified. (BLOCKER #2 closed.)
-- [ADR-053](docs/decisions/ADR-053-claude-runner-async-polling-refactor.md)
-  **claude-runner async + polling** — POST `/v1/briefing-task/async`
-  → 202 + task_id ; GET poll every 5 s. Bypass Cloudflare 100 s edge
-  timeout that silently broke 4 briefing types since 2026-05-06.
-  (BLOCKER #1 closed wave 20.)
-- [ADR-050](docs/decisions/ADR-050-capability-5-tools-runtime.md)
-  **Capability 5 scaffold only** — 5 tools (web_search, web_fetch,
-  query_db, calc, rag_historical) registered with JSON schemas in
-  `tools_registry.py`. Handlers raise `NotImplementedError` ; runtime
-  wiring deferred Phase D.0.
-- [ADR-049](docs/decisions/ADR-049-hy-ig-spread-divergence-alert.md)
-  HY-IG spread z-score 90d (credit cycle inflection). Catalog 51→52.
-- [ADR-052](docs/decisions/ADR-052-term-premium-intraday-30d-alert.md)
-  TERM_PREMIUM_INTRADAY_30D — completes term premium trinity (30d/90d/252d).
-  Catalog 53→54 (current head).
-- [ADR-025](docs/decisions/ADR-025-brier-optimizer-v2-projected-sgd.md)
-  Brier optimizer V2 — projected SGD on the per-factor drivers matrix.
-  New CLI `run_brier_optimizer_v2.py`, three helpers added to
-  `services/brier_optimizer.py`, gated on `ICHOR_API_BRIER_V2_ENABLED`.
-- [ADR-024](docs/decisions/ADR-024-session-cards-five-bug-fix.md)
-  fixed 5 stacked bugs that had killed `session_card_audit` writes
-  for 2 days. ny_mid + ny_close now valid sessions.
-- [ADR-023](docs/decisions/ADR-023-couche2-haiku-not-sonnet-on-free-cf-tunnel.md)
-  Couche-2 mapping changed Sonnet medium → Haiku low (CF Free
-  tunnel 100 s edge cap).
+- [ADR-076](docs/decisions/ADR-076-frontend-mock-fallback-pattern.md)
+  Frontend `MOCK_*` are graceful fallbacks behind `isLive()`, not
+  hardcoded mocks — keep the pattern. CLAUDE.md tech-debt line
+  corrected.
+- [ADR-075](docs/decisions/ADR-075-cross-asset-matrix-v2.md) Cross-asset
+  matrix v2 — 6-dim macro state (MCT + nowcast surprise + NFCI + SKEW
+  + VIX + SBOI) with qualitative bands + per-asset directional bias
+  tags for the 8 Ichor pairs.
+- [ADR-074](docs/decisions/ADR-074-myfxbook-replaces-oanda-orderbook.md)
+  MyFXBook Community Outlook replaces OANDA orderbook (Sept 2024 EOL,
+  $1850/mo Data Service violates Voie D). LIVE 2026-05-09.
+- [ADR-073](docs/decisions/ADR-073-nfib-sbet-pdf-collector.md) NFIB SBET
+  PDF collector — hub-scrape + pdfplumber + regime classifier.
+- [ADR-072](docs/decisions/ADR-072-ansible-ichor-packages-role.md)
+  Ansible `ichor_packages` role — declarative packages-staging sync +
+  W67 regression guard.
+- [ADR-071](docs/decisions/ADR-071-capability-5-deferral-client-tools-only.md)
+  Capability 5 — wire ONLY client tools (query_db/calc/rag_historical),
+  never server tools (web_search/web_fetch — billed separately,
+  violate Voie D). PRE-1 CF Access + PRE-2 tool_call_audit migration.
+- [ADR-070](docs/decisions/ADR-070-cleveland-fed-nowcast-collector.md)
+  Cleveland Fed Inflation Nowcast (4×3 daily surface).
+- [ADR-069](docs/decisions/ADR-069-nyfed-mct-collector-replaces-uig.md)
+  NY Fed MCT collector replaces discontinued FRED UIGFULL.
+- [ADR-068](docs/decisions/ADR-068-cb-nlp-prompt-redesign-content-refusal.md)
+  cb_nlp prompt redesign — research framing, drop "buy/sell" ban,
+  descriptive `rate_path_skew`. Fixed Claude content refusal.
+- [ADR-067](docs/decisions/ADR-067-couche2-async-polling-migration.md)
+  Couche-2 async polling — CF 100 s structural fix on agent-task path.
+  Pipeline 3/3 CF-immune.
 
 ## Conventions and protocols
 
@@ -292,25 +219,68 @@ behavior <60 d, becomes strict-er after).
 | FED_FUNDS_REPRICE    | DORMANT                            | moyen (no FRED feed for ZQ futures, approx via DFF+OIS)                                                                                                                                                |
 | ECB_DEPO_REPRICE     | DORMANT                            | difficile (no free Eurex €STR feed)                                                                                                                                                                    |
 
-## Things that are subtly broken or deferred (post Phase 0 + A.1)
+## Things that are subtly broken or deferred (post 2026-05-09 batch)
 
-- `apps/web` legacy retired from pnpm-workspace 2026-05-06 ; 5 routes
-  portées vers web2 (commit `de80335`). 25 page.tsx restent on-disk
-  comme référence read-only.
-- `apps/web2` 1 boundary global pour loading.tsx/error.tsx/not-found.tsx ;
-  per-segment manquant sur 41 routes (Phase B cible).
-- CF Access service token pas wired sur claude-runner.fxmilyapp.com
-  (Phase A.7).
-- `crisis_mode_runner` mentionné dans `alerts_runner.py:20` mais
-  **absent du repo** — Crisis Mode composite N≥2 non câblé (Phase A.2).
-- Wave 5 CI : ruff blocking 4 packages ✓, mypy blocking apps/api seul,
-  pytest auto-skip si pas de tests/, coverage gate absent (Phase A.3).
-- Capability 5 ADR-017 absente : Claude tools en runtime
-  (WebSearch/WebFetch/query_db/calc/rag_historical) pas câblés
-  dans 4-pass — modèle reçoit text-only via data_pool précompilé
-  (gap doctrinal, Phase D.0).
+- `apps/web` legacy retired 2026-05-06. 25 page.tsx on-disk as
+  read-only ref.
+- `apps/web2` per-segment loading.tsx/error.tsx/not-found.tsx still
+  pending (Phase B target).
+- **CF Access service token NOT wired** sur
+  `claude-runner.fxmilyapp.com` — **PRE-1 blocker for Capability 5
+  Phase D.0** wiring (cf ADR-071).
+- **`tool_call_audit` migration NOT yet shipped** — PRE-2 blocker for
+  Capability 5 Phase D.0. ADR-029 MiFID compliance requires the
+  immutable trigger pattern (mirror of `audit_log` 0028).
+- Capability 5 = scaffolded only (registry + 22 tests, ADR-050) but
+  wiring deferred per ADR-071 with the 6-step sequence (PRE-1, PRE-2,
+  STEP-1..STEP-5, STEP-6 integration test). Server tools
+  (`web_search`/`web_fetch`) **excluded** from scope — they're
+  metered by Anthropic since 2026-04 and violate Voie D.
+- WGC quarterly XLSX collector deferred — license requires explicit
+  WGC consent for systematic extraction; private-research framing OK
+  but not yet validated. (W75 candidate, `gold-demand-by-country` hub
+  scrape strategy researched + documented.)
+- Frontend `MOCK_*` audit (W78) revealed they are graceful fallbacks
+  behind `isLive()`, not tech-debt. ADR-076 codifies; future revisit
+  via reusable `<EmptyStateWithRetry>` component (W80 candidate).
+- `replay/[asset]/page.tsx` derives `thesis_excerpt` via
+  `deriveExcerpt` proxy because `SessionCardOut` lacks a `thesis`
+  field (W81 candidate, 1h estimate).
+- Polymarket `WHALES` constant in `polymarket/page.tsx` — no backend
+  trade-tape collector yet (W82 candidate, separate ADR needed).
 
-## Recently fixed (2026-05-06 evening, Phase 0 + A.1 + A.2 + A.3 + A.4.a/b + A.5 + A.7.partial)
+## Recently fixed (2026-05-09 — 11 commits Phase II batch)
+
+- **W70** ✅ — cb_nlp Claude content refusal fix (research-framing
+  rewrite of system prompt). ADR-068 / commit 2343158.
+- **W71** ✅ — NY Fed MCT collector replaces discontinued FRED UIGFULL.
+  795 monthly observations 1960-01 → 2026-03. ADR-069 / commit
+  8091b42.
+- **W72** ✅ — Cleveland Fed Inflation Nowcast (3 webcharts JSON
+  endpoints, 4 measures × 3 horizons). ADR-070 / commit 10e1ff5.
+- **W73** ✅ — Capability 5 deferral codified with 6-step sequence
+  (PRE-1 CF Access + PRE-2 tool_call_audit migration + STEP-1..6).
+  ADR-071 / commit e2cbb98.
+- **W74** ✅ — NFIB SBET PDF collector (hub-scrape + pdfplumber +
+  regime classifier). March 2026 SBOI=95.8 / Uncertainty=92.
+  ADR-073 / commit a31818a.
+- **W76** ✅ — Ansible `ichor_packages` role declarative sync of
+  packages-staging + W67 regression guard. ADR-072 / commit b99e172.
+- **W77** ✅ — MyFXBook Community Outlook collector dormant deploy +
+  helper script + RUNBOOK-017. Replaces OANDA orderbook (Sept 2024
+  EOL). ADR-074 / commits 4d2a30a + 33dd25e.
+- **W77b** ✅ — MyFXBook session_id raw URL concat fix (httpx
+  `params=` was double-encoding the URL-encoded session token).
+  Now LIVE with 6 pair snapshots / 4 h. AUDUSD 88 % short retail
+  (extreme contrarian flag). Commit c841c58.
+- **W78** ✅ — Frontend MOCK_* audit reframe (graceful fallbacks
+  pattern, not tech-debt). ADR-076 / commit 9adb168.
+- **W79** ✅ — Cross-asset matrix v2 — 6-dim macro state surface +
+  per-asset directional bias tags. Pure-leverage section
+  (`_section_cross_asset_matrix` in data_pool). ADR-075 / commit
+  00309a8.
+
+## Earlier waves (2026-05-06 / Phase 0 + A.1 + A.2 + A.3 + A.4.a/b + A.5 + A.7.partial)
 
 - Phase 0 ✅ — 3 alertes activées Hetzner : RR25 (Mon..Fri 14:05+21:30),
   LIQUIDITY (Mon..Fri 04:30 after dts_treasury), FOMC_TONE_SHIFT
