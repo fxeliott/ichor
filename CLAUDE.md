@@ -1,7 +1,7 @@
 # Ichor — Claude Code project memory
 
 > Auto-injected at every session start. Keep terse and current.
-> Last sync: 2026-05-09 deep night (post-W88 — EU AI Act §50.2 watermark middleware + ADR-079).
+> Last sync: 2026-05-09 deep night (post-W89 — disclosure surface contract /legal + /methodology + /.well-known/ai-content + ADR-080).
 
 ## What this repo is
 
@@ -102,8 +102,16 @@ D:\Ichor
   trigger (0028, ADR-029), trader_notes (0029), CBOE SKEW (0030),
   CFTC TFF (0031), CBOE VVIX (0032), Treasury TIC (0033).
 
-## Recent ADRs (2026-05-09 batch — 12 ADRs)
+## Recent ADRs (2026-05-09 batch — 13 ADRs)
 
+- [ADR-080](docs/decisions/ADR-080-disclosure-surface-contract.md)
+  Disclosure surface contract — `/legal/ai-disclosure`, `/methodology`,
+  `/.well-known/ai-content` (W89). Closes silent 404 regression on
+  ADR-079 watermark target URL + `AIDisclosureBanner` /methodology
+  link. Triple-redundant disclosure surface : HTML pages (human),
+  per-response headers (machine-runtime), well-known endpoint
+  (machine-discovery). force-static rendering invariant prevents
+  runtime-failure 404.
 - [ADR-079](docs/decisions/ADR-079-eu-ai-act-50-2-watermark-middleware.md)
   EU AI Act §50.2 machine-readable watermark middleware (W88) —
   `AIWatermarkMiddleware` tags 5 LLM-derived route prefixes with
@@ -291,6 +299,25 @@ D:\Ichor
   field (W81 candidate, 1h estimate).
 - Polymarket `WHALES` constant in `polymarket/page.tsx` — no backend
   trade-tape collector yet (W82 candidate, separate ADR needed).
+
+## Recently fixed (2026-05-09 deep night — disclosure surface contract)
+
+- **W89** ✅ — Disclosure surface contract codified (ADR-080). Closes
+  silent 404 compliance regression : ADR-079 watermark pointed to
+  `https://app-ichor.pages.dev/legal/ai-disclosure` and
+  `AIDisclosureBanner` linked to `/methodology`, but neither page
+  existed. Created `apps/web2/app/legal/ai-disclosure/page.tsx`
+  (full EU AI Act §50 + AMF DOC-2008-23 5-criteria + Anthropic AUP
+  narrative, FR native, WCAG 2.2 AA, force-static) and
+  `apps/web2/app/methodology/page.tsx` (4-pass + Pass 5 + Couche-2
+  Haiku low + data-pool 43 sections + Brier calibration narrative,
+  force-static). Added `apps/api` endpoint `/.well-known/ai-content`
+  (EU CoP draft Dec-2025 hint, JSON schema v1, 5-min public cache).
+  7 unit tests pass (`test_well_known_ai_content.py`). Single source
+  of truth : `Settings.ai_*` fields drive both the W88 middleware
+  AND the W89 well-known JSON, so config drift is impossible.
+  Disclosure surface now triple-redundant : human (HTML pages),
+  machine (per-response headers W88), discovery (well-known endpoint).
 
 ## Recently fixed (2026-05-09 deep night — EU AI Act §50.2 watermark)
 

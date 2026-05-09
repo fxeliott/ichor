@@ -47,6 +47,7 @@ from .routers import (
     today_router,
     tools_router,
     trade_plan_router,
+    well_known_router,
     ws_router,
     yield_curve_router,
 )
@@ -224,6 +225,7 @@ app.include_router(push_router)
 app.include_router(admin_router)
 app.include_router(yield_curve_router)
 app.include_router(tools_router)
+app.include_router(well_known_router)
 app.include_router(ws_router)
 
 
