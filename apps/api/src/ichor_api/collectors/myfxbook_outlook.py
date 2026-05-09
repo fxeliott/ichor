@@ -181,17 +181,32 @@ def parse_outlook_payload(payload: dict, fetched_at: datetime) -> list[MyfxbookO
 async def fetch_outlook(
     client: httpx.AsyncClient, session_id: str
 ) -> list[MyfxbookOutlookSnapshot]:
-    """GET /api/get-community-outlook.json → list[MyfxbookOutlookSnapshot]."""
+    """GET /api/get-community-outlook.json → list[MyfxbookOutlookSnapshot].
+
+    NOTE: the `session_id` returned by /api/login.json is **already
+    URL-encoded** (contains `%2F`, `%2B`, `%3D` for the `/`, `+`, `=`
+    base64 chars). Passing it via `params={"session": session_id}`
+    would re-encode the `%` to `%25`, breaking the session match
+    server-side. We must concatenate it raw into the URL string so
+    httpx sends it as-received from login. Verified W77+ debug
+    2026-05-09.
+    """
+    url = f"{OUTLOOK_URL}?session={session_id}"
     try:
-        r = await client.get(
-            OUTLOOK_URL,
-            params={"session": session_id},
-            timeout=30.0,
-        )
+        r = await client.get(url, timeout=30.0)
         r.raise_for_status()
         data = r.json()
     except (httpx.HTTPError, ValueError) as e:
         log.warning("myfxbook.outlook_failed", error=str(e))
+        return []
+    if isinstance(data, dict) and data.get("error"):
+        # Surface the API-level error explicitly — was previously a
+        # silent skip via `payload.get("error", True)` short-circuit
+        # in parse_outlook_payload, hiding bad sessions.
+        log.warning(
+            "myfxbook.outlook_rejected",
+            message=str(data.get("message", "")),
+        )
         return []
     return parse_outlook_payload(data, datetime.now(UTC))
 
