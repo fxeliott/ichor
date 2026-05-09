@@ -65,6 +65,8 @@
 | [068](ADR-068-cb-nlp-prompt-redesign-content-refusal.md)     | Accepted | cb_nlp prompt redesign — Claude content refusal fix             | 2026-05-09 |
 | [069](ADR-069-nyfed-mct-collector-replaces-uig.md)           | Accepted | NY Fed MCT collector replaces discontinued FRED UIGFULL         | 2026-05-09 |
 | [070](ADR-070-cleveland-fed-nowcast-collector.md)            | Accepted | Cleveland Fed Inflation Nowcast collector (4×3 daily surface)   | 2026-05-09 |
+| [071](ADR-071-capability-5-deferral-client-tools-only.md)    | Accepted | Capability 5 — defer wiring, restrict to client tools           | 2026-05-09 |
+| [071](ADR-071-capability-5-deferral-client-tools-only.md)    | Accepted | Capability 5 deferral — client tools only, sequence pre-reqs    | 2026-05-09 |
 
 > **Note**: SPEC_V2_HARDENING.md §4 originally referred to "ADR-008 to
 > ADR-011 prévus" for Phase 2 decisions. Those numbers were already taken
