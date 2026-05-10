@@ -1,5 +1,14 @@
 version: 2
 
+# W100 — Supply-chain hardening post-Axios npm attack (March 2026).
+# Every update block carries a `cooldown` window so newly-published
+# package versions sit unconsumed for 3-14 days. Empirically, > 95 %
+# of malicious npm package versions are yanked from the registry
+# within 24-48 h after upload. A 3-day cooldown on patches + 7 day on
+# minors + 14 day on majors gives community detection window before
+# auto-merge fires (cf .github/workflows/dependabot-auto-merge.yml).
+# Cooldown is applied per update block (not inheritable).
+
 updates:
   # ---- npm / pnpm (root) ----
   - package-ecosystem: npm
@@ -15,6 +24,11 @@ updates:
     commit-message:
       prefix: "chore(deps)"
       include: scope
+    cooldown:
+      default-days: 7
+      semver-major-days: 14
+      semver-minor-days: 7
+      semver-patch-days: 3
     groups:
       next-react:
         patterns:
@@ -38,6 +52,11 @@ updates:
       day: monday
     open-pull-requests-limit: 5
     labels: [dependencies, javascript, web]
+    cooldown:
+      default-days: 7
+      semver-major-days: 14
+      semver-minor-days: 7
+      semver-patch-days: 3
 
   # ---- npm / packages/ui ----
   - package-ecosystem: npm
@@ -47,6 +66,11 @@ updates:
       day: monday
     open-pull-requests-limit: 3
     labels: [dependencies, javascript, ui]
+    cooldown:
+      default-days: 7
+      semver-major-days: 14
+      semver-minor-days: 7
+      semver-patch-days: 3
 
   # ---- pip / Python packages ----
   - package-ecosystem: pip
@@ -56,6 +80,11 @@ updates:
       day: monday
     open-pull-requests-limit: 5
     labels: [dependencies, python, api]
+    cooldown:
+      default-days: 7
+      semver-major-days: 14
+      semver-minor-days: 7
+      semver-patch-days: 3
 
   - package-ecosystem: pip
     directory: /apps/claude-runner
@@ -64,6 +93,11 @@ updates:
       day: monday
     open-pull-requests-limit: 5
     labels: [dependencies, python, claude-runner]
+    cooldown:
+      default-days: 7
+      semver-major-days: 14
+      semver-minor-days: 7
+      semver-patch-days: 3
 
   - package-ecosystem: pip
     directory: /packages/agents
@@ -72,6 +106,11 @@ updates:
       day: monday
     open-pull-requests-limit: 5
     labels: [dependencies, python, agents]
+    cooldown:
+      default-days: 7
+      semver-major-days: 14
+      semver-minor-days: 7
+      semver-patch-days: 3
 
   - package-ecosystem: pip
     directory: /packages/ml
@@ -80,8 +119,16 @@ updates:
       day: monday
     open-pull-requests-limit: 5
     labels: [dependencies, python, ml]
+    cooldown:
+      default-days: 7
+      semver-major-days: 14
+      semver-minor-days: 7
+      semver-patch-days: 3
 
   # ---- GitHub Actions ----
+  # Stricter cooldown : CI passing on an Action does NOT validate that
+  # the action's runtime behaviour is safe (it just means our tests
+  # still run). Hence a 14-day window even on patches.
   - package-ecosystem: github-actions
     directory: /
     schedule:
@@ -89,6 +136,11 @@ updates:
       day: monday
     open-pull-requests-limit: 3
     labels: [dependencies, github-actions]
+    cooldown:
+      default-days: 14
+      semver-major-days: 21
+      semver-minor-days: 14
+      semver-patch-days: 14
 
   # ---- Docker images (Ansible roles) ----
   - package-ecosystem: docker
@@ -97,6 +149,8 @@ updates:
       interval: weekly
       day: monday
     labels: [dependencies, docker, observability]
+    cooldown:
+      default-days: 7
 
   - package-ecosystem: docker
     directory: /infra/ansible/roles/langfuse/files
@@ -104,6 +158,8 @@ updates:
       interval: weekly
       day: monday
     labels: [dependencies, docker, langfuse]
+    cooldown:
+      default-days: 7
 
   - package-ecosystem: docker
     directory: /infra/ansible/roles/n8n/files
@@ -111,3 +167,5 @@ updates:
       interval: weekly
       day: monday
     labels: [dependencies, docker, n8n]
+    cooldown:
+      default-days: 7

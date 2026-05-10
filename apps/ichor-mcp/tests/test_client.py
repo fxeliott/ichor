@@ -145,9 +145,7 @@ async def test_query_db_validation_rejection_raises() -> None:
     client = ToolApiClient(s)
 
     respx.post("https://api.test/v1/tools/query_db").mock(
-        return_value=httpx.Response(
-            400, json={"detail": "validation rejected: forbidden table(s)"}
-        )
+        return_value=httpx.Response(400, json={"detail": "validation rejected: forbidden table(s)"})
     )
 
     with pytest.raises(ToolApiError) as excinfo:
@@ -227,9 +225,7 @@ async def test_calc_unknown_op_raises_400() -> None:
     client = ToolApiClient(s)
 
     respx.post("https://api.test/v1/tools/calc").mock(
-        return_value=httpx.Response(
-            400, json={"detail": "ToolCalcError: unknown operation 'foo'"}
-        )
+        return_value=httpx.Response(400, json={"detail": "ToolCalcError: unknown operation 'foo'"})
     )
     with pytest.raises(ToolApiError) as excinfo:
         await client.calc(

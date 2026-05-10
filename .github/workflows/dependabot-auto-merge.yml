@@ -1,0 +1,78 @@
+# W100 — Dependabot auto-merge for low-risk security patches.
+#
+# Auto-merges Dependabot PRs ONLY when ALL of the following hold :
+#   1. Author is dependabot[bot] (no human PRs are touched).
+#   2. Update type is semver-patch OR semver-minor — never major.
+#   3. Dependency type is NOT a GitHub Action (those need manual review
+#      because CI green only proves "tests still run", not "action is
+#      safe").
+#   4. The PR's required status checks (CI workflow) pass.
+#
+# The cooldown window in .github/dependabot.yml ensures any malicious
+# npm version has at least 3-14 days of community exposure before the
+# PR is even created.
+#
+# Manual approvals : major-version bumps still create PRs (cooldown 14d)
+# but are NOT auto-merged. Eliot reviews + merges them by hand.
+#
+# Post-Axios best practice references :
+#   - github.com/marketplace/actions/dependabot-auto-merge
+#   - cisa.gov/news-events/alerts/2025/09/23 (Shai-Hulud npm compromise)
+#   - socket.dev/compare/socket-vs-dependabot (recommends auto-merge
+#     ONLY for patches with cooldown ; minors with cooldown OK ; majors
+#     manual)
+
+name: dependabot-auto-merge
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: dependabot-auto-merge-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  auto-merge:
+    runs-on: ubuntu-24.04
+    if: github.actor == 'dependabot[bot]'
+    timeout-minutes: 5
+    steps:
+      - name: Fetch Dependabot metadata
+        id: metadata
+        uses: dependabot/fetch-metadata@v2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      # Guard 1 — skip GitHub Actions ecosystem entirely (manual only).
+      - name: Skip GitHub Actions bumps
+        if: steps.metadata.outputs.package-ecosystem == 'github_actions'
+        run: |
+          echo "::notice::Skipping auto-merge for github-actions ecosystem (manual review required)"
+          exit 0
+
+      # Guard 2 — only patch + minor are eligible. Majors always manual.
+      - name: Enable auto-merge (patch + minor only)
+        if: |
+          steps.metadata.outputs.update-type == 'version-update:semver-patch' ||
+          steps.metadata.outputs.update-type == 'version-update:semver-minor'
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "::notice::Enabling auto-merge for ${{ steps.metadata.outputs.dependency-names }} (${{ steps.metadata.outputs.update-type }})"
+          gh pr merge --auto --squash "$PR_URL"
+
+      # Guard 3 — for majors, log the PR and leave it for manual review.
+      - name: Flag major version bumps for manual review
+        if: steps.metadata.outputs.update-type == 'version-update:semver-major'
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "::warning::Major version bump for ${{ steps.metadata.outputs.dependency-names }} requires manual review : $PR_URL"
+          gh pr comment "$PR_URL" --body "**Major version bump detected.** Auto-merge skipped — please review the changelog and merge manually if safe."

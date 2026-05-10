@@ -181,9 +181,7 @@ async def server_lifespan(_server: Server) -> AsyncIterator[dict[str, Any]]:
         api_base_url=settings.api_base_url,
         environment=settings.environment,
         has_service_token=bool(settings.api_service_token),
-        has_cf_access=bool(
-            settings.cf_access_client_id and settings.cf_access_client_secret
-        ),
+        has_cf_access=bool(settings.cf_access_client_id and settings.cf_access_client_secret),
     )
     try:
         yield {"client": client, "settings": settings}
@@ -203,16 +201,12 @@ def _make_server() -> Server:
         return tools
 
     @server.call_tool()
-    async def _call_tool(
-        name: str, arguments: dict[str, Any]
-    ) -> list[types.TextContent]:
+    async def _call_tool(name: str, arguments: dict[str, Any]) -> list[types.TextContent]:
         if name not in tool_index:
             return [
                 types.TextContent(
                     type="text",
-                    text=json.dumps(
-                        {"error": f"unknown tool '{name}'. known: {list(tool_index)}"}
-                    ),
+                    text=json.dumps({"error": f"unknown tool '{name}'. known: {list(tool_index)}"}),
                 )
             ]
 
@@ -291,9 +285,7 @@ def _configure_logging(level: str) -> None:
             structlog.processors.TimeStamper(fmt="iso"),
             structlog.processors.JSONRenderer(),
         ],
-        wrapper_class=structlog.make_filtering_bound_logger(
-            getattr(logging, level, logging.INFO)
-        ),
+        wrapper_class=structlog.make_filtering_bound_logger(getattr(logging, level, logging.INFO)),
         logger_factory=structlog.PrintLoggerFactory(file=sys.stderr),
     )
 

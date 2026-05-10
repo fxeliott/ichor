@@ -470,31 +470,34 @@
       <main>
         <h1>
           Guide actions Eliot
-          <span class="tag">W99 · 2026-05-10</span>
+          <span class="tag">W100 · 2026-05-10</span>
         </h1>
         <p class="meta">
-          Guide HTML — données vérifiées SSH Hetzner + curl tests + dashboard CF.
-          <strong>W99 update</strong> : Cap5 STEP-1/2 hardenisé (4 issues critiques code-review
-          patchées : pg_sleep DoS, FOR UPDATE locks, CTE shadowing, hashability) + tech debt CI de 4
-          jours résorbée (auto-deploy.yml + 161 fichiers ruff/prettier formatés + ichor_brain
-          uv.sources). 6 commits, 1407 tests verts, **toute la CI au vert pour la première fois
-          depuis W30+**.
+          Guide HTML — données vérifiées via web research 2026 + SSH Hetzner + curl tests +
+          dashboard CF + recherches docs Cloudflare/Anthropic/MCP SDK/GitHub Dependabot vérifiées le
+          2026-05-10.
+          <strong>W100 update</strong> : Cap5 STEP-6 e2e integration test SHIPPED (8 tests verts via
+          MCP in-memory transport + respx) — la Capability 5 est maintenant 6/6. Dependabot
+          auto-merge workflow + cooldown 7d post-Axios installés. Tout ce qui pouvait être fait en
+          autonomie l'est ; ce qui reste manuel est documenté ci-dessous avec URLs exactes 2026.
         </p>
 
         <div class="callout ok">
-          <strong>🎉 PRE-1 PROD-READY + W99 CI 100% GREEN</strong>
-          Test 3-way confirmé : tunnel <code>claude-runner.fxmilyapp.com</code> retourne HTTP 403
-          sans header, HTTP 200 avec credentials valides, HTTP 403 avec wrong credentials, HTTP 200
-          end-to-end Hetzner. Le système est sécurisé au CF edge. <br /><br />
-          CI status sur <code>4d7c585</code> : CI ✅ · CodeQL ✅ · auto-deploy ✅ · Dependency Graph
-          ✅ · Security audit ✅. Tier 5 (Win11 NSSM defense in depth) reste optionnel — fix
-          PowerShell ExecutionPolicy fourni dans §1. <br /><br />
-          <strong>Cap5 STEP-6 e2e est désormais UNBLOCKED.</strong> Dis-moi "lance Cap5 STEP-6" et
-          je m'en charge.
+          <strong>🎉 Cap5 6/6 SHIPPED — W100 milestone</strong>
+          <code>apps/ichor-mcp/tests/test_capability5_e2e.py</code> : 8 tests verts qui exercent la
+          chaîne MCP client → ichor_mcp server → ToolApiClient → /v1/tools/*. In-memory transport
+          (mcp.shared.memory) + respx pour httpx mocking. Cross-platform, no subprocess, no flakes.
+          <br /><br />
+          Status web research 2026-05-10 : Budget Alerts Cloudflare = Pay-as-you-go only (PAS Free,
+          confirmed avril 2026 changelog), Anthropic Console migré vers
+          <code>platform.claude.com</code>, mcp Python SDK = 1.27.1, post-Axios best practice =
+          cooldown 7d + Socket.dev. URLs/wording dans chaque §. <br /><br />
+          <strong>Tier 5 (Win11 NSSM defense in depth) reste optionnel</strong> — fix PowerShell
+          ExecutionPolicy fourni dans §1.
         </div>
 
         <section id="overview">
-          <h2>État Ichor — live data 2026-05-10 (W99)</h2>
+          <h2>État Ichor — live data 2026-05-10 (W100)</h2>
           <div class="stats">
             <div class="stat">
               <div class="label">PRE-1 status</div>
@@ -523,13 +526,13 @@
             </div>
             <div class="stat">
               <div class="label">Cap5 progress</div>
-              <div class="value">5/6 → 6/6</div>
-              <div class="sub">STEP-6 unblocked!</div>
+              <div class="value">6/6 ✅</div>
+              <div class="sub">STEP-6 e2e SHIPPED (W100)</div>
             </div>
             <div class="stat">
               <div class="label">Tests pass</div>
-              <div class="value">205+</div>
-              <div class="sub">9 invariants CI-guarded</div>
+              <div class="value">1415+</div>
+              <div class="sub">+8 W100 e2e (Cap5)</div>
             </div>
             <div class="stat">
               <div class="label">Session cards</div>
@@ -768,41 +771,61 @@
 
           <details open>
             <summary>
-              <strong>1. Activer Budget Alerts $1 / $5 / $10 (CRITIQUE — 2 min)</strong>
+              <strong>1. Budget Alerts — IMPORTANT correction W100 (1 min)</strong>
             </summary>
+            <div class="callout warn">
+              <strong>Correction W100 — recherche web 2026-05-10 vérifiée</strong>
+              <a
+                href="https://developers.cloudflare.com/billing/manage/budget-alerts/"
+                target="_blank"
+                >Cloudflare docs Budget alerts</a
+              >
+              dit verbatim : <em>"Budget alerts are available to Pay-as-you-go accounts only."</em>
+              <br />
+              Ton compte est en plan <strong>Free PUR</strong> (pas de Workers Paid, pas de R2
+              Paid). Donc <strong>l'option "Set Budget Alert" ne sera PAS visible</strong> dans ton
+              dashboard. Le guide W97 affirmait que c'était activable — c'était inexact. Désolé.
+            </div>
             <p>
-              Cloudflare a lancé les Budget Alerts en avril 2026. C'est le SEUL filet de sécurité
-              natif. Email envoyé si projection mensuelle franchit le seuil (calcul daily). Note :
-              <strong>informationnel seulement, ne stoppe pas le service</strong> — mais te prévient
-              AVANT que ça monte.
+              <strong>Test rapide</strong> : ouvre
+              <a
+                href="https://dash.cloudflare.com/?to=/:account/billing/billable-usage"
+                target="_blank"
+                >dash.cloudflare.com → Manage Account → Billing → Billable Usage</a
+              >. Si tu vois le message
+              <em>"Billable usage is available to pay-as-you-go accounts only"</em> (ou équivalent)
+              au lieu d'un graphique → confirmé, tu es Free pur et le feature n'est pas accessible.
             </p>
-            <ol>
-              <li>
-                Va sur
-                <a
-                  href="https://dash.cloudflare.com/?to=/:account/billing/billable-usage"
-                  target="_blank"
-                  >dash.cloudflare.com → Manage Account → Billing → Billable Usage</a
-                >
-              </li>
-              <li>
-                Click <strong>"Set Budget Alert"</strong> (en haut à droite, près de "Billable
-                Usage").
-              </li>
-              <li>
-                Configure 3 alertes :
-                <ul>
-                  <li><strong>$1</strong> — alerte précoce (anomalie détectée tôt)</li>
-                  <li><strong>$5</strong> — alerte sérieuse (action requise)</li>
-                  <li><strong>$10</strong> — alerte critique (investigate immédiat)</li>
-                </ul>
-              </li>
-              <li>Email destinataire : ton <code>eliott.pena@icloud.com</code>.</li>
-              <li>Sauvegarde. C'est fait.</li>
-            </ol>
             <p>
-              <span class="pill info">Note</span> dedupe automatique — tu reçois 1 email par seuil
-              franchi, pas de spam.
+              <strong>Pourquoi ce n'est pas grave en Free pur</strong> : tant qu'aucun produit
+              pay-as-you-go n'est activé (Workers Paid, R2 Standard, Images, AI Gateway), CF ne peut
+              <strong>physiquement pas</strong> te facturer. Le check critique = §8.2 ci-dessous.
+            </p>
+            <p>
+              <strong>Filet de remplacement</strong> : Claude peut te créer un scheduled task
+              Windows qui chaque lundi 8h ouvre automatiquement ton dashboard Billing dans Chrome —
+              check visuel hebdo 30 sec. Dis-moi "oui scheduled CF check" si tu veux.
+            </p>
+            <p class="src">
+              Source :
+              <a
+                href="https://developers.cloudflare.com/changelog/post/2026-04-13-billable-usage-dashboard-and-budget-alerts/"
+                target="_blank"
+                >CF changelog Budget Alerts (avril 2026)</a
+              >
+              ·
+              <a
+                href="https://developers.cloudflare.com/notifications/notification-available/"
+                target="_blank"
+                >CF Available Notifications (Free = uniquement Image Transformations + Web Analytics
+                weekly)</a
+              >
+              ·
+              <a
+                href="https://community.cloudflare.com/t/how-to-enforce-a-hard-monthly-spend-limit-in-cloudflare-max-monthly-budget/889042"
+                target="_blank"
+                >Community : hard cap $0 N'EXISTE PAS (feature request 2022 toujours ouverte)</a
+              >
             </p>
           </details>
 
@@ -831,33 +854,38 @@
           </details>
 
           <details>
-            <summary><strong>3. Configurer Usage Notifications R2 (3 min)</strong></summary>
+            <summary>
+              <strong>3. Usage Notifications R2 — Correction W100 (1 min)</strong>
+            </summary>
+            <div class="callout warn">
+              <strong>Correction W100</strong>
+              Recherche web 2026-05-10 confirmée :
+              <a
+                href="https://developers.cloudflare.com/notifications/notification-available/"
+                target="_blank"
+                >la liste officielle des notifications disponibles en Free</a
+              >
+              ne contient PAS de "R2 Class A operations threshold" ni "R2 Storage GB-month
+              threshold". Ces alertes existent uniquement pour les plans Pro+. En Free pur, les 2
+              seules notifications dispos sont :
+              <ul>
+                <li>Image Transformations quota (tu n'utilises pas Image Resizing — inutile)</li>
+                <li>Web Analytics weekly summary (informatif uniquement)</li>
+              </ul>
+            </div>
             <p>
-              R2 = principal vecteur de SOFT charge. Notification proactive = tu agis avant la
-              facture.
+              <strong>Action de remplacement</strong> : monitor manuel mensuel via dashboard
+              <a href="https://dash.cloudflare.com/?to=/:account/r2" target="_blank">R2 metrics</a>.
+              Audit actuel (vérifié W98, 2026-05-10) :
+              <strong>629.6 MB / 6.3% du free 10 GB</strong>,
+              <strong>2 520 Class A ops / 0.25% du free 1M/mois</strong>. Aucun risque court-terme.
             </p>
-            <ol>
-              <li>
-                Va sur
-                <a href="https://dash.cloudflare.com/?to=/:account/notifications" target="_blank"
-                  >Notifications</a
-                >.
-              </li>
-              <li>Click <strong>"Add"</strong>.</li>
-              <li>
-                Crée 2 notifications :
-                <ul>
-                  <li>
-                    <strong>R2 Class A operations</strong> — threshold 80% du free tier (= 800 000
-                    ops/mois).
-                  </li>
-                  <li>
-                    <strong>R2 Storage GB-month</strong> — threshold 80% du free tier (= 8 GB).
-                  </li>
-                </ul>
-              </li>
-              <li>Email : <code>eliott.pena@icloud.com</code>.</li>
-            </ol>
+            <p>
+              <strong>Auto-monitor</strong> : si tu veux automatiser via API CF, c'est faisable
+              après §7 (rotation du CF API token). Script Python cron Hetzner qui query GraphQL
+              <code>r2OperationsAdaptiveGroups</code> + <code>r2StorageAdaptiveGroups</code>, alerte
+              ntfy si > 80%. Dis "écris le monitor R2" quand §7 est fait.
+            </p>
           </details>
 
           <details>
@@ -1388,6 +1416,66 @@
             </li>
           </ol>
 
+          <h3>Bonus W100 — vérification Voie D (zero API consumption)</h3>
+          <div class="callout">
+            <strong>Pourquoi</strong>
+            ADR-009 (Voie D) interdit toute consommation Anthropic API directe — production passe
+            uniquement par le claude-runner Win11 (Max 20x flat fee). Vérification une-fois pour
+            s'assurer qu'aucune clé <code>sk-ant-*</code> n'est active "en silence".
+          </div>
+          <ol>
+            <li>
+              Va sur
+              <a href="https://platform.claude.com/settings/keys" target="_blank"
+                >platform.claude.com/settings/keys</a
+              >
+              (le domaine canonique a migré de <code>console.anthropic.com</code> →
+              <code>platform.claude.com</code> début 2026 — redirige automatiquement).
+            </li>
+            <li>
+              <strong>Si tu vois 0 API key listée</strong> ✅ : Voie D respectée. Aucun script ne
+              peut consommer.
+            </li>
+            <li>
+              <strong>Si tu vois une ou plusieurs clés</strong> <code>sk-ant-...</code> :
+              <ol type="a">
+                <li>
+                  Pour chaque clé : ellipsis (⋯) à droite → <strong>"Delete API Key"</strong> →
+                  confirm.
+                </li>
+                <li>
+                  Optionnel filet supplémentaire : va sur
+                  <a href="https://platform.claude.com/settings/limits" target="_blank"
+                    >platform.claude.com/settings/limits</a
+                  >
+                  → set monthly spend limit au minimum possible (souvent $5, $0 pas accepté).
+                </li>
+              </ol>
+            </li>
+            <li>
+              Vérifie l'usage page
+              <a href="https://platform.claude.com/usage" target="_blank"
+                >platform.claude.com/usage</a
+              >
+              → "Total spend this month" doit être <strong>$0.00</strong> sur ton organisation
+              (Claude Max sessions n'apparaissent PAS ici — elles passent par OAuth, jamais API).
+            </li>
+          </ol>
+          <p class="src">
+            Source W100 :
+            <a
+              href="https://support.claude.com/en/articles/10186004-api-console-roles-and-permissions"
+              target="_blank"
+              >Claude API Console roles + permissions</a
+            >
+            ·
+            <a
+              href="https://support.claude.com/en/articles/9767949-api-key-best-practices-keeping-your-keys-safe-and-secure"
+              target="_blank"
+              >API key best practices</a
+            >
+          </p>
+
           <h3>Validation</h3>
           <p>
             Recharge la page Privacy. Toggle <strong>doit rester OFF (gris à gauche)</strong>. Date
@@ -1671,14 +1759,55 @@ Eliot Pena
             <strong>Audit W93 — Claude a déjà activé l'auto-fix</strong>
             <code>gh api PUT</code> → <code>vulnerability-alerts</code> +
             <code>automated-security-fixes</code> activés. Verified
-            <code>{"enabled":true,"paused":false}</code>. PRs auto vont apparaître dans qq heures.
+            <code>{"enabled":true,"paused":false}</code>. PRs auto vont apparaître au prochain crawl
+            (lundi 7h Paris d'après <code>dependabot.yml</code>).
+          </div>
+
+          <div class="callout ok">
+            <strong>W100 — auto-merge installé par Claude</strong>
+            Le workflow <code>.github/workflows/dependabot-auto-merge.yml</code> a été ajouté W100.
+            Comportement :
+            <ul>
+              <li>
+                <strong>patch + minor</strong> bumps → auto-mergés (squash) si tous les checks CI
+                passent.
+              </li>
+              <li>
+                <strong>major</strong> bumps → PR créée mais auto-merge SKIPPÉ + commentaire bot
+                "manual review required" ajouté. Tu reviews + merge manuellement.
+              </li>
+              <li>
+                <strong>github-actions</strong> ecosystem → toujours skip (CI green ne valide pas la
+                safety d'une action).
+              </li>
+            </ul>
+            <strong>+ cooldown 7d</strong> ajouté à <code>.github/dependabot.yml</code> : aucune
+            version publiée depuis < 3 jours (patch) / 7 jours (minor) / 14 jours (major) n'est
+            considérée. Filtre les attaques supply-chain (Axios mars 2026, Shai-Hulud sept 2025) qui
+            ont une fenêtre détection 24-48h.
           </div>
 
           <div class="callout warn">
             <strong>IMPORTANT — changement 27 jan 2026</strong>
             Commands <code>@dependabot merge</code>, <code>@dependabot squash and merge</code>,
             <code>@dependabot close</code>, <code>@dependabot reopen</code> sont
-            <strong>DEPRECATED</strong>. Utilise les boutons natifs UI / gh CLI / REST API.
+            <strong>DEPRECATED</strong>. Utilise les boutons natifs UI / gh CLI / REST API. (Le
+            workflow W100 utilise <code>gh pr merge --auto --squash</code> qui est le pattern à
+            jour.)
+          </div>
+
+          <div class="callout">
+            <strong>Recommandation supplémentaire post-Axios (optionnel)</strong>
+            Si tu veux une 2e couche de défense contre les malwares npm non-CVE (typosquatting,
+            install-script malware, maintainer compromis), installe gratuitement
+            <a href="https://socket.dev" target="_blank">Socket.dev GitHub App</a> (recommandé par
+            <a
+              href="https://www.cisa.gov/news-events/alerts/2025/09/23/widespread-supply-chain-compromise-impacting-npm-ecosystem"
+              target="_blank"
+              >CISA</a
+            >
+            post-Shai-Hulud sept 2025). Complémentaire à Dependabot (CVE-based). 2 min install via
+            le marketplace GitHub.
           </div>
 
           <h3>Étape 1 — vérifier les Dependabot PRs</h3>
