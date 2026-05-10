@@ -128,7 +128,14 @@ updates:
   # ---- GitHub Actions ----
   # Stricter cooldown : CI passing on an Action does NOT validate that
   # the action's runtime behaviour is safe (it just means our tests
-  # still run). Hence a 14-day window even on patches.
+  # still run). The github-actions ecosystem does NOT support the
+  # semver-*-days sub-keys (Dependabot's schema 2026 only allows
+  # `default-days` for github-actions because action versions are
+  # often tags, not SemVer). Verified empirically : the W100 first
+  # cut included semver-*-days and triggered a check-run failure on
+  # commit 8605fa4 ("The property semver-major-days is not supported
+  # for the package ecosystem 'github-actions'"). Keeping a single
+  # 14-day flat window here.
   - package-ecosystem: github-actions
     directory: /
     schedule:
@@ -138,9 +145,6 @@ updates:
     labels: [dependencies, github-actions]
     cooldown:
       default-days: 14
-      semver-major-days: 21
-      semver-minor-days: 14
-      semver-patch-days: 14
 
   # ---- Docker images (Ansible roles) ----
   - package-ecosystem: docker

@@ -1,7 +1,7 @@
 # Ichor — Claude Code project memory
 
 > Auto-injected at every session start. Keep terse and current.
-> Last sync: 2026-05-10 (post-W99 — Cap5 STEP-1/2 hardening from code-review : pg_sleep DoS, FOR UPDATE locks, CTE shadowing, hashability claim).
+> Last sync: 2026-05-11 (post-W100 — Cap5 6/6 SHIPPED : STEP-6 e2e integration test via in-memory MCP transport + Dependabot auto-merge w/ cooldown 7d post-Axios).
 
 ## What this repo is
 
@@ -308,6 +308,55 @@ D:\Ichor
   field (W81 candidate, 1h estimate).
 - Polymarket `WHALES` constant in `polymarket/page.tsx` — no backend
   trade-tape collector yet (W82 candidate, separate ADR needed).
+
+## Recently fixed (2026-05-11 — W100 + W100b)
+
+- **W100** ✅ — **Cap5 STEP-6 e2e SHIPPED — ADR-071 sequence is now 6/6**.
+  `apps/ichor-mcp/tests/test_capability5_e2e.py` (8 tests, < 1s/run).
+  Uses `mcp.shared.memory.create_connected_server_and_client_session`
+  (MCP Python SDK 1.27, official 2026 pattern) to wire an in-memory
+  ClientSession to the real `ichor_mcp.server` Server. httpx mocked
+  via respx so the full chain is exercised : MCP client → `_call_tool`
+  / `_list_tools` handlers → `ToolApiClient.calc()`/`.query_db()` →
+  POST `/v1/tools/{calc,query_db}` → response wrap as TextContent.
+  Cross-platform (no subprocess, no socket, no port collision). The
+  8 tests pin : (1) canonical 2-tool round-trip + audit fields +
+  9-op enum, (2) calc happy path full chain + header round-trip,
+  (3) query_db happy path, (4) query_db validation rejection →
+  audit-first TextContent (no exception), (5) calc bad-input →
+  same audit-first wrap, (6) SDK upstream schema enforcement on
+  unknown operation (drift guard on inputSchema), (7) network
+  failure → 599 TextContent, (8) unknown tool name → handler's
+  `name not in tool_index` guard returns TextContent JSON.
+  Also W100 : Dependabot auto-merge workflow
+  `.github/workflows/dependabot-auto-merge.yml` (patch+minor only,
+  major manual, github-actions ecosystem always skipped). Cooldown
+  block on every `.github/dependabot.yml` updates entry — npm/pip
+  default 7d / patch 3d / minor 7d / major 14d ; github-actions
+  flat 14d ; docker 7d. Mitigates Axios (mar 2026) + Shai-Hulud
+  (sep 2025) supply-chain attack classes (95% yanked < 48h).
+  HTML guide `docs/guide-actions-eliot.html` corrected three
+  hallucinations from W97-W99 (CF Free Budget Alerts not available,
+  CF Free R2 notifications not available, Anthropic console URL
+  migration to `platform.claude.com`).
+- **W100b** ✅ — Five post-merge findings from independent re-audit
+  (verifier + code-reviewer + researcher subagents) closed in a
+  single follow-up commit. (a) `.github/dependabot.yml` was being
+  rejected by Dependabot's parser because the github-actions
+  ecosystem doesn't support `semver-{major,minor,patch}-days`
+  sub-keys ; check-run on 8605fa4 was failure. Fixed by keeping
+  only `default-days: 14` for that block. (b) CLAUDE.md was bumped
+  to W100 (this paragraph). (c) `test_capability5_e2e.py` got an
+  `autouse` fixture that resets `ichor_mcp.config._settings` between
+  tests (prevents singleton leak under parallel runs). (d) The
+  `test_e2e_unknown_tool_returns_error_not_crash` test was
+  tightened from a vague `try/except Exception` to a strict
+  contract pin (no exception + CallToolResult shape + JSON payload
+  with "unknown tool" + both real tool names). (e) Independent
+  HEAD-check confirmed `platform.claude.com/settings/{keys,limits}`
+  - `/usage` all return 200 + `console.anthropic.com/settings/keys`
+    redirects to `platform.claude.com/settings/keys` (migration is
+    real, URLs in the guide are valid).
 
 ## Recently fixed (2026-05-10 — invariant CI extension + pre-commit)
 

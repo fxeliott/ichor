@@ -65,6 +65,21 @@ from mcp.shared.memory import create_connected_server_and_client_session
 # ── Fixtures ───────────────────────────────────────────────────────
 
 
+@pytest.fixture(autouse=True)
+def _reset_settings_singleton(monkeypatch: pytest.MonkeyPatch) -> None:
+    """W100b — `ichor_mcp.config._settings` is a module-level cache so
+    `get_settings()` returns a Settings instance built once and reused.
+
+    Across tests (especially in parallel runs via pytest-xdist or when
+    other test files in the suite import the module BEFORE the patches
+    here are applied), the cached singleton can leak the wrong base_url
+    / token into a later test. Reset before AND after each test so we
+    always start from a clean slate."""
+    import ichor_mcp.config as _cfg
+
+    monkeypatch.setattr(_cfg, "_settings", None)
+
+
 @pytest.fixture
 def mock_settings() -> Settings:
     """Settings the in-memory server will see during the test run.
@@ -363,25 +378,43 @@ async def test_e2e_network_failure_returns_error_text(mock_settings: Settings) -
 
 @pytest.mark.asyncio
 async def test_e2e_unknown_tool_returns_error_not_crash(mock_settings: Settings) -> None:
-    """Edge case : the MCP framework would normally reject a call to an
-    unregistered tool at the protocol layer (no such tool name in the
-    list). But if for any reason `_call_tool` is reached with an
-    unknown name, it must return an error TextContent — never propagate
-    a Python exception. Defense in depth."""
+    """W100b — empirical assertion (was previously a vague try/except).
+
+    The MCP SDK 1.27 does NOT reject unknown tool names upstream — it
+    forwards the call to our handler, which guards via the `name not
+    in tool_index` check in server.py:209-217 and returns a single
+    TextContent JSON `{"error": "unknown tool '...'. known: [...]"}`.
+
+    The result is shaped as a normal `CallToolResult` (no exception
+    raised, no `isError=True` flag — the SDK only sets isError on its
+    own schema-validation failures, not on handler-returned errors).
+
+    This test pins that contract :
+      1. NO Python exception leaks across `session.call_tool()`.
+      2. The result is a `CallToolResult`.
+      3. The content is exactly one `TextContent` with parseable JSON.
+      4. The JSON has an "error" key naming the unknown tool AND the
+         known tool list (so the model can self-correct).
+
+    If a future SDK upgrade flips this (e.g. starts rejecting unknown
+    names upstream with isError=True), this test fails loudly — that's
+    a contract break we want to know about, not silently absorb."""
     with patch("ichor_mcp.server.get_settings", return_value=mock_settings):
         server = _make_server()
         async with create_connected_server_and_client_session(server) as session:
-            # The framework raises BEFORE the handler in most cases, so
-            # we accept either a CallToolResult with isError, or a
-            # framework-level exception. Both behaviours are safe.
-            try:
-                result = await session.call_tool("not_a_real_tool", {})
-                # If the framework let it through, the handler still
-                # responded with an error-shaped payload.
-                assert isinstance(result, types.CallToolResult)
-                # Either isError set or payload contains "unknown tool".
-                # We don't tighten further because the SDK chooses.
-            except Exception as e:
-                # Framework rejected — also acceptable. Just assert it's
-                # not a programming error in our code.
-                assert "not_a_real_tool" in str(e) or "tool" in str(e).lower()
+            result = await session.call_tool("not_a_real_tool", {})
+
+    # (1) No exception (assertion implicit: if call_tool raised, we
+    # never reach this line — pytest marks the test failed).
+    # (2) Shape.
+    assert isinstance(result, types.CallToolResult)
+    assert len(result.content) == 1
+    assert isinstance(result.content[0], types.TextContent)
+
+    # (3 + 4) Content.
+    payload = json.loads(result.content[0].text)
+    assert "unknown tool" in payload["error"]
+    assert "not_a_real_tool" in payload["error"]
+    # Both real tool names listed so the model knows what's available.
+    assert "query_db" in payload["error"]
+    assert "calc" in payload["error"]
