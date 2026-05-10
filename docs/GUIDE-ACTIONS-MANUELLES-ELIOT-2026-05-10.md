@@ -1,21 +1,23 @@
-# Guide actions manuelles Eliot — 2026-05-10
+# Guide actions manuelles Eliot — 2026-05-10 (W94 refonte ULTRA débutant)
 
 > **Toi seul peux faire ces actions** parce qu'elles requièrent ta connexion à un compte (Cloudflare, Anthropic, GitHub) ou des privilèges admin Win11.
 >
-> **Ce que Claude a déjà fait pour toi** : push origin main (23 commits W85→W92 + W93), `pnpm install` apps/web2, `pre-commit install` actif, cleanup 4/5 worktrees, 5 ADRs (077-081), 9 invariants CI-guarded. **W93 audit révèle** : NSSM service `RUNNING` (§3 OBSOLETE) ; Hetzner CF Access credentials DÉJÀ wired dans `/etc/ichor/api.env` (§1 Tier 1+4 DONE) ; reste juste créer l'Access Application côté CF dashboard + flip Win11 flag (§1 Tier 2-3+5 — script auto fourni `scripts/windows/enable-cf-access-runner.ps1`).
+> **Ce que Claude a déjà fait pour toi** (cumul session) : push origin main (24 commits W85→W93b), `pnpm install` apps/web2, `pre-commit install` actif (hook ichor-invariants vert), cleanup 4/5 worktrees, 5 ADRs (077-081), 9 invariants doctrinaux CI-guarded, **gh api PUT** active automated-security-fixes Dependabot, mailto: link WGC pré-encodé, sub-agent W93 deep-research T&C 2026 + adresse contact officielle.
 >
-> **Format** : chaque action = pré-requis + étapes click-par-click + comment savoir que c'est fait + temps estimé.
+> **Audit W93** révèle : NSSM service `RUNNING` (§3 OBSOLETE), Hetzner CF Access credentials DÉJÀ wired (§1 Tier 1+4+6 DONE), reste juste §1 Tier 2-3+5 (CF dashboard click + 1 commande PowerShell).
+>
+> **Format W94** : chaque section commence par "Pour les non-devs" (1 paragraphe contexte humain), puis click-by-click avec layout 2026 réel + table "Ce qui PEUT MAL TOURNER + fix".
 
 ## Table des matières
 
-| #   | Action                                                                             | Priorité                           | Temps           | Pré-requis             |
-| --- | ---------------------------------------------------------------------------------- | ---------------------------------- | --------------- | ---------------------- |
-| 1   | [PRE-1 CF Access — Tier 2-3 + Tier 5 only](#1-pre-1-cf-access-service-token)       | **CRITIQUE** (Tier 1+4+6 DONE)     | 8 min           | Compte CF logué        |
-| 2   | [Anthropic "Help improve Claude" OFF](#2-anthropic-help-improve-claude-toggle-off) | **CRITIQUE** (privacy + EU AI Act) | 3 min           | Compte claude.ai logué |
-| 3   | ~~NSSM restore~~ **OBSOLETE — service RUNNING**                                    | (skip)                             | (skip)          | (skip)                 |
-| 4   | [Cleanup worktree zealous-banzai](#4-cleanup-worktree-zealous-banzai-physique)     | Bas (50 MB, gitignoré)             | 2 min           | Reboot Win11 d'abord   |
-| 5   | [WGC W75 license decision](#5-wgc-w75-license-decision)                            | Bas (collecteur deferred)          | 5 min recherche | —                      |
-| 6   | [GitHub Dependabot 3 vulnerabilities](#6-github-dependabot-3-vulnerabilities)      | Moyen                              | 5 min check     | Compte GitHub logué    |
+| #   | Action                                                                             | Priorité                           | Temps   | Pré-requis             |
+| --- | ---------------------------------------------------------------------------------- | ---------------------------------- | ------- | ---------------------- |
+| 1   | [PRE-1 CF Access — Tier 2-3 + Tier 5 only](#1-pre-1-cf-access-service-token)       | **CRITIQUE** (Tier 1+4+6 DONE)     | 8 min   | Compte CF logué        |
+| 2   | [Anthropic "Help improve Claude" OFF](#2-anthropic-help-improve-claude-toggle-off) | **CRITIQUE** (privacy + EU AI Act) | 3 min   | Compte claude.ai logué |
+| 3   | ~~NSSM restore~~ **OBSOLETE — service RUNNING**                                    | (skip)                             | (skip)  | (skip)                 |
+| 4   | [Cleanup worktree zealous-banzai](#4-cleanup-worktree-zealous-banzai)              | Bas (50 MB)                        | 2 min   | Reboot Win11 d'abord   |
+| 5   | [WGC W75 license decision](#5-wgc-w75-license-decision)                            | Bas (collecteur deferred)          | 3-5 min | iCloud Mail web        |
+| 6   | [GitHub Dependabot 3 vulnerabilities](#6-github-dependabot-3-vulnerabilities)      | Moyen                              | 0-5 min | Compte GitHub logué    |
 
 ---
 
@@ -25,309 +27,354 @@
 
 **DÉJÀ FAIT (ne refais pas)** :
 
-- ✅ **Tier 1** (Cloudflare Zero Trust activé sur ton compte) — sinon Hetzner n'aurait pas de credentials.
-- ✅ **Tier 4** (Service token créé) — `client_id` + `client_secret` présents dans `/etc/ichor/api.env` Hetzner (lignes `ICHOR_API_CF_ACCESS_CLIENT_ID` + `_SECRET`).
-- ✅ **Tier 6** (Hetzner side wired) — les vars sont chargées par le service `ichor-api`.
+- Tier 1 : Cloudflare Zero Trust activé (sinon Hetzner n'aurait pas de credentials).
+- Tier 4 : Service token créé. `client_id` + `client_secret` présents dans `/etc/ichor/api.env` Hetzner.
+- Tier 6 : Hetzner side wired. `ichor-api` consomme les vars.
 
 **À FAIRE PAR TOI** :
 
-- ⏳ **Tier 2** : créer l'**Access Application** dans le dashboard CF (pour attacher le token au hostname `claude-runner.fxmilyapp.com`).
-- ⏳ **Tier 3** : créer la **policy "Service Auth"** sur l'application.
-- ⏳ **Tier 5** : flip le flag Win11 NSSM (script auto fourni — tu l'invoques avec 2 paramètres).
+- Tier 2 : créer l'**Access Application** dans le dashboard CF (attacher le token au hostname).
+- Tier 3 : créer la **policy "Service Auth"** sur l'application.
+- Tier 5 : flip le flag Win11 NSSM (script auto fourni).
 
-**Validation actuelle** : `curl https://claude-runner.fxmilyapp.com/healthz` retourne `HTTP 200` **sans auth** → tunnel public. Une fois les Tier 2+3+5 faits, sans token la même curl doit retourner **401**.
+**Validation actuelle** : `curl https://claude-runner.fxmilyapp.com/healthz` retourne `HTTP 200` **sans auth** = tunnel public. Une fois Tier 2+3+5 faits, **401**.
 
-### Pourquoi c'est critique
+### Pour les non-devs : c'est quoi exactement Cloudflare Access ?
 
-Le tunnel Cloudflare `claude-runner.fxmilyapp.com` qui pointe vers ton PC Win11 est aujourd'hui **public** (`require_cf_access=false`). N'importe qui qui devine l'URL peut **drainer ton quota Claude Max 20x** en lançant des requêtes briefings depuis l'extérieur. Une fois Cap5 STEP-6 wired (intégration test e2e), le risque devient critique car les requêtes deviennent automatisées + plus fréquentes.
+Imagine que ton PC Win11 a une **porte d'entrée internet** (`claude-runner.fxmilyapp.com`) qui permet à Hetzner d'envoyer des requêtes Claude. Aujourd'hui cette porte est **non verrouillée** : n'importe qui qui devine l'URL peut frapper et drainer ton quota Claude Max 20x.
 
-CF Access service token = jeton d'identification (client_id + client_secret) que Cloudflare valide au edge **avant** que la requête ne touche ton PC. Sans le bon header, Cloudflare retourne 401.
+**Cloudflare Access** = un videur de boîte de nuit posté devant la porte. Tu lui donnes une liste : "laisse passer uniquement les gens qui montrent ce badge précis (notre service token)". Tout autre visiteur reçoit refus poli (HTTP 401) sans même que ton PC le sache.
+
+Le **service token** = paire de longs codes alphanumériques :
+
+- `client_id` (genre `f3481230f02f...d.access`) = le badge.
+- `client_secret` (64 chars hex) = la signature secrète qui prouve que le badge est authentique.
+
+Hetzner les envoie dans 2 headers HTTP (`CF-Access-Client-Id` + `CF-Access-Client-Secret`). Cloudflare les vérifie au edge (Paris, avant que ça arrive à ton PC), génère un **JWT** (jeton signé numériquement, comme un passeport temporaire 24h).
+
+Pourquoi critique maintenant : Cap5 STEP-6 va automatiser des appels au runner. URL publique + appels automatisés = quelqu'un qui scrape pourrait drainer ton quota Max en quelques heures.
 
 ### Pré-requis
 
-1. **Compte Cloudflare actif** (tu en as un, c'est le compte ID `6bc2ed8d6d675701a9a54f4f3d9b2499`).
-2. **Cloudflare Zero Trust** activé sur ce compte. **Probablement pas encore activé** d'après l'audit `~/.claude/projects/D--Ichor/memory/ichor_cloudflare_api_limits.md:55-63`. Free up to 50 users.
-3. **Domaine `fxmilyapp.com`** déjà dans Cloudflare (oui, vérifié zone ID).
+1. Tu es logué sur **Cloudflare** (https://dash.cloudflare.com) avec le compte qui possède `fxmilyapp.com`.
+2. Tu as **PowerShell as Administrator** prêt à ouvrir (clic droit menu Démarrer → "Run as administrator" → UAC accepte → fenêtre bleue avec barre titre **"Administrator: Windows PowerShell"**).
+3. Tu as **D:\Ichor** sur disque local (déjà OK).
 
-### Étapes (Tier 1 — activer Cloudflare Access) ✅ DONE
+### Tier 1 — Zero Trust ✅ DÉJÀ FAIT
 
-(Skip — déjà fait, Hetzner a les credentials.)
+Si tu veux retrouver ton **team name** : va sur `https://one.dash.cloudflare.com`. En haut à gauche sous le logo Cloudflare, un nom genre `eliot-team` ou sous-domaine `eliot-team.cloudflareaccess.com`. C'est ton team domain. Note-le pour Tier 5.
 
-Si tu veux retrouver ton team name : `https://one.dash.cloudflare.com` → menu en haut, sous-domaine de ton team affiché. Tu en auras besoin au Tier 5 (variable `TEAM_DOMAIN`).
+### Tier 2 — créer une Access Application (5 min)
 
-### Étapes (Tier 2 — créer une Access Application)
+**Pour les non-devs** : on dit à Cloudflare "voici une application web (le runner Claude) que je veux protéger ; à partir de maintenant, ne laisse passer aucune requête sans badge valide". L'application = la porte. La policy (Tier 3) = la liste des badges autorisés.
 
-1. Toujours sur Zero Trust dashboard, click **Access** dans le menu de gauche → **Applications**.
-2. Click bouton **"Add an application"** en haut à droite.
-3. Choisis le type **"Self-hosted"**.
-4. Remplis le formulaire :
-   - **Application name** : `Ichor Claude Runner` (titre humain).
-   - **Session Duration** : `24 hours` (par défaut OK).
-   - **Application domain** : tape `claude-runner.fxmilyapp.com`. Cloudflare devrait auto-détecter ton zone.
-   - Path : laisse vide (toute l'app).
-5. Click **"Next"**.
+**Note layout 2026** : Cloudflare a réorganisé le menu en 2026. L'ancien `Access > Applications` est devenu `Access controls > Applications`. Le bouton de création s'appelle parfois "Add an application" parfois "Create new application" — les deux mènent au même formulaire.
 
-### Étapes (Tier 3 — créer la policy + le service token)
+#### Étapes click-by-click
 
-6. Sur l'écran **"Add policies"** :
-   - **Policy name** : `Ichor Service Token Only`.
-   - **Action** : `Service Auth` (PAS "Allow" — service auth = uniquement les tokens, pas les humains).
-   - **Configure rules** : section **Include**, choisis **"Service Token"** dans le menu, puis **"Any service token"**.
-   - Click **"Save policy"**.
-7. Click **"Next"**, puis **"Add application"** sur l'écran de récap. Application créée.
+1. Va sur `https://one.dash.cloudflare.com`. Tu arrives sur le dashboard Zero Trust.
+2. Dans le menu de **gauche**, cherche **Access controls** (icône bouclier ou cadenas). Click → sous-menu se déplie avec **Applications**, **Policies**, **Service credentials**, **Tunnels**, etc.
+   - Si tu vois **"Access"** tout court (pas "Access controls") : ancien layout, click dessus c'est pareil.
+3. Click **Applications**. Page liste les applications déjà protégées (vide si première fois).
+4. En **haut à droite**, gros bouton bleu **"Add an application"** (ou **"Create new application"**). Click.
+5. Page **"Select an application type"** s'ouvre avec tiles :
+   - Self-hosted and private (ou juste "Self-hosted")
+   - SaaS
+   - Private network
+   - Infrastructure
 
-### Étapes (Tier 4 — créer le service token) ✅ DONE
+   **Click le tile "Self-hosted"** = "j'héberge le serveur moi-même" (ton PC Win11 derrière le tunnel).
 
-(Skip — déjà fait. Le service token existe et ses credentials sont déjà dans `/etc/ichor/api.env` Hetzner. Le `client_id` est `f3481230f02f4964f4bac5a42b9b776d.access` — vérifié SSH par Claude. Tu n'as PAS besoin du secret pour Tier 5 ; seul l'AUD tag de l'application Access est nécessaire.)
+6. Formulaire **"Add a self-hosted application"** s'ouvre.
 
-Si tu n'as pas le service token (parce que les credentials ont été générés par quelqu'un d'autre) : retourne dans **Zero Trust → Access → Service Auth → Service Tokens**, tu vois la liste de tes tokens. Le secret ne peut PAS être re-affiché ; si perdu, **rotate** (génère un nouveau token, mets à jour `/etc/ichor/api.env`, restart `ichor-api`).
+#### Remplir le formulaire
 
-### Étapes (Tier 5 — flip Win11 NSSM via script auto)
+7. **Application name** : tape exactement `Ichor Claude Runner`.
+8. **Session Duration** : laisse `24 hours`.
+9. Section **"Add public hostname"** (parfois pliée — click pour déplier) :
+   - **Subdomain** : tape `claude-runner`
+   - **Domain** : dropdown → sélectionne `fxmilyapp.com`
+   - **Path** : LAISSE VIDE
 
-Claude a préparé un script PowerShell qui fait le flip atomiquement :
+   Visuellement : `[claude-runner] . [fxmilyapp.com ▼] / [           ]`
 
-- Lit l'env actuel NSSM
-- Conserve les vars existantes (HOST, PORT, LOG_LEVEL, etc.)
-- Ajoute/remplace `REQUIRE_CF_ACCESS=true`, `CF_ACCESS_TEAM_DOMAIN`, `CF_ACCESS_APPLICATION_AUD`
-- Restart le service NSSM
-- Smoke-test local healthz post-flip
+   Si `fxmilyapp.com` n'apparaît pas dans le dropdown : ton compte CF n'a pas la zone activée. Stop, screenshot Win+Shift+S, envoie-le moi.
 
-**Pré-requis** :
+10. Section **"Identity providers"** : dé-coche TOUT si quelque chose est coché. On veut SEULS les service tokens.
+11. Section **"Instant Auth"** : laisse OFF.
+12. En bas, click bouton bleu **"Next"**.
 
-- Tu DOIS avoir fini Tier 2+3 d'abord (sinon tu casses la chaîne — tunnel rejette tout).
-- Tu as récupéré l'**AUD tag** depuis le dashboard CF : **Zero Trust → Access → Applications → Ichor Claude Runner → Overview → Application Audience (AUD) Tag**. C'est un long string hex 64 chars.
-- Tu connais ton **team domain** (ex : `ichor-team.cloudflareaccess.com`).
+#### Validation visuelle après Tier 2
 
-**Procédure** :
+Tu dois voir un écran **"Add policies"** avec titre "Configure policies for Ichor Claude Runner". Si page d'erreur rouge ou "domain conflict" : screenshot → envoie-moi.
 
-14. Ouvre **PowerShell as Administrator** (clic droit → Run as Admin).
-15. Lance le script :
+### Tier 3 — créer la policy "Service Auth" (3 min)
+
+**Pour les non-devs** : maintenant que la porte existe, on définit la **règle de filtrage** du videur. 3 actions possibles : **Allow** (humain qui se logge), **Block** (refuse), **Service Auth** (laisse passer UNIQUEMENT si service token valide). On veut Service Auth.
+
+#### Étapes click-by-click
+
+13. Sur l'écran "Add policies" :
+    - **Policy name** : tape `Ichor Service Token Only`.
+    - **Action** : dropdown → **`Service Auth`**.
+      - **PIÈGE** : ne choisis PAS "Allow". Allow = humain qui doit se logger. Service Auth = robot avec token. Pour Ichor c'est le robot Hetzner, donc Service Auth.
+    - **Session duration** : laisse `Same as application session timeout`.
+14. Section **"Configure rules"**, sous-section **"Include"** :
+    - Click **"+ Add include"** (ou "Add" / "+").
+    - Selector dropdown → **"Service Token"**.
+    - Value dropdown à droite → **"Any Access Service Token"** (ou "Any service token").
+
+    Visuellement : `Include: [Service Token ▼]   [Any Access Service Token ▼]`
+
+15. **Exclude** et **Require** : LAISSE VIDES.
+16. En bas → **"Next"**.
+17. Écran récap suivant ("Setup" / "Cookie settings") → **"Next"** sans rien changer.
+18. Dernier écran "Review and add" → bouton **"Add application"** en bas à droite.
+
+#### Validation visuelle après Tier 3
+
+Retour sur la liste Applications avec `Ichor Claude Runner` apparaît avec statut vert "Active". Erreur rouge → screenshot.
+
+### Tier 4 — service token ✅ DÉJÀ FAIT
+
+Le service token existe et ses credentials sont dans `/etc/ichor/api.env` Hetzner. `client_id` = `f3481230f02f4964f4bac5a42b9b776d.access`. Tu n'as PAS besoin du secret pour Tier 5 ; seul l'**AUD tag** de l'application Access créée au Tier 2 est nécessaire.
+
+### Tier 5 — récupérer AUD tag + flip Win11 NSSM (5 min)
+
+**Pour les non-devs** : l'**AUD tag** (Application Audience Tag) = long code hex 64 chars qui identifie de façon unique TON application Access (Tier 2). Le service Win11 doit le connaître pour valider que les JWT reçus sont bien destinés à NOTRE application. C'est l'équivalent du "numéro de table" dans un restaurant.
+
+#### Récupérer l'AUD tag
+
+19. Sur la liste Applications, click **`Ichor Claude Runner`** (la ligne entière, ou bouton "Configure").
+20. Page Overview → cherche section **"Application Audience (AUD) Tag"** (sous Overview ou Settings → onglet en haut).
+21. Tag affiché comme `a1b2c3d4e5f6...` 64 chars hex avec bouton **Copy**. Click Copy → colle dans Notepad ou ton vault.
+
+#### Récupérer le team domain
+
+22. Dashboard Zero Trust → menu gauche scroll en bas → **Settings** (icône engrenage).
+23. Cherche **"Team domain"** ou **"General"** → tu vois `https://eliot-team.cloudflareaccess.com`. Note la partie `eliot-team.cloudflareaccess.com` (sans `https://`).
+    - Layout 2026 alternatif : si pas dans Settings General, cherche sous **Reusable components → Custom pages → Team domain**.
+
+#### Flip Win11 NSSM via script auto
+
+Claude a préparé un script PowerShell qui fait le flip atomiquement (lit env actuel, conserve vars existantes, ajoute REQUIRE_CF_ACCESS=true + TEAM_DOMAIN + APPLICATION_AUD, restart NSSM, smoke-test healthz).
+
+24. Ouvre **PowerShell as Administrator** :
+    - Menu Démarrer → tape `powershell` → click droit "Windows PowerShell" → **"Run as administrator"** → UAC accepte.
+    - Vérifie barre titre = **"Administrator: Windows PowerShell"**. Sinon recommence.
+25. Lance :
+
     ```powershell
     cd D:\Ichor
     .\scripts\windows\enable-cf-access-runner.ps1 `
-        -TeamDomain "<ton-team>.cloudflareaccess.com" `
-        -ApplicationAud "<AUD-tag-hex-64-chars>"
+        -TeamDomain "eliot-team.cloudflareaccess.com" `
+        -ApplicationAud "<colle-le-AUD-tag-64-chars-hex>"
     ```
-16. Le script affiche les 4 étapes (statut NSSM, env actuel, env nouveau, restart). Si tu vois `DONE. CF Access enforcement is now ACTIVE`, c'est gagné.
 
-**Si le script échoue** :
+    Remplace par TES valeurs (étape 21 + 23).
 
-- Vérifie les paramètres (TeamDomain doit finir par `.cloudflareaccess.com`).
-- Vérifie le statut NSSM avec `nssm status IchorClaudeRunner`. Doit être `SERVICE_RUNNING`.
-- Si `SERVICE_PAUSED` ou `SERVICE_STOPPED` : `nssm restart IchorClaudeRunner`. Si tjrs fail, check logs `nssm get IchorClaudeRunner AppStderr`.
+26. Script affiche 4 étapes (statut NSSM, env actuel, env nouveau, restart). Si vert :
+    ```
+    DONE. CF Access enforcement is now ACTIVE.
+    ```
+    → gagné.
 
-### Étapes (Tier 6 — Hetzner side) ✅ DONE
+#### Validation post-Tier 5
 
-(Skip — Hetzner a déjà les credentials dans `/etc/ichor/api.env`, vérifié par Claude SSH.)
+27. Test négatif :
 
-### Validation post-Tier 5
+    ```powershell
+    curl.exe -i https://claude-runner.fxmilyapp.com/healthz
+    ```
 
-17. Test négatif : `curl -i https://claude-runner.fxmilyapp.com/healthz` (sans headers).
-    - **Doit retourner HTTP 401 ou 403**. Si tu vois 200, le flip n'a pas pris (vérifie que NSSM a bien restart + que tu as fini Tier 2+3).
-18. Test positif : récupère client_id + client_secret depuis Hetzner (déjà là) :
+    **Doit retourner `HTTP/2 401`** (ou 403). Si `200` :
+    - `nssm status IchorClaudeRunner` doit dire `SERVICE_RUNNING`.
+    - Tier 2+3 bien terminés (l'app apparaît dans la liste CF).
+    - Attends 2 min (propagation CF edge).
+
+28. Test positif (avec token, depuis Hetzner) :
     ```bash
     ssh ichor-hetzner "sudo grep ICHOR_API_CF_ACCESS /etc/ichor/api.env"
     ```
-    Puis :
+    Récupère `CLIENT_ID` + `CLIENT_SECRET`. Puis :
     ```bash
     curl -i -H "CF-Access-Client-Id: <client_id>" \
             -H "CF-Access-Client-Secret: <client_secret>" \
             https://claude-runner.fxmilyapp.com/healthz
     ```
-    Doit retourner `HTTP 200` avec un JSON `{"status":"ok",...}`.
+    **Doit retourner `HTTP/2 200`** + body JSON `{"status":"ok",...}`.
 
-### Rollback (si quelque chose plante)
+### Rollback
 
-Sur Win11 PowerShell admin :
+PowerShell admin :
 
 ```powershell
-nssm set IchorClaudeRunner AppEnvironmentExtra "ICHOR_RUNNER_HOST=127.0.0.1" "ICHOR_RUNNER_PORT=8765" "ICHOR_RUNNER_LOG_LEVEL=INFO" "ICHOR_RUNNER_CLAUDE_BINARY=C:\Users\eliot\.local\bin\claude.exe" "ICHOR_RUNNER_ENVIRONMENT=development" "ICHOR_RUNNER_REQUIRE_CF_ACCESS=false"
+nssm set IchorClaudeRunner AppEnvironmentExtra `
+  "ICHOR_RUNNER_HOST=127.0.0.1" `
+  "ICHOR_RUNNER_PORT=8765" `
+  "ICHOR_RUNNER_LOG_LEVEL=INFO" `
+  "ICHOR_RUNNER_CLAUDE_BINARY=C:\Users\eliot\.local\bin\claude.exe" `
+  "ICHOR_RUNNER_ENVIRONMENT=development" `
+  "ICHOR_RUNNER_REQUIRE_CF_ACCESS=false"
 nssm restart IchorClaudeRunner
 ```
 
-Le système retourne à l'état pré-flip (public mais fonctionnel).
+Retour à l'état pré-flip (public mais fonctionnel).
+
+### Ce qui PEUT MAL TOURNER + comment fix
+
+| Symptôme                                      | Cause                                       | Fix                                                        |
+| --------------------------------------------- | ------------------------------------------- | ---------------------------------------------------------- |
+| Bouton "Add an application" introuvable       | Mauvais dashboard                           | Va sur `https://one.dash.cloudflare.com`                   |
+| Dropdown Domain ne montre pas `fxmilyapp.com` | Zone pas active sur ce compte               | Switch compte (haut droite) vers celui qui a fxmilyapp.com |
+| Action "Service Auth" pas dans dropdown       | Bug temporaire CF                           | Reload F5, recommence Tier 3                               |
+| `nssm` introuvable PowerShell                 | Pas dans PATH                               | `where.exe nssm` ; sinon path complet                      |
+| `curl.exe` pas reconnu                        | Win11 a `curl` alias vers Invoke-WebRequest | Utilise `curl.exe` explicitement                           |
+| Test négatif tjrs 200 après 5 min             | Cache CF edge                               | Wait 30 min ou Caching > Purge Everything                  |
+| AUD tag introuvable                           | Mauvais onglet                              | Cherche Overview, Settings, Application Configuration      |
 
 ### Quoi faire après
 
-Une fois validé, tu peux dire à Claude "PRE-1 fait, lance Cap5 STEP-6 e2e test". Cap5 sera 6/6.
+Dis à Claude **"PRE-1 fait, lance Cap5 STEP-6 e2e"** → Cap5 = 6/6.
 
 ---
 
 ## 2. Anthropic "Help improve Claude" toggle OFF
 
-### Pourquoi c'est critique
+### Pour les non-devs : c'est quoi ce toggle ?
 
-Par défaut, le plan Claude Max 20x active le partage anonymisé de tes conversations pour entraîner Claude. Pour Ichor, ça signifie :
+Anthropic a changé sa politique en sept 2025. Avant : conversations stockées 30 jours puis supprimées. Maintenant : toggle "Help improve Claude" ON par défaut (même sur Max 20x payant) → **conversations entrent dans le training set Anthropic 5 ans**. Si tu l'éteins, retour à 30 jours.
 
-- Tes briefings macro (Pass 1-4) entrent dans le training set Anthropic pour 5 ans.
-- Tes prompts data-pool (qui contiennent de la donnée FRED, Polymarket, MyFXBook) sont stockés.
-- Cap5 STEP-6 (post-PRE-1) enverra des `query_db` sur `session_card_audit` rows qui finissent dans training.
+Pour Ichor : briefings macro (Pass 1-4), prompts data-pool (FRED/Polymarket/MyFXBook), Cap5 STEP-6 (`query_db` sur `session_card_audit`) — tout ça finit dans Claude future. EU AI Act §50 + audit interne Ichor exigent **opt-out**.
 
-EU AI Act §50 et l'audit interne Ichor exigent que tu sois **opt-out**.
+**Note 2026** (jurisprudence US v. Heppner fév 2026) : conversations consumer-plan AI **ne sont PAS protégées** par secret professionnel. "Discoverable" en justice. Pas critique pour Ichor (analyses macro non confidentielles), bon à savoir.
 
 ### Pré-requis
 
-Compte claude.ai logué avec le plan Max 20x.
+Tu es logué sur https://claude.ai avec ton compte Max 20x. Avatar visible bas-gauche sidebar = logué.
 
-### Étapes
+### Étapes click-by-click (Layout claude.ai 2026)
 
-1. Va sur https://claude.ai (logué).
-2. Clic sur **ton avatar** en bas à gauche.
+1. Va sur https://claude.ai. Écran chat principal avec sidebar gauche + zone chat centre.
+2. **En bas à gauche**, click sur ton **avatar** (cercle initiale ou photo). Menu pop-up vers haut :
+   ```
+   ┌─────────────────────┐
+   │ Settings            │
+   │ Upgrade plan        │
+   │ Help & support      │
+   │ Log out             │
+   └─────────────────────┘
+   ```
 3. Click **Settings**.
-4. Onglet **Privacy** dans la sidebar.
-5. Cherche le toggle **"Help improve Claude"**. Probablement intitulé "Allow Anthropic to use your conversations to train models" ou similaire.
-6. **Désactive** le toggle (slider à gauche / gris).
-7. Cherche aussi **"Help improve Claude Code"** (toggle séparé pour le CLI). **Désactive aussi**.
-8. Anthropic peut afficher un dialog de confirmation. Confirme **"Disable"** / **"Don't share"**.
+4. Modal Settings → sidebar gauche affiche : Profile, Account, Appearance, **Privacy**, Data controls, etc.
+   Click **Privacy**.
+5. Zone droite → cherche toggle **"Help improve Claude"** (parfois "Allow Anthropic to use your conversations to train models") :
+   ```
+   Help improve Claude                    [● ▬▬]  ← ON (bleu, à droite)
+   ```
+6. **Click le toggle** → glisse à gauche, devient gris :
+   ```
+   Help improve Claude                    [▬▬ ●]  ← OFF (gris, à gauche)
+   ```
+7. **Cherche aussi "Help improve Claude Code"** (toggle séparé pour le CLI), souvent juste en-dessous. **Désactive aussi**.
+8. Anthropic peut afficher dialog confirmation **"Are you sure?"** → bouton "Disable" / "Don't share" → confirme.
 
 ### Validation
 
-- Recharge la page Settings → Privacy. Les toggles doivent rester OFF.
-- Date de dernière modification visible sous le toggle.
+Recharge Settings → Privacy. Toggles **doivent rester OFF (gris à gauche)**. "Last modified: today" sous les toggles.
 
-### Note importante
+### Suppression conversations passées (optionnel, GDPR)
 
-D'après la doc Anthropic 2026 (cf research W88) : **les conversations existantes** stockées avant l'opt-out **ne sont pas effacées** automatiquement. Pour les supprimer, il faut soumettre une demande GDPR/CCPA via https://privacy.claude.com → "Submit a privacy request".
+**Note importante 2026** : conversations existantes stockées avant l'opt-out **ne sont pas effacées rétroactivement**. Pour purger :
 
-Pour Ichor, pas critique : les briefings de la dernière semaine sont des analyses macro génériques sans donnée perso identifiable. Mais si tu veux être paranoïaque, soumets une demande de purge.
+1. Va sur https://privacy.anthropic.com (redirige peut-être vers privacy.claude.com).
+2. Click "Submit a privacy request".
+3. Choisis "Delete my data" / "GDPR Article 17".
+4. Délai 30 jours max.
+
+Pour Ichor : pas critique. Optionnel paranoïa.
+
+### Ce qui PEUT MAL TOURNER + comment fix
+
+| Symptôme                                  | Cause                              | Fix                                      |
+| ----------------------------------------- | ---------------------------------- | ---------------------------------------- |
+| Pas d'onglet Privacy                      | A/B test UI                        | Cherche dans Account ou Data controls    |
+| Toggle Claude Code absent                 | Pas encore lancé Claude Code logué | OK, prochaine fois — toggle web suffit   |
+| Toggle se re-flip ON après quelques jours | Bug post-upgrade plan              | Vérifier 1× par mois (rappel calendrier) |
+| Avatar bas-gauche introuvable             | Mode mobile / sidebar collapsed    | Click hamburger (3 lignes) haut-gauche   |
 
 ### Quoi faire après
 
-Aucune action côté code Ichor. Juste vérifier 1× par mois que le toggle reste OFF (Anthropic peut le re-flipper sur upgrade plan).
+Aucune action côté code Ichor. Vérifier 1× par mois.
 
 ---
 
 ## 3. ~~NSSM IchorClaudeRunner restore~~ — OBSOLETE
 
-**Audit W93 (Claude SSH 2026-05-10)** : `nssm status IchorClaudeRunner` retourne `SERVICE_RUNNING`. La variable `ICHOR_RUNNER_ENVIRONMENT=development` est présente dans `AppEnvironmentExtra`. **Le service tourne. Tu n'as RIEN à faire ici.**
+**Audit W93 (Claude SSH 2026-05-10)** : `nssm status IchorClaudeRunner` retourne `SERVICE_RUNNING`. Variable `ICHOR_RUNNER_ENVIRONMENT=development` présente. **Le service tourne. Tu n'as RIEN à faire ici.**
 
-**Dette technique annexe — double runner** : il y a 2 runners simultanés actifs sur ta machine :
+**Note W94 — clarification dual-runner** : audit `~/.cloudflared/config.yml` :
 
-- NSSM `IchorClaudeRunner` sur port `8765` (auto-restart, log géré)
-- Standalone uvicorn sur port `8766` (lancé par `start-claude-runner-standalone.bat` dans Startup)
-
-Le tunnel CF `claude-runner.fxmilyapp.com` pointe vers `127.0.0.1:8766` (= standalone uvicorn). Si tu kill le standalone, le tunnel break. Si tu kill NSSM, tu perds l'auto-restart.
-
-**Trois options** :
-
-- **Option A (no-op recommandée)** : laisse les deux. Pas optimal mais marche. RAM coût ~50MB, négligeable.
-- **Option B (cleaner)** : change le tunnel CF pour pointer vers `8765` (NSSM port), puis kill le standalone. Modification dans le dashboard CF managed-side. Risque : casser le tunnel le temps de la reconfig.
-- **Option C (yolo)** : update NSSM env `ICHOR_RUNNER_PORT=8766`, restart, et kill le standalone. Le NSSM service écoute alors sur 8766 que le tunnel utilise. Quick + clean si NSSM peut bind sur ce port (vérifier que 8766 n'est pas déjà occupé en bind exclusif par standalone — il l'est, faut kill standalone d'abord).
-
-Pour W93, **Option A est OK** : tu fais le flip CF Access (action 1) qui ne dépend pas du runner choice, et tu reportes la cleanup dual-runner à plus tard.
-
-(Section originale archivée pour référence si tu veux nettoyer plus tard.)
-
-### Pourquoi c'est utile (mais pas critique)
-
-Aujourd'hui claude-runner Win11 tourne en **standalone uvicorn** lancé par `start-claude-runner-standalone.bat` dans ton dossier Startup. Ça marche mais :
-
-- Si le process plante, il ne redémarre PAS automatiquement.
-- Pas de logs systématiques (juste stdout console).
-- Pas de monitoring.
-
-Le service NSSM `IchorClaudeRunner` est **paused** depuis 2026-05-02 parce que sa env list a perdu `ICHOR_RUNNER_ENVIRONMENT=development`. Restaurer ça fait revenir le service complet (auto-restart + logs + Win11 service control).
-
-### Alternative plus moderne (recommandée)
-
-Migrer vers **Servy** (https://github.com/aelassas/servy) qui est mieux maintenu que NSSM (NSSM unmaintained depuis 2017, RUNBOOK-014 le mentionne). Mais 2-3h de migration. Le NSSM existant marche encore après le fix env var.
-
-Je recommande **NSSM restore** pour l'instant (10 min), Servy migration plus tard si besoin.
-
-### Pré-requis
-
-PowerShell **as Administrator** (clic droit → Run as Admin).
-
-### Étapes
-
-1. Ouvre PowerShell admin.
-2. Vérifie l'état actuel du service :
-   ```powershell
-   nssm status IchorClaudeRunner
-   ```
-   Tu devrais voir `SERVICE_PAUSED`.
-3. Vérifie l'env list actuelle :
-   ```powershell
-   nssm get IchorClaudeRunner AppEnvironmentExtra
-   ```
-   Tu devrais voir des variables comme `ICHOR_RUNNER_HOST=127.0.0.1` etc., **mais pas** `ICHOR_RUNNER_ENVIRONMENT=development`.
-4. Set la variable manquante :
-   ```powershell
-   nssm set IchorClaudeRunner AppEnvironmentExtra `
-     "ICHOR_RUNNER_ENVIRONMENT=development" `
-     "ICHOR_RUNNER_HOST=127.0.0.1" `
-     "ICHOR_RUNNER_PORT=8765" `
-     "ICHOR_RUNNER_REQUIRE_CF_ACCESS=true"
-   ```
-   (Adapte les valeurs si tu as d'autres env vars dans le `.bat` — ce set REMPLACE l'env list, donc liste TOUTES les variables nécessaires. Inclus le `REQUIRE_CF_ACCESS=true` si tu as fait l'action 1 PRE-1.)
-5. Stop le standalone uvicorn (qui tourne sur 8766) :
-   ```powershell
-   Get-Process python | Where-Object { $_.MainWindowTitle -like "*claude-runner*" } | Stop-Process -Force
-   ```
-6. Restart le service NSSM :
-   ```powershell
-   nssm restart IchorClaudeRunner
-   ```
-7. Check status :
-   ```powershell
-   nssm status IchorClaudeRunner
-   ```
-   Doit afficher `SERVICE_RUNNING`.
-
-### Validation
-
-```powershell
-curl http://127.0.0.1:8765/healthz
+```yaml
+ingress:
+  - service: http://127.0.0.1:8765
 ```
 
-Doit retourner `{"status":"ok",...}`. Note le port **8765** (NSSM) vs 8766 (standalone uvicorn). Tu peux aussi tester via le tunnel CF : `curl https://claude-runner.fxmilyapp.com/healthz`.
+Le tunnel CF cible bien **NSSM port 8765**, PAS le standalone uvicorn 8766. Donc :
 
-### Important — retirer le startup standalone
+- Standalone uvicorn 8766 = orphelin local (rien ne l'utilise externally).
+- NSSM 8765 = sert le trafic Hetzner via tunnel.
 
-Une fois NSSM restoré, retire `start-claude-runner-standalone.bat` de ton dossier Startup pour éviter le double-runner :
-
-1. Win + R → `shell:startup` → Enter.
-2. Trouve le shortcut/lien vers `start-claude-runner-standalone.bat`.
-3. Delete-le. Le service NSSM prend le relai au boot.
-
-### Rollback
-
-Si NSSM ne démarre pas correctement :
+Tu peux **killer le standalone** sans casser quoi que ce soit. Procédure (PowerShell) :
 
 ```powershell
-nssm set IchorClaudeRunner Start SERVICE_DISABLED
+Get-NetTCPConnection -LocalPort 8766 -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force }
 ```
 
-Puis remets le `start-claude-runner-standalone.bat` dans Startup folder, et reboot. Tu reviens à l'état standalone.
+Et retire `start-claude-runner-standalone.bat` de ton dossier Startup (`shell:startup` dans Win+R) pour qu'il ne se relance pas au boot.
+
+Optional cleanup — pas urgent. ~50 MB RAM gagné.
 
 ---
 
-## 4. Cleanup worktree zealous-banzai (physique)
+## 4. Cleanup worktree zealous-banzai
 
-### Pourquoi (bas)
+### Pour les non-devs : pourquoi c'est bloqué
 
-Branche git déjà deletée + worktree déregistré du registre git. Reste juste 50 MB de `.venv` Python sur disque qui résiste à la suppression à cause d'un **Win11 file lock** (probablement antivirus en train de scanner des `.pyc`).
+Branche git supprimée + worktree déregistré du registre git. Mais le dossier `D:\Ichor\.claude\worktrees\zealous-banzai-efc1c7\` reste sur disque (50 MB de `.venv` Python). Pourquoi pas de simple `Remove-Item` ?
 
-### Étapes
+Win11 a un **file lock** : Windows Defender en train de scanner les `.pyc` Python compilés tient un handle ouvert → système refuse suppression jusqu'à ce que handle se libère. Le `.venv` contient ~5000 fichiers, scanner antivirus en a souvent un en main.
 
-**Méthode 1 — reboot Win11** :
+**Solution la plus propre** : **redémarrage** Win11 libère tous les handles.
 
-1. Reboot.
-2. Open PowerShell.
-3. ```powershell
+### Reboot proprement Win11 (vraiment important)
+
+**ATTENTION** : sur Win11, **Shutdown ≠ Restart** à cause de "Fast Startup". Shutdown sauve l'état du noyau dans hyberfil.sys et le re-charge → file locks restent. **Restart** force un cycle complet noyau → c'est CELUI-LÀ qu'il faut.
+
+#### Procédure Reboot click-by-click
+
+1. **Sauvegarde tout** (VS Code, browser tabs).
+2. Click **Démarrer** (logo Windows bas-gauche).
+3. Click icône **Power** (cercle avec trait vertical) bas-droite du menu Démarrer.
+4. 3 options :
+   ```
+   ┌─────────────────┐
+   │ Sleep           │
+   │ Shut down       │
+   │ Restart         │  ← celui-ci
+   └─────────────────┘
+   ```
+5. Click **Restart** (PAS "Shut down").
+6. Win11 redémarre. Wait 1-2 min jusqu'à login screen. Login.
+
+### Étapes après reboot
+
+7. Ouvre **PowerShell** (pas besoin admin).
+8. Lance :
+   ```powershell
    Remove-Item -Path 'D:\Ichor\.claude\worktrees\zealous-banzai-efc1c7' -Recurse -Force
    ```
-4. Doit fonctionner après reboot (le file lock est libéré).
-
-**Méthode 2 — sans reboot, désactiver antivirus temporairement** :
-
-1. Win + I → Privacy & Security → Windows Security → Virus & threat protection.
-2. Click "Manage settings" sous "Real-time protection".
-3. Toggle OFF "Real-time protection" (Windows te demande UAC + un dialog).
-4. ```powershell
-   Remove-Item -Path 'D:\Ichor\.claude\worktrees\zealous-banzai-efc1c7' -Recurse -Force
-   ```
-5. **CRITIQUE** : re-toggle ON "Real-time protection" immédiatement après.
+9. Doit s'exécuter sans erreur (avertissements ignorables sur fichiers déjà absents).
 
 ### Validation
 
@@ -335,130 +382,251 @@ Branche git déjà deletée + worktree déregistré du registre git. Reste juste
 Test-Path D:\Ichor\.claude\worktrees\zealous-banzai-efc1c7
 ```
 
-Doit retourner `False`.
+Doit retourner **`False`**.
+
+### Méthode alternative (sans reboot)
+
+Désactive temporairement Windows Defender real-time protection :
+
+1. Settings → Privacy & Security → Windows Security → Virus & threat protection → "Manage settings".
+2. Toggle OFF "Real-time protection" (UAC accepte).
+3. `Remove-Item -Recurse -Force` la commande.
+4. **CRITIQUE** : re-toggle ON immédiatement.
+
+### Ce qui PEUT MAL TOURNER + comment fix
+
+| Symptôme                                        | Cause                                            | Fix                                                                             |
+| ----------------------------------------------- | ------------------------------------------------ | ------------------------------------------------------------------------------- |
+| `Remove-Item` "Access denied" même après reboot | Programme se relance au boot et tient un fichier | Resource Monitor → CPU → "Associated Handles" → search "zealous" → kill process |
+| Win11 fait "Updates and restart"                | Updates en attente                               | OK, force cycle complet, encore mieux                                           |
+| Tu cliques "Shut down" par erreur               | Fast Startup → locks restent                     | Re-démarre via Restart cette fois                                               |
 
 ---
 
 ## 5. WGC W75 license decision
 
-### Contexte
+### Pour les non-devs : de quoi on parle ?
 
-W75 = collecteur World Gold Council quarterly XLSX (`gold-demand-by-country` hub). Sub-agent recherche a mappé tout :
+W75 = **collecteur de données** qu'on voulait écrire pour récupérer le rapport **"Gold Demand Trends"** trimestriel du **World Gold Council** (WGC, organisme de référence mondial sur l'or). Ces XLSX contiennent stats par pays sur demande or (joaillerie, banques centrales, ETF) — utile pour la matrice cross-asset Ichor pour les pairs XAU.
 
-- URL : `gold.org/download/file/{ID}/GDT_Tables_Q{N}{YY}_EN.xlsx`
-- License : "Strict — extract requires explicit WGC consent for systematic extraction".
+**Le problème** : WGC interdit dans ses Terms & Conditions le **scraping automatisé sans consentement écrit préalable**. Download manuel par un humain est OK ("personal, non-commercial use"), mais script auto à 04:00 chaque trimestre = "automated retrieval" → consent requis.
 
-### Décision à prendre
+### Trois options
 
-**Option A** — Considérer "private research" framing OK :
+**Option A — "private research" framing (risque léger)** :
 
-- Tu utilises les données pour ton trading personnel single-user.
-- Pas de redistribution, pas de publication.
-- Pas de monétisation directe.
-- Peut tomber sous "fair use" / "internal research" dans la plupart des juridictions.
-- **Risque** : si WGC fait un audit, ils pourraient te demander d'arrêter.
+- Trading personnel single-user.
+- Pas de redistribution, pas de monétisation.
+- "Fair use" / "internal research" possible.
+- **Risque** : WGC pourrait demander d'arrêter (cease & desist letter). Aucun cas public d'enforcement WGC trouvé.
 
-**Option B** — Demander consent explicite :
+**Option B — demander consent explicite (clean, 1-3 semaines)** :
 
-- Email à `[email protected]` (probablement) ou via leur "Contact" form.
-- Texte type :
-  > Subject : Request for systematic extraction permission — single-user research
-  > Body : I am Eliot Pena, an individual trader (FR). I would like to systematically extract the quarterly Gold Demand Trends XLSX from gold-demand-by-country/ for my private macro analysis (no redistribution, no commercial use, single-user). May I request your written consent for automated quarterly download ?
-- Délai réponse : probablement 1-3 semaines.
+- Email à `[email protected]` (cité explicitement T&C).
+- Délai 1-3 semaines.
+- Si accord : email de consent archive → bullet-proof.
 
-**Option C** — Skip ce collecteur :
+**Option C — skip ce collecteur (zéro risque)** :
 
-- Pas de WGC data dans data-pool.
-- Tu te bases sur d'autres sources (Polymarket, FRED gold price, etc.) qui couvrent partiellement.
+- Pas de WGC data.
+- Tu te bases sur Polymarket, FRED gold price, COMEX positioning.
+- Perte d'un signal utile mais non critique.
 
-### Recommandation Claude (post W93 deep-research WGC)
+### Recommandation Claude (post W93 deep-research)
 
-Sub-agent W93 a vérifié les WGC Terms 2026 + l'absence d'API publique + l'absence d'historique d'enforcement public :
+**Option B** = voie clean. Délai mais légalement bullet-proof. Option A = risque pratique faible mais violation contractuelle. Option C = zéro risque, perte signal acceptable.
 
-- T&C interdisent **explicitement** "scrape" sans consent écrit préalable. L'usage permis "personal, non-commercial use only" couvre le download manuel mais le mot "automated retrieval" tombe sous le régime "consent préalable".
-- Pas d'API JSON/REST documentée. Seul moyen = scrape hub-page + download XLSX.
-- Aucun cas public de cease-and-desist WGC contre researchers privés trouvé via WebSearch.
-- Adresse contact officielle pour authorisation : **`[email protected]`** (citée explicitement dans les T&C).
+Si tu choisis **Option B**, voici la procédure malgré la complication iCloud Mail.
 
-**Recommandation pondérée** :
+### Pour les non-devs : pourquoi le `mailto:` lien peut ne pas marcher chez toi
 
-- **Option B** est techniquement la voie clean (consent écrit). Délai réponse 1-3 semaines.
-- **Option A** = risque légal théorique non nul mais pratique faible (4 downloads/an, single-user). Reste violation contractuelle.
-- **Option C** (skip) = zéro risque, perte d'un signal utile mais non critique pour la matrice cross-asset W79.
+Tu utilises **iCloud Mail dans le navigateur** (web, pas app native). Win11 quand tu cliques `mailto:[email protected]` essaie d'ouvrir TON application email par défaut système :
 
-### Lien mailto: prêt à coller (Option B — 1 click ouvre ton client mail)
+- App Outlook native Win11 → vide
+- Microsoft Mail → vide
+- Aucune app configurée → erreur
 
-Copie cette URL dans la barre d'adresse de ton navigateur OU click directement sur ce lien (si rendu HTML) :
+**iCloud Mail web ne s'enregistre PAS comme handler mailto:** dans Windows. Donc le lien ne peut pas ouvrir iCloud Mail dans le browser automatiquement.
 
-```
-mailto:[email protected]?subject=Permission%20request%20%E2%80%94%20quarterly%20download%20of%20GDT%20Tables%20XLSX%20for%20private%20research&body=Dear%20World%20Gold%20Council%20team%2C%0A%0AI%20am%20Eliot%20Pena%2C%20an%20individual%20private%20trader%20based%20in%20France%2C%20and%20I%20am%20writing%20to%20request%20your%20explicit%20consent%20for%20a%20limited%2C%20automated%20retrieval%20of%20the%20Gold%20Demand%20Trends%20quarterly%20XLSX%20tables%20%284%20downloads%20per%20year%29%20from%20Goldhub.%0A%0AThe%20use%20case%20is%20strictly%20single-user%20private%20macro%20research%20feeding%20my%20own%20discretionary%20trading%20decisions.%20I%20commit%20to%3A%0A%0A-%20no%20redistribution%2C%20no%20publication%2C%20no%20commercial%20use%2C%20no%20derivative%20product%3B%0A-%20no%20public%20sharing%20of%20the%20raw%20data%20or%20any%20transformation%20thereof%3B%0A-%20citation%20of%20%22World%20Gold%20Council%2C%20Metals%20Focus%22%20wherever%20the%20data%20informs%20my%20notes%3B%0A-%20immediate%20cessation%20of%20any%20automated%20retrieval%20upon%20your%20request%2C%20with%20no%20further%20action%20required%20on%20your%20part.%0A%0AIf%20a%20different%20channel%20or%20a%20formal%20license%20is%20more%20appropriate%20for%20this%20scope%2C%20I%20would%20be%20grateful%20for%20your%20guidance.%0A%0AThank%20you%20for%20your%20time.%0A%0AKind%20regards%2C%0AEliot%20Pena%[email protected]
-```
+**Solution** : copier-coller manuel.
 
-(Click → ouvre ton client mail par défaut, le subject + body sont déjà remplis. Tu juste click "Send".)
+### Procédure manuelle copy-paste (recommandée pour iCloud)
 
-### Email draft prêt à coller (Option B)
+1. Ouvre iCloud Mail navigateur : https://www.icloud.com/mail
+2. Login si nécessaire.
+3. Click **"Compose"** (icône crayon, en haut) ou **"New message"**.
+4. Champ **"À" / "To"** :
+   ```
+   [email protected]
+   ```
+5. Champ **"Subject" / "Sujet"** :
+   ```
+   Permission request — quarterly download of GDT Tables XLSX for private research
+   ```
+6. Corps message :
 
-```
-À : [email protected]
-Subject : Permission request — quarterly download of GDT Tables XLSX for private research
+   ```
+   Dear World Gold Council team,
 
-Dear World Gold Council team,
+   I am Eliot Pena, an individual private trader based in France, and I am
+   writing to request your explicit consent for a limited, automated retrieval
+   of the Gold Demand Trends quarterly XLSX tables (4 downloads per year)
+   from Goldhub.
 
-I am Eliot Pena, an individual private trader based in France, and I am
-writing to request your explicit consent for a limited, automated retrieval
-of the Gold Demand Trends quarterly XLSX tables (4 downloads per year)
-from Goldhub.
+   The use case is strictly single-user private macro research feeding my own
+   discretionary trading decisions. I commit to:
 
-The use case is strictly single-user private macro research feeding my own
-discretionary trading decisions. I commit to:
+     - no redistribution, no publication, no commercial use, no derivative product;
+     - no public sharing of the raw data or any transformation thereof;
+     - citation of "World Gold Council, Metals Focus" wherever the data informs my notes;
+     - immediate cessation of any automated retrieval upon your request, with
+       no further action required on your part.
 
-  - no redistribution, no publication, no commercial use, no derivative product;
-  - no public sharing of the raw data or any transformation thereof;
-  - citation of "World Gold Council, Metals Focus" wherever the data informs my notes;
-  - immediate cessation of any automated retrieval upon your request, with
-    no further action required on your part.
+   If a different channel or a formal license is more appropriate for this
+   scope, I would be grateful for your guidance.
 
-If a different channel or a formal license is more appropriate for this
-scope, I would be grateful for your guidance.
+   Thank you for your time.
 
-Thank you for your time.
+   Kind regards,
+   Eliot Pena
+   eliott.pena@icloud.com
+   ```
 
-Kind regards,
-Eliot Pena
-[email protected]
-```
+7. Vérifie que **From:** est bien `eliott.pena@icloud.com`.
+8. Click **Send**.
 
-Sources vérifiées : [WGC Terms](https://www.gold.org/terms-and-conditions) (interdit explicitement scrape sans consent), [Gold Demand Trends Q1 2026](https://www.gold.org/goldhub/research/gold-demand-trends/gold-demand-trends-q1-2026), [Goldhub data hub](https://www.gold.org/goldhub/data/gold-demand-by-country).
+### Validation
+
+- Email apparaît dans dossier "Sent" / "Envoyés" iCloud.
+- Possible auto-reply "Thanks for your inquiry, we'll get back to you within X days".
+
+### Ce qui PEUT MAL TOURNER + comment fix
+
+| Symptôme                            | Cause                                      | Fix                                                                   |
+| ----------------------------------- | ------------------------------------------ | --------------------------------------------------------------------- |
+| Lien mailto ouvre Outlook/Mail vide | iCloud pas configuré comme handler système | Procédure manuelle copy-paste ci-dessus                               |
+| Email rejeté par WGC mailbox        | Adresse obsolète                           | Cherche https://www.gold.org/contact-us — utilise leur form           |
+| Pas de réponse après 4 semaines     | Mailbox engorgée                           | Follow-up court : "Subject: RE: Permission request — gentle reminder" |
+| Réponse en allemand/chinois         | Redirect interne WGC                       | Reply en anglais, garde subject original                              |
 
 ### Quoi faire après
 
-Si Option A ou B et accord obtenu : ouvre un ticket "W92 candidate WGC collector" pour Claude, qui pourra implémenter le collecteur (~3-4h Claude).
+- Option A ou B + accord : ouvre ticket "W92 candidate WGC collector" pour Claude (~3-4h).
+- Option C : marquer W75 **DECLINED — Option C** dans `D:/Ichor/CLAUDE.md`.
 
-Si Option C : marquer le sub-agent W75 research comme **DECLINED — Option C** dans `D:/Ichor/CLAUDE.md` "Things subtly broken or deferred" section, supprimer la mention.
+Sources : [WGC Terms](https://www.gold.org/terms-and-conditions), [Goldhub data hub](https://www.gold.org/goldhub/data/gold-demand-by-country).
 
 ---
 
-## 6. GitHub Dependabot 3 vulnerabilities (W93 audit — auto-fixes activé)
+## 6. GitHub Dependabot 3 vulnerabilities
 
-**Audit W93 (Claude `gh api` 2026-05-10)** :
+### Pour les non-devs : c'est quoi Dependabot ?
 
-- ✅ **`vulnerability-alerts`** = activé sur `fxeliott/ichor`.
-- ✅ **`automated-security-fixes`** = activé (`{"enabled":true,"paused":false}`).
-- ⏳ Au moment de l'audit aucune Dependabot PR n'était encore générée. **Dependabot scanne périodiquement et créera les PRs dans les minutes/heures qui suivent l'activation**.
+**Dependabot** = robot officiel GitHub qui scanne automatiquement `package.json` (npm), `pyproject.toml` (Python), etc. Quand il détecte un package avec **vulnérabilité connue** (CVE, base publique des trous sécurité), il :
 
-### Ce qu'il te reste à faire (passive — refresh dans qq heures)
+1. Crée une **Pull Request** automatique pour upgrader vers version safe.
+2. Affiche une **alerte** dans l'onglet Security du repo.
+
+C'est sûr (officiel GitHub) et passif (jamais merge tout seul sans ton OK).
+
+### Audit W93 (Claude `gh api` 2026-05-10)
+
+- ✅ `vulnerability-alerts` activé sur `fxeliott/ichor`.
+- ✅ `automated-security-fixes` activé (`{"enabled":true,"paused":false}`).
+- ⏳ Au moment de l'audit : 0 PR Dependabot. **Dependabot scanne périodiquement, créera les PRs dans les minutes/heures suivantes**.
+
+### Important — changement 2026 : commands deprecated
+
+Depuis **27 janvier 2026**, GitHub a déprécié les commandes commentaires Dependabot :
+
+- `@dependabot merge` ❌
+- `@dependabot squash and merge` ❌
+- `@dependabot close` ❌
+
+**À la place** : boutons natifs GitHub UI (squash and merge), `gh CLI`, ou bouton "auto-merge".
+
+### Pré-requis
+
+Logué sur https://github.com avec compte `fxeliott`. 2FA recommandé.
+
+### Étape 1 — vérifier les Dependabot PRs (refresh dans qq heures)
 
 1. Va sur https://github.com/fxeliott/ichor/pulls
-2. Tu verras 3 PRs auteur `dependabot[bot]` (ou plus), chacune titrée comme `chore(deps): bump <package> from X to Y`.
-3. Pour chaque PR :
-   - Click sur la PR.
-   - Vérifie que c'est bien une bump version mineure/patch (pas major).
-   - Click **"Squash and merge"** → confirm.
-4. Re-check https://github.com/fxeliott/ichor/security/dependabot : 0 alerte open après merge.
+2. Cherche celles avec :
+   - **Auteur** : `dependabot[bot]` (badge bot bleu à côté du nom)
+   - **Avatar** : icône Dependabot (robot vert/jaune)
+   - **Titre type** : `chore(deps): bump <package> from <old> to <new>` ou `[Security] Bump <package> from X to Y`
+
+   Layout 2026 :
+
+   ```
+   ┌─────────────────────────────────────────────────────────────────────┐
+   │ [icône bot] [Security] Bump axios from 1.5.0 to 1.7.4              │
+   │ #142 opened 3 hours ago by dependabot[bot]   [security][dependencies] │
+   │ Bumps axios from 1.5.0 to 1.7.4. Resolves CVE-2024-XXXXX (HIGH)    │
+   └─────────────────────────────────────────────────────────────────────┘
+   ```
+
+3. Tu devrais voir 3 PRs (correspond aux 3 vulns : 2 moderate + 1 low).
+
+### Étape 2 — review chaque PR (5 min total)
+
+**Pour les non-devs** : on vérifie 3 choses :
+
+1. **C'est bien Dependabot officiel** (pas un fake).
+2. **Le bump est mineur** (1.5.0 → 1.7.4 = OK ; 1.x → 2.x = MAJOR, peut casser).
+3. **Les tests CI passent** (icône verte ✓ en bas).
+
+#### Click-by-click
+
+4. Click le titre PR pour ouvrir.
+5. Header PR : à gauche du nom "dependabot[bot]" il y a badge **"bot"** bleu. Si humain (pas badge bot) → STOP, screenshot.
+6. Lis titre : `1.5.0 → 1.7.4` (mineur ou patch) → SAFE. `1.x → 2.x` (MAJOR) → review prudent : "Files changed" → vérifie pas de breaking change visible.
+7. Scroll en bas → section **"Checks"** :
+   ```
+   ┌────────────────────────────────────────────┐
+   │ ✓ All checks have passed                   │
+   │   ✓ python (3.12) — 4 jobs                  │
+   │   ✓ web2 (build) — 2 jobs                   │
+   │   ✓ shell-lint                              │
+   │   ✓ audit                                   │
+   └────────────────────────────────────────────┘
+   ```
+   Tous **doivent être verts ✓**. Si rouge ✗ ou jaune ⏳ :
+   - **Jaune** : tests en cours, attends 5-10 min reload.
+   - **Rouge** : régression réelle. Click le check rouge → "Details" → lis l'erreur. Si pas sûr, screenshot → Claude.
+
+### Étape 3 — merge la PR
+
+8. Si tout vert : juste au-dessus des checks, bouton vert :
+
+   ```
+   ┌────────────────────────────────────────────┐
+   │   [▼ Squash and merge]   ← clique          │
+   └────────────────────────────────────────────┘
+   ```
+
+   Dropdown ▼ → 3 options :
+   - "Create a merge commit"
+   - "Squash and merge" ← **utilise**
+   - "Rebase and merge"
+
+   Click **"Squash and merge"**.
+
+9. Fenêtre confirmation avec titre commit + body pré-remplis. Laisse tels quels. Click **"Confirm squash and merge"**.
+10. PR passe statut **Merged** (badge violet).
+11. Répète 4-10 pour chaque PR Dependabot.
+
+### Étape 4 — vérification finale
+
+12. https://github.com/fxeliott/ichor/security/dependabot
+13. Doit afficher **0 alerte open** (ou nombre réduit si pas toutes merge-able).
 
 ### Si dans 24h aucune PR n'apparaît
 
-Possible cause : Dependabot config file manquant pour les 2 ecosystems (npm + pip). Crée `.github/dependabot.yml` :
+Cause possible : `.github/dependabot.yml` manquant ou ne couvre pas tous les écosystèmes (npm + pip).
+
+Demande à Claude : "Claude, crée `.github/dependabot.yml` pour Ichor". Contenu minimal :
 
 ```yaml
 version: 2
@@ -473,65 +641,47 @@ updates:
       interval: "weekly"
 ```
 
-Commit + push, et Dependabot va scanner.
+### Méthode alternative — auto-merge
 
-### Si une PR n'a pas de tests verts
+Sur PR Dependabot, à côté de "Squash and merge", bouton **"Enable auto-merge (squash)"**. Click → confirm. PR mergée auto quand checks finissent. Pour Ichor je recommande **manuel** — tu vois ce qui rentre.
 
-CI (le job `python` matrix) doit passer pour merge. Si test_invariants_ichor.py fail à cause d'un dependency bump, c'est une regression réelle — investigate avant de merge.
+### Ce qui PEUT MAL TOURNER + comment fix
 
----
+| Symptôme                                              | Cause                      | Fix                                                                    |
+| ----------------------------------------------------- | -------------------------- | ---------------------------------------------------------------------- |
+| Aucune PR après 48h                                   | Config absent ou désactivé | Crée `.github/dependabot.yml`                                          |
+| PR avec checks rouges (test_invariants_ichor.py fail) | Régression réelle bump     | NE MERGE PAS. Demande à Claude "investigate dependabot PR #XX failure" |
+| Bump MAJOR sur dep critique (FastAPI, Next.js)        | Breaking changes possibles | Demande Claude review avant merge                                      |
+| Bouton "Squash and merge" gris                        | Branch protection          | Vérifie CODEOWNERS / checks / pas conflit                              |
+| Comment "@dependabot merge" ignoré                    | Deprecated jan 2026        | Bouton UI natif                                                        |
 
-## ANCIENNE SECTION 6 (archivée pour référence)
+### Quoi faire après
 
-### Pourquoi
-
-GitHub a détecté 3 vulnérabilités sur le repo `fxeliott/ichor` lors du push de cette session :
-
-- 2 moderate
-- 1 low
-
-### Étapes
-
-1. Va sur https://github.com/fxeliott/ichor/security/dependabot
-2. Tu verras une liste de 3 alertes. Pour chacune :
-   - **Click** sur l'alerte pour voir le détail.
-   - Note la **dépendance** concernée (probablement un package npm dans `apps/web2/pnpm-lock.yaml` ou un package Python dans `apps/api/pyproject.toml`).
-   - Note la **CVE** (CVE-YYYY-NNNNN) et la **version fixée** (e.g. "Upgrade to >= X.Y.Z").
-3. Pour chaque alerte :
-   - **Si moderate ou low + dépendance non-critique** : ouvrir un ticket "W92 dependabot fix" pour Claude qui bumpera les versions.
-   - **Si moderate ou low + dépendance critique** (ex: Next.js, FastAPI, anthropic-related) : escalader en priority haute.
-4. **Alternative** — clic "Create Dependabot pull request" sur chaque alerte. GitHub crée automatiquement un PR qui bump la version. Tu peux merge directement ou attendre que Claude review.
-
-### Recommandation
-
-Pour 3 alertes (2 moderate + 1 low), 5 min suffisent à juste cliquer "Create Dependabot pull request" sur chaque, puis dire à Claude "review les 3 PRs Dependabot" qui les valide en parallèle.
-
-### Validation
-
-Page `https://github.com/fxeliott/ichor/security/dependabot` doit afficher 0 alerte open après merge des PRs.
+`https://github.com/fxeliott/ichor/security/dependabot` doit afficher **0 alerte open** = mission accomplie.
 
 ---
 
-## Résumé priorités
+## Résumé priorités (post-W94)
 
-| Priorité | Action                           | Quand faire                                |
-| -------- | -------------------------------- | ------------------------------------------ |
-| 🔥 ASAP  | 1. PRE-1 CF Access service token | Avant prochain commit (sécurité quota Max) |
-| 🔥 ASAP  | 2. Anthropic "Help improve" OFF  | Avant prochain prompt important (privacy)  |
-| ⚠ Soon   | 6. Dependabot 3 vulnerabilities  | Cette semaine                              |
-| OK       | 3. NSSM restore                  | Cette semaine (workaround marche)          |
-| OK       | 5. WGC W75 decision              | Quand tu veux                              |
-| Bas      | 4. Cleanup zealous-banzai        | Au prochain reboot                         |
+| Priorité | Action                          | Quand                                      |
+| -------- | ------------------------------- | ------------------------------------------ |
+| 🔥 ASAP  | §1 PRE-1 CF Access (Tier 2-3+5) | Avant prochain commit (sécurité quota Max) |
+| 🔥 ASAP  | §2 Anthropic "Help improve" OFF | Avant prochain prompt important            |
+| ⚠ Soon   | §6 Dependabot 3 PRs merge       | Quand PRs apparaissent (qq heures)         |
+| OK       | §5 WGC decision (A/B/C)         | Quand tu veux                              |
+| Bas      | §4 Cleanup zealous-banzai       | Au prochain reboot                         |
 
-Une fois 1 + 2 fait, dis à Claude **"PRE-1 fait + Anthropic OFF, lance Cap5 STEP-6 e2e"** → Cap5 = 6/6, le système est prêt pour la production.
+**Total ~13 min cumulé** (vs ~40 min initial).
+
+Une fois §1+§2 done, dis à Claude **"PRE-1 fait + Anthropic OFF, lance Cap5 STEP-6 e2e"** → Cap5 = 6/6, le système est prêt pour la production.
 
 ---
 
 ## Notes finales
 
-- **Ne fais jamais 1 et 2 en même temps**. Sépare-les pour pouvoir rollback indépendamment.
-- **Garde une trace** de chaque changement dans ton vault USB `E:\YONE_DATA\yone-secrets-vault.md` (RUNBOOK-015 secrets rotation log).
-- **Si tu as un doute** sur une étape : screenshot l'écran et envoie-le à Claude qui te dira quoi faire.
+- **Ne fais jamais §1 et §2 en même temps**. Sépare-les pour rollback indépendant.
+- **Garde une trace** dans ton vault USB `E:\YONE_DATA\yone-secrets-vault.md` (RUNBOOK-015).
+- **Si tu as un doute** : screenshot Win+Shift+S → envoie à Claude.
 - **Toutes ces actions sont réversibles** sauf "Anthropic GDPR purge request" qui est définitif.
 
 Bonne chance.
