@@ -16,6 +16,20 @@ name: auto-deploy
 on:
   push:
     branches: [main]
+    # W97 path filters — limit Pages builds (500/mo Free tier) and
+    # Hetzner deploys to actual code/infra changes. Doc-only commits
+    # (docs/, *.md, README) skip both jobs entirely. Each job below
+    # additionally narrows via secret guards.
+    paths:
+      - "apps/**"
+      - "packages/**"
+      - "infra/**"
+      - "scripts/hetzner/**"
+      - ".github/workflows/auto-deploy.yml"
+      - "pnpm-workspace.yaml"
+      - "turbo.json"
+      - "package.json"
+      - "pnpm-lock.yaml"
   workflow_dispatch:
 
 concurrency:
