@@ -1,0 +1,1708 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Ichor — Guide actions manuelles Eliot · 2026-05-10</title>
+    <meta
+      name="description"
+      content="Guide pas à pas pour finaliser PRE-1 CF Access, opt-out Anthropic, Dependabot, WGC license. Données live Hetzner W96."
+    />
+    <style>
+      :root {
+        --bg-deep: #0a0d12;
+        --bg-card: #11161e;
+        --bg-elevated: #1a212c;
+        --border: #2a3340;
+        --border-subtle: #1f2632;
+        --text-primary: #e8edf5;
+        --text-secondary: #9aa5b8;
+        --text-muted: #6b7585;
+        --accent: #3b82f6;
+        --accent-soft: #1e3a8a;
+        --green: #34d399;
+        --red: #f87171;
+        --yellow: #fbbf24;
+        --code-bg: #0d1219;
+        --shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset;
+        --mono: ui-monospace, "Cascadia Code", "Fira Code", Consolas, monospace;
+      }
+      @media (prefers-color-scheme: light) {
+        :root {
+          --bg-deep: #fafbfc;
+          --bg-card: #ffffff;
+          --bg-elevated: #f3f4f6;
+          --border: #e1e4e8;
+          --border-subtle: #eef0f3;
+          --text-primary: #1a1f2c;
+          --text-secondary: #4b5563;
+          --text-muted: #6b7280;
+          --accent: #2563eb;
+          --accent-soft: #dbeafe;
+          --green: #059669;
+          --red: #dc2626;
+          --yellow: #d97706;
+          --code-bg: #f6f8fa;
+          --shadow: 0 1px 0 rgba(0, 0, 0, 0.04) inset;
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        background: var(--bg-deep);
+        color: var(--text-primary);
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Inter", system-ui, sans-serif;
+        font-size: 15px;
+        line-height: 1.6;
+        -webkit-font-smoothing: antialiased;
+        text-rendering: optimizeLegibility;
+      }
+      .layout {
+        display: grid;
+        grid-template-columns: 240px 1fr;
+        max-width: 1280px;
+        margin: 0 auto;
+        gap: 0;
+      }
+      @media (max-width: 800px) {
+        .layout {
+          grid-template-columns: 1fr;
+        }
+        nav.sticky {
+          position: static !important;
+          height: auto !important;
+        }
+      }
+      nav.sticky {
+        position: sticky;
+        top: 0;
+        height: 100vh;
+        overflow-y: auto;
+        border-right: 1px solid var(--border-subtle);
+        padding: 24px 16px 24px 24px;
+        font-size: 13px;
+      }
+      nav.sticky h2 {
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--text-muted);
+        margin: 16px 0 8px;
+      }
+      nav.sticky a {
+        display: block;
+        padding: 6px 0;
+        color: var(--text-secondary);
+        text-decoration: none;
+        border-left: 2px solid transparent;
+        padding-left: 10px;
+        margin-left: -10px;
+      }
+      nav.sticky a:hover {
+        color: var(--text-primary);
+        border-left-color: var(--accent);
+      }
+      nav.sticky a.crit {
+        color: var(--text-primary);
+      }
+      nav.sticky a.crit::before {
+        content: "● ";
+        color: var(--red);
+      }
+      nav.sticky a.warn::before {
+        content: "● ";
+        color: var(--yellow);
+      }
+      nav.sticky a.ok::before {
+        content: "● ";
+        color: var(--green);
+      }
+      nav.sticky a.skip {
+        color: var(--text-muted);
+        text-decoration: line-through;
+      }
+      main {
+        padding: 40px 32px 80px;
+        min-width: 0;
+      }
+      @media (max-width: 800px) {
+        main {
+          padding: 24px 16px 60px;
+        }
+      }
+      h1 {
+        font-size: 32px;
+        font-weight: 300;
+        letter-spacing: -0.02em;
+        margin: 0 0 8px;
+      }
+      h1 .tag {
+        display: inline-block;
+        margin-left: 8px;
+        font-size: 11px;
+        font-weight: 600;
+        font-family: var(--mono);
+        background: var(--accent-soft);
+        color: var(--accent);
+        padding: 4px 8px;
+        border-radius: 6px;
+        vertical-align: middle;
+        letter-spacing: 0.04em;
+      }
+      h2 {
+        font-size: 22px;
+        font-weight: 500;
+        margin: 48px 0 8px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid var(--border-subtle);
+      }
+      h3 {
+        font-size: 16px;
+        font-weight: 600;
+        margin: 24px 0 8px;
+        color: var(--text-primary);
+      }
+      h4 {
+        font-size: 13px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--text-muted);
+        margin: 16px 0 6px;
+      }
+      .meta {
+        color: var(--text-muted);
+        font-size: 13px;
+        margin-bottom: 32px;
+      }
+      .callout {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-left: 3px solid var(--accent);
+        border-radius: 8px;
+        padding: 16px 20px;
+        margin: 20px 0;
+        box-shadow: var(--shadow);
+      }
+      .callout.crit {
+        border-left-color: var(--red);
+      }
+      .callout.warn {
+        border-left-color: var(--yellow);
+      }
+      .callout.ok {
+        border-left-color: var(--green);
+      }
+      .callout strong:first-child {
+        display: block;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--text-muted);
+        margin-bottom: 6px;
+      }
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 12px;
+        margin: 24px 0;
+      }
+      .stat {
+        background: var(--bg-card);
+        border: 1px solid var(--border-subtle);
+        border-radius: 8px;
+        padding: 14px 16px;
+      }
+      .stat .label {
+        font-size: 10px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--text-muted);
+        margin-bottom: 6px;
+      }
+      .stat .value {
+        font-size: 22px;
+        font-weight: 500;
+        font-family: var(--mono);
+        color: var(--text-primary);
+      }
+      .stat .sub {
+        font-size: 11px;
+        color: var(--text-secondary);
+        margin-top: 4px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 16px 0;
+        font-size: 13px;
+        background: var(--bg-card);
+        border-radius: 8px;
+        overflow: hidden;
+      }
+      th,
+      td {
+        padding: 10px 14px;
+        text-align: left;
+        border-bottom: 1px solid var(--border-subtle);
+        vertical-align: top;
+      }
+      th {
+        background: var(--bg-elevated);
+        font-weight: 600;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--text-muted);
+      }
+      td code,
+      th code {
+        background: var(--code-bg);
+        padding: 2px 5px;
+        border-radius: 3px;
+        font-size: 11.5px;
+      }
+      pre,
+      code {
+        font-family: var(--mono);
+        font-size: 13px;
+      }
+      pre {
+        background: var(--code-bg);
+        border: 1px solid var(--border-subtle);
+        padding: 14px 16px;
+        border-radius: 8px;
+        overflow-x: auto;
+        margin: 12px 0;
+        position: relative;
+      }
+      pre code {
+        background: none;
+        padding: 0;
+      }
+      .copy-btn {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        background: var(--bg-elevated);
+        border: 1px solid var(--border);
+        color: var(--text-secondary);
+        padding: 4px 10px;
+        font-size: 11px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-family: var(--mono);
+      }
+      .copy-btn:hover {
+        background: var(--accent-soft);
+        color: var(--accent);
+      }
+      .copy-btn.copied {
+        background: var(--green);
+        color: white;
+      }
+      details {
+        background: var(--bg-card);
+        border: 1px solid var(--border-subtle);
+        border-radius: 8px;
+        padding: 12px 16px;
+        margin: 12px 0;
+      }
+      details > summary {
+        font-weight: 500;
+        cursor: pointer;
+        outline: none;
+        list-style: none;
+      }
+      details > summary::-webkit-details-marker {
+        display: none;
+      }
+      details > summary::before {
+        content: "▶ ";
+        color: var(--text-muted);
+        margin-right: 4px;
+        display: inline-block;
+        transition: transform 0.15s;
+      }
+      details[open] > summary::before {
+        transform: rotate(90deg);
+      }
+      ol,
+      ul {
+        padding-left: 24px;
+      }
+      li {
+        margin: 4px 0;
+      }
+      a {
+        color: var(--accent);
+        text-decoration: none;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+      .pill {
+        display: inline-block;
+        font-size: 10px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        padding: 2px 8px;
+        border-radius: 999px;
+        margin-right: 6px;
+      }
+      .pill.crit {
+        background: rgba(248, 113, 113, 0.15);
+        color: var(--red);
+      }
+      .pill.warn {
+        background: rgba(251, 191, 36, 0.15);
+        color: var(--yellow);
+      }
+      .pill.ok {
+        background: rgba(52, 211, 153, 0.15);
+        color: var(--green);
+      }
+      .pill.info {
+        background: var(--accent-soft);
+        color: var(--accent);
+      }
+      .ascii {
+        background: var(--code-bg);
+        padding: 12px 16px;
+        border-radius: 8px;
+        font-family: var(--mono);
+        font-size: 12px;
+        white-space: pre;
+        color: var(--text-secondary);
+        margin: 12px 0;
+        border: 1px solid var(--border-subtle);
+      }
+      kbd {
+        background: var(--bg-elevated);
+        border: 1px solid var(--border);
+        border-bottom-width: 2px;
+        border-radius: 4px;
+        padding: 2px 6px;
+        font-family: var(--mono);
+        font-size: 11.5px;
+        color: var(--text-primary);
+      }
+      .mailto-btn {
+        display: inline-block;
+        background: var(--accent);
+        color: white;
+        padding: 10px 20px;
+        border-radius: 8px;
+        font-weight: 500;
+        margin: 12px 0;
+        text-decoration: none;
+      }
+      .mailto-btn:hover {
+        background: var(--accent-soft);
+        color: var(--accent);
+        text-decoration: none;
+      }
+      .src {
+        font-size: 11px;
+        color: var(--text-muted);
+        margin-top: 4px;
+      }
+      .src a {
+        color: var(--text-secondary);
+      }
+      .toc-tbl td {
+        padding: 8px 12px;
+      }
+      .toc-tbl td:first-child {
+        width: 30px;
+        font-family: var(--mono);
+        color: var(--text-muted);
+      }
+      @media print {
+        nav.sticky {
+          display: none;
+        }
+        .layout {
+          grid-template-columns: 1fr;
+        }
+        body {
+          background: white;
+          color: black;
+        }
+        details {
+          page-break-inside: avoid;
+        }
+        details:not([open]) {
+          display: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="layout">
+      <nav class="sticky">
+        <h2>Sections</h2>
+        <a href="#overview" class="ok">État actuel</a>
+        <a href="#priorities" class="info">Priorités</a>
+        <h2>Actions</h2>
+        <a href="#sec-1" class="crit">§1 PRE-1 CF Access</a>
+        <a href="#sec-2" class="crit">§2 Anthropic OFF</a>
+        <a href="#sec-3" class="skip">§3 NSSM (obsolète)</a>
+        <a href="#sec-4" class="ok">§4 Cleanup zealous</a>
+        <a href="#sec-5" class="info">§5 WGC license</a>
+        <a href="#sec-6" class="warn">§6 Dependabot</a>
+        <a href="#sec-7" class="crit">§7 SOPS rotate</a>
+        <h2>Référence</h2>
+        <a href="#data">Données live</a>
+        <a href="#sources">Sources</a>
+      </nav>
+
+      <main>
+        <h1>
+          Guide actions Eliot
+          <span class="tag">W96 · 2026-05-10</span>
+        </h1>
+        <p class="meta">
+          Guide HTML pour finaliser les actions manuelles restantes — données vérifiées via SSH
+          Hetzner + sub-agent web research May 2026. Ouvre ce fichier dans ton navigateur
+          (double-clic ou drag-drop).
+        </p>
+
+        <section id="overview">
+          <h2>État Ichor — live data 2026-05-10</h2>
+          <div class="stats">
+            <div class="stat">
+              <div class="label">Alembic head</div>
+              <div class="value">0038</div>
+              <div class="sub">tool_call_audit immutable</div>
+            </div>
+            <div class="stat">
+              <div class="label">Hetzner timers</div>
+              <div class="value">91</div>
+              <div class="sub">+48 vs CLAUDE.md (43+)</div>
+            </div>
+            <div class="stat">
+              <div class="label">Cap5 progress</div>
+              <div class="value">5/6</div>
+              <div class="sub">STEP-6 gated PRE-1</div>
+            </div>
+            <div class="stat">
+              <div class="label">Tests pass</div>
+              <div class="value">205+</div>
+              <div class="sub">9 invariants CI-guarded</div>
+            </div>
+            <div class="stat">
+              <div class="label">Session cards</div>
+              <div class="value">116</div>
+              <div class="sub">session_card_audit rows</div>
+            </div>
+            <div class="stat">
+              <div class="label">FRED obs</div>
+              <div class="value">1707</div>
+              <div class="sub">+51 vs W84</div>
+            </div>
+            <div class="stat">
+              <div class="label">Polymarket</div>
+              <div class="value">40 397</div>
+              <div class="sub">snapshots</div>
+            </div>
+            <div class="stat">
+              <div class="label">MyFXBook</div>
+              <div class="value">42</div>
+              <div class="sub">retail outlooks (4h cadence)</div>
+            </div>
+            <div class="stat">
+              <div class="label">tool_call_audit</div>
+              <div class="value">0</div>
+              <div class="sub">attente STEP-5/6 wiring</div>
+            </div>
+            <div class="stat">
+              <div class="label">Commits W85→W94</div>
+              <div class="value">13</div>
+              <div class="sub">tous pushés origin</div>
+            </div>
+          </div>
+
+          <div class="callout ok">
+            <strong>Phase A — automation déjà faite par Claude</strong>
+            <ul>
+              <li><code>pnpm install</code> apps/web2 (cmdk + sonner résolus)</li>
+              <li><code>pre-commit install</code> hook ichor-invariants actif local</li>
+              <li>Cleanup 4/5 worktrees orphelins (zealous-banzai persiste, voir §4)</li>
+              <li><code>git push origin main</code> (24 commits W85→W94)</li>
+              <li>
+                <code>gh api PUT</code> Dependabot vulnerability-alerts + automated-security-fixes
+                (PRs auto incoming)
+              </li>
+              <li>
+                Audit SSH Hetzner : NSSM service RUNNING, ICHOR_RUNNER_ENVIRONMENT=development
+                présent (§3 obsolete)
+              </li>
+              <li>SOPS decrypt cloudflare.env tenté → token CF API expiré détecté (§7)</li>
+              <li>205 tests verts cross-suite (apps/api 99 + ichor_brain 84 + claude-runner 22)</li>
+            </ul>
+          </div>
+        </section>
+
+        <section id="priorities">
+          <h2>Priorités (ordre recommandé)</h2>
+          <table class="toc-tbl">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Action</th>
+                <th>Priorité</th>
+                <th>Temps</th>
+                <th>Pré-requis</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>1</td>
+                <td>
+                  <a href="#sec-1">PRE-1 CF Access — Tier 2-3 + Tier 5</a>
+                </td>
+                <td><span class="pill crit">CRITIQUE</span></td>
+                <td>8 min</td>
+                <td>Compte CF logué</td>
+              </tr>
+              <tr>
+                <td>2</td>
+                <td>
+                  <a href="#sec-2">Anthropic "Help improve Claude" OFF</a>
+                </td>
+                <td><span class="pill crit">CRITIQUE</span></td>
+                <td>3 min</td>
+                <td>Compte claude.ai logué</td>
+              </tr>
+              <tr>
+                <td>3</td>
+                <td>
+                  <a href="#sec-3"><s>NSSM restore</s></a>
+                </td>
+                <td><span class="pill ok">DONE</span></td>
+                <td>—</td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td>4</td>
+                <td>
+                  <a href="#sec-4">Cleanup worktree zealous-banzai</a>
+                </td>
+                <td><span class="pill ok">BAS</span></td>
+                <td>2 min</td>
+                <td>Reboot Win11</td>
+              </tr>
+              <tr>
+                <td>5</td>
+                <td>
+                  <a href="#sec-5">WGC W75 license</a>
+                </td>
+                <td><span class="pill info">BAS</span></td>
+                <td>3 min</td>
+                <td>iCloud Mail web</td>
+              </tr>
+              <tr>
+                <td>6</td>
+                <td>
+                  <a href="#sec-6">Dependabot 3 vulnerabilities</a>
+                </td>
+                <td><span class="pill warn">MOYEN</span></td>
+                <td>0-5 min</td>
+                <td>Compte GitHub</td>
+              </tr>
+              <tr>
+                <td>7</td>
+                <td>
+                  <a href="#sec-7">Rotate CF API token + SOPS re-encrypt</a>
+                </td>
+                <td><span class="pill crit">SÉCURITÉ</span></td>
+                <td>5 min</td>
+                <td>Vault USB E:</td>
+              </tr>
+            </tbody>
+          </table>
+          <p class="meta">
+            <strong>Total ~21 minutes manuels</strong> (vs ~40 min avant audit W93). Une fois §1+§2
+            faits, dis-moi <em>"PRE-1 fait + Anthropic OFF"</em> → je lance Cap5 STEP-6 e2e
+            automatiquement.
+          </p>
+        </section>
+
+        <section id="sec-1">
+          <h2>§1 PRE-1 CF Access service token — Tier 2-3 + Tier 5</h2>
+          <div class="callout">
+            <strong>Pour les non-devs</strong>
+            Imagine que ton PC Win11 a une
+            <strong>porte d'entrée internet</strong> (<code>claude-runner.fxmilyapp.com</code>) qui
+            permet à Hetzner d'envoyer des requêtes Claude. Aujourd'hui cette porte est
+            <strong>non verrouillée</strong> (<code>HTTP 200</code>
+            sans auth) — n'importe qui qui devine l'URL peut drainer ton quota Max 20x.
+            <br /><br />
+            <strong>Cloudflare Access</strong> = un videur posté devant la porte. Tu lui donnes une
+            liste : "laisse passer uniquement les badges valides (notre service token)". Tout autre
+            visiteur reçoit refus poli (HTTP 401) sans même que ton PC le sache.
+          </div>
+
+          <h3>Audit W93 — état réel (vérifié SSH Hetzner par Claude)</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Tier</th>
+                <th>Description</th>
+                <th>État</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Tier 1</td>
+                <td>Cloudflare Zero Trust activé</td>
+                <td><span class="pill ok">DONE</span></td>
+              </tr>
+              <tr>
+                <td>Tier 2</td>
+                <td>Créer Access Application sur le hostname</td>
+                <td><span class="pill warn">À FAIRE</span></td>
+              </tr>
+              <tr>
+                <td>Tier 3</td>
+                <td>Créer policy "Service Auth"</td>
+                <td><span class="pill warn">À FAIRE</span></td>
+              </tr>
+              <tr>
+                <td>Tier 4</td>
+                <td>Service token créé (credentials dans <code>/etc/ichor/api.env</code>)</td>
+                <td><span class="pill ok">DONE</span></td>
+              </tr>
+              <tr>
+                <td>Tier 5</td>
+                <td>Flip Win11 NSSM REQUIRE_CF_ACCESS=true</td>
+                <td><span class="pill warn">À FAIRE (script auto)</span></td>
+              </tr>
+              <tr>
+                <td>Tier 6</td>
+                <td>Hetzner ichor-api consume vars</td>
+                <td><span class="pill ok">DONE</span></td>
+              </tr>
+            </tbody>
+          </table>
+
+          <details open>
+            <summary><strong>Tier 2 — créer une Access Application (5 min)</strong></summary>
+            <h4>Étapes click-by-click (layout 2026 vérifié)</h4>
+            <ol>
+              <li>
+                Va sur
+                <a href="https://one.dash.cloudflare.com" target="_blank"
+                  >https://one.dash.cloudflare.com</a
+                >.
+              </li>
+              <li>
+                Menu de <strong>gauche</strong> → cherche <strong>Access controls</strong> (icône
+                bouclier). Click → sous-menu : <strong>Applications</strong>, Policies,
+                <strong>Service credentials</strong>, Tunnels.
+              </li>
+              <li>
+                Click <strong>Applications</strong>. Page liste les apps (vide si première fois).
+              </li>
+              <li>
+                <strong>Haut à droite</strong> : bouton <strong>"Add an application"</strong> (ou
+                "Create new application"). Click.
+              </li>
+              <li>
+                Page "Select an application type" affiche 4 tiles : <strong>Self-hosted</strong>,
+                SaaS, Infrastructure, Private network. Click <strong>Self-hosted</strong>.
+              </li>
+              <li>Formulaire "Add a self-hosted application" :</li>
+            </ol>
+            <table>
+              <thead>
+                <tr>
+                  <th>Champ</th>
+                  <th>Valeur exacte</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Application name</td>
+                  <td><code>Ichor Claude Runner</code></td>
+                </tr>
+                <tr>
+                  <td>Session Duration</td>
+                  <td><code>24 hours</code> (défaut)</td>
+                </tr>
+                <tr>
+                  <td>Subdomain</td>
+                  <td><code>claude-runner</code></td>
+                </tr>
+                <tr>
+                  <td>Domain (dropdown)</td>
+                  <td><code>fxmilyapp.com</code></td>
+                </tr>
+                <tr>
+                  <td>Path</td>
+                  <td><strong>VIDE</strong></td>
+                </tr>
+                <tr>
+                  <td>Identity providers</td>
+                  <td>tout DÉCOCHÉ</td>
+                </tr>
+                <tr>
+                  <td>Instant Auth</td>
+                  <td>OFF</td>
+                </tr>
+              </tbody>
+            </table>
+            <p>Click <strong>Next</strong>.</p>
+            <div class="callout warn">
+              <strong>Si <code>fxmilyapp.com</code> n'apparaît pas dans le dropdown Domain</strong>
+              Ton compte CF n'a pas la zone activée. Stop, screenshot avec
+              <kbd>Win</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd>, envoie-moi.
+            </div>
+          </details>
+
+          <details>
+            <summary><strong>Tier 3 — créer la policy "Service Auth" (3 min)</strong></summary>
+            <p>Sur l'écran "Add policies" :</p>
+            <table>
+              <thead>
+                <tr>
+                  <th>Champ</th>
+                  <th>Valeur exacte</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Policy name</td>
+                  <td><code>Ichor Service Token Only</code></td>
+                </tr>
+                <tr>
+                  <td>Action</td>
+                  <td>
+                    <strong>Service Auth</strong>
+                    <br />
+                    <span class="src"
+                      >PIÈGE : pas "Allow" (=humain), Service Auth = robot avec token</span
+                    >
+                  </td>
+                </tr>
+                <tr>
+                  <td>Session duration</td>
+                  <td>Same as application session timeout (défaut)</td>
+                </tr>
+                <tr>
+                  <td>Configure rules → Include</td>
+                  <td>
+                    Click <strong>+ Add include</strong> → Selector =
+                    <strong>Service Token</strong> → Value =
+                    <strong>Any Access Service Token</strong>
+                  </td>
+                </tr>
+                <tr>
+                  <td>Exclude / Require</td>
+                  <td>VIDES</td>
+                </tr>
+              </tbody>
+            </table>
+            <p>
+              Click <strong>Next</strong> → écrans suivants Next sans changer →
+              <strong>Add application</strong>
+              en bas à droite.
+            </p>
+            <p>
+              <strong>Validation</strong> : retour sur la liste Applications avec
+              <code>Ichor Claude Runner</code> + statut vert "Active".
+            </p>
+          </details>
+
+          <details>
+            <summary>
+              <strong>Tier 5 — récupérer AUD tag + flip Win11 NSSM (5 min)</strong>
+            </summary>
+            <h4>Récupérer l'AUD tag</h4>
+            <p>
+              <span class="pill info">FIX W96</span> Le sub-agent recherche 2026 confirme : l'AUD
+              tag est dans <strong>Configure (your app) → Additional settings</strong>, PAS dans
+              Overview comme l'ancien guide W94 disait.
+            </p>
+            <ol>
+              <li>Sur la liste Applications, click <code>Ichor Claude Runner</code>.</li>
+              <li>
+                Click <strong>Configure</strong> ou onglet <strong>Additional settings</strong> en
+                haut.
+              </li>
+              <li>
+                Section "Application Audience (AUD) Tag" : tag = <code>a1b2c3d4...</code> 64 chars
+                hex avec bouton <strong>Copy</strong>. Click Copy.
+              </li>
+              <li>Colle dans Notepad ou ton vault temporairement.</li>
+            </ol>
+
+            <h4>Récupérer le team domain</h4>
+            <ol>
+              <li>Zero Trust dashboard → menu gauche scroll bas → <strong>Settings</strong>.</li>
+              <li>
+                Cherche "Team domain" → tu vois
+                <code>https://eliot-team.cloudflareaccess.com</code>. Note la partie
+                <strong>sans</strong> <code>https://</code>.
+              </li>
+            </ol>
+
+            <h4>Flip Win11 NSSM via script auto</h4>
+            <p>
+              Claude a déjà préparé le script
+              <code>scripts/windows/enable-cf-access-runner.ps1</code> qui fait le flip
+              atomiquement.
+            </p>
+            <ol>
+              <li>
+                Ouvre <strong>PowerShell as Administrator</strong> :
+                <ul>
+                  <li>Click menu Démarrer (logo Windows bas-gauche).</li>
+                  <li>Tape <code>powershell</code>.</li>
+                  <li>Click droit "Windows PowerShell" → <strong>Run as administrator</strong>.</li>
+                  <li>UAC popup → <strong>Yes</strong>.</li>
+                  <li>
+                    Vérifie barre titre = <strong>"Administrator: Windows PowerShell"</strong>. Si
+                    pas le mot Administrator : recommence.
+                  </li>
+                </ul>
+              </li>
+              <li>Lance les commandes :</li>
+            </ol>
+            <pre><button class="copy-btn" data-copy="cd D:\Ichor
+.\scripts\windows\enable-cf-access-runner.ps1 `
+    -TeamDomain &quot;eliot-team.cloudflareaccess.com&quot; `
+    -ApplicationAud &quot;&lt;colle-AUD-64-chars-hex&gt;&quot;">Copy</button><code>cd D:\Ichor
+.\scripts\windows\enable-cf-access-runner.ps1 `
+    -TeamDomain "eliot-team.cloudflareaccess.com" `
+    -ApplicationAud "&lt;colle-AUD-64-chars-hex&gt;"</code></pre>
+            <p>
+              Remplace <code>eliot-team.cloudflareaccess.com</code> par TON team domain et
+              <code>&lt;colle-AUD...&gt;</code> par l'AUD tag récupéré.
+            </p>
+            <p>
+              Le script affiche 4 étapes (statut NSSM, env actuel, env nouveau, restart). Si vert :
+              <code>DONE. CF Access enforcement is now ACTIVE.</code> = gagné.
+            </p>
+
+            <h4>Validation post-Tier 5</h4>
+            <p><strong>Test négatif (sans token)</strong> :</p>
+            <pre><button class="copy-btn" data-copy="curl.exe -i https://claude-runner.fxmilyapp.com/healthz">Copy</button><code>curl.exe -i https://claude-runner.fxmilyapp.com/healthz</code></pre>
+            <p>Doit retourner <strong>HTTP/2 401</strong>. Si HTTP/2 200 :</p>
+            <ul>
+              <li><code>nssm status IchorClaudeRunner</code> = SERVICE_RUNNING.</li>
+              <li>Tier 2+3 bien terminés (l'app dans la liste).</li>
+              <li>Attends 2 min (propagation CF edge).</li>
+            </ul>
+            <p><strong>Test positif (avec token)</strong> :</p>
+            <pre><button class="copy-btn" data-copy="ssh ichor-hetzner &quot;sudo grep ICHOR_API_CF_ACCESS /etc/ichor/api.env&quot;">Copy</button><code>ssh ichor-hetzner "sudo grep ICHOR_API_CF_ACCESS /etc/ichor/api.env"</code></pre>
+            <p>Récupère <code>CLIENT_ID</code> + <code>CLIENT_SECRET</code>. Puis :</p>
+            <pre><button class="copy-btn" data-copy="curl -i -H &quot;CF-Access-Client-Id: &lt;client_id&gt;&quot; -H &quot;CF-Access-Client-Secret: &lt;client_secret&gt;&quot; https://claude-runner.fxmilyapp.com/healthz">Copy</button><code>curl -i \
+  -H "CF-Access-Client-Id: &lt;client_id&gt;" \
+  -H "CF-Access-Client-Secret: &lt;client_secret&gt;" \
+  https://claude-runner.fxmilyapp.com/healthz</code></pre>
+            <p>
+              Doit retourner <strong>HTTP/2 200</strong> + body JSON
+              <code>{"status":"ok",...}</code>.
+            </p>
+          </details>
+
+          <h3>Ce qui PEUT MAL TOURNER + comment fix</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Symptôme</th>
+                <th>Cause</th>
+                <th>Fix</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Bouton "Add an application" introuvable</td>
+                <td>Mauvais dashboard (dash.cloudflare.com au lieu de one.dash.cloudflare.com)</td>
+                <td>
+                  Va explicitement sur
+                  <a href="https://one.dash.cloudflare.com" target="_blank"
+                    >one.dash.cloudflare.com</a
+                  >
+                </td>
+              </tr>
+              <tr>
+                <td>Dropdown Domain sans <code>fxmilyapp.com</code></td>
+                <td>Zone pas active sur ce compte CF</td>
+                <td>Switch compte (haut-droite) vers celui qui a fxmilyapp.com</td>
+              </tr>
+              <tr>
+                <td>"Service Auth" pas dans dropdown Action</td>
+                <td>Bug temporaire CF</td>
+                <td>Reload F5, recommence Tier 3</td>
+              </tr>
+              <tr>
+                <td><code>nssm</code> pas reconnu</td>
+                <td>NSSM pas dans PATH</td>
+                <td>
+                  <code>where.exe nssm</code> ; sinon path complet
+                  <code>C:\Users\eliot\AppData\Local\Microsoft\WinGet\Links\nssm.exe</code>
+                </td>
+              </tr>
+              <tr>
+                <td><code>curl.exe</code> erreur</td>
+                <td>Win11 alias <code>curl</code> → Invoke-WebRequest</td>
+                <td>Utilise <code>curl.exe</code> avec extension explicite</td>
+              </tr>
+              <tr>
+                <td>Test négatif retourne tjrs 200 après 5 min</td>
+                <td>Cache CF edge</td>
+                <td>Wait 30 min ou Caching → Purge Everything</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <p class="src">
+            Sources vérifiées 2026 :
+            <a
+              href="https://developers.cloudflare.com/cloudflare-one/access-controls/applications/http-apps/self-hosted-public-app/"
+              target="_blank"
+              >Self-hosted app docs</a
+            >
+            ·
+            <a
+              href="https://developers.cloudflare.com/cloudflare-one/access-controls/service-credentials/service-tokens/"
+              target="_blank"
+              >Service tokens</a
+            >
+            ·
+            <a
+              href="https://developers.cloudflare.com/cloudflare-one/access-controls/applications/http-apps/authorization-cookie/validating-json/"
+              target="_blank"
+              >AUD tag location</a
+            >
+          </p>
+        </section>
+
+        <section id="sec-2">
+          <h2>§2 Anthropic "Help improve Claude" toggle OFF</h2>
+
+          <div class="callout">
+            <strong>Pour les non-devs</strong>
+            Anthropic a changé sa politique en septembre 2025. Avant : conversations stockées 30
+            jours puis supprimées. Maintenant : si toggle ON (défaut) → tes conversations entrent
+            dans le training set Anthropic <strong>5 ans</strong>. Si tu l'éteins, retour à 30
+            jours. <br /><br />
+            Pour Ichor : briefings macro Pass 1-4, prompts data-pool (FRED / Polymarket / MyFXBook),
+            Cap5 STEP-6 (query_db sur session_card_audit) — tout finit dans Claude future.
+            <strong>EU AI Act §50 + audit interne Ichor exigent opt-out</strong>.
+          </div>
+
+          <div class="callout warn">
+            <strong>Correction W96</strong>
+            Le guide W94 mentionnait 2 toggles séparés ("Help improve Claude" + "Help improve Claude
+            Code"). Sub-agent recherche W96 confirme : en mai 2026 il n'y a qu'<strong
+              >UN SEUL toggle unifié "Help improve Claude"</strong
+            >
+            qui couvre les chats web ET Claude Code. Pas de toggle séparé.
+          </div>
+
+          <h3>Pré-requis</h3>
+          <p>
+            Tu es logué sur <a href="https://claude.ai" target="_blank">claude.ai</a>. Avatar
+            visible bas-gauche sidebar = logué.
+          </p>
+
+          <h3>Étapes (Layout 2026 vérifié)</h3>
+          <ol>
+            <li>
+              Va sur
+              <a href="https://claude.ai/settings/data-privacy-controls" target="_blank"
+                >claude.ai/settings/data-privacy-controls</a
+              >
+              (URL directe). OU :
+            </li>
+            <li>Click ton <strong>avatar</strong> bas-gauche → menu pop-up vers le haut.</li>
+            <li>Click <strong>Settings</strong>.</li>
+            <li>Sidebar gauche → <strong>Privacy</strong>.</li>
+            <li>
+              Toggle <strong>"Help improve Claude"</strong> (parfois libellé "You can help improve
+              Claude") :
+              <div class="ascii">
+                [●▬▬] ← ON (bleu, à droite) = click pour OFF [▬▬●] ← OFF (gris, à gauche) = c'est ça
+                qu'on veut
+              </div>
+            </li>
+            <li>
+              Click le toggle. Dialog confirmation possible "Are you sure?" → click
+              <strong>"Not now"</strong> ou <strong>"Disable"</strong>.
+            </li>
+          </ol>
+
+          <h3>Validation</h3>
+          <p>
+            Recharge la page Privacy. Toggle <strong>doit rester OFF (gris à gauche)</strong>. Date
+            "Last modified: today" peut apparaître.
+          </p>
+
+          <div class="callout">
+            <strong>Effet immédiat</strong>
+            Retention drops 5 ans → 30 jours. Note : conversations existantes pré-opt-out
+            <strong>ne sont pas effacées rétroactivement</strong>. Pour purge GDPR :
+            <a href="https://privacy.anthropic.com" target="_blank">privacy.anthropic.com</a> →
+            "Submit a privacy request" → "Delete my data". Délai 30 jours max.
+          </div>
+
+          <h3>Ce qui PEUT MAL TOURNER + fix</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Symptôme</th>
+                <th>Cause</th>
+                <th>Fix</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Pas d'onglet "Privacy"</td>
+                <td>A/B test UI ou mobile</td>
+                <td>URL directe <code>claude.ai/settings/data-privacy-controls</code></td>
+              </tr>
+              <tr>
+                <td>Toggle se re-flip ON après quelques jours</td>
+                <td>Bug post-upgrade plan</td>
+                <td>Vérifier 1× par mois, mets rappel calendrier</td>
+              </tr>
+              <tr>
+                <td>Avatar bas-gauche introuvable</td>
+                <td>Sidebar collapsed (mobile/petit écran)</td>
+                <td>Click hamburger (3 lignes) haut-gauche pour expand</td>
+              </tr>
+              <tr>
+                <td>Dialog "Are you sure" disparaît trop vite</td>
+                <td>UI bug</td>
+                <td>Recharge, re-click toggle</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <p class="src">
+            Sources vérifiées 2026 :
+            <a
+              href="https://privacy.claude.com/en/articles/12109829-how-do-i-change-my-model-improvement-privacy-settings"
+              target="_blank"
+              >Anthropic Privacy Center</a
+            >
+            ·
+            <a href="https://code.claude.com/docs/en/data-usage" target="_blank"
+              >Claude Code data usage</a
+            >
+            ·
+            <a
+              href="https://privacyinternational.org/guide-step/5677/claude-settings-and-good-practices"
+              target="_blank"
+              >Privacy International guide</a
+            >
+          </p>
+        </section>
+
+        <section id="sec-3">
+          <h2>§3 <s>NSSM IchorClaudeRunner restore</s> — OBSOLETE</h2>
+          <div class="callout ok">
+            <strong>Audit W93/W96 (vérifié SSH Claude 2026-05-10)</strong>
+            <code>nssm status IchorClaudeRunner</code> retourne <strong>SERVICE_RUNNING</strong>.
+            <code>ICHOR_RUNNER_ENVIRONMENT=development</code> présent dans
+            <code>AppEnvironmentExtra</code>. <strong>Tu n'as RIEN à faire ici.</strong>
+          </div>
+
+          <h3>Note dual-runner (info, pas action)</h3>
+          <p>
+            Audit <code>~/.cloudflared/config.yml</code> : ingress =
+            <code>http://127.0.0.1:8765</code>
+            (NSSM port). Le standalone uvicorn 8766 est orphelin local. Optional cleanup :
+          </p>
+          <pre><button class="copy-btn" data-copy="Get-NetTCPConnection -LocalPort 8766 -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force }">Copy</button><code>Get-NetTCPConnection -LocalPort 8766 -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force }</code></pre>
+          <p>
+            Et retire <code>start-claude-runner-standalone.bat</code> de Startup folder
+            (<kbd>Win</kbd>+<kbd>R</kbd> → <code>shell:startup</code>) pour qu'il ne se relance pas
+            au boot.
+          </p>
+        </section>
+
+        <section id="sec-4">
+          <h2>§4 Cleanup worktree zealous-banzai</h2>
+
+          <div class="callout">
+            <strong>Pour les non-devs</strong>
+            Branche git supprimée + worktree déregistré. Mais le dossier
+            <code>D:\Ichor\.claude\worktrees\zealous-banzai-efc1c7\</code> reste sur disque (50 MB
+            <code>.venv</code> Python). Win11 a un <strong>file lock</strong> antivirus → un
+            <strong>redémarrage</strong> libère tous les handles.
+          </div>
+
+          <h3>Reboot proprement Win11</h3>
+          <div class="callout warn">
+            <strong>ATTENTION</strong>
+            Sur Win11, <strong>Shutdown ≠ Restart</strong> à cause de "Fast Startup". Shutdown sauve
+            l'état du noyau dans hyberfil.sys et le re-charge → file locks restent.
+            <strong>Restart</strong> force un cycle complet.
+          </div>
+
+          <ol>
+            <li>Sauvegarde tout (VS Code, browser tabs).</li>
+            <li>Click <strong>Démarrer</strong> (logo Windows bas-gauche).</li>
+            <li>Click icône <strong>Power</strong>.</li>
+            <li>
+              3 options affichées : Sleep / Shut down / <strong>Restart</strong>. Click
+              <strong>Restart</strong>.
+            </li>
+            <li>Wait 1-2 min jusqu'à login screen. Login.</li>
+          </ol>
+
+          <h3>Étapes après reboot</h3>
+          <pre><button class="copy-btn" data-copy="Remove-Item -Path 'D:\Ichor\.claude\worktrees\zealous-banzai-efc1c7' -Recurse -Force">Copy</button><code>Remove-Item -Path 'D:\Ichor\.claude\worktrees\zealous-banzai-efc1c7' -Recurse -Force</code></pre>
+
+          <h3>Validation</h3>
+          <pre><button class="copy-btn" data-copy="Test-Path D:\Ichor\.claude\worktrees\zealous-banzai-efc1c7">Copy</button><code>Test-Path D:\Ichor\.claude\worktrees\zealous-banzai-efc1c7</code></pre>
+          <p>
+            Doit retourner <strong><code>False</code></strong
+            >.
+          </p>
+        </section>
+
+        <section id="sec-5">
+          <h2>§5 WGC W75 license decision</h2>
+
+          <div class="callout">
+            <strong>Pour les non-devs</strong>
+            W75 = collecteur quarterly XLSX du World Gold Council. WGC interdit dans T&C 2026 le
+            scraping automatisé sans <strong>consentement écrit préalable</strong>. Download manuel
+            humain OK ; script auto à 04:00 chaque trimestre = "automated retrieval" → consent
+            requis.
+          </div>
+
+          <h3>3 options</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Option</th>
+                <th>Description</th>
+                <th>Risque</th>
+                <th>Valeur</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>A</strong></td>
+                <td>"private research" framing — collecter sans demander</td>
+                <td>
+                  Légal théorique non nul (violation T&C). Aucun cas public d'enforcement WGC.
+                </td>
+                <td>Data tout de suite</td>
+              </tr>
+              <tr>
+                <td><strong>B</strong></td>
+                <td>Demander consent explicite (1-3 semaines)</td>
+                <td>Aucun (bullet-proof si accord)</td>
+                <td>Data + email d'accord archivé</td>
+              </tr>
+              <tr>
+                <td><strong>C</strong></td>
+                <td>Skip ce collecteur</td>
+                <td>Aucun</td>
+                <td>Pas de WGC data (perte mineure pour matrix cross-asset W79)</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <p>
+            <span class="pill info">Recommandation</span> Option B (clean, légalement bullet-proof)
+            ou Option C (zéro risque, perte signal acceptable).
+          </p>
+
+          <h3>Procédure copy-paste manuelle iCloud Mail (Option B)</h3>
+
+          <div class="callout warn">
+            <strong>Pourquoi pas un mailto: lien ?</strong>
+            Tu utilises iCloud Mail web. Win11 mailto: ouvre app email par défaut système (Outlook
+            native vide) — iCloud Mail web
+            <strong>ne s'enregistre PAS comme handler mailto:</strong>
+            dans Windows. Solution : copy-paste manuel.
+          </div>
+
+          <ol>
+            <li>
+              Ouvre <a href="https://www.icloud.com/mail" target="_blank">iCloud Mail web</a>. Login
+              si nécessaire.
+            </li>
+            <li>Click <strong>Compose</strong> (icône crayon, en haut).</li>
+            <li>
+              Champ <strong>"À" / "To"</strong> :
+              <pre><button class="copy-btn" data-copy="[email protected]">Copy</button><code>[email protected]</code></pre>
+            </li>
+            <li>
+              Champ <strong>"Subject" / "Sujet"</strong> :
+              <pre><button class="copy-btn" data-copy="Permission request — quarterly download of GDT Tables XLSX for private research">Copy</button><code>Permission request — quarterly download of GDT Tables XLSX for private research</code></pre>
+            </li>
+            <li>
+              Corps message (clic Copy puis colle) :
+              <pre><button class="copy-btn" data-copy="Dear World Gold Council team,
+
+I am Eliot Pena, an individual private trader based in France, and I am
+writing to request your explicit consent for a limited, automated retrieval
+of the Gold Demand Trends quarterly XLSX tables (4 downloads per year)
+from Goldhub.
+
+The use case is strictly single-user private macro research feeding my own
+discretionary trading decisions. I commit to:
+
+  - no redistribution, no publication, no commercial use, no derivative product;
+  - no public sharing of the raw data or any transformation thereof;
+  - citation of &quot;World Gold Council, Metals Focus&quot; wherever the data informs my notes;
+  - immediate cessation of any automated retrieval upon your request, with
+    no further action required on your part.
+
+If a different channel or a formal license is more appropriate for this
+scope, I would be grateful for your guidance.
+
+Thank you for your time.
+
+Kind regards,
+Eliot Pena
+[email protected]">Copy</button><code>Dear World Gold Council team,
+
+I am Eliot Pena, an individual private trader based in France, and I am
+writing to request your explicit consent for a limited, automated retrieval
+of the Gold Demand Trends quarterly XLSX tables (4 downloads per year)
+from Goldhub.
+
+The use case is strictly single-user private macro research feeding my own
+discretionary trading decisions. I commit to:
+
+  - no redistribution, no publication, no commercial use, no derivative product;
+  - no public sharing of the raw data or any transformation thereof;
+  - citation of "World Gold Council, Metals Focus" wherever the data informs my notes;
+  - immediate cessation of any automated retrieval upon your request, with
+    no further action required on your part.
+
+If a different channel or a formal license is more appropriate for this
+scope, I would be grateful for your guidance.
+
+Thank you for your time.
+
+Kind regards,
+Eliot Pena
+[email protected]</code></pre>
+            </li>
+            <li>
+              Vérifie que <strong>From:</strong> est bien <code>eliott.pena@icloud.com</code>.
+            </li>
+            <li>Click <strong>Send</strong>.</li>
+          </ol>
+
+          <p class="src">
+            Sources :
+            <a href="https://www.gold.org/terms-and-conditions" target="_blank">WGC Terms</a> ·
+            contact officiel <code>[email protected]</code> (cité explicitement T&C)
+          </p>
+        </section>
+
+        <section id="sec-6">
+          <h2>§6 GitHub Dependabot 3 vulnerabilities</h2>
+
+          <div class="callout">
+            <strong>Pour les non-devs</strong>
+            Dependabot = robot officiel GitHub qui scanne <code>package.json</code>,
+            <code>pyproject.toml</code>. Quand il détecte une vulnérabilité connue (CVE), il crée
+            automatiquement une PR pour upgrader. C'est sûr (pas un humain hackable) et passif
+            (jamais merge sans ton OK).
+          </div>
+
+          <div class="callout ok">
+            <strong>Audit W93 — Claude a déjà activé l'auto-fix</strong>
+            <code>gh api PUT</code> → <code>vulnerability-alerts</code> +
+            <code>automated-security-fixes</code> activés. Verified
+            <code>{"enabled":true,"paused":false}</code>. PRs auto vont apparaître dans qq heures.
+          </div>
+
+          <div class="callout warn">
+            <strong>IMPORTANT — changement 27 jan 2026</strong>
+            Commands <code>@dependabot merge</code>, <code>@dependabot squash and merge</code>,
+            <code>@dependabot close</code>, <code>@dependabot reopen</code> sont
+            <strong>DEPRECATED</strong>. Utilise les boutons natifs UI / gh CLI / REST API.
+          </div>
+
+          <h3>Étape 1 — vérifier les Dependabot PRs</h3>
+          <ol>
+            <li>
+              Va sur
+              <a href="https://github.com/fxeliott/ichor/pulls" target="_blank"
+                >github.com/fxeliott/ichor/pulls</a
+              >.
+            </li>
+            <li>
+              Cherche PRs avec :
+              <ul>
+                <li>Auteur : <code>dependabot[bot]</code> (badge bot bleu)</li>
+                <li>Avatar robot vert/jaune</li>
+                <li>Titre : <code>chore(deps): bump &lt;package&gt;</code></li>
+              </ul>
+            </li>
+            <li>Tu devrais voir 3 PRs (les 3 vulnérabilités : 2 moderate + 1 low).</li>
+          </ol>
+
+          <h3>Étape 2 — review chaque PR (5 min total)</h3>
+          <ol>
+            <li>Click le titre PR pour ouvrir.</li>
+            <li>
+              Header : badge <strong>"bot"</strong> bleu à côté de "dependabot[bot]". Si humain (pas
+              badge bot) → STOP, screenshot.
+            </li>
+            <li>
+              Lis titre :
+              <ul>
+                <li><code>1.5.0 → 1.7.4</code> (mineur/patch) → <strong>SAFE</strong></li>
+                <li><code>1.x → 2.x</code> (MAJOR) → review prudent (Files changed)</li>
+              </ul>
+            </li>
+            <li>
+              Scroll en bas → section <strong>"Checks"</strong> :
+              <div class="ascii">
+                ┌────────────────────────────────────────────┐ │ ✓ All checks have passed │ │ ✓
+                python (3.12) — 4 jobs │ │ ✓ web2 (build) — 2 jobs │ │ ✓ shell-lint │ │ ✓ audit │
+                └────────────────────────────────────────────┘
+              </div>
+              Tous doivent être <strong>verts ✓</strong>.
+            </li>
+          </ol>
+
+          <h3>Étape 3 — merge la PR</h3>
+          <ol>
+            <li>Bouton vert <strong>"Squash and merge"</strong> au-dessus des checks.</li>
+            <li>
+              Dropdown ▼ avec 3 options :
+              <ul>
+                <li>"Create a merge commit"</li>
+                <li><strong>"Squash and merge"</strong> ← utilise celui-ci</li>
+                <li>"Rebase and merge"</li>
+              </ul>
+            </li>
+            <li>Confirm dialog → <strong>"Confirm squash and merge"</strong>.</li>
+            <li>Statut PR passe à <strong>Merged</strong> (badge violet).</li>
+            <li>Répète pour chaque PR Dependabot.</li>
+          </ol>
+
+          <h3>Étape 4 — vérification</h3>
+          <p>
+            Va sur
+            <a href="https://github.com/fxeliott/ichor/security/dependabot" target="_blank"
+              >github.com/fxeliott/ichor/security/dependabot</a
+            >
+            → doit afficher <strong>0 alerte open</strong>.
+          </p>
+
+          <p class="src">
+            Sources :
+            <a
+              href="https://github.blog/changelog/2026-01-27-changes-to-github-dependabot-pull-request-comment-commands/"
+              target="_blank"
+              >GitHub Changelog 27 jan 2026</a
+            >
+            ·
+            <a
+              href="https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/incorporating-changes-from-a-pull-request/automatically-merging-a-pull-request"
+              target="_blank"
+              >Automatically merging a PR</a
+            >
+          </p>
+        </section>
+
+        <section id="sec-7">
+          <h2>§7 Rotate CF API token + SOPS re-encrypt — SÉCURITÉ</h2>
+
+          <div class="callout crit">
+            <strong>Découverte W95 — sécurité critique</strong>
+            J'ai tenté d'automatiser §1 Tier 2-3 via Cloudflare API. Decrypt SOPS OK (clé age sur
+            <code>E:\age-key-ichor-2026-05-02.txt</code>). MAIS : le token CF API stocké (<code
+              >cfut_***</code
+            >
+            ancien format) est <strong>RÉVOQUÉ par Cloudflare</strong> → "Invalid access token" sur
+            tous endpoints. Le SOPS file <code>infra/secrets/cloudflare.env</code> contient un token
+            mort.
+          </div>
+
+          <h3>Pourquoi rotater</h3>
+          <ul>
+            <li>Token mort : tout script qui l'utilise va échouer silencieusement.</li>
+            <li>
+              Format <code>cfut_</code> = ancien format CF (pré-2024). Probablement révoqué après
+              migration CF API tokens.
+            </li>
+            <li>Audit RUNBOOK-015 : rotation CF API tokens cadence 90 jours.</li>
+          </ul>
+
+          <h3>Étapes de rotation</h3>
+          <ol>
+            <li>
+              Va sur
+              <a href="https://dash.cloudflare.com/profile/api-tokens" target="_blank"
+                >dash.cloudflare.com/profile/api-tokens</a
+              >.
+            </li>
+            <li>
+              Si tu vois un token "ichor" old format <code>cfut_</code> : click → Roll → confirm.
+              Sinon click <strong>Create Token</strong>.
+            </li>
+            <li>Choisis "Custom token" et donne un nom : <code>ichor-2026-05-10</code>.</li>
+            <li>
+              Permissions :
+              <ul>
+                <li><code>Account</code> · <code>Cloudflare Tunnel</code> · <code>Edit</code></li>
+                <li>
+                  <code>Account</code> · <code>Access: Apps and Policies</code> · <code>Edit</code>
+                </li>
+                <li>
+                  <code>Account</code> · <code>Access: Service Tokens</code> · <code>Edit</code>
+                </li>
+                <li><code>Account</code> · <code>Account Settings</code> · <code>Read</code></li>
+                <li><code>Zone</code> · <code>Zone</code> · <code>Read</code></li>
+              </ul>
+            </li>
+            <li>Account Resources : Include All accounts (ou ton compte spécifique).</li>
+            <li>
+              Click Continue → Create Token. <strong>Copie le token immédiatement</strong> (affiché
+              1× seulement).
+            </li>
+            <li>Update SOPS :</li>
+          </ol>
+          <pre><button class="copy-btn" data-copy="export SOPS_AGE_KEY=$(cat 'E:/age-key-ichor-2026-05-02.txt')
+sops --decrypt D:/Ichor/infra/secrets/cloudflare.env > /tmp/cf.env
+# Edit /tmp/cf.env : remplace CLOUDFLARE_API_TOKEN=&lt;NOUVEAU-TOKEN&gt;
+sops --encrypt --input-type dotenv --output-type dotenv /tmp/cf.env > D:/Ichor/infra/secrets/cloudflare.env
+shred -u /tmp/cf.env  # ou rm -P sur Windows / Remove-Item Force">Copy</button><code>export SOPS_AGE_KEY=$(cat 'E:/age-key-ichor-2026-05-02.txt')
+sops --decrypt D:/Ichor/infra/secrets/cloudflare.env > /tmp/cf.env
+# Edit /tmp/cf.env : remplace CLOUDFLARE_API_TOKEN=&lt;NOUVEAU-TOKEN&gt;
+sops --encrypt --input-type dotenv --output-type dotenv /tmp/cf.env > D:/Ichor/infra/secrets/cloudflare.env
+shred -u /tmp/cf.env</code></pre>
+
+          <h3>Validation</h3>
+          <pre><button class="copy-btn" data-copy="export SOPS_AGE_KEY=$(cat 'E:/age-key-ichor-2026-05-02.txt')
+NEW_TOKEN=$(sops --decrypt D:/Ichor/infra/secrets/cloudflare.env | grep ^CLOUDFLARE_API_TOKEN= | cut -d= -f2-)
+curl -s -H &quot;Authorization: Bearer $NEW_TOKEN&quot; https://api.cloudflare.com/client/v4/user/tokens/verify | python -c &quot;import json,sys; d=json.load(sys.stdin); print(d.get('result',{}).get('status','FAIL'))&quot;">Copy</button><code>export SOPS_AGE_KEY=$(cat 'E:/age-key-ichor-2026-05-02.txt')
+NEW_TOKEN=$(sops --decrypt D:/Ichor/infra/secrets/cloudflare.env | grep ^CLOUDFLARE_API_TOKEN= | cut -d= -f2-)
+curl -s -H "Authorization: Bearer $NEW_TOKEN" https://api.cloudflare.com/client/v4/user/tokens/verify | \
+  python -c "import json,sys; d=json.load(sys.stdin); print(d.get('result',{}).get('status','FAIL'))"</code></pre>
+          <p>
+            Doit retourner <strong><code>active</code></strong
+            >.
+          </p>
+
+          <p class="src">
+            Sources :
+            <a href="https://dash.cloudflare.com/profile/api-tokens" target="_blank"
+              >CF API Tokens</a
+            >
+            · <a href="https://github.com/getsops/sops" target="_blank">SOPS GitHub</a>
+          </p>
+        </section>
+
+        <section id="data">
+          <h2>Données live Hetzner — référence</h2>
+          <p>
+            Toutes les valeurs ont été vérifiées via SSH par Claude le 2026-05-10. Si tu lances
+            <code>ssh ichor-hetzner</code> et que tu run les commandes ci-dessous, tu dois retrouver
+            ces chiffres (à ±quelques unités selon timing collecteurs).
+          </p>
+
+          <h3>Row counts par table (live)</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Table</th>
+                <th>Rows</th>
+                <th>Note</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>nyfed_mct_observations</code></td>
+                <td>795</td>
+                <td>full backfill 1960-01 → 2026-03 (W71)</td>
+              </tr>
+              <tr>
+                <td><code>cleveland_fed_nowcasts</code></td>
+                <td>12</td>
+                <td>4 measures × 3 horizons (W72)</td>
+              </tr>
+              <tr>
+                <td><code>nfib_sbet_observations</code></td>
+                <td>1</td>
+                <td>March 2026 SBOI=95.8 (W74)</td>
+              </tr>
+              <tr>
+                <td><code>myfxbook_outlooks</code></td>
+                <td>42</td>
+                <td>retail FX 4h cadence (W77, +30 vs W77b)</td>
+              </tr>
+              <tr>
+                <td><code>cboe_skew_observations</code></td>
+                <td>23</td>
+                <td>W24</td>
+              </tr>
+              <tr>
+                <td><code>cftc_tff_observations</code></td>
+                <td>112</td>
+                <td>W25 (+14 vs W84)</td>
+              </tr>
+              <tr>
+                <td><code>cboe_vvix_observations</code></td>
+                <td>23</td>
+                <td>W29</td>
+              </tr>
+              <tr>
+                <td><code>treasury_tic_holdings</code></td>
+                <td>456</td>
+                <td>W32, 38 countries × 12 mo</td>
+              </tr>
+              <tr>
+                <td><code>polymarket_snapshots</code></td>
+                <td>40 397</td>
+                <td>W31 (+33 419 vs W77)</td>
+              </tr>
+              <tr>
+                <td><code>fred_observations</code></td>
+                <td>1707</td>
+                <td>+51 vs W84</td>
+              </tr>
+              <tr>
+                <td><code>session_card_audit</code></td>
+                <td>116</td>
+                <td>4-pass cards persistées</td>
+              </tr>
+              <tr>
+                <td><code>tool_call_audit</code></td>
+                <td>0</td>
+                <td>en attente STEP-5/6 wiring</td>
+              </tr>
+              <tr>
+                <td><code>audit_log</code></td>
+                <td>0</td>
+                <td>append-only, vide pour l'instant</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <h3>Services systemd actifs</h3>
+          <ul>
+            <li><code>ichor-api.service</code> — FastAPI backend</li>
+            <li><code>ichor-fx-stream.service</code> — Polygon FX quote-stream (VPIN feed)</li>
+            <li><code>ichor-web-tunnel.service</code> — quick CF tunnel pour web</li>
+            <li><code>ichor-web.service</code> — Next.js dashboard</li>
+            <li><code>postgresql@16-main.service</code> + <code>redis-server.service</code></li>
+            <li><strong>91 timers actifs</strong> (collectors + alerts + nightly chains)</li>
+          </ul>
+        </section>
+
+        <section id="sources">
+          <h2>Sources web 2026 — vérification W96</h2>
+          <ul>
+            <li>
+              <a
+                href="https://developers.cloudflare.com/cloudflare-one/access-controls/applications/http-apps/self-hosted-public-app/"
+                target="_blank"
+                >Cloudflare One — Self-hosted public app</a
+              >
+            </li>
+            <li>
+              <a
+                href="https://developers.cloudflare.com/cloudflare-one/access-controls/service-credentials/service-tokens/"
+                target="_blank"
+                >Cloudflare One — Service tokens</a
+              >
+            </li>
+            <li>
+              <a
+                href="https://developers.cloudflare.com/cloudflare-one/access-controls/applications/http-apps/authorization-cookie/validating-json/"
+                target="_blank"
+                >Cloudflare One — Validate JWTs / AUD tag location</a
+              >
+            </li>
+            <li>
+              <a
+                href="https://privacy.claude.com/en/articles/12109829-how-do-i-change-my-model-improvement-privacy-settings"
+                target="_blank"
+                >Anthropic Privacy Center — Model improvement settings</a
+              >
+            </li>
+            <li>
+              <a href="https://code.claude.com/docs/en/data-usage" target="_blank"
+                >Claude Code Docs — Data usage</a
+              >
+            </li>
+            <li>
+              <a
+                href="https://privacyinternational.org/guide-step/5677/claude-settings-and-good-practices"
+                target="_blank"
+                >Privacy International — Claude settings guide</a
+              >
+            </li>
+            <li>
+              <a
+                href="https://github.blog/changelog/2026-01-27-changes-to-github-dependabot-pull-request-comment-commands/"
+                target="_blank"
+                >GitHub Changelog 27 jan 2026 — Dependabot deprecation</a
+              >
+            </li>
+            <li>
+              <a href="https://www.gold.org/terms-and-conditions" target="_blank">WGC Terms 2026</a>
+            </li>
+            <li>
+              <a href="https://support.apple.com/en-us/102525" target="_blank"
+                >Apple — iCloud Mail server settings</a
+              >
+            </li>
+            <li>
+              <a
+                href="https://learn.microsoft.com/en-us/answers/questions/4335972/windows-11-set-e-mail-program-for-mailto-links"
+                target="_blank"
+                >Microsoft Q&A — Win11 mailto handler</a
+              >
+            </li>
+          </ul>
+        </section>
+
+        <p class="meta" style="margin-top: 60px; text-align: center">
+          Pickup memory v8 · baseline <code>65b2c6b</code> · 13 commits · 5 ADRs · 205+ tests · Cap5
+          5/6 ·
+          <a href="https://github.com/fxeliott/ichor" target="_blank">github.com/fxeliott/ichor</a>
+        </p>
+      </main>
+    </div>
+    <script>
+      document.querySelectorAll(".copy-btn").forEach((btn) => {
+        btn.addEventListener("click", async (e) => {
+          e.preventDefault();
+          const text = btn.getAttribute("data-copy");
+          try {
+            await navigator.clipboard.writeText(text);
+            const original = btn.textContent;
+            btn.textContent = "✓ Copied";
+            btn.classList.add("copied");
+            setTimeout(() => {
+              btn.textContent = original;
+              btn.classList.remove("copied");
+            }, 1500);
+          } catch (err) {
+            btn.textContent = "Copy failed";
+          }
+        });
+      });
+    </script>
+  </body>
+</html>
