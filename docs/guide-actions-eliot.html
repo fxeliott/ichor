@@ -470,17 +470,44 @@
       <main>
         <h1>
           Guide actions Eliot
-          <span class="tag">W96 · 2026-05-10</span>
+          <span class="tag">W98 · 2026-05-10</span>
         </h1>
         <p class="meta">
-          Guide HTML pour finaliser les actions manuelles restantes — données vérifiées via SSH
-          Hetzner + sub-agent web research May 2026. Ouvre ce fichier dans ton navigateur
-          (double-clic ou drag-drop).
+          Guide HTML — données vérifiées SSH Hetzner + curl tests + dashboard CF.
+          <strong>W98 update</strong> : PRE-1 PROD-READY (Eliot a complété Tier 2-3, tunnel 403 sans
+          header / 200 avec headers valides) ; R2 audit live (629.6 MB / 6.3% du free 10 GB) ;
+          PowerShell ExecutionPolicy fix pour Tier 5 optionnel.
         </p>
 
+        <div class="callout ok">
+          <strong>🎉 PRE-1 = PROD-READY (W98)</strong>
+          Test 3-way confirmé : tunnel <code>claude-runner.fxmilyapp.com</code> retourne HTTP 403
+          sans header, HTTP 200 avec credentials valides, HTTP 403 avec wrong credentials, HTTP 200
+          end-to-end Hetzner. Le système est sécurisé au CF edge. Tier 5 (Win11 NSSM defense in
+          depth) reste optionnel — fix PowerShell ExecutionPolicy fourni dans §1 si tu veux.
+          <br /><br />
+          <strong>Cap5 STEP-6 e2e est désormais UNBLOCKED.</strong> Dis-moi "lance Cap5 STEP-6" et
+          je m'en charge.
+        </div>
+
         <section id="overview">
-          <h2>État Ichor — live data 2026-05-10</h2>
+          <h2>État Ichor — live data 2026-05-10 (W98)</h2>
           <div class="stats">
+            <div class="stat">
+              <div class="label">PRE-1 status</div>
+              <div class="value">PROD ✅</div>
+              <div class="sub">Tier 2-3 done, edge filtre actif</div>
+            </div>
+            <div class="stat">
+              <div class="label">R2 storage</div>
+              <div class="value">629.6 MB</div>
+              <div class="sub">6.3% du free 10 GB</div>
+            </div>
+            <div class="stat">
+              <div class="label">R2 Class A ops</div>
+              <div class="value">2 520</div>
+              <div class="sub">0.25% du free 1M / mois</div>
+            </div>
             <div class="stat">
               <div class="label">Alembic head</div>
               <div class="value">0038</div>
@@ -493,8 +520,8 @@
             </div>
             <div class="stat">
               <div class="label">Cap5 progress</div>
-              <div class="value">5/6</div>
-              <div class="sub">STEP-6 gated PRE-1</div>
+              <div class="value">5/6 → 6/6</div>
+              <div class="sub">STEP-6 unblocked!</div>
             </div>
             <div class="stat">
               <div class="label">Tests pass</div>
