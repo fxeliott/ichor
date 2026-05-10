@@ -16,9 +16,9 @@ Year-over-Year). Updated ~10:00 ET every business day.
 Where this complements the NY Fed MCT trend (ADR-069) :
 
 - **MCT** = Bayesian-trend, smooth, lags by ~1 month. Tells us where
-  *persistent* inflation is anchored.
-- **Cleveland nowcast** = point-in-time forecast for the *current and
-  next* CPI/PCE prints. Tells us what the imminent BLS/BEA release is
+  _persistent_ inflation is anchored.
+- **Cleveland nowcast** = point-in-time forecast for the _current and
+  next_ CPI/PCE prints. Tells us what the imminent BLS/BEA release is
   likely to print.
 - Together: gap between MCT trend and Cleveland nowcast prefigures
   trend revisions. Gap between Cleveland nowcast and consensus
@@ -105,7 +105,7 @@ the next is a leading indicator of an upside surprise).
   technique is encoded in the docstring of `cleveland_fed_nowcast.py`
   (re-inspect HTML `data-data-config` attributes).
 - **Snapshot history not preserved**: the collector keeps only the
-  *latest* snapshot from each JSON. If the Cleveland Fed retroactively
+  _latest_ snapshot from each JSON. If the Cleveland Fed retroactively
   edits earlier snapshots, we won't notice. Acceptable: nowcast
   revisions are append-only by design.
 

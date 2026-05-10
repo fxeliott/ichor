@@ -129,7 +129,7 @@ volume tomorrow" (quad) from "elevated gamma but not exceptional"
 ### B — Server-rendered SessionCard flag instead of catalog alert
 
 Considered : add `is_opex_week: bool` to SessionCardOut. Tabled as
-*addition not replacement* — the catalog alert path is the
+_addition not replacement_ — the catalog alert path is the
 universal trader-facing surface (audited, persisted, dashboardable).
 A future enhancement could ALSO surface the flag on SessionCard
 for a glance-without-alert UX.

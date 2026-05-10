@@ -38,11 +38,11 @@ neither clear nor distinguishable.
 This ADR codifies the **disclosure surface contract** as a set of
 three URLs that MUST stay reachable, public, and content-stable :
 
-| URL                                  | Purpose                                                      | Owner                                                           |
-| ------------------------------------ | ------------------------------------------------------------ | --------------------------------------------------------------- |
-| `/legal/ai-disclosure`               | Human-readable EU AI Act §50 + AMF + Anthropic AUP narrative | `apps/web2/app/legal/ai-disclosure/page.tsx`                    |
-| `/methodology`                       | Pipeline overview (4-pass + Couche-2 + data-pool + Critic)   | `apps/web2/app/methodology/page.tsx`                            |
-| `/.well-known/ai-content`            | Machine-readable watermark inventory (EU CoP draft Dec-2025) | `apps/api/src/ichor_api/routers/well_known.py`                  |
+| URL                       | Purpose                                                      | Owner                                          |
+| ------------------------- | ------------------------------------------------------------ | ---------------------------------------------- |
+| `/legal/ai-disclosure`    | Human-readable EU AI Act §50 + AMF + Anthropic AUP narrative | `apps/web2/app/legal/ai-disclosure/page.tsx`   |
+| `/methodology`            | Pipeline overview (4-pass + Couche-2 + data-pool + Critic)   | `apps/web2/app/methodology/page.tsx`           |
+| `/.well-known/ai-content` | Machine-readable watermark inventory (EU CoP draft Dec-2025) | `apps/api/src/ichor_api/routers/well_known.py` |
 
 ### `/legal/ai-disclosure` (web2)
 
@@ -119,14 +119,15 @@ enforced by code review until a CI lint rule lands (W90 candidate).
 
 ## Why three surfaces and not one
 
-| Audience            | Surface                          | Format        |
-| ------------------- | -------------------------------- | ------------- |
+| Audience                           | Surface                                 | Format                           |
+| ---------------------------------- | --------------------------------------- | -------------------------------- |
 | Human (Eliot, regulator, auditor)  | `/legal/ai-disclosure` + `/methodology` | HTML, French native, WCAG 2.2 AA |
-| Audit tools, crawlers, API clients | `/.well-known/ai-content`             | JSON, schema-versioned, English  |
-| API runtime consumers              | `X-Ichor-AI-*` response headers       | HTTP headers, RFC3339 timestamps |
+| Audit tools, crawlers, API clients | `/.well-known/ai-content`               | JSON, schema-versioned, English  |
+| API runtime consumers              | `X-Ichor-AI-*` response headers         | HTTP headers, RFC3339 timestamps |
 
 Each surface answers a different question :
-- Header watermark → "is *this specific response* AI-generated ?"
+
+- Header watermark → "is _this specific response_ AI-generated ?"
 - Well-known endpoint → "what URL families on this host are AI-generated ?"
 - HTML pages → "what's the human-readable explanation of the above ?"
 

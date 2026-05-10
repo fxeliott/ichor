@@ -221,17 +221,14 @@ export default async function SessionAssetPage({ params }: PageProps) {
             invalidation={
               liveInvalidation ?? {
                 level: 0,
-                condition:
-                  "Pending live invalidation (populated by 4-pass orchestrator).",
+                condition: "Pending live invalidation (populated by 4-pass orchestrator).",
               }
             }
             crossAsset={CROSS_FALLBACK}
             ideas={
               liveIdeas ?? {
                 top: "Pending live trade idea",
-                supporting: [
-                  "Drivers will populate once Claude produces structured output",
-                ],
+                supporting: ["Drivers will populate once Claude produces structured output"],
                 risks: ["Pending live risks"],
               }
             }
@@ -260,8 +257,7 @@ export default async function SessionAssetPage({ params }: PageProps) {
                     entryLow: 0,
                     entryHigh: 0,
                     invalidationLevel: 0,
-                    invalidationCondition:
-                      "Pending live trade plan from 4-pass orchestrator",
+                    invalidationCondition: "Pending live trade plan from 4-pass orchestrator",
                     tpRR3: 0,
                     tpRR15: 0,
                     partialScheme:

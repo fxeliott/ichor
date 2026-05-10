@@ -10,6 +10,7 @@
 The MOVE Index (Merrill Lynch Option Volatility Estimate) is the standard
 benchmark for **Treasury bond implied volatility** — equivalent of VIX for
 the rates market. ICE BofA publishes MOVE daily, but **MOVE is NOT free** :
+
 - Bloomberg / ICE professional terminals (paid)
 - No FRED endpoint
 - No clean free API
@@ -55,6 +56,7 @@ see Treasury-vol context concurrent with cross-asset stress alignment.
 ### Source-stamping
 
 `extra_payload.source = "FRED:DGS10"` with methodology spec :
+
 - `realized_vol_30d_annualized_pct` (current value as % vol)
 - `baseline_mean`, `baseline_std`, `n_history`
 - `methodology = "log_returns_30d_stdev_x_sqrt(252)"`
@@ -62,6 +64,7 @@ see Treasury-vol context concurrent with cross-asset stress alignment.
 ## Consequences
 
 ### Pros
+
 - Closes Treasury-vol gap in MACRO_QUARTET (future quintet upgrade possible)
 - Voie D preserved : DGS10 already collected, zero new feed
 - Realized-vol ~ MOVE implied-vol correlation > 0.95 in academic studies
@@ -69,6 +72,7 @@ see Treasury-vol context concurrent with cross-asset stress alignment.
 - Cheap : 1 SQL query + Python math, sub-second
 
 ### Cons
+
 - Realized-vol LAGS implied-vol by 5-15 days during sudden regime shifts
   (MOVE prices 30d-forward vol, realized backward-looks)
 - DGS10 is daily close — intraday vol spikes (e.g. NFP surprise mid-session)
@@ -77,27 +81,34 @@ see Treasury-vol context concurrent with cross-asset stress alignment.
   cron + structural focus)
 
 ### Neutral
+
 - Annualization √252 assumes 252 trading days/year — standard convention,
   matches MOVE methodology
 
 ## Alternatives rejected
 
 ### A — Pay for MOVE feed
+
 Voie D violation (ADR-009).
 
 ### B — DGS10 raw level z-score (no realized vol)
+
 Misses vol dimension entirely. Level z-score = TERM_PREMIUM_REPRICING (already shipped).
 
 ### C — Compute on shorter window (10d realized vol)
+
 More noise, less stable z-score baseline.
 
 ### D — Use VXTYN ETF as proxy
+
 VXTYN volume thin, not on FRED, requires paid market data.
 
 ### E — Bond futures TY1 implied vol
+
 Requires paid CME data API.
 
 ### F — Skip Treasury vol entirely
+
 Leaves quintet upgrade impossible, blind spot in macro stress detection.
 
 ## Implementation
@@ -107,6 +118,7 @@ Shipped in PR #46 (SHA `0ca6733`). Service `services/treasury_vol_check.py`
 Paris. Catalog assert 50 → 51 (post-milestone).
 
 ## Related
+
 - ADR-009 Voie D
 - ADR-017 boundary preserved
 - ADR-042 MACRO_QUARTET_STRESS (gap this fills)

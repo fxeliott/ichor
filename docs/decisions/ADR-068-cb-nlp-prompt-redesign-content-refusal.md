@@ -40,14 +40,14 @@ The prior `SYSTEM_PROMPT_CB_NLP` contained three signals that triggered
 Claude's safety classifier on the rhetoric → asset-impact link:
 
 1. **`Banned: hyperbole, generic advice, signal generation ("buy",
-   "sell")`** — explicitly enumerating "buy"/"sell" alongside an
+"sell")`** — explicitly enumerating "buy"/"sell" alongside an
    `asset_impacts` schema flagged the task as financial-signal-adjacent
    even though the schema's enum (`bullish | bearish | neutral`) made
    the ban redundant. Counter-productive priming.
 2. **`asset impact projections`** in the opening framing — reads as
    investment advice rather than research observation.
 3. **`rate_path_skew compares the CB's current rhetoric to OIS-implied
-   path over the next 6 months`** — asks the model to reason
+path over the next 6 months`** — asks the model to reason
    quantitatively about market-implied futures, looks like trading
    logic.
 
@@ -137,12 +137,12 @@ ADR-017 boundary inline as a model-visible reminder:
 
 ## Verification (live 2026-05-09)
 
-| Run timestamp | model | duration | n_stances | n_shifts | n_impacts | error |
-|---|---|---|---|---|---|---|
-| 2026-05-09 11:58:47 | claude:haiku | 88.9 s | 2 | 2 | 3 | none |
-| 2026-05-09 11:32:13 (pre-fix) | unknown | 43.2 s | — | — | — | content_refusal |
-| 2026-05-09 11:08:37 | claude:haiku | 116.2 s | 4 | 3 | 3 | none |
-| 2026-05-09 11:04:59 (pre-fix) | unknown | 113.4 s | — | — | — | runner_524 |
+| Run timestamp                 | model        | duration | n_stances | n_shifts | n_impacts | error           |
+| ----------------------------- | ------------ | -------- | --------- | -------- | --------- | --------------- |
+| 2026-05-09 11:58:47           | claude:haiku | 88.9 s   | 2         | 2        | 3         | none            |
+| 2026-05-09 11:32:13 (pre-fix) | unknown      | 43.2 s   | —         | —        | —         | content_refusal |
+| 2026-05-09 11:08:37           | claude:haiku | 116.2 s  | 4         | 3        | 3         | none            |
+| 2026-05-09 11:04:59 (pre-fix) | unknown      | 113.4 s  | —         | —        | —         | runner_524      |
 
 Post-fix run is structurally identical to a pre-fix successful run —
 the redesign does not change the schema or the analytical output, it

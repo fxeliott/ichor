@@ -94,8 +94,8 @@ gates execution behind two infrastructure pre-requisites:
 2. **PRE-2 Migration NNNN_tool_call_audit** — table with the same
    immutable trigger pattern as migration `0028` (audit_log).
    Schema: `id UUID PK, ran_at timestamptz, agent_kind, pass_index,
-   tool_name, tool_input JSONB, tool_output JSONB, duration_ms,
-   error TEXT, session_card_id FK`. ADR-029 MiFID compliance.
+tool_name, tool_input JSONB, tool_output JSONB, duration_ms,
+error TEXT, session_card_id FK`. ADR-029 MiFID compliance.
 
 ### Wiring sequence (after PRE-1 + PRE-2)
 
@@ -122,7 +122,7 @@ gates execution behind two infrastructure pre-requisites:
    forwarding.
 7. **STEP-5** — agentic loop in `orchestrator.py` Pass 1..4 wraps
    each `runner.run(call)` in a `while resp.stop_reason ==
-   "tool_use"` loop. Use `tools_for_pass(n)` to scope per pass.
+"tool_use"` loop. Use `tools_for_pass(n)` to scope per pass.
    On every iteration, post-filter the assistant content for ADR-017
    trade-recommendation patterns and reset to `neutral` if a literal
    "buy"/"sell" surfaces in the augmented narrative.

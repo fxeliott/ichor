@@ -66,6 +66,7 @@ Implement **async + polling pattern** :
 ### Memory store
 
 `_async_tasks: dict[str, dict]` — in-memory only.
+
 - TTL : 30 min (results purged after that)
 - MAX : 100 tasks (oldest evicted on overflow)
 - Restart loses pending tasks (acceptable : polling client times out at
@@ -87,6 +88,7 @@ next session).
 
 Per-pass chunking would split the 4-pass orchestrator into 4 separate
 HTTP calls (one per pass). Pros : each call independently <100s. Cons :
+
 - Requires significant refactoring of orchestrator to be HTTP-aware
 - 4× the network overhead
 - 4× the auth verification (CF Access roundtrips)
@@ -105,6 +107,7 @@ stdout incrementally, both fragile. Async polling is more robust.
 ## Consequences
 
 ### Pros
+
 - Briefings of any duration (60s to 600s) succeed reliably
 - Concurrency / rate-limit guards preserved
 - Back-compat preserved (legacy endpoint + use_async_endpoint=False)
@@ -114,6 +117,7 @@ stdout incrementally, both fragile. Async polling is more robust.
   503 if concurrency busy, error status if subprocess crashes
 
 ### Cons
+
 - Polling adds ~5s latency on average (acceptable : briefings run hours
   ahead of session, not real-time)
 - In-memory store loses tasks on Win11 restart (mitigation : 30min TTL +
@@ -121,6 +125,7 @@ stdout incrementally, both fragile. Async polling is more robust.
 - Two new endpoints to monitor (added to `/v1/usage` for visibility)
 
 ### Neutral
+
 - The async pattern adds ~50 LOC to claude-runner. Maintenance overhead
   small.
 
@@ -137,6 +142,7 @@ stdout incrementally, both fragile. Async polling is more robust.
 ## Implementation
 
 Shipped in PR #58 (Wave 20 follow-up). Files :
+
 - `apps/claude-runner/src/ichor_claude_runner/main.py` (NEW endpoints +
   `_async_tasks` store + `AsyncTaskAccepted` / `AsyncTaskStatus` models +
   `_run_briefing_background` worker + `_async_task_gc` cleanup)
@@ -147,6 +153,7 @@ Shipped in PR #58 (Wave 20 follow-up). Files :
 - `docs/decisions/ADR-053-claude-runner-async-polling-refactor.md` (this)
 
 **Deploy required** :
+
 - Win11 : restart claude-runner standalone (kill PID, re-run
   `start-claude-runner-standalone.bat`)
 - Hetzner : pull updated `runner_client.py` + redeploy `ichor-api.service`

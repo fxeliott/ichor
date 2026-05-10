@@ -9,7 +9,7 @@
 
 Geopolitical risk repricing is a recurring driver of intraday moves
 in havens (gold, JPY, CHF, USD), oil, and risk currencies. Caldara &
-Iacoviello (2022, *American Economic Review* 112(4)) introduced the
+Iacoviello (2022, _American Economic Review_ 112(4)) introduced the
 **Geopolitical Risk Index (GPR)** — a monthly text-search-based
 measure built from 10 newspapers since 1985. In March 2026, the
 San Francisco Federal Reserve published an upgraded version :
@@ -57,11 +57,11 @@ biased by the very value we're testing.
 - `_fetch_recent_observations(session, *, days=44)` — pulls 30 + 14d
   buffer from `gpr_observations`, oldest-first.
 - `_zscore(history, current)` — defensive : returns `(None, None,
-  None)` below `_MIN_ZSCORE_HISTORY = 20` ; returns `(None, mean,
-  std)` if std == 0 (degenerate).
+None)` below `_MIN_ZSCORE_HISTORY = 20` ; returns `(None, mean,
+std)` if std == 0 (degenerate).
 - `evaluate_geopol_flash(session, *, persist=True)` — fetches,
   computes, fires `check_metric("ai_gpr_z", z, asset=None,
-  extra_payload={...})` when threshold crossed AND persist=True.
+extra_payload={...})` when threshold crossed AND persist=True.
 
 ### Cron schedule
 
@@ -101,7 +101,7 @@ common enough to be informative.
 
 - **Trader-actionable** : geopolitical regime shifts are otherwise
   buried in news flow. A 2σ AI-GPR spike is an objective signal that
-  *something* is happening at scale across 5M articles, not a
+  _something_ is happening at scale across 5M articles, not a
   narrative claim.
 - **Minimal surface** : reuses the existing `gpr_observations` table
   (no new migrations) and the existing collector cron (no new feed).
@@ -204,7 +204,7 @@ Already shipped in the same commit as this ADR :
 - ADR-034 — REAL_YIELD_GOLD_DIVERGENCE (sister Phase D.5 alert).
 - ADR-035 — QUAD_WITCHING + OPEX_GAMMA_PEAK (calendar sister).
 - Caldara, Dario and Matteo Iacoviello (2022). "Measuring
-  Geopolitical Risk." *American Economic Review* 112(4): 1194–1225.
+  Geopolitical Risk." _American Economic Review_ 112(4): 1194–1225.
 - Iacoviello, Matteo and Jonathan Tong (2026). "The AI-GPR Index:
   Measuring Geopolitical Risk using Artificial Intelligence."
   Federal Reserve Board IFDP / SF Fed publication.

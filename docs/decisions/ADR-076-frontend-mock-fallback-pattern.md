@@ -9,14 +9,14 @@
 ## Context
 
 The W78 wave was scoped as "Frontend MOCK retire batch — 12 pages
-hardcoded MOCK_*". The `CLAUDE.md` "Things subtly broken or deferred"
+hardcoded MOCK*\*". The `CLAUDE.md` "Things subtly broken or deferred"
 section listed it as a tech-debt item, and the project memory had it
-flagged as "12 pages still hardcoded MOCK_".
+flagged as "12 pages still hardcoded MOCK*".
 
 W78 audit (2026-05-09, dedicated subagent run on the 12 listed pages)
 revealed the framing was wrong:
 
-- **None of the 12 pages are hardcoded MOCK_***. All 12 use a
+- **None of the 12 pages are hardcoded MOCK\_\***. All 12 use a
   `apiGet(...) → isLive(data) ? adapt(data) : MOCK_FALLBACK`
   pattern, where `MOCK_FALLBACK` is a graceful offline state shown
   only when the API returns no data, an error, or a non-ready flag.
@@ -37,16 +37,16 @@ fallback (every page renders an "offline · stale" badge when
 
 The audit produced an effort-tier breakdown:
 
-| Tier | Pages | What "retire" means |
-|---|---|---|
-| TRIVIAL ×10 | briefings, post-mortems, alerts, news, narratives, calibration, assets, today, correlations, macro-pulse | Replace `MOCK_*` with empty-state component + retry button. No backend change. |
-| EASY ×1 | replay | Same as TRIVIAL + extend `SessionCardOut` with `thesis` field (currently derived via `deriveExcerpt`). |
-| MEDIUM ×1 | polymarket | TRIVIAL for `MOCK_MARKETS` + `MOCK_DIVERGENCES`; HARD for `WHALES` (needs new Polymarket trade-tape collector). |
+| Tier        | Pages                                                                                                    | What "retire" means                                                                                             |
+| ----------- | -------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| TRIVIAL ×10 | briefings, post-mortems, alerts, news, narratives, calibration, assets, today, correlations, macro-pulse | Replace `MOCK_*` with empty-state component + retry button. No backend change.                                  |
+| EASY ×1     | replay                                                                                                   | Same as TRIVIAL + extend `SessionCardOut` with `thesis` field (currently derived via `deriveExcerpt`).          |
+| MEDIUM ×1   | polymarket                                                                                               | TRIVIAL for `MOCK_MARKETS` + `MOCK_DIVERGENCES`; HARD for `WHALES` (needs new Polymarket trade-tape collector). |
 
 ## Decision
 
 **Keep the graceful-fallback pattern**. Reframe the tech-debt item
-from "12 pages hardcoded MOCK_*" (incorrect framing) to "12 pages
+from "12 pages hardcoded MOCK\_\*" (incorrect framing) to "12 pages
 have demo-data fallbacks; choose UX strategy when API is slow/empty".
 
 The pattern is **defensible** under three angles:
@@ -59,7 +59,7 @@ The pattern is **defensible** under three angles:
 3. **Demo path**: investor demos / screenshots remain coherent
    without depending on a hot live API.
 
-The previous CLAUDE.md framing ("12 pages hardcoded MOCK_") was
+The previous CLAUDE.md framing ("12 pages hardcoded MOCK\_") was
 inherited from an earlier audit that didn't catch the `isLive()`
 guard. This ADR corrects the record.
 
@@ -73,7 +73,9 @@ must carry a comment of the form:
 // MOCK_FALLBACK — graceful offline state per ADR-076.
 // API endpoint: /v1/<route>. Adapter: adapt<X>().
 // Replaced by empty-state component when ADR-076 is superseded.
-const MOCK_BRIEFINGS: BriefingItem[] = [ /* ... */ ];
+const MOCK_BRIEFINGS: BriefingItem[] = [
+  /* ... */
+];
 ```
 
 Annotation work is **out of scope for this ADR** — it's a small
@@ -82,6 +84,7 @@ cleanup that any subsequent frontend pass should apply en passant.
 ### When to revisit
 
 ADR-076 should be re-litigated if:
+
 - The empty-state UX with retry button is implemented as a reusable
   component and proven equivalent or better than the current fallback.
 - Investor / partner stakeholders explicitly object to the fallback
@@ -94,13 +97,13 @@ ADR-076 should be re-litigated if:
 ### Positive
 
 - **CLAUDE.md tech-debt list shrinks by one item** — the "12 pages
-  MOCK_" line is corrected.
+  MOCK\_" line is corrected.
 - **No frontend code change required**. The 12 pages are already
   doing the right thing.
 - **Future frontend wave isn't blocked** by a misframed tech-debt
   item. The actual remaining work is one EASY (replay thesis field)
-  + one HARD (Polymarket trade-tape collector for WHALES). Both are
-  isolated and can be picked up independently.
+  - one HARD (Polymarket trade-tape collector for WHALES). Both are
+    isolated and can be picked up independently.
 
 ### Negative
 

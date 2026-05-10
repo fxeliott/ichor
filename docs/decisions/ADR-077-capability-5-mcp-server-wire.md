@@ -63,14 +63,14 @@ will see them as `mcp__ichor__query_db` and `mcp__ichor__calc`.
 
 ## Why HTTP wrapper rather than direct DB
 
-| Concern                     | Direct DB (Option A)                       | HTTP wrapper (Option B, chosen) |
-| --------------------------- | ------------------------------------------ | ------------------------------- |
-| DB credentials on Win11     | Required (`asyncpg` URL with password)     | **Never present**               |
-| Tailscale / SSH tunnel      | Required (Tailscale not setup, autossh fragile) | Not needed                  |
-| `tool_call_audit` atomicity | OK (same session as query)                  | OK (dedicated session, audit-first invariant) |
-| CF Access service-token edge gate | Bypassed — direct DB                  | Layered on top of `/v1/tools/*` (defense in depth) |
-| Scope of new code           | DB stack on Win11 + audit insert path       | One new router on Hetzner, one MCP server stub on Win11 |
-| ADR-029 MiFID compliance    | Already satisfied via 0038 trigger          | Same, plus separate audit session                  |
+| Concern                           | Direct DB (Option A)                            | HTTP wrapper (Option B, chosen)                         |
+| --------------------------------- | ----------------------------------------------- | ------------------------------------------------------- |
+| DB credentials on Win11           | Required (`asyncpg` URL with password)          | **Never present**                                       |
+| Tailscale / SSH tunnel            | Required (Tailscale not setup, autossh fragile) | Not needed                                              |
+| `tool_call_audit` atomicity       | OK (same session as query)                      | OK (dedicated session, audit-first invariant)           |
+| CF Access service-token edge gate | Bypassed — direct DB                            | Layered on top of `/v1/tools/*` (defense in depth)      |
+| Scope of new code                 | DB stack on Win11 + audit insert path           | One new router on Hetzner, one MCP server stub on Win11 |
+| ADR-029 MiFID compliance          | Already satisfied via 0038 trigger              | Same, plus separate audit session                       |
 
 The direct path adds risk (credentials on a developer-class machine,
 fragile transport) for no tangible upside. The HTTP wrapper hop is
@@ -100,10 +100,10 @@ Three layers, in order of activation :
 
 ## Tools registered
 
-| Tool name                    | Maps to                              | Behavior |
-| ---------------------------- | ------------------------------------ | -------- |
-| `mcp__ichor__query_db`       | `services.tool_query_db.execute_query` via apps/api `/v1/tools/query_db` | sqlglot AST whitelist, 6 tables, hard-cap 1000 rows. |
-| `mcp__ichor__calc`           | `services.tool_calc.calc` via apps/api `/v1/tools/calc` | 9 deterministic ops, pure stdlib, ADR-017 safe. |
+| Tool name              | Maps to                                                                  | Behavior                                             |
+| ---------------------- | ------------------------------------------------------------------------ | ---------------------------------------------------- |
+| `mcp__ichor__query_db` | `services.tool_query_db.execute_query` via apps/api `/v1/tools/query_db` | sqlglot AST whitelist, 6 tables, hard-cap 1000 rows. |
+| `mcp__ichor__calc`     | `services.tool_calc.calc` via apps/api `/v1/tools/calc`                  | 9 deterministic ops, pure stdlib, ADR-017 safe.      |
 
 Server tools (`web_search`, `web_fetch`) are **excluded** from this
 wave per ADR-071 — they're billed by Anthropic, violate Voie D
@@ -117,16 +117,16 @@ Couche-2.
 Every successful or failed invocation produces one
 `tool_call_audit` row :
 
-| Column            | Source                                                                           |
-| ----------------- | -------------------------------------------------------------------------------- |
-| `tool_name`       | `mcp__ichor__query_db` or `mcp__ichor__calc` (constants in `routers/tools.py`)    |
-| `tool_input`      | Sanitised request body (no row payload — `values_len` only for calc)            |
+| Column            | Source                                                                                                       |
+| ----------------- | ------------------------------------------------------------------------------------------------------------ |
+| `tool_name`       | `mcp__ichor__query_db` or `mcp__ichor__calc` (constants in `routers/tools.py`)                               |
+| `tool_input`      | Sanitised request body (no row payload — `values_len` only for calc)                                         |
 | `tool_output`     | `{row_count, tables_referenced, truncated}` (query_db) or `{result_kind, result_len}` (calc). NULL on error. |
-| `error`           | `f"{type(e).__name__}: {e}"` from the underlying service.                         |
-| `agent_kind`      | Caller-supplied. Default `"manual"` for ad-hoc CLI runs.                          |
-| `pass_index`      | 1..5. Default 1.                                                                  |
-| `session_card_id` | UUID FK to session_card_audit when invoked inside a 4-pass run. NULL otherwise.  |
-| `duration_ms`     | Wall time the route handler spent on the underlying service call.                 |
+| `error`           | `f"{type(e).__name__}: {e}"` from the underlying service.                                                    |
+| `agent_kind`      | Caller-supplied. Default `"manual"` for ad-hoc CLI runs.                                                     |
+| `pass_index`      | 1..5. Default 1.                                                                                             |
+| `session_card_id` | UUID FK to session_card_audit when invoked inside a 4-pass run. NULL otherwise.                              |
+| `duration_ms`     | Wall time the route handler spent on the underlying service call.                                            |
 
 The insertion happens in a separate `async_sessionmaker()` session so
 the `execute_query` rollback path never voids the audit trail (which
@@ -156,7 +156,7 @@ ADR-029 requires).
   including `/v1/admin/status`; this is not a new "danger zone".
 - `apps/ichor-mcp` is a 4th Python package in `apps/` (alongside
   `api`, `claude-runner`, `web`, `web2`). CI matrices `.github/
-  workflows/{ci,audit}.yml` updated accordingly.
+workflows/{ci,audit}.yml` updated accordingly.
 
 **Pending**
 

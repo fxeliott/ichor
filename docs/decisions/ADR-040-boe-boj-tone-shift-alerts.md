@@ -89,7 +89,7 @@ hawkish/dovish lexicon is shared across G7 CBs (interest rate, hike,
 cut, dovish, hawkish, accommodative, restrictive, tightening, easing,
 pause, hold) — these terms are universal in CB rhetoric. FOMC-Roberta
 fine-tuned on FOMC will misclassify some BoE/BoJ-specific terminology
-("YCC", "shunto", "MPC dissent", "rate gilts") but the *direction* of
+("YCC", "shunto", "MPC dissent", "rate gilts") but the _direction_ of
 hawkish-vs-dovish remains correct.
 
 A v2 could fine-tune per-CB if Eliot observes systematic miss on a
@@ -123,8 +123,8 @@ Same as FOMC/ECB — `extra_payload` includes `net_hawkish`,
   The FOMC-Roberta model has 80%+ accuracy on FOMC corpus per
   gtfintechlab benchmarks but no published BoE/BoJ benchmark exists.
   Mitigation : the alert fires on z-score against a 90d trailing
-  baseline of the model's *own* output. As long as the model's bias
-  is *consistent* (systematically over- or under-hawkish), the relative
+  baseline of the model's _own_ output. As long as the model's bias
+  is _consistent_ (systematically over- or under-hawkish), the relative
   z-score remains informative even with absolute miscalibration.
 - **Speech volume sparseness** : BoJ publishes ~2 speeches/week,
   BoE ~3-4/week. The 24h lookback means many days have 0 speeches.
@@ -159,9 +159,10 @@ communication classification. FOMC-Roberta is the right floor.
 ### C — Use Llama-3-70B / GPT-4 for tone scoring
 
 Rejected for v1 : violates ADR-009 Voie D (no paid API in production)
-+ adds Couche-2 dependency to alert path. FOMC-Roberta is fully
-local + free. v2 could route via local llama.cpp if Eliot wants
-better accuracy.
+
+- adds Couche-2 dependency to alert path. FOMC-Roberta is fully
+  local + free. v2 could route via local llama.cpp if Eliot wants
+  better accuracy.
 
 ### D — Hardcode BoE / BoJ MPC vote splits as features
 

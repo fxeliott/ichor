@@ -60,7 +60,7 @@ Drives:
   for these too ; can be added to `CB_MODEL_REGISTRY` in v2 if Eliot
   trades those rate paths.
 - Numeric reasoning (rate-projection deltas) — same as legacy model,
-  the classifier captures *direction* not magnitude.
+  the classifier captures _direction_ not magnitude.
 
 ## Inputs / Outputs
 

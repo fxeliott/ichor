@@ -68,8 +68,8 @@ export default function AIDisclosurePage() {
           </h3>
           <p className="mb-2 text-sm leading-relaxed text-[var(--color-text-secondary)]">
             <strong>§50.1</strong> — Les fournisseurs garantissent que les systèmes d&apos;IA
-            destinés à interagir directement avec des personnes physiques sont conçus de telle
-            sorte que ces personnes soient informées qu&apos;elles interagissent avec un système
+            destinés à interagir directement avec des personnes physiques sont conçus de telle sorte
+            que ces personnes soient informées qu&apos;elles interagissent avec un système
             d&apos;IA.
           </p>
           <p className="mb-2 text-sm leading-relaxed text-[var(--color-text-secondary)]">
@@ -198,8 +198,7 @@ export default function AIDisclosurePage() {
           </div>
         </dl>
         <p className="mt-3 text-sm leading-relaxed text-[var(--color-text-secondary)]">
-          Routes watermarkées :{" "}
-          <code className="font-mono text-[12px]">/v1/briefings</code>,{" "}
+          Routes watermarkées : <code className="font-mono text-[12px]">/v1/briefings</code>,{" "}
           <code className="font-mono text-[12px]">/v1/sessions</code>,{" "}
           <code className="font-mono text-[12px]">/v1/post-mortems</code>,{" "}
           <code className="font-mono text-[12px]">/v1/today</code>,{" "}
@@ -229,9 +228,7 @@ export default function AIDisclosurePage() {
             docstrings de contrôle.
           </li>
           <li>Plafond de conviction 95 % — &laquo; 100 % conviction n&apos;existe pas &raquo;.</li>
-          <li>
-            Pas de TP / SL / dimensionnement de position / coaching / auto-trading.
-          </li>
+          <li>Pas de TP / SL / dimensionnement de position / coaching / auto-trading.</li>
           <li>
             Pas de gestion de portefeuille — Eliot exécute sur TradingView avec son propre risk
             management.
@@ -248,8 +245,8 @@ export default function AIDisclosurePage() {
             >
               /journal
             </Link>
-            ) est hors périmètre analytique. Ses entrées ne sont jamais lues par les passes 1 à 5
-            ni par les agents Couche-2 (ADR-078).
+            ) est hors périmètre analytique. Ses entrées ne sont jamais lues par les passes 1 à 5 ni
+            par les agents Couche-2 (ADR-078).
           </li>
         </ul>
       </section>

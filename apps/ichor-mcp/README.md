@@ -40,10 +40,10 @@ claude -p `
 
 ## Tools
 
-| Tool                       | Operation                                                                                                                       | Input                                                          |
-| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
-| `mcp__ichor__query_db`     | Read-only SQL across 6 allowlist tables (sqlglot AST whitelist, hard-cap 1000 rows)                                              | `sql`, `max_rows?`, `agent_kind`, `pass_index`, `session_card_id?` |
-| `mcp__ichor__calc`         | 9 deterministic ops: zscore, rolling_mean/std, pct_change, log_returns, correlation, percentile, ewma, annualize_vol             | `operation`, `values`, `params`, audit fields                   |
+| Tool                   | Operation                                                                                                            | Input                                                              |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| `mcp__ichor__query_db` | Read-only SQL across 6 allowlist tables (sqlglot AST whitelist, hard-cap 1000 rows)                                  | `sql`, `max_rows?`, `agent_kind`, `pass_index`, `session_card_id?` |
+| `mcp__ichor__calc`     | 9 deterministic ops: zscore, rolling_mean/std, pct_change, log_returns, correlation, percentile, ewma, annualize_vol | `operation`, `values`, `params`, audit fields                      |
 
 ## Tests
 
@@ -56,14 +56,14 @@ Hetzner connection required.
 
 ## Env vars
 
-| Var                                | Effect                                                            |
-| ---------------------------------- | ----------------------------------------------------------------- |
-| `ICHOR_MCP_API_BASE_URL`           | apps/api root, default `https://api.fxmilyapp.com`                |
-| `ICHOR_MCP_API_SERVICE_TOKEN`      | Sent as `X-Ichor-Tool-Token`. Must match Hetzner side.            |
-| `ICHOR_MCP_CF_ACCESS_CLIENT_ID`    | Cloudflare Access service-token id (PRE-1, optional today).       |
-| `ICHOR_MCP_CF_ACCESS_CLIENT_SECRET` | Pair with the id above.                                          |
-| `ICHOR_MCP_REQUEST_TIMEOUT_SEC`    | Hard timeout per round-trip (default 30 s).                       |
-| `ICHOR_MCP_LOG_LEVEL`              | DEBUG/INFO/WARNING/ERROR (logs go to stderr to keep stdio clean). |
+| Var                                 | Effect                                                            |
+| ----------------------------------- | ----------------------------------------------------------------- |
+| `ICHOR_MCP_API_BASE_URL`            | apps/api root, default `https://api.fxmilyapp.com`                |
+| `ICHOR_MCP_API_SERVICE_TOKEN`       | Sent as `X-Ichor-Tool-Token`. Must match Hetzner side.            |
+| `ICHOR_MCP_CF_ACCESS_CLIENT_ID`     | Cloudflare Access service-token id (PRE-1, optional today).       |
+| `ICHOR_MCP_CF_ACCESS_CLIENT_SECRET` | Pair with the id above.                                           |
+| `ICHOR_MCP_REQUEST_TIMEOUT_SEC`     | Hard timeout per round-trip (default 30 s).                       |
+| `ICHOR_MCP_LOG_LEVEL`               | DEBUG/INFO/WARNING/ERROR (logs go to stderr to keep stdio clean). |
 
 Logs are emitted to **stderr** so the MCP stdio JSON-RPC stream on
 stdout stays parseable.

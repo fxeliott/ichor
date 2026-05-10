@@ -10,7 +10,7 @@
 The 2026 tariff regime is the most volatile in 50 years of US trade
 policy :
 
-- **2026-02-20** — SCOTUS in *Learning Resources, Inc. v. Trump*
+- **2026-02-20** — SCOTUS in _Learning Resources, Inc. v. Trump_
   (6–3) ruled that IEEPA does NOT authorize tariffs, invalidating
   the 2025 "Liberation Day" reciprocal tariffs and ~$166B of
   collected duties.
@@ -66,7 +66,7 @@ pattern from GDELT sentiment-burst research (knowledge4policy.ec.
 europa.eu Socioeconomic Tracker ; Empirical Use of GDELT Big Data,
 GLOBE-project 2024). Count alone catches benign newswire repetition
 (syndication boilerplate inflates raw counts). Tone alone fluctuates
-on style. Together they identify *agitated* tariff coverage at scale.
+on style. Together they identify _agitated_ tariff coverage at scale.
 
 ### Implementation : pure SQL filter + Python aggregation
 
@@ -74,7 +74,7 @@ on style. Together they identify *agitated* tariff coverage at scale.
 
 - `TARIFF_KEYWORDS` — 16 substrings covering 2026 macro terms
   (`tariff`, `trade war`, `section 301`, `section 232`, `section
-  122`, `ustr`, `protectionism`, `reciprocal tariff`, `ieepa`,
+122`, `ustr`, `protectionism`, `reciprocal tariff`, `ieepa`,
   `art program`, `liberation day`, `import dut`, etc.).
 - `_fetch_tariff_articles(session, *, days=37)` — SQL query with
   `OR(GdeltEvent.title.ilike(f"%{kw}%") for kw in KEYWORDS)`. Filter
@@ -84,8 +84,8 @@ on style. Together they identify *agitated* tariff coverage at scale.
   return (today_count, history_counts, today_n, today_tones,
   today_titles_sample). Title sample capped at 5 for audit drill-back.
 - `_zscore(history, current)` — defensive : returns `(None, None,
-  None)` below `_MIN_ZSCORE_HISTORY = 14` ; returns `(None, mean,
-  std)` if std == 0 (empty history).
+None)` below `_MIN_ZSCORE_HISTORY = 14` ; returns `(None, mean,
+std)` if std == 0 (empty history).
 - `evaluate_tariff_shock(session, *, persist, today)` — orchestrate,
   fire `check_metric` only when both gates cross.
 
@@ -136,7 +136,7 @@ weekend baseline.
   for a Bloomberg news ticker integration.
 - **Macro-broad signal** : `asset = None` because tariff news affects
   multiple cross-rates simultaneously. Trader inspects the narrative
-  + their TradingView chart of choice.
+  - their TradingView chart of choice.
 - **Reuses existing GDELT collector + table** — zero new sources, no
   migration. Just SQL filter + aggregation.
 - **Combined gate eliminates false positives** : count anomaly +
@@ -162,7 +162,7 @@ weekend baseline.
   hearings April-October), the rolling baseline catches up and the
   z-score shrinks. Mitigation acceptable : when narrative is steady-
   high, the absolute USD/CNH move has already happened and the alert
-  is post-hoc anyway. The alert's job is to catch *delta* not level.
+  is post-hoc anyway. The alert's job is to catch _delta_ not level.
 - **Tone is GDELT VADER, not FinBERT-FOMC**. Could be migrated to
   FinBERT-tone or news-tone Couche-2 agent in a v2. Today's tone is
   the GDELT-native field already in `gdelt_events.tone` — zero
@@ -188,13 +188,13 @@ escalation — false positive that would erode trust.
 
 Rejected : tone alone is a noisy signal because GDELT VADER scores
 fluctuate on style across outlets. A single grumpy editorial would
-trip the alert. AND requires *both* the volume and the agitation —
+trip the alert. AND requires _both_ the volume and the agitation —
 much higher precision.
 
 ### C — Add a "tariff" bucket to the GDELT collector DEFAULT_QUERIES
 
 Tabled (not rejected) for v2. v1 keeps the SQL-side filter so the
-alert can run *immediately* against the existing 30d backlog of
+alert can run _immediately_ against the existing 30d backlog of
 articles. Adding a bucket would require a redeploy of the collector
 and 30+ days of warm-up before z-scores are credible. The SQL filter
 catches articles in the 8 existing buckets (geopolitics, us_data,
@@ -209,6 +209,7 @@ proper v2 would compute FinBERT-tone on the same filtered subset and
 cross-check vs GDELT VADER. Out of scope for v1.
 
 ### E — Use GDELT GKG themes (ECON_TARIFF, TRADE_DISPUTE) instead of
+
 title keywords
 
 Rejected for v1 : we don't currently persist the GDELT GKG file
@@ -247,11 +248,11 @@ Already shipped in the same commit as this ADR :
 - ADR-036 — GEOPOL_FLASH (sister Phase D.5.b alert, AI-GPR daily
   z-score). Same combined-gate philosophy minus the tone term.
 - Caldara, Dario and Matteo Iacoviello (2022). "Measuring
-  Geopolitical Risk." *American Economic Review* 112(4): 1194–1225.
+  Geopolitical Risk." _American Economic Review_ 112(4): 1194–1225.
 - Knowledge for Policy / EU JRC. "GDELT Socioeconomic Tracker."
   Methodology for tone-burst sentiment monitoring.
 - USTR. "2026 Trade Policy Agenda" (March 2026 annual report).
-- *Learning Resources, Inc. v. Trump*, U.S. Supreme Court, 2026-02-20.
+- _Learning Resources, Inc. v. Trump_, U.S. Supreme Court, 2026-02-20.
 
 ## Followups
 

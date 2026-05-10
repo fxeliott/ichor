@@ -28,8 +28,8 @@ export default function MethodologyPage() {
           Comment Ichor produit une carte de session
         </h1>
         <p className="mt-3 text-sm text-[var(--color-text-secondary)]">
-          Pipeline complet de la donnée brute jusqu&apos;à la carte calibrée — décrit pour qu&apos;un
-          lecteur puisse auditer chaque étape.
+          Pipeline complet de la donnée brute jusqu&apos;à la carte calibrée — décrit pour
+          qu&apos;un lecteur puisse auditer chaque étape.
         </p>
       </header>
 
@@ -42,30 +42,30 @@ export default function MethodologyPage() {
         </h2>
         <ol className="space-y-4 text-sm leading-relaxed">
           <li>
-            <strong className="text-[var(--color-text-primary)]">Pass 1 — Régime global</strong>
-            . Lit la macro trinity (DXY + 10Y + VIX) plus dollar smile inputs et classifie le
-            marché dans l&apos;un des 4 quadrants : haven_bid, funding_stress, goldilocks,
-            usd_complacency. Confiance 0-100 %.
+            <strong className="text-[var(--color-text-primary)]">Pass 1 — Régime global</strong>.
+            Lit la macro trinity (DXY + 10Y + VIX) plus dollar smile inputs et classifie le marché
+            dans l&apos;un des 4 quadrants : haven_bid, funding_stress, goldilocks, usd_complacency.
+            Confiance 0-100 %.
           </li>
           <li>
             <strong className="text-[var(--color-text-primary)]">
               Pass 2 — Spécialisation actif
             </strong>
             . Applique le framework spécifique de l&apos;actif (e.g. EUR/USD = différentiel 10Y +
-            attentes ECB-Fed) sur le régime. Sortie : sens de biais (long/short/neutre),
-            conviction 0-95 %, magnitude pips, fenêtre de timing.
+            attentes ECB-Fed) sur le régime. Sortie : sens de biais (long/short/neutre), conviction
+            0-95 %, magnitude pips, fenêtre de timing.
           </li>
           <li>
-            <strong className="text-[var(--color-text-primary)]">Pass 3 — Stress-test</strong>
-            . Argumente l&apos;OPPOSÉ du biais Pass-2 et note les contre-claims. Force la
-            calibration honnête. Sortie : conviction révisée (peut baisser).
+            <strong className="text-[var(--color-text-primary)]">Pass 3 — Stress-test</strong>.
+            Argumente l&apos;OPPOSÉ du biais Pass-2 et note les contre-claims. Force la calibration
+            honnête. Sortie : conviction révisée (peut baisser).
           </li>
           <li>
             <strong className="text-[var(--color-text-primary)]">
               Pass 4 — Conditions d&apos;invalidation
             </strong>
-            . Engage une pré-commitment Tetlock-style : « cette thèse est fausse si X » avec
-            seuils chiffrés et sources. Au moins 1 condition obligatoire.
+            . Engage une pré-commitment Tetlock-style : « cette thèse est fausse si X » avec seuils
+            chiffrés et sources. Au moins 1 condition obligatoire.
           </li>
           <li>
             <strong className="text-[var(--color-text-primary)]">
@@ -76,8 +76,8 @@ export default function MethodologyPage() {
           </li>
           <li>
             <strong className="text-[var(--color-text-primary)]">Critic Agent</strong>. Gate
-            règle-basée qui scanne le narratif assemblé contre la data-pool source. Verdict
-            approved / amendments / blocked. Les cards blocked sont écrites dans{" "}
+            règle-basée qui scanne le narratif assemblé contre la data-pool source. Verdict approved
+            / amendments / blocked. Les cards blocked sont écrites dans{" "}
             <code className="font-mono text-[12px]">session_card_audit</code> pour observabilité
             mais ne sont jamais publiées externe.
           </li>
@@ -97,12 +97,10 @@ export default function MethodologyPage() {
         </p>
         <ul className="ml-6 list-disc space-y-1 text-sm leading-relaxed text-[var(--color-text-secondary)]">
           <li>
-            <strong>cb_nlp</strong> — speeches Fed/ECB/BoE/BoJ/SNB/PBoC/RBA/BOC, scoring de
-            stance.
+            <strong>cb_nlp</strong> — speeches Fed/ECB/BoE/BoJ/SNB/PBoC/RBA/BOC, scoring de stance.
           </li>
           <li>
-            <strong>news_nlp</strong> — narratives + extraction d&apos;entités sur GDELT + flux
-            RSS.
+            <strong>news_nlp</strong> — narratives + extraction d&apos;entités sur GDELT + flux RSS.
           </li>
           <li>
             <strong>sentiment</strong> — AAII + Reddit + Google Trends.

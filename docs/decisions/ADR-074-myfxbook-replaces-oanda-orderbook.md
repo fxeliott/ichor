@@ -62,6 +62,7 @@ calls = 12 calls vs 100 limit.
 
 `data_pool.py` adds `_section_myfxbook_outlook(session)` after the
 NFIB SBET section. Surfaces:
+
 - Latest snapshot per pair (long_pct + short_pct)
 - Contrarian flag `⚠ retail-long-extreme` when `long_pct ≥ 75` (and
   symmetric short).
@@ -82,9 +83,9 @@ and returns 0. Service exit-clean, no failed timer, no spam.
   exit 0, log line confirms graceful skip, timer next trigger 16:00
   CEST. No noise on the failed-services dashboard.
 - **Schema is forward-compatible**: persists volume + position-count
-  + avg-entry-price fields that MyFXBook returns but Ichor doesn't
-  surface yet. Future enhancements (e.g. compute "weighted average
-  pain price") can read columns that already exist.
+  - avg-entry-price fields that MyFXBook returns but Ichor doesn't
+    surface yet. Future enhancements (e.g. compute "weighted average
+    pain price") can read columns that already exist.
 - **Contrarian flag is conservative** (75 % threshold matches
   industry convention). Pass 2 mechanism citation grounded in
   observable retail extreme rather than speculation.

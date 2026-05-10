@@ -50,11 +50,11 @@ strict test.
 
 Operationally:
 
-| SKEW history       | 5th condition behaviour | Effective gate    |
-|--------------------|-------------------------|-------------------|
+| SKEW history       | 5th condition behaviour | Effective gate     |
+| ------------------ | ----------------------- | ------------------ |
 | <60 days (warm-up) | passes regardless       | 4-of-4 (= ADR-043) |
-| ≥60 days, z ≤ +1.0 | fails                   | 4-of-5 (no fire)  |
-| ≥60 days, z > +1.0 | passes                  | 5-of-5 (fires)    |
+| ≥60 days, z ≤ +1.0 | fails                   | 4-of-5 (no fire)   |
+| ≥60 days, z > +1.0 | passes                  | 5-of-5 (fires)     |
 
 Crossover date: ~2026-07-08 (60 trading days after collector launch).
 

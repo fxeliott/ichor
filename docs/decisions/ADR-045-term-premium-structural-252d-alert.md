@@ -66,26 +66,31 @@ window=90).
 ## Consequences
 
 ### Pros
+
 - Closes structural-blind-spot gap of TERM_PREMIUM_REPRICING (acute only)
 - Reuses existing FRED collector (zero new infrastructure)
 - Pattern-aligned with GEOPOL pair (proven)
 - info severity = no alert spam during multi-year expansion
 
 ### Cons
+
 - Duplication ~80 LOC vs sister service (deliberate per ADR-039)
 - Warmup 180d before z-scores are credible
 
 ## Alternatives rejected
+
 - **A: Multi-window list (30/90/252) on single service** — premature
   abstraction, unclear when to deduplicate fires.
 - **B: Skip structural** — leaves blind spot.
 - **C: Severity warning** — over-fires during multi-year regimes.
 
 ## Implementation
+
 Shipped in PR #42 (SHA `eec121c`). 10 tests, register-cron weekly Sun 22:15
 Paris. Catalog assert bumped 47 → 48.
 
 ## Related
+
 - ADR-017 boundary preserved
 - ADR-039 (sister GEOPOL pair pattern)
 - ADR-041 (acute companion TERM_PREMIUM_REPRICING)

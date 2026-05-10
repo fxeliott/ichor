@@ -17,12 +17,12 @@ ratio = VIXCLS / VXVCLS
 
 defines the **VIX term structure** :
 
-- **ratio < 1.0** : *contango* (longer-dated vol prices higher than
+- **ratio < 1.0** : _contango_ (longer-dated vol prices higher than
   near-term — normal calm regime, bull-market default)
-- **ratio ≈ 1.0** : *neutral* (transition zone, typically 0.95-1.00)
-- **ratio > 1.0** : *backwardation* (near-term vol exceeds longer-dated
-  — fear is *imminent*, not 3 months out)
-- **ratio > 1.05** : *vol-shock* (steep inversion, panic/capitulation)
+- **ratio ≈ 1.0** : _neutral_ (transition zone, typically 0.95-1.00)
+- **ratio > 1.0** : _backwardation_ (near-term vol exceeds longer-dated
+  — fear is _imminent_, not 3 months out)
+- **ratio > 1.05** : _vol-shock_ (steep inversion, panic/capitulation)
 
 VIX backwardation is **rare** and historically tracks major stress
 episodes :
@@ -51,10 +51,10 @@ trader should :
 - Watch for all-clear when ratio drops back below 1.0 (durable
   bottom marker)
 
-The classic VIX_SPIKE alert (already in catalog) fires on absolute
-VIX level > 25. But VIX 25 with VIX-3M 30 is *not* the same regime
+The classic VIX*SPIKE alert (already in catalog) fires on absolute
+VIX level > 25. But VIX 25 with VIX-3M 30 is \_not* the same regime
 as VIX 25 with VIX-3M 22 — the term structure tells you which
-direction the *expected* path goes. Adding VIX_TERM_INVERSION
+direction the _expected_ path goes. Adding VIX_TERM_INVERSION
 captures the term-structure dimension that VIX_SPIKE alone misses.
 
 ## Decision
@@ -98,12 +98,12 @@ trader-actionable.
 
 ### Regime tag direction
 
-| Ratio | Regime | Trader implication |
-|---|---|---|
-| < 0.95 | contango | Normal calm regime, dip-buying ok, lower gap risk |
-| 0.95-1.00 | neutral | Transition, no signal |
-| 1.00-1.05 | backwardation | Near-term stress, reduce dip-buying, expect gaps |
-| ≥ 1.05 | backwardation_shock | Panic/capitulation, watch for all-clear bottom |
+| Ratio     | Regime              | Trader implication                                |
+| --------- | ------------------- | ------------------------------------------------- |
+| < 0.95    | contango            | Normal calm regime, dip-buying ok, lower gap risk |
+| 0.95-1.00 | neutral             | Transition, no signal                             |
+| 1.00-1.05 | backwardation       | Near-term stress, reduce dip-buying, expect gaps  |
+| ≥ 1.05    | backwardation_shock | Panic/capitulation, watch for all-clear bottom    |
 
 Only `backwardation` and `backwardation_shock` fire the alert. Trader
 implementation : the `regime` payload field lets the trader
@@ -112,6 +112,7 @@ distinguish levels.
 ### Source-stamping (ADR-017)
 
 `extra_payload.source = "FRED:VIXCLS+VXVCLS"`. Plus :
+
 - `vix_1m` / `vix_3m` (raw IV values)
 - `ratio` (computed)
 - `vix_1m_date` / `vix_3m_date` (ISO observation dates for audit)
@@ -188,7 +189,7 @@ complementary to the level signal.
 Considered : would handle structural regime shifts in vol baseline.
 Rejected for v1 because the level-based 1.0 threshold has a well-
 defined economic interpretation (mathematical inversion of term
-structure). Z-score would obscure this. v2 could add a *companion*
+structure). Z-score would obscure this. v2 could add a _companion_
 z-score alert if needed.
 
 ### C — Use VIX futures spread (M1 - M2) instead of spot ratio
@@ -244,8 +245,8 @@ No new collector — both VIXCLS + VXVCLS already polled by
 - ADR-042 — MACRO_QUARTET_STRESS (sister composite, includes VIX as
   one dim ; this alert adds the term-structure dimension that the
   quartet level-based stress check doesn't capture).
-- ADR-043 — DOLLAR_SMILE_BREAK (sister composite, uses VIX-low as one
-  condition ; this alert adds the *direction-of-VIX-curve* check).
+- ADR-043 — DOLLAR*SMILE_BREAK (sister composite, uses VIX-low as one
+  condition ; this alert adds the \_direction-of-VIX-curve* check).
 - Macrosynergy. "VIX term structure as a trading signal." Empirical
   2010-2017 analysis : inverted curve = positive SPX 1M-forward.
 - QuantSeeker. "Timing volatility with the VIX term structure."

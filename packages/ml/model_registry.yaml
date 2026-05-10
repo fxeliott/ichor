@@ -99,9 +99,9 @@ models:
       ECB: gtfintechlab/model_european_central_bank_stance_label
       BOE: gtfintechlab/model_bank_of_england_stance_label
       BOJ: gtfintechlab/model_bank_of_japan_stance_label
-    license: CC-BY-NC-SA 4.0  # gtfintechlab 2025 series
+    license: CC-BY-NC-SA 4.0 # gtfintechlab 2025 series
     intended_use: "Per-CB hawkish/dovish/neutral/irrelevant stance classification — drives FOMC/ECB/BOE/BOJ tone-shift alerts (ADR-040)"
-    superseded_upstream: gtfintechlab/fomc-roberta-large  # deprecated/removed from HF Hub 2025
+    superseded_upstream: gtfintechlab/fomc-roberta-large # deprecated/removed from HF Hub 2025
 
   # ──────────────────── Bias predictors per asset ────────────────────
   # Phase 0 W2 step 12 — these all need real OANDA M1 OHLCV data first.

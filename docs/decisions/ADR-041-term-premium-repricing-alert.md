@@ -104,6 +104,7 @@ normality — rare enough to avoid fatigue, common enough to be
 informative for a slow-moving signal.
 
 The 90d window (vs 252d for GEOPOL_REGIME) is a deliberate trade-off :
+
 - 30d would chase noise (term premium has positive autocorrelation
   intra-month)
 - 90d catches narrative-shift episodes (fiscal-cliff, auction tail,
@@ -117,7 +118,7 @@ The 90d window (vs 252d for GEOPOL_REGIME) is a deliberate trade-off :
 `extra_payload.source = "FRED:THREEFYTP10"`. Plus :
 
 - `term_premium_pct` (raw FRED value, e.g. 0.45 = 45 bps)
-- `term_premium_bps` (derived * 100 for trader display)
+- `term_premium_bps` (derived \* 100 for trader display)
 - `term_premium_date` (ISO)
 - `baseline_mean` / `baseline_std` / `n_history`
 - `regime` ('expansion' | 'contraction')
@@ -132,7 +133,7 @@ The 90d window (vs 252d for GEOPOL_REGIME) is a deliberate trade-off :
 - **Reuses existing FRED collector** — only adds 1 series to
   EXTENDED_SERIES_TO_POLL ; zero new infrastructure.
 - **Self-calibrating** : 90d rolling z-score absorbs steady-state level
-  shifts. Catches *acceleration* not absolute value.
+  shifts. Catches _acceleration_ not absolute value.
 - **Bidirectional** : `default_direction="above"` on `|z|` — catches
   both expansion (z > 0, fiscal stress) and contraction (z < 0, flight-
   to-quality). regime tag distinguishes them in payload.
@@ -174,6 +175,7 @@ parser + freshness checks). v1 ships with KW (free, FRED-hosted, ~bps-
 equivalent to ACM per Fed note 2017).
 
 ### B — Multi-window stack (30d + 90d + 252d) like GEOPOL_FLASH +
+
 GEOPOL_REGIME
 
 Tabled for v2 : richer signal but multiplies analytic surface. v1 starts
@@ -231,8 +233,8 @@ Already shipped in the same commit as this ADR :
 - ADR-039 — GEOPOL_REGIME_STRUCTURAL (sister z-score alert on a
   longer 252d window).
 - Adrian, Tobias, Richard K. Crump, and Emanuel Moench (2013).
-  "Pricing the term structure with linear regressions." *Journal of
-  Financial Economics* 110(1): 110–138.
+  "Pricing the term structure with linear regressions." _Journal of
+  Financial Economics_ 110(1): 110–138.
 - Kim, Don H. and Jonathan H. Wright (2005). "An Arbitrage-Free
   Three-Factor Term Structure Model and the Recent Behavior of
   Long-Term Yields and Distant-Horizon Forward Rates." Federal Reserve
@@ -252,7 +254,7 @@ Already shipped in the same commit as this ADR :
 - v2 : 252d structural companion alert (sister to TERM_PREMIUM_REPRICING
   the way GEOPOL_REGIME_STRUCTURAL is sister to GEOPOL_FLASH).
 - v2 : narrative attribution — cross-reference TARIFF_SHOCK / GEOPOL_FLASH
-  + auction-tail bursts to tag *why* the repricing happened.
+  - auction-tail bursts to tag _why_ the repricing happened.
 - Phase E.4 : term-premium feature in Brier V2 driver matrix (existing
   per-factor SGD optimizer can ingest this as a covariate).
 - Capability 5 ADR-017 followup : Claude tools runtime can fetch the

@@ -76,12 +76,12 @@ AUDUSD, USDCAD, XAUUSD.
 The script emits this when the trigger run completed but the table
 is empty. Most common causes:
 
-| Cause | Fix |
-|---|---|
-| Password not set on MyFXBook (Google-only auth) | Step 1 of this runbook |
-| Wrong email or password typed | Re-run the script |
-| MyFXBook account suspended / 2FA blocking API | Disable 2FA temporarily, retry |
-| MyFXBook free-tier rate limit (100 req/24h hit) | Wait 24h, retry |
+| Cause                                           | Fix                            |
+| ----------------------------------------------- | ------------------------------ |
+| Password not set on MyFXBook (Google-only auth) | Step 1 of this runbook         |
+| Wrong email or password typed                   | Re-run the script              |
+| MyFXBook account suspended / 2FA blocking API   | Disable 2FA temporarily, retry |
+| MyFXBook free-tier rate limit (100 req/24h hit) | Wait 24h, retry                |
 
 The journal lines printed by the script reveal the exact reason. Look
 for `myfxbook.login_failed`, `myfxbook.login_rejected`, or

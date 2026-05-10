@@ -51,7 +51,7 @@ respective trailing 90d distributions.
 `services/macro_quartet_check.py` :
 
 - `QUARTET_SERIES = (("DTWEXBGS", "DXY"), ("DGS10", "10Y"),
-  ("VIXCLS", "VIX"), ("BAMLH0A0HYM2", "HY_OAS"))`
+("VIXCLS", "VIX"), ("BAMLH0A0HYM2", "HY_OAS"))`
 - `_fetch_series_history(session, *, series_id, days=104)` per dim
 - `_zscore(history, current)` defensive — None below 60d history
 - `evaluate_macro_quartet(session, *, persist)` — iterate, count
@@ -61,6 +61,7 @@ respective trailing 90d distributions.
 ### Regime classifier
 
 Three regimes possible when count_total >= 3 :
+
 - **stress** : N positive z >= 3 — all dims aligned in stressed
   direction (DXY UP / 10Y UP / VIX UP / HY OAS UP). Risk-off tightening
   liquidity + credit + equity.
@@ -82,12 +83,12 @@ the precision-recall balance.
 
 ### Per-dimension direction interpretation
 
-| Dim | UP (z > +2) means | DOWN (z < -2) means |
-|---|---|---|
-| DXY | USD strong (safe-haven OR risk-off) | USD weak (US-driven instability OR risk-on) |
-| 10Y yield | Yields up (fiscal stress OR growth) | Yields down (recession fear OR Fed easing) |
-| VIX | Equity vol up (fear) | Equity vol down (complacency) |
-| HY OAS | Credit stress up (default risk) | Credit risk down (tight spreads, complacency) |
+| Dim       | UP (z > +2) means                   | DOWN (z < -2) means                           |
+| --------- | ----------------------------------- | --------------------------------------------- |
+| DXY       | USD strong (safe-haven OR risk-off) | USD weak (US-driven instability OR risk-on)   |
+| 10Y yield | Yields up (fiscal stress OR growth) | Yields down (recession fear OR Fed easing)    |
+| VIX       | Equity vol up (fear)                | Equity vol down (complacency)                 |
+| HY OAS    | Credit stress up (default risk)     | Credit risk down (tight spreads, complacency) |
 
 The composite `stress` regime requires all 4 in their stressed
 direction simultaneously — a high-conviction signal.
@@ -95,6 +96,7 @@ direction simultaneously — a high-conviction signal.
 ### Source-stamping (ADR-017)
 
 `extra_payload.source = "FRED:DTWEXBGS+DGS10+VIXCLS+BAMLH0A0HYM2"`. Plus :
+
 - `n_evaluated` / `n_stressed_extreme` / `n_aligned_positive` /
   `n_aligned_negative`
 - `regime` ('stress' | 'complacency' | 'mixed')
@@ -127,7 +129,7 @@ BAMLH0A0HYM2 all in EXTENDED_SERIES_TO_POLL).
 - **Cheap** : 4 SQL queries × 90 numbers averaged. Sub-second
   per execution.
 - **Self-calibrating** : 90d rolling baselines absorb steady-state
-  drift. Catches *acceleration* across all 4 axes simultaneously.
+  drift. Catches _acceleration_ across all 4 axes simultaneously.
 
 ### Cons
 

@@ -26,8 +26,8 @@ Enforcement date for general-purpose AI deployers and downstream users :
 ADR-029 already ratified the human-readable disclosure surface (sticky
 top banner `AIDisclosureBanner` + `LegalFooter` mounted in the web2
 root layout, plus `docs/legal/ai-disclosure.md` matrix of surfaces).
-But ADR-029 did NOT ship the §50.2 *machine-readable* leg — only the
-§50.5 *clear-and-distinguishable* leg.
+But ADR-029 did NOT ship the §50.2 _machine-readable_ leg — only the
+§50.5 _clear-and-distinguishable_ leg.
 
 This ADR closes that gap on the API surface : every Ichor API response
 that contains LLM-derived content carries a stable, machine-parseable
@@ -56,12 +56,12 @@ For every response whose path matches `Settings.ai_watermarked_route_prefixes`
 (default : `/v1/briefings`, `/v1/sessions`, `/v1/post-mortems`,
 `/v1/today`, `/v1/scenarios`) :
 
-| Header                       | Example value                                              | Spec mapping                                  |
-| ---------------------------- | ---------------------------------------------------------- | --------------------------------------------- |
-| `X-Ichor-AI-Generated`       | `true`                                                     | EU AI Act §50.2 — explicit AI-generated flag  |
-| `X-Ichor-AI-Provider`        | `anthropic-claude-opus-4-7`                                | EU CoP draft Dec-2025 — provider identification |
-| `X-Ichor-AI-Generated-At`    | `2026-05-09T19:55:00Z` (RFC3339 UTC, second precision)     | EU CoP draft — generation timestamp           |
-| `X-Ichor-AI-Disclosure`      | `https://app-ichor.pages.dev/legal/ai-disclosure`          | EU AI Act §50.5 — human-readable link         |
+| Header                    | Example value                                          | Spec mapping                                    |
+| ------------------------- | ------------------------------------------------------ | ----------------------------------------------- |
+| `X-Ichor-AI-Generated`    | `true`                                                 | EU AI Act §50.2 — explicit AI-generated flag    |
+| `X-Ichor-AI-Provider`     | `anthropic-claude-opus-4-7`                            | EU CoP draft Dec-2025 — provider identification |
+| `X-Ichor-AI-Generated-At` | `2026-05-09T19:55:00Z` (RFC3339 UTC, second precision) | EU CoP draft — generation timestamp             |
+| `X-Ichor-AI-Disclosure`   | `https://app-ichor.pages.dev/legal/ai-disclosure`      | EU AI Act §50.5 — human-readable link           |
 
 ### Why path-prefix not body-parsing
 
@@ -71,7 +71,7 @@ response body. Three reasons :
 1. **Allocation cost** — parsing JSON in middleware adds a per-request
    allocation hit on the hot path. The 5-prefix tuple-startswith lookup
    is O(n) with n=5, allocation-free.
-2. **False positives** — body-parsing risks tagging a route that *happens*
+2. **False positives** — body-parsing risks tagging a route that _happens_
    to return JSON containing LLM-shaped strings (e.g. an alert that
    echoes a Claude rationale field). Path-prefix is deterministic.
 3. **Ops simplicity** — adding a new route to the watermark surface is
@@ -80,7 +80,7 @@ response body. Three reasons :
 ### Why headers not body-injection
 
 Some AI labelling proposals push C2PA / SynthID-style metadata
-*inside* the content (text watermarks, image C2PA manifests). For
+_inside_ the content (text watermarks, image C2PA manifests). For
 Ichor's text-only API responses, header-based watermarking is :
 
 - **Lossless** for downstream consumers (no body mutation).
@@ -109,7 +109,7 @@ The default prefix list explicitly **omits** :
 - All routers that return SQLAlchemy ORM rows verbatim
 
 Watermarking pure-data routes would be **legally incorrect** : EU AI
-Act §50.2 applies to *AI-generated* content. Macro observations are
+Act §50.2 applies to _AI-generated_ content. Macro observations are
 collector outputs. ADR-029 §"Methodology page only" already documents
 the legal distinction.
 

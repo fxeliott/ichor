@@ -23,10 +23,10 @@ deterioration, tariff shocks, Fed independence threats, de-dollarization)
 rather than the world running TO the US for safety.
 
 Stephen Jen himself warned in a Bloomberg interview 2025-11-12 that USD
-could fall ~13.5% during Trump's second term, and that *"continued US
+could fall ~13.5% during Trump's second term, and that _"continued US
 fiscal imprudence and a return to quantitative easing could jeopardize
 the global standing of US Treasuries and undermine the left side of the
-dollar smile."*
+dollar smile."_
 
 Key structural risk : $26T unhedged foreign-held US assets create a
 self-reinforcing exit loop — dollar weakness triggers hedging, which
@@ -62,7 +62,7 @@ Fires when all 4 of 4 composite conditions hold (`current_value >= 4`).
 - 4 input series : `THREEFYTP10` (KW term premium), `DTWEXBGS` (DXY),
   `VIXCLS` (VIX), `BAMLH0A0HYM2` (HY OAS).
 - Per-dim z-score on rolling 90d window (same as TERM_PREMIUM_REPRICING
-  + MACRO_QUARTET_STRESS).
+  - MACRO_QUARTET_STRESS).
 - 4 conditions :
   - `term_premium_z > +2.0` (expansion threshold matches Phase E.2)
   - `dxy_z < -1.0` (DXY weakening — looser than ±2 because directional
@@ -90,23 +90,24 @@ identified in April 2025 + Stephen Jen warned about in 2025-11-12.
 
 ### Per-condition direction interpretation
 
-| Condition | Threshold | Direction | Meaning |
-|---|---|---|---|
-| term_premium_expansion | z > +2.0 | strict positive | Fiscal stress / term premium expansion regime |
-| dxy_weakness | z < -1.0 | strict negative | USD weakening relative to 90d baseline |
-| vix_not_panic | z < +1.0 | strict negative | Equity vol moderate / no panic |
-| hy_oas_not_stress | z < +1.0 | strict negative | Credit spreads tight / no systemic stress |
+| Condition              | Threshold | Direction       | Meaning                                       |
+| ---------------------- | --------- | --------------- | --------------------------------------------- |
+| term_premium_expansion | z > +2.0  | strict positive | Fiscal stress / term premium expansion regime |
+| dxy_weakness           | z < -1.0  | strict negative | USD weakening relative to 90d baseline        |
+| vix_not_panic          | z < +1.0  | strict negative | Equity vol moderate / no panic                |
+| hy_oas_not_stress      | z < +1.0  | strict negative | Credit spreads tight / no systemic stress     |
 
 The 1-of-4 thresholds (term premium expansion @ +2σ) is stricter than
 the 3-of-4 thresholds (the "not panic / not stress" conditions @ +1σ).
-This asymmetry is intentional : we want strong evidence of the *driver*
-(fiscal stress) but only mild evidence of *non-confounders* (no panic,
+This asymmetry is intentional : we want strong evidence of the _driver_
+(fiscal stress) but only mild evidence of _non-confounders_ (no panic,
 no credit stress).
 
 ### Source-stamping (ADR-017)
 
 `extra_payload.source = "FRED:THREEFYTP10+DTWEXBGS+VIXCLS+BAMLH0A0HYM2"`.
 Plus :
+
 - `smile_regime` : 'us_driven_instability' if fired, '' otherwise
 - `n_conditions_passing` : 0-4 count
 - `z_term_premium`, `z_dxy`, `z_vix`, `z_hy_oas` (raw z-scores)
@@ -142,7 +143,7 @@ FRED data freshness window.
 - **Cheap** : 4 SQL queries × 90 numbers averaged. Sub-second per
   execution.
 - **Self-calibrating** : 90d rolling baselines absorb steady-state
-  drift. Catches *acceleration* + *misalignment*.
+  drift. Catches _acceleration_ + _misalignment_.
 - **2026 trader-actionable** : per Stephen Jen 2025-11-12 + Eurizon
   SLJ outlook, this regime is THE story for 2026 USD trading.
 
@@ -207,10 +208,10 @@ trader inspection — weighting can be added in v2 if needed.
 Tabled for v2 : the 4 conditions are already research-grounded
 (Stephen Jen / Wellington / Eurizon SLJ) ; adding more dilutes the
 specificity. v2 could add a 5th condition reflecting Fed-independence
-proxy (e.g. consensus probability of Fed chair replacement before
-2027) once a clean signal is identified.
+proxy (e.g. consensus probability of Fed chair replacement before 2027) once a clean signal is identified.
 
 ### F — Skip the alert because TERM_PREMIUM_REPRICING + MACRO_QUARTET
+
 already cover the regime
 
 Rejected : neither sister alert specifically detects the

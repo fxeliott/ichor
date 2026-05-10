@@ -14,6 +14,7 @@ to recession) but misses the **imminent** signal.
 **Counterintuitive insight from NY Fed + Cleveland Fed empirical research** :
 US recessions since 1976 do NOT begin during inversion. They begin **AFTER
 the curve re-steepens** (un-inversion event). The mechanism :
+
 - Inversion = market expects future short rates < current short rates
 - Un-inversion = market now expects aggressive Fed easing imminently → only
   happens when recession is priced in
@@ -31,6 +32,7 @@ AlertDef("YIELD_CURVE_UN_INVERSION_EVENT", critical,
 ```
 
 Fires when **BOTH** :
+
 1. Today's T10Y2Y > 0 (curve currently positive)
 2. Any day in prior 60d had T10Y2Y <= -0.30 (deep inversion confirmation)
 
@@ -48,6 +50,7 @@ panic-mode trigger.
 ### Implementation : 60d window state-transition detection
 
 `services/yield_curve_un_inversion_check.py` :
+
 - `_fetch_last_n_days(session, days=60)` — pull last 60d observations
 - `_check_conditions(history)` — verify (a) latest > 0 AND (b) min(60d) <= -0.30
 - `evaluate_yield_curve_un_inversion(session, persist)` — fire when both
@@ -68,6 +71,7 @@ keeps logs separated.
 ## Consequences
 
 ### Pros
+
 - Captures the **more dangerous** un-inversion signal (per NY Fed empirical)
 - Pairs cleanly with sister DEEP alert (leading+imminent coverage complete)
 - 60d backward window catches "ended-inversion" condition without manual state
@@ -76,12 +80,14 @@ keeps logs separated.
   60d window expired ~Apr 2026 per timeline)
 
 ### Cons
+
 - Re-fires daily during 60d post-un-inversion window — noisy if regime is
   long
 - Threshold -0.30 for "deep enough to count" is a tunable hyperparam
   (chosen as 60% of YIELD_CURVE_INVERSION_DEEP -0.50 threshold)
 
 ## Alternatives rejected
+
 - **A: Z-score un-inversion** — same secular-drift problem as DEEP
 - **B: cross_up direction (single-day event)** — misses post-event window,
   trader needs daily reminder during 0-3mo regime
@@ -91,11 +97,14 @@ keeps logs separated.
   per Cleveland Fed research
 
 ## Implementation
+
 Shipped in PR #45 (SHA `5045a4b`). 9 tests covering AND gate + window
-+ persist=False contract. Register-cron daily 22:55 Paris. Catalog assert
-49 → 50 (milestone reached).
+
+- persist=False contract. Register-cron daily 22:55 Paris. Catalog assert
+  49 → 50 (milestone reached).
 
 ## Related
+
 - ADR-017 boundary preserved
 - ADR-046 (sister DEEP level threshold)
 - NY Fed Yield Curve FAQ

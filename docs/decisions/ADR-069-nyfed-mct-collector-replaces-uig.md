@@ -62,8 +62,9 @@ CLI registered under `_run_nyfed_mct` + dispatched at
 
 systemd timer `ichor-collector-nyfed_mct.timer` polling daily at 17:00
 Europe/Paris (~6 hours after the typical NY Fed publication window
-+ buffer). Idempotent dedup on `observation_month` makes daily polls
-cost-free for non-release days.
+
+- buffer). Idempotent dedup on `observation_month` makes daily polls
+  cost-free for non-release days.
 
 `data_pool.py` adds `_section_nyfed_mct(session)` between OECD CLI and
 labor_uncertainty. The section surfaces:
@@ -151,8 +152,8 @@ documented in the Liberty Street Economics Feb 2026 commentary.
 - `apps/api/migrations/versions/0034_nyfed_mct_observations.py` — migration
 - `apps/api/src/ichor_api/services/data_pool.py:_section_nyfed_mct` — surfacing
 - `scripts/hetzner/register-cron-collectors-extended.sh:nyfed_mct` — timer
-- Almuzara, M., & Sbordone, A. M. (2024). *Inertia, Uncertainty, and the
-  Persistence of Inflation*. FRBNY Staff Reports.
+- Almuzara, M., & Sbordone, A. M. (2024). _Inertia, Uncertainty, and the
+  Persistence of Inflation_. FRBNY Staff Reports.
 - ADR-009 (Voie D — Max 20x flat, no paid API)
 - ADR-017 (research-only boundary)
 - ADR-022 (Probability bias models under Critic gate)

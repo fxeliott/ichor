@@ -7,14 +7,14 @@
 
 ## Context
 
-The Phase D.5.b.1 alert GEOPOL_FLASH (ADR-036) detects acute spikes
+The Phase D.5.b.1 alert GEOPOL*FLASH (ADR-036) detects acute spikes
 in AI-GPR over a **30d trailing window**. The ichor-trader review of
 PR #24 flagged a gap : *"sur un slow-build régime (escalation
 Taiwan-strait sur 6 semaines, ou crise Russie sur 8 semaines avec
 montée graduelle), la baseline se "rattrape" et tue le z-score → faux
 négatifs sur les vraies escalades structurelles. Mitigation suggérée
 future : doubler avec un `ai_gpr_z_252d` en alert info distincte (pas
-warning) pour catcher le slow-build."*
+warning) pour catcher le slow-build."\_
 
 The 2026 macro context makes this gap consequential :
 
@@ -28,10 +28,10 @@ The 2026 macro context makes this gap consequential :
 - **MENA cluster** : Iran nuclear question, Israel-Hamas, US-Yemen
   strikes, Saudi de-risking — sustained elevation since 2024.
 
-WEF Global Risks Report 2026 §2 : *"Geopolitical cycles are long —
+WEF Global Risks Report 2026 §2 : _"Geopolitical cycles are long —
 historically, they last between 80 and 100 years. Structural changes
 like those we're witnessing now only come around once per century and
-tend to be disruptive."*
+tend to be disruptive."_
 
 A 30d window cannot detect a 6-month or 4-year structural shift —
 the rolling baseline absorbs the new "normal" and the relative z-score
@@ -53,15 +53,15 @@ Fires when `|z| >= 2.0` where the z-score is computed over a
 ### Severity = `info` (not `warning`)
 
 Structural regime shifts are slow context, not actionable urgency.
-The trader uses GEOPOL_REGIME_STRUCTURAL to *frame* their session
+The trader uses GEOPOL*REGIME_STRUCTURAL to \_frame* their session
 expectations ("we're in a high-geopol regime overall, vol skew bias
 should reflect that") but takes immediate trade decisions only on
 GEOPOL_FLASH (warning, 30d acute). The two-window stack is :
 
-| Alert | Window | Severity | Cadence | Use |
-|---|---|---|---|---|
-| GEOPOL_FLASH | 30d | warning | daily 23:30 | acute repricing event |
-| GEOPOL_REGIME_STRUCTURAL | 252d | info | weekly Sun 22h | regime context |
+| Alert                    | Window | Severity | Cadence        | Use                   |
+| ------------------------ | ------ | -------- | -------------- | --------------------- |
+| GEOPOL_FLASH             | 30d    | warning  | daily 23:30    | acute repricing event |
+| GEOPOL_REGIME_STRUCTURAL | 252d   | info     | weekly Sun 22h | regime context        |
 
 ### Implementation : duplication over premature abstraction
 
@@ -121,7 +121,7 @@ GEOPOL_FLASH for consistency. Plus :
   daily by AI-GPR collector.
 - **Cheap** — ~1 SQL query/week × 252 rows = sub-second per execution.
 - **Self-calibrating** — the 252d trailing baseline absorbs steady-state
-  regime shifts naturally ; the alert fires only on *acceleration*
+  regime shifts naturally ; the alert fires only on _acceleration_
   vs the year-trailing pace.
 
 ### Cons
@@ -172,7 +172,7 @@ The original GPR is useful as out-of-band context (not wired as alert).
 
 Rejected : 3σ on a 252d window with daily readings is ~1-in-1000 — would
 fire ~once every 4 years, missing the sub-bunch of meaningful shifts
-(Q1-Q3 2026 is the *third* 2σ regime shift since AI-GPR started, per
+(Q1-Q3 2026 is the _third_ 2σ regime shift since AI-GPR started, per
 backtests). 2σ matches the catalog convention and gives ~quarterly
 regime context.
 
@@ -206,7 +206,7 @@ Already shipped in the same commit as this ADR :
   pathway. Same source, different time horizon.
 - ADR-037 — TARIFF_SHOCK (sister Phase D.5.b alert).
 - Caldara, Dario and Matteo Iacoviello (2022). "Measuring Geopolitical
-  Risk." *American Economic Review* 112(4): 1194–1225.
+  Risk." _American Economic Review_ 112(4): 1194–1225.
 - Iacoviello, Matteo and Jonathan Tong (2026). "The AI-GPR Index."
   Federal Reserve Board IFDP / SF Fed.
 - WEF Global Risks Report 2026, §2 "Global risks in-depth".

@@ -42,7 +42,7 @@ ALLOWED_TABLES = frozenset({
 
 `trader_notes` is **not** in this set. ADR-077 §"Tools registered"
 described the 6 tables as the canonical surface but did not codify
-*why* `trader_notes` (and `audit_log`, `tool_call_audit`,
+_why_ `trader_notes` (and `audit_log`, `tool_call_audit`,
 `feature_flags`) are excluded. This ADR closes that gap and makes
 the exclusion an invariant — any future widening must go through a
 new ADR that explicitly supersedes this one.
@@ -120,12 +120,12 @@ upside that justifies that audit cost.
 The CI test (W87 to ship) walks `ALLOWED_TABLES` and asserts that
 none of the following appear :
 
-| Table              | Reason for exclusion                                       |
-| ------------------ | ---------------------------------------------------------- |
-| `trader_notes`     | This ADR (privacy + ADR-017 + ML hygiene + AMF crit. 3).   |
-| `audit_log`        | Immutable MiFID trail (ADR-029, migration 0028 trigger). Not a research surface — chain-of-custody only. Reading it through `query_db` would create observable side channels. |
-| `tool_call_audit`  | Same family as `audit_log` (migration 0038 trigger, ADR-077 §"Audit row shape"). Self-referential : `query_db` reading the audit of `query_db` invites recursion attacks. |
-| `feature_flags`    | Kill-switch surface (cross-worker invalidation). Letting the orchestrator read its own flag state is a control-plane leak ; the orchestrator must remain blind to its own gates. |
+| Table             | Reason for exclusion                                                                                                                                                             |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `trader_notes`    | This ADR (privacy + ADR-017 + ML hygiene + AMF crit. 3).                                                                                                                         |
+| `audit_log`       | Immutable MiFID trail (ADR-029, migration 0028 trigger). Not a research surface — chain-of-custody only. Reading it through `query_db` would create observable side channels.    |
+| `tool_call_audit` | Same family as `audit_log` (migration 0038 trigger, ADR-077 §"Audit row shape"). Self-referential : `query_db` reading the audit of `query_db` invites recursion attacks.        |
+| `feature_flags`   | Kill-switch surface (cross-worker invalidation). Letting the orchestrator read its own flag state is a control-plane leak ; the orchestrator must remain blind to its own gates. |
 
 ## Consequences
 
@@ -167,6 +167,7 @@ none of the following appear :
   This makes the privacy invariant visible to any future reader of
   the surface, in line with the EU AI Act §50 transparency posture
   ratified in ADR-029.
+
 - **No code change** to `services/tool_query_db.py` — the file
   already implements the invariant. This ADR codifies what the code
   enforces, so a future reader cannot widen the allowlist without

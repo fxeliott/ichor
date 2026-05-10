@@ -62,8 +62,8 @@ which has no economic meaning.
 
 ### Why the rolling-corr-of-rolling-corr framing
 
-Computing the z-score of the *raw correlation today* against the
-historical *distribution of rolling correlations* :
+Computing the z-score of the _raw correlation today_ against the
+historical _distribution of rolling correlations_ :
 
 - captures the **regime moment** when the carry channel breaks,
   rather than just "today is at the tail of returns".
@@ -97,7 +97,7 @@ breakdown ; Ichor only flags it.
 
 - **Rolling 60d corr is laggy** : a 1-day shock won't flip the
   rolling-corr immediately. Trade-off is intentional — we want
-  *regime* divergence, not noise.
+  _regime_ divergence, not noise.
 - **No Brier feedback yet** : we never measure whether a fired
   divergence was followed by an outsized gold move. ROADMAP D.1
   (Brier V2) could later track the alert as a per-factor driver.

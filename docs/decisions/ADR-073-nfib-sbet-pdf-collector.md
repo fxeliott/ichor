@@ -39,7 +39,8 @@ and Uncertainty ("Uncertainty Index ... to N").
 NFIB's `nfib-sbet.org/Indicators.html` exposes "EXPORT EXCEL" buttons
 but the URLs are dynamically generated (no static endpoint). FRED has
 no canonical mirror series for SBOI confirmable from this audit. PDF
-+ pdfplumber is the only stable path.
+
+- pdfplumber is the only stable path.
 
 ## Decision
 

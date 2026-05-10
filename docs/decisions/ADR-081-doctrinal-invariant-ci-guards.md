@@ -50,17 +50,17 @@ this ADR.
 
 ### Tracked invariants (W90 initial set + W91 extension)
 
-| # | ADR             | Test name                                                | What it catches |
-| - | --------------- | -------------------------------------------------------- | --------------- |
-| 1 | ADR-017         | `test_no_buy_sell_in_python_code_tokens`                 | `BUY` / `SELL` appearing as Python identifiers, attributes, dict keys (not in strings/comments). Catches `BIAS = "BUY"` constant, `signals.append(BUY)` import, etc. |
-| 2 | ADR-009         | `test_no_anthropic_sdk_imports`                          | `import anthropic` or `from anthropic import …` in production code (Voie D Max 20x mandates subprocess only). |
-| 3 | ADR-023         | `test_couche2_agents_do_not_default_to_sonnet`           | `"sonnet"` literals in `packages/agents/src/ichor_agents/agents/*.py` outside historical-context comments. |
-| 4 | ADR-023         | `test_couche2_agents_reference_haiku`                    | Positive guard — at least one Couche-2 agent file references `"haiku"`, catches accidental wholesale deletion. |
-| 5 | ADR-029         | `test_audit_log_immutable_trigger_present`               | Migration 0028 still defines `BEFORE UPDATE OR DELETE` + `RAISE EXCEPTION` + sanctioned-purge GUC. |
-| 6 | ADR-077 / PRE-2 | `test_tool_call_audit_immutable_trigger_present`         | Migration 0038 mirrors the audit_log pattern (Capability 5 audit chain). |
-| 7 | ADR-079 / 080   | `test_ai_watermark_default_prefixes_match_settings`      | `AIWatermarkMiddleware.DEFAULT_WATERMARKED_PREFIXES` agrees with `Settings.ai_watermarked_route_prefixes`. Single-source-of-truth alignment ; catches drift where one is updated without the other. |
-| 8 | ADR-017 / 022   | `test_conviction_pct_capped_at_95`                       | `AssetSpecialization.conviction_pct` and `StressTest.revised_conviction_pct` keep `Field(le=95.0)`. Catches accidental loosening to 100. Macro-frameworks doctrine : "100 % conviction never exists". (W91) |
-| 9 | ADR-079 / 080   | `test_pure_data_routes_excluded_from_watermark`          | NEGATIVE guard — `/v1/tools`, `/v1/market`, `/v1/fred`, `/v1/calendar`, `/v1/sources`, `/v1/correlations`, `/v1/macro-pulse`, `/healthz`, `/livez`, `/readyz`, `/metrics`, `/.well-known` MUST NOT be in `DEFAULT_WATERMARKED_PREFIXES`. Watermarking pure-data routes is legally incorrect (§50.2 applies to AI-generated content only). (W91) |
+| #   | ADR             | Test name                                           | What it catches                                                                                                                                                                                                                                                                                                                                 |
+| --- | --------------- | --------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | ADR-017         | `test_no_buy_sell_in_python_code_tokens`            | `BUY` / `SELL` appearing as Python identifiers, attributes, dict keys (not in strings/comments). Catches `BIAS = "BUY"` constant, `signals.append(BUY)` import, etc.                                                                                                                                                                            |
+| 2   | ADR-009         | `test_no_anthropic_sdk_imports`                     | `import anthropic` or `from anthropic import …` in production code (Voie D Max 20x mandates subprocess only).                                                                                                                                                                                                                                   |
+| 3   | ADR-023         | `test_couche2_agents_do_not_default_to_sonnet`      | `"sonnet"` literals in `packages/agents/src/ichor_agents/agents/*.py` outside historical-context comments.                                                                                                                                                                                                                                      |
+| 4   | ADR-023         | `test_couche2_agents_reference_haiku`               | Positive guard — at least one Couche-2 agent file references `"haiku"`, catches accidental wholesale deletion.                                                                                                                                                                                                                                  |
+| 5   | ADR-029         | `test_audit_log_immutable_trigger_present`          | Migration 0028 still defines `BEFORE UPDATE OR DELETE` + `RAISE EXCEPTION` + sanctioned-purge GUC.                                                                                                                                                                                                                                              |
+| 6   | ADR-077 / PRE-2 | `test_tool_call_audit_immutable_trigger_present`    | Migration 0038 mirrors the audit_log pattern (Capability 5 audit chain).                                                                                                                                                                                                                                                                        |
+| 7   | ADR-079 / 080   | `test_ai_watermark_default_prefixes_match_settings` | `AIWatermarkMiddleware.DEFAULT_WATERMARKED_PREFIXES` agrees with `Settings.ai_watermarked_route_prefixes`. Single-source-of-truth alignment ; catches drift where one is updated without the other.                                                                                                                                             |
+| 8   | ADR-017 / 022   | `test_conviction_pct_capped_at_95`                  | `AssetSpecialization.conviction_pct` and `StressTest.revised_conviction_pct` keep `Field(le=95.0)`. Catches accidental loosening to 100. Macro-frameworks doctrine : "100 % conviction never exists". (W91)                                                                                                                                     |
+| 9   | ADR-079 / 080   | `test_pure_data_routes_excluded_from_watermark`     | NEGATIVE guard — `/v1/tools`, `/v1/market`, `/v1/fred`, `/v1/calendar`, `/v1/sources`, `/v1/correlations`, `/v1/macro-pulse`, `/healthz`, `/livez`, `/readyz`, `/metrics`, `/.well-known` MUST NOT be in `DEFAULT_WATERMARKED_PREFIXES`. Watermarking pure-data routes is legally incorrect (§50.2 applies to AI-generated content only). (W91) |
 
 ### Pre-commit integration (W91)
 
@@ -90,14 +90,14 @@ dev becomes a regular pattern.
 
 ### Tracked invariants — already CI-guarded elsewhere (cross-reference)
 
-| ADR     | Test name (existing)                                            | File |
-| ------- | --------------------------------------------------------------- | ---- |
-| ADR-077 (sqlglot whitelist) | `test_tool_query_db_select_only` etc (29 tests)                  | `apps/api/tests/test_tool_query_db.py` |
-| ADR-078 (forbidden set)     | `test_forbidden_set_disjoint_from_allowlist` etc (4 tests)       | `apps/api/tests/test_tool_query_db_allowlist_guard.py` |
-| ADR-079 (watermark headers) | `test_watermark_present_on_llm_route` etc (10 tests)             | `apps/api/tests/test_ai_watermark_middleware.py` |
-| ADR-080 (well-known)        | `test_inventory_*` (7 tests)                                     | `apps/api/tests/test_well_known_ai_content.py` |
-| ADR-031 (SessionType)       | `test_session_type_literal_matches_valid_session_types`          | `packages/ichor_brain/tests/test_types.py` (predates ADR-031) |
-| ADR-076 (MOCK_* fallback)   | none — informal pattern, not yet codified                        | (W92 candidate) |
+| ADR                         | Test name (existing)                                       | File                                                          |
+| --------------------------- | ---------------------------------------------------------- | ------------------------------------------------------------- |
+| ADR-077 (sqlglot whitelist) | `test_tool_query_db_select_only` etc (29 tests)            | `apps/api/tests/test_tool_query_db.py`                        |
+| ADR-078 (forbidden set)     | `test_forbidden_set_disjoint_from_allowlist` etc (4 tests) | `apps/api/tests/test_tool_query_db_allowlist_guard.py`        |
+| ADR-079 (watermark headers) | `test_watermark_present_on_llm_route` etc (10 tests)       | `apps/api/tests/test_ai_watermark_middleware.py`              |
+| ADR-080 (well-known)        | `test_inventory_*` (7 tests)                               | `apps/api/tests/test_well_known_ai_content.py`                |
+| ADR-031 (SessionType)       | `test_session_type_literal_matches_valid_session_types`    | `packages/ichor_brain/tests/test_types.py` (predates ADR-031) |
+| ADR-076 (MOCK\_\* fallback) | none — informal pattern, not yet codified                  | (W92 candidate)                                               |
 
 ### Tracked invariants — NOT yet codified (W92+ candidates)
 
@@ -141,6 +141,7 @@ dev becomes a regular pattern.
 ### Failure mode handling
 
 When a test fails, the message must explain :
+
 - Which invariant is violated (ADR number).
 - Where the violation is (file path + line number).
 - What the developer should do (e.g. "use `claude -p` subprocess

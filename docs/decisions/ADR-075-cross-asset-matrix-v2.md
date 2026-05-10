@@ -18,9 +18,10 @@ both had to re-aggregate by reading multiple sections.
 
 The `executive_summary` at the top of data_pool already provides a
 narrative régime classifier, but it's qualitative (5-bullet synthesis
-+ régime label). It doesn't expose the underlying band values, so
-Claude can't reason about "how far from regime boundary" or "which
-dimension is driving the régime label".
+
+- régime label). It doesn't expose the underlying band values, so
+  Claude can't reason about "how far from regime boundary" or "which
+  dimension is driving the régime label".
 
 W79 closes this gap with a structured 6-dimension matrix that
 complements `executive_summary` rather than duplicating it.
@@ -32,16 +33,17 @@ that surfaces:
 
 ### Dimension table (6 rows × 4 cols)
 
-| # | Dimension | Source | Bands |
-|---|---|---|---|
-| 1 | Inflation persistence | NY Fed MCT trend (W71) | anchored / near-target / above-target / unanchored |
-| 2 | Inflation surprise | Cleveland CorePCE YoY − MCT (W72) | downside-strong / downside / neutral / upside / upside-strong |
-| 3 | Liquidity / financial conditions | FRED NFCI (W42) | loose / mild-loose / mild-tight / tight |
-| 4 | Tail risk | CBOE SKEW (W24) | calm / normal / elevated / tail-fear |
-| 5 | Volatility | FRED VIXCLS | complacent / normal / elevated / panic |
-| 6 | Small-business sentiment | NFIB SBOI (W74) | recession-pre / below-avg / soft / expansionary |
+| #   | Dimension                        | Source                            | Bands                                                         |
+| --- | -------------------------------- | --------------------------------- | ------------------------------------------------------------- |
+| 1   | Inflation persistence            | NY Fed MCT trend (W71)            | anchored / near-target / above-target / unanchored            |
+| 2   | Inflation surprise               | Cleveland CorePCE YoY − MCT (W72) | downside-strong / downside / neutral / upside / upside-strong |
+| 3   | Liquidity / financial conditions | FRED NFCI (W42)                   | loose / mild-loose / mild-tight / tight                       |
+| 4   | Tail risk                        | CBOE SKEW (W24)                   | calm / normal / elevated / tail-fear                          |
+| 5   | Volatility                       | FRED VIXCLS                       | complacent / normal / elevated / panic                        |
+| 6   | Small-business sentiment         | NFIB SBOI (W74)                   | recession-pre / below-avg / soft / expansionary               |
 
 Band thresholds anchored on:
+
 - **Inflation persistence** Powell 2024-Q3 cited "tolerable upper band
   2.5 %" + Fed 2 % target → 2.25 / 2.75 / 3.25
 - **Inflation surprise** ±0.10 pts noise band, ±0.50 pts material

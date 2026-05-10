@@ -154,13 +154,13 @@ These are unrelated to the async migration but worth noting:
 
 ### Verification (live 2026-05-09)
 
-| Agent | Status | Wall-time | Notes |
-|---|---|---|---|
-| cb_nlp | ⚠ infra OK, content refusal | 111s | Async path works; Claude content issue separate |
-| news_nlp | ✅ OK via=async | 62s | Post W64 Pydantic ge=0 fix |
-| sentiment | ✅ OK via=async | 17s | |
-| positioning | ✅ OK via=async | 24s | |
-| macro | ✅ OK via=async | 64s | |
+| Agent       | Status                      | Wall-time | Notes                                           |
+| ----------- | --------------------------- | --------- | ----------------------------------------------- |
+| cb_nlp      | ⚠ infra OK, content refusal | 111s      | Async path works; Claude content issue separate |
+| news_nlp    | ✅ OK via=async             | 62s       | Post W64 Pydantic ge=0 fix                      |
+| sentiment   | ✅ OK via=async             | 17s       |                                                 |
+| positioning | ✅ OK via=async             | 24s       |                                                 |
+| macro       | ✅ OK via=async             | 64s       |                                                 |
 
 = 4/5 producing valid structured output; 5/5 use async path
 (structural fix complete).

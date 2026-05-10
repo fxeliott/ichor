@@ -22,8 +22,8 @@ release reshapes a wide cone of cross-asset positioning :
 
 A trader looking at session cards for SPX500 on the day before any one of
 these reports needs an explicit T-1 advance warning — implicitly the
-trader knows roughly when earnings season is coming, but the *specific
-day* matters because the binary catalyst removes any rational pre-trade
+trader knows roughly when earnings season is coming, but the _specific
+day_ matters because the binary catalyst removes any rational pre-trade
 positioning.
 
 Ichor already has calendar-driven proximity flags for QUAD_WITCHING and
@@ -47,7 +47,7 @@ Fires per-ticker when `days_to_event <= 1` (today or tomorrow).
 `services/megacap_earnings_check.py` :
 
 - `MEGACAP_TICKERS = ("TSLA", "GOOGL", "MSFT", "META", "AAPL", "AMZN",
-  "NVDA")` — ordered by typical Q-end reporting date (TSLA earliest in
+"NVDA")` — ordered by typical Q-end reporting date (TSLA earliest in
   every cycle, NVDA latest by ~3 weeks because of its FY end-October
   fiscal year).
 - `_fetch_next_earnings_date(ticker, *, today)` — calls
@@ -79,7 +79,7 @@ catalog entries (proximity counters with `default_direction="below"`).
 
 ### Asset semantics : `asset = ticker`
 
-Per-ticker alert. The trader needs to know *which* Mag-7 reports tomorrow
+Per-ticker alert. The trader needs to know _which_ Mag-7 reports tomorrow
 (MSFT skew is different from NVDA skew). Aligns with single-ticker alerts
 like `USDJPY_INTERVENTION_RISK` and `XAU_BREAKOUT_ATH`. The alert fires
 up to 7 times in a single Q (one per Mag-7 ticker) but spread over ~10 days
@@ -170,6 +170,7 @@ positioning. T-1 is the binary moment where pre-trade positioning still
 has actionable optionality (close out / hedge).
 
 ### E — Asset list extended beyond Mag-7 (NFLX, BRK.B, JPM, LLY, AVGO,
+
 ADBE, V, MA, JNJ, PG, KO, XOM)
 
 Tabled for v2 : reasonable case for "Mag-12" or "Top S&P EW20". v1 is

@@ -90,7 +90,7 @@ sync run without touching the API service.
   Vercel CDN, not Hetzner.
 - **Does not run pytest post-sync** — package-level tests run in
   CI; production-side runtime smoke is the systemd timers themselves
-  + `/healthz`.
+  - `/healthz`.
 
 ## Alternatives considered
 
