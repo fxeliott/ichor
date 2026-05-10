@@ -146,8 +146,15 @@ updates:
     cooldown:
       default-days: 14
 
-  # ---- Docker images (Ansible roles) ----
-  - package-ecosystem: docker
+  # ---- Docker Compose images (Ansible roles) ----
+  # W100c — Originally these were `package-ecosystem: docker`, but that
+  # ecosystem scans for Dockerfile / Kubernetes YAML — NOT for
+  # docker-compose.yml. Verified empirically post-W100b : the Dependabot
+  # runs against the three /files dirs failed with "No Dockerfiles nor
+  # Kubernetes YAML found". The `docker-compose` ecosystem (GA since
+  # Feb 2025, github.blog/changelog/2025-02-25) is the right one — it
+  # parses image: tags from docker-compose.yml.
+  - package-ecosystem: docker-compose
     directory: /infra/ansible/roles/observability/files
     schedule:
       interval: weekly
@@ -156,7 +163,7 @@ updates:
     cooldown:
       default-days: 7
 
-  - package-ecosystem: docker
+  - package-ecosystem: docker-compose
     directory: /infra/ansible/roles/langfuse/files
     schedule:
       interval: weekly
@@ -165,7 +172,7 @@ updates:
     cooldown:
       default-days: 7
 
-  - package-ecosystem: docker
+  - package-ecosystem: docker-compose
     directory: /infra/ansible/roles/n8n/files
     schedule:
       interval: weekly
