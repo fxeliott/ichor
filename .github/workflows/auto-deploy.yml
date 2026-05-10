@@ -101,7 +101,6 @@ jobs:
     name: Deploy apps/api → Hetzner via SSH
     runs-on: ubuntu-24.04
     timeout-minutes: 15
-    needs: []
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     steps:
       - uses: actions/checkout@v4
@@ -145,18 +144,14 @@ jobs:
 
       - name: Reinstall venv + restart API
         if: steps.guard.outputs.skip != 'true'
+        env:
+          HETZNER_HOST: ${{ secrets.HETZNER_HOST }}
         run: |
-          ssh ichor@${{ secrets.HETZNER_HOST }} <<'EOF'
-            set -euo pipefail
-            cd /opt/ichor/api
-            uv venv --clear
-            uv pip install -e ".[prod]"
-            sudo systemctl restart ichor-api
-            sleep 5
-            curl -fsS http://localhost:8000/healthz | head -10
-          EOF
+          ssh "ichor@${HETZNER_HOST}" 'set -euo pipefail; cd /opt/ichor/api; uv venv --clear; uv pip install -e ".[prod]"; sudo systemctl restart ichor-api; sleep 5; curl -fsS http://localhost:8000/healthz | head -10'
 
       - name: Smoke check via Cloudflare Tunnel
-        if: steps.guard.outputs.skip != 'true' && secrets.ICHOR_PROD_URL != ''
+        if: steps.guard.outputs.skip != 'true' && env.PROD_URL != ''
+        env:
+          PROD_URL: ${{ secrets.ICHOR_PROD_URL }}
         run: |
-          curl -fsS "${{ secrets.ICHOR_PROD_URL }}/healthz" | head -10
+          curl -fsS "${PROD_URL}/healthz" | head -10
