@@ -470,28 +470,31 @@
       <main>
         <h1>
           Guide actions Eliot
-          <span class="tag">W98 · 2026-05-10</span>
+          <span class="tag">W99 · 2026-05-10</span>
         </h1>
         <p class="meta">
           Guide HTML — données vérifiées SSH Hetzner + curl tests + dashboard CF.
-          <strong>W98 update</strong> : PRE-1 PROD-READY (Eliot a complété Tier 2-3, tunnel 403 sans
-          header / 200 avec headers valides) ; R2 audit live (629.6 MB / 6.3% du free 10 GB) ;
-          PowerShell ExecutionPolicy fix pour Tier 5 optionnel.
+          <strong>W99 update</strong> : Cap5 STEP-1/2 hardenisé (4 issues critiques code-review
+          patchées : pg_sleep DoS, FOR UPDATE locks, CTE shadowing, hashability) + tech debt CI de 4
+          jours résorbée (auto-deploy.yml + 161 fichiers ruff/prettier formatés + ichor_brain
+          uv.sources). 6 commits, 1407 tests verts, **toute la CI au vert pour la première fois
+          depuis W30+**.
         </p>
 
         <div class="callout ok">
-          <strong>🎉 PRE-1 = PROD-READY (W98)</strong>
+          <strong>🎉 PRE-1 PROD-READY + W99 CI 100% GREEN</strong>
           Test 3-way confirmé : tunnel <code>claude-runner.fxmilyapp.com</code> retourne HTTP 403
           sans header, HTTP 200 avec credentials valides, HTTP 403 avec wrong credentials, HTTP 200
-          end-to-end Hetzner. Le système est sécurisé au CF edge. Tier 5 (Win11 NSSM defense in
-          depth) reste optionnel — fix PowerShell ExecutionPolicy fourni dans §1 si tu veux.
-          <br /><br />
+          end-to-end Hetzner. Le système est sécurisé au CF edge. <br /><br />
+          CI status sur <code>4d7c585</code> : CI ✅ · CodeQL ✅ · auto-deploy ✅ · Dependency Graph
+          ✅ · Security audit ✅. Tier 5 (Win11 NSSM defense in depth) reste optionnel — fix
+          PowerShell ExecutionPolicy fourni dans §1. <br /><br />
           <strong>Cap5 STEP-6 e2e est désormais UNBLOCKED.</strong> Dis-moi "lance Cap5 STEP-6" et
           je m'en charge.
         </div>
 
         <section id="overview">
-          <h2>État Ichor — live data 2026-05-10 (W98)</h2>
+          <h2>État Ichor — live data 2026-05-10 (W99)</h2>
           <div class="stats">
             <div class="stat">
               <div class="label">PRE-1 status</div>
