@@ -386,6 +386,16 @@ Sub-agent W93 a vérifié les WGC Terms 2026 + l'absence d'API publique + l'abse
 - **Option A** = risque légal théorique non nul mais pratique faible (4 downloads/an, single-user). Reste violation contractuelle.
 - **Option C** (skip) = zéro risque, perte d'un signal utile mais non critique pour la matrice cross-asset W79.
 
+### Lien mailto: prêt à coller (Option B — 1 click ouvre ton client mail)
+
+Copie cette URL dans la barre d'adresse de ton navigateur OU click directement sur ce lien (si rendu HTML) :
+
+```
+mailto:[email protected]?subject=Permission%20request%20%E2%80%94%20quarterly%20download%20of%20GDT%20Tables%20XLSX%20for%20private%20research&body=Dear%20World%20Gold%20Council%20team%2C%0A%0AI%20am%20Eliot%20Pena%2C%20an%20individual%20private%20trader%20based%20in%20France%2C%20and%20I%20am%20writing%20to%20request%20your%20explicit%20consent%20for%20a%20limited%2C%20automated%20retrieval%20of%20the%20Gold%20Demand%20Trends%20quarterly%20XLSX%20tables%20%284%20downloads%20per%20year%29%20from%20Goldhub.%0A%0AThe%20use%20case%20is%20strictly%20single-user%20private%20macro%20research%20feeding%20my%20own%20discretionary%20trading%20decisions.%20I%20commit%20to%3A%0A%0A-%20no%20redistribution%2C%20no%20publication%2C%20no%20commercial%20use%2C%20no%20derivative%20product%3B%0A-%20no%20public%20sharing%20of%20the%20raw%20data%20or%20any%20transformation%20thereof%3B%0A-%20citation%20of%20%22World%20Gold%20Council%2C%20Metals%20Focus%22%20wherever%20the%20data%20informs%20my%20notes%3B%0A-%20immediate%20cessation%20of%20any%20automated%20retrieval%20upon%20your%20request%2C%20with%20no%20further%20action%20required%20on%20your%20part.%0A%0AIf%20a%20different%20channel%20or%20a%20formal%20license%20is%20more%20appropriate%20for%20this%20scope%2C%20I%20would%20be%20grateful%20for%20your%20guidance.%0A%0AThank%20you%20for%20your%20time.%0A%0AKind%20regards%2C%0AEliot%20Pena%[email protected]
+```
+
+(Click → ouvre ton client mail par défaut, le subject + body sont déjà remplis. Tu juste click "Send".)
+
 ### Email draft prêt à coller (Option B)
 
 ```
@@ -428,7 +438,50 @@ Si Option C : marquer le sub-agent W75 research comme **DECLINED — Option C** 
 
 ---
 
-## 6. GitHub Dependabot 3 vulnerabilities
+## 6. GitHub Dependabot 3 vulnerabilities (W93 audit — auto-fixes activé)
+
+**Audit W93 (Claude `gh api` 2026-05-10)** :
+
+- ✅ **`vulnerability-alerts`** = activé sur `fxeliott/ichor`.
+- ✅ **`automated-security-fixes`** = activé (`{"enabled":true,"paused":false}`).
+- ⏳ Au moment de l'audit aucune Dependabot PR n'était encore générée. **Dependabot scanne périodiquement et créera les PRs dans les minutes/heures qui suivent l'activation**.
+
+### Ce qu'il te reste à faire (passive — refresh dans qq heures)
+
+1. Va sur https://github.com/fxeliott/ichor/pulls
+2. Tu verras 3 PRs auteur `dependabot[bot]` (ou plus), chacune titrée comme `chore(deps): bump <package> from X to Y`.
+3. Pour chaque PR :
+   - Click sur la PR.
+   - Vérifie que c'est bien une bump version mineure/patch (pas major).
+   - Click **"Squash and merge"** → confirm.
+4. Re-check https://github.com/fxeliott/ichor/security/dependabot : 0 alerte open après merge.
+
+### Si dans 24h aucune PR n'apparaît
+
+Possible cause : Dependabot config file manquant pour les 2 ecosystems (npm + pip). Crée `.github/dependabot.yml` :
+
+```yaml
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/apps/web2"
+    schedule:
+      interval: "weekly"
+  - package-ecosystem: "pip"
+    directory: "/apps/api"
+    schedule:
+      interval: "weekly"
+```
+
+Commit + push, et Dependabot va scanner.
+
+### Si une PR n'a pas de tests verts
+
+CI (le job `python` matrix) doit passer pour merge. Si test_invariants_ichor.py fail à cause d'un dependency bump, c'est une regression réelle — investigate avant de merge.
+
+---
+
+## ANCIENNE SECTION 6 (archivée pour référence)
 
 ### Pourquoi
 
