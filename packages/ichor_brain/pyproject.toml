@@ -37,6 +37,13 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["src/ichor_brain"]
 
+# W99e — `ichor-agents` is a workspace package (packages/agents), not on
+# PyPI. Without this hint, `uv run` does a fresh resolve at every step
+# and fails because the [critic] extra points at an unresolvable name.
+# Mirrors apps/api/pyproject.toml's [tool.uv.sources] block.
+[tool.uv.sources]
+ichor-agents = { path = "../agents", editable = true }
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
