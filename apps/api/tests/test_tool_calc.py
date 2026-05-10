@@ -5,9 +5,7 @@ from __future__ import annotations
 import math
 
 import pytest
-
 from ichor_api.services.tool_calc import SUPPORTED_OPS, ToolCalcError, calc
-
 
 # ── Dispatcher ─────────────────────────────────────────────────────
 
@@ -204,5 +202,34 @@ def test_annualize_vol_custom_periods() -> None:
 
 
 def test_nan_input_raises() -> None:
-    with pytest.raises(ToolCalcError, match="non-numeric"):
+    # W99 — message split : NaN/inf has its own branch, distinct from
+    # non-numeric type errors. Match either.
+    with pytest.raises(ToolCalcError, match=r"NaN|non-numeric"):
         calc("zscore", [1.0, float("nan"), 3.0])
+
+
+def test_inf_input_raises() -> None:
+    """W99 regression — inf flowing into statistics ops raised an opaque
+    AttributeError instead of ToolCalcError. Now caught by `_no_nan`."""
+    with pytest.raises(ToolCalcError, match="inf"):
+        calc("zscore", [1.0, float("inf"), 3.0])
+    with pytest.raises(ToolCalcError, match="inf"):
+        calc("rolling_mean", [1.0, float("-inf"), 3.0, 4.0], {"window": 2})
+
+
+def test_bool_input_raises() -> None:
+    """W99 regression — bool inherits int in Python so isinstance(True, int)
+    is True. We reject explicitly to avoid surprising stats outputs."""
+    with pytest.raises(ToolCalcError, match="bool"):
+        calc("zscore", [True, False, True, True])  # type: ignore[list-item]
+
+
+def test_correlation_constant_series_raises() -> None:
+    """W99 regression — statistics.correlation raised StatisticsError on
+    constant input ; now wrapped in ToolCalcError for clean 400."""
+    # values constant
+    with pytest.raises(ToolCalcError, match="constant"):
+        calc("correlation", [1.0, 1.0, 1.0, 1.0], {"other": [1.0, 2.0, 3.0, 4.0]})
+    # other constant
+    with pytest.raises(ToolCalcError, match="constant"):
+        calc("correlation", [1.0, 2.0, 3.0, 4.0], {"other": [5.0, 5.0, 5.0, 5.0]})

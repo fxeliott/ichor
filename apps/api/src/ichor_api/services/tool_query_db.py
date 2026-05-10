@@ -71,6 +71,52 @@ _ALLOWED_STATEMENT_TYPES: tuple[type, ...] = (
     sqlglot.exp.Except,
 )
 
+# W99 hardening (post code review) — Postgres functions / mechanisms that
+# can lock, sleep, IO, or escape the SELECT-only sandbox even when the
+# top-level statement is technically a `Select`. Each name is matched
+# case-insensitively against `sqlglot.exp.Anonymous.this` (= function
+# name token) during AST walk. Adding to this list is a security-positive
+# change ; removing requires an ADR.
+_FORBIDDEN_FUNCTIONS: frozenset[str] = frozenset(
+    {
+        # Time-based DoS (block the connection for N seconds, exhausts pool)
+        "pg_sleep",
+        "pg_sleep_for",
+        "pg_sleep_until",
+        # Advisory locks (could deadlock other Ichor cron jobs)
+        "pg_advisory_lock",
+        "pg_advisory_lock_shared",
+        "pg_advisory_xact_lock",
+        "pg_advisory_xact_lock_shared",
+        "pg_try_advisory_lock",
+        "pg_try_advisory_lock_shared",
+        "pg_try_advisory_xact_lock",
+        "pg_try_advisory_xact_lock_shared",
+        # Large object IO (filesystem read/write inside the DB)
+        "lo_import",
+        "lo_export",
+        "lo_open",
+        "lo_create",
+        "lo_unlink",
+        # Network egress / cross-DB (data exfiltration)
+        "dblink",
+        "dblink_connect",
+        "dblink_exec",
+        "dblink_send_query",
+        "postgres_fdw_handler",
+        # Server-side process escape (if extensions are loaded)
+        "copy_from_program",
+        "copy_to_program",
+        # Reflection / privilege probing
+        "current_setting",
+        "set_config",
+        "pg_read_file",
+        "pg_read_binary_file",
+        "pg_ls_dir",
+        "pg_stat_file",
+    }
+)
+
 
 @dataclass(frozen=True)
 class ValidationResult:
@@ -138,13 +184,54 @@ def _extract_tables(expr: sqlglot.exp.Expression) -> frozenset[str]:
     return frozenset(tables)
 
 
+def _walk_for_forbidden_functions(expr: sqlglot.exp.Expression) -> str | None:
+    """W99 — return the first forbidden function name encountered in the
+    AST, or None if clean. Matches `sqlglot.exp.Anonymous` (unknown /
+    user-defined functions including `pg_sleep`) AND `sqlglot.exp.Func`
+    subclasses with matching `name`. Case-insensitive.
+    """
+    for node in expr.walk():
+        # Anonymous = user-defined or unrecognized-by-sqlglot function call.
+        # `node.name` is the function identifier as written.
+        if isinstance(node, sqlglot.exp.Anonymous):
+            fname = (node.name or "").lower()
+            if fname in _FORBIDDEN_FUNCTIONS:
+                return fname
+        # Some Postgres builtins resolve to a typed sqlglot.exp.Func
+        # subclass (rare for the ones we forbid, but defense in depth).
+        elif isinstance(node, sqlglot.exp.Func):
+            fname = getattr(node, "_class_name", "") or type(node).__name__
+            fname = fname.lower()
+            if fname in _FORBIDDEN_FUNCTIONS:
+                return fname
+    return None
+
+
+def _has_lock_clause(stmt: sqlglot.exp.Expression) -> bool:
+    """W99 — `SELECT ... FOR UPDATE / FOR SHARE / FOR NO KEY UPDATE / FOR
+    KEY SHARE` lifts row-level locks that block other transactions. Even
+    when wrapped in a CTE, sqlglot exposes these via the `locks` arg on
+    the inner `Select`. Walk the whole AST so locks inside subqueries
+    are also caught.
+    """
+    for node in stmt.walk():
+        if isinstance(node, sqlglot.exp.Select):
+            locks = node.args.get("locks")
+            if locks:
+                return True
+    return False
+
+
 def validate_query(sql: str) -> ValidationResult:
     """Pure validator. Returns (ok, reason). Never raises.
 
-    Three concentric checks:
+    Five concentric checks (W99 hardened) :
       1. Multi-statement reject (len(parsed) > 1 → reject).
       2. Top-level statement type must be SELECT-equivalent.
       3. Every referenced table must be in ALLOWED_TABLES.
+      4. No forbidden function calls (`pg_sleep`, `pg_advisory_lock`,
+         `lo_*`, `dblink`, `copy_from_program`, etc.).
+      5. No row-level lock clauses (`FOR UPDATE`, `FOR SHARE`, ...).
     """
     if not isinstance(sql, str) or not sql.strip():
         return ValidationResult(ok=False, reason="empty SQL string")
@@ -189,6 +276,32 @@ def validate_query(sql: str) -> ValidationResult:
             reason=(
                 f"forbidden table(s) referenced: {sorted(forbidden)}. "
                 f"Allowlist: {sorted(ALLOWED_TABLES)}"
+            ),
+            tables_referenced=tables,
+        )
+
+    # Defense 4 (W99) — forbidden function calls (pg_sleep DoS, locks,
+    # filesystem IO, network egress, etc.). See `_FORBIDDEN_FUNCTIONS`.
+    forbidden_fn = _walk_for_forbidden_functions(stmt)
+    if forbidden_fn is not None:
+        return ValidationResult(
+            ok=False,
+            reason=(
+                f"forbidden function call: {forbidden_fn!r} (DoS / lock / IO / "
+                f"egress risk). See ADR-077 + W99 hardening for the list."
+            ),
+            tables_referenced=tables,
+        )
+
+    # Defense 5 (W99) — row-level lock clauses. `FOR UPDATE / FOR SHARE`
+    # blocks other transactions and is incompatible with the read-only
+    # tool surface contract.
+    if _has_lock_clause(stmt):
+        return ValidationResult(
+            ok=False,
+            reason=(
+                "row-level lock clause rejected (FOR UPDATE / FOR SHARE / "
+                "FOR NO KEY UPDATE / FOR KEY SHARE). query_db is read-only."
             ),
             tables_referenced=tables,
         )

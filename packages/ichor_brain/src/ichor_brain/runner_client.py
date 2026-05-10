@@ -55,8 +55,13 @@ class RunnerCall:
     `--mcp-config <path> --strict-mcp-config`. None = no tool use."""
     allowed_tools: tuple[str, ...] | None = None
     """Optional tool allowlist — passed verbatim to `--allowedTools`.
-    Frozen as a tuple so RunnerCall stays hashable. None = no
-    restriction (still bounded by `--strict-mcp-config`)."""
+    Tuple (not list) for shallow immutability ; the dataclass is
+    `frozen=True` so the field itself can't be reassigned. **Note** :
+    `mcp_config: dict` makes the dataclass NON-hashable in practice
+    (a frozen dataclass with a mutable field raises `TypeError` on
+    `hash()`). Treat RunnerCall as a passive value-object, never as
+    a dict key or set member. None = no restriction (still bounded
+    by `--strict-mcp-config`)."""
     max_turns: int = 0
     """Max agentic loop iterations. 0 = do not pass `--max-turns`
     (CLI default). Recommended 5-10 for Ichor 4-pass briefings."""

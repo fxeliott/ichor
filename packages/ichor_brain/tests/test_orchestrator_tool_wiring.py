@@ -12,16 +12,12 @@ absent on every RunnerCall — strict backward-compat.
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from ichor_brain import (
-    AssetSpecialization,
     InMemoryRunnerClient,
-    InvalidationConditions,
     Orchestrator,
-    RegimeReading,
     RunnerResponse,
-    StressTest,
     ToolConfig,
 )
 from ichor_brain.passes import AssetPass, InvalidationPass, RegimePass, StressPass
@@ -91,7 +87,7 @@ def _run(orch: Orchestrator) -> list:
             asset="EUR_USD",
             data_pool="<<DATA_POOL_STUB>>",
             asset_data="<<ASSET_DATA_STUB>>",
-            now=datetime(2026, 5, 9, 6, 0, 0, tzinfo=timezone.utc),
+            now=datetime(2026, 5, 9, 6, 0, 0, tzinfo=UTC),
         )
     )
     return result.runner_calls
@@ -211,16 +207,36 @@ def test_empty_enabled_for_passes_disables_everywhere() -> None:
         assert c.max_turns == 0
 
 
-def test_tool_config_dataclass_is_hashable_and_frozen() -> None:
-    """ToolConfig must stay hashable so RunnerCall (frozen) accepts it
-    without losing immutability semantics."""
+def test_tool_config_is_frozen_dataclass() -> None:
+    """W99 — ToolConfig is `frozen=True` so its fields can't be
+    reassigned. NOT hashable (mutable `mcp_config: dict`). Treat as
+    passive value-object (never a dict key or set member)."""
+    import dataclasses
+
     cfg = ToolConfig(
         mcp_config={"mcpServers": {}},
         allowed_tools=("mcp__ichor__query_db",),
     )
-    # frozen=True implies attribute reassign is blocked
-    import dataclasses
-
     assert dataclasses.is_dataclass(cfg)
     assert cfg.max_turns == 8
     assert cfg.enabled_for_passes == frozenset({"regime", "asset"})
+    # frozen=True : attribute reassign should fail
+    import pytest as _pytest
+
+    with _pytest.raises(dataclasses.FrozenInstanceError):
+        cfg.max_turns = 99  # type: ignore[misc]
+
+
+def test_tool_config_is_not_hashable_due_to_dict_field() -> None:
+    """W99 — locks the documented limitation : `mcp_config: dict` makes
+    `hash(cfg)` raise TypeError. Prevents accidental promotion to dict
+    key. If a future ADR converts mcp_config to a hashable wrapper,
+    this test becomes the canary that catches the change."""
+    import pytest as _pytest
+
+    cfg = ToolConfig(
+        mcp_config={"mcpServers": {}},
+        allowed_tools=("mcp__ichor__query_db",),
+    )
+    with _pytest.raises(TypeError):
+        hash(cfg)

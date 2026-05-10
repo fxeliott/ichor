@@ -48,9 +48,19 @@ def _need_min_length(values: list[float], n: int, op: str) -> None:
 
 
 def _no_nan(values: list[float], op: str) -> None:
+    """W99 — reject non-numeric, NaN, AND infinity. Also reject `bool`
+    (which Python's `isinstance(v, int)` treats as numeric, but
+    statistically meaningless for stats ops). Defense added post code
+    review : `inf` flowing into `statistics.fmean` raises an opaque
+    `AttributeError` that the router cannot translate to a useful 400.
+    """
     for i, v in enumerate(values):
-        if not isinstance(v, (int, float)) or (isinstance(v, float) and math.isnan(v)):
-            raise ToolCalcError(f"{op}: non-numeric / NaN at index {i}")
+        if isinstance(v, bool):
+            raise ToolCalcError(f"{op}: bool not numeric at index {i}")
+        if not isinstance(v, (int, float)):
+            raise ToolCalcError(f"{op}: non-numeric at index {i}: {type(v).__name__}")
+        if isinstance(v, float) and (math.isnan(v) or math.isinf(v)):
+            raise ToolCalcError(f"{op}: NaN/inf at index {i}: {v}")
 
 
 # ── Operations ───────────────────────────────────────────────────
@@ -135,6 +145,14 @@ def _op_correlation(values: list[float], params: dict[str, Any]) -> float:
     _need_min_length(values, 2, "correlation")
     _no_nan(values, "correlation")
     _no_nan(other, "correlation")
+    # W99 — pre-check for constant series. statistics.correlation raises
+    # StatisticsError("at least one of the inputs is constant") which
+    # bubbles up as a generic 500 if not caught. Translate to a
+    # ToolCalcError for a clean 400 + useful message to the agent.
+    if statistics.pstdev(values) == 0:
+        raise ToolCalcError("correlation: first array is constant (sigma=0)")
+    if statistics.pstdev(other) == 0:
+        raise ToolCalcError("correlation: second array is constant (sigma=0)")
     method = str(params.get("method", "pearson")).lower()
     if method not in {"pearson", "spearman"}:
         raise ToolCalcError(f"correlation: unknown method '{method}' (pearson | spearman)")
