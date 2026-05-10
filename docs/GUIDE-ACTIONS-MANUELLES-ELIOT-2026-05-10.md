@@ -1,25 +1,41 @@
 # Guide actions manuelles Eliot — 2026-05-10
 
-> **Toi seul peux faire ces actions** parce qu'elles requièrent ta connexion à un compte (Cloudflare, Anthropic, GitHub) ou des privilèges admin Win11 (NSSM, suppression de fichier verrouillé).
+> **Toi seul peux faire ces actions** parce qu'elles requièrent ta connexion à un compte (Cloudflare, Anthropic, GitHub) ou des privilèges admin Win11.
 >
-> **Ce que Claude a déjà fait pour toi** : push origin main (22 commits), `pnpm install` apps/web2, `pre-commit install` (hook actif), cleanup 3/4 worktrees orphelins, 6 commits W85→W91 + 5 ADRs.
+> **Ce que Claude a déjà fait pour toi** : push origin main (23 commits W85→W92 + W93), `pnpm install` apps/web2, `pre-commit install` actif, cleanup 4/5 worktrees, 5 ADRs (077-081), 9 invariants CI-guarded. **W93 audit révèle** : NSSM service `RUNNING` (§3 OBSOLETE) ; Hetzner CF Access credentials DÉJÀ wired dans `/etc/ichor/api.env` (§1 Tier 1+4 DONE) ; reste juste créer l'Access Application côté CF dashboard + flip Win11 flag (§1 Tier 2-3+5 — script auto fourni `scripts/windows/enable-cf-access-runner.ps1`).
 >
 > **Format** : chaque action = pré-requis + étapes click-par-click + comment savoir que c'est fait + temps estimé.
 
 ## Table des matières
 
-| #   | Action                                                                             | Priorité                           | Temps           | Pré-requis              |
-| --- | ---------------------------------------------------------------------------------- | ---------------------------------- | --------------- | ----------------------- |
-| 1   | [PRE-1 CF Access service token](#1-pre-1-cf-access-service-token)                  | **CRITIQUE** (bloque Cap5 STEP-6)  | 15 min          | Compte Cloudflare actif |
-| 2   | [Anthropic "Help improve Claude" OFF](#2-anthropic-help-improve-claude-toggle-off) | **CRITIQUE** (privacy + EU AI Act) | 3 min           | Compte claude.ai logué  |
-| 3   | [NSSM IchorClaudeRunner restore](#3-nssm-ichorclauderunner-restore)                | Moyen (workaround marche déjà)     | 10 min          | Powershell admin        |
-| 4   | [Cleanup worktree zealous-banzai](#4-cleanup-worktree-zealous-banzai-physique)     | Bas (50 MB, gitignoré)             | 2 min           | Reboot Win11 d'abord    |
-| 5   | [WGC W75 license decision](#5-wgc-w75-license-decision)                            | Bas (collecteur deferred)          | 5 min recherche | —                       |
-| 6   | [GitHub Dependabot 3 vulnerabilities](#6-github-dependabot-3-vulnerabilities)      | Moyen                              | 5 min check     | Compte GitHub logué     |
+| #   | Action                                                                             | Priorité                           | Temps           | Pré-requis             |
+| --- | ---------------------------------------------------------------------------------- | ---------------------------------- | --------------- | ---------------------- |
+| 1   | [PRE-1 CF Access — Tier 2-3 + Tier 5 only](#1-pre-1-cf-access-service-token)       | **CRITIQUE** (Tier 1+4+6 DONE)     | 8 min           | Compte CF logué        |
+| 2   | [Anthropic "Help improve Claude" OFF](#2-anthropic-help-improve-claude-toggle-off) | **CRITIQUE** (privacy + EU AI Act) | 3 min           | Compte claude.ai logué |
+| 3   | ~~NSSM restore~~ **OBSOLETE — service RUNNING**                                    | (skip)                             | (skip)          | (skip)                 |
+| 4   | [Cleanup worktree zealous-banzai](#4-cleanup-worktree-zealous-banzai-physique)     | Bas (50 MB, gitignoré)             | 2 min           | Reboot Win11 d'abord   |
+| 5   | [WGC W75 license decision](#5-wgc-w75-license-decision)                            | Bas (collecteur deferred)          | 5 min recherche | —                      |
+| 6   | [GitHub Dependabot 3 vulnerabilities](#6-github-dependabot-3-vulnerabilities)      | Moyen                              | 5 min check     | Compte GitHub logué    |
 
 ---
 
 ## 1. PRE-1 CF Access service token
+
+### Audit W93 — état réel (vérifié par Claude SSH 2026-05-10)
+
+**DÉJÀ FAIT (ne refais pas)** :
+
+- ✅ **Tier 1** (Cloudflare Zero Trust activé sur ton compte) — sinon Hetzner n'aurait pas de credentials.
+- ✅ **Tier 4** (Service token créé) — `client_id` + `client_secret` présents dans `/etc/ichor/api.env` Hetzner (lignes `ICHOR_API_CF_ACCESS_CLIENT_ID` + `_SECRET`).
+- ✅ **Tier 6** (Hetzner side wired) — les vars sont chargées par le service `ichor-api`.
+
+**À FAIRE PAR TOI** :
+
+- ⏳ **Tier 2** : créer l'**Access Application** dans le dashboard CF (pour attacher le token au hostname `claude-runner.fxmilyapp.com`).
+- ⏳ **Tier 3** : créer la **policy "Service Auth"** sur l'application.
+- ⏳ **Tier 5** : flip le flag Win11 NSSM (script auto fourni — tu l'invoques avec 2 paramètres).
+
+**Validation actuelle** : `curl https://claude-runner.fxmilyapp.com/healthz` retourne `HTTP 200` **sans auth** → tunnel public. Une fois les Tier 2+3+5 faits, sans token la même curl doit retourner **401**.
 
 ### Pourquoi c'est critique
 
@@ -33,14 +49,11 @@ CF Access service token = jeton d'identification (client_id + client_secret) que
 2. **Cloudflare Zero Trust** activé sur ce compte. **Probablement pas encore activé** d'après l'audit `~/.claude/projects/D--Ichor/memory/ichor_cloudflare_api_limits.md:55-63`. Free up to 50 users.
 3. **Domaine `fxmilyapp.com`** déjà dans Cloudflare (oui, vérifié zone ID).
 
-### Étapes (Tier 1 — activer Cloudflare Access)
+### Étapes (Tier 1 — activer Cloudflare Access) ✅ DONE
 
-1. Va sur https://one.dash.cloudflare.com (Zero Trust dashboard).
-2. **Si premier login** : Cloudflare te demande de créer un "team name". Choisis quelque chose comme `ichor-team`. Tu seras le seul user.
-3. Choisis le **plan Free** (50 users gratuits — largement assez pour Ichor solo).
-4. Click "Save" pour activer Zero Trust.
+(Skip — déjà fait, Hetzner a les credentials.)
 
-**Validation** : tu vois maintenant un menu de gauche avec "Access", "Gateway", "WARP", etc.
+Si tu veux retrouver ton team name : `https://one.dash.cloudflare.com` → menu en haut, sous-domaine de ton team affiché. Tu en auras besoin au Tier 5 (variable `TEAM_DOMAIN`).
 
 ### Étapes (Tier 2 — créer une Access Application)
 
@@ -63,55 +76,76 @@ CF Access service token = jeton d'identification (client_id + client_secret) que
    - Click **"Save policy"**.
 7. Click **"Next"**, puis **"Add application"** sur l'écran de récap. Application créée.
 
-### Étapes (Tier 4 — créer le service token)
+### Étapes (Tier 4 — créer le service token) ✅ DONE
 
-8. Toujours dans Zero Trust → **Access** → **Service Auth** (sous-menu).
-9. Onglet **"Service Tokens"**. Click **"Create Service Token"**.
-10. Nom : `ichor-runner-token-2026-05-10`.
-11. Duration : `Non-expiring` (sinon 1 an et il faut renouveler).
-12. Click **"Generate token"**.
-13. **CRITIQUE** : Cloudflare te montre maintenant **`Client ID`** + **`Client Secret`**. Le secret n'est affiché **qu'une seule fois**. Copie-les immédiatement dans un endroit sûr (ton vault USB `E:\YONE_DATA\yone-secrets-vault.md`).
+(Skip — déjà fait. Le service token existe et ses credentials sont déjà dans `/etc/ichor/api.env` Hetzner. Le `client_id` est `f3481230f02f4964f4bac5a42b9b776d.access` — vérifié SSH par Claude. Tu n'as PAS besoin du secret pour Tier 5 ; seul l'AUD tag de l'application Access est nécessaire.)
 
-### Étapes (Tier 5 — wire les tokens dans Win11 claude-runner)
+Si tu n'as pas le service token (parce que les credentials ont été générés par quelqu'un d'autre) : retourne dans **Zero Trust → Access → Service Auth → Service Tokens**, tu vois la liste de tes tokens. Le secret ne peut PAS être re-affiché ; si perdu, **rotate** (génère un nouveau token, mets à jour `/etc/ichor/api.env`, restart `ichor-api`).
 
-14. Sur Win11, ouvre **PowerShell elevated** (clic droit → "Run as Administrator").
-15. Edit le fichier de config claude-runner. Ouvre `D:\Ichor\scripts\windows\start-claude-runner-standalone.bat` dans VS Code.
-16. Ajoute ces 3 lignes après les autres `set ICHOR_RUNNER_*` (au début, après `@echo off`) :
-    ```bat
-    set ICHOR_RUNNER_REQUIRE_CF_ACCESS=true
-    set ICHOR_RUNNER_CF_ACCESS_TEAM_DOMAIN=ichor-team.cloudflareaccess.com
-    set ICHOR_RUNNER_CF_ACCESS_APPLICATION_AUD=<APP_AUD>
+### Étapes (Tier 5 — flip Win11 NSSM via script auto)
+
+Claude a préparé un script PowerShell qui fait le flip atomiquement :
+
+- Lit l'env actuel NSSM
+- Conserve les vars existantes (HOST, PORT, LOG_LEVEL, etc.)
+- Ajoute/remplace `REQUIRE_CF_ACCESS=true`, `CF_ACCESS_TEAM_DOMAIN`, `CF_ACCESS_APPLICATION_AUD`
+- Restart le service NSSM
+- Smoke-test local healthz post-flip
+
+**Pré-requis** :
+
+- Tu DOIS avoir fini Tier 2+3 d'abord (sinon tu casses la chaîne — tunnel rejette tout).
+- Tu as récupéré l'**AUD tag** depuis le dashboard CF : **Zero Trust → Access → Applications → Ichor Claude Runner → Overview → Application Audience (AUD) Tag**. C'est un long string hex 64 chars.
+- Tu connais ton **team domain** (ex : `ichor-team.cloudflareaccess.com`).
+
+**Procédure** :
+
+14. Ouvre **PowerShell as Administrator** (clic droit → Run as Admin).
+15. Lance le script :
+    ```powershell
+    cd D:\Ichor
+    .\scripts\windows\enable-cf-access-runner.ps1 `
+        -TeamDomain "<ton-team>.cloudflareaccess.com" `
+        -ApplicationAud "<AUD-tag-hex-64-chars>"
     ```
-    Remplace `ichor-team` par ton team name si tu as choisi autre chose étape 2.
-    `<APP_AUD>` est l'AUD tag de l'application Access — tu le trouves dans le **Dashboard CF → Access → Applications → click sur "Ichor Claude Runner" → Overview → Application Audience (AUD) Tag**. C'est un long string hex.
-17. Save le `.bat`.
+16. Le script affiche les 4 étapes (statut NSSM, env actuel, env nouveau, restart). Si tu vois `DONE. CF Access enforcement is now ACTIVE`, c'est gagné.
 
-### Étapes (Tier 6 — wire les tokens côté Hetzner / apps/api)
+**Si le script échoue** :
 
-18. Login SSH Hetzner : `ssh ichor-hetzner`.
-19. Edit `/etc/ichor/api.env` : `sudo nano /etc/ichor/api.env`.
-20. Ajoute ces 2 lignes :
+- Vérifie les paramètres (TeamDomain doit finir par `.cloudflareaccess.com`).
+- Vérifie le statut NSSM avec `nssm status IchorClaudeRunner`. Doit être `SERVICE_RUNNING`.
+- Si `SERVICE_PAUSED` ou `SERVICE_STOPPED` : `nssm restart IchorClaudeRunner`. Si tjrs fail, check logs `nssm get IchorClaudeRunner AppStderr`.
+
+### Étapes (Tier 6 — Hetzner side) ✅ DONE
+
+(Skip — Hetzner a déjà les credentials dans `/etc/ichor/api.env`, vérifié par Claude SSH.)
+
+### Validation post-Tier 5
+
+17. Test négatif : `curl -i https://claude-runner.fxmilyapp.com/healthz` (sans headers).
+    - **Doit retourner HTTP 401 ou 403**. Si tu vois 200, le flip n'a pas pris (vérifie que NSSM a bien restart + que tu as fini Tier 2+3).
+18. Test positif : récupère client_id + client_secret depuis Hetzner (déjà là) :
+    ```bash
+    ssh ichor-hetzner "sudo grep ICHOR_API_CF_ACCESS /etc/ichor/api.env"
     ```
-    ICHOR_API_CF_ACCESS_CLIENT_ID=<le client_id de l'étape 13>
-    ICHOR_API_CF_ACCESS_CLIENT_SECRET=<le client_secret de l'étape 13>
+    Puis :
+    ```bash
+    curl -i -H "CF-Access-Client-Id: <client_id>" \
+            -H "CF-Access-Client-Secret: <client_secret>" \
+            https://claude-runner.fxmilyapp.com/healthz
     ```
-21. Save (`Ctrl+O`, Enter, `Ctrl+X`).
-22. Restart le service api : `sudo systemctl restart ichor-api`.
+    Doit retourner `HTTP 200` avec un JSON `{"status":"ok",...}`.
 
-### Validation
+### Rollback (si quelque chose plante)
 
-23. Sur ton PC Win11, **redémarre claude-runner** :
-    - Tâches en arrière-plan (Win + R, tape `taskmgr`) → trouve le process `python.exe` qui tourne le runner → End task.
-    - Re-lance `D:\Ichor\scripts\windows\start-claude-runner-standalone.bat` (double-clic depuis Explorer).
-24. Test : `curl -H "CF-Access-Client-Id: <client_id>" -H "CF-Access-Client-Secret: <client_secret>" https://claude-runner.fxmilyapp.com/healthz`.
-    Doit retourner `{"status":"ok",...}`.
-25. Test négatif : `curl https://claude-runner.fxmilyapp.com/healthz` (sans headers) doit retourner **401 Unauthorized**.
+Sur Win11 PowerShell admin :
 
-### Rollback (si tu as fait une erreur)
+```powershell
+nssm set IchorClaudeRunner AppEnvironmentExtra "ICHOR_RUNNER_HOST=127.0.0.1" "ICHOR_RUNNER_PORT=8765" "ICHOR_RUNNER_LOG_LEVEL=INFO" "ICHOR_RUNNER_CLAUDE_BINARY=C:\Users\eliot\.local\bin\claude.exe" "ICHOR_RUNNER_ENVIRONMENT=development" "ICHOR_RUNNER_REQUIRE_CF_ACCESS=false"
+nssm restart IchorClaudeRunner
+```
 
-- Sur Hetzner : retire les 2 lignes ajoutées à `/etc/ichor/api.env`, restart `ichor-api`.
-- Sur Win11 : retire les 3 `set` lignes du `.bat`, redémarre claude-runner.
-- Le système retourne à l'état pré-PRE-1 (public mais fonctionnel).
+Le système retourne à l'état pré-flip (public mais fonctionnel).
 
 ### Quoi faire après
 
@@ -163,7 +197,26 @@ Aucune action côté code Ichor. Juste vérifier 1× par mois que le toggle rest
 
 ---
 
-## 3. NSSM IchorClaudeRunner restore
+## 3. ~~NSSM IchorClaudeRunner restore~~ — OBSOLETE
+
+**Audit W93 (Claude SSH 2026-05-10)** : `nssm status IchorClaudeRunner` retourne `SERVICE_RUNNING`. La variable `ICHOR_RUNNER_ENVIRONMENT=development` est présente dans `AppEnvironmentExtra`. **Le service tourne. Tu n'as RIEN à faire ici.**
+
+**Dette technique annexe — double runner** : il y a 2 runners simultanés actifs sur ta machine :
+
+- NSSM `IchorClaudeRunner` sur port `8765` (auto-restart, log géré)
+- Standalone uvicorn sur port `8766` (lancé par `start-claude-runner-standalone.bat` dans Startup)
+
+Le tunnel CF `claude-runner.fxmilyapp.com` pointe vers `127.0.0.1:8766` (= standalone uvicorn). Si tu kill le standalone, le tunnel break. Si tu kill NSSM, tu perds l'auto-restart.
+
+**Trois options** :
+
+- **Option A (no-op recommandée)** : laisse les deux. Pas optimal mais marche. RAM coût ~50MB, négligeable.
+- **Option B (cleaner)** : change le tunnel CF pour pointer vers `8765` (NSSM port), puis kill le standalone. Modification dans le dashboard CF managed-side. Risque : casser le tunnel le temps de la reconfig.
+- **Option C (yolo)** : update NSSM env `ICHOR_RUNNER_PORT=8766`, restart, et kill le standalone. Le NSSM service écoute alors sur 8766 que le tunnel utilise. Quick + clean si NSSM peut bind sur ce port (vérifier que 8766 n'est pas déjà occupé en bind exclusif par standalone — il l'est, faut kill standalone d'abord).
+
+Pour W93, **Option A est OK** : tu fais le flip CF Access (action 1) qui ne dépend pas du runner choice, et tu reportes la cleanup dual-runner à plus tard.
+
+(Section originale archivée pour référence si tu veux nettoyer plus tard.)
 
 ### Pourquoi c'est utile (mais pas critique)
 
@@ -318,11 +371,54 @@ W75 = collecteur World Gold Council quarterly XLSX (`gold-demand-by-country` hub
 - Pas de WGC data dans data-pool.
 - Tu te bases sur d'autres sources (Polymarket, FRED gold price, etc.) qui couvrent partiellement.
 
-### Recommandation Claude
+### Recommandation Claude (post W93 deep-research WGC)
 
-**Option B** si tu vises long-terme + zéro risque. **Option A** si tu accepts the risk faible et veux la data tout de suite.
+Sub-agent W93 a vérifié les WGC Terms 2026 + l'absence d'API publique + l'absence d'historique d'enforcement public :
 
-**Option C** si tu peux vivre sans (ce qui est probablement le cas — la matrice cross-asset W79 ne dépend pas de WGC).
+- T&C interdisent **explicitement** "scrape" sans consent écrit préalable. L'usage permis "personal, non-commercial use only" couvre le download manuel mais le mot "automated retrieval" tombe sous le régime "consent préalable".
+- Pas d'API JSON/REST documentée. Seul moyen = scrape hub-page + download XLSX.
+- Aucun cas public de cease-and-desist WGC contre researchers privés trouvé via WebSearch.
+- Adresse contact officielle pour authorisation : **`[email protected]`** (citée explicitement dans les T&C).
+
+**Recommandation pondérée** :
+
+- **Option B** est techniquement la voie clean (consent écrit). Délai réponse 1-3 semaines.
+- **Option A** = risque légal théorique non nul mais pratique faible (4 downloads/an, single-user). Reste violation contractuelle.
+- **Option C** (skip) = zéro risque, perte d'un signal utile mais non critique pour la matrice cross-asset W79.
+
+### Email draft prêt à coller (Option B)
+
+```
+À : [email protected]
+Subject : Permission request — quarterly download of GDT Tables XLSX for private research
+
+Dear World Gold Council team,
+
+I am Eliot Pena, an individual private trader based in France, and I am
+writing to request your explicit consent for a limited, automated retrieval
+of the Gold Demand Trends quarterly XLSX tables (4 downloads per year)
+from Goldhub.
+
+The use case is strictly single-user private macro research feeding my own
+discretionary trading decisions. I commit to:
+
+  - no redistribution, no publication, no commercial use, no derivative product;
+  - no public sharing of the raw data or any transformation thereof;
+  - citation of "World Gold Council, Metals Focus" wherever the data informs my notes;
+  - immediate cessation of any automated retrieval upon your request, with
+    no further action required on your part.
+
+If a different channel or a formal license is more appropriate for this
+scope, I would be grateful for your guidance.
+
+Thank you for your time.
+
+Kind regards,
+Eliot Pena
+[email protected]
+```
+
+Sources vérifiées : [WGC Terms](https://www.gold.org/terms-and-conditions) (interdit explicitement scrape sans consent), [Gold Demand Trends Q1 2026](https://www.gold.org/goldhub/research/gold-demand-trends/gold-demand-trends-q1-2026), [Goldhub data hub](https://www.gold.org/goldhub/data/gold-demand-by-country).
 
 ### Quoi faire après
 
