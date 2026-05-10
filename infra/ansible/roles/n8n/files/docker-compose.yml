@@ -7,7 +7,7 @@ services:
     # docs/audits/dependencies-2026-05-03.md (CRITICAL-DEPS-1). Verify
     # the digest at https://hub.docker.com/r/n8nio/n8n/tags before
     # rolling forward.
-    image: docker.n8n.io/n8nio/n8n:1.123.27
+    image: docker.n8n.io/n8nio/n8n:2.19.2
     container_name: ichor-n8n
     restart: unless-stopped
     depends_on: [n8n-postgres]
