@@ -103,8 +103,7 @@ async def test_evaluate_below_threshold_no_alert(monkeypatch):
     async def fake_fetch(_session, *, days):
         # 90 days of stable values around 0.45 with small noise, current = 0.46
         return [
-            (today - timedelta(days=90 - i), 0.45 + (i % 10 - 5) * 0.005)
-            for i in range(90)
+            (today - timedelta(days=90 - i), 0.45 + (i % 10 - 5) * 0.005) for i in range(90)
         ] + [(today, 0.46)]
 
     async def fake_check_metric(_session, **kw):
@@ -128,10 +127,7 @@ async def test_evaluate_fires_alert_expansion_regime(monkeypatch):
 
     async def fake_fetch(_session, *, days):
         # 90 stable values around 0.45, current = 1.5 (huge spike up)
-        history = [
-            (today - timedelta(days=90 - i), 0.45 + (i % 5 - 2) * 0.001)
-            for i in range(90)
-        ]
+        history = [(today - timedelta(days=90 - i), 0.45 + (i % 5 - 2) * 0.001) for i in range(90)]
         history.append((today, 1.5))
         return history
 
@@ -166,10 +162,7 @@ async def test_evaluate_fires_alert_contraction_regime(monkeypatch):
     today = date(2026, 5, 7)
 
     async def fake_fetch(_session, *, days):
-        history = [
-            (today - timedelta(days=90 - i), 0.45 + (i % 5 - 2) * 0.001)
-            for i in range(90)
-        ]
+        history = [(today - timedelta(days=90 - i), 0.45 + (i % 5 - 2) * 0.001) for i in range(90)]
         history.append((today, -1.0))  # huge contraction
         return history
 
@@ -194,10 +187,7 @@ async def test_evaluate_persist_false_suppresses_check_metric(monkeypatch):
     today = date(2026, 5, 7)
 
     async def fake_fetch(_session, *, days):
-        history = [
-            (today - timedelta(days=90 - i), 0.45 + (i % 5 - 2) * 0.001)
-            for i in range(90)
-        ]
+        history = [(today - timedelta(days=90 - i), 0.45 + (i % 5 - 2) * 0.001) for i in range(90)]
         history.append((today, 1.5))
         return history
 

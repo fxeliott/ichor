@@ -33,10 +33,7 @@ async def run(*, persist: bool) -> int:
 
     print(result.note)
     if result.alert_fired:
-        print(
-            f"yield_curve · ALERT (regime={result.regime}, "
-            f"spread={result.spread_bps:+.1f} bps)"
-        )
+        print(f"yield_curve · ALERT (regime={result.regime}, spread={result.spread_bps:+.1f} bps)")
     return 0
 
 

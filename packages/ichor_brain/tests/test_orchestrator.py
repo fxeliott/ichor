@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
-
 from ichor_brain.orchestrator import Orchestrator
 from ichor_brain.runner_client import InMemoryRunnerClient
 
@@ -18,7 +17,6 @@ from .fixtures import (
     four_pass_responses,
     stub_critic_fn,
 )
-
 
 _DATA_POOL = (
     "DXY 105.30 (+1.2%); US10Y 4.18 (-12bps); VIX 18.2 (+4.1); "
@@ -34,7 +32,7 @@ _ASSET_DATA = (
 async def test_orchestrator_happy_path_produces_session_card() -> None:
     runner = InMemoryRunnerClient(four_pass_responses(duration_ms=8_000))
     orch = Orchestrator(runner=runner, critic_fn=stub_critic_fn())
-    now = datetime(2026, 5, 4, 5, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 5, 4, 5, 0, tzinfo=UTC)
 
     result = await orch.run(
         session_type="pre_londres",

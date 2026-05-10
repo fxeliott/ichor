@@ -68,9 +68,9 @@ from .alerts_runner import check_metric
 
 # 4 FRED-hosted input series (ADR-043).
 TERM_PREMIUM_SERIES = "THREEFYTP10"  # KW 10y term premium
-DXY_SERIES = "DTWEXBGS"              # Trade-weighted USD broad
-VIX_SERIES = "VIXCLS"                # CBOE Volatility Index
-HY_OAS_SERIES = "BAMLH0A0HYM2"       # ICE BofA HY Option-Adjusted Spread
+DXY_SERIES = "DTWEXBGS"  # Trade-weighted USD broad
+VIX_SERIES = "VIXCLS"  # CBOE Volatility Index
+HY_OAS_SERIES = "BAMLH0A0HYM2"  # ICE BofA HY Option-Adjusted Spread
 
 # 5th input — CBOE SKEW Index (ADR-055 wave 27 extension).
 # Sourced from cboe_skew_observations table populated by collectors.cboe_skew
@@ -78,11 +78,11 @@ HY_OAS_SERIES = "BAMLH0A0HYM2"       # ICE BofA HY Option-Adjusted Spread
 # Voie D-compliant: free, no API key.
 
 # Per-condition thresholds.
-TERM_PREMIUM_EXPANSION_FLOOR: float = 2.0   # term_premium_z > this
-DXY_WEAKNESS_CEILING: float = -1.0          # dxy_z < this
-VIX_NOT_PANIC_CEILING: float = 1.0          # vix_z < this (not panic)
-HY_OAS_NOT_STRESS_CEILING: float = 1.0      # hy_oas_z < this (not systemic)
-SKEW_ELEVATED_FLOOR: float = 1.0            # skew_z > this (tail bid)
+TERM_PREMIUM_EXPANSION_FLOOR: float = 2.0  # term_premium_z > this
+DXY_WEAKNESS_CEILING: float = -1.0  # dxy_z < this
+VIX_NOT_PANIC_CEILING: float = 1.0  # vix_z < this (not panic)
+HY_OAS_NOT_STRESS_CEILING: float = 1.0  # hy_oas_z < this (not systemic)
+SKEW_ELEVATED_FLOOR: float = 1.0  # skew_z > this (tail bid)
 
 # Composite alert threshold. ADR-055 wave 27: raised to 5-of-5 by
 # adding SKEW as 5th condition. SKEW gracefully passes when history
@@ -162,13 +162,9 @@ def _zscore(history: list[float], current: float) -> float | None:
     return (current - mean) / std
 
 
-async def _compute_zscore_for_series(
-    session: AsyncSession, series_id: str
-) -> float | None:
+async def _compute_zscore_for_series(session: AsyncSession, series_id: str) -> float | None:
     """Fetch + compute the z-score for one FRED series. None on degenerate."""
-    history_full = await _fetch_history(
-        session, series_id=series_id, days=ZSCORE_WINDOW_DAYS + 14
-    )
+    history_full = await _fetch_history(session, series_id=series_id, days=ZSCORE_WINDOW_DAYS + 14)
     if not history_full:
         return None
     current = history_full[-1]

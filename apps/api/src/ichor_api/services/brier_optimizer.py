@@ -387,9 +387,7 @@ async def aggregate_drivers_matrix(
         if sig is None:
             n_no_drivers += 1
             continue
-        outcome = derive_realized_outcome(
-            str(bias), float(conviction), float(brier)
-        )
+        outcome = derive_realized_outcome(str(bias), float(conviction), float(brier))
         if outcome is None:
             n_ambiguous += 1
             continue

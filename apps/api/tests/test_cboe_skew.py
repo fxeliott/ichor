@@ -14,7 +14,6 @@ from ichor_api.collectors.cboe_skew import (
     parse_chart_response,
 )
 
-
 # Verified live 2026-05-08 against query1.finance.yahoo.com — trimmed
 # to a 3-day window. Two trading days + one null (e.g. weekend hole).
 _FIXTURE_OK: dict = {

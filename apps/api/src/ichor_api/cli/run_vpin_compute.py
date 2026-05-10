@@ -58,9 +58,7 @@ async def _compute_for_asset(session, *, asset: str, since: datetime):
     """Returns (latest_vpin, p99_vpin, n_buckets) or None if not enough data."""
     rows = await _load_fx_ticks(session, asset=asset, since=since)
     if len(rows) < _MIN_TICKS:
-        log.info(
-            "vpin.skipped_insufficient_ticks", asset=asset, n=len(rows), needed=_MIN_TICKS
-        )
+        log.info("vpin.skipped_insufficient_ticks", asset=asset, n=len(rows), needed=_MIN_TICKS)
         return None
 
     # Lazy imports — pandas + scipy are heavy ; CLI startup stays fast
@@ -91,11 +89,7 @@ async def run(*, persist: bool, lookback_hours: int = _LOOKBACK_HOURS) -> int:
     # the symbol list and keeps in sync with whatever ichor-fx-stream
     # is subscribed to.
     async with sm() as session:
-        distinct_stmt = (
-            select(FxTick.asset)
-            .where(FxTick.ts >= since)
-            .distinct()
-        )
+        distinct_stmt = select(FxTick.asset).where(FxTick.ts >= since).distinct()
         assets = [r[0] for r in (await session.execute(distinct_stmt)).all()]
 
     print(f"VPIN compute · {len(assets)} assets active in last {lookback_hours}h")
@@ -111,10 +105,7 @@ async def run(*, persist: bool, lookback_hours: int = _LOOKBACK_HOURS) -> int:
             if outcome is None:
                 continue
             latest, p99, n_buckets = outcome
-            print(
-                f"  [{asset:8s}] vpin={latest:.3f} p99={p99:.3f} "
-                f"({n_buckets} buckets)"
-            )
+            print(f"  [{asset:8s}] vpin={latest:.3f} p99={p99:.3f} ({n_buckets} buckets)")
 
             if persist:
                 from datetime import UTC as _UTC
@@ -131,16 +122,20 @@ async def run(*, persist: bool, lookback_hours: int = _LOOKBACK_HOURS) -> int:
                     (f"VPIN_FX_{asset}"[:64], latest),
                     (f"VPIN_FX_{asset}_P99"[:64], p99),
                 ):
-                    stmt = pg_insert(FredObservation).values(
-                        id=__import__("uuid").uuid4(),
-                        observation_date=today,
-                        created_at=now,
-                        series_id=sid,
-                        value=float(val),
-                        fetched_at=now,
-                    ).on_conflict_do_update(
-                        constraint="uq_fred_series_date",
-                        set_={"value": val, "fetched_at": now},
+                    stmt = (
+                        pg_insert(FredObservation)
+                        .values(
+                            id=__import__("uuid").uuid4(),
+                            observation_date=today,
+                            created_at=now,
+                            series_id=sid,
+                            value=float(val),
+                            fetched_at=now,
+                        )
+                        .on_conflict_do_update(
+                            constraint="uq_fred_series_date",
+                            set_={"value": val, "fetched_at": now},
+                        )
                     )
                     await session.execute(stmt)
                     n_persisted += 1
@@ -161,9 +156,7 @@ async def run(*, persist: bool, lookback_hours: int = _LOOKBACK_HOURS) -> int:
             await session.commit()
 
     if persist:
-        print(
-            f"VPIN compute · upserted {n_persisted} rows, {n_alerts} alerts triggered"
-        )
+        print(f"VPIN compute · upserted {n_persisted} rows, {n_alerts} alerts triggered")
 
     return 0
 

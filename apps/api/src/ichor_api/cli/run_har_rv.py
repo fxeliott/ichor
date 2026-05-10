@@ -155,16 +155,20 @@ async def run(*, persist: bool, lookback_days: int = _LOOKBACK_DAYS) -> int:
                     (f"HAR_RV_{asset}_H1"[:64], forecast_h1),
                     (f"HAR_RV_{asset}_LATEST"[:64], latest_rv),
                 ):
-                    stmt = pg_insert(FredObservation).values(
-                        id=__import__("uuid").uuid4(),
-                        observation_date=now.date(),
-                        created_at=now,
-                        series_id=sid,
-                        value=float(val),
-                        fetched_at=now,
-                    ).on_conflict_do_update(
-                        constraint="uq_fred_series_date",
-                        set_={"value": val, "fetched_at": now},
+                    stmt = (
+                        pg_insert(FredObservation)
+                        .values(
+                            id=__import__("uuid").uuid4(),
+                            observation_date=now.date(),
+                            created_at=now,
+                            series_id=sid,
+                            value=float(val),
+                            fetched_at=now,
+                        )
+                        .on_conflict_do_update(
+                            constraint="uq_fred_series_date",
+                            set_={"value": val, "fetched_at": now},
+                        )
                     )
                     await session.execute(stmt)
                     n_persisted += 1

@@ -8,7 +8,6 @@ from datetime import UTC, datetime
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-
 from ichor_api.middleware.ai_watermark import (
     DEFAULT_PROVIDER_TAG,
     DEFAULT_WATERMARKED_PREFIXES,

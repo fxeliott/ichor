@@ -119,8 +119,12 @@ async def test_dataclass_is_frozen_and_complete() -> None:
     """Light contract-style sanity check: the dataclass exposes the
     six fields the CLI uses for the extra_payload."""
     r = LiquidityProxyReading(
-        rrp_bn=10.0, tga_bn=20.0, proxy_bn=30.0,
-        proxy_bn_lag=40.0, delta_bn=-10.0, note="hi",
+        rrp_bn=10.0,
+        tga_bn=20.0,
+        proxy_bn=30.0,
+        proxy_bn_lag=40.0,
+        delta_bn=-10.0,
+        note="hi",
     )
     with pytest.raises(Exception):  # frozen=True
         r.delta_bn = 99.0  # type: ignore[misc]

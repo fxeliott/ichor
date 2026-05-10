@@ -82,7 +82,9 @@ async def _fetch_recent_observations(
     return [(r[0], float(r[1])) for r in rows]
 
 
-def _zscore(history: list[float], current: float) -> tuple[float | None, float | None, float | None]:
+def _zscore(
+    history: list[float], current: float
+) -> tuple[float | None, float | None, float | None]:
     """Compute z = (current - mean(history)) / std(history). Returns
     (z, mean, std) — z=None if degenerate."""
     n = len(history)

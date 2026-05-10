@@ -35,9 +35,7 @@ class SessionCardCounterfactual(Base):
     )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
-    session_card_id: Mapped[UUID] = mapped_column(
-        PG_UUID(as_uuid=True), nullable=False, index=True
-    )
+    session_card_id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), nullable=False, index=True)
     asset: Mapped[str] = mapped_column(String(16), nullable=False, index=True)
     scrubbed_event: Mapped[str] = mapped_column(String(500), nullable=False)
 

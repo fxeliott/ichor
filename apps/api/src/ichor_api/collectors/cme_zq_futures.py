@@ -258,6 +258,4 @@ if __name__ == "__main__":  # pragma: no cover
     rows = asyncio.run(poll_all())
     print(f"fetched {len(rows)} rows")
     for r in rows[-5:]:
-        print(
-            f"  {r.observation_date}  ZQ={r.zq_price:.3f}  implied EFFR={r.implied_effr:.3f}%"
-        )
+        print(f"  {r.observation_date}  ZQ={r.zq_price:.3f}  implied EFFR={r.implied_effr:.3f}%")

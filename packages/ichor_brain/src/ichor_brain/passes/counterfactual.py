@@ -23,7 +23,6 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from .base import Pass, PassError, extract_json_block
 
-
 BiasDirection = Literal["long", "short", "neutral"]
 
 

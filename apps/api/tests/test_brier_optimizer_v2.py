@@ -139,17 +139,13 @@ def test_v2_disabled_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.mark.parametrize("value", ["true", "True", "TRUE", "1", "yes", "on"])
-def test_v2_enabled_for_truthy_values(
-    monkeypatch: pytest.MonkeyPatch, value: str
-) -> None:
+def test_v2_enabled_for_truthy_values(monkeypatch: pytest.MonkeyPatch, value: str) -> None:
     monkeypatch.setenv("ICHOR_API_BRIER_V2_ENABLED", value)
     assert _v2_enabled() is True
 
 
 @pytest.mark.parametrize("value", ["false", "0", "no", "off", "", "maybe"])
-def test_v2_disabled_for_falsy_values(
-    monkeypatch: pytest.MonkeyPatch, value: str
-) -> None:
+def test_v2_disabled_for_falsy_values(monkeypatch: pytest.MonkeyPatch, value: str) -> None:
     monkeypatch.setenv("ICHOR_API_BRIER_V2_ENABLED", value)
     assert _v2_enabled() is False
 

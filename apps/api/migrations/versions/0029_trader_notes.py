@@ -61,9 +61,7 @@ def upgrade() -> None:
             server_default=sa.text("now()"),
         ),
     )
-    op.execute(
-        "CREATE INDEX trader_notes_ts_desc_idx ON trader_notes (ts DESC);"
-    )
+    op.execute("CREATE INDEX trader_notes_ts_desc_idx ON trader_notes (ts DESC);")
     op.execute(
         "CREATE INDEX trader_notes_asset_ts_idx "
         "ON trader_notes (asset, ts DESC) WHERE asset IS NOT NULL;"

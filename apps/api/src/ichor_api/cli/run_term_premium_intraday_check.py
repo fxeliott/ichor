@@ -29,7 +29,9 @@ async def _main(*, persist: bool) -> int:
 
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(description="TERM_PREMIUM_INTRADAY_30D check")
-    parser.add_argument("--persist", dest="persist", action="store_true", help="Write to alerts table (default)")
+    parser.add_argument(
+        "--persist", dest="persist", action="store_true", help="Write to alerts table (default)"
+    )
     parser.add_argument("--no-persist", dest="persist", action="store_false", help="Dry-run")
     parser.set_defaults(persist=True)
     args = parser.parse_args(argv[1:])

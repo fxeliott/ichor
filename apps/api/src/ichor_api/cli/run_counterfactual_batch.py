@@ -169,9 +169,7 @@ async def run(*, persist: bool, base_url: str | None = None) -> int:
                 )
                 n_ok += 1
             else:
-                print(
-                    f"  ✗ [{card.asset:10s}] HTTP {status} — {body if body else 'no body'}"
-                )
+                print(f"  ✗ [{card.asset:10s}] HTTP {status} — {body if body else 'no body'}")
                 n_fail += 1
 
     print(f"Pass 5 batch · {n_ok} ok, {n_fail} failed")

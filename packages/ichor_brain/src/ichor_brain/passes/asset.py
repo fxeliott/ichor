@@ -31,7 +31,6 @@ from typing import Any
 from ..types import AssetSpecialization
 from .base import Pass, PassError, extract_json_block
 
-
 _SYSTEM_BASE = """\
 You are Ichor's per-asset session strategist. You receive :
   1. A régime reading (Pass 1 output).

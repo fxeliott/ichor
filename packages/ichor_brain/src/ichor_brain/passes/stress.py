@@ -12,7 +12,6 @@ from typing import Any
 from ..types import AssetSpecialization, StressTest
 from .base import Pass, PassError, extract_json_block
 
-
 _SYSTEM = """\
 You are Ichor's adversarial reviewer. You receive an asset-specialization
 output (Pass 2) and the same data pool. Your job is to STEELMAN the

@@ -141,8 +141,7 @@ def _alert_title(div: DivergenceAlert) -> str:
     high_v, high_p = div.high
     low_v, low_p = div.low
     return (
-        f"Pred-market divergence: {high_v} {high_p:.0%} vs {low_v} {low_p:.0%} "
-        f"(gap {div.gap:+.0%})"
+        f"Pred-market divergence: {high_v} {high_p:.0%} vs {low_v} {low_p:.0%} (gap {div.gap:+.0%})"
     )
 
 
@@ -166,9 +165,7 @@ async def _persist_divergences(session: Any, divs: list[DivergenceAlert]) -> int
             "matched": {
                 "similarity": d.matched.similarity,
                 "venues": list(d.matched.by_venue.keys()),
-                "market_ids": {
-                    v: m.market_id for v, m in d.matched.by_venue.items()
-                },
+                "market_ids": {v: m.market_id for v, m in d.matched.by_venue.items()},
             },
         }
         session.add(

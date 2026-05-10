@@ -403,7 +403,7 @@ def test_pure_data_routes_excluded_from_watermark() -> None:
                 leaked.append(f"{prefix!r} <-> {watermarked!r}")
     assert leaked == [], (
         "ADR-079 violated : pure-data / infra routes leaked into "
-        f"DEFAULT_WATERMARKED_PREFIXES. EU AI Act §50.2 applies to "
+        "DEFAULT_WATERMARKED_PREFIXES. EU AI Act §50.2 applies to "
         "AI-generated content only — collector outputs and infra "
         "endpoints must stay unwatermarked. Conflicts :\n" + "\n".join(leaked)
     )

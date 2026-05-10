@@ -231,9 +231,7 @@ async def evaluate_megacap_earnings(
     return MegacapEarningsResult(
         today=today,
         tickers_evaluated=len(MEGACAP_TICKERS),
-        tickers_with_date=sum(
-            1 for t in per_ticker if t.earnings_date is not None
-        ),
+        tickers_with_date=sum(1 for t in per_ticker if t.earnings_date is not None),
         tickers_alerting=len(alerts_fired),
         alerts_fired=alerts_fired,
         per_ticker=per_ticker,

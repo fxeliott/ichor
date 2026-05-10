@@ -30,9 +30,7 @@ class TreasuryTicHolding(Base):
         ),
     )
 
-    id: Mapped[UUID] = mapped_column(
-        PG_UUID(as_uuid=True), primary_key=True, default=uuid4
-    )
+    id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
     observation_month: Mapped[date] = mapped_column(Date, primary_key=True, index=True)
 
     country: Mapped[str] = mapped_column(String(64), nullable=False, index=True)

@@ -133,7 +133,9 @@ async def _persist_audit(
     response_model=ToolQueryDbOut,
     dependencies=[Depends(verify_service_token)],
     responses={
-        400: {"description": "Validation rejected the SQL (non-allowlist table, DML, multi-statement)"},
+        400: {
+            "description": "Validation rejected the SQL (non-allowlist table, DML, multi-statement)"
+        },
         401: {"description": "Service token missing/invalid"},
         500: {"description": "Database execution failure (audit row still written)"},
     },

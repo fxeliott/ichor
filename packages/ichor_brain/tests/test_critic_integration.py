@@ -6,7 +6,6 @@ Skipped automatically when `ichor_agents` isn't on the path.
 from __future__ import annotations
 
 import pytest
-
 from ichor_brain.orchestrator import Orchestrator
 from ichor_brain.runner_client import InMemoryRunnerClient
 

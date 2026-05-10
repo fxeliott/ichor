@@ -114,9 +114,7 @@ async def poll_all(
     """Pull last `limit` settlements for each watched symbol concurrently."""
     import asyncio
 
-    results = await asyncio.gather(
-        *(fetch_funding_history(s, limit=limit) for s in symbols)
-    )
+    results = await asyncio.gather(*(fetch_funding_history(s, limit=limit) for s in symbols))
     flat: list[FundingRateRecord] = []
     for batch in results:
         flat.extend(batch)

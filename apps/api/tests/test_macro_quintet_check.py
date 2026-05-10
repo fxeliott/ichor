@@ -162,6 +162,7 @@ async def test_evaluate_persist_false_suppresses(monkeypatch):
 
 def test_threshold_constant_matches_catalog():
     from ichor_api.alerts.catalog import get_alert_def
+
     a = get_alert_def("MACRO_QUINTET_STRESS")
     assert a.default_threshold == svc.ALERT_COUNT_FLOOR
     assert a.metric_name == "quintet_stress_count"

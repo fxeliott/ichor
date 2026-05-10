@@ -72,9 +72,7 @@ def test_evaluate_condition_graceful_none_passes():
     """Wave 27: graceful_none=True (used for SKEW during warm-up) must
     treat None z as PASSING. Preserves ADR-043 4-of-4 back-compat
     until cboe_skew_observations has ≥60d history."""
-    cs = svc._evaluate_condition(
-        "skew_elevated_tail_risk", None, 1.0, ">", graceful_none=True
-    )
+    cs = svc._evaluate_condition("skew_elevated_tail_risk", None, 1.0, ">", graceful_none=True)
     assert cs.z_score is None
     assert cs.passes is True
 
@@ -91,6 +89,7 @@ async def test_evaluate_no_data_returns_graceful_noop(monkeypatch):
         captured.append(kw)
 
     monkeypatch.setattr(svc, "_compute_zscore_for_series", fake_compute)
+
     # Wave 27: SKEW gracefully passes when history is missing (None).
     async def fake_compute_skew(_session):
         return None
@@ -119,10 +118,10 @@ async def test_evaluate_partial_alignment_no_alert(monkeypatch):
     captured: list[dict[str, Any]] = []
 
     z_values = {
-        svc.TERM_PREMIUM_SERIES: 2.5,    # term premium expanding ✓
-        svc.DXY_SERIES: -1.5,             # DXY weak ✓
-        svc.VIX_SERIES: 0.5,              # not panic ✓
-        svc.HY_OAS_SERIES: 1.5,           # CREDIT STRESS — fails the gate
+        svc.TERM_PREMIUM_SERIES: 2.5,  # term premium expanding ✓
+        svc.DXY_SERIES: -1.5,  # DXY weak ✓
+        svc.VIX_SERIES: 0.5,  # not panic ✓
+        svc.HY_OAS_SERIES: 1.5,  # CREDIT STRESS — fails the gate
     }
 
     async def fake_compute(_session, series_id):
@@ -132,6 +131,7 @@ async def test_evaluate_partial_alignment_no_alert(monkeypatch):
         captured.append(kw)
 
     monkeypatch.setattr(svc, "_compute_zscore_for_series", fake_compute)
+
     # Wave 27: SKEW gracefully passes when history is missing (None).
     async def fake_compute_skew(_session):
         return None
@@ -159,10 +159,10 @@ async def test_evaluate_full_alignment_fires_alert(monkeypatch):
     captured: list[dict[str, Any]] = []
 
     z_values = {
-        svc.TERM_PREMIUM_SERIES: 2.5,    # ✓ term premium expanding
-        svc.DXY_SERIES: -1.5,             # ✓ DXY weak
-        svc.VIX_SERIES: 0.5,              # ✓ not panic
-        svc.HY_OAS_SERIES: 0.3,           # ✓ no credit stress
+        svc.TERM_PREMIUM_SERIES: 2.5,  # ✓ term premium expanding
+        svc.DXY_SERIES: -1.5,  # ✓ DXY weak
+        svc.VIX_SERIES: 0.5,  # ✓ not panic
+        svc.HY_OAS_SERIES: 0.3,  # ✓ no credit stress
     }
 
     async def fake_compute(_session, series_id):
@@ -172,6 +172,7 @@ async def test_evaluate_full_alignment_fires_alert(monkeypatch):
         captured.append(kw)
 
     monkeypatch.setattr(svc, "_compute_zscore_for_series", fake_compute)
+
     # Wave 27: SKEW gracefully passes when history is missing (None).
     async def fake_compute_skew(_session):
         return None
@@ -196,10 +197,7 @@ async def test_evaluate_full_alignment_fires_alert(monkeypatch):
     assert payload["z_skew"] is None
     assert payload["skew_warm"] is False
     assert payload["tail_amplified"] is False
-    assert (
-        "FRED:THREEFYTP10+DTWEXBGS+VIXCLS+BAMLH0A0HYM2 + CBOE:SKEW"
-        == payload["source"]
-    )
+    assert "FRED:THREEFYTP10+DTWEXBGS+VIXCLS+BAMLH0A0HYM2 + CBOE:SKEW" == payload["source"]
     assert len(payload["conditions"]) == 5
     assert all(c["passes"] for c in payload["conditions"])
 
@@ -278,10 +276,10 @@ async def test_evaluate_classic_left_smile_no_alert(monkeypatch):
     captured: list[dict[str, Any]] = []
 
     z_values = {
-        svc.TERM_PREMIUM_SERIES: 0.5,    # neutral
-        svc.DXY_SERIES: 2.5,              # USD STRONG (classic safe-haven) — fails dxy_weakness
-        svc.VIX_SERIES: 3.0,              # panic — fails vix_not_panic
-        svc.HY_OAS_SERIES: 3.0,           # credit stress — fails hy_oas_not_stress
+        svc.TERM_PREMIUM_SERIES: 0.5,  # neutral
+        svc.DXY_SERIES: 2.5,  # USD STRONG (classic safe-haven) — fails dxy_weakness
+        svc.VIX_SERIES: 3.0,  # panic — fails vix_not_panic
+        svc.HY_OAS_SERIES: 3.0,  # credit stress — fails hy_oas_not_stress
     }
 
     async def fake_compute(_session, series_id):
@@ -291,6 +289,7 @@ async def test_evaluate_classic_left_smile_no_alert(monkeypatch):
         captured.append(kw)
 
     monkeypatch.setattr(svc, "_compute_zscore_for_series", fake_compute)
+
     # Wave 27: SKEW gracefully passes when history is missing (None).
     async def fake_compute_skew(_session):
         return None
@@ -324,6 +323,7 @@ async def test_evaluate_persist_false_suppresses_check_metric(monkeypatch):
         captured.append(kw)
 
     monkeypatch.setattr(svc, "_compute_zscore_for_series", fake_compute)
+
     # Wave 27: SKEW gracefully passes when history is missing (None).
     async def fake_compute_skew(_session):
         return None

@@ -53,9 +53,7 @@ async def run(*, persist: bool) -> int:
             if rr25 is None:
                 print(f"rr25 · {ticker:4s} → no usable chain (skip)")
                 continue
-            result = await evaluate_rr25(
-                session, asset=asset, rr25_pct=rr25, persist=persist
-            )
+            result = await evaluate_rr25(session, asset=asset, rr25_pct=rr25, persist=persist)
             print(f"rr25 · {ticker:4s} → {asset:11s} {result.note}")
             n_persisted += 1
             if result.z_score is not None and abs(result.z_score) >= 2.0:

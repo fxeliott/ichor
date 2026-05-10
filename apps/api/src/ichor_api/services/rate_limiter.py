@@ -68,11 +68,11 @@ def _route_prefix(path: str) -> str:
 
 class RateLimitMiddleware:
     """ASGI middleware. Plug via:
-        app.add_middleware(
-            RateLimitMiddleware,
-            redis_client=redis_async,
-            budget_per_min=120,
-        )
+    app.add_middleware(
+        RateLimitMiddleware,
+        redis_client=redis_async,
+        budget_per_min=120,
+    )
     """
 
     def __init__(
@@ -95,9 +95,7 @@ class RateLimitMiddleware:
     def _budget_for(self, prefix: str) -> int:
         return self._limits.get(prefix, self._default_budget)
 
-    async def _incr_and_check(
-        self, key: str, budget: int
-    ) -> tuple[bool, int, int]:
+    async def _incr_and_check(self, key: str, budget: int) -> tuple[bool, int, int]:
         """Returns (allowed, current_count, ttl_seconds).
 
         On Redis error returns (True, -1, -1) — fail-OPEN so the API

@@ -6,10 +6,9 @@ package can be exercised standalone).
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
-
 from ichor_brain.persistence import to_audit_row
 from ichor_brain.types import (
     AssetSpecialization,
@@ -34,7 +33,7 @@ def _make_card() -> SessionCard:
     return SessionCard(
         session_type="pre_londres",
         asset="EUR_USD",
-        generated_at=datetime(2026, 5, 4, 5, 0, tzinfo=timezone.utc),
+        generated_at=datetime(2026, 5, 4, 5, 0, tzinfo=UTC),
         regime=RegimeReading.model_validate(REGIME_OK_JSON),
         specialization=AssetSpecialization.model_validate(ASSET_OK_JSON),
         stress=StressTest.model_validate(STRESS_OK_JSON),

@@ -275,34 +275,19 @@ async def _section_executive_summary(session: AsyncSession) -> tuple[str, list[s
         .scalars()
         .first()
     )
-    vvix_latest_row = (
-        (
-            await session.execute(
-                select(CboeVvixObservation)
-                .order_by(desc(CboeVvixObservation.observation_date))
-                .limit(1)
-            )
-        )
-        .scalars()
-        .first()
-    )
     vix_v = await _latest_fred(session, "VIXCLS", max_age_days=7)
     hy_oas_v = await _latest_fred(session, "BAMLH0A0HYM2", max_age_days=14)
-    dxy_v = await _latest_fred(session, "DTWEXBGS", max_age_days=14)
     nfci_v = await _latest_fred(session, "NFCI", max_age_days=14)
     cli_us_v = await _latest_fred(session, "USALOLITOAASTSAM", max_age_days=90)
     expinf_v = await _latest_fred(session, "EXPINF1YR", max_age_days=45)
-    icsa_v = await _latest_fred(session, "ICSA", max_age_days=14)
     term_v = await _latest_fred(session, "THREEFYTP10", max_age_days=30)
 
     skew = skew_latest_row.skew_value if skew_latest_row else None
-    vvix = vvix_latest_row.vvix_value if vvix_latest_row else None
     vix = vix_v[0] if vix_v else None
     hy_oas = hy_oas_v[0] if hy_oas_v else None
     nfci = nfci_v[0] if nfci_v else None
     cli_us = cli_us_v[0] if cli_us_v else None
     expinf = expinf_v[0] if expinf_v else None
-    icsa = icsa_v[0] if icsa_v else None
     term_prem = term_v[0] if term_v else None
 
     regime: str = "transitional"
@@ -960,7 +945,7 @@ async def _section_fed_financial(session: AsyncSession) -> tuple[str, list[str]]
             ("Oct FOMC", "V26", "X26"),  # Oct 27-28 → V26 pre, X26 post
             ("Dec FOMC", "Z26", "F27"),  # Dec 8-9 → Z26 pre, F27 post
         )
-        pts_dict = {lbl: v for lbl, v in forward_pts}
+        pts_dict = dict(forward_pts)
         # Map month-code → forward_pts label (e.g. "M26" → "Jun26")
         code_to_label = {
             "K26": "May26",

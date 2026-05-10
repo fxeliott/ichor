@@ -109,7 +109,9 @@ _TARIFF_PATTERNS: tuple[re.Pattern[str], ...] = (
     re.compile(r"\bprotectionism\b", re.IGNORECASE),
     re.compile(r"\breciprocal tariff", re.IGNORECASE),  # + plural
     re.compile(r"\bIEEPA\b"),  # case-SENSITIVE
-    re.compile(r"\bART program\b"),  # case-SENSITIVE — `art program` collides with `smart program` etc
+    re.compile(
+        r"\bART program\b"
+    ),  # case-SENSITIVE — `art program` collides with `smart program` etc
     re.compile(r"\bLiberation Day\b", re.IGNORECASE),
     re.compile(r"\bimport (?:duty|duties)\b", re.IGNORECASE),
     re.compile(r"\btrade dispute", re.IGNORECASE),
@@ -129,6 +131,7 @@ def _title_matches_tariff(title: str) -> bool:
     ILIKE pre-fetch — rejects substring-collision false positives like
     `ustr` matching `industrial`."""
     return any(p.search(title) for p in _TARIFF_PATTERNS)
+
 
 # Trailing distribution length for the count z-score.
 COUNT_ZSCORE_WINDOW_DAYS = 30
@@ -210,11 +213,7 @@ async def _fetch_tariff_articles(
     )
     rows = (await session.execute(stmt)).all()
     # Strict Python post-filter to reject substring-collision false positives
-    return [
-        (r[0], r[1], float(r[2]))
-        for r in rows
-        if _title_matches_tariff(r[1])
-    ]
+    return [(r[0], r[1], float(r[2])) for r in rows if _title_matches_tariff(r[1])]
 
 
 def _bucket_by_day(
@@ -284,13 +283,9 @@ async def evaluate_tariff_shock(
     today = today or datetime.now(UTC).date()
 
     # Fetch with a small buffer beyond the 30d window
-    articles = await _fetch_tariff_articles(
-        session, days=COUNT_ZSCORE_WINDOW_DAYS + 7
-    )
+    articles = await _fetch_tariff_articles(session, days=COUNT_ZSCORE_WINDOW_DAYS + 7)
 
-    today_count, history, n_today, today_tones, today_titles = _bucket_by_day(
-        articles, today=today
-    )
+    today_count, history, n_today, today_tones, today_titles = _bucket_by_day(articles, today=today)
 
     avg_tone_today: float | None = (
         round(sum(today_tones) / len(today_tones), 3) if today_tones else None
@@ -326,9 +321,7 @@ async def evaluate_tariff_shock(
 
     # Combined gate: count anomaly AND negative tone
     is_count_anomaly = z >= ALERT_COUNT_Z_FLOOR
-    is_negative_tone = (
-        avg_tone_today is not None and avg_tone_today <= AVG_TONE_NEG_FLOOR
-    )
+    is_negative_tone = avg_tone_today is not None and avg_tone_today <= AVG_TONE_NEG_FLOOR
 
     fired = False
     if is_count_anomaly and is_negative_tone and persist:

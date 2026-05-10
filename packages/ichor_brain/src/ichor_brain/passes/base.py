@@ -17,17 +17,14 @@ from __future__ import annotations
 import json
 import re
 from abc import ABC, abstractmethod
-from typing import Any, Generic, TypeVar
+from typing import Any
 
 
 class PassError(RuntimeError):
     """Raised when a pass cannot parse a runner response."""
 
 
-T = TypeVar("T")
-
-
-class Pass(ABC, Generic[T]):
+class Pass[T](ABC):
     """Base class for the 4 passes."""
 
     name: str

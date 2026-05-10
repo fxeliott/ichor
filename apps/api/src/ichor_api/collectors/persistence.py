@@ -459,7 +459,6 @@ async def persist_cboe_skew_observations(
         )
     ).all()
     existing: set[date_type] = {r[0] for r in existing_rows}
-    now = datetime.now(UTC)
     inserted = 0
     for o in obs:
         if o.observation_date in existing:
@@ -503,7 +502,6 @@ async def persist_cboe_vvix_observations(
         )
     ).all()
     existing: set[date_type] = {r[0] for r in existing_rows}
-    now = datetime.now(UTC)
     inserted = 0
     for o in obs:
         if o.observation_date in existing:

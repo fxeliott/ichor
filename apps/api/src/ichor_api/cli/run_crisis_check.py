@@ -68,9 +68,7 @@ async def _last_crisis_resolved(session, *, after: datetime) -> Alert | None:
     return (await session.execute(stmt)).scalars().first()
 
 
-async def _emit_active(
-    session, *, codes: list[str], total_alerts: int, score: float
-) -> None:
+async def _emit_active(session, *, codes: list[str], total_alerts: int, score: float) -> None:
     """codes = deduplicated list of triggering alert codes ;
     total_alerts = raw count (one code can fire on multiple assets)."""
     now = datetime.now(UTC)
@@ -134,9 +132,7 @@ async def _emit_resolved(session, *, prior_codes: list[str]) -> None:
             direction="below",
             source_payload={"prior_codes": prior_codes},
             title="Crisis Mode résolu",
-            description=(
-                "Crisis Mode dropped below threshold (alerts acknowledged or aged out)."
-            ),
+            description=("Crisis Mode dropped below threshold (alerts acknowledged or aged out)."),
         )
     )
     await _publish_crisis_event(
@@ -186,9 +182,7 @@ async def run(*, persist: bool, min_concurrent: int = 2, lookback_min: int = 60)
         # been followed by a CRISIS_MODE_RESOLVED.
         currently_active_in_db = False
         if last_active is not None:
-            resolved_after = await _last_crisis_resolved(
-                session, after=last_active.triggered_at
-            )
+            resolved_after = await _last_crisis_resolved(session, after=last_active.triggered_at)
             currently_active_in_db = resolved_after is None
 
     print(
@@ -222,9 +216,7 @@ async def run(*, persist: bool, min_concurrent: int = 2, lookback_min: int = 60)
                 # Pull prior_codes from the last ACTIVE row's payload
                 prior_codes: list[str] = []
                 if last_active and isinstance(last_active.source_payload, dict):
-                    prior_codes = list(
-                        last_active.source_payload.get("triggering_codes") or []
-                    )
+                    prior_codes = list(last_active.source_payload.get("triggering_codes") or [])
                 await _emit_resolved(session, prior_codes=prior_codes)
                 await session.commit()
                 print("Crisis check · emitted CRISIS_MODE_RESOLVED")

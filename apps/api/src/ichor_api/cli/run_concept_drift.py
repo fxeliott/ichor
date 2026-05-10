@@ -75,9 +75,7 @@ async def run(*, persist: bool, lookback_days: int = _LOOKBACK_DAYS) -> int:
         by_model.setdefault(model_id or "unknown", []).append((asset, ts, float(brier)))
 
     qualifying = {m: v for m, v in by_model.items() if len(v) >= _MIN_OBS_FOR_FIT}
-    print(
-        f"  {len(qualifying)}/{len(by_model)} models have ≥ {_MIN_OBS_FOR_FIT} obs (qualifying)"
-    )
+    print(f"  {len(qualifying)}/{len(by_model)} models have ≥ {_MIN_OBS_FOR_FIT} obs (qualifying)")
 
     if not qualifying:
         return 0

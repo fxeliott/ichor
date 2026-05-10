@@ -69,9 +69,7 @@ def parse_fng_response(body: dict[str, Any]) -> list[FearGreedReading]:
     return out
 
 
-async def fetch_fng_history(
-    *, limit: int = 30, timeout_s: float = 15.0
-) -> list[FearGreedReading]:
+async def fetch_fng_history(*, limit: int = 30, timeout_s: float = 15.0) -> list[FearGreedReading]:
     """Pull the last `limit` daily readings (limit=0 = all history)."""
     url = f"{ALTERNATIVE_BASE}/fng/"
     params = {"limit": str(limit), "format": "json"}

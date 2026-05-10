@@ -157,8 +157,7 @@ async def build_news_nlp_context(
             if r.tone_label and r.tone_score is not None:
                 tone = f" [tone={r.tone_label} {r.tone_score:+.2f}]"
             parts.append(
-                f"- **{_fmt_dt(r.published_at)}** [{r.source}]{tone} "
-                f"_{_truncate(r.title, 200)}_"
+                f"- **{_fmt_dt(r.published_at)}** [{r.source}]{tone} _{_truncate(r.title, 200)}_"
             )
             if r.summary:
                 parts.append(f"  > {_truncate(r.summary, 280)}")

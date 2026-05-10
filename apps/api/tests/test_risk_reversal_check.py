@@ -52,9 +52,9 @@ def test_zscore_negative_for_bearish_extreme() -> None:
 
 def _build_mock_session(history_values: list[float], existing_today: bool = False) -> MagicMock:
     """Mock async session whose execute() returns:
-       1. existing-today-value lookup (None if no row)
-       2. (after insert/update) read_history rows
-       3. check_metric internal queries (catalog-driven)
+    1. existing-today-value lookup (None if no row)
+    2. (after insert/update) read_history rows
+    3. check_metric internal queries (catalog-driven)
     """
     session = MagicMock()
     session.add = MagicMock()
@@ -120,8 +120,6 @@ async def test_evaluate_computes_z_when_history_sufficient() -> None:
 async def test_evaluate_persist_false_skips_writes() -> None:
     """Dry-run mode : no DB writes, no alert calls — only computation."""
     session = _build_mock_session(history_values=[0.0] * 50)
-    result = await evaluate_rr25(
-        session, asset="SPX500_USD", rr25_pct=0.0, persist=False
-    )
+    result = await evaluate_rr25(session, asset="SPX500_USD", rr25_pct=0.0, persist=False)
     assert result.rr25_pct == 0.0
     session.add.assert_not_called()

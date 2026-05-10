@@ -95,9 +95,7 @@ class UnInversionResult:
     note: str = ""
 
 
-async def _fetch_recent_history(
-    session: AsyncSession, *, days: int
-) -> list[tuple[date, float]]:
+async def _fetch_recent_history(session: AsyncSession, *, days: int) -> list[tuple[date, float]]:
     """Last `days` non-null T10Y2Y observations, oldest-first."""
     cutoff = datetime.now(UTC).date() - timedelta(days=days)
     stmt = (
@@ -158,9 +156,7 @@ async def evaluate_yield_curve_un_inversion(
     deep_inversion_in_window = (
         max_inv_value is not None and max_inv_value <= DEEP_INVERSION_DEPTH_PCT
     )
-    n_conditions = (1 if cross_up_today else 0) + (
-        1 if deep_inversion_in_window else 0
-    )
+    n_conditions = (1 if cross_up_today else 0) + (1 if deep_inversion_in_window else 0)
 
     note = (
         f"yield_curve_un_inv · today={current_spread:+.4f}% (yesterday "
@@ -196,9 +192,7 @@ async def evaluate_yield_curve_un_inversion(
     return UnInversionResult(
         current_spread_pct=round(current_spread, 4),
         previous_spread_pct=round(previous_spread, 4),
-        max_inversion_depth_60d=(
-            round(max_inv_value, 4) if max_inv_value is not None else None
-        ),
+        max_inversion_depth_60d=(round(max_inv_value, 4) if max_inv_value is not None else None),
         days_since_deepest=days_since_deepest,
         cross_up_today=cross_up_today,
         deep_inversion_in_window=deep_inversion_in_window,

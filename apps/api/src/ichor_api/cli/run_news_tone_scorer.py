@@ -103,9 +103,7 @@ async def run(*, persist: bool, max_age_hours: int = _MAX_AGE_HOURS) -> int:
     async with sm() as session:
         # One UPDATE per row — small batch (≤500), Postgres handles
         # this fine without a CTE bulk-update.
-        for (row_id, fetched_at, _title, _summary), score in zip(
-            rows, scores, strict=False
-        ):
+        for (row_id, fetched_at, _title, _summary), score in zip(rows, scores, strict=False):
             tone_score = _signed_score(score.label, score.confidence)
             await session.execute(
                 sa_text(

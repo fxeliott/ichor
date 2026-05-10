@@ -33,8 +33,13 @@ _BASELINE_HOURS = 4
 _RECENT_MINUTES = 5
 # Pip multipliers : JPY pairs use 0.01 increment, others use 0.0001.
 _PIP_MULTIPLIER = {
-    "EURUSD": 1e4, "GBPUSD": 1e4, "AUDUSD": 1e4, "USDCAD": 1e4,
-    "USDJPY": 1e2, "EURJPY": 1e2, "GBPJPY": 1e2,
+    "EURUSD": 1e4,
+    "GBPUSD": 1e4,
+    "AUDUSD": 1e4,
+    "USDCAD": 1e4,
+    "USDJPY": 1e2,
+    "EURJPY": 1e2,
+    "GBPJPY": 1e2,
     "XAUUSD": 1e1,  # Gold quoted in $/oz, 1 pip = $0.10
 }
 
@@ -74,7 +79,7 @@ async def _process_asset(session, *, asset: str, baseline_start: datetime, recen
 
     bmean = sum(baseline_spreads) / len(baseline_spreads)
     bvar = sum((s - bmean) ** 2 for s in baseline_spreads) / max(1, len(baseline_spreads) - 1)
-    bstd = bvar ** 0.5
+    bstd = bvar**0.5
     rmean = sum(recent_spreads) / len(recent_spreads)
     z = 0.0
     if bstd > 0:
@@ -89,11 +94,7 @@ async def run(*, persist: bool) -> int:
     recent_start = now - timedelta(minutes=_RECENT_MINUTES)
 
     async with sm() as session:
-        distinct_stmt = (
-            select(FxTick.asset)
-            .where(FxTick.ts >= baseline_start)
-            .distinct()
-        )
+        distinct_stmt = select(FxTick.asset).where(FxTick.ts >= baseline_start).distinct()
         assets = [r[0] for r in (await session.execute(distinct_stmt)).all()]
 
     print(f"Bid-ask spread · {len(assets)} assets active in last {_BASELINE_HOURS}h")
@@ -126,16 +127,20 @@ async def run(*, persist: bool) -> int:
                     (f"BA_SPREAD_{asset}_PIPS"[:64], rmean),
                     (f"BA_SPREAD_{asset}_Z"[:64], z),
                 ):
-                    stmt = pg_insert(FredObservation).values(
-                        id=__import__("uuid").uuid4(),
-                        observation_date=now.date(),
-                        created_at=now,
-                        series_id=sid,
-                        value=float(val),
-                        fetched_at=now,
-                    ).on_conflict_do_update(
-                        constraint="uq_fred_series_date",
-                        set_={"value": val, "fetched_at": now},
+                    stmt = (
+                        pg_insert(FredObservation)
+                        .values(
+                            id=__import__("uuid").uuid4(),
+                            observation_date=now.date(),
+                            created_at=now,
+                            series_id=sid,
+                            value=float(val),
+                            fetched_at=now,
+                        )
+                        .on_conflict_do_update(
+                            constraint="uq_fred_series_date",
+                            set_={"value": val, "fetched_at": now},
+                        )
                     )
                     await session.execute(stmt)
                     n_persisted += 1
@@ -162,9 +167,7 @@ async def run(*, persist: bool) -> int:
             await session.commit()
 
     if persist:
-        print(
-            f"Bid-ask spread · upserted {n_persisted} rows, {n_alerts} alerts triggered"
-        )
+        print(f"Bid-ask spread · upserted {n_persisted} rows, {n_alerts} alerts triggered")
     return 0
 
 

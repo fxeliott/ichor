@@ -636,12 +636,8 @@ async def assess_confluence(
             return 1.0
         return float(weights.get(name, 1.0))
 
-    pos = sum(
-        d.contribution * _factor_weight(d.factor) for d in drivers if d.contribution > 0
-    )
-    neg = sum(
-        -d.contribution * _factor_weight(d.factor) for d in drivers if d.contribution < 0
-    )
+    pos = sum(d.contribution * _factor_weight(d.factor) for d in drivers if d.contribution > 0)
+    neg = sum(-d.contribution * _factor_weight(d.factor) for d in drivers if d.contribution < 0)
     score_long = max(0.0, min(100.0, 50.0 + 8.0 * pos))
     score_short = max(0.0, min(100.0, 50.0 + 8.0 * neg))
     score_neutral = max(0.0, 100.0 - max(score_long, score_short))

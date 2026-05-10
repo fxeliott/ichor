@@ -69,9 +69,7 @@ async def test_evaluate_inside_quad_window_fires_alert(monkeypatch):
 
     monkeypatch.setattr(svc, "check_metric", fake_check_metric)
 
-    result = await svc.evaluate_quad_witching_proximity(
-        None, persist=True, today=date(2026, 3, 16)
-    )
+    result = await svc.evaluate_quad_witching_proximity(None, persist=True, today=date(2026, 3, 16))
     assert result.is_quad_witching_window is True
     assert result.quad_witching_alert_fired is True
     assert result.days_to_quad == 4
@@ -100,9 +98,7 @@ async def test_evaluate_inside_opex_window_only(monkeypatch):
 
     monkeypatch.setattr(svc, "check_metric", fake_check_metric)
 
-    result = await svc.evaluate_quad_witching_proximity(
-        None, persist=True, today=date(2026, 2, 19)
-    )
+    result = await svc.evaluate_quad_witching_proximity(None, persist=True, today=date(2026, 2, 19))
     assert result.is_opex_window is True
     assert result.opex_alert_fired is True
     assert result.days_to_opex == 1
@@ -124,9 +120,7 @@ async def test_evaluate_outside_both_windows_no_alerts(monkeypatch):
 
     monkeypatch.setattr(svc, "check_metric", fake_check_metric)
 
-    result = await svc.evaluate_quad_witching_proximity(
-        None, persist=True, today=date(2026, 4, 1)
-    )
+    result = await svc.evaluate_quad_witching_proximity(None, persist=True, today=date(2026, 4, 1))
     assert result.is_quad_witching_window is False
     assert result.is_opex_window is False
     assert captured == []
@@ -143,9 +137,7 @@ async def test_evaluate_quad_and_opex_same_day(monkeypatch):
 
     monkeypatch.setattr(svc, "check_metric", fake_check_metric)
 
-    result = await svc.evaluate_quad_witching_proximity(
-        None, persist=True, today=date(2026, 3, 20)
-    )
+    result = await svc.evaluate_quad_witching_proximity(None, persist=True, today=date(2026, 3, 20))
     assert result.days_to_quad == 0
     assert result.days_to_opex == 0
     assert result.is_quad_witching_window is True

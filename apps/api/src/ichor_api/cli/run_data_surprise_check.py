@@ -33,9 +33,7 @@ async def run(*, persist: bool) -> int:
         if persist:
             await session.commit()
 
-    composite_str = (
-        f"{result.composite_z:+.2f}" if result.composite_z is not None else "n/a"
-    )
+    composite_str = f"{result.composite_z:+.2f}" if result.composite_z is not None else "n/a"
     print(
         f"data_surprise · {result.region} composite={composite_str} ({result.composite_band}) "
         f"· {result.n_series_evaluated} series · {result.n_series_alerting} alert(s) fired"

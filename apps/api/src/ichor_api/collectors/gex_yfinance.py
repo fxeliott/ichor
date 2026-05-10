@@ -159,10 +159,20 @@ def aggregate_dealer_gex(
     for k in strikes:
         d = options_by_strike[k]
         call_gex = (
-            _CALL_DEALER_SIGN * d.get("call_gamma_oi", 0.0) * _CONTRACT_MULTIPLIER * spot * spot * 0.01
+            _CALL_DEALER_SIGN
+            * d.get("call_gamma_oi", 0.0)
+            * _CONTRACT_MULTIPLIER
+            * spot
+            * spot
+            * 0.01
         )
         put_gex = (
-            _PUT_DEALER_SIGN * d.get("put_gamma_oi", 0.0) * _CONTRACT_MULTIPLIER * spot * spot * 0.01
+            _PUT_DEALER_SIGN
+            * d.get("put_gamma_oi", 0.0)
+            * _CONTRACT_MULTIPLIER
+            * spot
+            * spot
+            * 0.01
         )
         per_strike.append((k, call_gex, put_gex, call_gex + put_gex))
 
@@ -189,9 +199,7 @@ def aggregate_dealer_gex(
                 crossings.append(prev_k + t * (cur_k - prev_k))
             else:
                 crossings.append(cur_k)
-    flip_strike = (
-        min(crossings, key=lambda x: abs(x - spot)) if crossings else None
-    )
+    flip_strike = min(crossings, key=lambda x: abs(x - spot)) if crossings else None
 
     # call_wall = strike with max |call dealer gex|
     # put_wall  = strike with max |put dealer gex|
@@ -236,14 +244,20 @@ def _compute_for_chains(
                 empty = len(df) == 0
             if empty:
                 continue
-            iterator = df.iterrows() if hasattr(df, "iterrows") else (
-                (i, row) for i, row in enumerate(df)
+            iterator = (
+                df.iterrows() if hasattr(df, "iterrows") else ((i, row) for i, row in enumerate(df))
             )
             for _, row in iterator:
                 try:
-                    strike = float(row["strike"]) if hasattr(row, "__getitem__") else float(getattr(row, "strike", 0.0))
+                    strike = (
+                        float(row["strike"])
+                        if hasattr(row, "__getitem__")
+                        else float(getattr(row, "strike", 0.0))
+                    )
                     oi_raw = (
-                        row["openInterest"] if hasattr(row, "__getitem__") else getattr(row, "openInterest", 0.0)
+                        row["openInterest"]
+                        if hasattr(row, "__getitem__")
+                        else getattr(row, "openInterest", 0.0)
                     )
                     iv_raw = (
                         row["impliedVolatility"]
@@ -305,9 +319,7 @@ def _sync_fetch(ticker: str, max_expiries: int) -> DealerGexSnapshot | None:
             chain = t.option_chain(exp)
             chains.append((exp, chain.calls, chain.puts))
         except Exception as e:
-            log.warning(
-                "gex_yfinance.chain_failed", ticker=ticker, expiry=exp, error=str(e)[:200]
-            )
+            log.warning("gex_yfinance.chain_failed", ticker=ticker, expiry=exp, error=str(e)[:200])
 
     if not chains:
         return None

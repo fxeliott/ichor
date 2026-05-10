@@ -7,7 +7,7 @@ package on the path (e.g. pure-pipeline tests).
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
@@ -17,7 +17,7 @@ if TYPE_CHECKING:
     from ichor_api.models.session_card_audit import SessionCardAudit  # pragma: no cover
 
 
-def to_audit_row(card: SessionCard) -> "SessionCardAudit":
+def to_audit_row(card: SessionCard) -> SessionCardAudit:
     """Map a `SessionCard` to an unflushed `SessionCardAudit` instance.
 
     Brier-related columns (`realized_*`, `brier_contribution`) are left
@@ -28,7 +28,7 @@ def to_audit_row(card: SessionCard) -> "SessionCardAudit":
     return SessionCardAudit(
         id=uuid4(),
         generated_at=card.generated_at,
-        created_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
         session_type=card.session_type,
         asset=card.asset,
         model_id=card.model_id,

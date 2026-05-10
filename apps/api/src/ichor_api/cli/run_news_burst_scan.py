@@ -42,9 +42,7 @@ _NEG_TONE_FLOOR = -0.5
 _MIN_RAW_COUNT = 5  # absolute floor — avoid alerting on 1-2 outliers
 
 
-async def _count_negatives_in_window(
-    session, *, start: datetime, end: datetime
-) -> int:
+async def _count_negatives_in_window(session, *, start: datetime, end: datetime) -> int:
     stmt = (
         select(sa_text("count(*)"))
         .select_from(NewsItem)
@@ -116,9 +114,7 @@ async def run(*, persist: bool) -> int:
     window_start = now - timedelta(minutes=_BURST_WINDOW_MIN)
 
     async with sm() as session:
-        cur_count = await _count_negatives_in_window(
-            session, start=window_start, end=now
-        )
+        cur_count = await _count_negatives_in_window(session, start=window_start, end=now)
         mean, std, n_slices = await _baseline_stats(session, now=now)
 
     # Burst score : (cur - mean) / std, normalized to roughly [0, 1] by

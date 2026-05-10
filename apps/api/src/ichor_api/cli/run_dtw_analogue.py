@@ -68,10 +68,7 @@ async def run(*, persist: bool) -> int:
         pattern = await _load_vix_pattern(session)
 
     if pattern is None:
-        print(
-            f"DTW analogue · skipped — insufficient VIXCLS history "
-            f"(< {_MIN_OBS_FOR_MATCH} days)"
-        )
+        print(f"DTW analogue · skipped — insufficient VIXCLS history (< {_MIN_OBS_FOR_MATCH} days)")
         return 0
 
     # Lazy import — the matcher pulls dtaidistance which is heavy.
@@ -99,16 +96,20 @@ async def run(*, persist: bool) -> int:
         async with sm() as session:
             now = datetime.now(UTC)
             best = matches[0]
-            stmt = pg_insert(FredObservation).values(
-                id=__import__("uuid").uuid4(),
-                observation_date=now.date(),
-                created_at=now,
-                series_id="DTW_DIST_MIN",
-                value=float(best.distance),
-                fetched_at=now,
-            ).on_conflict_do_update(
-                constraint="uq_fred_series_date",
-                set_={"value": float(best.distance), "fetched_at": now},
+            stmt = (
+                pg_insert(FredObservation)
+                .values(
+                    id=__import__("uuid").uuid4(),
+                    observation_date=now.date(),
+                    created_at=now,
+                    series_id="DTW_DIST_MIN",
+                    value=float(best.distance),
+                    fetched_at=now,
+                )
+                .on_conflict_do_update(
+                    constraint="uq_fred_series_date",
+                    set_={"value": float(best.distance), "fetched_at": now},
+                )
             )
             await session.execute(stmt)
 
@@ -131,10 +132,7 @@ async def run(*, persist: bool) -> int:
                 },
             )
             await session.commit()
-            print(
-                f"DTW analogue · upserted DTW_DIST_MIN={best.distance:.4f}, "
-                f"{len(hits)} alerts"
-            )
+            print(f"DTW analogue · upserted DTW_DIST_MIN={best.distance:.4f}, {len(hits)} alerts")
     return 0
 
 

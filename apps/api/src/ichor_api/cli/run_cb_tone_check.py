@@ -70,9 +70,7 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--lookback-hours", type=int, default=24)
     args = parser.parse_args(argv[1:])
     cbs = [args.cb] if args.cb else sorted(CB_TO_METRIC.keys())
-    return asyncio.run(
-        _main(persist=args.persist, cbs=cbs, lookback_hours=args.lookback_hours)
-    )
+    return asyncio.run(_main(persist=args.persist, cbs=cbs, lookback_hours=args.lookback_hours))
 
 
 if __name__ == "__main__":

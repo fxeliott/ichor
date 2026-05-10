@@ -41,14 +41,13 @@ async def test_run_dry_run_no_persist_no_writes() -> None:
         is_active=True, triggering_codes=["VIX_PANIC", "GEX_FLIP"], severity_score=5.0
     )
 
-    with patch(
-        "ichor_api.cli.run_crisis_check.get_sessionmaker", return_value=sm_factory
-    ), patch(
-        "ichor_api.cli.run_crisis_check.assess_crisis", AsyncMock(return_value=fake_assessment)
-    ), patch(
-        "ichor_api.cli.run_crisis_check._last_crisis_active", AsyncMock(return_value=None)
-    ), patch(
-        "ichor_api.cli.run_crisis_check._last_crisis_resolved", AsyncMock(return_value=None)
+    with (
+        patch("ichor_api.cli.run_crisis_check.get_sessionmaker", return_value=sm_factory),
+        patch(
+            "ichor_api.cli.run_crisis_check.assess_crisis", AsyncMock(return_value=fake_assessment)
+        ),
+        patch("ichor_api.cli.run_crisis_check._last_crisis_active", AsyncMock(return_value=None)),
+        patch("ichor_api.cli.run_crisis_check._last_crisis_resolved", AsyncMock(return_value=None)),
     ):
         rc = await run(persist=False)
 
@@ -65,14 +64,13 @@ async def test_run_emits_active_on_transition() -> None:
         is_active=True, triggering_codes=["VIX_PANIC", "GEX_FLIP"], severity_score=5.0
     )
 
-    with patch(
-        "ichor_api.cli.run_crisis_check.get_sessionmaker", return_value=sm_factory
-    ), patch(
-        "ichor_api.cli.run_crisis_check.assess_crisis", AsyncMock(return_value=fake_assessment)
-    ), patch(
-        "ichor_api.cli.run_crisis_check._last_crisis_active", AsyncMock(return_value=None)
-    ), patch(
-        "ichor_api.cli.run_crisis_check._last_crisis_resolved", AsyncMock(return_value=None)
+    with (
+        patch("ichor_api.cli.run_crisis_check.get_sessionmaker", return_value=sm_factory),
+        patch(
+            "ichor_api.cli.run_crisis_check.assess_crisis", AsyncMock(return_value=fake_assessment)
+        ),
+        patch("ichor_api.cli.run_crisis_check._last_crisis_active", AsyncMock(return_value=None)),
+        patch("ichor_api.cli.run_crisis_check._last_crisis_resolved", AsyncMock(return_value=None)),
     ):
         await run(persist=True)
 
@@ -88,22 +86,22 @@ async def test_run_emits_resolved_on_transition() -> None:
     """assessment OFF + db ON → emit CRISIS_MODE_RESOLVED."""
     sm_factory, session = _mock_sm()
 
-    fake_assessment = SimpleNamespace(
-        is_active=False, triggering_codes=[], severity_score=0.0
-    )
+    fake_assessment = SimpleNamespace(is_active=False, triggering_codes=[], severity_score=0.0)
     last_active = SimpleNamespace(
         triggered_at=datetime.now(UTC),
         source_payload={"triggering_codes": ["VIX_PANIC", "GEX_FLIP"]},
     )
 
-    with patch(
-        "ichor_api.cli.run_crisis_check.get_sessionmaker", return_value=sm_factory
-    ), patch(
-        "ichor_api.cli.run_crisis_check.assess_crisis", AsyncMock(return_value=fake_assessment)
-    ), patch(
-        "ichor_api.cli.run_crisis_check._last_crisis_active", AsyncMock(return_value=last_active)
-    ), patch(
-        "ichor_api.cli.run_crisis_check._last_crisis_resolved", AsyncMock(return_value=None)
+    with (
+        patch("ichor_api.cli.run_crisis_check.get_sessionmaker", return_value=sm_factory),
+        patch(
+            "ichor_api.cli.run_crisis_check.assess_crisis", AsyncMock(return_value=fake_assessment)
+        ),
+        patch(
+            "ichor_api.cli.run_crisis_check._last_crisis_active",
+            AsyncMock(return_value=last_active),
+        ),
+        patch("ichor_api.cli.run_crisis_check._last_crisis_resolved", AsyncMock(return_value=None)),
     ):
         await run(persist=True)
 
@@ -126,14 +124,16 @@ async def test_run_no_op_when_sustained_crisis() -> None:
         source_payload={"triggering_codes": ["VIX_PANIC", "GEX_FLIP"]},
     )
 
-    with patch(
-        "ichor_api.cli.run_crisis_check.get_sessionmaker", return_value=sm_factory
-    ), patch(
-        "ichor_api.cli.run_crisis_check.assess_crisis", AsyncMock(return_value=fake_assessment)
-    ), patch(
-        "ichor_api.cli.run_crisis_check._last_crisis_active", AsyncMock(return_value=last_active)
-    ), patch(
-        "ichor_api.cli.run_crisis_check._last_crisis_resolved", AsyncMock(return_value=None)
+    with (
+        patch("ichor_api.cli.run_crisis_check.get_sessionmaker", return_value=sm_factory),
+        patch(
+            "ichor_api.cli.run_crisis_check.assess_crisis", AsyncMock(return_value=fake_assessment)
+        ),
+        patch(
+            "ichor_api.cli.run_crisis_check._last_crisis_active",
+            AsyncMock(return_value=last_active),
+        ),
+        patch("ichor_api.cli.run_crisis_check._last_crisis_resolved", AsyncMock(return_value=None)),
     ):
         await run(persist=True)
 
@@ -145,18 +145,15 @@ async def test_run_no_op_when_quiet() -> None:
     """assessment OFF + db OFF (no prior active) → no emission."""
     sm_factory, session = _mock_sm()
 
-    fake_assessment = SimpleNamespace(
-        is_active=False, triggering_codes=[], severity_score=0.0
-    )
+    fake_assessment = SimpleNamespace(is_active=False, triggering_codes=[], severity_score=0.0)
 
-    with patch(
-        "ichor_api.cli.run_crisis_check.get_sessionmaker", return_value=sm_factory
-    ), patch(
-        "ichor_api.cli.run_crisis_check.assess_crisis", AsyncMock(return_value=fake_assessment)
-    ), patch(
-        "ichor_api.cli.run_crisis_check._last_crisis_active", AsyncMock(return_value=None)
-    ), patch(
-        "ichor_api.cli.run_crisis_check._last_crisis_resolved", AsyncMock(return_value=None)
+    with (
+        patch("ichor_api.cli.run_crisis_check.get_sessionmaker", return_value=sm_factory),
+        patch(
+            "ichor_api.cli.run_crisis_check.assess_crisis", AsyncMock(return_value=fake_assessment)
+        ),
+        patch("ichor_api.cli.run_crisis_check._last_crisis_active", AsyncMock(return_value=None)),
+        patch("ichor_api.cli.run_crisis_check._last_crisis_resolved", AsyncMock(return_value=None)),
     ):
         await run(persist=True)
 

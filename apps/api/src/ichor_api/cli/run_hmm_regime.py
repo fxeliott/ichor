@@ -109,9 +109,7 @@ async def _process_asset(session, *, asset: str, since: datetime):
 
     closes = [c for _, c in daily]
     # log returns
-    log_rets = [
-        math.log(closes[i] / closes[i - 1]) for i in range(1, len(closes))
-    ]
+    log_rets = [math.log(closes[i] / closes[i - 1]) for i in range(1, len(closes))]
     if len(log_rets) < _MIN_DAYS_FOR_FIT:
         return None
 
@@ -123,7 +121,7 @@ async def _process_asset(session, *, asset: str, since: datetime):
         if len(window) >= 2:
             mean = sum(window) / len(window)
             var = sum((x - mean) ** 2 for x in window) / max(1, len(window) - 1)
-            rv5.append(var ** 0.5)
+            rv5.append(var**0.5)
         else:
             rv5.append(abs(window[0]))
 
@@ -160,7 +158,8 @@ async def run(*, persist: bool, lookback_days: int = _LOOKBACK_DAYS) -> int:
             latest_state, prev_state, n_obs = outcome
             label = _STATE_LABELS.get(latest_state, str(latest_state))
             change_indicator = (
-                "(no change)" if prev_state == latest_state
+                "(no change)"
+                if prev_state == latest_state
                 else f"(was state={prev_state} '{_STATE_LABELS.get(prev_state or -1, '?')}')"
             )
             print(
@@ -171,16 +170,20 @@ async def run(*, persist: bool, lookback_days: int = _LOOKBACK_DAYS) -> int:
                 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
                 now = datetime.now(UTC)
-                stmt = pg_insert(FredObservation).values(
-                    id=__import__("uuid").uuid4(),
-                    observation_date=now.date(),
-                    created_at=now,
-                    series_id=f"HMM_REGIME_{asset}"[:64],
-                    value=float(latest_state),
-                    fetched_at=now,
-                ).on_conflict_do_update(
-                    constraint="uq_fred_series_date",
-                    set_={"value": float(latest_state), "fetched_at": now},
+                stmt = (
+                    pg_insert(FredObservation)
+                    .values(
+                        id=__import__("uuid").uuid4(),
+                        observation_date=now.date(),
+                        created_at=now,
+                        series_id=f"HMM_REGIME_{asset}"[:64],
+                        value=float(latest_state),
+                        fetched_at=now,
+                    )
+                    .on_conflict_do_update(
+                        constraint="uq_fred_series_date",
+                        set_={"value": float(latest_state), "fetched_at": now},
+                    )
                 )
                 await session.execute(stmt)
                 n_persisted += 1

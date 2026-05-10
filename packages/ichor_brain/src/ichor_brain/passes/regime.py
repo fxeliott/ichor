@@ -14,7 +14,6 @@ from typing import Any
 from ..types import RegimeReading
 from .base import Pass, PassError, extract_json_block
 
-
 _SYSTEM = """\
 You are Ichor's macro régime analyst. You read the macro trinity (DXY,
 US10Y nominal yields, VIX) plus dollar-smile inputs (real yields,

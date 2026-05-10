@@ -60,9 +60,7 @@ _MIN_HISTORY = 30
 _LOOKBACK_DAYS = 90  # ~ 60 trading days
 
 
-async def _persist_rr25(
-    session: AsyncSession, *, series_id: str, value: float
-) -> None:
+async def _persist_rr25(session: AsyncSession, *, series_id: str, value: float) -> None:
     """Idempotent insert keyed on (series_id, observation_date).
 
     We don't dedupe on full upsert because the catalog rolling z-score
@@ -164,8 +162,7 @@ async def evaluate_rr25(
     z = _zscore(history_excl_today, rr25_pct)
 
     note = (
-        f"RR25 {asset} = {rr25_pct:+.4f} ({len(history_excl_today)} d hist, "
-        f"z={z:+.2f})"
+        f"RR25 {asset} = {rr25_pct:+.4f} ({len(history_excl_today)} d hist, z={z:+.2f})"
         if z is not None
         else f"RR25 {asset} = {rr25_pct:+.4f} (insufficient history "
         f"{len(history_excl_today)} d, need ≥ {_MIN_HISTORY})"

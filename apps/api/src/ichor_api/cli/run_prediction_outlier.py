@@ -57,9 +57,7 @@ async def run(*, persist: bool, lookback_days: int = _LOOKBACK_DAYS) -> int:
         )
         rows = (await session.execute(stmt)).all()
 
-    print(
-        f"Prediction outlier · {len(rows)} bias_signals in last {lookback_days}d"
-    )
+    print(f"Prediction outlier · {len(rows)} bias_signals in last {lookback_days}d")
 
     grouped: dict[tuple[str, int], list[float]] = {}
     for asset, horizon, _ts, prob in rows:
@@ -68,9 +66,7 @@ async def run(*, persist: bool, lookback_days: int = _LOOKBACK_DAYS) -> int:
         grouped.setdefault((asset, int(horizon)), []).append(float(prob))
 
     qualifying = {k: v for k, v in grouped.items() if len(v) >= _MIN_OBS}
-    print(
-        f"  {len(qualifying)}/{len(grouped)} (asset, horizon) pairs have ≥ {_MIN_OBS} obs"
-    )
+    print(f"  {len(qualifying)}/{len(grouped)} (asset, horizon) pairs have ≥ {_MIN_OBS} obs")
 
     if not qualifying:
         return 0
@@ -81,7 +77,7 @@ async def run(*, persist: bool, lookback_days: int = _LOOKBACK_DAYS) -> int:
             latest = probs[-1]
             mean = sum(probs) / len(probs)
             var = sum((p - mean) ** 2 for p in probs) / max(1, len(probs) - 1)
-            std = var ** 0.5
+            std = var**0.5
             if std <= 0:
                 continue
             z = (latest - mean) / std

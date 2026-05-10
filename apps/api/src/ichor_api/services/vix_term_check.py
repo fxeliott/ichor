@@ -44,8 +44,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..models import FredObservation
 from .alerts_runner import check_metric
 
-VIX_1M_SERIES = "VIXCLS"   # 30-day implied vol (VIX)
-VIX_3M_SERIES = "VXVCLS"   # 90-day implied vol (VXV / VIX3M)
+VIX_1M_SERIES = "VIXCLS"  # 30-day implied vol (VIX)
+VIX_3M_SERIES = "VXVCLS"  # 90-day implied vol (VXV / VIX3M)
 
 # Threshold mirrors catalog default (`VIX_TERM_INVERSION` AlertDef
 # default_threshold=1.0). When ratio crosses 1.0, term structure is
@@ -75,9 +75,7 @@ class VixTermResult:
     note: str = ""
 
 
-async def _fetch_latest(
-    session: AsyncSession, *, series_id: str
-) -> tuple[date, float] | None:
+async def _fetch_latest(session: AsyncSession, *, series_id: str) -> tuple[date, float] | None:
     """Latest non-null observation for `series_id`. None if no rows."""
     cutoff = datetime.now(UTC).date() - timedelta(days=14)
     stmt = (

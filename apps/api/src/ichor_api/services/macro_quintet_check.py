@@ -186,9 +186,7 @@ async def evaluate_macro_quintet(
         # Fetch enough history for the longest needed buffer
         # (realized_vol needs ZSCORE_WINDOW + REALIZED_VOL_WINDOW + extra).
         fetch_days = ZSCORE_WINDOW_DAYS + _REALIZED_VOL_WINDOW + 30
-        history_full = await _fetch_series_history(
-            session, series_id=series_id, days=fetch_days
-        )
+        history_full = await _fetch_series_history(session, series_id=series_id, days=fetch_days)
 
         if not history_full:
             per_dim.append(

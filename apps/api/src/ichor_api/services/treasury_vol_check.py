@@ -151,9 +151,7 @@ def _classify_regime(z: float | None) -> str:
     return "stress" if z > 0 else "complacency"
 
 
-async def _fetch_dgs10_history(
-    session: AsyncSession, *, days: int
-) -> list[float]:
+async def _fetch_dgs10_history(session: AsyncSession, *, days: int) -> list[float]:
     """Pull last `days` DGS10 observations, oldest-first (last = most recent)."""
     cutoff = datetime.now(UTC).date() - timedelta(days=days)
     stmt = (
@@ -170,9 +168,7 @@ async def _fetch_dgs10_history(
     return [float(r[1]) for r in rows if r[1] is not None]
 
 
-def _rolling_realized_vols(
-    daily_changes_pct: list[float], *, window: int
-) -> list[float]:
+def _rolling_realized_vols(daily_changes_pct: list[float], *, window: int) -> list[float]:
     """Rolling realized vols. Each entry is annualized stdev over a
     `window`-sample slice. Returns list aligned to slice end-points."""
     n = len(daily_changes_pct)
@@ -215,9 +211,7 @@ async def evaluate_treasury_vol(
         )
 
     # Daily first-differences (today - yesterday in pct units, FRED native)
-    daily_changes = [
-        raw_yields[i] - raw_yields[i - 1] for i in range(1, len(raw_yields))
-    ]
+    daily_changes = [raw_yields[i] - raw_yields[i - 1] for i in range(1, len(raw_yields))]
 
     # Rolling realized vol series — each entry is 30d-window stdev × √252
     rolling_rv = _rolling_realized_vols(daily_changes, window=REALIZED_VOL_WINDOW_DAYS)
@@ -241,7 +235,7 @@ async def evaluate_treasury_vol(
 
     if z is None:
         note = (
-            f"realized_vol_30d={current_rv:.4f}% (= {current_rv*100:.1f} bps "
+            f"realized_vol_30d={current_rv:.4f}% (= {current_rv * 100:.1f} bps "
             f"annualized) on {len(rolling_rv)} samples (insufficient z-score "
             f"history {len(history_rv)}d, need >= {_MIN_ZSCORE_HISTORY})"
         )
@@ -257,7 +251,7 @@ async def evaluate_treasury_vol(
 
     regime = _classify_regime(z)
     note = (
-        f"realized_vol_30d={current_rv:.4f}% (= {current_rv*100:.1f} bps "
+        f"realized_vol_30d={current_rv:.4f}% (= {current_rv * 100:.1f} bps "
         f"annualized) baseline_252d={mean:.4f}±{std:.4f} z={z:+.2f} "
         f"regime={regime or 'normal'}"
     )

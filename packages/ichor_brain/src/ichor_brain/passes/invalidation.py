@@ -13,7 +13,6 @@ from typing import Any
 from ..types import AssetSpecialization, InvalidationConditions, StressTest
 from .base import Pass, PassError, extract_json_block
 
-
 _SYSTEM = """\
 You are Ichor's invalidation-pre-commitment author. You receive the
 specialization (Pass 2) and the stress-test (Pass 3). You output the

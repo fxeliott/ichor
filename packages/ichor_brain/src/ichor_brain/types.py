@@ -174,17 +174,17 @@ class SessionCard(BaseModel):
 
 
 __all__ = [
-    "SessionType",
     "VALID_SESSION_TYPES",
-    "BiasDirection",
-    "RegimeQuadrant",
-    "CriticVerdict",
-    "RegimeReading",
     "AssetSpecialization",
-    "StressTest",
-    "InvalidationConditions",
+    "BiasDirection",
     "CriticDecision",
+    "CriticVerdict",
+    "InvalidationConditions",
+    "RegimeQuadrant",
+    "RegimeReading",
     "SessionCard",
+    "SessionType",
+    "StressTest",
 ]
 
 

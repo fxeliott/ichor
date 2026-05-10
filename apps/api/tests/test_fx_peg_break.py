@@ -18,8 +18,14 @@ def test_usdcnh_present() -> None:
 
 def test_phase1_assets_still_present_after_peg_addition() -> None:
     expected = {
-        "EUR_USD", "GBP_USD", "USD_JPY", "AUD_USD", "USD_CAD",
-        "XAU_USD", "NAS100_USD", "SPX500_USD",
+        "EUR_USD",
+        "GBP_USD",
+        "USD_JPY",
+        "AUD_USD",
+        "USD_CAD",
+        "XAU_USD",
+        "NAS100_USD",
+        "SPX500_USD",
     }
     assert expected.issubset(set(supported_assets()))
 

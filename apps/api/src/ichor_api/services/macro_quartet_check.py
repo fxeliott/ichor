@@ -55,8 +55,8 @@ from .alerts_runner import check_metric
 # The 4 quartet dimensions. Order matters for output stability.
 QUARTET_SERIES: tuple[tuple[str, str], ...] = (
     ("DTWEXBGS", "DXY"),  # Trade-weighted USD broad
-    ("DGS10", "10Y"),      # 10-year Treasury yield
-    ("VIXCLS", "VIX"),     # CBOE Volatility Index
+    ("DGS10", "10Y"),  # 10-year Treasury yield
+    ("VIXCLS", "VIX"),  # CBOE Volatility Index
     ("BAMLH0A0HYM2", "HY_OAS"),  # ICE BofA HY Option-Adjusted Spread
 )
 

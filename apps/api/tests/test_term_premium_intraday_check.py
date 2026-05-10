@@ -145,6 +145,7 @@ async def test_evaluate_persist_false(monkeypatch):
 
 def test_threshold_constant_matches_catalog():
     from ichor_api.alerts.catalog import get_alert_def
+
     a = get_alert_def("TERM_PREMIUM_INTRADAY_30D")
     assert a.default_threshold == svc.ALERT_Z_ABS_FLOOR
     assert a.metric_name == "term_premium_z_30d"

@@ -17,8 +17,8 @@ from .ai_watermark import (
 )
 
 __all__ = [
-    "AIWatermarkMiddleware",
-    "DEFAULT_WATERMARKED_PREFIXES",
-    "DEFAULT_PROVIDER_TAG",
     "DEFAULT_DISCLOSURE_URL",
+    "DEFAULT_PROVIDER_TAG",
+    "DEFAULT_WATERMARKED_PREFIXES",
+    "AIWatermarkMiddleware",
 ]

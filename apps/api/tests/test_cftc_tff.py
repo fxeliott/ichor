@@ -17,7 +17,6 @@ from ichor_api.collectors.cftc_tff import (
     parse_socrata_response,
 )
 
-
 # Verified live 2026-05-08 — trimmed real Socrata response for EUR_FX.
 _FIXTURE_OK: list[dict] = [
     {

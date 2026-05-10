@@ -61,7 +61,5 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_index(
-        "ix_counterfactuals_card_asked", table_name="session_card_counterfactuals"
-    )
+    op.drop_index("ix_counterfactuals_card_asked", table_name="session_card_counterfactuals")
     op.drop_table("session_card_counterfactuals")

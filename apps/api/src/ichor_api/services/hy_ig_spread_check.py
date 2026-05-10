@@ -131,7 +131,9 @@ async def _fetch_recent_paired(
     return paired
 
 
-def _zscore(history: list[float], current: float) -> tuple[float | None, float | None, float | None]:
+def _zscore(
+    history: list[float], current: float
+) -> tuple[float | None, float | None, float | None]:
     """Compute z = (current - mean(history)) / std(history). Returns
     (z, mean, std) — z=None if degenerate."""
     n = len(history)
@@ -163,9 +165,7 @@ async def evaluate_hy_ig_spread_divergence(
 ) -> HyIgSpreadResult:
     """Compute HY-IG spread differential z-score, fire HY_IG_SPREAD_DIVERGENCE
     when threshold crossed. Returns structured result for CLI 1-line punch."""
-    paired = await _fetch_recent_paired(
-        session, days=ZSCORE_WINDOW_DAYS + 14
-    )
+    paired = await _fetch_recent_paired(session, days=ZSCORE_WINDOW_DAYS + 14)
 
     if len(paired) < 2:
         return HyIgSpreadResult(

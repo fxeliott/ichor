@@ -35,9 +35,7 @@ async def run(*, persist: bool) -> int:
 
     print(result.note)
     if result.alert_fired:
-        print(
-            f"vix_term · ALERT (regime={result.regime}, ratio={result.ratio:.4f})"
-        )
+        print(f"vix_term · ALERT (regime={result.regime}, ratio={result.ratio:.4f})")
     return 0
 
 

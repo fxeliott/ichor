@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, Protocol
 
 import structlog
@@ -136,7 +136,7 @@ class Orchestrator:
         asset_data: str,
         now: datetime | None = None,
     ) -> OrchestratorResult:
-        generated_at = now or datetime.now(timezone.utc)
+        generated_at = now or datetime.now(UTC)
         runner_calls: list[RunnerCall] = []
         total_ms = 0
 

@@ -52,9 +52,7 @@ def test_bucket_by_day_groups_correctly():
         _article(2, today=today),
         _article(40, today=today),  # outside 30d window — should be ignored
     ]
-    today_count, history, n_today, tones, titles = svc._bucket_by_day(
-        articles, today=today
-    )
+    today_count, history, n_today, tones, titles = svc._bucket_by_day(articles, today=today)
     assert today_count == 2
     assert n_today == 2
     assert len(tones) == 2
@@ -92,9 +90,7 @@ async def test_evaluate_no_articles_returns_graceful_noop(monkeypatch):
     monkeypatch.setattr(svc, "_fetch_tariff_articles", fake_fetch)
     monkeypatch.setattr(svc, "check_metric", fake_check_metric)
 
-    result = await svc.evaluate_tariff_shock(
-        None, persist=True, today=date(2026, 5, 7)
-    )
+    result = await svc.evaluate_tariff_shock(None, persist=True, today=date(2026, 5, 7))
     assert result.today_count == 0
     # 30d of zero history is fine; std == 0 → z is None
     assert result.count_z is None
@@ -310,20 +306,14 @@ def test_title_matches_tariff_accepts_expansion_keywords():
     post-filter on legitimate-context titles."""
     # Section 321 / de minimis (Trump 2025-2026 exemption end)
     assert svc._title_matches_tariff("Section 321 de minimis exemption ended August 2025")
-    assert svc._title_matches_tariff(
-        "Postal de minimis transition starts February 28, 2026"
-    )
+    assert svc._title_matches_tariff("Postal de minimis transition starts February 28, 2026")
     # CFIUS (inbound investment review)
-    assert svc._title_matches_tariff(
-        "CFIUS blocks Chinese acquisition of semiconductor maker"
-    )
+    assert svc._title_matches_tariff("CFIUS blocks Chinese acquisition of semiconductor maker")
     # Outbound investment / E.O. 14105 / COINS Act
     assert svc._title_matches_tariff(
         "Treasury Final Rule on outbound investment program takes effect Jan 2026"
     )
-    assert svc._title_matches_tariff(
-        "Outbound Investment restrictions tighten under COINS Act"
-    )
+    assert svc._title_matches_tariff("Outbound Investment restrictions tighten under COINS Act")
     # Entity List
     assert svc._title_matches_tariff(
         "BIS adds 11 Chinese entities to Entity List for AI chip diversion"
@@ -337,13 +327,9 @@ def test_title_matches_tariff_rejects_expansion_keyword_collisions():
     keywords too — guard against future regressions."""
     # `cfius` should not match `cfiusa` or `cfius-style` if not a separate token
     # ↳ \bCFIUS\b case-sensitive ensures only standalone CFIUS matches
-    assert not svc._title_matches_tariff(
-        "Industrial production index rises in March data"
-    )
+    assert not svc._title_matches_tariff("Industrial production index rises in March data")
     # `de minimis` requires both words — partial should not match
-    assert not svc._title_matches_tariff(
-        "Some other minimis-style threshold considered"
-    )
+    assert not svc._title_matches_tariff("Some other minimis-style threshold considered")
     # `outbound investment` must be the phrase — single words don't match
     assert not svc._title_matches_tariff("Outbound flights resumed yesterday")
     assert not svc._title_matches_tariff("Investment grade bonds rallied")

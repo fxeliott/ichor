@@ -228,17 +228,17 @@ class PipelineHealthOut(BaseModel):
 
 # series_id pattern → pipeline label + freshness expectation (minutes)
 _PIPELINE_PATTERNS: tuple[tuple[str, str, int], ...] = (
-    ("VPIN_FX_%", "vpin_fx", 90),                 # 30min cron + buffer
-    ("BA_SPREAD_%", "bidask_spread", 30),         # 10min cron
-    ("VIX_LIVE", "vix_live", 30),                 # 5min cron
-    ("CRYPTO_FNG", "crypto_fng", 1500),           # daily
+    ("VPIN_FX_%", "vpin_fx", 90),  # 30min cron + buffer
+    ("BA_SPREAD_%", "bidask_spread", 30),  # 10min cron
+    ("VIX_LIVE", "vix_live", 30),  # 5min cron
+    ("CRYPTO_FNG", "crypto_fng", 1500),  # daily
     ("BINANCE_FUNDING_%", "binance_funding", 1500),
     ("DEFILLAMA_%", "defillama", 1500),
     ("WIKI_PV_%", "wikipedia_pageviews", 1500),
     ("HAR_RV_%", "har_rv_forecast", 1500),
     ("HMM_REGIME_%", "hmm_regime", 1500),
     ("DTW_DIST_MIN", "dtw_analogue", 1500),
-    ("AAII_%", "aaii", 10080),                    # weekly
+    ("AAII_%", "aaii", 10080),  # weekly
     ("BOE_%", "boe_iadb", 1500),
     ("ECB_%", "ecb_sdmx", 1500),
     ("BLS_%", "bls", 10080),

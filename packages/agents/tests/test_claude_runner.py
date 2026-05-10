@@ -159,9 +159,7 @@ async def test_call_agent_task_returns_validated_pydantic() -> None:
         return real_client_cls(**kw)
 
     with patch("ichor_agents.claude_runner.httpx.AsyncClient", _factory):
-        out = await call_agent_task(
-            _cfg(), system="sys", prompt="user-prompt", output_type=_Out
-        )
+        out = await call_agent_task(_cfg(), system="sys", prompt="user-prompt", output_type=_Out)
 
     assert isinstance(out, _Out)
     assert out.answer == "ok"
@@ -321,6 +319,10 @@ async def test_fallback_tries_claude_first_when_configured() -> None:
         system_prompt="test system prompt over 100 chars " * 5,
         output_type=_Out,
         claude=_cfg(),
+        # W67 default is async polling ; the mock above returns the
+        # sync-shaped immediate-success body. Force sync path so the
+        # mock and the code under test agree on the wire format.
+        use_async_endpoint=False,
     )
 
     real_client_cls = httpx.AsyncClient

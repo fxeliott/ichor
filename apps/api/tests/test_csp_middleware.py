@@ -83,9 +83,7 @@ async def test_middleware_stashes_nonce_in_scope_state() -> None:
 
     async def _inner(scope, receive, send):
         captured_state.update(scope.get("state") or {})
-        await send(
-            {"type": "http.response.start", "status": 200, "headers": []}
-        )
+        await send({"type": "http.response.start", "status": 200, "headers": []})
         await send({"type": "http.response.body", "body": b""})
 
     mw = CSPSecurityHeadersMiddleware(_inner)

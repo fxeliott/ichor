@@ -73,9 +73,7 @@ async def test_evaluate_insufficient_history_returns_no_alert(monkeypatch):
     async def fake_fetch(_session, *, days):
         # 10 days of observations — current + 9 history; 9 < 20
         today = date(2026, 5, 7)
-        return [
-            (today - timedelta(days=10 - i), 90.0 + i) for i in range(10)
-        ]
+        return [(today - timedelta(days=10 - i), 90.0 + i) for i in range(10)]
 
     async def fake_check_metric(_session, **kw):
         captured.append(kw)
@@ -99,10 +97,9 @@ async def test_evaluate_below_threshold_no_alert(monkeypatch):
     async def fake_fetch(_session, *, days):
         # 30d of stable values around 100 ± small noise, current = 101
         today = date(2026, 5, 7)
-        return [
-            (today - timedelta(days=30 - i), 100.0 + (i % 5 - 2) * 0.5)
-            for i in range(30)
-        ] + [(today, 101.0)]
+        return [(today - timedelta(days=30 - i), 100.0 + (i % 5 - 2) * 0.5) for i in range(30)] + [
+            (today, 101.0)
+        ]
 
     async def fake_check_metric(_session, **kw):
         captured.append(kw)
@@ -125,10 +122,7 @@ async def test_evaluate_fires_alert_above_threshold_with_source_stamp(monkeypatc
     async def fake_fetch(_session, *, days):
         # 30d of low values then a sudden spike — guaranteed |z| >> 2
         today = date(2026, 5, 7)
-        history = [
-            (today - timedelta(days=30 - i), 100.0 + (i % 3 - 1) * 0.1)
-            for i in range(30)
-        ]
+        history = [(today - timedelta(days=30 - i), 100.0 + (i % 3 - 1) * 0.1) for i in range(30)]
         history.append((today, 150.0))
         return history
 
@@ -164,10 +158,7 @@ async def test_evaluate_persist_false_suppresses_check_metric(monkeypatch):
 
     async def fake_fetch(_session, *, days):
         today = date(2026, 5, 7)
-        history = [
-            (today - timedelta(days=30 - i), 100.0 + (i % 3 - 1) * 0.1)
-            for i in range(30)
-        ]
+        history = [(today - timedelta(days=30 - i), 100.0 + (i % 3 - 1) * 0.1) for i in range(30)]
         history.append((today, 200.0))
         return history
 

@@ -78,9 +78,7 @@ async def test_check_metric_dedup_skips_recent_duplicate() -> None:
     with patch(
         "ichor_api.services.alerts_runner.evaluate_metric", return_value=[_make_hit("VIX_SPIKE")]
     ):
-        out = await check_metric(
-            session, metric_name="VIXCLS", current_value=30.0, asset=None
-        )
+        out = await check_metric(session, metric_name="VIXCLS", current_value=30.0, asset=None)
 
     assert out == []  # de-duped, nothing persisted
     session.add.assert_not_called()
@@ -93,9 +91,7 @@ async def test_check_metric_persists_when_no_duplicate() -> None:
     with patch(
         "ichor_api.services.alerts_runner.evaluate_metric", return_value=[_make_hit("VIX_SPIKE")]
     ):
-        out = await check_metric(
-            session, metric_name="VIXCLS", current_value=30.0, asset=None
-        )
+        out = await check_metric(session, metric_name="VIXCLS", current_value=30.0, asset=None)
 
     assert len(out) == 1
     assert out[0].alert_def.code == "VIX_SPIKE"
@@ -105,12 +101,8 @@ async def test_check_metric_persists_when_no_duplicate() -> None:
 @pytest.mark.asyncio
 async def test_check_metric_no_hits_returns_empty() -> None:
     session = _mock_session_with_calls()
-    with patch(
-        "ichor_api.services.alerts_runner.evaluate_metric", return_value=[]
-    ):
-        out = await check_metric(
-            session, metric_name="VIXCLS", current_value=15.0, asset=None
-        )
+    with patch("ichor_api.services.alerts_runner.evaluate_metric", return_value=[]):
+        out = await check_metric(session, metric_name="VIXCLS", current_value=15.0, asset=None)
     assert out == []
     session.add.assert_not_called()
 
@@ -138,12 +130,8 @@ async def test_check_fred_alerts_evaluates_level_and_delta() -> None:
             return [_make_hit("HY_OAS_WIDEN")]
         return []
 
-    with patch(
-        "ichor_api.services.alerts_runner.evaluate_metric", side_effect=_fake_evaluate
-    ):
-        out = await check_fred_alerts(
-            session, series_id="BAMLH0A0HYM2", current_value=900.0
-        )
+    with patch("ichor_api.services.alerts_runner.evaluate_metric", side_effect=_fake_evaluate):
+        out = await check_fred_alerts(session, series_id="BAMLH0A0HYM2", current_value=900.0)
 
     # Should have triggered both level + delta evaluations
     assert call_count["n"] == 2
@@ -165,9 +153,7 @@ async def test_check_gex_alerts_evaluates_both_metric_names() -> None:
         seen_metrics.append(metric_name)
         return []
 
-    with patch(
-        "ichor_api.services.alerts_runner.evaluate_metric", side_effect=_fake_evaluate
-    ):
+    with patch("ichor_api.services.alerts_runner.evaluate_metric", side_effect=_fake_evaluate):
         await check_gex_alerts(session, asset="SPY", dealer_gex_total=-3.5e9)
 
     assert "gex_dealer" in seen_metrics

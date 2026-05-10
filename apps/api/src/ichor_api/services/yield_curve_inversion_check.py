@@ -63,8 +63,8 @@ T10Y2Y_SERIES_ID = "T10Y2Y"
 DEEP_INVERSION_FLOOR_PCT: float = -0.50
 
 # Secondary thresholds (informational only, exposed in regime tag) :
-SHALLOW_INVERSION_FLOOR_PCT: float = 0.0    # any inversion
-SEVERE_INVERSION_FLOOR_PCT: float = -1.00   # -100 bps "severe"
+SHALLOW_INVERSION_FLOOR_PCT: float = 0.0  # any inversion
+SEVERE_INVERSION_FLOOR_PCT: float = -1.00  # -100 bps "severe"
 
 
 @dataclass(frozen=True)

@@ -81,9 +81,7 @@ def _equal_weights() -> dict[str, float]:
     return dict.fromkeys(DEFAULT_FACTOR_NAMES, w)
 
 
-async def _list_groups(
-    session: Any, *, lookback_days: int
-) -> list[tuple[str, str]]:
+async def _list_groups(session: Any, *, lookback_days: int) -> list[tuple[str, str]]:
     """Distinct (asset, regime) groups with at least one drivers-tagged card
     in the lookback window."""
     cutoff = datetime.now(UTC) - timedelta(days=lookback_days)
@@ -100,9 +98,7 @@ async def _list_groups(
     return [(asset, (regime or "all")) for asset, regime in rows]
 
 
-async def _restrict_initial_weights(
-    session: Any, *, asset: str, regime: str
-) -> dict[str, float]:
+async def _restrict_initial_weights(session: Any, *, asset: str, regime: str) -> dict[str, float]:
     """Read the active weights for (asset, regime) and project them onto the
     canonical factor list. Missing factors fall back to equal-weight share so
     initial sum stays close to 1 before the simplex projection."""
@@ -126,16 +122,10 @@ async def run(*, persist: bool, lookback_days: int = 30) -> int:
         groups = await _list_groups(session, lookback_days=lookback_days)
 
     if not groups:
-        print(
-            f"Brier V2 · no drivers-tagged cards in the last {lookback_days}d "
-            "— skipping run."
-        )
+        print(f"Brier V2 · no drivers-tagged cards in the last {lookback_days}d — skipping run.")
         return 0
 
-    print(
-        f"Brier V2 · {len(groups)} (asset, regime) groups over "
-        f"{lookback_days}d window"
-    )
+    print(f"Brier V2 · {len(groups)} (asset, regime) groups over {lookback_days}d window")
 
     n_runs = 0
     n_skipped_low_n = 0
@@ -153,10 +143,7 @@ async def run(*, persist: bool, lookback_days: int = 30) -> int:
             )
             if mat is None:
                 n_skipped_low_n += 1
-                print(
-                    f"  [{asset:10s} / {regime:12s}] skipped — "
-                    f"n < {MIN_OBS_PER_GROUP}"
-                )
+                print(f"  [{asset:10s} / {regime:12s}] skipped — n < {MIN_OBS_PER_GROUP}")
                 continue
 
             result = run_optimization(initial, mat.factor_signals, mat.outcomes)

@@ -29,10 +29,15 @@ async def _main(*, persist: bool) -> int:
 
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(description="MACRO_QUINTET_STRESS check")
-    parser.add_argument("--persist", dest="persist", action="store_true",
-                        help="Write to alerts table (default behavior)")
-    parser.add_argument("--no-persist", dest="persist", action="store_false",
-                        help="Dry-run: don't write")
+    parser.add_argument(
+        "--persist",
+        dest="persist",
+        action="store_true",
+        help="Write to alerts table (default behavior)",
+    )
+    parser.add_argument(
+        "--no-persist", dest="persist", action="store_false", help="Dry-run: don't write"
+    )
     parser.set_defaults(persist=True)
     args = parser.parse_args(argv[1:])
     return asyncio.run(_main(persist=args.persist))

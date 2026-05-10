@@ -10,7 +10,6 @@ from ichor_api.collectors.cboe_vvix import (
     parse_chart_response,
 )
 
-
 _FIXTURE_OK: dict = {
     "chart": {
         "result": [

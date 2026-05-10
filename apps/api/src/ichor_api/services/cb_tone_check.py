@@ -101,21 +101,23 @@ async def _read_recent_speeches(
     cutoff = datetime.now(UTC) - timedelta(hours=lookback_hours)
     cb_upper = cb.upper()
     rows = (
-        await session.execute(
-            select(CbSpeech)
-            .where(
-                func.upper(CbSpeech.central_bank) == cb_upper,
-                CbSpeech.published_at >= cutoff,
+        (
+            await session.execute(
+                select(CbSpeech)
+                .where(
+                    func.upper(CbSpeech.central_bank) == cb_upper,
+                    CbSpeech.published_at >= cutoff,
+                )
+                .order_by(desc(CbSpeech.published_at))
             )
-            .order_by(desc(CbSpeech.published_at))
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     return list(rows)
 
 
-async def _persist_tone(
-    session: AsyncSession, *, series_id: str, value: float
-) -> None:
+async def _persist_tone(session: AsyncSession, *, series_id: str, value: float) -> None:
     """Idempotent insert keyed on (series_id, observation_date).
     Same pattern as risk_reversal_check : update-in-place when the
     runner is invoked twice in the same day."""
@@ -153,9 +155,7 @@ async def _persist_tone(
     )
 
 
-async def _read_history(
-    session: AsyncSession, *, series_id: str
-) -> list[float]:
+async def _read_history(session: AsyncSession, *, series_id: str) -> list[float]:
     cutoff = datetime.now(UTC).date() - timedelta(days=_LOOKBACK_DAYS)
     rows = (
         await session.execute(
@@ -193,9 +193,7 @@ async def evaluate_cb_tone(
     cb_norm = cb.upper()
     series_id = f"{cb_norm}_TONE_NET"
 
-    speeches = await _read_recent_speeches(
-        session, cb=cb_norm, lookback_hours=lookback_hours
-    )
+    speeches = await _read_recent_speeches(session, cb=cb_norm, lookback_hours=lookback_hours)
     if not speeches:
         return CbToneResult(
             cb=cb_norm,

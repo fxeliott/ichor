@@ -88,8 +88,7 @@ async def test_evaluate_fires_expansion_structural(monkeypatch):
 
     async def fake_fetch(_session, *, days):
         history = [
-            (today - timedelta(days=252 - i), 0.45 + (i % 5 - 2) * 0.001)
-            for i in range(252)
+            (today - timedelta(days=252 - i), 0.45 + (i % 5 - 2) * 0.001) for i in range(252)
         ]
         history.append((today, 1.5))  # huge spike up
         return history
@@ -122,8 +121,7 @@ async def test_evaluate_persist_false_suppresses(monkeypatch):
 
     async def fake_fetch(_session, *, days):
         history = [
-            (today - timedelta(days=252 - i), 0.45 + (i % 5 - 2) * 0.001)
-            for i in range(252)
+            (today - timedelta(days=252 - i), 0.45 + (i % 5 - 2) * 0.001) for i in range(252)
         ]
         history.append((today, 1.5))
         return history

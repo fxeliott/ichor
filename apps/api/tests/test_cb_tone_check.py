@@ -101,9 +101,7 @@ def _build_session(
 @pytest.mark.asyncio
 async def test_returns_no_speech_path() -> None:
     session = _build_session(speeches=[], history_values=[])
-    result = await evaluate_cb_tone(
-        session, cb="FED", scorer=lambda t: 0.0, persist=False
-    )
+    result = await evaluate_cb_tone(session, cb="FED", scorer=lambda t: 0.0, persist=False)
     assert result.n_speeches == 0
     assert result.net_hawkish is None
     assert "no FED speech" in result.note
@@ -119,9 +117,7 @@ async def test_aggregates_net_hawkish_across_speeches() -> None:
         return next(scores)
 
     session = _build_session(speeches=speeches, history_values=[0.0] * 50)
-    result = await evaluate_cb_tone(
-        session, cb="FED", scorer=scorer, persist=False
-    )
+    result = await evaluate_cb_tone(session, cb="FED", scorer=scorer, persist=False)
     assert result.n_speeches == 2
     assert result.net_hawkish == pytest.approx(0.2, abs=1e-9)
 
@@ -133,9 +129,7 @@ async def test_z_score_computed_when_history_sufficient() -> None:
     # from mean → high z.
     history = [0.001] * 25 + [-0.001] * 25
     session = _build_session(speeches=speeches, history_values=history + [0.005])
-    result = await evaluate_cb_tone(
-        session, cb="FED", scorer=lambda t: 0.005, persist=False
-    )
+    result = await evaluate_cb_tone(session, cb="FED", scorer=lambda t: 0.005, persist=False)
     assert result.z_score is not None
     assert result.z_score > 4.0
 
@@ -150,9 +144,7 @@ async def test_unmapped_cb_skips_alert_but_still_persists() -> None:
     which remains unmapped."""
     speeches = [_mock_speech("text")]
     session = _build_session(speeches=speeches, history_values=[0.0] * 50)
-    result = await evaluate_cb_tone(
-        session, cb="PBOC", scorer=lambda t: 0.1, persist=False
-    )
+    result = await evaluate_cb_tone(session, cb="PBOC", scorer=lambda t: 0.1, persist=False)
     assert result.cb == "PBOC"
     assert result.series_id == "PBOC_TONE_NET"
     assert result.net_hawkish == pytest.approx(0.1)
@@ -173,9 +165,7 @@ async def test_boe_tone_path_now_wired() -> None:
         return next(scores)
 
     session = _build_session(speeches=speeches, history_values=[0.0] * 50)
-    result = await evaluate_cb_tone(
-        session, cb="BOE", scorer=scorer, persist=False
-    )
+    result = await evaluate_cb_tone(session, cb="BOE", scorer=scorer, persist=False)
     assert result.cb == "BOE"
     assert result.series_id == "BOE_TONE_NET"
     assert result.n_speeches == 2
@@ -192,9 +182,7 @@ async def test_boj_tone_path_now_wired() -> None:
 
     speeches = [_mock_speech("BoJ Ueda gradual normalization")]
     session = _build_session(speeches=speeches, history_values=[0.0] * 50)
-    result = await evaluate_cb_tone(
-        session, cb="BOJ", scorer=lambda t: -0.3, persist=False
-    )
+    result = await evaluate_cb_tone(session, cb="BOJ", scorer=lambda t: -0.3, persist=False)
     assert result.cb == "BOJ"
     assert result.series_id == "BOJ_TONE_NET"
     assert result.net_hawkish == pytest.approx(-0.3)
@@ -228,9 +216,7 @@ async def test_speeches_with_no_text_returns_none() -> None:
     s.summary = ""
     s.title = ""
     session = _build_session(speeches=[s], history_values=[])
-    result = await evaluate_cb_tone(
-        session, cb="FED", scorer=lambda t: 0.5, persist=False
-    )
+    result = await evaluate_cb_tone(session, cb="FED", scorer=lambda t: 0.5, persist=False)
     assert result.n_speeches == 1
     assert result.net_hawkish is None
     assert "no usable text" in result.note

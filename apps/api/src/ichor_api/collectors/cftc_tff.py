@@ -218,7 +218,9 @@ async def fetch_recent(
     filtering; we use the canonical `IN (...)` clause + date threshold.
     """
     # Threshold = today - weeks*7 days (a bit of slack for late releases)
-    cutoff = (datetime.now(UTC).date() - __import__("datetime").timedelta(weeks=weeks_lookback)).isoformat()
+    cutoff = (
+        datetime.now(UTC).date() - __import__("datetime").timedelta(weeks=weeks_lookback)
+    ).isoformat()
     quoted = ", ".join(f"'{c}'" for c in market_codes)
     where = (
         f"cftc_contract_market_code IN ({quoted}) "
@@ -266,7 +268,7 @@ __all__ = [
 
 if __name__ == "__main__":  # pragma: no cover
     rows = asyncio.run(poll_all())
-    print(f"fetched {len(rows)} rows ({len(set(r.market_code for r in rows))} markets)")
+    print(f"fetched {len(rows)} rows ({len({r.market_code for r in rows})} markets)")
     by_date: dict[date, int] = {}
     for r in rows:
         by_date[r.report_date] = by_date.get(r.report_date, 0) + 1

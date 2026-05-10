@@ -34,13 +34,10 @@ async def run(*, persist: bool) -> int:
 
     print(f"tariff_shock · {result.note} (n_history={result.n_history})")
     if result.title_sample:
-        print(
-            f"tariff_shock · sample titles: {' | '.join(result.title_sample[:3])}"
-        )
+        print(f"tariff_shock · sample titles: {' | '.join(result.title_sample[:3])}")
     if result.alert_fired:
         print(
-            f"tariff_shock · ALERT (count_z={result.count_z:+.2f} "
-            f"avg_tone={result.avg_tone_today})"
+            f"tariff_shock · ALERT (count_z={result.count_z:+.2f} avg_tone={result.avg_tone_today})"
         )
     return 0
 

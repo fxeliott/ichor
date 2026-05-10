@@ -50,7 +50,15 @@ def test_chain_builds_with_expected_output_type(make_fn, output_cls) -> None:
     assert chain.output_type is output_cls
     assert chain.system_prompt is not None
     assert len(chain.system_prompt) > 100, "system_prompt looks like a placeholder"
-    assert "Hard rules:" in chain.system_prompt or "rules:" in chain.system_prompt.lower()
+    # Each prompt must have at least one canonical structure marker.
+    # cb_nlp dropped "Hard rules:" per ADR-068 (research framing
+    # rewrite). Accept any of the structural section keywords used
+    # across the 5 agents.
+    structural_markers = ("rules:", "guidance:", "scope:", "output:", "style:")
+    prompt_lower = chain.system_prompt.lower()
+    assert any(m in prompt_lower for m in structural_markers), (
+        f"system_prompt missing any structural marker {structural_markers}"
+    )
     assert len(chain.providers) >= 1, "at least one provider required"
 
 
@@ -148,9 +156,7 @@ def test_news_nlp_output_accepts_canonical() -> None:
                 "sentiment": "bearish",
                 "intensity": 0.7,
                 "n_articles": 5,
-                "top_entities": [
-                    {"kind": "company", "name": "NVIDIA", "mentions": 3}
-                ],
+                "top_entities": [{"kind": "company", "name": "NVIDIA", "mentions": 3}],
                 "representative_headlines": ["NVDA beats but guides lower"],
             }
         ],

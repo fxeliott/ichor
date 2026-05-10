@@ -39,16 +39,25 @@ MFH_HISTORY_URL = "https://ticdata.treasury.gov/Publish/mfhhis01.txt"
 
 _HEADERS = {
     "User-Agent": (
-        "Mozilla/5.0 (compatible; IchorCollector/1.0; "
-        "+https://github.com/fxeliott/ichor)"
+        "Mozilla/5.0 (compatible; IchorCollector/1.0; +https://github.com/fxeliott/ichor)"
     ),
     "Accept": "text/plain,*/*",
 }
 
 # Month name → numeric for the column header parsing.
 _MONTH_TO_INT: dict[str, int] = {
-    "Jan": 1, "Feb": 2, "Mar": 3, "Apr": 4, "May": 5, "Jun": 6,
-    "Jul": 7, "Aug": 8, "Sep": 9, "Oct": 10, "Nov": 11, "Dec": 12,
+    "Jan": 1,
+    "Feb": 2,
+    "Mar": 3,
+    "Apr": 4,
+    "May": 5,
+    "Jun": 6,
+    "Jul": 7,
+    "Aug": 8,
+    "Sep": 9,
+    "Oct": 10,
+    "Nov": 11,
+    "Dec": 12,
 }
 
 # Footer markers — lines that signal end-of-table; data rows above them.
@@ -116,9 +125,7 @@ def _parse_header_periods(lines: list[str]) -> list[date] | None:
     return None
 
 
-def _parse_data_row(
-    line: str, periods: list[date], fetched: datetime
-) -> list[TreasuryTicHolding]:
+def _parse_data_row(line: str, periods: list[date], fetched: datetime) -> list[TreasuryTicHolding]:
     """Parse one TAB-separated country row into multiple holdings records."""
     cells = [c.strip() for c in line.split("\t")]
     if len(cells) < 2:

@@ -159,9 +159,7 @@ async def evaluate_geopol_regime_structural(
     Returns a structured result so the CLI can print a one-liner.
     """
     # Pull buffer beyond 252d window for variance-resilient z-score
-    rows = await _fetch_recent_observations(
-        session, days=ZSCORE_WINDOW_DAYS + 21
-    )
+    rows = await _fetch_recent_observations(session, days=ZSCORE_WINDOW_DAYS + 21)
 
     if not rows:
         return GeopolRegimeResult(

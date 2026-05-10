@@ -21,7 +21,6 @@ from __future__ import annotations
 
 import hashlib
 
-
 _FRAMEWORK_TTL_SEC = 3600
 _ASSET_DATA_TTL_SEC = 300
 

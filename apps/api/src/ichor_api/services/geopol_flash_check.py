@@ -155,9 +155,7 @@ async def evaluate_geopol_flash(
     # Pull a small buffer beyond the 30d window so we have at least
     # 30 fully-observed days (weekend/holiday gaps in news indexes are
     # rare but possible).
-    rows = await _fetch_recent_observations(
-        session, days=ZSCORE_WINDOW_DAYS + 14
-    )
+    rows = await _fetch_recent_observations(session, days=ZSCORE_WINDOW_DAYS + 14)
 
     if not rows:
         return GeopolFlashResult(

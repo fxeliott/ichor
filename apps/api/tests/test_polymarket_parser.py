@@ -12,7 +12,6 @@ from ichor_api.collectors.polymarket import (
     _parse_market,
 )
 
-
 # ───────────────────────── Macro keyword filter (Wave 31) ──────────────────
 
 

@@ -10,16 +10,13 @@ from ichor_api.collectors.cme_zq_futures import (
     parse_chart_response,
 )
 
-
 _FIXTURE_OK: dict = {
     "chart": {
         "result": [
             {
                 "meta": {"symbol": "ZQ=F", "regularMarketPrice": 96.365},
                 "timestamp": [1777996200, 1778082600, 1778255400],
-                "indicators": {
-                    "quote": [{"close": [96.36, None, 96.40]}]
-                },
+                "indicators": {"quote": [{"close": [96.36, None, 96.40]}]},
             }
         ],
         "error": None,
@@ -27,9 +24,7 @@ _FIXTURE_OK: dict = {
 }
 
 
-_FIXTURE_ERROR: dict = {
-    "chart": {"result": None, "error": {"code": "Not Found"}}
-}
+_FIXTURE_ERROR: dict = {"chart": {"result": None, "error": {"code": "Not Found"}}}
 
 
 def test_parse_returns_zq_observations() -> None:

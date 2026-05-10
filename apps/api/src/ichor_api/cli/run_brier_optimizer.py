@@ -74,16 +74,13 @@ async def _aggregate_brier(
 ) -> list[tuple[str, str, int, float]]:
     """Return [(asset, regime, n_obs, mean_brier)] over the window."""
     cutoff = datetime.now(UTC) - timedelta(days=lookback_days)
-    stmt = (
-        select(
-            SessionCardAudit.asset,
-            SessionCardAudit.regime_quadrant,
-            SessionCardAudit.brier_contribution,
-        )
-        .where(
-            SessionCardAudit.generated_at >= cutoff,
-            SessionCardAudit.brier_contribution.is_not(None),
-        )
+    stmt = select(
+        SessionCardAudit.asset,
+        SessionCardAudit.regime_quadrant,
+        SessionCardAudit.brier_contribution,
+    ).where(
+        SessionCardAudit.generated_at >= cutoff,
+        SessionCardAudit.brier_contribution.is_not(None),
     )
     rows = (await session.execute(stmt)).all()
 
@@ -206,10 +203,7 @@ async def run(*, persist: bool, lookback_days: int = 30) -> int:
     async with sm() as session:
         groups = await _aggregate_brier(session, lookback_days=lookback_days)
 
-    print(
-        f"Brier optimizer · {len(groups)} (asset,regime) groups over "
-        f"{lookback_days}d window"
-    )
+    print(f"Brier optimizer · {len(groups)} (asset,regime) groups over {lookback_days}d window")
 
     # Always seed at least the global baseline so confluence_engine can
     # find weights even when no session cards exist yet.

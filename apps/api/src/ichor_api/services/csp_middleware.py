@@ -83,7 +83,7 @@ def _build_csp(nonce: str, *, html: bool) -> bytes:
 
 class CSPSecurityHeadersMiddleware:
     """ASGI middleware. Plug via:
-        app.add_middleware(CSPSecurityHeadersMiddleware)
+    app.add_middleware(CSPSecurityHeadersMiddleware)
     """
 
     def __init__(self, app) -> None:

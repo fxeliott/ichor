@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 
 import pytest
-
 from ichor_brain.passes import CounterfactualPass, PassError
 from ichor_brain.passes.counterfactual import CounterfactualReading
 

@@ -96,8 +96,7 @@ async def run_one(kind: str, *, hours: int = 6) -> int:
         except Exception as exc:
             err = repr(exc)[:1000]
             transient_5xx = any(
-                marker in err
-                for marker in ("HTTP 502", "HTTP 503", "HTTP 504", "HTTP 524")
+                marker in err for marker in ("HTTP 502", "HTTP 503", "HTTP 504", "HTTP 524")
             )
             if attempt < max_attempts - 1 and transient_5xx:
                 log.info(

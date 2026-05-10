@@ -175,9 +175,7 @@ async def evaluate_term_premium_structural(
 
     Returns a structured result so the CLI can print a one-liner.
     """
-    rows = await _fetch_recent_observations(
-        session, days=ZSCORE_WINDOW_DAYS + 21
-    )
+    rows = await _fetch_recent_observations(session, days=ZSCORE_WINDOW_DAYS + 21)
 
     if not rows:
         return TermPremiumStructuralResult(

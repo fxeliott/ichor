@@ -97,7 +97,7 @@ async def test_evaluate_contango_no_alert(monkeypatch):
 
     rows_by_id = {
         svc.VIX_1M_SERIES: (today, 17.39),  # VIX 17.39
-        svc.VIX_3M_SERIES: (today, 19.5),   # VXV 19.5 — contango
+        svc.VIX_3M_SERIES: (today, 19.5),  # VXV 19.5 — contango
     }
 
     async def fake_fetch(_session, *, series_id):
@@ -163,8 +163,8 @@ async def test_evaluate_vol_shock_regime(monkeypatch):
     today = date(2026, 5, 7)
 
     rows_by_id = {
-        svc.VIX_1M_SERIES: (today, 60.0),   # COVID-style spike
-        svc.VIX_3M_SERIES: (today, 45.0),   # VXV lagging
+        svc.VIX_1M_SERIES: (today, 60.0),  # COVID-style spike
+        svc.VIX_3M_SERIES: (today, 45.0),  # VXV lagging
     }
 
     async def fake_fetch(_session, *, series_id):

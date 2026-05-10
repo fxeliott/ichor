@@ -12,7 +12,6 @@ import re
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-
 from ichor_api.routers.well_known import router
 
 # RFC3339 with Z offset, second precision.

@@ -14,7 +14,6 @@ from ichor_api.collectors.treasury_tic import (
     parse_mfh_history,
 )
 
-
 _FIXTURE_OK = (
     "\t\t\tMAJOR FOREIGN HOLDERS OF TREASURY SECURITIES\t\t\t\t\t\t\t\t\t\t\t\n"
     "\t\t\t    (in billions of dollars)\t\t\t\t\t\t\t\t\t\t\t\n"
@@ -49,8 +48,7 @@ def test_parse_extracts_all_country_month_records() -> None:
 def test_parse_typed_fields() -> None:
     rows = parse_mfh_history(_FIXTURE_OK)
     japan_dec = next(
-        r for r in rows
-        if r.country == "Japan" and r.observation_month == date(2025, 12, 1)
+        r for r in rows if r.country == "Japan" and r.observation_month == date(2025, 12, 1)
     )
     assert japan_dec.holdings_bn_usd == 1185.5
     assert isinstance(japan_dec, TreasuryTicHolding)

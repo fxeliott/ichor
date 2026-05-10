@@ -7,7 +7,6 @@ from collections.abc import Sequence
 
 from ichor_brain.runner_client import RunnerCall, RunnerResponse
 
-
 REGIME_OK_JSON = {
     "quadrant": "haven_bid",
     "rationale": (
