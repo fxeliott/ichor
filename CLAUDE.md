@@ -1,7 +1,7 @@
 # Ichor — Claude Code project memory
 
 > Auto-injected at every session start. Keep terse and current.
-> Last sync: 2026-05-10 (post-W91 — pre-commit hook + extended invariants ADR-017 cap + ADR-079 negative guard).
+> Last sync: 2026-05-10 (post-W99 — Cap5 STEP-1/2 hardening from code-review : pg_sleep DoS, FOR UPDATE locks, CTE shadowing, hashability claim).
 
 ## What this repo is
 
@@ -146,8 +146,8 @@ D:\Ichor
   corrected.
 - [ADR-075](docs/decisions/ADR-075-cross-asset-matrix-v2.md) Cross-asset
   matrix v2 — 6-dim macro state (MCT + nowcast surprise + NFCI + SKEW
-  + VIX + SBOI) with qualitative bands + per-asset directional bias
-  tags for the 8 Ichor pairs.
+  - VIX + SBOI) with qualitative bands + per-asset directional bias
+    tags for the 8 Ichor pairs.
 - [ADR-074](docs/decisions/ADR-074-myfxbook-replaces-oanda-orderbook.md)
   MyFXBook Community Outlook replaces OANDA orderbook (Sept 2024 EOL,
   $1850/mo Data Service violates Voie D). LIVE 2026-05-09.
@@ -378,6 +378,35 @@ D:\Ichor
   (2026-08-02 ferme, T-3 mois) on the API surface, complementary to
   ADR-029's web2 disclosure surface.
 
+## Recently fixed (2026-05-10 — W99 Cap5 STEP-1/2 hardening from code-review)
+
+- **W99** ✅ — 4 CRITICAL issues from code-reviewer subagent on the
+  W83/W84/W87 batch. (1) `tool_query_db` function-call DoS bypass —
+  `pg_sleep`, `pg_advisory_lock`, `lo_import`, `dblink`,
+  `copy_from_program`, `pg_read_file` etc. were NOT rejected even
+  though the table allowlist enforced. New `_FORBIDDEN_FUNCTIONS`
+  frozenset + AST walk via `sqlglot.exp.Anonymous` /
+  `sqlglot.exp.Func` subclass check (Defense 4). (2) `tool_query_db`
+  `SELECT … FOR UPDATE / FOR SHARE` lifted row-locks — caught
+  explicit `node.args["locks"]` non-empty (Defense 5). (3) CTE
+  alias shadowing pinned by explicit regression test
+  (`WITH alerts AS (SELECT * FROM trader_notes) SELECT * FROM alerts`
+  rejected because the inner walk hits `trader_notes` first). (4)
+  `tool_calc._no_nan` now rejects `bool` (Python `isinstance(True, int)
+is True` surprise) + `inf` explicitly (was raising opaque
+  `AttributeError` 500 from `statistics.fmean`). `_op_correlation`
+  pre-checks `pstdev() == 0` to translate `StatisticsError` on
+  constant series to a clean `ToolCalcError` 400.
+  `runner_client.ToolConfig` docstring corrected — `mcp_config: dict`
+  makes `hash(cfg)` raise `TypeError`, not hashable in practice ;
+  new test `test_tool_config_is_not_hashable_due_to_dict_field` is
+  the canary if a future ADR converts `mcp_config` to a hashable
+  wrapper. SHOULD-FIX issues #5-#11 deferred. Coverage : apps/api
+  1218 pass, ichor_brain 80 pass, claude-runner 22 pass — no
+  regression. 18 new W99 regression tests (13 in
+  `test_tool_query_db_w99_hardening.py` + 4 in `test_tool_calc.py` +
+  1 in `test_orchestrator_tool_wiring.py`).
+
 ## Recently fixed (2026-05-09 late evening — Cap5 STEP-5 + ADR-078 guard)
 
 - **W87** ✅ — Capability 5 STEP-5 orchestrator tool wiring +
@@ -398,7 +427,7 @@ D:\Ichor
   ToolConfig hashable). 84 pass ichor_brain + 73 pass apps/api tool
   suite.
 - **W87 housekeeping** — Cleanup orphan worktrees `inspiring-
-  tereshkova-1de00b` (byte-identical to main pre-W85) and
+tereshkova-1de00b` (byte-identical to main pre-W85) and
   `zealous-banzai-efc1c7` (W85 source, mergé bf780f7's parent).
   Local branches deleted.
 
@@ -407,7 +436,7 @@ D:\Ichor
 - **W86** ✅ — Capability 5 STEP-4 RunnerCall.tools plumbing.
   `packages/ichor_brain/runner_client.py` `RunnerCall` dataclass
   gains 3 fields (`mcp_config: dict | None`, `allowed_tools:
-  tuple[str, ...] | None`, `max_turns: int = 0`) ; payload submit
+tuple[str, ...] | None`, `max_turns: int = 0`) ; payload submit
   in `_run_async_polling` + `_run_legacy_sync` forwards them
   conditionally to claude-runner ; `apps/claude-runner/models.py`
   `BriefingTaskRequest` + `AgentTaskRequest` mirror the same fields
@@ -415,9 +444,9 @@ D:\Ichor
   mcp_config max 8 top-level keys) ; `subprocess_runner.run_claude`
   writes mcp_config to a tempfile (Windows `delete=False` for the
   spawned subprocess lock), adds `--mcp-config <path>
-  --strict-mcp-config --allowedTools <csv> --max-turns N` to the
+--strict-mcp-config --allowedTools <csv> --max-turns N` to the
   CLI argv when set, cleans up in `finally`. 4 sites of `await
-  run_claude(...)` in main.py threaded (sync briefing + async
+run_claude(...)` in main.py threaded (sync briefing + async
   briefing + sync agent + async agent). All pre-W86 callers stay
   byte-compatible (None defaults). ADR-078 bonus.
   Architecture validated by web research : claude CLI handles the
@@ -438,7 +467,7 @@ D:\Ichor
   `X-Ichor-Tool-Token` (production lifespan refuses empty) +
   CF Access PRE-1 (header pass-through, optional today) + Postgres
   grants. CI matrix updated (`apps/ichor-mcp` added to `.github/
-  workflows/{ci,audit}.yml`). 12 unit tests apps/api +
+workflows/{ci,audit}.yml`). 12 unit tests apps/api +
   12 unit tests apps/ichor-mcp green locally. ADR-077.
 
 ## Recently fixed (2026-05-09 — 11 commits Phase II batch)
@@ -465,7 +494,7 @@ D:\Ichor
   `params=` was double-encoding the URL-encoded session token).
   Now LIVE with 6 pair snapshots / 4 h. AUDUSD 88 % short retail
   (extreme contrarian flag). Commit c841c58.
-- **W78** ✅ — Frontend MOCK_* audit reframe (graceful fallbacks
+- **W78** ✅ — Frontend MOCK\_\* audit reframe (graceful fallbacks
   pattern, not tech-debt). ADR-076 / commit 9adb168.
 - **W79** ✅ — Cross-asset matrix v2 — 6-dim macro state surface +
   per-asset directional bias tags. Pure-leverage section
