@@ -45,11 +45,15 @@ const MOCK_BINS: BinView[] = [
   { predicted_pct: 0.95, realized_pct: 0.93, n: 19 },
 ];
 
+// W101e — L1 fix : MOCK_ASSETS aligned to ADR-083 D1 (6 active cards).
+// Pre-W101e this list contained USDJPY + AUDUSD (ADR-017 era 8-card
+// universe). Now matches `SCOREBOARD_ASSETS` below so the per-asset
+// table and the scoreboard heatmap show the same 6 traded instruments
+// even when the API is offline. The 2 dropped pairs (USDJPY / AUDUSD)
+// stay in the tracked-no-card category per ADR-083.
 const MOCK_ASSETS: AssetView[] = [
   { asset: "EUR/USD", brier: 0.142, n: 87, trend: "bull" },
   { asset: "GBP/USD", brier: 0.158, n: 71, trend: "neutral" },
-  { asset: "USD/JPY", brier: 0.149, n: 92, trend: "bull" },
-  { asset: "AUD/USD", brier: 0.171, n: 65, trend: "bear" },
   { asset: "USD/CAD", brier: 0.155, n: 68, trend: "neutral" },
   { asset: "XAU/USD", brier: 0.151, n: 92, trend: "neutral" },
   { asset: "NAS100", brier: 0.171, n: 71, trend: "neutral" },
@@ -141,7 +145,11 @@ export default async function CalibrationPage() {
     ),
   ]);
 
-  const apiOnline = isLive(overall) && isLive(byAsset);
+  // W101e — H4 fix : include scoreboard in the global API-online badge
+  // so the header doesn't show ▲ live while the heatmap section below
+  // falls back to MOCK_SCOREBOARD. Pre-W101e the user could see
+  // contradictory "live" + "offline · mock" badges on the same page.
+  const apiOnline = isLive(overall) && isLive(byAsset) && isLive(scoreboard);
   const overallBrier =
     isLive(overall) && overall.n_cards > 0
       ? overall.mean_brier

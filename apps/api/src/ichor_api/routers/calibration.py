@@ -27,27 +27,21 @@ from ..models import SessionCardAudit
 from ..services.brier import (
     CalibrationSummary,
     ReliabilityBucket,
-    conviction_to_p_up,
     reliability_buckets,
     summarize,
 )
+from ..services.brier_optimizer import derive_realized_outcome
+from ._session_type import SESSION_TYPE_REGEX
 
 router = APIRouter(prefix="/v1/calibration", tags=["calibration"])
 
-# W101 — SessionType list mirrored from `ichor_brain.types.SessionType`
-# (ADR-031, single source canonically in `packages/ichor_brain`). We DO
-# NOT `from ichor_brain.types import VALID_SESSION_TYPES` at module top
-# because the apps/api venv intentionally does NOT install
-# `packages/ichor_brain` (heavier dep tree, kept separate). The CI
-# invariant test `tests/test_invariants_ichor.py` parses the canonical
-# types.py and asserts coherence vs this local copy — drift here will
-# fail CI loudly. Previous regex was hardcoded to 3 windows
-# `pre_londres|pre_ny|event_driven` which silently dropped cards from
-# `ny_mid` and `ny_close` even though the type contract allows them.
-_VALID_SESSION_TYPES: frozenset[str] = frozenset(
-    {"pre_londres", "pre_ny", "ny_mid", "ny_close", "event_driven"}
-)
-_SESSION_TYPE_RE = rf"^({'|'.join(sorted(_VALID_SESSION_TYPES))})$"
+# W101e — `_VALID_SESSION_TYPES` + `_SESSION_TYPE_RE` extracted to
+# `_session_type.py` (shared between calibration.py + sessions.py) per
+# code-review H2 finding : previous version was duplicated in both
+# routers, with sessions.py hardcoded to 3 windows while calibration.py
+# (post-W101) was already at 5. This re-fragmentation now closes the
+# drift permanently.
+_SESSION_TYPE_RE = SESSION_TYPE_REGEX
 
 
 # ──────────────────────────── Response shapes ──────────────────────────
@@ -185,16 +179,20 @@ def _aggregate(
 ) -> tuple[CalibrationSummary, list[ReliabilityBucket]]:
     """Compute summary + reliability from reconciled cards.
 
-    `realized_outcome` (1 if up, else 0) is derived from
-    realized_close_session vs the first bar's open. We approximate
-    the open via realized_low_session being a lower bound and use the
-    bias direction's predicted outcome match : a long card whose
-    Brier was 0 means y=1, brier=1 means y=0. The math :
-    Brier = (P_up - y)^2  →  y = round(P_up - sqrt(Brier))  if direction-correct,
-                              y = round(P_up + sqrt(Brier))  otherwise.
-    Cleaner approach : recompute P_up from (bias, conviction) and
-    invert to recover y exactly (y is 0 or 1).
+    W101e — code-review H1 fix : delegated y-recovery to
+    `services.brier_optimizer.derive_realized_outcome` (single source).
+    Pre-W101e, this function re-implemented the inversion math locally
+    with a subtle bug : neutral cards (bias_direction='neutral', p_up=0.5)
+    have identical Brier contributions for y=0 and y=1, so the original
+    `min(candidates, key=abs(...))` always defaulted to y=0, polluting
+    `hits/misses` with directionally-meaningless rows.
+
+    The canonical helper returns None on neutral cards (and on any case
+    where the two y candidates are equidistant within tolerance). We
+    skip those rows entirely — they carry zero directional signal.
     """
+    from ..services.brier import conviction_to_p_up
+
     p_ups: list[float] = []
     ys: list[int] = []
     brier_contribs: list[float] = []
@@ -205,16 +203,17 @@ def _aggregate(
         bias = c.bias_direction
         if bias not in ("long", "short", "neutral"):
             continue
+        y = derive_realized_outcome(bias, c.conviction_pct, c.brier_contribution)
+        if y is None:
+            # Neutral cards (p_up = 0.5) carry no directional information ;
+            # skipping them is the documented invariant (brier_optimizer.py
+            # L266-267) so the summary doesn't mis-credit neutral rows
+            # as hits or misses.
+            continue
         p = conviction_to_p_up(bias, c.conviction_pct)  # type: ignore[arg-type]
-        # Invert : y minimizes Brier → y = 1 if (1-p)^2 < (0-p)^2 i.e. p > 0.5
-        # given the recorded brier; pick the y that matches the recorded brier.
-        # candidate y=1 → brier (p-1)^2 ; candidate y=0 → brier p^2.
-        candidates = {0: (p - 0) ** 2, 1: (p - 1) ** 2}
-        y = min(candidates, key=lambda k: abs(candidates[k] - c.brier_contribution))
         p_ups.append(p)
         ys.append(y)
         brier_contribs.append(c.brier_contribution)
-        # direction hit : forecast went the right way
         forecast_up = p > 0.5
         actually_up = y == 1
         direction_hits.append(1 if forecast_up == actually_up else 0)

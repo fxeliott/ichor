@@ -1,7 +1,7 @@
 # Ichor — Claude Code project memory
 
 > Auto-injected at every session start. Keep terse and current.
-> Last sync: 2026-05-11 (post-W100f — Cap5 6/6 SHIPPED, Dependabot auto-merge w/ cooldown 7d post-Axios, Socket.dev installed + first scan green, CF API token rotated and validated, Step F+E manual actions resolved).
+> Last sync: 2026-05-11 evening (post-W101e — calibration scoreboard end-to-end SHIPPED : backend `/v1/calibration/scoreboard` endpoint + frontend ScoreboardHeatmap + a11y contrast fix + 4 HIGH code-review findings closed. ADR-082+083 ratified roadmap W101→W112).
 
 ## What this repo is
 

@@ -29,11 +29,20 @@ from ..schemas import (
     SessionCardOut,
     extract_pass4_scenarios,
 )
+from ._session_type import SESSION_TYPE_REGEX
 
 router = APIRouter(prefix="/v1/sessions", tags=["sessions"])
 
 _ASSET_RE = r"^[A-Z0-9_]{3,16}$"
-_SESSION_TYPE_RE = r"^(pre_londres|pre_ny|event_driven)$"
+# W101e — `_SESSION_TYPE_RE` now sourced from the shared `_session_type`
+# module so it stays aligned with `calibration.py` + the canonical 5
+# values in `ichor_brain.types.SessionType`. Pre-W101e this file was
+# hardcoded to 3 windows (`pre_londres|pre_ny|event_driven`), silently
+# 422-rejecting `?session_type=ny_mid` and `?session_type=ny_close`
+# requests even though the type contract allows them. The same bug was
+# fixed in `calibration.py` during W101 ; this commit closes the parallel
+# drift in `sessions.py`. Code-review H2 finding.
+_SESSION_TYPE_RE = SESSION_TYPE_REGEX
 
 
 @router.get("", response_model=SessionCardListOut)
