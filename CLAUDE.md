@@ -1,7 +1,7 @@
 # Ichor — Claude Code project memory
 
 > Auto-injected at every session start. Keep terse and current.
-> Last sync: 2026-05-11 evening (post-W101e — calibration scoreboard end-to-end SHIPPED : backend `/v1/calibration/scoreboard` endpoint + frontend ScoreboardHeatmap + a11y contrast fix + 4 HIGH code-review findings closed. ADR-082+083 ratified roadmap W101→W112).
+> Last sync: 2026-05-11 night (post-W101e SHIPPED + ADR-084 SearXNG ratified + RUNBOOK-018 W102 CF Access service token authored. Roadmap W101→W112 4-sprint consolidated with 12 audit-surfaced gaps. Next : Eliot 15 min CF dashboard → unblocks W102 → W103 SearXNG Ansible role → W104 quick-wins coverage).
 
 ## What this repo is
 
@@ -80,7 +80,10 @@ D:\Ichor
 - **Cloudflare Tunnel** `claude-runner.fxmilyapp.com` → 127.0.0.1:8766
   (managed-config side, NOT in the local `~/.cloudflared/config.yml`).
   **Currently no auth** — `require_cf_access=false`. Public endpoint
-  drainable. Sprint dedicated to wire CF Access service token pending.
+  drainable. **W102 / RUNBOOK-018 authored 2026-05-11 ; awaiting
+  Eliot 15 min CF dashboard action to unblock**. All code already
+  wired (auth.py JWT verifier + HttpRunnerClient header injection +
+  lifespan production guard).
 
 ## Latest migrations (head 0038)
 
@@ -102,7 +105,31 @@ D:\Ichor
   trigger (0028, ADR-029), trader_notes (0029), CBOE SKEW (0030),
   CFTC TFF (0031), CBOE VVIX (0032), Treasury TIC (0033).
 
-## Recent ADRs (2026-05-09 batch — 14 ADRs)
+## Recent ADRs (2026-05-11 batch — ADR-082 / 083 / 084)
+
+- [ADR-084](docs/decisions/ADR-084-searxng-self-hosted-web-research.md)
+  **SearXNG self-host Hetzner ratified** for Couche-2 web research
+  (vs Perplexity rejected — bundles metered LLM, violates Voie D
+  spirit). Docker loopback :8081 + Redis 24h cache + Serper.dev free
+  fallback. MCP tool `mcp__ichor__web_search` to be wired in W103,
+  consumed by Couche-2 5 agents + Pass 6 scenario decomposer (W105).
+  NOT exposed to 4-pass briefings (audit-trail integrity).
+- [ADR-083](docs/decisions/ADR-083-ichor-v2-trader-grade-manifesto-and-gap-closure.md)
+  **Ichor v2 trader-grade manifesto**. 7 decisions D1-D7. D1 = 6-asset
+  universe (EURUSD, GBPUSD, USDCAD, XAUUSD, NAS100, SPX500 promoted).
+  D2 = Pass 6 scenario_decompose 7 stratified (W105). D3 = `key_levels[]`
+  non-technical surface — gamma flip / peg / TGA / Polymarket / VIX
+  regime (W106). D4 = Living Analysis View frontend (W107). D5 =
+  SearXNG (ratified separately ADR-084).
+- [ADR-082](docs/decisions/ADR-082-w101-calibration-w102-cf-access-strategic-pivot.md)
+  **Strategic pivot post-W100g audit**. W101 calibration scoreboard
+  P0 SHIPPED 2026-05-11 (commits 38248f8 → b88307a). W102 CF Access
+  service token P0 SECURITY (RUNBOOK-018 authored, Eliot 15 min
+  dashboard pending). Vision reframe : "pre-trade context discretionary
+  toolkit, calibrated against historical realized outcomes" (not
+  "hedge fund collective").
+
+## Earlier ADRs (2026-05-09 batch — 14 ADRs)
 
 - [ADR-081](docs/decisions/ADR-081-doctrinal-invariant-ci-guards.md)
   Doctrinal invariant CI guards (W90) — single test module
