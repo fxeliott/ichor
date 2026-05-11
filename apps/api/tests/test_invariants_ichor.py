@@ -426,3 +426,72 @@ def test_ai_watermark_default_prefixes_match_settings() -> None:
         f"middleware default prefixes {sorted(DEFAULT_WATERMARKED_PREFIXES)} "
         f"differ from Settings default {sorted(settings.ai_watermarked_route_prefixes)}."
     )
+
+
+# ────────────────────────── ADR-085 Pass-6 ──────────────────────────
+
+
+def test_pass6_bucket_labels_exactly_seven_canonical() -> None:
+    """ADR-085 §"The 7 buckets" : the Pass-6 scenario_decompose taxonomy
+    is frozen at 7 buckets in the canonical stratification order. Any
+    refactor that adds, removes or reorders is a P0 compliance regression
+    (Pass-6 LLM prompt, Brier scoring, frontend rendering, and reconciler
+    all assume exact match against this list)."""
+    from ichor_api.services.scenarios import BUCKET_LABELS
+
+    canonical = (
+        "crash_flush",
+        "strong_bear",
+        "mild_bear",
+        "base",
+        "mild_bull",
+        "strong_bull",
+        "melt_up",
+    )
+    assert BUCKET_LABELS == canonical, (
+        f"ADR-085 violated : BUCKET_LABELS drift detected.\n"
+        f"  expected (canonical): {canonical}\n"
+        f"  found:                {BUCKET_LABELS}"
+    )
+
+
+def test_pass6_cap_95_constant_unchanged() -> None:
+    """ADR-022 + ADR-085 §"Probability cap" : the Pass-6 per-bucket cap
+    is 0.95 exactly. Macro-frameworks doctrine : 100 % conviction on
+    any single bucket never exists. Catches accidental bump (e.g. an
+    over-eager refactor that loosens to 0.99 to "let confident calls
+    through")."""
+    from ichor_api.services.scenarios import CAP_95
+
+    assert CAP_95 == 0.95, (
+        f"ADR-085 violated : CAP_95 = {CAP_95}, must be exactly 0.95. "
+        "100 % conviction is a red flag, never a target."
+    )
+
+
+def test_pass6_scenario_mechanism_rejects_trade_tokens() -> None:
+    """ADR-017 boundary at runtime : the `Scenario.mechanism` field is
+    a free-text explanation but it must never contain BUY/SELL/TP/SL
+    tokens. The validator lives on the Pydantic model itself ; this
+    test catches the regression where someone removes the validator
+    "because it's verbose" or weakens its regex.
+    """
+    from ichor_api.services.scenarios import Scenario
+    from pydantic import ValidationError
+
+    for forbidden in ("BUY", "SELL", "TP", "SL"):
+        try:
+            Scenario(
+                label="base",
+                p=0.5,
+                magnitude_pips=(-10.0, 10.0),
+                mechanism=f"Some valid context including {forbidden} token here as standalone",
+            )
+        except ValidationError:
+            continue
+        raise AssertionError(
+            f"ADR-017 violated : Scenario.mechanism validator FAILED to reject "
+            f"the token {forbidden!r}. The _reject_trade_tokens validator on "
+            f"Scenario.mechanism (apps/api/src/ichor_api/services/scenarios.py) "
+            "may have been removed or weakened."
+        )
