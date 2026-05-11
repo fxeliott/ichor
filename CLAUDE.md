@@ -1,7 +1,7 @@
 # Ichor — Claude Code project memory
 
 > Auto-injected at every session start. Keep terse and current.
-> Last sync: 2026-05-11 night (post-W101e SHIPPED + ADR-084 SearXNG ratified + RUNBOOK-018 W102 CF Access service token authored. Roadmap W101→W112 4-sprint consolidated with 12 audit-surfaced gaps. Next : Eliot 15 min CF dashboard → unblocks W102 → W103 SearXNG Ansible role → W104 quick-wins coverage).
+> Last sync: 2026-05-11 late night (post-W101h — session record + audit 12 gaps cristallisé + vision target doc + Eliot directives 2026-05-11 layer + pickup template v4 + pending TODOs 2026-05-11 ; full persistence batch shipped, zero loss before /clear. Baseline `c5a35af` post-W101g. Roadmap W101→W112 4-sprint consolidated with 12 audit-surfaced gaps. Next : Eliot 15 min CF dashboard (RUNBOOK-018 Steps 1-3) → unblocks W102 → W103 SearXNG Ansible role → W104 quick-wins coverage).
 
 ## What this repo is
 
