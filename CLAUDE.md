@@ -1,7 +1,7 @@
 # Ichor — Claude Code project memory
 
 > Auto-injected at every session start. Keep terse and current.
-> Last sync: 2026-05-11 deep night (post-W104a+b+c — 3 quick-wins audit gaps closed in autonomous session : G1 6-asset universe align + G4 AAII data_pool wire + G3 regime classifier extraction to pure service with 23 unit tests + ADR-085 Pass-6 7-bucket taxonomy pre-shipped. 4 commits ca8ccb4 → ff3b667 + ADR-085. Baseline = `ff3b667`. Next : ADR-085 ratifies W105 Pass-6 scenario_decompose plan ; sprint 2 remainder = W105 + W106 key_levels + W107 Living Analysis View frontend ; W102 CF Access still pending Eliot 15 min dashboard).
+> Last sync: 2026-05-11 deep night (post-W105 skeleton — autonomous session continuation : G1+G3+G4 closed (W104a/b/c) then W105 skeleton landed [scenarios.py Pydantic 7-bucket schema + cap_and_normalize proportional clipping + 35 tests + 3 ADR-081 CI guards + Scenario.mechanism BUY/SELL/TP/SL runtime validator]. 6 commits this session ca8ccb4 → 94667eb, 5 pushed to origin/main. Baseline = `94667eb`. Total Pass-6 contract surface now testable in isolation, blocks W105c LLM prompt + W105a migration 0039 + W105g reconciler in next sub-waves. W102 CF Access still pending Eliot 15 min dashboard).
 
 ## What this repo is
 
