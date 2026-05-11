@@ -470,34 +470,38 @@
       <main>
         <h1>
           Guide actions Eliot
-          <span class="tag">W100 · 2026-05-10</span>
+          <span class="tag">W100e · 2026-05-11</span>
         </h1>
         <p class="meta">
           Guide HTML — données vérifiées via web research 2026 + SSH Hetzner + curl tests +
-          dashboard CF + recherches docs Cloudflare/Anthropic/MCP SDK/GitHub Dependabot vérifiées le
-          2026-05-10.
-          <strong>W100 update</strong> : Cap5 STEP-6 e2e integration test SHIPPED (8 tests verts via
-          MCP in-memory transport + respx) — la Capability 5 est maintenant 6/6. Dependabot
-          auto-merge workflow + cooldown 7d post-Axios installés. Tout ce qui pouvait être fait en
-          autonomie l'est ; ce qui reste manuel est documenté ci-dessous avec URLs exactes 2026.
+          dashboard CF (screenshots Eliot 2026-05-11) + recherches docs Cloudflare/Anthropic/MCP
+          SDK/GitHub Dependabot.
+          <strong>W100e update</strong> : 5 commits de hardening post-W100 (W100b corrections audit
+          subagents, W100c docker→docker-compose Dependabot, W100d sync pnpm-lock, W100e §8 réécrit
+          avec real data dashboard CF). État réel = R2 Paid actif (Pay-as-you-go) avec
+          <strong>3 Budget Alerts configurés par Eliot</strong> + <strong>$0.00 total cost</strong>
+          sur 25 jours. Cap5 6/6 toujours valide.
         </p>
 
         <div class="callout ok">
-          <strong>🎉 Cap5 6/6 SHIPPED — W100 milestone</strong>
+          <strong>🎉 Cap5 6/6 SHIPPED + CF protection vérifiée W100e</strong>
           <code>apps/ichor-mcp/tests/test_capability5_e2e.py</code> : 8 tests verts qui exercent la
           chaîne MCP client → ichor_mcp server → ToolApiClient → /v1/tools/*. In-memory transport
           (mcp.shared.memory) + respx pour httpx mocking. Cross-platform, no subprocess, no flakes.
           <br /><br />
-          Status web research 2026-05-10 : Budget Alerts Cloudflare = Pay-as-you-go only (PAS Free,
-          confirmed avril 2026 changelog), Anthropic Console migré vers
-          <code>platform.claude.com</code>, mcp Python SDK = 1.27.1, post-Axios best practice =
-          cooldown 7d + Socket.dev. URLs/wording dans chaque §. <br /><br />
-          <strong>Tier 5 (Win11 NSSM defense in depth) reste optionnel</strong> — fix PowerShell
-          ExecutionPolicy fourni dans §1.
+          <strong>Anti-hallucination W100e</strong> : le guide W100 affirmait à tort "Eliot est Free
+          pur, Budget Alerts inaccessibles". Screenshot dashboard Subscriptions 2026-05-11 a révélé
+          R2 Paid actif → Pay-as-you-go → Budget Alerts accessibles, et déjà configurés (3 alertes
+          visibles). Page Billable usage = <strong>$0.00 sur 25 jours</strong>, marge R2 de 143×
+          (0.07 GB / 10 GB free). <br /><br />
+          <strong>Question Eliot 2026-05-11</strong> : "faut-il prendre un abonnement Pro/Workers
+          Paid ?" → <strong>NON</strong>. §8.1bis détaille : aucun abonnement ne protège des coûts
+          surprises, certains en introduisent (WAF rules Pro $5/règle, Image Resizing $0.50/1000).
+          Reste en Free partout sauf R2 (qui est déjà à $0).
         </div>
 
         <section id="overview">
-          <h2>État Ichor — live data 2026-05-10 (W100)</h2>
+          <h2>État Ichor — live data 2026-05-11 (W100e)</h2>
           <div class="stats">
             <div class="stat">
               <div class="label">PRE-1 status</div>
@@ -506,13 +510,13 @@
             </div>
             <div class="stat">
               <div class="label">R2 storage</div>
-              <div class="value">629.6 MB</div>
-              <div class="sub">6.3% du free 10 GB</div>
+              <div class="value">0.07 GB</div>
+              <div class="sub">0.7% du free 10 GB (May 11)</div>
             </div>
             <div class="stat">
               <div class="label">R2 Class A ops</div>
-              <div class="value">2 520</div>
-              <div class="sub">0.25% du free 1M / mois</div>
+              <div class="value">2.97k</div>
+              <div class="sub">0.3% du free 1M / mois</div>
             </div>
             <div class="stat">
               <div class="label">Alembic head</div>
@@ -560,9 +564,19 @@
               <div class="sub">attente STEP-5/6 wiring</div>
             </div>
             <div class="stat">
-              <div class="label">Commits W85→W94</div>
-              <div class="value">13</div>
-              <div class="sub">tous pushés origin</div>
+              <div class="label">CF Budget Alerts</div>
+              <div class="value">3 ✅</div>
+              <div class="sub">configurés Eliot (May 11)</div>
+            </div>
+            <div class="stat">
+              <div class="label">CF Total cost</div>
+              <div class="value">$0.00</div>
+              <div class="sub">Apr 17 → May 11 (25 jours)</div>
+            </div>
+            <div class="stat">
+              <div class="label">Workers projects</div>
+              <div class="value">0</div>
+              <div class="sub">0 req today (hard cap 100k)</div>
             </div>
           </div>
 
@@ -684,16 +698,58 @@
         <section id="sec-8">
           <h2>§8 ⚡ Cloudflare billing protection — ZÉRO surprise (À FAIRE EN PREMIER)</h2>
 
-          <div class="callout crit">
-            <strong>Pour les non-devs — pourquoi cette section existe</strong>
-            Tu viens d'ajouter ta carte bancaire sur Cloudflare. Plan Free, mais certains services
-            CF ont des <strong>SOFT limits</strong> = quand tu dépasses, ça continue de fonctionner
-            mais ça <strong>charge ta carte automatiquement</strong>. D'autres ont des
-            <strong>HARD limits</strong> = ça stoppe net, pas de charge. Cette section identifie
-            précisément où sont les risques pour Ichor + comment les neutraliser en 10 min.
+          <div class="callout ok">
+            <strong>Pour les non-devs — état réel post-screenshot W100e (2026-05-11)</strong>
+            Tu m'as envoyé 2 screenshots qui ont corrigé une hypothèse W100 : tu n'es pas "Free
+            pur", tu as <strong>R2 Paid actif</strong> ($0/mo de base + facture à l'usage au-delà du
+            free tier). Mais bonne nouvelle : ça te place en <strong>Pay-as-you-go</strong>, ce qui
+            débloque les <strong>Budget Alerts</strong> que tu as déjà configurés (3 alertes
+            visibles sur le screenshot). Total cost Apr 17 → May 11 = <strong>$0.00</strong>. Marge
+            R2 énorme (0.07 GB / 10 GB free = 0.7%).
           </div>
 
-          <h3>Audit W97 — état actuel des risques (vérifié SSH 2026-05-10)</h3>
+          <h3>Subscriptions actives (vérifiées 2026-05-11 via screenshot dashboard)</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Subscription</th>
+                <th>Applies to</th>
+                <th>Coût actuel</th>
+                <th>Statut</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Teams Free Base</strong></td>
+                <td>Your Account</td>
+                <td>$0.00/mo</td>
+                <td>
+                  <span class="pill ok">RENEWS May 17, 2026</span> Zero Trust Free (sécurise
+                  <code>claude-runner.fxmilyapp.com</code> via CF Access)
+                </td>
+              </tr>
+              <tr>
+                <td><strong>Free plan</strong> (CDN)</td>
+                <td>fxmilyapp.com</td>
+                <td>—</td>
+                <td>
+                  <span class="pill warn">PROCESSING</span> transition CF en cours (normal après
+                  ajout carte) — devrait passer ACTIVE sous 24-48h
+                </td>
+              </tr>
+              <tr>
+                <td><strong>R2 Paid</strong> ⚠️</td>
+                <td>Your Account</td>
+                <td>$0.00/mo PLUS USAGE</td>
+                <td>
+                  <span class="pill warn">RENEWS May 17, 2026</span> facture au-delà du free tier 10
+                  GB. Actuellement 0.07 GB = safe.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          <h3>Audit W100e — état actuel des risques (vérifié screenshot dashboard 2026-05-11)</h3>
           <table>
             <thead>
               <tr>
@@ -705,14 +761,24 @@
             </thead>
             <tbody>
               <tr>
-                <td><strong>R2 storage</strong> (<code>ichor-walg-eu</code>)</td>
-                <td>10 GB-month, 1M Class A ops, 10M Class B ops, egress illimité free</td>
-                <td><span class="pill warn">SOFT</span> auto-charge $0.015/GB-mo</td>
+                <td><strong>R2 Data Storage</strong></td>
+                <td>10 GB-month free incl.</td>
+                <td><span class="pill warn">PAY-AS-YOU-GO</span> $0.015/GB-mo au-delà</td>
                 <td>
-                  <span class="pill ok">QUASI-NUL</span> wal-g
-                  <strong>n'est pas encore wired</strong> sur Hetzner (vérifié SSH : binaire
-                  introuvable, 0 timer ichor-walg* actif). Bucket probablement vide.
+                  <span class="pill ok">0.07 GB / 0.7%</span> actuel (Apr 17→May 11). Marge 143×.
                 </td>
+              </tr>
+              <tr>
+                <td><strong>R2 Class A Operations</strong> (PUT/POST/LIST)</td>
+                <td>1M ops/mois free incl.</td>
+                <td><span class="pill warn">PAY-AS-YOU-GO</span> $4.50/M au-delà</td>
+                <td><span class="pill ok">2 970 / 0.3%</span> actuel. Marge 337×.</td>
+              </tr>
+              <tr>
+                <td><strong>R2 Class B Operations</strong> (GET/HEAD)</td>
+                <td>10M ops/mois free incl.</td>
+                <td><span class="pill warn">PAY-AS-YOU-GO</span> $0.36/M au-delà</td>
+                <td><span class="pill ok">43 / 0.0004%</span> actuel. Marge 232 558×.</td>
               </tr>
               <tr>
                 <td><strong>Zero Trust data transfer</strong></td>
@@ -742,7 +808,10 @@
                 <td><strong>Workers</strong></td>
                 <td>100k req/jour shared</td>
                 <td><span class="pill ok">HARD</span></td>
-                <td><span class="pill ok">NUL</span> Ichor n'utilise pas Workers directement</td>
+                <td>
+                  <span class="pill ok">0 projects</span> confirmé screenshot Workers & Pages (May
+                  11). 0 requests today.
+                </td>
               </tr>
               <tr>
                 <td><strong>Zone DNS</strong></td>
@@ -771,142 +840,242 @@
 
           <details open>
             <summary>
-              <strong>1. Budget Alerts — IMPORTANT correction W100 (1 min)</strong>
+              <strong>1. Budget Alerts ✅ FAIT — Eliot a configuré 3 alertes (W100e)</strong>
             </summary>
+            <div class="callout ok">
+              <strong>Status confirmé via screenshot 2026-05-11</strong>
+              Page Billable usage montre <strong>"Budget alerts (3)"</strong> en haut à droite.
+              Total cost Apr 17 → May 11 = <strong>$0.00</strong>. Marge énorme partout (R2 à 0.7%
+              du free tier).
+            </div>
             <div class="callout warn">
-              <strong>Correction W100 — recherche web 2026-05-10 vérifiée</strong>
-              <a
-                href="https://developers.cloudflare.com/billing/manage/budget-alerts/"
-                target="_blank"
-                >Cloudflare docs Budget alerts</a
-              >
-              dit verbatim : <em>"Budget alerts are available to Pay-as-you-go accounts only."</em>
-              <br />
-              Ton compte est en plan <strong>Free PUR</strong> (pas de Workers Paid, pas de R2
-              Paid). Donc <strong>l'option "Set Budget Alert" ne sera PAS visible</strong> dans ton
-              dashboard. Le guide W97 affirmait que c'était activable — c'était inexact. Désolé.
+              <strong>Correction W100 → W100e (anti-hallucination)</strong>
+              Le guide W100 affirmait : "Budget alerts disponibles Pay-as-you-go only, Eliot est
+              Free pur, donc inaccessibles." <strong>Incorrect</strong>. R2 Paid (visible sur le
+              screenshot Subscriptions) place le compte en Pay-as-you-go même si tout est à $0.00.
+              D'où l'accès aux Budget Alerts, qu'Eliot a effectivement pu configurer. <br /><br />
+              Verbatim CF docs reste vrai : Budget alerts = Pay-as-you-go accounts. Le sophisme
+              était de classer Ichor en "Free pur" sans vérifier les subscriptions actives.
             </div>
             <p>
-              <strong>Test rapide</strong> : ouvre
-              <a
-                href="https://dash.cloudflare.com/?to=/:account/billing/billable-usage"
-                target="_blank"
-                >dash.cloudflare.com → Manage Account → Billing → Billable Usage</a
-              >. Si tu vois le message
-              <em>"Billable usage is available to pay-as-you-go accounts only"</em> (ou équivalent)
-              au lieu d'un graphique → confirmé, tu es Free pur et le feature n'est pas accessible.
+              <strong>À vérifier (action facultative)</strong> : clique
+              <strong>"Budget alerts (3)"</strong> en haut à droite de la page Billable usage pour
+              voir les 3 seuils exacts. Cible recommandée :
             </p>
+            <ul>
+              <li><strong>$1</strong> — alerte précoce (anomalie tôt)</li>
+              <li><strong>$5</strong> — alerte sérieuse (action requise)</li>
+              <li><strong>$10</strong> — alerte critique (investigate immédiat)</li>
+            </ul>
             <p>
-              <strong>Pourquoi ce n'est pas grave en Free pur</strong> : tant qu'aucun produit
-              pay-as-you-go n'est activé (Workers Paid, R2 Standard, Images, AI Gateway), CF ne peut
-              <strong>physiquement pas</strong> te facturer. Le check critique = §8.2 ci-dessous.
-            </p>
-            <p>
-              <strong>Filet de remplacement</strong> : Claude peut te créer un scheduled task
-              Windows qui chaque lundi 8h ouvre automatiquement ton dashboard Billing dans Chrome —
-              check visuel hebdo 30 sec. Dis-moi "oui scheduled CF check" si tu veux.
+              Email destinataire = <code>eliott.pena@icloud.com</code>. Si tes seuils sont déjà dans
+              cet ordre de grandeur → parfait, on touche pas. Si c'est par exemple $100/$500/$1000,
+              ajuste pour être plus paranoïaque (tu viens d'ajouter ta carte).
             </p>
             <p class="src">
               Source :
+              <a
+                href="https://developers.cloudflare.com/billing/manage/budget-alerts/"
+                target="_blank"
+                >CF docs Budget Alerts</a
+              >
+              ·
               <a
                 href="https://developers.cloudflare.com/changelog/post/2026-04-13-billable-usage-dashboard-and-budget-alerts/"
                 target="_blank"
                 >CF changelog Budget Alerts (avril 2026)</a
               >
               ·
-              <a
-                href="https://developers.cloudflare.com/notifications/notification-available/"
-                target="_blank"
-                >CF Available Notifications (Free = uniquement Image Transformations + Web Analytics
-                weekly)</a
-              >
-              ·
-              <a
-                href="https://community.cloudflare.com/t/how-to-enforce-a-hard-monthly-spend-limit-in-cloudflare-max-monthly-budget/889042"
-                target="_blank"
-                >Community : hard cap $0 N'EXISTE PAS (feature request 2022 toujours ouverte)</a
+              <a href="https://developers.cloudflare.com/r2/pricing/" target="_blank"
+                >R2 pricing (free tier 10 GB + 1M Class A + 10M Class B)</a
               >
             </p>
           </details>
 
-          <details>
-            <summary><strong>2. Vérifier qu'aucun upgrade Pro/Paid actif (1 min)</strong></summary>
-            <p>Risque : un clic involontaire UI ou trial expired = subscription active facturée.</p>
-            <ol>
+          <details open>
+            <summary>
+              <strong>1bis. Pourquoi PAS d'abonnement Pro/Workers Paid (W100e)</strong>
+            </summary>
+            <p>
+              Question Eliot 2026-05-11 : "on va devoir payer ou bien il faudrait prendre un
+              abonnement et avec un abonnement est-ce qu'il y a des coûts surprises ?"
+            </p>
+            <p>
+              <strong
+                >Réponse vérifiée 2026 : NON aucun abonnement n'évite les coûts surprises. Souvent
+                l'inverse.</strong
+              >
+            </p>
+            <table>
+              <thead>
+                <tr>
+                  <th>Abonnement</th>
+                  <th>Coût</th>
+                  <th>Effet</th>
+                  <th>Protège contre coûts surprises ?</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Pro plan</strong></td>
+                  <td>$20/mo/domaine</td>
+                  <td>Améliore CDN (WAF Custom Rules, Image Optimization, faster purge)</td>
+                  <td>
+                    <span class="pill crit">NON</span> + introduit NEW surfaces de billing (WAF
+                    rules au-delà de 5 incluses : $5/règle ; Image Resizing $0.50/1000)
+                  </td>
+                </tr>
+                <tr>
+                  <td><strong>Workers Paid</strong></td>
+                  <td>$5/mo</td>
+                  <td>Passe 100k req/jour → 10M req/mois inclus</td>
+                  <td><span class="pill crit">NON</span> overage existe au-delà ($0.30/M req)</td>
+                </tr>
+                <tr>
+                  <td><strong>Business plan</strong></td>
+                  <td>$200/mo/domaine</td>
+                  <td>Tout Pro + 100% uptime SLA + custom SSL</td>
+                  <td><span class="pill crit">NON</span> idem Pro</td>
+                </tr>
+                <tr>
+                  <td><strong>R2 "Pro"</strong></td>
+                  <td>—</td>
+                  <td>N'existe pas</td>
+                  <td>R2 a UN seul model : Pay-as-you-go avec 10 GB free tier inclus</td>
+                </tr>
+              </tbody>
+            </table>
+            <p><strong>Comportement réel en cas de dépassement</strong> :</p>
+            <ul>
               <li>
-                Va sur
-                <a
-                  href="https://dash.cloudflare.com/?to=/:account/billing/subscriptions"
-                  target="_blank"
-                  >Billing → Subscriptions</a
-                >.
+                <strong>R2 storage > 10 GB</strong> : ⚠️ facture $0.015/GB-mo (seul vrai vecteur de
+                surprise). Ex : 20 GB = $0.15/mois.
               </li>
+              <li><strong>R2 Class A > 1M</strong> : ⚠️ facture $4.50/M.</li>
+              <li><strong>R2 Class B > 10M</strong> : ⚠️ facture $0.36/M (faible coût).</li>
               <li>
-                Confirm que <code>fxmilyapp.com</code> shows <strong>"Free"</strong> dans la colonne
-                plan.
+                <strong>Workers > 100k/jour</strong> : 🛑 HARD STOP (429 Too Many Requests jusqu'à
+                minuit UTC). Pas de charge.
               </li>
-              <li>
-                Workers & Pages → Plans : confirm <strong>"Free"</strong>. Si Workers Paid actif par
-                erreur : downgrade immédiat (effet fin de cycle, <strong>pas de refund</strong>).
-              </li>
-              <li>Zero Trust → Settings → Plans : confirm <strong>"Free"</strong>.</li>
-            </ol>
+              <li><strong>Pages builds > 500/mois</strong> : 🛑 HARD STOP. Pas de charge.</li>
+              <li><strong>Zero Trust > 50 users</strong> : 🛑 HARD STOP. Pas de charge.</li>
+              <li><strong>Tunnels illimités</strong> : pas de cap, pas de charge possible.</li>
+            </ul>
+            <p>
+              <strong>Conclusion experte (Claude, post web-research vérifié)</strong> :
+              <span class="pill ok">RESTE EN FREE PARTOUT SAUF R2</span>. R2 Paid restera $0/mo tant
+              qu'on est sous les quotas free tier. Les 3 Budget Alerts couvrent justement ce seul
+              vecteur. Aucun abonnement à prendre. Dormir tranquille.
+            </p>
+            <p class="src">
+              Sources :
+              <a href="https://developers.cloudflare.com/r2/pricing/" target="_blank"
+                >R2 pricing 2026</a
+              >
+              ·
+              <a href="https://developers.cloudflare.com/workers/platform/pricing/" target="_blank"
+                >Workers pricing 2026</a
+              >
+              ·
+              <a href="https://www.cloudflare.com/plans/" target="_blank">CF Plans comparison</a>
+            </p>
           </details>
 
           <details>
             <summary>
-              <strong>3. Usage Notifications R2 — Correction W100 (1 min)</strong>
+              <strong>2. Subscriptions audit ✅ FAIT — 3 active visibles W100e (2026-05-11)</strong>
             </summary>
-            <div class="callout warn">
-              <strong>Correction W100</strong>
-              Recherche web 2026-05-10 confirmée :
-              <a
-                href="https://developers.cloudflare.com/notifications/notification-available/"
-                target="_blank"
-                >la liste officielle des notifications disponibles en Free</a
-              >
-              ne contient PAS de "R2 Class A operations threshold" ni "R2 Storage GB-month
-              threshold". Ces alertes existent uniquement pour les plans Pro+. En Free pur, les 2
-              seules notifications dispos sont :
-              <ul>
-                <li>Image Transformations quota (tu n'utilises pas Image Resizing — inutile)</li>
-                <li>Web Analytics weekly summary (informatif uniquement)</li>
-              </ul>
-            </div>
             <p>
-              <strong>Action de remplacement</strong> : monitor manuel mensuel via dashboard
-              <a href="https://dash.cloudflare.com/?to=/:account/r2" target="_blank">R2 metrics</a>.
-              Audit actuel (vérifié W98, 2026-05-10) :
-              <strong>629.6 MB / 6.3% du free 10 GB</strong>,
-              <strong>2 520 Class A ops / 0.25% du free 1M/mois</strong>. Aucun risque court-terme.
+              Screenshot dashboard Subscriptions page reçu 2026-05-11. 3 subscriptions actives,
+              toutes à $0.00 actuel :
             </p>
+            <ol>
+              <li>
+                <strong>Teams Free Base</strong> (Zero Trust Free) — Your Account — $0.00/mo —
+                RENEWS May 17, 2026. Sécurise <code>claude-runner.fxmilyapp.com</code> via CF
+                Access. Cap hard 50 users / 50 apps. Tu es à 1 user / 1 app.
+              </li>
+              <li>
+                <strong>Free plan</strong> (CDN) — fxmilyapp.com —
+                <span class="pill warn">PROCESSING</span> (statut transitoire, normal après ajout
+                carte). Devrait passer ACTIVE sous 24-48h. Si bloqué après 48h, ouvre un ticket
+                support CF avec "Subscription Status PROCESSING for Free plan".
+              </li>
+              <li>
+                <strong>R2 Paid</strong> ⚠️ — Your Account — $0.00/mo PLUS USAGE — RENEWS May 17,
+                2026. Base $0 + facture au-delà du free tier (10 GB / 1M Class A / 10M Class B).
+                Actuellement 0.07 GB = safe.
+              </li>
+            </ol>
             <p>
-              <strong>Auto-monitor</strong> : si tu veux automatiser via API CF, c'est faisable
-              après §7 (rotation du CF API token). Script Python cron Hetzner qui query GraphQL
-              <code>r2OperationsAdaptiveGroups</code> + <code>r2StorageAdaptiveGroups</code>, alerte
-              ntfy si > 80%. Dis "écris le monitor R2" quand §7 est fait.
+              <strong>Workers & Pages</strong> (vérifié screenshot 2026-05-11) :
+              <strong>0 projects</strong>, 0 requests today, 0ms CPU, 0 Workers build mins. Confirmé
+              pas de Workers Paid activé. Subdomain <code>fxmily-yone.workers.dev</code>
+              réservé auto par CF mais inutilisé.
             </p>
           </details>
 
           <details>
-            <summary><strong>4. Audit R2 actuel (1 min)</strong></summary>
-            <ol>
-              <li>
-                Va sur
-                <a href="https://dash.cloudflare.com/?to=/:account/r2" target="_blank">R2</a> →
-                Click bucket <code>ichor-walg-eu</code> → onglet <strong>Metrics</strong>.
-              </li>
-              <li>
-                Vérifie :
-                <ul>
-                  <li>
-                    Storage used : devrait être <strong>~0 GB</strong> (wal-g pas encore wired).
-                  </li>
-                  <li>Class A ops (PUT/POST) : devrait être proche de 0.</li>
-                </ul>
-              </li>
-              <li>Si tu vois > 1 GB ou > 100 ops : screenshot + envoie-moi pour investigate.</li>
-            </ol>
+            <summary>
+              <strong>3. Usage Notifications R2 — couvert par Budget Alerts (W100e)</strong>
+            </summary>
+            <p>
+              <span class="pill ok">NA</span> Tes 3 Budget Alerts (§8.1) couvrent déjà ce vecteur.
+              Pas besoin de notifications R2-spécifiques en plus.
+            </p>
+            <p>
+              <strong>Auto-monitor optionnel</strong> : après §7 SOPS rotate, script Python cron
+              Hetzner qui query CF GraphQL <code>r2OperationsAdaptiveGroups</code> +
+              <code>r2StorageAdaptiveGroups</code>, alerte ntfy si > 80% free tier. Dis "écris le
+              monitor R2" quand §7 est fait.
+            </p>
+          </details>
+
+          <details>
+            <summary>
+              <strong>4. Audit R2 actuel ✅ FAIT — screenshot Billable usage 2026-05-11</strong>
+            </summary>
+            <p>Cost Breakdown table (verbatim screenshot Billable usage May 2026) :</p>
+            <table>
+              <thead>
+                <tr>
+                  <th>Product</th>
+                  <th>Total usage</th>
+                  <th>Billable</th>
+                  <th>Cost</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>R2 Data Storage (First 10GB-Month included)</td>
+                  <td>0.07 GB-months</td>
+                  <td>0 GB-months</td>
+                  <td>$0.00</td>
+                </tr>
+                <tr>
+                  <td>R2 Storage Class A Operations (First 1M included)</td>
+                  <td>2.97k</td>
+                  <td>0</td>
+                  <td>$0.00</td>
+                </tr>
+                <tr>
+                  <td>R2 Storage Class B Operations (First 10M included)</td>
+                  <td>43</td>
+                  <td>0</td>
+                  <td>$0.00</td>
+                </tr>
+                <tr>
+                  <td><strong>Total cost</strong> Apr 17 → May 11, 2026</td>
+                  <td colspan="2"></td>
+                  <td><strong>$0.00</strong></td>
+                </tr>
+              </tbody>
+            </table>
+            <p>
+              <span class="pill ok">SAFE</span> Marges 143× / 337× / 232 558× sur les 3 surfaces R2.
+              Page affiche verbatim
+              <em>"No cost data to display. All usage is within included tier limits."</em>
+            </p>
           </details>
 
           <details>
