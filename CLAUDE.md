@@ -296,10 +296,19 @@ D:\Ichor
   STEP-6 integration test = ⏳ final (depends PRE-1 in prod).
   Server tools (`web_search`/`web_fetch`) **excluded** — billed by
   Anthropic since 2026-04, violate Voie D.
-- WGC quarterly XLSX collector deferred — license requires explicit
-  WGC consent for systematic extraction; private-research framing OK
-  but not yet validated. (W75 candidate, `gold-demand-by-country` hub
-  scrape strategy researched + documented.)
+- **WGC quarterly XLSX collector DROPPED 2026-05-11** (W101 strategic
+  review). Rationale : (a) the dataset is quarterly with 3-month lag
+  — does NOT fit Ichor's 4-pass intraday-to-weekly cadence ;
+  (b) gold-related signals (FRED prices + CFTC TFF positioning +
+  SKEW vol + DXY anti-correlation + real yields) already cover the
+  actionable portion of the macro story for XAU/USD ; (c) Eliot's
+  honest assessment "déjà mort" plus the friction of licensing
+  request makes this cost > benefit. If future need arises for
+  physical-gold-flows context, alternatives evaluated : IMF SDDS
+  central-bank gold holdings (monthly, public SDMX API, free), CMX
+  Stocks of Gold (daily inventory, free), SPDR Gold Shares (GLD)
+  trust daily holdings PDF (free). All listed in W101 strategic
+  audit but deferred too.
 - Frontend `MOCK_*` audit (W78) revealed they are graceful fallbacks
   behind `isLive()`, not tech-debt. ADR-076 codifies; future revisit
   via reusable `<EmptyStateWithRetry>` component (W80 candidate).
