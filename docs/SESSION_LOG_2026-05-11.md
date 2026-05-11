@@ -172,6 +172,95 @@ Sources URL primaires :
 - [ADR-082](decisions/ADR-082-w101-calibration-w102-cf-access-strategic-pivot.md)
 - [ADR-083](decisions/ADR-083-ichor-v2-trader-grade-manifesto-and-gap-closure.md)
 - [ADR-084](decisions/ADR-084-searxng-self-hosted-web-research.md)
+- [ADR-085](decisions/ADR-085-pass-6-scenario-decompose-taxonomy.md) (W104 finale)
 - [RUNBOOK-018](runbooks/RUNBOOK-018-cf-access-service-token-claude-runner.md)
 - [Audit cristallisé 12 gaps](audits/ICHOR_AUDIT_2026-05-11_12_GAPS.md)
 - Memory pickup : `~/.claude/projects/D--Ichor/memory/ICHOR_SESSION_PICKUP_2026-05-11_v2_POST_W101f.md`
+
+## Suite — W104 sprint 2 autonomous (2026-05-11 deep night)
+
+Session continuation post-/clear avec full autonomy directive Eliot.
+3 audit gaps closed + 1 ADR pre-implementation contract shipped. 4
+commits.
+
+### Travaux shipped
+
+| Commit    | Wave        | Gap            | Scope                                                                                                                                                                                 |
+| --------- | ----------- | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ca8ccb4` | W104a+W104d | G1             | 6-asset universe align (config.py briefing_assets unique field 6 + run_briefing \_resolve_assets simplify + \_DEFAULT_ASSETS 6 — drop USDJPY+AUDUSD, ADR-083 D1)                      |
+| `0352bf0` | W104b       | G4             | AAII Sentiment Survey surfaced in data_pool (new `_section_aaii` + NAS100/SPX500 frameworks gain explicit Sentiment bullet citing 0.40/0.20 contrarian thresholds)                    |
+| `ff3b667` | W104c       | G3             | Extract master regime classifier (7-bucket) inline 180-line block → pure `services/regime_classifier.py` service + 23 unit tests pin every threshold + ADR-081 invariant guards green |
+| `cbc138f` | W104-finale | G12 (pre-impl) | ADR-085 ratifies W105 Pass-6 scenario_decompose 7-bucket taxonomy + Brier multi-class Murphy 1973 + proportional clipping cap-95 + CI guard contract + CLAUDE.md sync                 |
+
+### Recherches absorbées (researcher subagent autonomous 2026-05-11)
+
+- Dollar smile classifier 2026 state : Eurizon SLJ + Jen maintain 3-régime
+  original (left/trough/right), NOT 4-quadrant. JPM Asset Management 2024
+  proposes "smirk" asymmetric variant. No canonical institutional thresholds
+  published on (DFII10 + BAMLH0A0HYM2 + NFCI + DXY) 4-quadrant — Ichor's
+  4-quadrant is original heuristic, documented as such in ADR-085.
+- Brier multi-class : Murphy 1973 canonical ; Siegert 2017 simplifies
+  decomposition to K classes ; Stephenson 2008 extends to 5 components.
+- 7-bucket FX/session stratification has no institutional precedent.
+  Goldman 3-cat (Share Despair / Bear Repair / event-driven), BlackRock
+  ±1σ CMA bands, IMF GFSR baseline+adverse. Ichor extension original.
+- Conviction cap 95% + sum=1.0 : proportional clipping recommended over
+  Dirichlet smoothing (more transparent, deterministic, auditable).
+
+Sources web vérifiées : Eurizon SLJ Capital, JPM AM Perspectives, Morgan
+Stanley Thoughts on the Market, Wellington, Berenberg, Chicago Fed NFCI,
+FRED BAMLH0A0HYM2/DTWEXBGS/NFCI, IMF WP/2025/105 Scenario Synthesis, IMF
+GFSR Oct 2025 Ch1 Annex, GSAM Investment Outlook 2026, BlackRock CMA.
+
+### Décisions ratifiées (W104 + ADR-085)
+
+- **6-asset carded universe verrouillé partout** : config + batch + tests
+  alignés. USDJPY+AUDUSD restent tracked (ticker maps, HAR-RV, HMM, COT/TFF,
+  archetypes, counterfactual) mais hors batch autonome.
+- **Tracked-vs-carded distinction architecturale** : la séparation est
+  maintenant explicite (config field `briefing_assets` = 6 carded, ticker
+  maps + ML training watchers restent à 8 tracked).
+- **3 enums regime drift identifiés** (`RegimeQuadrant` 4-bucket Literal vs
+  master 7-bucket classifier inline vs frontend 4-bucket différent) :
+  W104c extrait le 7-bucket dans un service propre, mais l'alignement
+  des 3 enums est différé (W107 Living Analysis View frontend).
+- **AAII fix dual-surface** : data_pool surface (Pass-2 voit valeurs) +
+  framework citation (Pass-2 sait quoi en faire). Élimine la halluc class
+  "framework cite mais data_pool ne livre pas".
+- **ADR-085 cap-and-normalize standard** : proportional clipping retenu
+  pour la cap-95 + sum=1.0 enforcement sur Pass-6 7-bucket emission.
+
+### Self-verification
+
+- 48 tests pass sur la surface modifiée (test_data_pool 12 +
+  test_briefing_context 4 + test_regime_classifier 23 + test_invariants_ichor 9).
+- Pre-commit ADR-081 doctrinal invariants passé sur les 4 commits.
+- Ruff + ruff-format + gitleaks + secret-scan + prettier ADR-085 verts.
+- Zero régression sur tracked-universe tests (test_counterfactual_batch +
+  test_crisis_mode + test_run_har_rv 31 pass — `ASSETS` / `WATCHED_ASSETS`
+  constants stay at 8 intentionally).
+
+### Bloqueur restant unchanged
+
+W102 CF Access service token sur `claude-runner.fxmilyapp.com` toujours
+en pending Eliot 15 min dashboard (RUNBOOK-018 Steps 1-3). Indépendant
+de W104 ; débloque W103 SearXNG Ansible + STEP-6 Cap5 e2e final.
+
+### Roadmap résumée post-W104
+
+Sprint 2 (quick-wins) audit gaps fermés : G1, G3, G4. Reste :
+
+- **Sprint 3** : W105 Pass 6 scenario_decompose (ADR-085 ratifié, 7-8d) +
+  W106 key_levels[] (4-5d) + W107 Living Analysis View frontend (5-7d).
+- **Sprint 4** : W108 FOMC/ECB tone activation (0.5d Eliot SSH) + W110
+  Géopolitique mapped (3-4d) + W111 ETF flows + GEX + WTI (2d) + W112
+  Push notifs + "what changed overnight" (3d, le moment où Eliot utilise
+  Ichor quotidiennement).
+
+W104d sub-part G6 (SPX500 COT) **non shippé** ce soir — l'audit researcher
+2026-05-11 a confirmé que SPX500 est DÉJÀ couvert par TFF (`_TFF_MARKET_BY_ASSET:184`
+= "13874A" E-Mini S&P 500). Le gap COT-disaggregated reste valide mais
+nice-to-have, déféré à W104d_part2 quand `collectors/cot.py` ajoutera
+la code 13874A.
+
+W109 USDCNH peg proxy v2 deprioritised (Eliot ne trade pas USDCNH).
