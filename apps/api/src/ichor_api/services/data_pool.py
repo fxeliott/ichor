@@ -1695,6 +1695,84 @@ async def _section_nfib_sbet(session: AsyncSession) -> tuple[str, list[str]]:
     return "\n".join(lines), sources
 
 
+async def _section_aaii(session: AsyncSession) -> tuple[str, list[str]]:
+    """## AAII Sentiment Survey weekly — retail equity sentiment contrarian.
+
+    Surfaces the latest bullish / bearish / neutral split + the bull-bear
+    spread. Historical contrarian indicator: extreme bullish > 50% precedes
+    weak forward S&P returns; extreme bearish < 20% precedes strong ones.
+    The 0.40 |spread| threshold (`collectors/aaii.py:is_extreme`) marks the
+    contrarian-flag boundary. Persisted by `run_collectors aaii` into
+    fred_observations as AAII_BULLISH / AAII_BEARISH / AAII_NEUTRAL /
+    AAII_SPREAD (bull/bear/neutral in [0, 1], spread in [-1, 1]). Couche-2
+    sentiment agent (ADR-023 Haiku low) also consumes these — surfacing
+    them in the 4-pass data_pool here (W104b) lets Pass-2 NAS100/SPX500
+    frameworks cite the mechanism explicitly instead of citing empty.
+    """
+    bull = await _latest_fred(session, "AAII_BULLISH", max_age_days=14)
+    bear = await _latest_fred(session, "AAII_BEARISH", max_age_days=14)
+    neut = await _latest_fred(session, "AAII_NEUTRAL", max_age_days=14)
+    spread = await _latest_fred(session, "AAII_SPREAD", max_age_days=14)
+
+    if not (bull and bear and spread):
+        return ("## AAII Sentiment Survey\n- n/a (collector empty or stale)", [])
+
+    obs_date = bull[1].date()
+    sources = [
+        f"FRED:AAII_BULLISH@{obs_date.isoformat()}",
+        f"FRED:AAII_BEARISH@{obs_date.isoformat()}",
+        f"FRED:AAII_SPREAD@{obs_date.isoformat()}",
+    ]
+    if neut:
+        sources.append(f"FRED:AAII_NEUTRAL@{obs_date.isoformat()}")
+
+    bull_pct = bull[0]
+    bear_pct = bear[0]
+    neut_pct = neut[0] if neut else None
+    spread_val = spread[0]
+
+    lines = [f"## AAII Sentiment Survey ({obs_date:%b %d %Y})"]
+    lines.append(f"- Bullish  = {bull_pct:5.1%}")
+    lines.append(f"- Bearish  = {bear_pct:5.1%}")
+    if neut_pct is not None:
+        lines.append(f"- Neutral  = {neut_pct:5.1%}")
+    lines.append(f"- Spread   = {spread_val:+.2f} (bull - bear)")
+
+    # Contrarian régime classifier — anchored on AAII's 0.40 extreme threshold
+    # (collectors/aaii.py:is_extreme) + standard 0.20 "moderate tilt" band.
+    if abs(spread_val) > 0.40:
+        if spread_val > 0:
+            regime = "extreme retail-bull contrarian (⚠ historically caps forward returns)"
+        else:
+            regime = (
+                "extreme retail-bear contrarian (⚠ historically precedes strong forward returns)"
+            )
+    elif abs(spread_val) > 0.20:
+        regime = f"moderate retail-{'bull' if spread_val > 0 else 'bear'} tilt"
+    else:
+        regime = "neutral retail sentiment"
+    lines.append(f"- Régime   = {regime}")
+
+    # Δ 1-week spread delta (if we have at least 2 weekly observations).
+    prior_row = (
+        await session.execute(
+            select(FredObservation.value, FredObservation.observation_date)
+            .where(
+                FredObservation.series_id == "AAII_SPREAD",
+                FredObservation.observation_date < obs_date,
+                FredObservation.value.is_not(None),
+            )
+            .order_by(desc(FredObservation.observation_date))
+            .limit(1)
+        )
+    ).first()
+    if prior_row is not None:
+        d1 = spread_val - float(prior_row[0])
+        lines.append(f"- Δ spread 1w = {d1:+.2f} (vs {prior_row[1]:%b%d})")
+
+    return "\n".join(lines), sources
+
+
 async def _section_nyfed_mct(session: AsyncSession) -> tuple[str, list[str]]:
     """## NY Fed Multivariate Core Trend — persistent inflation trend.
 
@@ -2449,6 +2527,15 @@ async def build_data_pool(
     # régime (recession-precursor when SBOI < 95 + Uncertainty > 95).
     nfib_md, nfib_src = await _section_nfib_sbet(session)
     sections.append(("nfib_sbet", nfib_md, nfib_src))
+
+    # Wave 104b — AAII Sentiment Survey weekly (collector wired since
+    # 2026-05-08, surfaced into 4-pass here 2026-05-11 — audit gap G4
+    # closed). Retail equity sentiment contrarian indicator. Pass-2
+    # NAS100/SPX500 cites mechanism for "extreme retail bull → cap
+    # forward returns". Skipped silently if collector dormant.
+    aaii_md, aaii_src = await _section_aaii(session)
+    if aaii_src:
+        sections.append(("aaii", aaii_md, aaii_src))
 
     # Wave 77 — MyFXBook Community Outlook retail FX positioning.
     # Contrarian sentiment indicator. Skipped silently if collector
