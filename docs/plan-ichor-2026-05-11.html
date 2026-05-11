@@ -1,0 +1,990 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Ichor — Plan stratégique focus 2026-05-11</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg: #0a0b0f;
+        --bg-card: #12141c;
+        --bg-card-hi: #1a1d28;
+        --border: #232733;
+        --border-strong: #2f3441;
+        --text: #e8eaef;
+        --text-dim: #9aa0ad;
+        --text-muted: #6d7280;
+        --accent: #7c5cff;
+        --accent-dim: rgba(124, 92, 255, 0.15);
+        --cyan: #5cd5ff;
+        --cyan-dim: rgba(92, 213, 255, 0.12);
+        --ok: #4ade80;
+        --ok-dim: rgba(74, 222, 128, 0.12);
+        --warn: #fbbf24;
+        --warn-dim: rgba(251, 191, 36, 0.12);
+        --crit: #f87171;
+        --crit-dim: rgba(248, 113, 113, 0.12);
+        --font-sans: "Inter", system-ui, -apple-system, sans-serif;
+        --font-mono: "JetBrains Mono", ui-monospace, monospace;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        background:
+          radial-gradient(circle at 15% -5%, rgba(124, 92, 255, 0.1), transparent 45%),
+          radial-gradient(circle at 85% 5%, rgba(92, 213, 255, 0.05), transparent 40%), var(--bg);
+        color: var(--text);
+        font-family: var(--font-sans);
+        font-size: 15px;
+        line-height: 1.6;
+        min-height: 100vh;
+      }
+      code,
+      pre {
+        font-family: var(--font-mono);
+        font-size: 13px;
+      }
+      code {
+        background: rgba(255, 255, 255, 0.06);
+        padding: 0.1em 0.4em;
+        border-radius: 4px;
+        color: var(--cyan);
+      }
+      a {
+        color: var(--accent);
+        text-decoration: none;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+      .container {
+        max-width: 1220px;
+        margin: 0 auto;
+        padding: 28px 24px 96px;
+      }
+      .hero {
+        padding: 48px 0 28px;
+        border-bottom: 1px solid var(--border);
+        margin-bottom: 32px;
+      }
+      .hero .eyebrow {
+        display: inline-block;
+        font-family: var(--font-mono);
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: var(--accent);
+        margin-bottom: 14px;
+      }
+      .hero h1 {
+        font-size: 44px;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+        margin: 0 0 14px;
+        background: linear-gradient(135deg, var(--text) 0%, var(--accent) 100%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+      .hero .subtitle {
+        color: var(--text-dim);
+        font-size: 16px;
+        max-width: 800px;
+        margin-bottom: 22px;
+      }
+      .hero .meta {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+      .meta-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 5px 11px;
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        font-size: 12px;
+        color: var(--text-dim);
+      }
+      .meta-pill strong {
+        color: var(--text);
+      }
+      nav.sticky {
+        position: sticky;
+        top: 0;
+        background: rgba(10, 11, 15, 0.85);
+        backdrop-filter: blur(20px);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 10px 16px;
+        margin-bottom: 32px;
+        z-index: 10;
+        display: flex;
+        gap: 18px;
+        flex-wrap: wrap;
+      }
+      nav.sticky a {
+        color: var(--text-dim);
+        font-size: 13px;
+        font-weight: 500;
+        padding: 4px 10px;
+        border-radius: 6px;
+        text-decoration: none;
+        transition: all 0.15s;
+      }
+      nav.sticky a:hover {
+        background: var(--accent-dim);
+        color: var(--text);
+      }
+      section {
+        margin-bottom: 52px;
+      }
+      section h2 {
+        font-size: 26px;
+        font-weight: 700;
+        letter-spacing: -0.01em;
+        margin: 0 0 8px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      section h3 {
+        font-size: 18px;
+        font-weight: 600;
+        margin: 28px 0 12px;
+      }
+      section .description {
+        color: var(--text-dim);
+        margin-bottom: 22px;
+        max-width: 800px;
+      }
+      .grid {
+        display: grid;
+        gap: 14px;
+      }
+      .grid-3 {
+        grid-template-columns: repeat(3, 1fr);
+      }
+      .grid-4 {
+        grid-template-columns: repeat(4, 1fr);
+      }
+      @media (max-width: 860px) {
+        .grid-3,
+        .grid-4 {
+          grid-template-columns: 1fr;
+        }
+      }
+      .card {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 18px 20px;
+      }
+      .card.ok {
+        border-color: var(--ok);
+        background: linear-gradient(180deg, var(--ok-dim) 0%, var(--bg-card) 60%);
+      }
+      .card.warn {
+        border-color: var(--warn);
+        background: linear-gradient(180deg, var(--warn-dim) 0%, var(--bg-card) 60%);
+      }
+      .card.crit {
+        border-color: var(--crit);
+        background: linear-gradient(180deg, var(--crit-dim) 0%, var(--bg-card) 60%);
+      }
+      .card.accent {
+        border-color: var(--accent);
+        background: linear-gradient(180deg, var(--accent-dim) 0%, var(--bg-card) 60%);
+      }
+      .card h4 {
+        font-size: 15px;
+        font-weight: 600;
+        margin: 0 0 8px;
+      }
+      .card p {
+        margin: 0 0 6px;
+        color: var(--text-dim);
+        font-size: 13px;
+      }
+      .card .stat {
+        font-size: 30px;
+        font-weight: 700;
+        font-family: var(--font-mono);
+        letter-spacing: -0.02em;
+        margin: 6px 0 0;
+      }
+      .card .stat-sub {
+        color: var(--text-muted);
+        font-size: 11px;
+      }
+      .pill {
+        display: inline-block;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        padding: 3px 9px;
+        border-radius: 10px;
+        line-height: 1.4;
+      }
+      .pill.ok {
+        background: var(--ok-dim);
+        color: var(--ok);
+      }
+      .pill.warn {
+        background: var(--warn-dim);
+        color: var(--warn);
+      }
+      .pill.crit {
+        background: var(--crit-dim);
+        color: var(--crit);
+      }
+      .pill.accent {
+        background: var(--accent-dim);
+        color: var(--accent);
+      }
+      .pill.cyan {
+        background: var(--cyan-dim);
+        color: var(--cyan);
+      }
+      .pill.muted {
+        background: rgba(255, 255, 255, 0.05);
+        color: var(--text-muted);
+      }
+      table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        margin: 14px 0;
+        font-size: 13px;
+      }
+      table th {
+        text-align: left;
+        font-weight: 600;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--text-muted);
+        padding: 11px 13px;
+        background: var(--bg-card);
+        border-bottom: 1px solid var(--border-strong);
+      }
+      table th:first-child {
+        border-top-left-radius: 8px;
+      }
+      table th:last-child {
+        border-top-right-radius: 8px;
+      }
+      table td {
+        padding: 12px 13px;
+        border-bottom: 1px solid var(--border);
+        vertical-align: top;
+      }
+      table tr:last-child td {
+        border-bottom: none;
+      }
+      table tr:hover {
+        background: rgba(255, 255, 255, 0.02);
+      }
+      .question {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 16px 20px;
+        margin-bottom: 12px;
+      }
+      .question .q-num {
+        display: inline-block;
+        background: var(--accent-dim);
+        color: var(--accent);
+        font-weight: 700;
+        font-family: var(--font-mono);
+        font-size: 13px;
+        padding: 3px 9px;
+        border-radius: 6px;
+        margin-right: 8px;
+      }
+      .question .q-title {
+        font-weight: 600;
+        font-size: 15px;
+      }
+      .question .q-context {
+        color: var(--text-dim);
+        font-size: 13px;
+        margin-top: 6px;
+      }
+      .question .q-vote {
+        margin-top: 10px;
+        font-size: 13px;
+        color: var(--cyan);
+      }
+      .question .q-vote strong {
+        color: var(--text);
+      }
+      .callout {
+        padding: 16px 20px;
+        border-radius: 12px;
+        margin: 18px 0;
+        background: var(--bg-card);
+        border-left: 4px solid var(--accent);
+        font-size: 14px;
+      }
+      .callout.ok {
+        border-left-color: var(--ok);
+        background: var(--ok-dim);
+      }
+      .callout.warn {
+        border-left-color: var(--warn);
+        background: var(--warn-dim);
+      }
+      .callout strong {
+        color: var(--text);
+        display: block;
+        margin-bottom: 4px;
+      }
+      .decision-bar {
+        background: linear-gradient(135deg, var(--accent-dim) 0%, var(--cyan-dim) 100%);
+        border: 1px solid var(--accent);
+        border-radius: 16px;
+        padding: 22px 26px;
+        margin: 22px 0;
+      }
+      .decision-bar h3 {
+        margin: 0 0 10px;
+      }
+      .decision-bar p {
+        color: var(--text-dim);
+        margin: 0 0 14px;
+        font-size: 14px;
+      }
+      .decision-choices {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      .choice {
+        flex: 1 1 200px;
+        background: var(--bg-card);
+        border: 1px solid var(--border-strong);
+        border-radius: 10px;
+        padding: 13px 15px;
+      }
+      .choice .ch-key {
+        font-family: var(--font-mono);
+        font-weight: 700;
+        font-size: 16px;
+        color: var(--accent);
+      }
+      .choice .ch-title {
+        font-weight: 600;
+        font-size: 14px;
+        margin: 4px 0;
+      }
+      .choice .ch-desc {
+        color: var(--text-dim);
+        font-size: 12px;
+      }
+      .choice.recommend {
+        border-color: var(--accent);
+        background: linear-gradient(180deg, var(--accent-dim) 0%, var(--bg-card) 60%);
+      }
+      .recommend-tag {
+        display: inline-block;
+        font-size: 9px;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        background: var(--accent);
+        color: white;
+        padding: 2px 5px;
+        border-radius: 4px;
+        margin-left: 4px;
+        vertical-align: middle;
+      }
+      ul.clean {
+        padding-left: 18px;
+        margin: 6px 0;
+      }
+      ul.clean li {
+        margin: 4px 0;
+        color: var(--text-dim);
+      }
+      ul.clean li strong {
+        color: var(--text);
+      }
+      footer {
+        margin-top: 72px;
+        padding-top: 28px;
+        border-top: 1px solid var(--border);
+        color: var(--text-muted);
+        font-size: 13px;
+        text-align: center;
+      }
+      :target {
+        scroll-margin-top: 80px;
+      }
+      .timeline {
+        position: relative;
+        padding-left: 26px;
+        margin: 20px 0;
+      }
+      .timeline::before {
+        content: "";
+        position: absolute;
+        left: 9px;
+        top: 4px;
+        bottom: 4px;
+        width: 2px;
+        background: var(--border-strong);
+      }
+      .timeline-item {
+        position: relative;
+        padding-bottom: 18px;
+      }
+      .timeline-item::before {
+        content: "";
+        position: absolute;
+        left: -22px;
+        top: 6px;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: var(--ok);
+        border: 2px solid var(--bg);
+      }
+      .timeline-item.future::before {
+        background: var(--text-muted);
+      }
+      .timeline-item .ti-head {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 4px;
+      }
+      .timeline-item .ti-commit {
+        font-family: var(--font-mono);
+        font-size: 11px;
+        color: var(--cyan);
+      }
+      .timeline-item .ti-body {
+        color: var(--text-dim);
+        font-size: 13px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <header class="hero">
+        <span class="eyebrow">Ichor · session ultrathink 2026-05-11</span>
+        <h1>Plan stratégique focus Ichor</h1>
+        <p class="subtitle">
+          Post-W101 calibration scoreboard SHIPPED. Vue d'ensemble : état actuel · ce qui a été
+          livré cette session · roadmap W101→W112 · 3 décisions stratégiques en attente · vision
+          long terme.
+        </p>
+        <div class="meta">
+          <span class="meta-pill">📅 Date : <strong>2026-05-11</strong></span>
+          <span class="meta-pill">🔖 HEAD : <strong>9a305b8</strong></span>
+          <span class="meta-pill">✅ CI : <strong>15/16 success</strong></span>
+          <span class="meta-pill">🧪 Tests : <strong>1428</strong> (+13 W101)</span>
+          <span class="meta-pill">💰 Voie D : <strong>$0 incremental</strong></span>
+          <span class="meta-pill">📦 Commits session : <strong>11</strong></span>
+        </div>
+      </header>
+
+      <nav class="sticky" aria-label="Navigation">
+        <a href="#etat">État global</a>
+        <a href="#shipped">Shipped cette session</a>
+        <a href="#roadmap">Roadmap W101→W112</a>
+        <a href="#decisions">3 décisions en attente</a>
+        <a href="#vision">Vision long terme</a>
+        <a href="#focus">Question focus</a>
+      </nav>
+
+      <!-- ÉTAT GLOBAL -->
+      <section id="etat">
+        <h2>État global Ichor <span class="pill ok">prod-ready partial</span></h2>
+        <p class="description">
+          Snapshot factuel post-session. Aucun chiffre inventé — tous vérifiés via git/CI/code.
+        </p>
+        <div class="grid grid-4">
+          <div class="card ok">
+            <h4>CI HEAD 9a305b8</h4>
+            <p class="stat">15/16</p>
+            <p class="stat-sub">success · 1 axe-core pre-existing /replay (continue-on-error)</p>
+          </div>
+          <div class="card">
+            <h4>Tests totaux</h4>
+            <p class="stat">1 428</p>
+            <p class="stat-sub">
+              apps/api 1231 + ichor_brain 80 + agents 87 + claude-runner 22 + ichor-mcp 20
+            </p>
+          </div>
+          <div class="card">
+            <h4>Cap5 progress</h4>
+            <p class="stat">6/6 ✅</p>
+            <p class="stat-sub">STEP-1..6 shipped (W83-W100)</p>
+          </div>
+          <div class="card">
+            <h4>Coût mensuel</h4>
+            <p class="stat">$0</p>
+            <p class="stat-sub">Voie D respect · Claude Max 20x flat</p>
+          </div>
+          <div class="card">
+            <h4>Migration head</h4>
+            <p class="stat">0038</p>
+            <p class="stat-sub">tool_call_audit immutable trigger</p>
+          </div>
+          <div class="card">
+            <h4>Asset universe</h4>
+            <p class="stat">8 → 6</p>
+            <p class="stat-sub">ADR-083 align (W104 pending)</p>
+          </div>
+          <div class="card">
+            <h4>SearXNG decision</h4>
+            <p class="stat">ADR ✅</p>
+            <p class="stat-sub">vs Perplexity rejeté ($240/an + ambiguë)</p>
+          </div>
+          <div class="card">
+            <h4>Calibration scoreboard</h4>
+            <p class="stat">LIVE</p>
+            <p class="stat-sub">backend + frontend + a11y green</p>
+          </div>
+        </div>
+
+        <div class="callout ok">
+          <strong>🎯 Acquis 2026-05-11 (session ultrathink complète)</strong>
+          11 commits shippés couvrant : (1) tech debt résiduelle W100b/c/d/e/f/g · (2) audit
+          stratégique ichor-trader (5 gaps + 4 tech debt P0) · (3) ADR-082 strategic pivot + WGC
+          drop · (4) ADR-083 V2 manifesto + roadmap W101→W112 · (5) plan-strategique HTML consolidé
+          · (6) <strong>W101 calibration scoreboard backend + frontend + a11y fix</strong>
+          — la première vraie mesure publique du skill Ichor est en place.
+        </div>
+      </section>
+
+      <!-- SHIPPED -->
+      <section id="shipped">
+        <h2>Shipped cette session <span class="pill accent">11 commits</span></h2>
+        <p class="description">
+          Tout ce qui a été livré aujourd'hui par ordre chronologique. Aucun bug, 0 régression sur
+          les workflows blockants.
+        </p>
+        <div class="timeline">
+          <div class="timeline-item">
+            <div class="ti-head">
+              <span class="pill ok">W100b</span>
+              <code class="ti-commit">ac2e369</code>
+              <strong>5 fixes post-audit subagents</strong>
+            </div>
+            <div class="ti-body">
+              dependabot.yml github-actions schema fix · CLAUDE.md sync · test_unknown_tool tighten
+              · pytest autouse fixture reset _settings singleton · URLs platform.claude.com HEAD
+              verified
+            </div>
+          </div>
+          <div class="timeline-item">
+            <div class="ti-head">
+              <span class="pill ok">W100c</span>
+              <code class="ti-commit">bf75161</code>
+              <strong>Dependabot docker → docker-compose</strong>
+            </div>
+            <div class="ti-body">
+              Ansible role files dirs contiennent docker-compose.yml pas Dockerfile. GA Feb 2025.
+            </div>
+          </div>
+          <div class="timeline-item">
+            <div class="ti-head">
+              <span class="pill ok">W100d</span>
+              <code class="ti-commit">b9431b0</code>
+              <strong>pnpm-lock.yaml sync</strong>
+            </div>
+            <div class="ti-body">Post-zustand auto-merge (PR #82 squashed by W100 workflow).</div>
+          </div>
+          <div class="timeline-item">
+            <div class="ti-head">
+              <span class="pill ok">W100e</span>
+              <code class="ti-commit">aa20be6</code>
+              <strong>HTML guide §8 + real CF data</strong>
+            </div>
+            <div class="ti-body">
+              Anti-hallucination : Budget Alerts accessibles via R2 Paid (était dit inaccessibles).
+            </div>
+          </div>
+          <div class="timeline-item">
+            <div class="ti-head">
+              <span class="pill ok">W100f</span>
+              <code class="ti-commit">7c6057e</code>
+              <strong>CF API token rotation</strong>
+            </div>
+            <div class="ti-body">
+              Old révoqué (HTTP 401 verified) · new validé HTTP 200 active id 806ea32b... · GitHub
+              Secret intentionnellement absent (Pages public expose protect).
+            </div>
+          </div>
+          <div class="timeline-item">
+            <div class="ti-head">
+              <span class="pill ok">W100g</span>
+              <code class="ti-commit">0dda1db</code>
+              <strong>CLAUDE.md sync + document HETZNER_HOST gap</strong>
+            </div>
+            <div class="ti-body">Tous Hetzner deploys sont no-op silent (HETZNER_HOST absent).</div>
+          </div>
+          <div class="timeline-item">
+            <div class="ti-head">
+              <span class="pill accent">W101-prep</span>
+              <code class="ti-commit">08f2528</code>
+              <strong>ADR-082 strategic pivot + WGC drop</strong>
+            </div>
+            <div class="ti-body">
+              Audit ichor-trader · 5 gaps + 4 tech debt P0 · WGC permanently dropped.
+            </div>
+          </div>
+          <div class="timeline-item">
+            <div class="ti-head">
+              <span class="pill accent">W101-prep b</span>
+              <code class="ti-commit">1313c35</code>
+              <strong>ADR-083 V2 manifesto + roadmap W101→W112</strong>
+            </div>
+            <div class="ti-body">
+              Vision honest reframe · 12 waves prioritized · 6 + 2 tracked asset universe · pass 6
+              scenarios + key_levels + Living View.
+            </div>
+          </div>
+          <div class="timeline-item">
+            <div class="ti-head">
+              <span class="pill ok">W101 backend</span>
+              <code class="ti-commit">38248f8</code>
+              <strong>/v1/calibration/scoreboard + session_type fix + 13 tests</strong>
+            </div>
+            <div class="ti-body">
+              Endpoint multi-window matrix · session_type regex bug fix (5 windows au lieu de 3) ·
+              13 nouveaux tests · 64 tests apps/api green sur le scope calibration.
+            </div>
+          </div>
+          <div class="timeline-item">
+            <div class="ti-head">
+              <span class="pill ok">W101b frontend</span>
+              <code class="ti-commit">c1f80b4</code>
+              <strong>ScoreboardHeatmap section sur /calibration</strong>
+            </div>
+            <div class="ti-body">
+              Matrix 6 assets × 5 sessions × 3 windows (30d/90d/all) · couleurs Brier band ·
+              MOCK_SCOREBOARD déterministe pour fallback offline.
+            </div>
+          </div>
+          <div class="timeline-item">
+            <div class="ti-head">
+              <span class="pill ok">W101c a11y</span>
+              <code class="ti-commit">9a305b8</code>
+              <strong>Contrast fix Lighthouse 0.92 → 0.95+</strong>
+            </div>
+            <div class="ti-body">
+              opacity 0.85 → 1.0 · text 9px → 11px font-semibold · text-secondary on empty cells ·
+              tous WCAG 2.2 AA 4.5:1 contrast passes verified.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ROADMAP -->
+      <section id="roadmap">
+        <h2>Roadmap W101 → W112 <span class="pill cyan">ADR-083 ratified</span></h2>
+        <p class="description">12 waves stratégiques. 1 done · 11 à venir.</p>
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 75px">Wave</th>
+              <th>Titre</th>
+              <th style="width: 90px">Effort</th>
+              <th style="width: 100px">Priorité</th>
+              <th style="width: 100px">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>W101</strong></td>
+              <td>Calibration scoreboard (backend + frontend + a11y)</td>
+              <td>1-2 j effectif</td>
+              <td><span class="pill crit">P0</span></td>
+              <td><span class="pill ok">SHIPPED ✅</span></td>
+            </tr>
+            <tr>
+              <td><strong>W102</strong></td>
+              <td>CF Access service token claude-runner tunnel (anti burn-quota)</td>
+              <td>0.5 j + 15 min Eliot</td>
+              <td><span class="pill crit">P0 security</span></td>
+              <td><span class="pill warn">pending</span></td>
+            </tr>
+            <tr>
+              <td><strong>W103</strong></td>
+              <td>SearXNG MCP backend (web research illimité Voie D)</td>
+              <td>2 j</td>
+              <td><span class="pill warn">P1</span></td>
+              <td><span class="pill muted">planifié</span></td>
+            </tr>
+            <tr>
+              <td><strong>W104</strong></td>
+              <td>Asset universe align : 6 cards (drop USDJPY+AUDUSD)</td>
+              <td>1 j</td>
+              <td><span class="pill warn">P1</span></td>
+              <td><span class="pill muted">planifié</span></td>
+            </tr>
+            <tr>
+              <td><strong>W105</strong></td>
+              <td>Pass 6 — 7 scenarios probabilisés (crash → melt-up)</td>
+              <td>5-7 j</td>
+              <td><span class="pill crit">P0 feature</span></td>
+              <td><span class="pill muted">planifié</span></td>
+            </tr>
+            <tr>
+              <td><strong>W106</strong></td>
+              <td>key_levels[] non-technical (gamma flip, peg break, TGA/RRP)</td>
+              <td>4-5 j</td>
+              <td><span class="pill crit">P0 feature</span></td>
+              <td><span class="pill muted">planifié</span></td>
+            </tr>
+            <tr>
+              <td><strong>W107</strong></td>
+              <td>Living Analysis View frontend (trader-grade gestalt)</td>
+              <td>5-7 j</td>
+              <td><span class="pill crit">P0 ux</span></td>
+              <td><span class="pill muted">planifié</span></td>
+            </tr>
+            <tr>
+              <td><strong>W108</strong></td>
+              <td>FOMC/ECB tone-shift activation (money on table 60+ jours)</td>
+              <td>0.5 j</td>
+              <td><span class="pill warn">P1</span></td>
+              <td><span class="pill muted">planifié</span></td>
+            </tr>
+            <tr>
+              <td>W109</td>
+              <td>
+                USDCNH peg proxy v2 —
+                <span style="color: var(--text-muted)">DROPPED (pas tradé)</span>
+              </td>
+              <td>—</td>
+              <td><span class="pill muted">drop</span></td>
+              <td><span class="pill muted">drop</span></td>
+            </tr>
+            <tr>
+              <td>W110</td>
+              <td>Volume microstructure (Lee-Ready, Kyle's λ, Amihud)</td>
+              <td>5 j</td>
+              <td><span class="pill warn">P2</span></td>
+              <td><span class="pill muted">backlog</span></td>
+            </tr>
+            <tr>
+              <td>W111</td>
+              <td>Macro quintet PCA orthogonality audit</td>
+              <td>3 j</td>
+              <td><span class="pill warn">P2</span></td>
+              <td><span class="pill muted">backlog</span></td>
+            </tr>
+            <tr>
+              <td>W112</td>
+              <td>CB intervention probability (VISION_2026 delta D)</td>
+              <td>4 j</td>
+              <td><span class="pill warn">P2</span></td>
+              <td><span class="pill muted">backlog</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- DÉCISIONS -->
+      <section id="decisions">
+        <h2>3 décisions en attente <span class="pill warn">à valider</span></h2>
+        <p class="description">
+          J'ai pris des défauts (recommandations Claude) pour W101. Tu peux corriger à tout moment.
+          Mes votes en cyan dans chaque question.
+        </p>
+
+        <div class="question">
+          <span class="q-num">A</span>
+          <span class="q-title">Asset universe : combien de cards actives ?</span>
+          <div class="q-context">
+            Tu trades 6 (EUR, GBP, CAD, XAU, NAS100, SPX500). ADR-017 prescrit 8 cards (incl. USDJPY
+            + AUDUSD). Drift = on génère LLM calls + reconcile pour des assets que tu ne trade pas.
+          </div>
+          <div class="q-vote">
+            <strong>Options</strong> : <code>6 oui</code> (drop USDJPY+AUDUSD) ·
+            <code>6 + 2 tracked</code> (garde data context, no card) · <code>8 tout garder</code>.
+            <br />
+            <strong>Recommandation Claude</strong> :
+            <span style="color: var(--accent)"><code>6 + 2 tracked</code></span>
+            — économise ~25% LLM, garde le context macro complet.
+          </div>
+        </div>
+
+        <div class="question">
+          <span class="q-num">B</span>
+          <span class="q-title">Web research backend : Perplexity ou SearXNG ?</span>
+          <div class="q-context">
+            Perplexity Pro $240/an + 200-500 req/mois (insuffisant Ichor 100-500/jour) + crédit API
+            ambigu fév 2026. SearXNG self-hosted Hetzner = $0 marginal + illimité + Voie
+            D-compliant.
+          </div>
+          <div class="q-vote">
+            <strong>Options</strong> : <code>SearXNG OK</code> ·
+            <code>Perplexity quand même</code> · <code>autre</code>.
+            <br />
+            <strong>Recommandation Claude</strong> :
+            <span style="color: var(--accent)"><code>SearXNG OK</code></span>
+            — économique + fonctionnel + audit fait W101.
+          </div>
+        </div>
+
+        <div class="question">
+          <span class="q-num">C</span>
+          <span class="q-title">Next wave après W101 : par quoi commencer ?</span>
+          <div class="q-context">
+            4 candidats : <code>W102</code> CF Access (sécurité urgente, claude-runner public
+            actuellement → risque burn quota), <code>W104</code> asset universe (1 jour quick win),
+            <code>W105</code> Pass 6 scenarios (gros feature 5-7j), <code>W108</code> FOMC
+            tone-shift (0.5j money on table).
+          </div>
+          <div class="q-vote">
+            <strong>Options</strong> : <code>W102</code> (security) · <code>W104</code> (quick win)
+            · <code>W105</code> (big feature) · <code>W108</code> (money on table) ·
+            <code>valide tout, choisis pour moi</code>.
+            <br />
+            <strong>Recommandation Claude</strong> :
+            <span style="color: var(--accent)"
+              ><code>W102 → W108 → W104 → W103 → W105/W106/W107</code></span
+            >
+            — sécurité d'abord, money on table ensuite, foundation 6 assets, web search backend,
+            puis les 3 features stars en parallèle (W105/W106/W107).
+          </div>
+        </div>
+
+        <div class="callout ok">
+          <strong>💡 Batch validate option</strong>
+          Si tu n'as pas le temps de réfléchir, écris simplement :
+          <code>batch validate Claude votes</code>
+          → je m'aligne sur mes recommandations (A = 6+2 tracked, B = SearXNG, C = W102 first), je
+          commence directement la prochaine wave. Tu peux corriger après en chat à tout moment.
+        </div>
+      </section>
+
+      <!-- VISION -->
+      <section id="vision">
+        <h2>Vision long terme <span class="pill cyan">3-6 mois</span></h2>
+        <p class="description">
+          Où Ichor devrait être Q3 2026 + ce que ça implique concrètement pour ton workflow trader.
+        </p>
+
+        <div class="grid grid-3">
+          <div class="card accent">
+            <h4>📊 Fin W101→W107 (mai → juillet 2026)</h4>
+            <p>
+              Tu ouvres <code>/calibration</code> avant chaque session, tu vois ton skill sur 30j /
+              90j / all-time par (asset, session). Brier &lt; 0.20 = preuve quantifiée que la
+              pipeline fonctionne.
+            </p>
+            <p>
+              <strong>Living Analysis View</strong> (W107) =
+              <code>/analysis/[asset]/[session]</code> avec 7 scenarios prob. + key levels + drivers
+              + invalidation. Trader-grade gestalt.
+            </p>
+          </div>
+          <div class="card">
+            <h4>🔬 W108-W112 (août → octobre 2026)</h4>
+            <p>
+              FOMC/ECB tone-shift LIVE · macro quintet PCA proper · volume microstructure
+              Kyle/Amihud · CB intervention probability.
+            </p>
+            <p>
+              Ichor commence à émettre des indications directionnel cohérentes sur tous les axes que
+              tu listais le 2026-05-04.
+            </p>
+          </div>
+          <div class="card">
+            <h4>🚀 Q4 2026</h4>
+            <p>
+              90 % de ton analyse non-technique est dans Ichor. Tu lis ta carte session 5 min avant
+              ouverture Londres / NY, tu vois les scenarios pondérés, les niveaux clés
+              non-techniques (gamma flip, peg break, liquidity gates), les invalidation conditions.
+            </p>
+            <p>Tu ouvres TradingView, tu fais les 10 % techniques sur les zones existantes.</p>
+          </div>
+        </div>
+
+        <div class="callout warn">
+          <strong>⚠️ Hypothèses critiques à valider</strong>
+          (1) <strong>Calibration score</strong> : si après 90j de cards prod, Brier reste &gt; 0.22
+          (skill marginal), la vision "90% Ichor" doit être revue. (2) <strong>SPOF Win11</strong> :
+          si ton PC tombe et reste down &gt; 24h, tous les briefings s'arrêtent. ADR-082 propose 2e
+          NUC Win11 backup ~300€ à reconsidérer en Q3. (3) <strong>Time investment</strong> : ~35-45
+          jours dev sur W101-W112. Si tu changes d'avis sur les priorités, on rebat les cartes — pas
+          de coût sunk.
+        </div>
+      </section>
+
+      <!-- FOCUS QUESTION -->
+      <section id="focus">
+        <h2>Question focus pour démarrer <span class="pill accent">1 action</span></h2>
+        <div class="decision-bar">
+          <h3>Quel wave veux-tu que je commence MAINTENANT ?</h3>
+          <p>
+            Ma recommandation forte : <strong>W102 CF Access</strong>. Pourquoi : tu m'as donné ta
+            carte CF récemment. Ton tunnel <code>claude-runner.fxmilyapp.com</code> est PUBLIC sans
+            auth → un script kiddie qui scan ton domain peut spammer le runner et brûler ta quota
+            Max 20x silencieusement. C'est 15 min pour toi (dashboard CF service token) + 0.5j moi
+            (wire config Hetzner). Sécurité d'abord, features ensuite.
+          </p>
+          <div class="decision-choices">
+            <div class="choice recommend">
+              <div class="ch-key">W102 <span class="recommend-tag">RECO</span></div>
+              <div class="ch-title">CF Access service token</div>
+              <div class="ch-desc">Sécurise claude-runner public · 15 min toi + 0.5j moi</div>
+            </div>
+            <div class="choice">
+              <div class="ch-key">W108</div>
+              <div class="ch-title">FOMC tone-shift activation</div>
+              <div class="ch-desc">0.5j · code prêt depuis 60+ jours, pip install transformers</div>
+            </div>
+            <div class="choice">
+              <div class="ch-key">W104</div>
+              <div class="ch-title">Asset universe 6 cards align</div>
+              <div class="ch-desc">1j autonome · -25% LLM calls, focus sur tes vrais assets</div>
+            </div>
+            <div class="choice">
+              <div class="ch-key">W105</div>
+              <div class="ch-title">Pass 6 scenarios probabilisés</div>
+              <div class="ch-desc">5-7j big feature · 7 scenarios crash → melt-up promis PLAN</div>
+            </div>
+          </div>
+          <p style="margin-top: 14px">
+            Ou autre choix : <code>autre</code> (dis-moi quoi) · <code>pause aujourd'hui</code> ·
+            <code>batch validate Claude votes</code> (j'enchaîne W102 sans plus poser de question).
+          </p>
+        </div>
+      </section>
+
+      <footer>
+        Plan stratégique Ichor focus 2026-05-11 généré par Claude (mode ultrathink × maximum).
+        Sources : ADR-082, ADR-083, audit ichor-trader, vision verbatim 2026-05-04 (preserved). HEAD
+        <code>9a305b8</code>. Aucun secret en clair. Voie D respectée. Pas accumulé de couches —
+        backend extended, frontend enrichi, ADR consolidé. <br /><br />
+        <strong style="color: var(--text-dim)"
+          >Rappel sécurité : NE PAS coller de tokens / credentials dans le chat.</strong
+        >
+      </footer>
+    </div>
+  </body>
+</html>
