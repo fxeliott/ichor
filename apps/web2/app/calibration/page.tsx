@@ -1,10 +1,23 @@
 // /calibration — Brier reliability diagram + skill score per asset.
 //
-// Live: GET /v1/calibration + /v1/calibration/by-asset (newest 90d window).
-// Falls back to a deterministic mock if API offline. UI structure preserved.
+// Live :
+//   GET /v1/calibration                       — overall summary + reliability bins
+//   GET /v1/calibration/by-asset              — per-asset breakdown
+//   GET /v1/calibration/scoreboard            — W101 multi-window matrix
+//                                               (asset × session_type × 30d/90d/all)
+//
+// All three falls back to deterministic mocks if API offline. UI tree :
+// Header → ReliabilityDiagram → PerAssetTable → ScoreboardHeatmap (W101) → Pedagogy.
 
 import { BiasIndicator, MetricTooltip } from "@/components/ui";
-import { apiGet, isLive, type CalibrationGroups, type CalibrationSummary } from "@/lib/api";
+import {
+  apiGet,
+  isLive,
+  type CalibrationGroups,
+  type CalibrationScoreboard,
+  type CalibrationSummary,
+  type ScoreboardCell,
+} from "@/lib/api";
 
 interface BinView {
   predicted_pct: number;
@@ -43,6 +56,57 @@ const MOCK_ASSETS: AssetView[] = [
   { asset: "SPX500", brier: 0.148, n: 84, trend: "bull" },
 ];
 
+// W101 — Heatmap matrix : asset × session_type, with 3 mini-cells per
+// pair (30d / 90d / all). Aligned with ADR-083 D1 "6 active cards"
+// (Eliot trades EURUSD, GBPUSD, USDCAD, XAUUSD, NAS100, SPX500).
+const SCOREBOARD_ASSETS = ["EUR_USD", "GBP_USD", "USD_CAD", "XAU_USD", "NAS100", "SPX500"] as const;
+const SCOREBOARD_SESSIONS = [
+  "pre_londres",
+  "pre_ny",
+  "ny_mid",
+  "ny_close",
+  "event_driven",
+] as const;
+const SCOREBOARD_WINDOWS = ["30d", "90d", "all"] as const;
+type ScoreboardAsset = (typeof SCOREBOARD_ASSETS)[number];
+type ScoreboardSession = (typeof SCOREBOARD_SESSIONS)[number];
+
+// Deterministic mock so the page is visually complete even when DB is
+// empty. Seeded by index sum so cell colors form a stable pattern.
+function _mockBrier(assetIdx: number, sessionIdx: number, windowIdx: number): number {
+  const base = 0.16 + ((assetIdx * 7 + sessionIdx * 11 + windowIdx * 5) % 13) * 0.012;
+  return Math.round(base * 1000) / 1000;
+}
+
+function makeMockScoreboard(): CalibrationScoreboard {
+  const windows = SCOREBOARD_WINDOWS.map((label, wi) => ({
+    window_label: label,
+    window_days: label === "all" ? 730 : Number.parseInt(label, 10),
+    n_cells: SCOREBOARD_ASSETS.length * SCOREBOARD_SESSIONS.length,
+    cells: SCOREBOARD_ASSETS.flatMap((asset, ai) =>
+      SCOREBOARD_SESSIONS.map((session, si) => {
+        const mean = _mockBrier(ai, si, wi);
+        const n = 18 + ((ai * 3 + si * 5 + wi * 7) % 27);
+        return {
+          asset,
+          session_type: session,
+          n_cards: n,
+          mean_brier: mean,
+          skill_vs_naive: Math.round((1 - mean / 0.25) * 10000) / 10000,
+          hits: Math.round(n * (mean < 0.22 ? 0.62 : mean < 0.24 ? 0.55 : 0.48)),
+          misses: 0, // filled below
+        };
+      }),
+    ),
+  }));
+  for (const w of windows) {
+    for (const c of w.cells) c.misses = c.n_cards - c.hits;
+  }
+  return { generated_at: new Date().toISOString(), windows };
+}
+
+const MOCK_SCOREBOARD: CalibrationScoreboard = makeMockScoreboard();
+
 function adaptBins(summary: CalibrationSummary): BinView[] {
   return summary.reliability.map((b) => ({
     predicted_pct: b.mean_predicted,
@@ -68,9 +132,13 @@ function adaptByAsset(groups: CalibrationGroups): AssetView[] {
 }
 
 export default async function CalibrationPage() {
-  const [overall, byAsset] = await Promise.all([
+  const [overall, byAsset, scoreboard] = await Promise.all([
     apiGet<CalibrationSummary>("/v1/calibration?window_days=30", { revalidate: 60 }),
     apiGet<CalibrationGroups>("/v1/calibration/by-asset?window_days=30", { revalidate: 60 }),
+    apiGet<CalibrationScoreboard>(
+      "/v1/calibration/scoreboard?windows=30d&windows=90d&windows=all",
+      { revalidate: 60 },
+    ),
   ]);
 
   const apiOnline = isLive(overall) && isLive(byAsset);
@@ -89,6 +157,8 @@ export default async function CalibrationPage() {
     isLive(byAsset) && byAsset.groups.length > 0 ? adaptByAsset(byAsset) : MOCK_ASSETS;
   const windowDays = isLive(overall) ? overall.window_days : 30;
   const nCards = isLive(overall) ? overall.n_cards : assets.reduce((s, a) => s + a.n, 0);
+  const scoreboardLive = isLive(scoreboard) && scoreboard.windows.length > 0;
+  const scoreboardData: CalibrationScoreboard = scoreboardLive ? scoreboard : MOCK_SCOREBOARD;
 
   return (
     <div className="container mx-auto max-w-5xl px-6 py-12">
@@ -102,6 +172,7 @@ export default async function CalibrationPage() {
       />
       <ReliabilityDiagram bins={bins} />
       <PerAssetTable assets={assets} />
+      <ScoreboardHeatmap data={scoreboardData} live={scoreboardLive} />
       <Pedagogy />
     </div>
   );
@@ -338,6 +409,222 @@ function PerAssetTable({ assets }: { assets: AssetView[] }) {
         </tbody>
       </table>
     </section>
+  );
+}
+
+// W101 — Scoreboard heatmap : matrix asset × session_type × 3 windows.
+//
+// Each (asset, session) row carries 3 mini-cells side-by-side : 30d / 90d /
+// all-time. Cell color encodes Brier (green < 0.20 = useful skill, yellow
+// 0.20-0.25 = marginal, red > 0.25 = worse than naive). Empty cells get a
+// dotted treatment (no reconciled cards in that bucket).
+//
+// Reading guide (intentionally explicit in the UI) :
+//   - Rows = the 6 traded assets (ADR-083 D1).
+//   - Cols = the 5 SessionType values from `ichor_brain.types`.
+//   - Sub-cells inside each (asset, session) = 30d / 90d / all-time trend.
+//   - Hover any cell to see n_cards, mean_brier, skill_vs_naive, hits/misses.
+
+function brierBand(brier: number | null): "ok" | "warn" | "crit" | "empty" {
+  if (brier === null || Number.isNaN(brier)) return "empty";
+  if (brier < 0.2) return "ok";
+  if (brier < 0.25) return "warn";
+  return "crit";
+}
+
+function brierColor(band: "ok" | "warn" | "crit" | "empty"): string {
+  if (band === "ok") return "var(--color-bull)";
+  if (band === "warn") return "var(--color-accent-warm)";
+  if (band === "crit") return "var(--color-bear)";
+  return "var(--color-bg-elevated)";
+}
+
+interface CellLookup {
+  [key: string]: ScoreboardCell;
+}
+
+function buildLookup(window: { cells: ScoreboardCell[] }): CellLookup {
+  const out: CellLookup = {};
+  for (const c of window.cells) {
+    out[`${c.asset}|${c.session_type}`] = c;
+  }
+  return out;
+}
+
+function ScoreboardHeatmap({ data, live }: { data: CalibrationScoreboard; live: boolean }) {
+  // Build window lookups for fast per-cell access in the JSX render.
+  const windowLookups = data.windows.map((w) => ({
+    label: w.window_label,
+    cells: buildLookup(w),
+  }));
+
+  return (
+    <section className="mb-12 rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-6">
+      <header className="mb-4 flex flex-wrap items-baseline gap-3">
+        <h2 className="font-mono text-xs uppercase tracking-widest text-[var(--color-text-muted)]">
+          Scoreboard · {SCOREBOARD_ASSETS.length} actifs × {SCOREBOARD_SESSIONS.length} sessions ×{" "}
+          {SCOREBOARD_WINDOWS.length} fenêtres
+        </h2>
+        <span
+          aria-label={live ? "Scoreboard live" : "Scoreboard offline · mock"}
+          className="inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[9px] uppercase tracking-widest"
+          style={{
+            color: live ? "var(--color-bull)" : "var(--color-bear)",
+            borderColor: live ? "var(--color-bull)" : "var(--color-bear)",
+          }}
+        >
+          <span aria-hidden="true">{live ? "▲" : "▼"}</span>
+          {live ? "live" : "offline · mock"}
+        </span>
+      </header>
+
+      <p className="mb-4 max-w-prose text-xs text-[var(--color-text-muted)]">
+        Matrix de calibration par actif × session × fenêtre roulante. Chaque cellule = 3 mini-blocs
+        (30 j / 90 j / total). Vert = Brier &lt; 0,20 (skill utile). Jaune = 0,20-0,25 (marginal).
+        Rouge = &gt; 0,25 (pire que naïf 0,5). Pointillé = pas de carte réconciliée sur la fenêtre.
+      </p>
+
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm" role="grid" aria-label="Calibration scoreboard heatmap">
+          <thead>
+            <tr className="border-b border-[var(--color-border-default)] text-left">
+              <th
+                scope="col"
+                className="py-2 pr-4 font-mono text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]"
+              >
+                Asset
+              </th>
+              {SCOREBOARD_SESSIONS.map((s) => (
+                <th
+                  key={s}
+                  scope="col"
+                  className="py-2 pr-2 font-mono text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]"
+                >
+                  {s.replace(/_/g, " ")}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {SCOREBOARD_ASSETS.map((asset) => (
+              <tr
+                key={asset}
+                className="border-b border-[var(--color-border-subtle)] last:border-b-0"
+              >
+                <th
+                  scope="row"
+                  className="py-2 pr-4 text-left font-mono font-normal text-[var(--color-text-primary)]"
+                >
+                  {asset.replace(/_/g, "/")}
+                </th>
+                {SCOREBOARD_SESSIONS.map((session) => (
+                  <td key={`${asset}-${session}`} className="py-2 pr-2">
+                    <ScoreboardTrioCell
+                      asset={asset}
+                      session={session}
+                      windowLookups={windowLookups}
+                    />
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <ScoreboardLegend />
+    </section>
+  );
+}
+
+function ScoreboardTrioCell({
+  asset,
+  session,
+  windowLookups,
+}: {
+  asset: ScoreboardAsset;
+  session: ScoreboardSession;
+  windowLookups: { label: string; cells: CellLookup }[];
+}) {
+  return (
+    <div className="flex gap-0.5">
+      {windowLookups.map(({ label, cells }) => {
+        const cell = cells[`${asset}|${session}`];
+        const band = cell ? brierBand(cell.mean_brier) : "empty";
+        const tooltip = cell
+          ? `${label} · n=${cell.n_cards} · Brier=${cell.mean_brier.toFixed(3)} · skill=${(
+              cell.skill_vs_naive * 100
+            ).toFixed(1)}% · ${cell.hits}/${cell.n_cards} hits`
+          : `${label} · no data`;
+        return (
+          <div
+            key={label}
+            role="gridcell"
+            title={tooltip}
+            aria-label={tooltip}
+            className="flex h-7 w-7 items-center justify-center font-mono text-[9px] tabular-nums"
+            style={{
+              background: brierColor(band),
+              opacity: band === "empty" ? 0.25 : 0.85,
+              borderRadius: "3px",
+              color: band === "empty" ? "var(--color-text-muted)" : "var(--color-bg-base)",
+              border:
+                band === "empty"
+                  ? "1px dashed var(--color-border-default)"
+                  : "1px solid transparent",
+            }}
+          >
+            {cell ? cell.mean_brier.toFixed(2).replace(/^0/, "") : "—"}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function ScoreboardLegend() {
+  return (
+    <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-[10px] font-mono uppercase tracking-widest text-[var(--color-text-muted)]">
+      <span>légende :</span>
+      <span className="flex items-center gap-2">
+        <span
+          aria-hidden="true"
+          className="inline-block h-3 w-3 rounded-sm"
+          style={{ background: "var(--color-bull)", opacity: 0.85 }}
+        />
+        Brier &lt; 0,20 · skill
+      </span>
+      <span className="flex items-center gap-2">
+        <span
+          aria-hidden="true"
+          className="inline-block h-3 w-3 rounded-sm"
+          style={{ background: "var(--color-accent-warm)", opacity: 0.85 }}
+        />
+        0,20 - 0,25 · marginal
+      </span>
+      <span className="flex items-center gap-2">
+        <span
+          aria-hidden="true"
+          className="inline-block h-3 w-3 rounded-sm"
+          style={{ background: "var(--color-bear)", opacity: 0.85 }}
+        />
+        &gt; 0,25 · worse than naive
+      </span>
+      <span className="flex items-center gap-2">
+        <span
+          aria-hidden="true"
+          className="inline-block h-3 w-3 rounded-sm"
+          style={{
+            background: "var(--color-bg-elevated)",
+            border: "1px dashed var(--color-border-default)",
+          }}
+        />
+        no data
+      </span>
+      <span className="text-[var(--color-text-muted)]">
+        Trio = 30 j / 90 j / all-time (gauche → droite)
+      </span>
+    </div>
   );
 }
 

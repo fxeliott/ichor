@@ -251,6 +251,33 @@ export interface CalibrationGroups {
   groups: CalibrationGroup[];
 }
 
+// W101 — Scoreboard multi-window matrix shapes mirror
+// `apps/api/src/ichor_api/routers/calibration.py` ScoreboardOut /
+// ScoreboardWindowOut / ScoreboardCellOut. Adding here for type-safe
+// SSR fetch in `app/calibration/page.tsx` heatmap section.
+
+export interface ScoreboardCell {
+  asset: string;
+  session_type: string;
+  n_cards: number;
+  mean_brier: number;
+  skill_vs_naive: number;
+  hits: number;
+  misses: number;
+}
+
+export interface ScoreboardWindow {
+  window_label: string; // "30d" | "90d" | "all"
+  window_days: number;
+  n_cells: number;
+  cells: ScoreboardCell[];
+}
+
+export interface CalibrationScoreboard {
+  generated_at: string; // ISO datetime
+  windows: ScoreboardWindow[];
+}
+
 export interface PolymarketMarketHit {
   slug: string;
   question: string;
