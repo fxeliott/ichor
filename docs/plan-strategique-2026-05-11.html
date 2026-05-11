@@ -1,0 +1,1256 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Plan stratégique 2026-05-11 — Ichor + Fxmilyapp</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg: #0a0b0f;
+        --bg-card: #12141c;
+        --bg-card-hover: #1a1d28;
+        --border: #232733;
+        --border-strong: #2f3441;
+        --text: #e8eaef;
+        --text-dim: #9aa0ad;
+        --text-muted: #6d7280;
+        --accent: #7c5cff;
+        --accent-dim: rgba(124, 92, 255, 0.15);
+        --accent-glow: rgba(124, 92, 255, 0.35);
+        --cyan: #5cd5ff;
+        --cyan-dim: rgba(92, 213, 255, 0.12);
+        --ok: #4ade80;
+        --ok-dim: rgba(74, 222, 128, 0.12);
+        --warn: #fbbf24;
+        --warn-dim: rgba(251, 191, 36, 0.12);
+        --crit: #f87171;
+        --crit-dim: rgba(248, 113, 113, 0.12);
+        --font-sans: "Inter", system-ui, -apple-system, sans-serif;
+        --font-mono: "JetBrains Mono", ui-monospace, monospace;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        background:
+          radial-gradient(circle at 20% 0%, rgba(124, 92, 255, 0.08), transparent 50%),
+          radial-gradient(circle at 80% 100%, rgba(92, 213, 255, 0.05), transparent 50%), var(--bg);
+        color: var(--text);
+        font-family: var(--font-sans);
+        font-size: 15px;
+        line-height: 1.6;
+        min-height: 100vh;
+      }
+      code,
+      pre {
+        font-family: var(--font-mono);
+        font-size: 13px;
+      }
+      code {
+        background: rgba(255, 255, 255, 0.06);
+        padding: 0.1em 0.4em;
+        border-radius: 4px;
+        color: var(--cyan);
+      }
+      a {
+        color: var(--accent);
+        text-decoration: none;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+      .container {
+        max-width: 1240px;
+        margin: 0 auto;
+        padding: 32px 24px 96px;
+      }
+      /* HERO */
+      .hero {
+        padding: 56px 0 32px;
+        border-bottom: 1px solid var(--border);
+        margin-bottom: 32px;
+      }
+      .hero h1 {
+        font-size: 42px;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+        margin: 0 0 16px;
+        background: linear-gradient(135deg, var(--text) 0%, var(--accent) 100%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+      .hero .subtitle {
+        color: var(--text-dim);
+        font-size: 17px;
+        max-width: 760px;
+        margin-bottom: 24px;
+      }
+      .hero .meta {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      .meta-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 12px;
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        font-size: 13px;
+        color: var(--text-dim);
+      }
+      .meta-pill strong {
+        color: var(--text);
+      }
+      /* NAV */
+      nav.sticky {
+        position: sticky;
+        top: 0;
+        background: rgba(10, 11, 15, 0.85);
+        backdrop-filter: blur(20px);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 12px 16px;
+        margin-bottom: 32px;
+        z-index: 10;
+        display: flex;
+        gap: 20px;
+        flex-wrap: wrap;
+      }
+      nav.sticky a {
+        color: var(--text-dim);
+        font-size: 14px;
+        font-weight: 500;
+        padding: 4px 10px;
+        border-radius: 6px;
+        transition: all 0.15s;
+        text-decoration: none;
+      }
+      nav.sticky a:hover {
+        background: var(--accent-dim);
+        color: var(--text);
+      }
+      /* SECTIONS */
+      section {
+        margin-bottom: 56px;
+      }
+      section h2 {
+        font-size: 28px;
+        font-weight: 700;
+        letter-spacing: -0.01em;
+        margin: 0 0 8px;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+      }
+      section h2 .badge {
+        font-size: 11px;
+        padding: 3px 10px;
+        border-radius: 10px;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+      }
+      section h3 {
+        font-size: 19px;
+        font-weight: 600;
+        margin: 32px 0 12px;
+        color: var(--text);
+      }
+      section .description {
+        color: var(--text-dim);
+        margin-bottom: 24px;
+        max-width: 800px;
+      }
+      /* CARDS */
+      .grid {
+        display: grid;
+        gap: 16px;
+      }
+      .grid-2 {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      .grid-3 {
+        grid-template-columns: repeat(3, 1fr);
+      }
+      .grid-4 {
+        grid-template-columns: repeat(4, 1fr);
+      }
+      @media (max-width: 860px) {
+        .grid-2,
+        .grid-3,
+        .grid-4 {
+          grid-template-columns: 1fr;
+        }
+      }
+      .card {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 20px;
+        transition: all 0.15s;
+      }
+      .card.accent {
+        border-color: var(--accent);
+        background: linear-gradient(180deg, var(--accent-dim) 0%, var(--bg-card) 60%);
+      }
+      .card.crit {
+        border-color: var(--crit);
+        background: linear-gradient(180deg, var(--crit-dim) 0%, var(--bg-card) 60%);
+      }
+      .card.warn {
+        border-color: var(--warn);
+        background: linear-gradient(180deg, var(--warn-dim) 0%, var(--bg-card) 60%);
+      }
+      .card.ok {
+        border-color: var(--ok);
+        background: linear-gradient(180deg, var(--ok-dim) 0%, var(--bg-card) 60%);
+      }
+      .card h4 {
+        font-size: 16px;
+        font-weight: 600;
+        margin: 0 0 10px;
+      }
+      .card p {
+        margin: 0 0 8px;
+        color: var(--text-dim);
+        font-size: 14px;
+      }
+      .card .stat {
+        font-size: 32px;
+        font-weight: 700;
+        font-family: var(--font-mono);
+        letter-spacing: -0.02em;
+        margin: 8px 0 0;
+      }
+      .card .stat-sub {
+        color: var(--text-muted);
+        font-size: 12px;
+      }
+      /* PILLS */
+      .pill {
+        display: inline-block;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        padding: 3px 10px;
+        border-radius: 10px;
+        line-height: 1.4;
+      }
+      .pill.ok {
+        background: var(--ok-dim);
+        color: var(--ok);
+      }
+      .pill.warn {
+        background: var(--warn-dim);
+        color: var(--warn);
+      }
+      .pill.crit {
+        background: var(--crit-dim);
+        color: var(--crit);
+      }
+      .pill.accent {
+        background: var(--accent-dim);
+        color: var(--accent);
+      }
+      .pill.cyan {
+        background: var(--cyan-dim);
+        color: var(--cyan);
+      }
+      .pill.muted {
+        background: rgba(255, 255, 255, 0.05);
+        color: var(--text-muted);
+      }
+      /* TABLES */
+      table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        margin: 16px 0;
+        font-size: 14px;
+      }
+      table th {
+        text-align: left;
+        font-weight: 600;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--text-muted);
+        padding: 12px 14px;
+        background: var(--bg-card);
+        border-bottom: 1px solid var(--border-strong);
+      }
+      table th:first-child {
+        border-top-left-radius: 8px;
+      }
+      table th:last-child {
+        border-top-right-radius: 8px;
+      }
+      table td {
+        padding: 14px;
+        border-bottom: 1px solid var(--border);
+        vertical-align: top;
+      }
+      table tr:last-child td {
+        border-bottom: none;
+      }
+      table tr:hover {
+        background: rgba(255, 255, 255, 0.02);
+      }
+      /* QUESTIONS */
+      .question {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 18px 20px;
+        margin-bottom: 12px;
+      }
+      .question .q-num {
+        display: inline-block;
+        background: var(--accent-dim);
+        color: var(--accent);
+        font-weight: 700;
+        font-family: var(--font-mono);
+        font-size: 13px;
+        padding: 4px 10px;
+        border-radius: 6px;
+        margin-right: 8px;
+      }
+      .question .q-title {
+        font-weight: 600;
+        font-size: 15px;
+        color: var(--text);
+      }
+      .question .q-context {
+        color: var(--text-dim);
+        font-size: 13px;
+        margin-top: 6px;
+      }
+      .question .q-vote {
+        margin-top: 10px;
+        font-size: 13px;
+        color: var(--cyan);
+      }
+      .question .q-vote strong {
+        color: var(--text);
+      }
+      /* CALLOUTS */
+      .callout {
+        padding: 18px 22px;
+        border-radius: 12px;
+        margin: 20px 0;
+        background: var(--bg-card);
+        border-left: 4px solid var(--accent);
+        font-size: 14px;
+      }
+      .callout.crit {
+        border-left-color: var(--crit);
+        background: var(--crit-dim);
+      }
+      .callout.warn {
+        border-left-color: var(--warn);
+        background: var(--warn-dim);
+      }
+      .callout.ok {
+        border-left-color: var(--ok);
+        background: var(--ok-dim);
+      }
+      .callout strong {
+        color: var(--text);
+        display: block;
+        margin-bottom: 4px;
+      }
+      /* DECISION BAR */
+      .decision-bar {
+        background: linear-gradient(135deg, var(--accent-dim) 0%, var(--cyan-dim) 100%);
+        border: 1px solid var(--accent);
+        border-radius: 16px;
+        padding: 24px 28px;
+        margin: 24px 0;
+      }
+      .decision-bar h3 {
+        margin: 0 0 12px;
+        color: var(--text);
+      }
+      .decision-bar p {
+        color: var(--text-dim);
+        margin: 0 0 16px;
+        font-size: 14px;
+      }
+      .decision-choices {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      .choice {
+        flex: 1 1 220px;
+        background: var(--bg-card);
+        border: 1px solid var(--border-strong);
+        border-radius: 10px;
+        padding: 14px 16px;
+      }
+      .choice .ch-key {
+        font-family: var(--font-mono);
+        font-weight: 700;
+        font-size: 18px;
+        color: var(--accent);
+        margin-bottom: 6px;
+      }
+      .choice .ch-title {
+        font-weight: 600;
+        font-size: 14px;
+        margin-bottom: 4px;
+      }
+      .choice .ch-desc {
+        color: var(--text-dim);
+        font-size: 12px;
+      }
+      .choice.recommend {
+        border-color: var(--accent);
+        background: linear-gradient(180deg, var(--accent-dim) 0%, var(--bg-card) 60%);
+      }
+      .recommend-tag {
+        display: inline-block;
+        font-size: 9px;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        background: var(--accent);
+        color: white;
+        padding: 2px 6px;
+        border-radius: 4px;
+        margin-left: 6px;
+        vertical-align: middle;
+      }
+      /* LIST */
+      ul.clean {
+        padding-left: 18px;
+        margin: 8px 0;
+      }
+      ul.clean li {
+        margin: 6px 0;
+        color: var(--text-dim);
+      }
+      ul.clean li strong {
+        color: var(--text);
+      }
+      /* FOOTER */
+      footer {
+        margin-top: 80px;
+        padding-top: 32px;
+        border-top: 1px solid var(--border);
+        color: var(--text-muted);
+        font-size: 13px;
+        text-align: center;
+      }
+      footer a {
+        color: var(--accent);
+      }
+      /* ANCHORS */
+      :target {
+        scroll-margin-top: 80px;
+      }
+      /* HIGHLIGHT */
+      .highlight {
+        background: linear-gradient(180deg, transparent 60%, var(--accent-dim) 60%);
+        padding: 0 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <!-- HERO -->
+      <header class="hero">
+        <h1>Plan stratégique consolidé</h1>
+        <p class="subtitle">
+          Synthèse Ichor + Fxmilyapp post-audit ultrathink 2026-05-11. Deux projets séparés, deux
+          plans distincts, décisions structurées en attente. Pas de couches accumulées : tout est
+          orchestré pour exécution séquencée.
+        </p>
+        <div class="meta">
+          <span class="meta-pill">📅 Date : <strong>2026-05-11</strong></span>
+          <span class="meta-pill">🌳 Worktree : <strong>admiring-yonath-7b974d</strong></span>
+          <span class="meta-pill">🔖 HEAD Ichor : <strong>1313c35</strong></span>
+          <span class="meta-pill">🔖 Fxmily : <strong>V1 J0-J10 prod-ready</strong></span>
+          <span class="meta-pill">⚙️ Mode : <strong>ultrathink × maximum</strong></span>
+        </div>
+      </header>
+
+      <!-- STICKY NAV -->
+      <nav class="sticky" aria-label="Navigation">
+        <a href="#etat">État global</a>
+        <a href="#ichor">Ichor</a>
+        <a href="#ichor-questions">Validations Ichor</a>
+        <a href="#fxmily">Fxmilyapp</a>
+        <a href="#fxmily-questions">Validations Fxmilyapp</a>
+        <a href="#fxmily-15q">15 Questions §11</a>
+        <a href="#priorisation">Priorisation finale</a>
+      </nav>
+
+      <!-- ÉTAT GLOBAL -->
+      <section id="etat">
+        <h2>État global des 2 projets <span class="badge pill ok">2026-05-11</span></h2>
+        <p class="description">
+          Snapshot vérifié de l'état actuel des deux projets après la session ultrathink. Aucune
+          régression — uniquement de la montée.
+        </p>
+
+        <div class="grid grid-4">
+          <div class="card ok">
+            <h4>Ichor — CI status</h4>
+            <p class="stat">14<span style="font-size: 18px; color: var(--text-dim)"> / 0</span></p>
+            <p class="stat-sub">check-runs vert sur HEAD 1313c35</p>
+          </div>
+          <div class="card">
+            <h4>Ichor — Tests</h4>
+            <p class="stat">1 415</p>
+            <p class="stat-sub">
+              apps/api 1218 + ichor_brain 80 + agents 87 + claude-runner 22 + ichor-mcp 20 (+8 Cap5
+              e2e W100)
+            </p>
+          </div>
+          <div class="card">
+            <h4>Fxmily — Tests</h4>
+            <p class="stat">717</p>
+            <p class="stat-sub">Vitest 4 + RTL + Playwright (V1 J0-J10)</p>
+          </div>
+          <div class="card">
+            <h4>Coût mensuel actuel</h4>
+            <p class="stat">$0</p>
+            <p class="stat-sub">Voie D respectée. Mock Anthropic API Fxmily activé par défaut.</p>
+          </div>
+        </div>
+
+        <div class="callout ok" style="margin-top: 28px">
+          <strong>✅ Acquis 2026-05-11 (matin → soir)</strong>
+          (Ichor) Cap5 STEP-6 e2e SHIPPED · Dependabot auto-merge + cooldown 7d post-Axios ·
+          Socket.dev installed sur 2 repos · CF API token rotated + validated · AGE key SPoF
+          mitigated (E:\ + APPDATA double copy) · CLAUDE.md sync W100g · ADR-082 + ADR-083 ratifiés.
+          (Fxmily) Audit identifié 70 % vision couverte V1 · 5 manques structurels = TOUS dans
+          SPEC-V2-VISION.md (worktree non mergé) · 15 open questions à arbitrer.
+        </div>
+      </section>
+
+      <!-- ICHOR -->
+      <section id="ichor">
+        <h2>🧠 Projet Ichor <span class="pill cyan">analyse pre-trade FX/macro</span></h2>
+        <p class="description">
+          Système d'analyse pré-trade pour 6 assets (EURUSD, GBPUSD, USDCAD, XAUUSD, NAS100,
+          SPX500). Objectif Eliot : <strong>Ichor couvre 90 % de l'analyse</strong>, Eliot couvre
+          les 10 % techniques sur TradingView.
+        </p>
+
+        <h3>Verdict honnête (audit ichor-trader)</h3>
+        <p style="color: var(--text-dim)">
+          Le slogan <em>« comme si tous les meilleurs hedge funds étaient rassemblés »</em> est
+          <strong>survendu</strong>. Réalité : Ichor = aggregator de macro-frameworks publics + LLM
+          synthèse + Brier calibration substrate. Ce n'est pas un alpha-gen. Le reframe ADR-082 est
+          accepté :
+        </p>
+        <div class="callout">
+          <strong>Reframe officiel (ADR-082)</strong>
+          « Pre-trade context discretionary toolkit, calibrated against historical realized
+          outcomes, with explicit invalidation conditions and full audit trail for MiFID-compliant
+          reconstruction. »
+        </div>
+
+        <h3>Roadmap W101 → W112 (ADR-083)</h3>
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 70px">Wave</th>
+              <th>Titre</th>
+              <th style="width: 100px">Effort</th>
+              <th style="width: 120px">Priorité</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>W101</strong></td>
+              <td>
+                Calibration scoreboard (Brier, reliability, coverage) — blocker mesure du skill
+              </td>
+              <td>3-4 j</td>
+              <td><span class="pill crit">P0</span></td>
+            </tr>
+            <tr>
+              <td><strong>W102</strong></td>
+              <td>CF Access service token tunnel — sécurité claude-runner (anti-burn Max 20x)</td>
+              <td>0.5 j + 15 min</td>
+              <td><span class="pill crit">P0</span></td>
+            </tr>
+            <tr>
+              <td><strong>W103</strong></td>
+              <td>SearXNG MCP backend (remplace Perplexity, Voie D compliant)</td>
+              <td>2 j</td>
+              <td><span class="pill warn">P1</span></td>
+            </tr>
+            <tr>
+              <td><strong>W104</strong></td>
+              <td>Asset universe align : 6 cards (add SPX500, deprio USDJPY+AUDUSD)</td>
+              <td>1 j</td>
+              <td><span class="pill warn">P1</span></td>
+            </tr>
+            <tr>
+              <td><strong>W105</strong></td>
+              <td>Pass 6 — Scenario Decomposition (7 scénarios probabilisés promised PLAN.md)</td>
+              <td>5-7 j</td>
+              <td><span class="pill crit">P0</span></td>
+            </tr>
+            <tr>
+              <td><strong>W106</strong></td>
+              <td>
+                key_levels[] non-technical surface (gamma flip, peg break, TGA/RRP, polymarket)
+              </td>
+              <td>4-5 j</td>
+              <td><span class="pill crit">P0</span></td>
+            </tr>
+            <tr>
+              <td><strong>W107</strong></td>
+              <td>Living Analysis View frontend (trader-grade gestalt UX)</td>
+              <td>5-7 j</td>
+              <td><span class="pill crit">P0</span></td>
+            </tr>
+            <tr>
+              <td><strong>W108</strong></td>
+              <td>FOMC/ECB tone-shift activation (60+j dormant, 30 min activation)</td>
+              <td>0.5 j</td>
+              <td><span class="pill warn">P1</span></td>
+            </tr>
+            <tr>
+              <td>W109</td>
+              <td>
+                USDCNH peg proxy v2 —
+                <span style="color: var(--text-muted)">DROP (Eliot ne trade pas)</span>
+              </td>
+              <td>—</td>
+              <td><span class="pill muted">DROP</span></td>
+            </tr>
+            <tr>
+              <td>W110</td>
+              <td>Volume microstructure (Lee-Ready, Kyle's λ, Amihud)</td>
+              <td>5 j</td>
+              <td><span class="pill warn">P2</span></td>
+            </tr>
+            <tr>
+              <td>W111</td>
+              <td>Macro quintet PCA orthogonality audit</td>
+              <td>3 j</td>
+              <td><span class="pill warn">P2</span></td>
+            </tr>
+            <tr>
+              <td>W112</td>
+              <td>CB intervention probability (VISION_2026 delta D)</td>
+              <td>4 j</td>
+              <td><span class="pill warn">P2</span></td>
+            </tr>
+          </tbody>
+        </table>
+        <p style="color: var(--text-dim); font-size: 13px">
+          <strong>Total</strong> : ~35-45 jours dev Claude autonome + ~30 min Eliot dashboard. Coût
+          : $0 incremental (Voie D).
+        </p>
+      </section>
+
+      <!-- ICHOR QUESTIONS -->
+      <section id="ichor-questions">
+        <h2>
+          🎯 Validations Ichor en attente
+          <span class="pill warn badge">3 décisions</span>
+        </h2>
+        <p class="description">
+          Trois validations rapides pour calibrer la roadmap. Mes recommendations LEAD en cyan.
+        </p>
+
+        <div class="question">
+          <span class="q-num">A</span>
+          <span class="q-title">Asset universe : combien de cards actives ?</span>
+          <div class="q-context">
+            ADR-017 prescrit 8 cards (EUR, GBP, JPY, AUD, CAD, XAU, US30, US100). Tu m'as dit trader
+            6 (EUR, GBP, CAD, XAU, NAS100, SPX500). USDJPY + AUDUSD = over-coverage si tu ne les
+            trade pas.
+          </div>
+          <div class="q-vote">
+            <strong>Options</strong> : <code>6 oui</code> (drop USDJPY+AUDUSD) ·
+            <code>6 + 2 tracked</code> (garde context) · <code>8 garder tout</code>.
+            <br />
+            <strong>Recommandation Claude</strong> :
+            <span style="color: var(--accent)"><code>6 + 2 tracked</code></span>
+            — context macro utile, sans card LLM coûteuse.
+          </div>
+        </div>
+
+        <div class="question">
+          <span class="q-num">B</span>
+          <span class="q-title">Web research backend : Perplexity ou SearXNG ?</span>
+          <div class="q-context">
+            Perplexity Pro $240/an + 200-500 req/mois (insuffisant pour Ichor 100-500/jour) + crédit
+            API ambigu fév 2026. SearXNG self-hosted Hetzner = $0 marginal + illimité + Voie D
+            compliant.
+          </div>
+          <div class="q-vote">
+            <strong>Options</strong> : <code>SearXNG OK</code> ·
+            <code>Perplexity quand même</code> · <code>autre</code>.
+            <br />
+            <strong>Recommandation Claude</strong> :
+            <span style="color: var(--accent)"><code>SearXNG OK</code></span>
+            — économiquement et fonctionnellement supérieur.
+          </div>
+        </div>
+
+        <div class="question">
+          <span class="q-num">C</span>
+          <span class="q-title">Start order : par quel wave commencer ?</span>
+          <div class="q-context">
+            W102 (CF Access security) est urgent — claude-runner.fxmilyapp.com est public sans auth
+            → risque burn Max 20x quota. W101 (calibration) mesure le skill avant tout. W107 (Living
+            View) = le résultat final visible.
+          </div>
+          <div class="q-vote">
+            <strong>Options</strong> : <code>W102 d'abord</code> · <code>W101 d'abord</code> ·
+            <code>W105 directement</code> (features stars) ·
+            <code>valide tout, choisis pour moi</code>.
+            <br />
+            <strong>Recommandation Claude</strong> :
+            <span style="color: var(--accent)"
+              ><code>W102 → W103 → W101 → W104 → W105 → W106 → W107</code></span
+            >
+            — sécurité d'abord, foundation ensuite, features stars enfin.
+          </div>
+        </div>
+      </section>
+
+      <!-- FXMILY -->
+      <section id="fxmily">
+        <h2>
+          📱 Projet Fxmilyapp
+          <span class="pill cyan">suivi comportemental formation trading</span>
+        </h2>
+        <p class="description">
+          App de suivi membres de ta formation. V1 J0-J10 délivré (717 tests, prod-ready). Le design
+          V2 existe déjà dans un worktree non mergé — adresse 5 manques structurels identifiés par
+          ta vision 2026-05-11.
+        </p>
+
+        <h3>État V1 livré</h3>
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 40%">Couverture vision Eliot 2026-05-11</th>
+              <th style="width: 20%">% V1</th>
+              <th>Manque adressé par V2 module</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Track record + trades notés</td>
+              <td><span class="pill ok">85 %</span></td>
+              <td>Module 1 TRACK extension (tags, outcomeR)</td>
+            </tr>
+            <tr>
+              <td>Suivi comportemental ultra poussé</td>
+              <td><span class="pill ok">75 %</span></td>
+              <td>Module 2 REFLECT extension (evaluators tags)</td>
+            </tr>
+            <tr>
+              <td>Psychologie de trader</td>
+              <td><span class="pill warn">50 %</span></td>
+              <td>Module 3 LEARN (QCM + tests psychométriques) ⭐ NEW</td>
+            </tr>
+            <tr>
+              <td>Routines</td>
+              <td><span class="pill crit">30 %</span></td>
+              <td>Module 4 ROUTINE (pre/post-market/weekly + custom) ⭐ NEW</td>
+            </tr>
+            <tr>
+              <td>Tout impact trading</td>
+              <td><span class="pill warn">60 %</span></td>
+              <td>Module 1 + 2 + 4 combinés</td>
+            </tr>
+            <tr>
+              <td>Tracker membres + debrief</td>
+              <td><span class="pill warn">65 %</span></td>
+              <td>Module 6 DEBRIEF (CoachNote + DebriefSession) ⭐ NEW</td>
+            </tr>
+            <tr>
+              <td>Aider à s'améliorer + se pousser</td>
+              <td><span class="pill crit">25 %</span></td>
+              <td>Module 5 PROGRESS (path Duolingo + milestones) ⭐ NEW</td>
+            </tr>
+            <tr>
+              <td>Mieux connaître le membre</td>
+              <td><span class="pill warn">50 %</span></td>
+              <td>Module 7 SHARE V2 + Module 6 DEBRIEF combinés</td>
+            </tr>
+            <tr>
+              <td>Accompagnement / conseil</td>
+              <td><span class="pill crit">35 %</span></td>
+              <td>Module 6 DEBRIEF (1-on-1 mémo + action items)</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>Architecture V2 — 7 modules (ratifiée 2026-05-11 round 6)</h3>
+        <div class="grid grid-3">
+          <div class="card">
+            <h4>1. TRACK</h4>
+            <p>Mesurer ce que le trader FAIT. V1 + tags, outcomeR, contextFlag</p>
+            <p><span class="pill cyan">V1 existant + V1.7 extension</span></p>
+          </div>
+          <div class="card">
+            <h4>2. REFLECT</h4>
+            <p>Ramener vers la psychologie. 50 fiches Douglas + 7 evaluators + cooldown</p>
+            <p><span class="pill cyan">V1 existant + V1.7 extension</span></p>
+          </div>
+          <div class="card accent">
+            <h4>3. LEARN ⭐</h4>
+            <p>QCMs + tests psychométriques (Grable & Lytton + Big Five + biases CFA)</p>
+            <p><span class="pill accent">V1.9 NEW</span></p>
+          </div>
+          <div class="card accent">
+            <h4>4. ROUTINE ⭐</h4>
+            <p>Pre-market / pre-trade / post-market / weekly review + custom Eliot</p>
+            <p><span class="pill accent">V1.8 NEW · impact North Star MAJEUR</span></p>
+          </div>
+          <div class="card accent">
+            <h4>5. PROGRESS ⭐</h4>
+            <p>Path Duolingo 6 phases trader + milestones débloquées par data réelle</p>
+            <p><span class="pill accent">V2.0 NEW</span></p>
+          </div>
+          <div class="card accent">
+            <h4>6. DEBRIEF ⭐</h4>
+            <p>CoachNote + DebriefSession + MemberSnapshot 360° — outils admin</p>
+            <p><span class="pill accent">V2.0 NEW</span></p>
+          </div>
+          <div class="card">
+            <h4>7. SHARE</h4>
+            <p>Dashboard cohorte + heatmap + drop-off alerts + NPS</p>
+            <p><span class="pill cyan">V1 existant + V2.1 extension</span></p>
+          </div>
+        </div>
+
+        <h3>Roadmap V1.6 → V2.0 (~50-55h dev = 5 sessions)</h3>
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 90px">Jalon</th>
+              <th>Titre</th>
+              <th style="width: 100px">Effort</th>
+              <th style="width: 140px">Statut</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>V1.5/V1</strong></td>
+              <td>J0 → J10 (login, dashboard, trades, check-ins, Douglas, weekly report)</td>
+              <td>—</td>
+              <td><span class="pill ok">SHIPPED</span></td>
+            </tr>
+            <tr>
+              <td><strong>V1.6</strong></td>
+              <td>
+                Stabilisation backend (Sentry alerting, email cap, cron-watch, dependabot triage)
+              </td>
+              <td>4-6h</td>
+              <td><span class="pill crit">PROCHAIN</span></td>
+            </tr>
+            <tr>
+              <td><strong>V1.7</strong></td>
+              <td>
+                REFLECT enrichissement (WeeklyReview, post-trade prompts, trade tags, outcomeR,
+                disclaimer AMF)
+              </td>
+              <td>10-12h</td>
+              <td><span class="pill muted">PLANIFIÉ</span></td>
+            </tr>
+            <tr>
+              <td><strong>V1.8</strong></td>
+              <td>
+                ROUTINE customizable (impact North Star MAJEUR — preuve Rupprecht 2024 g=0.64-0.70)
+              </td>
+              <td>10-12h</td>
+              <td><span class="pill muted">PLANIFIÉ</span></td>
+            </tr>
+            <tr>
+              <td><strong>V1.9</strong></td>
+              <td>
+                LEARN baseline (QuizTemplate + Grable & Lytton + 50 QCMs + FSRS spaced repetition)
+              </td>
+              <td>12h+</td>
+              <td><span class="pill muted">PLANIFIÉ — /spec obligatoire</span></td>
+            </tr>
+            <tr>
+              <td><strong>V2.0</strong></td>
+              <td>PROGRESS path 6 phases + DEBRIEF (CoachNote + CoachDebrief + action items)</td>
+              <td>12h</td>
+              <td><span class="pill muted">PLANIFIÉ</span></td>
+            </tr>
+            <tr>
+              <td>V2.1+</td>
+              <td>
+                iPhone PWA smoke physique, SHARE cohort heatmap, Capacitor App Store, juriste CIF
+              </td>
+              <td>—</td>
+              <td><span class="pill muted">POST-PMF ≥ 80 membres</span></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="callout warn">
+          <strong>⚠️ 3 obstacles structurels</strong>
+          <ul class="clean">
+            <li>
+              <strong>Worktree non mergé</strong> :
+              <code>D:\Fxmily\.claude\worktrees\lucid-mclaren-b95627\docs\SPEC-V2-VISION.md</code>
+              vit dans un worktree. À merger dans main avant V1.7.
+            </li>
+            <li>
+              <strong>V1.6 stabilisation non faite</strong> : 5 blockers smoke prod (Sentry DSN,
+              Resend domain, iPhone Safari test, admin password, GitHub secrets). 4-6h.
+            </li>
+            <li>
+              <strong>15 open questions §11 non arbitrées</strong> : décisions design avant V1.7.
+              Bloque l'implémentation finale. ~10 min à arbitrer.
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- FXMILY VALIDATIONS -->
+      <section id="fxmily-questions">
+        <h2>
+          🎯 Validation Fxmilyapp en attente
+          <span class="pill warn badge">1 séquence</span>
+        </h2>
+        <p class="description">Quelle séquence tu veux pour commencer la suite Fxmilyapp ?</p>
+
+        <div class="decision-bar">
+          <h3>Choisis ta séquence</h3>
+          <p>
+            Ma recommandation forte : <strong>β → γ → α</strong>. Merger d'abord (5 min), poser les
+            15 questions (10 min), puis V1.6 stabilisation (1 session 4-6h). Permet d'avoir toutes
+            les décisions actées avant le code.
+          </p>
+          <div class="decision-choices">
+            <div class="choice">
+              <div class="ch-key">α</div>
+              <div class="ch-title">"lance V1.6"</div>
+              <div class="ch-desc">
+                Je commence la stabilisation backend directement (1 session)
+              </div>
+            </div>
+            <div class="choice recommend">
+              <div class="ch-key">β <span class="recommend-tag">RECO</span></div>
+              <div class="ch-title">"merge V2 design"</div>
+              <div class="ch-desc">Je merge SPEC-V2-VISION.md dans main d'abord (5 min)</div>
+            </div>
+            <div class="choice recommend">
+              <div class="ch-key">γ <span class="recommend-tag">RECO</span></div>
+              <div class="ch-title">"15 questions"</div>
+              <div class="ch-desc">Je te liste les 15 questions §11 pour arbitrage (10 min)</div>
+            </div>
+            <div class="choice">
+              <div class="ch-key">δ</div>
+              <div class="ch-title">"Ichor d'abord"</div>
+              <div class="ch-desc">On revient sur les 3 validations Ichor (A/B/C) en attente</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 15 QUESTIONS -->
+      <section id="fxmily-15q">
+        <h2>
+          ❓ 15 Questions §11 à arbitrer (Fxmilyapp V2)
+          <span class="pill accent badge">design lock</span>
+        </h2>
+        <p class="description">
+          Ces 15 décisions sont actuellement non arbitrées dans SPEC-V2-VISION.md. Sans tes
+          réponses, on ne peut pas finaliser V1.7+. Mes votes en cyan.
+        </p>
+
+        <h3>Module ROUTINE (V1.8)</h3>
+
+        <div class="question">
+          <span class="q-num">Q1</span>
+          <span class="q-title">Pre-trade routine : bloquante ou soft ?</span>
+          <div class="q-context">
+            Modal forcé avant ouverture trade ("respecte plan ? size OK ? stop défini ?") OU
+            suggestion non-bloquante avec rappel ?
+          </div>
+          <div class="q-vote">
+            <strong>Vote Claude</strong> : <code>SOFT</code> (anti-Black Hat Yu-kai Chou, freedom du
+            trader).
+          </div>
+        </div>
+
+        <div class="question">
+          <span class="q-num">Q2</span>
+          <span class="q-title">Weekly review : auto-généré ou auto-rédigé ?</span>
+          <div class="q-context">
+            Résumé data automatique pour le membre OU le membre écrit lui-même son rétro ?
+          </div>
+          <div class="q-vote">
+            <strong>Vote Claude</strong> : <code>HYBRIDE</code> — auto-résumé data + champs libres
+            obligatoires (forces, faiblesses, intentions semaine).
+          </div>
+        </div>
+
+        <div class="question">
+          <span class="q-num">Q3</span>
+          <span class="q-title">Routines notifiées par push, email, ou les deux ?</span>
+          <div class="q-vote">
+            <strong>Vote Claude</strong> : <code>PUSH par défaut</code>, fallback email si push
+            non-permise. Pas les deux simultanément (anti-spam).
+          </div>
+        </div>
+
+        <h3>Module LEARN (V1.9)</h3>
+
+        <div class="question">
+          <span class="q-num">Q4</span>
+          <span class="q-title"
+            >QCMs obligatoires (path bloquant) ou optionnels (gamification) ?</span
+          >
+          <div class="q-vote">
+            <strong>Vote Claude</strong> : <code>OPTIONNELS récurrents</code>, jamais bloquants.
+            FSRS spaced repetition décide quand re-servir (auto).
+          </div>
+        </div>
+
+        <div class="question">
+          <span class="q-num">Q5</span>
+          <span class="q-title">Tests psychométriques répétés ou one-shot onboarding ?</span>
+          <div class="q-vote">
+            <strong>Vote Claude</strong> : <code>TRIMESTRIEL</code> pour Grable & Lytton (mesure
+            évolution risk tolerance dans le temps). One-shot pour Big Five OCEAN (stable).
+          </div>
+        </div>
+
+        <div class="question">
+          <span class="q-num">Q6</span>
+          <span class="q-title"
+            >Résultats psychométriques visibles au membre ou coach uniquement ?</span
+          >
+          <div class="q-vote">
+            <strong>Vote Claude</strong> : <code>VISIBLES au membre</code> (transparence + miroir
+            personnel). Présenter en "voici comment tu te perçois sur dimensions standard", pas
+            comme diagnostic.
+          </div>
+        </div>
+
+        <h3>Module PROGRESS (V2.0)</h3>
+
+        <div class="question">
+          <span class="q-num">Q7</span>
+          <span class="q-title">Path : ordre forcé ou parallèle possible ?</span>
+          <div class="q-vote">
+            <strong>Vote Claude</strong> : <code>ORDRE FORCÉ</code> — sinon le membre saute les
+            fondations. Duolingo skill tree = ordre linéaire prouvé.
+          </div>
+        </div>
+
+        <div class="question">
+          <span class="q-num">Q8</span>
+          <span class="q-title">Milestones : data réelle, temps, ou les deux ?</span>
+          <div class="q-vote">
+            <strong>Vote Claude</strong> : <code>DATA RÉELLE EXCLUSIVEMENT</code> — pas de "10 jours
+            écoulés tu as gagné". Always earned through behavior, not time spent.
+          </div>
+        </div>
+
+        <div class="question">
+          <span class="q-num">Q9</span>
+          <span class="q-title">Membre voit milestones futures ou seulement actuelles ?</span>
+          <div class="q-vote">
+            <strong>Vote Claude</strong> : <code>FUTURES VISIBLES en aperçu floutées</code> +
+            current claire. Crée motivation (CD2 Mastery) sans pression (CD8 Loss).
+          </div>
+        </div>
+
+        <h3>Module DEBRIEF (V1.8)</h3>
+
+        <div class="question">
+          <span class="q-num">Q10</span>
+          <span class="q-title">Coach notes visibles au membre ou privées admin ?</span>
+          <div class="q-vote">
+            <strong>Vote Claude</strong> : <code>PRIVÉES admin</code> — déontologie coaching
+            standard. Le membre voit son `MemberSnapshot` agrégé, pas les notes brutes Eliot.
+          </div>
+        </div>
+
+        <div class="question">
+          <span class="q-num">Q11</span>
+          <span class="q-title"
+            >Debrief sessions : calendar intégré Fxmily ou externe Calendly ?</span
+          >
+          <div class="q-vote">
+            <strong>Vote Claude</strong> : <code>EXTERNE Calendly</code> au début (V2.0).
+            Intégration interne = effort dev + complexité, post-PMF si vraiment besoin.
+          </div>
+        </div>
+
+        <div class="question">
+          <span class="q-num">Q12</span>
+          <span class="q-title"
+            >Action items générés en session = tasks tracker pour le membre ?</span
+          >
+          <div class="q-vote">
+            <strong>Vote Claude</strong> : <code>OUI</code> — sinon les actions disparaissent.
+            `MemberActionItem` model avec status pending/done + reminder push 7 jours.
+          </div>
+        </div>
+
+        <h3>Posture publique</h3>
+
+        <div class="question">
+          <span class="q-num">Q13</span>
+          <span class="q-title">Disclaimer AMF : permanent footer ou onboarding seul ?</span>
+          <div class="q-vote">
+            <strong>Vote Claude</strong> : <code>PERMANENT FOOTER</code> obligatoire — légal
+            défendable AMF/FCA. Onboarding seul = risque interprétation "tu savais à l'inscription
+            mais oublié".
+          </div>
+        </div>
+
+        <div class="question">
+          <span class="q-num">Q14</span>
+          <span class="q-title">Page /about expliquant anti-scam vs marketing trading ?</span>
+          <div class="q-vote">
+            <strong>Vote Claude</strong> : <code>OUI mais V2.1</code> — pas avant que V2.0 soit
+            stable. Page anti-scam = différenciation forte vs Discord VIP gurus, mais pas P0.
+          </div>
+        </div>
+
+        <div class="question">
+          <span class="q-num">Q15</span>
+          <span class="q-title"
+            >Ratio pricing formation vs Fxmily perçu (standalone pricing possible ?)</span
+          >
+          <div class="q-vote">
+            <strong>Vote Claude</strong> : <code>FXMILY INCLUS dans formation</code>,
+            non-standalone. Sinon dilue le bundle. Reconsidérer post-PMF si membres demandent.
+          </div>
+        </div>
+      </section>
+
+      <!-- PRIORISATION FINALE -->
+      <section id="priorisation">
+        <h2>
+          🚀 Priorisation finale consolidée
+          <span class="pill accent badge">lead claude</span>
+        </h2>
+        <p class="description">
+          Ma recommandation forte LEAD pour les prochaines sessions. Tu peux suivre, modifier, ou
+          basculer.
+        </p>
+
+        <div class="grid grid-2">
+          <div class="card crit">
+            <h4>📍 Cette session (immédiat, autonome possible)</h4>
+            <ul class="clean">
+              <li>
+                <strong>Fxmily Action β</strong> : merger SPEC-V2-VISION.md dans Fxmily main (5 min)
+              </li>
+              <li>
+                <strong>Fxmily Action γ</strong> : tu réponds aux 15 questions §11 OU tu valides en
+                bloc mes votes Claude (10 min)
+              </li>
+              <li>
+                <strong>Ichor</strong> : tu réponds aux 3 validations A/B/C (3 min) — pas urgent
+                tonight, demain OK
+              </li>
+            </ul>
+          </div>
+          <div class="card warn">
+            <h4>📅 Prochaine session (dédiée)</h4>
+            <ul class="clean">
+              <li>
+                <strong>Choix #1 (Fxmily focus)</strong> : V1.6 stabilisation backend (4-6h, 1
+                /clear ensuite)
+              </li>
+              <li>
+                <strong>Choix #2 (Ichor focus)</strong> : W102 CF Access (0.5 j + 15 min Eliot) ⚠️
+                sécurité urgente
+              </li>
+              <li><strong>Choix #3 (50/50)</strong> : merger β + Ichor W102 séquencé</li>
+            </ul>
+          </div>
+          <div class="card accent">
+            <h4>🌳 Vision 3 mois</h4>
+            <ul class="clean">
+              <li>
+                <strong>Fxmily V1.7-V2.0</strong> : 5 jalons, ~50-55h, livraison V2 fin juillet
+              </li>
+              <li>
+                <strong>Ichor W101-W107</strong> : 7 waves features stars, livraison W107 Living
+                Analysis View fin juillet aussi
+              </li>
+              <li>
+                <strong>Convergence</strong> : 2 systèmes prod-ready Q3 2026, calibration scoreboard
+                Ichor mesurable + Fxmily V2 utilisable cohorte
+              </li>
+            </ul>
+          </div>
+          <div class="card ok">
+            <h4>💰 Coût opérationnel projeté</h4>
+            <ul class="clean">
+              <li>
+                <strong>Voie D respect</strong> : Claude Max 20x ($200/mo) couvre tout Ichor + Eliot
+                personnel
+              </li>
+              <li>
+                <strong>Fxmily Anthropic API</strong> : ~5-10 €/mois (rapports hebdo IA admin) —
+                <em>distinct du compte perso</em>
+              </li>
+              <li>
+                <strong>Hetzner</strong> : déjà payé (CX21 ~€10/mo Ichor + dieu Fxmily inclus)
+              </li>
+              <li>
+                <strong>CF Pages</strong> : Free tier, $0 (Pages no-op activé pour ne pas exposer
+                publiquement apps/web2)
+              </li>
+              <li>
+                <strong>R2</strong> : 0.07 GB/0.7 % free tier (audit 2026-05-11). 3 Budget Alerts
+                configurés $1/$5/$10.
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="callout ok" style="margin-top: 32px">
+          <strong>🎯 Une seule action pour démarrer (recommandation Claude)</strong>
+          Tu écris dans le chat : « <code>fxmily β + γ batch validate</code> » → je merge le
+          worktree + tu valides en bloc mes 15 votes Claude (ou tu corriges ce qui te déplaît) → on
+          enchaîne V1.6 stabilisation prochaine session. Ichor reste en pause confortable jusqu'à
+          demain (rien d'urgent).
+        </div>
+      </section>
+
+      <!-- FOOTER -->
+      <footer>
+        Plan stratégique généré 2026-05-11 par Claude (mode ultrathink × maximum). Sources : SPEC.md
+        Fxmily v1.1, SPEC-V2-VISION.md (worktree lucid-mclaren-b95627), ADR-082, ADR-083, 2
+        subagents audit (researcher historique + researcher Perplexity + researcher Fxmily). HEAD
+        Ichor <code>1313c35</code>. Aucun secret en clair. Voie D respectée. <br /><br />
+        <strong style="color: var(--text-dim)"
+          >Rappel : ne PAS coller de tokens ou credentials dans le chat.</strong
+        >
+      </footer>
+    </div>
+  </body>
+</html>

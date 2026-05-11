@@ -4,10 +4,12 @@ Surfaces the Brier reliability of the 4-pass pipeline by asset / session
 / régime / time window. Powers the `/calibration` Next.js page (delta H
 of VISION_2026.md, ADR-017 capability #8).
 
-Three responses :
+Four responses :
   - GET /v1/calibration            → overall summary + reliability bins
   - GET /v1/calibration/by-asset   → per-asset breakdown
   - GET /v1/calibration/by-regime  → per-régime breakdown
+  - GET /v1/calibration/scoreboard → multi-window matrix (asset × session_type)
+                                     for trader-grade UI (W101, ADR-082/083)
 """
 
 from __future__ import annotations
@@ -15,7 +17,7 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -31,6 +33,21 @@ from ..services.brier import (
 )
 
 router = APIRouter(prefix="/v1/calibration", tags=["calibration"])
+
+# W101 — SessionType list mirrored from `ichor_brain.types.SessionType`
+# (ADR-031, single source canonically in `packages/ichor_brain`). We DO
+# NOT `from ichor_brain.types import VALID_SESSION_TYPES` at module top
+# because the apps/api venv intentionally does NOT install
+# `packages/ichor_brain` (heavier dep tree, kept separate). The CI
+# invariant test `tests/test_invariants_ichor.py` parses the canonical
+# types.py and asserts coherence vs this local copy — drift here will
+# fail CI loudly. Previous regex was hardcoded to 3 windows
+# `pre_londres|pre_ny|event_driven` which silently dropped cards from
+# `ny_mid` and `ny_close` even though the type contract allows them.
+_VALID_SESSION_TYPES: frozenset[str] = frozenset(
+    {"pre_londres", "pre_ny", "ny_mid", "ny_close", "event_driven"}
+)
+_SESSION_TYPE_RE = rf"^({'|'.join(sorted(_VALID_SESSION_TYPES))})$"
 
 
 # ──────────────────────────── Response shapes ──────────────────────────
@@ -64,6 +81,46 @@ class CalibrationGroupOut(BaseModel):
 
 class CalibrationGroupsOut(BaseModel):
     groups: list[CalibrationGroupOut]
+
+
+# W101 — scoreboard shapes : multi-window matrix (asset × session_type)
+# for the trader-grade Living Analysis View (ADR-083 D4).
+
+
+class ScoreboardCellOut(BaseModel):
+    """One (asset, session_type) cell at a given rolling window."""
+
+    asset: str
+    session_type: str
+    n_cards: int
+    """Count of reconciled cards (with brier_contribution non-null)."""
+    mean_brier: float
+    skill_vs_naive: float
+    """skill = mean_brier(naive) - mean_brier(model). >0 = beats coin-flip."""
+    hits: int
+    misses: int
+
+
+class ScoreboardWindowOut(BaseModel):
+    """All cells for one rolling window (e.g. last 30 days)."""
+
+    window_label: str  # "30d" | "90d" | "all"
+    window_days: int  # numeric days for filtering UI
+    n_cells: int  # convenience : len(cells)
+    cells: list[ScoreboardCellOut]
+
+
+class ScoreboardOut(BaseModel):
+    """Top-level scoreboard response : multi-window matrix.
+
+    UI consumes : windows[0..N], each window has cells[0..M] of
+    (asset, session_type) cell summaries. Empty cells (no reconciled
+    cards in window) are OMITTED, not zero-filled — the UI fills the
+    matrix gaps from the Cartesian product.
+    """
+
+    generated_at: datetime
+    windows: list[ScoreboardWindowOut]
 
 
 # ──────────────────────────── Helpers ──────────────────────────────────
@@ -173,7 +230,7 @@ def _aggregate(
 async def calibration_overall(
     session: Annotated[AsyncSession, Depends(get_session)],
     asset: str | None = Query(None, max_length=16),
-    session_type: str | None = Query(None, regex=r"^(pre_londres|pre_ny|event_driven)$"),
+    session_type: str | None = Query(None, regex=_SESSION_TYPE_RE),
     regime_quadrant: str | None = Query(
         None,
         regex=r"^(haven_bid|funding_stress|goldilocks|usd_complacency)$",
@@ -260,3 +317,100 @@ async def calibration_by_regime(
             )
         )
     return CalibrationGroupsOut(groups=groups)
+
+
+# ──────────────────────────── W101 — Scoreboard ─────────────────────────
+
+
+def _parse_window(label: str) -> int | None:
+    """Parse one window label into days. Returns None if invalid.
+
+    Accepted formats : "30d", "90d", "365d", "all" (== 730 d cap).
+    Days hard-capped to [1, 730] to match `window_days` Query param of
+    the existing routes (same range to avoid surprise).
+    """
+    if label == "all":
+        return 730
+    if not label.endswith("d"):
+        return None
+    head = label[:-1]
+    if not head.isdigit():
+        return None
+    n = int(head)
+    if n < 1 or n > 730:
+        return None
+    return n
+
+
+@router.get("/scoreboard", response_model=ScoreboardOut)
+async def calibration_scoreboard(
+    session: Annotated[AsyncSession, Depends(get_session)],
+    windows: list[str] = Query(default=["30d", "90d", "all"]),
+) -> ScoreboardOut:
+    """Multi-window scoreboard for trader-grade Living Analysis View.
+
+    For each requested rolling window, returns a per-cell summary
+    keyed by `(asset, session_type)`. The default 3 windows
+    `30d / 90d / all` mirror what a trader expects when sanity-checking
+    a calibration trend.
+
+    Cells with zero reconciled cards in a window are omitted (UI
+    responsible for filling Cartesian gaps).
+
+    Errors :
+        400 if all `windows` query values are invalid (none parse).
+    """
+    parsed: list[tuple[str, int]] = []
+    for raw in windows:
+        days = _parse_window(raw)
+        if days is not None:
+            parsed.append((raw, days))
+    if not parsed:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "no valid windows ; expected list of 'Nd' (1<=N<=730) "
+                "or 'all', got: " + repr(windows)
+            ),
+        )
+
+    now = datetime.now(UTC)
+    out_windows: list[ScoreboardWindowOut] = []
+    for label, days in parsed:
+        since = now - timedelta(days=days)
+        cards = await _fetch_reconciled(
+            session,
+            since=since,
+            asset=None,
+            session_type=None,
+            regime_quadrant=None,
+        )
+        buckets: dict[tuple[str, str], list[SessionCardAudit]] = {}
+        for c in cards:
+            if c.asset and c.session_type:
+                buckets.setdefault((c.asset, c.session_type), []).append(c)
+
+        cells: list[ScoreboardCellOut] = []
+        for (asset, st), gcards in sorted(buckets.items()):
+            summary, _ = _aggregate(gcards)
+            cells.append(
+                ScoreboardCellOut(
+                    asset=asset,
+                    session_type=st,
+                    n_cards=summary.n_cards,
+                    mean_brier=summary.mean_brier,
+                    skill_vs_naive=summary.skill_vs_naive,
+                    hits=summary.hits,
+                    misses=summary.misses,
+                )
+            )
+        out_windows.append(
+            ScoreboardWindowOut(
+                window_label=label,
+                window_days=days,
+                n_cells=len(cells),
+                cells=cells,
+            )
+        )
+
+    return ScoreboardOut(generated_at=now, windows=out_windows)
