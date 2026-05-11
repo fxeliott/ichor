@@ -4,7 +4,7 @@ Usage: python -m ichor_api.cli.run_briefing <briefing_type>
    where briefing_type ∈ {pre_londres, pre_ny, ny_mid, ny_close, weekly, crisis}
 
 Workflow (all error-handled with structured logging):
-  1. Resolve the asset list from settings.briefing_assets_p1+p2 + briefing_type
+  1. Resolve the asset list from settings.briefing_assets (6-asset universe per ADR-083 D1)
   2. Insert briefings row with status='pending'
   3. Assemble context_markdown from:
        - latest BiasSignal per asset (current_signals)
@@ -58,10 +58,17 @@ VALID_TYPES = {"pre_londres", "pre_ny", "ny_mid", "ny_close", "weekly", "crisis"
 
 
 def _resolve_assets(briefing_type: str, settings: Settings) -> list[str]:
-    """Phase 1 actifs core (5) on pre_londres ; full 8 on others."""
-    if briefing_type == "pre_londres":
-        return settings.briefing_assets_p1
-    return settings.briefing_assets_p1 + settings.briefing_assets_p2
+    """6-asset universe per ADR-083 D1 + audit G1 fix (W104a).
+
+    All 4 briefing windows (pre_londres / pre_ny / ny_mid / ny_close)
+    receive the same 6 cards (EURUSD, GBPUSD, USDCAD, XAUUSD, NAS100,
+    SPX500). Pre-W104 the pre_londres window only saw p1 (5 assets,
+    excluding GBP/AUD/CAD) — a regression for Eliot's morning ritual.
+
+    `crisis` and `weekly` types also produce 6 cards. Override at the CLI
+    level if needed via the asset selector in run_session_cards_batch.
+    """
+    return list(settings.briefing_assets)
 
 
 async def _assemble_context(briefing_type: str, assets: list[str]) -> tuple[str, int]:

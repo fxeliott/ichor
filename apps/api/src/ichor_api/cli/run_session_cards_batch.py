@@ -2,10 +2,12 @@
 session window, sequentially.
 
 Used by the systemd briefings timers (06:00 / 12:00 / 17:00 / 22:00
-Paris) to produce the full 8-asset grid in one cron tick. Sequential
-on purpose : Claude Max 20x has a 5h rolling cap and parallel calls
-would burst quota. Running the 8 cards back-to-back over ~8 minutes
-keeps quota usage steady.
+Paris) to produce the **6-asset universe** in one cron tick (ADR-083 D1 :
+EURUSD / GBPUSD / USDCAD / XAUUSD / NAS100 / SPX500). USDJPY + AUDUSD
+are tracked-no-card per ADR-083 D1 — queryable via `--assets USD_JPY`
+but never in the default batch. Sequential on purpose : Claude Max 20x
+has a 5h rolling cap and parallel calls would burst quota. Running 6
+cards back-to-back over ~6-7 minutes keeps quota usage steady.
 
 Usage :
   python -m ichor_api.cli.run_session_cards_batch pre_londres
@@ -40,11 +42,13 @@ from .run_session_card import _run as run_one_card
 log = structlog.get_logger(__name__)
 
 
+# ADR-083 D1 — the 6 assets Eliot actually trades. USDJPY + AUDUSD are
+# tracked-no-card (ticker maps in data_pool still wired so they can be
+# queried explicitly via --assets, but the autonomous batch defaults to
+# the 6 below). Pre-W104 this tuple held 8 assets.
 _DEFAULT_ASSETS: tuple[str, ...] = (
     "EUR_USD",
     "GBP_USD",
-    "USD_JPY",
-    "AUD_USD",
     "USD_CAD",
     "XAU_USD",
     "NAS100_USD",
@@ -105,7 +109,7 @@ async def _main(argv: list[str]) -> int:
         "--assets",
         type=lambda s: tuple(a.strip().upper() for a in s.split(",") if a.strip()),
         default=None,
-        help="comma-separated list of asset codes (default: all 8 Phase-1)",
+        help="comma-separated list of asset codes (default: the 6-asset universe per ADR-083 D1)",
     )
     parser.add_argument(
         "--inter-card-sleep",
