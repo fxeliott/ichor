@@ -102,6 +102,7 @@ from .portfolio_exposure import (
     assess_portfolio_exposure,
     render_portfolio_exposure_block,
 )
+from .regime_classifier import RegimeInputs, classify_master_regime
 from .risk_appetite import (
     assess_risk_appetite,
     render_risk_appetite_block,
@@ -290,185 +291,30 @@ async def _section_executive_summary(session: AsyncSession) -> tuple[str, list[s
     expinf = expinf_v[0] if expinf_v else None
     term_prem = term_v[0] if term_v else None
 
-    regime: str = "transitional"
-    rationale: str = "no clear template match"
-
-    # Crisis takes priority — panic / fat-tail conditions
-    if (
-        (skew is not None and skew >= 150)
-        or (vix is not None and vix >= 30)
-        or (hy_oas is not None and hy_oas >= 6.0)
-    ):
-        regime = "crisis"
-        rationale = f"SKEW={skew} VIX={vix} HY-OAS={hy_oas}% — flight to quality"
-    # Broken smile (Stephen Jen US-driven instability)
-    elif (
-        term_prem is not None
-        and term_prem > 0.0
-        and vix is not None
-        and vix < 22
-        and hy_oas is not None
-        and hy_oas < 4.5
-        and skew is not None
-        and skew >= 130
-    ):
-        regime = "broken_smile"
-        rationale = (
-            f"term-prem {term_prem:+.2f}%% + VIX {vix:.1f} (modest) + HY-OAS "
-            f"{hy_oas:.2f}%% (calm) + SKEW {skew:.0f} (elevated) — US-driven "
-            "instability per Stephen Jen 2025-26"
+    # Wave 51 master regime classifier — extracted W104c into pure service
+    # `services.regime_classifier.classify_master_regime` for reuse +
+    # unit-testability. Logic + thresholds unchanged ; %% normalised to %
+    # in rationale strings (cosmetic, was inconsistent crisis vs others).
+    classification = classify_master_regime(
+        RegimeInputs(
+            skew=skew,
+            vix=vix,
+            hy_oas=hy_oas,
+            nfci=nfci,
+            cli_us=cli_us,
+            expinf=expinf,
+            term_prem=term_prem,
         )
-    # Stagflation
-    elif cli_us is not None and cli_us < 100 and expinf is not None and expinf > 2.5:
-        regime = "stagflation"
-        rationale = (
-            f"US CLI {cli_us:.2f} (<100, slowdown) + EXPINF1YR {expinf:.2f}%% "
-            "(>2.5%% above target) — growth slowing while inflation persists"
-        )
-    # Risk-off (classic LEFT smile)
-    elif (vix is not None and vix > 22) or (hy_oas is not None and hy_oas > 5.0):
-        regime = "risk_off"
-        rationale = f"VIX {vix} HY-OAS {hy_oas}%% — classic stress, USD bid"
-    # Goldilocks
-    elif (
-        cli_us is not None
-        and cli_us > 100
-        and nfci is not None
-        and nfci < 0
-        and expinf is not None
-        and 1.5 <= expinf <= 2.5
-    ):
-        regime = "goldilocks"
-        rationale = (
-            f"CLI {cli_us:.2f}▲ + NFCI {nfci:+.2f} (loose) + EXPINF1YR "
-            f"{expinf:.2f}%% near target — growth in trend, calm vol"
-        )
-    # Risk-on (loose conditions, low vol)
-    elif (
-        nfci is not None
-        and nfci < -0.3
-        and skew is not None
-        and skew < 130
-        and vix is not None
-        and vix < 18
-    ):
-        regime = "risk_on"
-        rationale = (
-            f"NFCI {nfci:+.2f} (loose) + SKEW {skew:.0f} + VIX {vix:.1f} — complacent, equity bid"
-        )
-
-    lines.append(f"- 🎯 **REGIME : {regime.upper().replace('_', ' ')}** — {rationale}")
-
-    # Wave 53 — confidence score (heuristic: count matched conditions vs
-    # template) + per-asset bias hint. NOT a directional trade signal
-    # (ADR-017 boundary preserved) — just a regime-consistent priming for
-    # Pass 2 narrative generation.
-    confidence = 0.0
-    if regime == "crisis":
-        # 1 of 3 conditions to fire = low conf, 3 of 3 = high
-        c = 0
-        if skew is not None and skew >= 150:
-            c += 1
-        if vix is not None and vix >= 30:
-            c += 1
-        if hy_oas is not None and hy_oas >= 6.0:
-            c += 1
-        confidence = c / 3.0
-    elif regime == "broken_smile":
-        # 4 conditions; all must hold. Confidence based on margin above thresholds.
-        margins: list[float] = []
-        if term_prem is not None:
-            margins.append(min(1.0, max(0.0, (term_prem - 0.0) / 0.5)))
-        if vix is not None:
-            margins.append(min(1.0, max(0.0, (22 - vix) / 5)))
-        if hy_oas is not None:
-            margins.append(min(1.0, max(0.0, (4.5 - hy_oas) / 1.0)))
-        if skew is not None:
-            margins.append(min(1.0, max(0.0, (skew - 130) / 20.0)))
-        confidence = sum(margins) / len(margins) if margins else 0.0
-    elif regime == "stagflation":
-        margins = []
-        if cli_us is not None:
-            margins.append(min(1.0, max(0.0, (100 - cli_us) / 2.0)))
-        if expinf is not None:
-            margins.append(min(1.0, max(0.0, (expinf - 2.5) / 1.0)))
-        confidence = sum(margins) / len(margins) if margins else 0.0
-    elif regime == "risk_off":
-        margins = []
-        if vix is not None:
-            margins.append(min(1.0, max(0.0, (vix - 22) / 8.0)))
-        if hy_oas is not None:
-            margins.append(min(1.0, max(0.0, (hy_oas - 5.0) / 2.0)))
-        confidence = max(margins) if margins else 0.0
-    elif regime == "goldilocks":
-        margins = []
-        if cli_us is not None:
-            margins.append(min(1.0, max(0.0, (cli_us - 100) / 2.0)))
-        if nfci is not None:
-            margins.append(min(1.0, max(0.0, -nfci / 0.5)))
-        if expinf is not None:
-            margins.append(1.0 if 1.5 <= expinf <= 2.5 else 0.0)
-        confidence = sum(margins) / len(margins) if margins else 0.0
-    elif regime == "risk_on":
-        margins = []
-        if nfci is not None:
-            margins.append(min(1.0, max(0.0, (-0.3 - nfci) / 0.5)))
-        if skew is not None:
-            margins.append(min(1.0, max(0.0, (130 - skew) / 15.0)))
-        if vix is not None:
-            margins.append(min(1.0, max(0.0, (18 - vix) / 5.0)))
-        confidence = sum(margins) / len(margins) if margins else 0.0
-
-    # Per-regime asset-class bias hint (Pass 2 priming, ADR-017 compliant —
-    # describes the macro-consistent observation, NOT a trade signal).
-    bias_hints: dict[str, dict[str, str]] = {
-        "broken_smile": {
-            "fx_majors": "USD-bearish (USD weakness despite vol calm)",
-            "xau": "USD-weak + tail-risk-elevated → gold supportive",
-            "us_equity_indices": "Mixed (Fed accommodative but USD weakness offsets)",
-            "treasuries": "Term-prem expansion → curve steepening",
-        },
-        "crisis": {
-            "fx_majors": "USD-haven bid except USD/JPY (JPY haven)",
-            "xau": "Bid (flight to quality)",
-            "us_equity_indices": "Sharp downside, vol spike",
-            "treasuries": "Bid (duration safe haven)",
-        },
-        "stagflation": {
-            "fx_majors": "USD-mixed (cuts priced but inflation persists)",
-            "xau": "Bid (real-yield compression + inflation hedge)",
-            "us_equity_indices": "Defensive sectors, growth underperforms",
-            "treasuries": "TIPS outperform nominals",
-        },
-        "risk_off": {
-            "fx_majors": "USD bid, EUR/AUD/NZD weak (carry unwind)",
-            "xau": "Bid (haven, but real yields can offset)",
-            "us_equity_indices": "Downside, vol spike",
-            "treasuries": "Bid (haven duration)",
-        },
-        "goldilocks": {
-            "fx_majors": "USD soft (Fed neutral) + EUR/AUD bid",
-            "xau": "Range-bound (no panic, no inflation surge)",
-            "us_equity_indices": "Bid (low vol + earnings tailwind)",
-            "treasuries": "Range-bound mid-curve",
-        },
-        "risk_on": {
-            "fx_majors": "USD soft + AUD/NZD/EM bid (carry on)",
-            "xau": "Soft (real yields compress relative)",
-            "us_equity_indices": "Strong bid (complacency)",
-            "treasuries": "Curve steepens (no haven bid)",
-        },
-        "transitional": {
-            "fx_majors": "Mixed signals, await clearer template",
-            "xau": "Range-bound",
-            "us_equity_indices": "Range-bound",
-            "treasuries": "Range-bound",
-        },
-    }
-    lines.append(f"  └─ confidence ≈ {confidence:.2f} (heuristic margin vs threshold)")
-    bias_for_regime = bias_hints.get(regime, {})
-    if bias_for_regime:
-        bias_md = " | ".join(f"{k}: {v}" for k, v in bias_for_regime.items())
+    )
+    regime = classification.regime
+    lines.append(
+        f"- 🎯 **REGIME : {regime.upper().replace('_', ' ')}** — {classification.rationale}"
+    )
+    lines.append(
+        f"  └─ confidence ≈ {classification.confidence:.2f} (heuristic margin vs threshold)"
+    )
+    if classification.bias_hints:
+        bias_md = " | ".join(f"{k}: {v}" for k, v in classification.bias_hints.items())
         lines.append(f"  └─ asset-class bias hints (ADR-017 priming, not signals): {bias_md}")
 
     # ── 1. Macro régime ──
