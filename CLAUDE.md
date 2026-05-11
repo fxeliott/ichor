@@ -1,7 +1,7 @@
 # Ichor — Claude Code project memory
 
 > Auto-injected at every session start. Keep terse and current.
-> Last sync: 2026-05-11 (post-W100 — Cap5 6/6 SHIPPED : STEP-6 e2e integration test via in-memory MCP transport + Dependabot auto-merge w/ cooldown 7d post-Axios).
+> Last sync: 2026-05-11 (post-W100f — Cap5 6/6 SHIPPED, Dependabot auto-merge w/ cooldown 7d post-Axios, Socket.dev installed + first scan green, CF API token rotated and validated, Step F+E manual actions resolved).
 
 ## What this repo is
 
@@ -308,6 +308,66 @@ D:\Ichor
   field (W81 candidate, 1h estimate).
 - Polymarket `WHALES` constant in `polymarket/page.tsx` — no backend
   trade-tape collector yet (W82 candidate, separate ADR needed).
+
+## Recently fixed (2026-05-11 — W100c+d+e+f : auto-fix avalanche + CF API token rotation)
+
+- **W100c** ✅ — `.github/dependabot.yml` Docker section : 3 ecosystems
+  changed from `docker` (parses Dockerfiles / k8s YAML) to
+  `docker-compose` (parses `image:` tags from compose files), because
+  the Ansible role dirs only contain `docker-compose.yml`. GA since
+  Feb 2025 per github.blog/changelog/2025-02-25. Verified empirically
+  post-W100b : Dependabot run failures with "No Dockerfiles nor
+  Kubernetes YAML found" disappeared.
+- **W100d** ✅ — pnpm-lock.yaml sync after first auto-merged
+  Dependabot PR (#82, zustand 5.0.12 → 5.0.13, commit de2bdc2).
+  Dependabot updated apps/web2/package.json but pnpm monorepo root
+  lockfile didn't always sync. CI Node lint failed with
+  `ERR_PNPM_OUTDATED_LOCKFILE`. Fix : `pnpm install --lockfile-only`
+  on local. Followup tracking : the npm ecosystem in pnpm monorepos
+  can mis-sync the root lockfile on per-directory Dependabot updates.
+  Options for permanent fix tracked as W101 candidate.
+- **W100e** ✅ — HTML guide `docs/guide-actions-eliot.html` §8 fully
+  rewritten with real dashboard CF data (3 screenshots Eliot
+  2026-05-11) + anti-hallucination correction. W100 had affirmed
+  "Eliot Free pur, Budget Alerts inaccessibles" — WRONG. Real state
+  is R2 Paid active (Pay-as-you-go) which DOES unlock Budget Alerts.
+  Eliot already configured 3 alerts ($1/$5/$10). Cost Apr 17 → May
+  11 = $0.00 across 25 days, R2 at 0.7% of free tier (143× margin).
+  New §8.1bis section : abonnements ne protègent pas des coûts
+  surprises (Pro/Workers Paid/Business breakdown). Stats grid + top
+  callout bumped to W100e / 2026-05-11.
+- **W100f** ✅ — **CF API token rotation** (`infra/secrets/cloudflare.env`
+  SOPS-encrypted). Old token = REVOKED (confirmed via
+  `curl /user/tokens/verify` → HTTP 401 "Invalid API Token"). New
+  token created with minimum scope `Account.Cloudflare Pages:Edit`
+  (audit confirmed this is the ONLY usage in the repo, via
+  `wrangler-action@v3` in `auto-deploy.yml`). New token validated
+  active (HTTP 200, ID `806ea32ba599dda8d73a49bd03942c11`). Diff
+  sanity : exactly 3 changed line pairs (token blob +
+  sops_lastmodified + sops_mac). 14 CI check-runs success.
+  **Critical decision** : `CLOUDFLARE_API_TOKEN` GitHub Secret NOT
+  added — would activate Pages deploy which publishes apps/web2 at
+  `ichor-web2.pages.dev` (public URL by default), violating Eliot's
+  "ultra sécurisé du publique le plus caché" directive. To activate
+  Pages deploy in the future (W101 followup) : (a) create CF Pages
+  project + CF Access service token gate on `*.pages.dev`,
+  (b) `gh secret set CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID`,
+  (c) verify first deploy lands behind CF Access (403 without
+  headers, 200 with).
+- **W100f known gap** — `HETZNER_HOST` GitHub Secret is ABSENT (only
+  `HETZNER_SSH_PRIVATE_KEY` exists). Conséquence : the
+  `auto-deploy.yml` Hetzner job conclusion=success is a no-op
+  (guard skip all rsync + restart steps when HETZNER_HOST is empty).
+  This is pre-existing (NOT a W100f regression — same state
+  pre-W100). Implication : Python apps/api changes are NOT
+  auto-deployed to Hetzner ; manual SSH + git pull + service
+  restart required. For Hetzner side, this rotation requires a
+  manual sync (next time someone deploys to Hetzner, they pick up
+  the rotated SOPS file via git pull). Audit confirms NO Hetzner
+  script consumes `CLOUDFLARE_API_TOKEN` directly (it's only used
+  by `wrangler-action` in GitHub Actions for Pages), so no
+  operational impact. Adding `HETZNER_HOST` is a W101 candidate if
+  Eliot wants CI-driven Hetzner deploys.
 
 ## Recently fixed (2026-05-11 — W100 + W100b)
 
