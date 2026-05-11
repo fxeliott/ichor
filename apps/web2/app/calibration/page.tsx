@@ -556,18 +556,24 @@ function ScoreboardTrioCell({
               cell.skill_vs_naive * 100
             ).toFixed(1)}% · ${cell.hits}/${cell.n_cards} hits`
           : `${label} · no data`;
+        // W101b a11y fix : opacity 0.85 → 1.0 (text/bg full saturation
+        // for WCAG contrast). text-[10px] → text-[11px] (axe-core /
+        // Lighthouse minimum legible). Empty cells use text-secondary
+        // (not muted) for the dash so contrast meets 4.5:1 on
+        // bg-elevated. Tested against #04070C base vs #34D399 bull
+        // (12:1), #F87171 bear (7.2:1), warm yellow (13:1) — all pass
+        // WCAG 2.2 AA at 11px font / normal weight.
         return (
           <div
             key={label}
             role="gridcell"
             title={tooltip}
             aria-label={tooltip}
-            className="flex h-7 w-7 items-center justify-center font-mono text-[9px] tabular-nums"
+            className="flex h-7 w-7 items-center justify-center font-mono text-[11px] font-semibold tabular-nums"
             style={{
               background: brierColor(band),
-              opacity: band === "empty" ? 0.25 : 0.85,
               borderRadius: "3px",
-              color: band === "empty" ? "var(--color-text-muted)" : "var(--color-bg-base)",
+              color: band === "empty" ? "var(--color-text-secondary)" : "var(--color-bg-base)",
               border:
                 band === "empty"
                   ? "1px dashed var(--color-border-default)"
@@ -583,14 +589,17 @@ function ScoreboardTrioCell({
 }
 
 function ScoreboardLegend() {
+  // W101b a11y fix : text-secondary instead of text-muted on the
+  // explanatory text so the legend reads at 4.5:1+ on bg-surface
+  // (caught by Lighthouse a11y 0.95 threshold).
   return (
-    <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-[10px] font-mono uppercase tracking-widest text-[var(--color-text-muted)]">
+    <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 font-mono text-[10px] uppercase tracking-widest text-[var(--color-text-secondary)]">
       <span>légende :</span>
       <span className="flex items-center gap-2">
         <span
           aria-hidden="true"
           className="inline-block h-3 w-3 rounded-sm"
-          style={{ background: "var(--color-bull)", opacity: 0.85 }}
+          style={{ background: "var(--color-bull)" }}
         />
         Brier &lt; 0,20 · skill
       </span>
@@ -598,7 +607,7 @@ function ScoreboardLegend() {
         <span
           aria-hidden="true"
           className="inline-block h-3 w-3 rounded-sm"
-          style={{ background: "var(--color-accent-warm)", opacity: 0.85 }}
+          style={{ background: "var(--color-accent-warm)" }}
         />
         0,20 - 0,25 · marginal
       </span>
@@ -606,7 +615,7 @@ function ScoreboardLegend() {
         <span
           aria-hidden="true"
           className="inline-block h-3 w-3 rounded-sm"
-          style={{ background: "var(--color-bear)", opacity: 0.85 }}
+          style={{ background: "var(--color-bear)" }}
         />
         &gt; 0,25 · worse than naive
       </span>
@@ -621,9 +630,7 @@ function ScoreboardLegend() {
         />
         no data
       </span>
-      <span className="text-[var(--color-text-muted)]">
-        Trio = 30 j / 90 j / all-time (gauche → droite)
-      </span>
+      <span>Trio = 30 j / 90 j / all-time (gauche → droite)</span>
     </div>
   );
 }
