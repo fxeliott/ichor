@@ -44,7 +44,7 @@ import argparse
 import asyncio
 import sys
 from collections.abc import Iterable
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import UUID
 
@@ -142,8 +142,14 @@ def _render_jsonb_list(label: str, raw: Any, *, max_items: int) -> str:
         if isinstance(item, str):
             text_val = item
         elif isinstance(item, dict):
+            # Live session_card_audit rows store mechanisms / invalidations /
+            # catalysts as `{"claim": "...", "sources": [...]}` (Pass-2/3/4
+            # schema). The other keys covered the legacy + canned shapes
+            # used in dry-run fixtures and W110c renderer tests.
             text_val = (
-                item.get("description")
+                item.get("claim")
+                or item.get("condition")
+                or item.get("description")
                 or item.get("text")
                 or item.get("name")
                 or item.get("mechanism")
@@ -386,6 +392,16 @@ async def _main(argv: list[str]) -> int:
         help="ISO date (YYYY-MM-DD) — only embed cards with generated_at >= since.",
     )
     parser.add_argument(
+        "--days",
+        type=int,
+        default=None,
+        help=(
+            "Convenience window : embed cards with generated_at >= "
+            "now - days. Mutually exclusive with --since (--since wins). "
+            "Used by the W110g systemd timer with --days 2."
+        ),
+    )
+    parser.add_argument(
         "--asset",
         type=str,
         default=None,
@@ -413,10 +429,16 @@ async def _main(argv: list[str]) -> int:
         parser.error("--batch-size must be >= 1")
     if args.limit < 1:
         parser.error("--limit must be >= 1")
+    if args.days is not None and args.days < 1:
+        parser.error("--days must be >= 1")
+
+    since = args.since
+    if since is None and args.days is not None:
+        since = datetime.now(UTC) - timedelta(days=args.days)
 
     try:
         return await _run(
-            since=args.since,
+            since=since,
             asset=args.asset,
             limit=args.limit,
             batch_size=args.batch_size,

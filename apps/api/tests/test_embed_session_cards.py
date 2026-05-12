@@ -91,6 +91,29 @@ def test_render_jsonb_list_accepts_strings_and_dicts_and_truncates() -> None:
     assert "fourth" not in out
 
 
+def test_render_jsonb_list_extracts_claim_and_condition_keys() -> None:
+    """Live prod session_card_audit rows use `claim` (mechanisms/counter-
+    claims/catalysts) and `condition` (invalidations) — W110c rev2 pinned
+    so we don't regress to `str(dict)` rendering on real cards."""
+    mechs = [
+        {"claim": "DXY weakness extends", "sources": ["FRED:DTWEXBGS"]},
+        {"claim": "Real-yield diff narrowing"},
+    ]
+    out = _render_jsonb_list("Mechanisms", mechs, max_items=3)
+    assert "DXY weakness extends" in out
+    assert "Real-yield diff narrowing" in out
+    # The raw dict form must NOT appear — that was the pre-rev2 bug.
+    assert "'claim'" not in out
+    assert "FRED:DTWEXBGS" not in out  # sources are not part of the text
+
+    invs = [
+        {"condition": "DXY breaks below 104.50", "threshold": "104.50"},
+    ]
+    out2 = _render_jsonb_list("Invalidations", invs, max_items=3)
+    assert "DXY breaks below 104.50" in out2
+    assert "'condition'" not in out2
+
+
 def test_render_jsonb_list_returns_empty_string_for_invalid() -> None:
     assert _render_jsonb_list("X", None, max_items=3) == ""
     assert _render_jsonb_list("X", [], max_items=3) == ""
