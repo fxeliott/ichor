@@ -40,6 +40,7 @@ async def _run(
     *,
     live: bool,
     enable_tools: bool = False,
+    enable_rag: bool = False,
 ) -> int:
     asset = asset.upper()
     if session_type not in _VALID_SESSIONS:
@@ -176,6 +177,42 @@ async def _run(
         )
         log.info("cap5.tools.enabled", passes=sorted(tool_config.enabled_for_passes))
 
+    # W110d ADR-086 — past-only RAG analogues injection into Pass-1.
+    # Opt-in via `--enable-rag` (default OFF for prudent rollout). The
+    # retrieval is embargoed at >= 1 day (ADR-086 Invariant 1) and uses
+    # bge-small-en-v1.5 ONNX CPU (Voie D Invariant 2). Failures are
+    # best-effort : Pass-1 falls back to its pre-W110d prompt shape.
+    analogues_section = ""
+    if live and enable_rag:
+        try:
+            from ..services.rag_embeddings import (
+                format_analogues_prompt_section,
+                retrieve_analogues,
+            )
+
+            query_text = f"asset={asset} session={session_type}\n\n" + data_pool[:2000]
+            async with sm() as rag_session:
+                analogues = await retrieve_analogues(
+                    rag_session,
+                    query_text=query_text,
+                    query_at=datetime.now(UTC),
+                    asset=asset,
+                    session_type=session_type,
+                    k=5,
+                    embargo_days=1,
+                )
+            analogues_section = format_analogues_prompt_section(analogues)
+            log.info(
+                "rag.analogues.retrieved",
+                asset=asset,
+                session_type=session_type,
+                k=len(analogues),
+                top_cos_dist=(analogues[0].cosine_distance if analogues else None),
+            )
+        except Exception as e:  # noqa: BLE001 — best-effort RAG path
+            log.warning("rag.analogues.fallback", asset=asset, error=str(e))
+            analogues_section = ""
+
     orch = Orchestrator(
         runner=runner,
         enable_scenarios=live,
@@ -188,6 +225,7 @@ async def _run(
         asset_data=asset_data,
         now=datetime.now(UTC),
         calibration_block=calibration_block,
+        analogues_section=analogues_section,
     )
 
     async with sm() as session:
@@ -331,11 +369,12 @@ def _dry_run_responses(asset: str):
 async def _main(args: list[str]) -> int:
     live = "--live" in args
     enable_tools = "--enable-tools" in args
-    args = [a for a in args if a not in {"--live", "--dry-run", "--enable-tools"}]
+    enable_rag = "--enable-rag" in args
+    args = [a for a in args if a not in {"--live", "--dry-run", "--enable-tools", "--enable-rag"}]
     if len(args) < 2:
         print(
             "usage: python -m ichor_api.cli.run_session_card "
-            "<asset> <session_type> [--dry-run|--live] [--enable-tools]",
+            "<asset> <session_type> [--dry-run|--live] [--enable-tools] [--enable-rag]",
             file=sys.stderr,
         )
         return 2
@@ -346,6 +385,7 @@ async def _main(args: list[str]) -> int:
             session_type,
             live=live,
             enable_tools=enable_tools,
+            enable_rag=enable_rag,
         )
     finally:
         await get_engine().dispose()

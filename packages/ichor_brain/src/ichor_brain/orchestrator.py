@@ -228,14 +228,29 @@ class Orchestrator:
         asset_data: str,
         now: datetime | None = None,
         calibration_block: str | None = None,
+        analogues_section: str = "",
     ) -> OrchestratorResult:
+        """Run the 4 (+optional 6) passes for one (session_type, asset).
+
+        `analogues_section` (W110d ADR-086) is an optional pre-rendered
+        RAG block of past-only historical analogues. When non-empty,
+        forwarded to `RegimePass.build_prompt` ; the model treats it
+        as sanity-check context, never as prescriptive evidence
+        (ADR-017 boundary, ADR-086 Invariant 1 embargo). The caller
+        is responsible for retrieval (see
+        `services.rag_embeddings.retrieve_analogues`) so the
+        orchestrator stays DB-session-free + pure on its 4-pass loop.
+        Empty string = pre-W110d byte-identical behaviour.
+        """
         generated_at = now or datetime.now(UTC)
         runner_calls: list[RunnerCall] = []
         total_ms = 0
 
         # Pass 1 — régime
         call1 = RunnerCall(
-            prompt=self._regime.build_prompt(data_pool=data_pool),
+            prompt=self._regime.build_prompt(
+                data_pool=data_pool, analogues_section=analogues_section
+            ),
             system=self._regime.system_prompt,
             model="opus",
             effort="high",

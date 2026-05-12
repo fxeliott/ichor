@@ -47,11 +47,28 @@ class RegimePass(Pass[RegimeReading]):
     def system_prompt(self) -> str:
         return _SYSTEM
 
-    def build_prompt(self, *, data_pool: str, **_: Any) -> str:
+    def build_prompt(self, *, data_pool: str, analogues_section: str = "", **_: Any) -> str:
+        """Build the Pass-1 user prompt.
+
+        `analogues_section` (W110d ADR-086) is an optional pre-rendered
+        block of historical past-only analogues retrieved by
+        `services.rag_embeddings.retrieve_analogues` +
+        `format_analogues_prompt_section`. When provided, it is
+        prepended BEFORE the data pool — the model treats it as
+        sanity-check context, not as evidence for the régime call (the
+        block itself warns against prescriptive use, see ADR-017).
+
+        Empty string = no analogues block, exact pre-W110d behaviour
+        preserved.
+        """
+        analogues_block = ""
+        if analogues_section and analogues_section.strip():
+            analogues_block = f"{analogues_section}\n\n---\n\n"
         return (
             "Classify the current régime. Below is the consolidated data "
             "pool (last 24h window).\n\n"
             "---\n\n"
+            f"{analogues_block}"
             f"{data_pool}\n\n"
             "---\n\n"
             "Reply with the JSON envelope only."

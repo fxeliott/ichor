@@ -44,6 +44,34 @@ def test_regime_build_prompt_inlines_data_pool() -> None:
     assert "VIX=18.2" in prompt
 
 
+def test_regime_build_prompt_omits_analogues_section_when_empty() -> None:
+    """W110d ADR-086 — empty/missing analogues_section is byte-identical
+    to the pre-W110d prompt shape."""
+    p = RegimePass()
+    a = p.build_prompt(data_pool="DXY=105 VIX=18")
+    b = p.build_prompt(data_pool="DXY=105 VIX=18", analogues_section="")
+    c = p.build_prompt(data_pool="DXY=105 VIX=18", analogues_section="   \n")
+    assert a == b == c
+    assert "Historical analogues" not in a
+
+
+def test_regime_build_prompt_injects_analogues_before_data_pool() -> None:
+    """W110d ADR-086 — analogues_section is injected before the data
+    pool block. The model sees analogues as sanity-check context, not
+    as evidence."""
+    p = RegimePass()
+    section = (
+        "## Historical analogues (k=2, past-only)\n"
+        "1. **2024-11-08** — asset=EUR_USD, regime=goldilocks, cos_dist=0.123\n"
+        "   Régime usd_complacency 72% confidence\n"
+    )
+    prompt = p.build_prompt(data_pool="DXY=105 VIX=18", analogues_section=section)
+    assert "Historical analogues" in prompt
+    assert "DXY=105" in prompt
+    # analogues come BEFORE data pool
+    assert prompt.index("Historical analogues") < prompt.index("DXY=105")
+
+
 def test_regime_parse_ok() -> None:
     p = RegimePass()
     out = p.parse(_wrap(REGIME_OK_JSON))
