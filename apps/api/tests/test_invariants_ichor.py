@@ -439,6 +439,68 @@ def test_pass3_addenda_expires_after_created_constraint() -> None:
     )
 
 
+def test_brier_aggregator_register_cron_present() -> None:
+    """ADR-087 W115b cron : `scripts/hetzner/register-cron-brier-aggregator.sh`
+    is the Hetzner systemd timer installer. Without it the Vovk-AA
+    nightly cron has no scheduler ; Phase D loop #2 stays dormant."""
+    sh_path = _REPO_ROOT / "scripts" / "hetzner" / "register-cron-brier-aggregator.sh"
+    assert sh_path.exists(), (
+        "ADR-087 W115b : register-cron-brier-aggregator.sh missing. "
+        "The Vovk-AA cron loop cannot auto-fire without it."
+    )
+    text = sh_path.read_text(encoding="utf-8")
+    # Critical assertions on the systemd unit content :
+    assert (
+        "ichor.cli.run_brier_aggregator" in text or "ichor_api.cli.run_brier_aggregator" in text
+    ), "ADR-087 W115b : ExecStart must reference the canonical CLI module."
+    assert "OnCalendar=*-*-* 03:30:00 Europe/Paris" in text, (
+        "ADR-087 W115b : the canonical 03:30 Paris slot is pinned — "
+        "after reconciler (02:00) and RAG embed (03:00), before "
+        "Tokyo/EUR overlap."
+    )
+    assert "EnvironmentFile=/etc/ichor/api.env" in text, (
+        "ADR-087 W115b : the systemd unit MUST load /etc/ichor/api.env "
+        "or the database URL won't resolve at runtime."
+    )
+
+
+def test_post_mortem_pbs_register_cron_present() -> None:
+    """ADR-087 W116b cron : `scripts/hetzner/register-cron-post-mortem-pbs.sh`
+    is the weekly Sunday timer for the PBS aggregator."""
+    sh_path = _REPO_ROOT / "scripts" / "hetzner" / "register-cron-post-mortem-pbs.sh"
+    assert sh_path.exists(), "ADR-087 W116b : register-cron-post-mortem-pbs.sh missing."
+    text = sh_path.read_text(encoding="utf-8")
+    assert "ichor_api.cli.run_post_mortem_pbs" in text, (
+        "ADR-087 W116b : ExecStart must reference the canonical CLI module."
+    )
+    assert "OnCalendar=Sun *-*-* 18:00:00 Europe/Paris" in text, (
+        "ADR-087 W116b : Sunday 18:00 Paris is the pinned slot — after "
+        "Friday NY close + Asian Sunday open, full week of reconciled "
+        "session windows."
+    )
+
+
+def test_post_mortem_pbs_cli_module_present() -> None:
+    """ADR-087 W116b CLI : module presence + ahmadian_lambda=2.0
+    + min cards = 4."""
+    cli_path = _REPO_ROOT / "apps" / "api" / "src" / "ichor_api" / "cli" / "run_post_mortem_pbs.py"
+    assert cli_path.exists(), "ADR-087 W116b : run_post_mortem_pbs.py CLI is missing."
+    text = cli_path.read_text(encoding="utf-8")
+    assert re.search(r"_AHMADIAN_LAMBDA\s*=\s*2\.0\b", text), (
+        "ADR-087 W116b : _AHMADIAN_LAMBDA must equal 2.0 to preserve "
+        "the Ahmadian superior-ordering property on K=7 buckets."
+    )
+    assert re.search(r"_MIN_CARDS_PER_POCKET\s*=\s*4\b", text), (
+        "ADR-087 W116b : pocket aggregation requires ≥ 4 cards ; "
+        "below that the PBS mean is too noisy to be actionable."
+    )
+    # The CLI MUST write loop_kind='post_mortem' to the audit table.
+    assert 'loop_kind="post_mortem"' in text or "loop_kind='post_mortem'" in text, (
+        "ADR-087 W116b : the PBS aggregator MUST write to "
+        "auto_improvement_log with loop_kind='post_mortem'."
+    )
+
+
 def test_brier_aggregator_cli_module_present() -> None:
     """ADR-087 W115b : `cli/run_brier_aggregator.py` is the nightly
     Vovk-AA cron entry point. The Hetzner systemd unit `ExecStart=`
