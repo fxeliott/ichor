@@ -61,6 +61,9 @@ from .nfib_sbet_observation import NfibSbetObservation
 
 # Phase II — NY Fed Multivariate Core Trend monthly (Wave 71)
 from .nyfed_mct_observation import NyfedMctObservation
+
+# Phase D W116 — post-mortem PBS addenda for Pass-3 (ADR-087)
+from .pass3_addendum import Pass3Addendum
 from .polygon_gex_snapshot import PolygonGexSnapshot
 from .polygon_intraday import PolygonIntradayBar
 from .polymarket_snapshot import PolymarketSnapshot
@@ -115,6 +118,8 @@ __all__ = [
     "NewsItem",
     "NfibSbetObservation",
     "NyfedMctObservation",
+    # Phase D W116 — post-mortem PBS addenda for Pass-3
+    "Pass3Addendum",
     "PolygonGexSnapshot",
     "PolygonIntradayBar",
     "PolymarketSnapshot",
