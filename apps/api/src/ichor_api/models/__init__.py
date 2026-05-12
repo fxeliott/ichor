@@ -19,6 +19,9 @@ from .auto_improvement_log import AutoImprovementLog
 from .base import Base
 from .bias_signal import BiasSignal
 from .briefing import Briefing
+
+# Phase D W115 — Vovk-Zhdanov AA Brier aggregator pockets (ADR-087)
+from .brier_aggregator_weights import BrierAggregatorWeight
 from .cb_speech import CbSpeech
 
 # Phase II Layer 1 — CBOE SKEW Index daily (Wave 24)
@@ -85,6 +88,8 @@ __all__ = [
     "Base",
     "BiasSignal",
     "Briefing",
+    # Phase D W115 — Vovk-AA Brier aggregator pockets
+    "BrierAggregatorWeight",
     "CbSpeech",
     "CboeSkewObservation",
     "CboeVvixObservation",

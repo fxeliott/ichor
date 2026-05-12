@@ -367,6 +367,63 @@ def test_auto_improvement_log_decision_enum_pinned() -> None:
         )
 
 
+def test_brier_aggregator_weights_pocket_uniqueness_guarded() -> None:
+    """ADR-087 W115 : the `brier_aggregator_weights` table must enforce
+    ONE row per `(asset, regime, expert_kind, pocket_version)` tuple.
+
+    Without the UniqueConstraint, the Vovk-AA pocket-version
+    freeze-and-spawn workflow (W114 tier-2) would silently end up with
+    two rows for the same logical slot — confluence_engine reads
+    would become non-deterministic."""
+    text = _read_migration_text("brier_aggregator_weights")
+    assert "uq_brier_agg_pocket_expert" in text, (
+        "ADR-087 W115 : brier_aggregator_weights migration is missing the "
+        "uq_brier_agg_pocket_expert UNIQUE constraint. The Vovk pocket "
+        "freeze-and-spawn invariant collapses without it."
+    )
+    for col in ("asset", "regime", "expert_kind", "pocket_version"):
+        assert col in text, (
+            f"ADR-087 W115 : brier_aggregator_weights migration is missing "
+            f"column {col!r} (referenced by the UNIQUE constraint)."
+        )
+
+
+def test_brier_aggregator_weights_check_constraints_present() -> None:
+    """ADR-087 W115 : the 4 CHECK constraints (weight∈[0,1],
+    n_observations≥0, cumulative_loss≥0, pocket_version≥1) catch bad
+    data at insert time before the Vovk update logic gets confused."""
+    text = _read_migration_text("brier_aggregator_weights")
+    for check in (
+        "ck_brier_agg_weight_unit_interval",
+        "ck_brier_agg_n_observations_nonneg",
+        "ck_brier_agg_cumulative_loss_nonneg",
+        "ck_brier_agg_pocket_version_positive",
+    ):
+        assert check in text, (
+            f"ADR-087 W115 : brier_aggregator_weights migration is missing "
+            f"CHECK constraint {check!r}."
+        )
+
+
+def test_vovk_aggregator_eta_default_is_one() -> None:
+    """ADR-087 W115 : the `VovkBrierAggregator` class default `eta=1.0`
+    matches the Vovk-Zhdanov 2009 Theorem 1 Brier-game mixability
+    optimum. Any refactor that "tunes" to a different default
+    invalidates the regret bound proof."""
+    vovk_path = (
+        _REPO_ROOT / "apps" / "api" / "src" / "ichor_api" / "services" / "vovk_aggregator.py"
+    )
+    if not vovk_path.exists():
+        pytest.skip(f"vovk_aggregator.py not found at {vovk_path}")
+    text = vovk_path.read_text(encoding="utf-8")
+    # Match `eta: float = 1.0` in the dataclass field declaration.
+    assert re.search(r"\beta:\s*float\s*=\s*1\.0\b", text), (
+        "ADR-087 W115 : VovkBrierAggregator.eta default MUST be 1.0 "
+        "(Vovk-Zhdanov 2009 Theorem 1 Brier-game optimum). "
+        "Any other value invalidates the ln(N) regret bound."
+    )
+
+
 # ────────────────────────── ADR-079 ──────────────────────────
 
 
