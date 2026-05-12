@@ -439,6 +439,40 @@ def test_pass3_addenda_expires_after_created_constraint() -> None:
     )
 
 
+def test_brier_aggregator_cli_module_present() -> None:
+    """ADR-087 W115b : `cli/run_brier_aggregator.py` is the nightly
+    Vovk-AA cron entry point. The Hetzner systemd unit `ExecStart=`
+    references it ; accidental deletion / rename would silently break
+    the Phase D learn loop without firing CI."""
+    cli_path = _REPO_ROOT / "apps" / "api" / "src" / "ichor_api" / "cli" / "run_brier_aggregator.py"
+    assert cli_path.exists(), (
+        "ADR-087 W115b : run_brier_aggregator.py CLI is missing. The "
+        "nightly Vovk-AA cron depends on this module."
+    )
+    text = cli_path.read_text(encoding="utf-8")
+    # Pinned constants must remain — divergence breaks Vovk pocket
+    # upserts on the migration 0043 default `pocket_version=1`.
+    assert re.search(r"_POCKET_VERSION\s*=\s*1\b", text), (
+        "ADR-087 W115b : _POCKET_VERSION must equal 1 to match the migration 0043 server_default."
+    )
+    assert re.search(
+        r'_EXPERT_KINDS\s*=\s*\(\s*"prod_predictor"\s*,\s*"climatology"\s*,\s*"equal_weight"\s*,?\s*\)',
+        text,
+    ), (
+        "ADR-087 W115b : _EXPERT_KINDS canonical tuple drifted. The "
+        "Vovk aggregator caller threads len(_EXPERT_KINDS) into "
+        "n_experts ; changing the tuple without updating upserts "
+        "would orphan pocket rows."
+    )
+    # The CLI MUST call `auto_improvement_log.record` (loop_kind=
+    # 'brier_aggregator') so the Phase D audit trail captures every
+    # pocket update. Catches refactor that "removes the boilerplate".
+    assert 'loop_kind="brier_aggregator"' in text or "loop_kind='brier_aggregator'" in text, (
+        "ADR-087 W115b : Vovk cron MUST write to auto_improvement_log "
+        "with loop_kind='brier_aggregator'. Audit trail is contractual."
+    )
+
+
 def test_penalized_brier_misclassification_penalty_default_is_two() -> None:
     """ADR-087 W116 : the Ahmadian PBS misclassification penalty
     default is 2.0. This is the smallest λ that dominates the worst-
