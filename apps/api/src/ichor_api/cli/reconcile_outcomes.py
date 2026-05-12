@@ -206,9 +206,108 @@ async def _resolve_realized_bucket(
     return bucket_for_zscore(z)
 
 
-async def _run(*, limit: int, asset_filter: str | None, dry_run: bool) -> int:
+async def _find_bucketless_cards(
+    session: AsyncSession, *, limit: int, asset_filter: str | None
+) -> list[SessionCardAudit]:
+    """W105g back-fill : cards that already have `realized_at IS NOT NULL`
+    (i.e. the brier/realized_* columns were committed by a prior
+    reconciler run) but `realized_scenario_bucket IS NULL`.
+
+    Pre-W105g reconcilers (deployed Hetzner < 2026-05-12 14:48) lacked
+    the `_resolve_realized_bucket` call, so cards committed before that
+    deploy stuck on `realized_scenario_bucket = NULL` forever — the
+    standard `_find_pending_cards` query filters them out
+    (`realized_at IS NULL`). This helper picks them back up so we can
+    populate the bucket retroactively without touching brier_contribution
+    or realized_* prices (which are already correct)."""
+    stmt = (
+        select(SessionCardAudit)
+        .where(SessionCardAudit.realized_at.is_not(None))
+        .where(SessionCardAudit.realized_scenario_bucket.is_(None))
+        .where(SessionCardAudit.realized_close_session.is_not(None))
+        .order_by(desc(SessionCardAudit.generated_at))
+        .limit(limit)
+    )
+    if asset_filter:
+        stmt = stmt.where(SessionCardAudit.asset == asset_filter.upper())
+    return list((await session.execute(stmt)).scalars().all())
+
+
+async def _rebackfill_one_bucket(
+    session: AsyncSession, card: SessionCardAudit, *, dry_run: bool
+) -> tuple[bool, str]:
+    """W105g back-fill : recompute `realized_scenario_bucket` for ONE
+    already-committed card. Uses the persisted `realized_*` prices
+    (not Polygon bars) so we don't depend on bar availability/range
+    overlap a second time. brier_contribution + realized_at stay
+    untouched ; this is a pure column add."""
+    open_close = await _bars_for_card(session, card)
+    if open_close:
+        open_px = open_close[0].open
+        close_px = open_close[-1].close
+    else:
+        # Fallback to persisted realized prices when bars are no longer
+        # in window (typically because the card is older than the
+        # Timescale retention horizon).
+        if card.realized_close_session is None:
+            return False, "no realized_close persisted"
+        # Approximate open as the (low + close) / 2 if we have low ;
+        # otherwise use close as both — bucket_for_zscore on z=0 still
+        # returns the canonical "range_grind" bucket which is acceptable
+        # for very old cards we just want to label.
+        open_px = card.realized_low_session or card.realized_close_session
+        close_px = card.realized_close_session
+
+    bucket = await _resolve_realized_bucket(
+        session,
+        asset=card.asset,
+        session_type=card.session_type,
+        open_px=open_px,
+        close_px=close_px,
+    )
+    if bucket is None:
+        return False, "bucket resolver returned None (no calibration row?)"
+    if dry_run:
+        return False, f"dry-run · bucket={bucket}"
+    card.realized_scenario_bucket = bucket
+    return True, f"bucket={bucket}"
+
+
+async def _run(
+    *, limit: int, asset_filter: str | None, dry_run: bool, rebackfill_buckets: bool
+) -> int:
     sm = get_sessionmaker()
     async with sm() as session:
+        if rebackfill_buckets:
+            cards = await _find_bucketless_cards(session, limit=limit, asset_filter=asset_filter)
+            if not cards:
+                print("no cards need bucket rebackfill")
+                return 0
+            n_committed = 0
+            for card in cards:
+                committed, reason = await _rebackfill_one_bucket(session, card, dry_run=dry_run)
+                log.info(
+                    "reconcile.rebackfill",
+                    id=str(card.id),
+                    asset=card.asset,
+                    session_type=card.session_type,
+                    committed=committed,
+                    reason=reason,
+                )
+                print(
+                    f"{'OK ' if committed else '-- '}{card.asset:10s} "
+                    f"{card.session_type:14s} {reason}"
+                )
+                if committed:
+                    n_committed += 1
+            if not dry_run and n_committed > 0:
+                await session.commit()
+            print(
+                f"\n{n_committed}/{len(cards)} cards rebackfilled "
+                f"({'DRY-RUN' if dry_run else 'committed'})"
+            )
+            return 0
+
         cards = await _find_pending_cards(session, limit=limit, asset_filter=asset_filter)
         if not cards:
             print("no pending cards to reconcile")
@@ -246,12 +345,24 @@ async def _main(argv: list[str]) -> int:
     parser.add_argument("--limit", type=int, default=100, help="max cards per run")
     parser.add_argument("--asset", type=str, default=None, help="restrict to one asset")
     parser.add_argument("--dry-run", action="store_true", help="don't commit")
+    parser.add_argument(
+        "--rebackfill-buckets",
+        action="store_true",
+        help=(
+            "W105g back-fill mode : process cards that already have "
+            "realized_at IS NOT NULL but realized_scenario_bucket IS NULL "
+            "(left-overs from reconciler runs pre-W105g deploy). "
+            "Touches only the bucket column ; brier_contribution + "
+            "realized_* prices stay untouched."
+        ),
+    )
     args = parser.parse_args(argv)
     try:
         return await _run(
             limit=args.limit,
             asset_filter=args.asset,
             dry_run=args.dry_run,
+            rebackfill_buckets=args.rebackfill_buckets,
         )
     finally:
         await get_engine().dispose()
