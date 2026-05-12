@@ -114,7 +114,7 @@ Pass 6 emits **descriptive probability over realized-outcome buckets**. It does 
 - Entry / exit / TP / SL / position size / leverage
 - Buy / sell / order / position recommendations
 
-The `magnitude_pips` interval on each bucket is **realized return historical range**, not a price target. A trader reading "crash_flush p=2%, range [-300, -120] pips" learns the _tail risk magnitude conditional on the regime_, not a setup to execute.
+The `magnitude_pips` interval on each bucket is **realized return historical range**, not a price target. A trader reading "`crash_flush` p=2%, range [-300, -120] pips" learns the _tail risk magnitude conditional on the regime_, not a setup to execute.
 
 CI guard (ADR-081 extension W105 candidate) :
 

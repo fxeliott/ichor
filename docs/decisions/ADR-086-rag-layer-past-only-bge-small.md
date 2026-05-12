@@ -51,7 +51,7 @@ Default embedding model **MUST** be `BAAI/bge-small-en-v1.5` (384-dim, 33M param
 
 The W83 Cap5 sqlglot whitelist parser at `apps/api/src/ichor_api/services/tool_query_db.py:ALLOWED_TABLES` (frozenset of 6 tables) **MUST NOT** include `rag_chunks_index` or any future `rag_*` table.
 
-**Why** : if Couche-2 agents (cb_nlp, news_nlp, sentiment, positioning, macro) could query `rag_chunks_index` directly via `mcp__ichor__query_db`, they would short-circuit the orchestrator's retrieval-injection contract and risk leakage (Couche-2 runs more frequently than Couche-1, with different temporal embargoes). Past-only enforcement is a property of the _retrieval service_, not the SQL grant — exposing the raw table delegates discipline to every consumer, which is the wrong layer.
+**Why** : if Couche-2 agents (`cb_nlp`, `news_nlp`, `sentiment`, `positioning`, `macro`) could query `rag_chunks_index` directly via `mcp__ichor__query_db`, they would short-circuit the orchestrator's retrieval-injection contract and risk leakage (Couche-2 runs more frequently than Couche-1, with different temporal embargoes). Past-only enforcement is a property of the _retrieval service_, not the SQL grant — exposing the raw table delegates discipline to every consumer, which is the wrong layer.
 
 CI guard test `test_rag_chunks_index_excluded_from_cap5_allowlist` (extends `test_tool_query_db_allowlist_guard.py`) asserts `'rag_chunks_index' not in ALLOWED_TABLES`. Bonus invariant : `'rag_chunks_index' in FORBIDDEN_SET` — explicit denial.
 

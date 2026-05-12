@@ -31,11 +31,10 @@
 
 set -euo pipefail
 
-# `--since` window — 36 h covers the last 24 h of cron emissions with a
-# 12 h cushion for catch-up after timer outages (Persistent=true on
-# the timer below also re-fires missed runs). Idempotency makes this
-# safe to over-cover.
-SINCE_WINDOW="36 hours ago"
+# The 36 h cushion documented below is implemented via the CLI flag
+# `--days 2` in the systemd unit (systemd has no shell expansion) +
+# `Persistent=true` on the timer (catches up missed runs). Idempotent
+# skip-by-source_id makes over-coverage safe.
 
 cat > /etc/systemd/system/ichor-rag-incremental-embed.service <<'EOF'
 [Unit]
