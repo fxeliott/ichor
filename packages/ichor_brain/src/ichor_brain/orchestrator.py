@@ -267,9 +267,10 @@ class Orchestrator:
             **self._tool_fields_for("asset"),
         )
         runner_calls.append(call2)
-        resp2 = await self._runner.run(call2)
-        spec = self._asset.parse(resp2.text)
-        total_ms += resp2.duration_ms
+        spec, dur_ms = await self._run_pass_with_retry(
+            call2, self._asset.parse, step_name="pass2_asset"
+        )
+        total_ms += dur_ms
         log.info(
             "brain.pass2.done",
             asset=spec.asset,
@@ -287,9 +288,10 @@ class Orchestrator:
             **self._tool_fields_for("stress"),
         )
         runner_calls.append(call3)
-        resp3 = await self._runner.run(call3)
-        stress = self._stress.parse(resp3.text)
-        total_ms += resp3.duration_ms
+        stress, dur_ms = await self._run_pass_with_retry(
+            call3, self._stress.parse, step_name="pass3_stress"
+        )
+        total_ms += dur_ms
         log.info(
             "brain.pass3.done",
             n_counter=len(stress.counter_claims),
@@ -306,9 +308,10 @@ class Orchestrator:
             **self._tool_fields_for("invalidation"),
         )
         runner_calls.append(call4)
-        resp4 = await self._runner.run(call4)
-        invalidation = self._invalidation.parse(resp4.text)
-        total_ms += resp4.duration_ms
+        invalidation, dur_ms = await self._run_pass_with_retry(
+            call4, self._invalidation.parse, step_name="pass4_invalidation"
+        )
+        total_ms += dur_ms
         log.info("brain.pass4.done", n_conditions=len(invalidation.conditions))
 
         # Pass 6 — scenario_decompose 7-bucket (ADR-085, W105c).
@@ -338,9 +341,10 @@ class Orchestrator:
                 **self._tool_fields_for("scenarios"),
             )
             runner_calls.append(call6)
-            resp6 = await self._runner.run(call6)
-            decomposition = self._scenarios.parse(resp6.text)
-            total_ms += resp6.duration_ms
+            decomposition, dur_ms = await self._run_pass_with_retry(
+                call6, self._scenarios.parse, step_name="pass6_scenarios"
+            )
+            total_ms += dur_ms
             # `decomposition` is `ScenarioDecomposition` — serialize
             # to plain dict list to attach to SessionCard without
             # cross-package type coupling.

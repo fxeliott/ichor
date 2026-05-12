@@ -56,8 +56,14 @@ class Settings(BaseSettings):
     max_concurrent_subprocess: int = 1
     """Don't run multiple `claude -p` at once — Max 20x is single-user."""
 
-    rate_limit_per_hour: int = 30
-    """Reject if more than N briefing requests in last hour. Phase 0: 4-5/day expected."""
+    rate_limit_per_hour: int = 60
+    """Reject if more than N briefing requests in last hour.
+    Pre-Phase-2 default was 30 (4-5/day Phase 0). Bumped to 60 in
+    round-10 2026-05-12 after batch test revealed 4/6 cards 429-failed
+    when Pass-6 enabled (each card = 5 passes × 6 assets = 30 calls,
+    saturated the 30/h ceiling). Claude Max 20x quota allows 60/h
+    comfortably. ICHOR_RUNNER_RATE_LIMIT_PER_HOUR env override
+    supported (e.g. raise to 120 during catch-up reconciliation)."""
 
 
 _settings: Settings | None = None

@@ -141,8 +141,13 @@ async def _main(argv: list[str]) -> int:
     parser.add_argument(
         "--inter-card-sleep",
         type=float,
-        default=2.0,
-        help="seconds between cards (default 2)",
+        default=30.0,
+        help=(
+            "seconds between cards (default 30). Pre-round-10 default was "
+            "2s but batch 6-cards × 5 passes burst 30 calls in ~18min and "
+            "saturated Claude Max 20x rate limit. 30s pacing keeps the "
+            "burst rate ≤ 60/h ceiling per ADR-009 Voie D ToS hygiene."
+        ),
     )
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--live", action="store_true", help="real claude-runner via tunnel")
