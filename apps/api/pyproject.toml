@@ -59,6 +59,14 @@ ml = [
     "optimum[onnxruntime]>=1.23.0",
     "transformers>=4.45.0",
 ]
+# Phase D (ADR-087) — auto-improvement loops. River brings the ADWIN
+# drift detector (W114) ; future Phase D adds (W115 Vovk-AA aggregator
+# is ~50 LOC custom, W116 PBS pure-Python, W117 DSPy stays in its own
+# package gate). Kept optional so apps/api boots without river when
+# the nightly auto-improvement timers are disabled.
+phase-d = [
+    "river>=0.21",
+]
 
 [build-system]
 requires = ["hatchling"]

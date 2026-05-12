@@ -273,11 +273,89 @@ async def _rebackfill_one_bucket(
     return True, f"bucket={bucket}"
 
 
+async def _run_drift_detection(session: AsyncSession, *, dry_run: bool) -> int:
+    """W114 — feed the last N=200 brier_contribution values per asset
+    into per-asset ADWIN bundles, dispatch the resulting drift events.
+
+    Stateless : re-feeds the sliding window each invocation. ADWIN
+    state lives in `auto_improvement_log` rows (one per drift event)
+    NOT in pickled detectors — daily cadence makes re-feeding cheap.
+
+    Returns the number of assets that produced a drift event (0+).
+    """
+    # Lazy imports : Phase D extras (river) is optional. If `[phase-d]`
+    # isn't installed, drift detection silently no-ops with a warning.
+    try:
+        from ..services.drift_detector import (
+            AssetDriftBundle,
+            dispatch_drift_events,
+        )
+    except RuntimeError as e:
+        log.warning("reconcile.drift_skipped", reason=str(e))
+        return 0
+
+    _WINDOW = 200
+
+    # Distinct assets from the recent scored cards (any asset that has
+    # at least one Brier-scored card gets a drift check).
+    distinct_q = (
+        select(SessionCardAudit.asset)
+        .where(SessionCardAudit.brier_contribution.is_not(None))
+        .order_by(SessionCardAudit.asset)
+        .distinct()
+    )
+    assets: list[str] = list((await session.execute(distinct_q)).scalars().all())
+    if not assets:
+        return 0
+
+    n_drift_events = 0
+    for asset in assets:
+        rows_q = (
+            select(SessionCardAudit.brier_contribution)
+            .where(SessionCardAudit.asset == asset)
+            .where(SessionCardAudit.brier_contribution.is_not(None))
+            .order_by(desc(SessionCardAudit.generated_at))
+            .limit(_WINDOW)
+        )
+        rows = list((await session.execute(rows_q)).scalars().all())
+        # Replay oldest → newest so ADWIN sees real chronology.
+        residuals = list(reversed(rows))
+        if len(residuals) < 16:
+            # ADWIN needs ~32 obs before its first drift check ; below
+            # 16 we skip silently.
+            continue
+        bundle = AssetDriftBundle(asset=asset)
+        event = bundle.feed_target(residuals)
+        if event is None:
+            continue
+        if not dry_run:
+            await dispatch_drift_events([event])
+        else:
+            log.info(
+                "reconcile.drift_dry_run",
+                asset=asset,
+                magnitude=event.magnitude,
+                n_observations=event.n_observations,
+            )
+        n_drift_events += 1
+    return n_drift_events
+
+
 async def _run(
-    *, limit: int, asset_filter: str | None, dry_run: bool, rebackfill_buckets: bool
+    *,
+    limit: int,
+    asset_filter: str | None,
+    dry_run: bool,
+    rebackfill_buckets: bool,
+    drift_only: bool = False,
 ) -> int:
     sm = get_sessionmaker()
     async with sm() as session:
+        if drift_only:
+            n = await _run_drift_detection(session, dry_run=dry_run)
+            print(f"\n{n} drift events dispatched")
+            return 0
+
         if rebackfill_buckets:
             cards = await _find_bucketless_cards(session, limit=limit, asset_filter=asset_filter)
             if not cards:
@@ -334,6 +412,15 @@ async def _run(
             f"\n{n_committed}/{len(cards)} cards reconciled "
             f"({'DRY-RUN' if dry_run else 'committed'})"
         )
+
+        # W114 — run ADWIN drift detection on the freshly-updated
+        # brier_contribution stream. Best-effort : if phase-d extras
+        # aren't installed, this no-ops with a warning. Drift events
+        # are written to auto_improvement_log via the tiered dispatcher.
+        if not rebackfill_buckets:
+            n_drift = await _run_drift_detection(session, dry_run=dry_run)
+            if n_drift > 0:
+                print(f"\n{n_drift} ADWIN drift event(s) dispatched")
     return 0
 
 
@@ -356,6 +443,15 @@ async def _main(argv: list[str]) -> int:
             "realized_* prices stay untouched."
         ),
     )
+    parser.add_argument(
+        "--drift-only",
+        action="store_true",
+        help=(
+            "W114 Phase D : skip the normal reconcile path and ONLY run "
+            "ADWIN drift detection on existing brier_contribution streams. "
+            "Useful for ad-hoc replay / debugging without touching cards."
+        ),
+    )
     args = parser.parse_args(argv)
     try:
         return await _run(
@@ -363,6 +459,7 @@ async def _main(argv: list[str]) -> int:
             asset_filter=args.asset,
             dry_run=args.dry_run,
             rebackfill_buckets=args.rebackfill_buckets,
+            drift_only=args.drift_only,
         )
     finally:
         await get_engine().dispose()
