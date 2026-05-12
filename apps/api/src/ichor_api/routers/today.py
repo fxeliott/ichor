@@ -170,7 +170,167 @@ async def today_snapshot(
     )
 
 
+# ────────────────── G11 — /today/diff "what changed overnight" ──────────────────
+
+
+class DiffDeltaOut(BaseModel):
+    """One field's J vs J-1 delta. Numeric fields are signed differences ;
+    string fields use a `transition` shape `"prev → curr"` (or null when
+    the value hasn't changed)."""
+
+    field: str
+    prev: float | str | None
+    curr: float | str | None
+    delta: float | str | None
+
+
+class AssetDiffOut(BaseModel):
+    """One asset's today-vs-yesterday card delta."""
+
+    asset: str
+    session_type: str
+    has_today: bool
+    has_yesterday: bool
+    today_card: SessionCardOut | None
+    yesterday_card: SessionCardOut | None
+    deltas: list[DiffDeltaOut]
+
+
+class TodayDiffOut(BaseModel):
+    """`/v1/today/diff` response — per-asset deltas vs yesterday's
+    equivalent session for the 6-asset universe."""
+
+    generated_at: datetime
+    session_type: str
+    n_assets: int
+    assets: list[AssetDiffOut]
+
+
+def _diff_session_cards(
+    *,
+    today: SessionCardAudit | None,
+    yesterday: SessionCardAudit | None,
+) -> list[DiffDeltaOut]:
+    """Compute per-field deltas between two cards. Skip fields where
+    `prev == curr` so the UI only renders changed deltas."""
+    if today is None or yesterday is None:
+        return []
+    out: list[DiffDeltaOut] = []
+    if today.conviction_pct is not None and yesterday.conviction_pct is not None:
+        delta = float(today.conviction_pct) - float(yesterday.conviction_pct)
+        if abs(delta) >= 0.5:
+            out.append(
+                DiffDeltaOut(
+                    field="conviction_pct",
+                    prev=float(yesterday.conviction_pct),
+                    curr=float(today.conviction_pct),
+                    delta=delta,
+                )
+            )
+    if today.bias_direction and yesterday.bias_direction:
+        if today.bias_direction != yesterday.bias_direction:
+            out.append(
+                DiffDeltaOut(
+                    field="bias_direction",
+                    prev=yesterday.bias_direction,
+                    curr=today.bias_direction,
+                    delta=f"{yesterday.bias_direction} → {today.bias_direction}",
+                )
+            )
+    if today.regime_quadrant and yesterday.regime_quadrant:
+        if today.regime_quadrant != yesterday.regime_quadrant:
+            out.append(
+                DiffDeltaOut(
+                    field="regime_quadrant",
+                    prev=yesterday.regime_quadrant,
+                    curr=today.regime_quadrant,
+                    delta=f"{yesterday.regime_quadrant} → {today.regime_quadrant}",
+                )
+            )
+    return out
+
+
+@router.get("/diff", response_model=TodayDiffOut)
+async def today_diff(
+    session: Annotated[AsyncSession, Depends(get_session)],
+    session_type: Annotated[
+        str,
+        Query(pattern=r"^(pre_londres|pre_ny|ny_mid|ny_close|event_driven)$"),
+    ] = "pre_londres",
+) -> TodayDiffOut:
+    """Server-side J vs J-1 delta for the 6-asset universe (G11 closure).
+
+    For each asset, fetches the latest card with the requested
+    `session_type` AND the previous calendar day's card with the same
+    `session_type`, then computes meaningful deltas (conviction_pct
+    ≥ 0.5pp, bias_direction change, regime_quadrant change). Empty
+    `deltas` array = no meaningful change overnight.
+
+    Used by `/today` page to surface "what changed overnight" without
+    forcing the client to fetch two days of cards and diff client-side.
+    """
+    from datetime import timedelta
+
+    now = datetime.now(UTC)
+    assets = (
+        "EUR_USD",
+        "GBP_USD",
+        "USD_CAD",
+        "XAU_USD",
+        "NAS100_USD",
+        "SPX500_USD",
+    )
+    out_assets: list[AssetDiffOut] = []
+    today_cutoff = now - timedelta(hours=36)
+    yest_cutoff_start = now - timedelta(hours=60)
+    yest_cutoff_end = today_cutoff
+    for asset in assets:
+        t_stmt = (
+            select(SessionCardAudit)
+            .where(
+                SessionCardAudit.asset == asset,
+                SessionCardAudit.session_type == session_type,
+                SessionCardAudit.generated_at >= today_cutoff,
+            )
+            .order_by(desc(SessionCardAudit.generated_at))
+            .limit(1)
+        )
+        today_card = (await session.execute(t_stmt)).scalar_one_or_none()
+        y_stmt = (
+            select(SessionCardAudit)
+            .where(
+                SessionCardAudit.asset == asset,
+                SessionCardAudit.session_type == session_type,
+                SessionCardAudit.generated_at >= yest_cutoff_start,
+                SessionCardAudit.generated_at < yest_cutoff_end,
+            )
+            .order_by(desc(SessionCardAudit.generated_at))
+            .limit(1)
+        )
+        yest_card = (await session.execute(y_stmt)).scalar_one_or_none()
+
+        deltas = _diff_session_cards(today=today_card, yesterday=yest_card)
+        out_assets.append(
+            AssetDiffOut(
+                asset=asset,
+                session_type=session_type,
+                has_today=today_card is not None,
+                has_yesterday=yest_card is not None,
+                today_card=_serialize_session(today_card) if today_card else None,
+                yesterday_card=_serialize_session(yest_card) if yest_card else None,
+                deltas=deltas,
+            )
+        )
+
+    return TodayDiffOut(
+        generated_at=now,
+        session_type=session_type,
+        n_assets=len(out_assets),
+        assets=out_assets,
+    )
+
+
 # `SessionCardOut` re-exported for legacy clients that imported it via this
 # module before the dedicated /v1/sessions router landed. Kept to avoid
 # breaking imports.
-__all__ = ["SessionCardOut", "TodaySnapshotOut"]
+__all__ = ["SessionCardOut", "TodayDiffOut", "TodaySnapshotOut"]

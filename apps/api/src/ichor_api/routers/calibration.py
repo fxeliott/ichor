@@ -15,7 +15,7 @@ Four responses :
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
@@ -93,6 +93,27 @@ class ScoreboardCellOut(BaseModel):
     """skill = mean_brier(naive) - mean_brier(model). >0 = beats coin-flip."""
     hits: int
     misses: int
+
+    # W105h backend extension — 7-bucket scoreboard layer (ADR-085).
+    # Populated when Pass-6 scenarios are emitted + the W105g reconciler
+    # has filled realized_scenario_bucket. None / empty dict when neither
+    # condition holds (legacy cards or cold-start before W105b cron).
+    realized_bucket_distribution: dict[str, int] = {}
+    """Histogram of `realized_scenario_bucket` values across the cell's
+    cards, in BUCKET_LABELS canonical order. UI renders as 7-bar
+    distribution next to the Brier score."""
+    brier_multiclass: float | None = None
+    """Mean K=7 Brier across cards that have BOTH scenarios JSONB AND
+    realized_scenario_bucket. None when n_brier_multiclass == 0."""
+    brier_multiclass_climatology: float | None = None
+    """Per-cell empirical-frequency baseline. Compare to brier_multiclass
+    via skill_vs_climatology below."""
+    skill_vs_climatology: float | None = None
+    """BSS vs climatology. Most informative metric per researcher
+    2026-05-12 review — beating per-asset empirical distribution is the
+    real Pass-6 value-add. Realistic target ∈ [0.02, 0.05]."""
+    n_brier_multiclass: int = 0
+    """Number of cards in the cell that contribute to brier_multiclass."""
 
 
 class ScoreboardWindowOut(BaseModel):
@@ -341,6 +362,76 @@ def _parse_window(label: str) -> int | None:
     return n
 
 
+def _multiclass_layer(cards: list[SessionCardAudit]) -> dict[str, Any]:
+    """Compute the W105h 7-bucket scoreboard layer for one cell.
+
+    Returns a kwargs-compatible dict for `ScoreboardCellOut` :
+        - `realized_bucket_distribution: dict[str, int]`
+        - `brier_multiclass: float | None`
+        - `brier_multiclass_climatology: float | None`
+        - `skill_vs_climatology: float | None`
+        - `n_brier_multiclass: int`
+
+    A card contributes to the K=7 Brier mean only if BOTH `scenarios`
+    JSONB is non-empty AND `realized_scenario_bucket` is non-null.
+    Cards with only one side present count toward the realized
+    distribution but not the Brier mean — preserves visibility of
+    the cold-start period.
+    """
+    from ichor_brain.scenarios import BUCKET_LABELS
+
+    from ..services.brier_multiclass import (
+        brier_climatology,
+        brier_mean,
+    )
+
+    dist: dict[str, int] = dict.fromkeys(BUCKET_LABELS, 0)
+    predictions: list[tuple[list[float], str]] = []
+    realized_only: list[str] = []
+    for c in cards:
+        realized = getattr(c, "realized_scenario_bucket", None)
+        if realized and realized in dist:
+            dist[realized] += 1
+            realized_only.append(realized)
+            scenarios = getattr(c, "scenarios", None) or []
+            if isinstance(scenarios, list) and len(scenarios) == 7:
+                try:
+                    label_to_p = {
+                        s["label"]: float(s["p"])
+                        for s in scenarios
+                        if isinstance(s, dict) and "label" in s and "p" in s
+                    }
+                    if set(label_to_p) == set(BUCKET_LABELS):
+                        probs = [label_to_p[label] for label in BUCKET_LABELS]
+                        predictions.append((probs, realized))
+                except (TypeError, ValueError, KeyError):
+                    pass
+
+    n_mc = len(predictions)
+    if n_mc == 0:
+        return {
+            "realized_bucket_distribution": dist,
+            "brier_multiclass": None,
+            "brier_multiclass_climatology": None,
+            "skill_vs_climatology": None,
+            "n_brier_multiclass": 0,
+        }
+
+    bs_mc = brier_mean(predictions)
+    # Climatology baseline uses ALL realized buckets in the cell (not
+    # just the ones with Pass-6 predictions) — most representative of
+    # the per-asset distribution prior.
+    bs_clim = brier_climatology(realized_only)
+    skill = (1.0 - bs_mc / bs_clim) if bs_clim > 0.0 else None
+    return {
+        "realized_bucket_distribution": dist,
+        "brier_multiclass": bs_mc,
+        "brier_multiclass_climatology": bs_clim,
+        "skill_vs_climatology": skill,
+        "n_brier_multiclass": n_mc,
+    }
+
+
 @router.get("/scoreboard", response_model=ScoreboardOut)
 async def calibration_scoreboard(
     session: Annotated[AsyncSession, Depends(get_session)],
@@ -392,6 +483,8 @@ async def calibration_scoreboard(
         cells: list[ScoreboardCellOut] = []
         for (asset, st), gcards in sorted(buckets.items()):
             summary, _ = _aggregate(gcards)
+            # W105h backend extension — compute 7-bucket layer per cell.
+            mc = _multiclass_layer(gcards)
             cells.append(
                 ScoreboardCellOut(
                     asset=asset,
@@ -401,6 +494,7 @@ async def calibration_scoreboard(
                     skill_vs_naive=summary.skill_vs_naive,
                     hits=summary.hits,
                     misses=summary.misses,
+                    **mc,
                 )
             )
         out_windows.append(
