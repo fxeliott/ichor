@@ -34,7 +34,13 @@ log = structlog.get_logger(__name__)
 from ichor_brain.types import VALID_SESSION_TYPES as _VALID_SESSIONS
 
 
-async def _run(asset: str, session_type: str, *, live: bool) -> int:
+async def _run(
+    asset: str,
+    session_type: str,
+    *,
+    live: bool,
+    enable_tools: bool = False,
+) -> int:
     asset = asset.upper()
     if session_type not in _VALID_SESSIONS:
         print(
@@ -131,7 +137,50 @@ async def _run(asset: str, session_type: str, *, live: bool) -> int:
             log.warning("calibration.fallback", asset=asset, error=str(e))
             calibration_block = None
 
-    orch = Orchestrator(runner=runner, enable_scenarios=live)
+    # W87 STEP-5 Cap5 tools activation — when `enable_tools=True` (CLI
+    # opt-in flag), wire ToolConfig so Pass-1 régime + Pass-2 asset +
+    # Pass-6 scenarios can call `mcp__ichor__query_db` and
+    # `mcp__ichor__calc` during their reasoning. The MCP server spec
+    # below tells the claude CLI subprocess (on Win11) to spawn
+    # `python -m ichor_mcp.server` over stdio ; the MCP server itself
+    # forwards to apps/api `/v1/tools/{query_db,calc}` over HTTPS with
+    # the X-Ichor-Tool-Token header.
+    #
+    # Disabled by default in CLI for prudent prod rollout : flip ON via
+    # `--enable-tools` once a single-asset smoke confirms the agentic
+    # loop (tool_use → tool_result) completes within the runner's
+    # rate-limit window and the audit trail (`tool_call_audit` table)
+    # captures every invocation.
+    tool_config = None
+    if live and enable_tools:
+        from ichor_brain.runner_client import ToolConfig
+
+        tool_config = ToolConfig(
+            mcp_config={
+                "mcpServers": {
+                    "ichor": {
+                        "command": "python",
+                        "args": ["-m", "ichor_mcp.server"],
+                    }
+                }
+            },
+            allowed_tools=(
+                "mcp__ichor__query_db",
+                "mcp__ichor__calc",
+            ),
+            max_turns=8,
+            # Pass-3 stress + Pass-4 invalidation excluded by design —
+            # they operate on prior-pass narrative, not raw market data
+            # (cf ADR-077 §"Tool-pass scope rationale").
+            enabled_for_passes=frozenset({"regime", "asset", "scenarios"}),
+        )
+        log.info("cap5.tools.enabled", passes=sorted(tool_config.enabled_for_passes))
+
+    orch = Orchestrator(
+        runner=runner,
+        enable_scenarios=live,
+        tool_config=tool_config,
+    )
     result = await orch.run(
         session_type=session_type,  # type: ignore[arg-type]
         asset=asset,
@@ -281,17 +330,23 @@ def _dry_run_responses(asset: str):
 
 async def _main(args: list[str]) -> int:
     live = "--live" in args
-    args = [a for a in args if a not in {"--live", "--dry-run"}]
+    enable_tools = "--enable-tools" in args
+    args = [a for a in args if a not in {"--live", "--dry-run", "--enable-tools"}]
     if len(args) < 2:
         print(
             "usage: python -m ichor_api.cli.run_session_card "
-            "<asset> <session_type> [--dry-run|--live]",
+            "<asset> <session_type> [--dry-run|--live] [--enable-tools]",
             file=sys.stderr,
         )
         return 2
     asset, session_type = args[0], args[1]
     try:
-        return await _run(asset, session_type, live=live)
+        return await _run(
+            asset,
+            session_type,
+            live=live,
+            enable_tools=enable_tools,
+        )
     finally:
         await get_engine().dispose()
 
