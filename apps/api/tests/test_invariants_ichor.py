@@ -322,6 +322,51 @@ def test_tool_call_audit_immutable_trigger_present() -> None:
     )
 
 
+def test_auto_improvement_log_immutable_trigger_present() -> None:
+    """ADR-087 / Phase D W113 : `auto_improvement_log` migration is the
+    third member of the append-only audit family (alongside `audit_log`
+    and `tool_call_audit`). It backs the Vovk/ADWIN/PBS/GEPA loops and
+    must enforce ADR-029-class immutability — every Phase D decision
+    is a traceable artefact for SR 11-7-class model risk lineage and
+    EU AI Act §13/§50 logging."""
+    text = _read_migration_text("auto_improvement_log")
+    assert "BEFORE UPDATE OR DELETE" in text, (
+        "ADR-087 : auto_improvement_log migration is missing the BEFORE UPDATE OR DELETE "
+        "clause. Phase D loop history would be mutable — Brier weight changes, "
+        "GEPA prompt adoptions, ADWIN drift escalations could be silently rewritten."
+    )
+    assert "RAISE EXCEPTION" in text, (
+        "ADR-087 : auto_improvement_log migration is missing a RAISE EXCEPTION in the trigger body."
+    )
+    assert "audit_purge_mode" in text, (
+        "ADR-087 : auto_improvement_log migration is missing the sanctioned-purge GUC "
+        "`ichor.audit_purge_mode`. Nightly rotation jobs would fail."
+    )
+
+
+def test_auto_improvement_log_loop_kind_enum_pinned() -> None:
+    """ADR-087 : the 4 Phase D loop kinds are pinned by CHECK constraint.
+    Adding a new loop = new ADR + new migration (no schema-less drift).
+    Removing a loop = explicit downgrade."""
+    text = _read_migration_text("auto_improvement_log")
+    for kind in ("brier_aggregator", "adwin_drift", "post_mortem", "meta_prompt"):
+        assert kind in text, (
+            f"ADR-087 : auto_improvement_log loop_kind CHECK is missing {kind!r}. "
+            "The 4 Phase D loops are the canonical taxonomy."
+        )
+
+
+def test_auto_improvement_log_decision_enum_pinned() -> None:
+    """ADR-087 : the 4 decision outcomes are pinned. Catches a refactor
+    that silently adds 'unclear' / 'maybe' / etc., which would void the
+    audit trail's machine-readability."""
+    text = _read_migration_text("auto_improvement_log")
+    for decision in ("adopted", "rejected", "pending_review", "sequestered"):
+        assert decision in text, (
+            f"ADR-087 : auto_improvement_log decision CHECK is missing {decision!r}."
+        )
+
+
 # ────────────────────────── ADR-079 ──────────────────────────
 
 

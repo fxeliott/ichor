@@ -12,6 +12,10 @@ KalshiMarket, ManifoldMarket, SessionCardAudit.
 """
 
 from .alert import Alert
+
+# Phase II — NFIB Small Business Economic Trends monthly (Wave 74)
+# Phase D cross-cutting — auto-improvement loop audit (ADR-087, W113)
+from .auto_improvement_log import AutoImprovementLog
 from .base import Base
 from .bias_signal import BiasSignal
 from .briefing import Briefing
@@ -50,8 +54,6 @@ from .market_data import MarketDataBar
 # Phase II — MyFXBook Community Outlook retail FX positioning (Wave 77)
 from .myfxbook_outlook import MyfxbookOutlook
 from .news_item import NewsItem
-
-# Phase II — NFIB Small Business Economic Trends monthly (Wave 74)
 from .nfib_sbet_observation import NfibSbetObservation
 
 # Phase II — NY Fed Multivariate Core Trend monthly (Wave 71)
@@ -78,6 +80,8 @@ from .treasury_tic_holding import TreasuryTicHolding
 
 __all__ = [
     "Alert",
+    # Phase D — auto-improvement loops audit (ADR-087)
+    "AutoImprovementLog",
     "Base",
     "BiasSignal",
     "Briefing",
