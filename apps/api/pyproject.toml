@@ -20,6 +20,10 @@ dependencies = [
     "opentelemetry-instrumentation-fastapi>=0.51b0",
     # Phase 2: Couche-2 agents lib (path-resolved via uv workspace below).
     "ichor-agents",
+    # W105d (ADR-085) : Pass-6 scenario_decompose 7-bucket schema lives
+    # canonically in `ichor_brain` ; `ichor_api.services.scenarios`
+    # re-exports for the ORM column + tests + CI guards.
+    "ichor-brain",
     # Phase 2: numerical stack (Brier optimizer, DTW analogues, RAG embedding).
     "numpy>=1.26.0",
     # Phase 2: Polygon Forex WebSocket subscriber (VPIN microstructure feed).
@@ -67,6 +71,7 @@ packages = ["src/ichor_api"]
 # Cf https://docs.astral.sh/uv/reference/settings/#sources
 [tool.uv.sources]
 ichor-agents = { path = "../../packages/agents", editable = true }
+ichor-brain = { path = "../../packages/ichor_brain", editable = true }
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

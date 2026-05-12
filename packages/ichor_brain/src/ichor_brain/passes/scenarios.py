@@ -17,11 +17,10 @@ Boundary recap :
     `output_config.format` ; we force shape via prompt + Pydantic
     post-validate + retry-on-validation-error.
 
-Lazy import of `Scenario / ScenarioDecomposition / cap_and_normalize`
-from `ichor_api.services.scenarios` mirrors the existing
-`_default_critic_fn` lazy-import pattern in `orchestrator.py` —
-`ichor_brain` stays installable without `ichor_api` ; only `parse()`
-needs the schema at runtime.
+W105 architecture cleanup 2026-05-12 : `Scenario`, `ScenarioDecomposition`,
+`cap_and_normalize` live canonically in `ichor_brain.scenarios` (sibling
+module) — `apps/api` re-exports for the ORM + tests + CI guards. Pass-6
+imports natively, no lazy indirection needed.
 
 Pass-6 default model = `sonnet`, effort `medium` (Couche-1 path). Haiku
 quality is acceptable but Sonnet 4.6 is materially better on structured
@@ -31,14 +30,11 @@ review : Pydantic-AI NativeOutput pattern + ModelRetry on ValidationError).
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
+from ..scenarios import Scenario, ScenarioDecomposition, cap_and_normalize
 from ..types import AssetSpecialization, InvalidationConditions, StressTest
 from .base import Pass, PassError, extract_json_block
-
-if TYPE_CHECKING:  # avoid runtime import of ichor_api at module load time
-    from ichor_api.services.scenarios import ScenarioDecomposition
-
 
 _SYSTEM = """\
 You are Ichor's Pass-6 scenario decomposer. You receive the 4-pass
@@ -126,13 +122,11 @@ conditions (VIX > 25, SKEW > 145, HY OAS widening, geopolitical flash).
 """
 
 
-class ScenariosPass(Pass["ScenarioDecomposition"]):
+class ScenariosPass(Pass[ScenarioDecomposition]):
     """Pass 6 — emits ScenarioDecomposition (7-bucket).
 
-    The Pass interface conforms to `Pass[ScenarioDecomposition]` —
-    but `ScenarioDecomposition` is lazily resolved at parse() time
-    (TYPE_CHECKING-only import) so this module remains importable
-    even without `ichor_api` on the path.
+    The schema lives in `ichor_brain.scenarios` so this is a proper
+    `Pass[ScenarioDecomposition]` generic — no lazy resolution.
     """
 
     name = "pass6_scenarios"
@@ -175,16 +169,6 @@ class ScenariosPass(Pass["ScenarioDecomposition"]):
         )
 
     def parse(self, response_text: str) -> ScenarioDecomposition:
-        # Lazy-import the Pydantic schema + cap_and_normalize from
-        # `ichor_api.services.scenarios`. Mirror of the lazy critic
-        # import pattern in `orchestrator.py:60-70` — keeps
-        # `ichor_brain` installable without `ichor_api`.
-        from ichor_api.services.scenarios import (  # local import
-            Scenario,
-            ScenarioDecomposition,
-            cap_and_normalize,
-        )
-
         obj = extract_json_block(response_text)
         if not isinstance(obj, dict):
             raise PassError("scenarios pass: expected JSON object at top level")
