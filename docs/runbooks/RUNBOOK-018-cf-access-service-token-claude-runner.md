@@ -10,6 +10,55 @@ calls and drain Eliot's Max 20× quota.
 dashboard, ~5 min on Hetzner SSH, ~3 min on Win11 to restart the
 runner.
 
+## TL;DR — Eliot 15 min split (read first)
+
+| #   | Step                                                   | Who does it         | Why split                                                                                                                                             |
+| --- | ------------------------------------------------------ | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Enable CF Access on `one.dash.cloudflare.com`          | **Eliot** (~2 min)  | Browser dashboard, no SSH equivalent.                                                                                                                 |
+| 2   | Create Service Token `ichor-hetzner-orchestrator`      | **Eliot** (~3 min)  | CLIENT_SECRET is shown **once** — only Eliot's password manager should ever see it.                                                                   |
+| 3   | Create Access Application + Policy + `/healthz` Bypass | **Eliot** (~4 min)  | Browser dashboard only.                                                                                                                               |
+| 4   | Wire Hetzner orchestrator with the service token       | **Claude** (~5 min) | SSH-automatable. Eliot pastes only `team_domain` + `AUD_TAG` + `CLIENT_ID` + `CLIENT_SECRET` into the chat ; Claude does the SSH + systemctl restart. |
+| 5   | Switch Win11 claude-runner to `production` + restart   | **Claude** (~3 min) | PowerShell-automatable.                                                                                                                               |
+| 6   | Verification curls bout-en-bout                        | **Claude** (~2 min) | curl + read-back.                                                                                                                                     |
+
+**Total Eliot dashboard time : ~9 minutes** (Steps 1-3 only). After
+Eliot pastes the 4 values, Claude unblocks W103 SearXNG + Cap5 STEP-6
+production e2e in autonomy.
+
+## What Eliot pastes back to Claude (verbatim format)
+
+When Eliot finishes Steps 1-3, paste this template back into the chat
+(fill the 4 values from your password manager) :
+
+```
+team_domain  : <e.g. fxmily — the prefix before .cloudflareaccess.com>
+AUD_TAG      : <64-char hex string from Step 3 #9>
+CLIENT_ID    : <uuid.access from Step 2 #5 — looks like abcd1234-...-.access>
+CLIENT_SECRET: <opaque ~64-char string from Step 2 #5>
+```
+
+Once posted, Claude enchaîne Steps 4-6 + W103 SearXNG without further
+prompts. **The CLIENT_SECRET stays only in Eliot's password manager
+and `/etc/ichor/api.env` on Hetzner (mode 0640, owner ichor:ichor) —
+never in repo, never in chat history beyond paste-and-act.**
+
+## Pre-flight discovery — `/healthz` 403 finding
+
+`curl https://claude-runner.fxmilyapp.com/healthz` currently returns
+`HTTP 403` + "Cloudflare Access" error page. Two possible states :
+
+1. **An Access app is partially configured already** (Steps 1-3 done
+   previously but never wired Hetzner-side Step 4-5). In this case
+   Eliot can skip Steps 1-3 and only needs the 4 values from the
+   existing Service Token. Check via `one.dash.cloudflare.com` →
+   Access → Applications → is there a `claude-runner` entry ?
+2. **An old generic Access policy + no `/healthz` bypass** — the app
+   exists but Step 3 #7 was never done. Same remediation : open the
+   app, add a Bypass rule for path `/healthz`.
+
+If Eliot is uncertain, post a screenshot of `one.dash.cloudflare.com →
+Access → Applications` and Claude will diagnose.
+
 **Pre-requisite**:
 
 - Cloudflare account `fxmily.com` (or whichever owns the
