@@ -41,6 +41,7 @@ async def _run(
     live: bool,
     enable_tools: bool = False,
     enable_rag: bool = False,
+    notify_per_card: bool = False,
 ) -> int:
     asset = asset.upper()
     if session_type not in _VALID_SESSIONS:
@@ -268,9 +269,13 @@ async def _run(
     except Exception as e:
         log.warning("session_card.publish_failed", error=str(e))
 
-    # Send PWA push notification on approved/amendments cards (best-effort
-    # — never fail the persistence). Skip blocked since not actionable.
-    if row.critic_verdict and row.critic_verdict != "blocked":
+    # Per-card PWA push notification — DISABLED BY DEFAULT to avoid the
+    # N+1 storm (6 cards × per-card push + 1 end-of-batch summary push =
+    # 7 push notifications per cron tick, UX noise). The batch runner
+    # `run_session_cards_batch.py:108-124` emits a single summary push
+    # end-of-batch ; per-card pushes opt-in via `notify_per_card=True`
+    # for ad-hoc CLI runs or future event-driven crisis cards.
+    if notify_per_card and row.critic_verdict and row.critic_verdict != "blocked":
         try:
             from ..services.push import send_to_all
 
@@ -370,11 +375,25 @@ async def _main(args: list[str]) -> int:
     live = "--live" in args
     enable_tools = "--enable-tools" in args
     enable_rag = "--enable-rag" in args
-    args = [a for a in args if a not in {"--live", "--dry-run", "--enable-tools", "--enable-rag"}]
+    notify_per_card = "--notify-per-card" in args
+    args = [
+        a
+        for a in args
+        if a
+        not in {
+            "--live",
+            "--dry-run",
+            "--enable-tools",
+            "--enable-rag",
+            "--notify-per-card",
+        }
+    ]
     if len(args) < 2:
         print(
             "usage: python -m ichor_api.cli.run_session_card "
-            "<asset> <session_type> [--dry-run|--live] [--enable-tools] [--enable-rag]",
+            "<asset> <session_type> "
+            "[--dry-run|--live] [--enable-tools] [--enable-rag] "
+            "[--notify-per-card]",
             file=sys.stderr,
         )
         return 2
@@ -386,6 +405,7 @@ async def _main(args: list[str]) -> int:
             live=live,
             enable_tools=enable_tools,
             enable_rag=enable_rag,
+            notify_per_card=notify_per_card,
         )
     finally:
         await get_engine().dispose()
