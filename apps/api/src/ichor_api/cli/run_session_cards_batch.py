@@ -65,6 +65,8 @@ async def _run_batch(
     live: bool,
     inter_card_sleep_s: float,
     push_on_complete: bool = True,
+    enable_rag: bool = False,
+    enable_tools: bool = False,
 ) -> int:
     if session_type not in _VALID_SESSIONS:
         print(
@@ -73,7 +75,16 @@ async def _run_batch(
         )
         return 2
 
-    print(f"== batch {session_type} · {len(assets)} cards · {'LIVE' if live else 'DRY-RUN'} ==")
+    flags = []
+    if enable_rag:
+        flags.append("RAG")
+    if enable_tools:
+        flags.append("TOOLS")
+    flags_label = (" · " + "+".join(flags)) if flags else ""
+    print(
+        f"== batch {session_type} · {len(assets)} cards · "
+        f"{'LIVE' if live else 'DRY-RUN'}{flags_label} =="
+    )
     successes = 0
     failures = 0
     failed_assets: list[str] = []
@@ -81,7 +92,13 @@ async def _run_batch(
     for i, asset in enumerate(assets, start=1):
         print(f"\n--- [{i}/{len(assets)}] {asset} ---")
         try:
-            rc = await run_one_card(asset, session_type, live=live)
+            rc = await run_one_card(
+                asset,
+                session_type,
+                live=live,
+                enable_rag=enable_rag,
+                enable_tools=enable_tools,
+            )
             if rc == 0:
                 successes += 1
             else:
@@ -152,6 +169,20 @@ async def _main(argv: list[str]) -> int:
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--live", action="store_true", help="real claude-runner via tunnel")
     mode.add_argument("--dry-run", action="store_true", help="canned responses (default)")
+    # W110 + Cap5 mainline flips — forwarded to run_session_card per asset.
+    # Default OFF preserves the historical batch shape (pre-round-13). The
+    # production systemd unit `ichor-session-cards@.service` is expected to
+    # pass both flags so every card embeds RAG analogues + Cap5 tool calls.
+    parser.add_argument(
+        "--enable-rag",
+        action="store_true",
+        help="W110d ADR-086 — inject past-only RAG analogues in Pass-1 prompt.",
+    )
+    parser.add_argument(
+        "--enable-tools",
+        action="store_true",
+        help="W87 ADR-077 — wire mcp__ichor__{query_db,calc} for Pass-1/2/scenarios.",
+    )
     args = parser.parse_args(argv)
 
     assets = args.assets or _DEFAULT_ASSETS
@@ -162,6 +193,8 @@ async def _main(argv: list[str]) -> int:
             assets=assets,
             live=live,
             inter_card_sleep_s=args.inter_card_sleep,
+            enable_rag=args.enable_rag,
+            enable_tools=args.enable_tools,
         )
     finally:
         await get_engine().dispose()

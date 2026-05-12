@@ -237,16 +237,29 @@ async def run(*, persist: bool, lookback_days: int = 30) -> int:
     return 0
 
 
+async def _async_main(*, persist: bool, lookback_days: int) -> int:
+    """Single-event-loop entrypoint — dispose the engine in the SAME loop
+    that created the connections. Pre-round-13 the dispose lived in a
+    second `asyncio.run(...)` call which produced a `RuntimeError: Event
+    loop is closed` traceback every nightly run (visible in
+    `journalctl -u ichor-brier-optimizer.service`) because the engine's
+    internal connection pool was already torn down with the first loop.
+    """
+    try:
+        return await run(persist=persist, lookback_days=lookback_days)
+    finally:
+        # Always dispose, even on dry-run, so the connection pool from
+        # _aggregate_brier doesn't leak `Event loop is closed` warnings
+        # at interpreter teardown.
+        await get_engine().dispose()
+
+
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(prog="run_brier_optimizer")
     parser.add_argument("--persist", action="store_true")
     parser.add_argument("--lookback-days", type=int, default=30)
     args = parser.parse_args(argv[1:])
-    try:
-        return asyncio.run(run(persist=args.persist, lookback_days=args.lookback_days))
-    finally:
-        if args.persist:
-            asyncio.run(get_engine().dispose())
+    return asyncio.run(_async_main(persist=args.persist, lookback_days=args.lookback_days))
 
 
 if __name__ == "__main__":

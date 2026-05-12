@@ -212,9 +212,7 @@ async def call_agent_task(
 
             if r.status_code >= 400:
                 # Non-retryable HTTP errors (404, 5xx other than 503) — fail fast
-                raise ClaudeRunnerError(
-                    f"runner returned HTTP {r.status_code}: {r.text[:300]}"
-                )
+                raise ClaudeRunnerError(f"runner returned HTTP {r.status_code}: {r.text[:300]}")
             body = r.json()
             break
 
@@ -315,21 +313,67 @@ async def call_agent_task_async(
 
     started = time.monotonic()
 
+    # Round-13 fix : retry transient CF / runner errors on the submit
+    # path. Without this, every Couche-2 cron tick that hits a Win11
+    # standalone-uvicorn brief moment of unavailability (process restart,
+    # CF tunnel rewire, transient 530 "no origin") returned
+    # AllProvidersFailed and the cron unit went FAILED until the next
+    # OnCalendar tick. Backoff envelope mirrors the sync path
+    # (5 / 15 / 45 s) — total worst-case ~65 s, well under the 10 min
+    # poll budget. Retryable status codes :
+    #   429 — rate-limit
+    #   502 — bad gateway (CF edge to origin)
+    #   503 — service unavailable (runner busy slot 1/1)
+    #   504 — gateway timeout
+    #   520-525 — Cloudflare origin error family (530 = "no origin")
+    _RETRYABLE_SUBMIT_STATUS: frozenset[int] = frozenset(
+        {429, 502, 503, 504, 520, 521, 522, 523, 524, 525, 530}
+    )
+    submit_backoff = (5.0, 15.0, 45.0)
     async with httpx.AsyncClient(timeout=30.0) as client:
         # Submit (must respond in <100s; the runner immediately returns 202)
-        try:
-            r = await client.post(submit_url, headers=headers, json=payload)
-        except httpx.HTTPError as e:
-            raise ClaudeRunnerError(f"async submit unreachable: {e}") from e
+        r = None
+        for attempt, delay in enumerate((0.0,) + submit_backoff):
+            if delay > 0:
+                await asyncio.sleep(delay)
+            try:
+                r = await client.post(submit_url, headers=headers, json=payload)
+            except httpx.HTTPError as e:
+                if attempt < len(submit_backoff):
+                    log.info(
+                        "agents.claude_runner.async.submit_retry",
+                        task_id=task_id,
+                        attempt=attempt + 1,
+                        reason=f"network: {type(e).__name__}",
+                    )
+                    continue
+                raise ClaudeRunnerError(f"async submit unreachable: {e}") from e
 
-        if r.status_code == 429:
-            raise ClaudeRunnerError(
-                f"runner rate-limited: {r.text[:200]}"
-            )
-        if r.status_code != 202:
-            raise ClaudeRunnerError(
-                f"async submit returned HTTP {r.status_code}: {r.text[:300]}"
-            )
+            if r.status_code in _RETRYABLE_SUBMIT_STATUS:
+                if attempt < len(submit_backoff):
+                    log.info(
+                        "agents.claude_runner.async.submit_retry",
+                        task_id=task_id,
+                        attempt=attempt + 1,
+                        status=r.status_code,
+                        next_delay_s=submit_backoff[attempt],
+                    )
+                    continue
+                # All retries exhausted
+                raise ClaudeRunnerError(
+                    f"async submit transient {r.status_code} after retries: {r.text[:200]}"
+                )
+
+            # Non-retryable status — fail fast (404, 401, 403, 4xx other
+            # than 429, 5xx other than the CF transient family above).
+            if r.status_code != 202:
+                raise ClaudeRunnerError(
+                    f"async submit returned HTTP {r.status_code}: {r.text[:300]}"
+                )
+            break
+
+        if r is None or r.status_code != 202:  # defensive
+            raise ClaudeRunnerError("async submit failed without explicit error")
 
         accepted = r.json()
         poll_url = f"{cfg.runner_url}{accepted.get('poll_url')}"
@@ -340,8 +384,7 @@ async def call_agent_task_async(
             elapsed = time.monotonic() - started
             if elapsed > poll_timeout_sec:
                 raise ClaudeRunnerError(
-                    f"async poll timeout after {poll_timeout_sec}s "
-                    f"(task_id={task_id})"
+                    f"async poll timeout after {poll_timeout_sec}s (task_id={task_id})"
                 )
             await asyncio.sleep(poll_interval_sec)
             poll_count += 1
@@ -358,13 +401,9 @@ async def call_agent_task_async(
                 continue
 
             if pr.status_code == 404:
-                raise ClaudeRunnerError(
-                    f"async task expired or unknown: {pr.text[:200]}"
-                )
+                raise ClaudeRunnerError(f"async task expired or unknown: {pr.text[:200]}")
             if pr.status_code != 200:
-                raise ClaudeRunnerError(
-                    f"async poll HTTP {pr.status_code}: {pr.text[:200]}"
-                )
+                raise ClaudeRunnerError(f"async poll HTTP {pr.status_code}: {pr.text[:200]}")
 
             poll = pr.json()
             poll_status = poll.get("status")
@@ -377,9 +416,7 @@ async def call_agent_task_async(
                     status=poll_status,
                 )
                 if poll_status == "error":
-                    raise ClaudeRunnerError(
-                        f"async task error: {poll.get('error') or 'unknown'}"
-                    )
+                    raise ClaudeRunnerError(f"async task error: {poll.get('error') or 'unknown'}")
                 # done — extract result
                 result = poll.get("result") or {}
                 rstatus = result.get("status")

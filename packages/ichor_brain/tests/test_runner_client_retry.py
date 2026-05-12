@@ -114,6 +114,38 @@ async def test_retries_on_429_then_succeeds(monkeypatch) -> None:
     assert state["calls"] == 2
 
 
+@pytest.mark.parametrize("status", [502, 504, 520, 521, 522, 523, 525, 530])
+@pytest.mark.asyncio
+async def test_retries_on_cf_tunnel_transients_then_succeeds(monkeypatch, status: int) -> None:
+    """CF tunnel transient family (502/504/520-523/525/530) should retry.
+
+    530 is the specific root cause of the 2026-05-12 06:00 batch storm
+    where 8 cards failed in 41 s because the prior envelope only covered
+    {429, 503}. The other codes round out the CF origin-error family.
+    """
+    monkeypatch.setattr("ichor_brain.runner_client.asyncio.sleep", lambda *a, **kw: _no_op())
+    state = {"calls": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        state["calls"] += 1
+        if state["calls"] == 1:
+            return httpx.Response(status, text=f"cf transient {status}")
+        return httpx.Response(200, json=_success_body())
+
+    transport = httpx.MockTransport(handler)
+    real_client_cls = httpx.AsyncClient
+
+    def _factory(**kw):
+        kw["transport"] = transport
+        return real_client_cls(**kw)
+
+    with patch("ichor_brain.runner_client.httpx.AsyncClient", _factory):
+        client = _make_client(transport)
+        resp = await client.run(RunnerCall(prompt="p", system="s"))
+    assert resp.text == "ok briefing"
+    assert state["calls"] == 2  # one transient + one success
+
+
 @pytest.mark.asyncio
 async def test_no_retry_on_524_cloudflare_timeout(monkeypatch) -> None:
     """524 = Cloudflare 100s edge timeout. Retrying would hit the same

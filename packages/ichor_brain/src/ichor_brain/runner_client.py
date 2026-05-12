@@ -9,10 +9,29 @@ Retry envelope : the runner enforces max_concurrent_subprocess=1 to
 protect the Max 20x quota, so when the briefing timer (HH:00) and the
 session-cards batch timer (HH:01) overlap, the second hit gets HTTP
 503 "Another briefing in flight". We retry transparently with
-exponential backoff before failing the card. 429 (hourly rate limit)
-is also retried for the same reason. 524 (Cloudflare edge timeout
-after 100 s) is NOT retried — the second call would just hit the
-same wall.
+exponential backoff (5/15/45 s) before failing the card.
+
+Retryable statuses (`_TRANSIENT_STATUSES`) — origin- or tunnel-side
+transient errors where a fresh call has a fair chance to succeed :
+
+* 429 — hourly rate-limit (runner Max 20x quota).
+* 502 — bad gateway (cloudflared lost the upstream socket briefly).
+* 503 — runner busy concurrency lock.
+* 504 — gateway timeout (upstream took too long but didn't fail).
+* 520-523, 525 — Cloudflare origin error family (origin DNS, SSL
+  handshake, connection-reset, web-server-down, SSL-cert).
+* 530 — Cloudflare "no origin" (cloudflared tunnel cannot reach the
+  Win11 origin transiently — typically a cloudflared restart on the
+  Windows side ; observed empirically in the 2026-05-12 06:00 batch
+  where all 8 cards failed inside 41 s because the prior retry
+  envelope only covered {429, 503}).
+
+NOT retried :
+
+* 524 — Cloudflare edge 100 s wall. A second call would hit the same
+  wall (the subprocess is genuinely too slow for the legacy sync
+  path). Async polling path doesn't see 524 on the body — only on
+  the polling GETs which are <1 s.
 """
 
 from __future__ import annotations
@@ -29,6 +48,10 @@ import structlog
 from .observability import observe
 
 log = structlog.get_logger(__name__)
+
+# CF tunnel + runner transient errors that warrant a transparent retry.
+# 524 is deliberately excluded (see module docstring).
+_TRANSIENT_STATUSES = frozenset({429, 502, 503, 504, 520, 521, 522, 523, 525, 530})
 
 
 @dataclass(frozen=True)
@@ -234,7 +257,7 @@ class HttpRunnerClient(RunnerClient):
                     await asyncio.sleep(delay)
                 r = await client.post(submit_url, headers=self._headers, json=payload)
                 last_status = r.status_code
-                if r.status_code in (429, 503):
+                if r.status_code in _TRANSIENT_STATUSES:
                     log.info(
                         "runner_client.async.submit_retry",
                         status=r.status_code,
@@ -320,7 +343,7 @@ class HttpRunnerClient(RunnerClient):
                     await asyncio.sleep(delay)
                 r = await client.post(url, headers=self._headers, json=payload)
                 last_status = r.status_code
-                if r.status_code in (429, 503):
+                if r.status_code in _TRANSIENT_STATUSES:
                     log.info(
                         "runner_client.retry",
                         status=r.status_code,
