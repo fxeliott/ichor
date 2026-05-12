@@ -405,6 +405,63 @@ def test_brier_aggregator_weights_check_constraints_present() -> None:
         )
 
 
+def test_pass3_addenda_status_enum_pinned() -> None:
+    """ADR-087 W116 : the 4 addendum status values are CHECK-pinned.
+    Adding a new state (e.g. `'pending_review'`) silently breaks the
+    Pass-3 injector's read filter and the audit narrative."""
+    text = _read_migration_text("pass3_addenda")
+    for status in ("active", "expired", "superseded", "rejected"):
+        assert status in text, f"ADR-087 W116 : pass3_addenda status CHECK is missing {status!r}."
+
+
+def test_pass3_addenda_content_size_constraint_present() -> None:
+    """ADR-087 W116 : `char_length(content) >= 8 AND <= 4096`. Catches
+    accidental loosening of the body-size guard that would let the
+    injector flood Pass-3 prompts with megabytes of text."""
+    text = _read_migration_text("pass3_addenda")
+    assert "ck_pass3_addenda_content_size" in text, (
+        "ADR-087 W116 : pass3_addenda migration is missing the "
+        "ck_pass3_addenda_content_size CHECK. Body length bound enforces "
+        "the Pass-3 prompt-budget invariant (max 3 × 4096 chars)."
+    )
+    assert "4096" in text, (
+        "ADR-087 W116 : the 4096-char upper bound must be present in the CHECK constraint."
+    )
+
+
+def test_pass3_addenda_expires_after_created_constraint() -> None:
+    """ADR-087 W116 : `expires_at > created_at`. Catches a refactor
+    that lets `expires_at = created_at` slip through, which would mean
+    every addendum is born already-expired."""
+    text = _read_migration_text("pass3_addenda")
+    assert "ck_pass3_addenda_expires_after_created" in text, (
+        "ADR-087 W116 : pass3_addenda migration is missing the TTL sanity CHECK."
+    )
+
+
+def test_penalized_brier_misclassification_penalty_default_is_two() -> None:
+    """ADR-087 W116 : the Ahmadian PBS misclassification penalty
+    default is 2.0. This is the smallest λ that dominates the worst-
+    case Brier swing on K=7 (the W105/ADR-085 7-bucket case), so it's
+    the value that GUARANTEES the superior-ordering property. Any
+    refactor lowering this default breaks the proof."""
+    pbs_path = _REPO_ROOT / "apps" / "api" / "src" / "ichor_api" / "services" / "penalized_brier.py"
+    if not pbs_path.exists():
+        pytest.skip(f"penalized_brier.py not found at {pbs_path}")
+    text = pbs_path.read_text(encoding="utf-8")
+    # Match `misclassification_penalty: float = 2.0` in the kwarg-only
+    # signature of `ahmadian_pbs`.
+    assert re.search(
+        r"misclassification_penalty:\s*float\s*=\s*2\.0\b",
+        text,
+    ), (
+        "ADR-087 W116 : `ahmadian_pbs(...)` default "
+        "`misclassification_penalty` MUST be 2.0 to preserve the "
+        "Ahmadian-2025 superior-ordering property. Any other default "
+        "voids the proof on K=7 buckets."
+    )
+
+
 def test_vovk_aggregator_eta_default_is_one() -> None:
     """ADR-087 W115 : the `VovkBrierAggregator` class default `eta=1.0`
     matches the Vovk-Zhdanov 2009 Theorem 1 Brier-game mixability
