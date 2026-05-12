@@ -119,7 +119,7 @@ _FRAMEWORK_USD_CAD = (
 _FRAMEWORK_XAU_USD = (
     "XAU/USD framework :\n"
     "  - Primary driver  : 10Y TIPS real yield (DFII10) — strong inverse.\n"
-    "  - Secondary       : DXY + central bank gold buying (WGC quarterly).\n"
+    "  - Secondary       : DXY + CFTC TFF managed-money net positioning + COMEX inventory.\n"
     "  - Tertiary        : SPDR Gold Trust ETF flows + gold-silver ratio.\n"
     "  - Catalysts watch : US CPI, real-yield prints, FOMC, geopolitical flash.\n"
     "  - Régime overlay  : haven_bid + funding_stress both gold-bullish.\n"

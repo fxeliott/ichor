@@ -61,6 +61,9 @@ from .polygon_intraday import PolygonIntradayBar
 from .polymarket_snapshot import PolymarketSnapshot
 from .post_mortem import PostMortem
 from .prediction import Prediction
+
+# W105a — Pass-6 scenario_decompose 7-bucket calibration bins (ADR-085)
+from .scenario_calibration_bins import ScenarioCalibrationBins
 from .session_card_audit import SessionCardAudit
 from .session_card_counterfactual import SessionCardCounterfactual
 
@@ -108,6 +111,7 @@ __all__ = [
     "PolymarketSnapshot",
     "PostMortem",
     "Prediction",
+    "ScenarioCalibrationBins",
     "SessionCardAudit",
     "SessionCardCounterfactual",
     "ToolCallAudit",

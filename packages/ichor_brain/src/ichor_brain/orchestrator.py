@@ -26,6 +26,7 @@ from .passes import (
     InvalidationPass,
     Pass,
     RegimePass,
+    ScenariosPass,
     StressPass,
 )
 from .runner_client import RunnerCall, RunnerClient, ToolConfig
@@ -38,6 +39,12 @@ from .types import (
     SessionType,
     StressTest,
 )
+
+# Forward-declared type for Pass-6 output — resolved lazily inside
+# `run()` so the brain package stays importable without `ichor_api`
+# on the path (mirrors `_default_critic_fn` lazy-import pattern).
+if False:  # pragma: no cover — type-checking only
+    from ichor_api.services.scenarios import ScenarioDecomposition  # noqa: F401
 
 
 class _CriticVerdictLike(Protocol):
@@ -98,8 +105,12 @@ class Orchestrator:
         asset_pass: Pass[AssetSpecialization] | None = None,
         stress_pass: Pass[StressTest] | None = None,
         invalidation_pass: Pass[InvalidationConditions] | None = None,
+        scenarios_pass: Pass[Any] | None = None,
         critic_fn: CriticFn | None = None,
         model_id: str = "claude-opus-4-7",
+        scenarios_model: str = "sonnet",
+        scenarios_effort: str = "medium",
+        enable_scenarios: bool = False,
         tool_config: ToolConfig | None = None,
     ):
         self._runner = runner
@@ -107,6 +118,21 @@ class Orchestrator:
         self._asset = asset_pass or AssetPass()
         self._stress = stress_pass or StressPass()
         self._invalidation = invalidation_pass or InvalidationPass()
+        # W105c — Pass-6 scenario_decompose. Default disabled to keep
+        # pre-W105 behaviour byte-exact ; flip `enable_scenarios=True`
+        # to emit the 7-bucket decomposition per (asset, session). The
+        # callable interface is `Pass[ScenarioDecomposition]` — Any
+        # used here because the schema lives in ichor_api and the
+        # brain package stays importable without it.
+        self._scenarios = scenarios_pass or ScenariosPass()
+        self._enable_scenarios = enable_scenarios
+        # Pass-6 LLM knobs per W105 research 2026-05-12 (researcher
+        # subagent) : Sonnet 4.6 materially better than Haiku on
+        # structured probability emissions with cap-95 awareness.
+        # `effort=medium` keeps wall-time bounded (~30-60s) — `high`
+        # only if the calibration block is unusually rich.
+        self._scenarios_model = scenarios_model
+        self._scenarios_effort = scenarios_effort
         self._critic_fn = critic_fn or _default_critic_fn
         self._model_id = model_id
         self._tool_config = tool_config
@@ -116,7 +142,9 @@ class Orchestrator:
         when the pass is in `tool_config.enabled_for_passes`. Returns
         `{}` (no fields, pre-W87 behaviour) otherwise.
 
-        Pass kind strings : "regime", "asset", "stress", "invalidation".
+        Pass kind strings : "regime", "asset", "stress", "invalidation",
+        "scenarios" (W105d — defaults excluded ; opt in via
+        `ToolConfig(enabled_for_passes=frozenset({..., "scenarios"}))`).
         """
         if self._tool_config is None or pass_kind not in self._tool_config.enabled_for_passes:
             return {}
@@ -135,6 +163,7 @@ class Orchestrator:
         data_pool: str,
         asset_data: str,
         now: datetime | None = None,
+        calibration_block: str | None = None,
     ) -> OrchestratorResult:
         generated_at = now or datetime.now(UTC)
         runner_calls: list[RunnerCall] = []
@@ -217,6 +246,47 @@ class Orchestrator:
         total_ms += resp4.duration_ms
         log.info("brain.pass4.done", n_conditions=len(invalidation.conditions))
 
+        # Pass 6 — scenario_decompose 7-bucket (ADR-085, W105c).
+        # Optional, gated on `enable_scenarios`. Output is a
+        # `ScenarioDecomposition` (lazy-imported inside the pass).
+        # Routed through claude-runner with `model=sonnet,
+        # effort=medium` per W105 researcher 2026-05-12 review.
+        scenarios_payload: list[dict[str, Any]] | None = None
+        if self._enable_scenarios:
+            cal_block = calibration_block or (
+                "(no calibration bins available — use your judgement "
+                "on per-asset typical magnitude ranges)"
+            )
+            call6 = RunnerCall(
+                prompt=self._scenarios.build_prompt(
+                    asset=asset,
+                    session_type=session_type,
+                    specialization=spec,
+                    stress=stress,
+                    invalidation=invalidation,
+                    calibration_block=cal_block,
+                ),
+                system=self._scenarios.system_prompt,
+                model=self._scenarios_model,
+                effort=self._scenarios_effort,
+                cache_key=f"framework::{self._scenarios.name}::{asset.upper()}",
+                **self._tool_fields_for("scenarios"),
+            )
+            runner_calls.append(call6)
+            resp6 = await self._runner.run(call6)
+            decomposition = self._scenarios.parse(resp6.text)
+            total_ms += resp6.duration_ms
+            # `decomposition` is `ScenarioDecomposition` — serialize
+            # to plain dict list to attach to SessionCard without
+            # cross-package type coupling.
+            scenarios_payload = [s.model_dump() for s in decomposition.scenarios]
+            log.info(
+                "brain.pass6.done",
+                n_buckets=len(scenarios_payload),
+                p_max=max((s["p"] for s in scenarios_payload), default=0.0),
+                p_sum=sum(s["p"] for s in scenarios_payload),
+            )
+
         # Critic Agent gate — runs the rule-based reviewer over the
         # concatenated narrative against the data pool. Pass 4 is the
         # one that gets persisted to `session_card_audit.critic_*`.
@@ -259,6 +329,7 @@ class Orchestrator:
             critic=critic,
             source_pool_hash=hash_pool(data_pool, asset_data),
             claude_duration_ms=total_ms,
+            scenarios=scenarios_payload,
         )
 
         return OrchestratorResult(card=card, runner_calls=runner_calls)

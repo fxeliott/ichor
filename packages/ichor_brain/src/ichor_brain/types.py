@@ -167,6 +167,16 @@ class SessionCard(BaseModel):
     session_card_audit.drivers (migration 0026) so brier_optimizer V2
     can fit per-factor SGD on a real (signals, outcomes) matrix."""
 
+    scenarios: list[dict[str, Any]] | None = None
+    """Pass-6 7-bucket scenario decomposition (ADR-085, W105c). Shape :
+    list[{label: str, p: float, magnitude_pips: [low, high],
+    mechanism: str}] — 7 entries exactly, sum(p) == 1.0, all p in
+    [0, 0.95]. None for pipelines that don't run Pass-6 (pre-W105
+    legacy or `tool_config.enabled_for_passes` excludes `scenarios`).
+    Persisted as `session_card_audit.scenarios` JSONB column
+    (migration 0039) — the W108 reconciler reads it to compute Brier
+    multi-class K=7 vs `realized_scenario_bucket`."""
+
     @field_validator("asset")
     @classmethod
     def _normalize_asset(cls, v: str) -> str:

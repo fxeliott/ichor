@@ -38,7 +38,7 @@ services:
     networks: [langfuse]
 
   langfuse-clickhouse:
-    image: clickhouse/clickhouse-server:24.12-alpine
+    image: clickhouse/clickhouse-server:24.12.5.65-alpine
     container_name: ichor-langfuse-clickhouse
     restart: unless-stopped
     user: "101:101"
@@ -64,7 +64,7 @@ services:
     networks: [langfuse]
 
   langfuse-minio:
-    image: minio/minio:RELEASE.2025-01-20T14-49-07Z
+    image: minio/minio:RELEASE.2025-10-15T17-29-55Z
     container_name: ichor-langfuse-minio
     restart: unless-stopped
     command: server /data --console-address ":9001"

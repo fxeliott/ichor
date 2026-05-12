@@ -73,3 +73,16 @@ class SessionCardAudit(Base):
     realized_low_session: Mapped[float | None] = mapped_column(Float)
     realized_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     brier_contribution: Mapped[float | None] = mapped_column(Float)
+
+    # W105a — Pass-6 scenario_decompose 7-bucket emission (ADR-085).
+    # Shape : list[{label, p, magnitude_pips: [low, high], mechanism}]
+    # — 7 entries exactly, sum(p) == 1.0, all p in [0, 0.95]. Defaults
+    # to empty list for legacy rows. NOT NULL with server_default per
+    # migration 0039 so existing rows backfill cleanly.
+    scenarios: Mapped[Any] = mapped_column(JSONB, nullable=False)
+
+    # W105g/W108 reconciler — one of the 7 canonical bucket labels
+    # (or NULL while the session window is still open). CHECK
+    # constraint enforced at DB level (migration 0039) ; the writer
+    # uses `services/scenarios.bucket_for_zscore` to derive the label.
+    realized_scenario_bucket: Mapped[str | None] = mapped_column(String(16))

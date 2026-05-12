@@ -53,6 +53,15 @@ def to_audit_row(card: SessionCard) -> SessionCardAudit:
         # generation time. NULL when the upstream pipeline doesn't
         # pre-compute them — column added by migration 0026.
         drivers=_dump_list(card.drivers),
+        # W105d (ADR-085) : Pass-6 7-bucket scenario decomposition.
+        # `card.scenarios` is None when the orchestrator skipped Pass-6
+        # (legacy or `tool_config.enabled_for_passes` excludes
+        # `scenarios`). Migration 0039 column is NOT NULL with default
+        # `'[]'::jsonb` — we pass an empty list rather than None so the
+        # server default isn't shadowed by an explicit NULL.
+        scenarios=_dump_list(card.scenarios) or [],
+        # realized_scenario_bucket left None — populated by the W105g
+        # reconciler after the session window closes.
     )
 
 
