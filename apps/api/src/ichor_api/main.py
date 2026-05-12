@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
-from datetime import UTC
+from datetime import UTC, datetime
 
 import structlog
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
 from . import __version__
@@ -354,6 +355,143 @@ async def healthz() -> HealthOut:
         db_connected=db_ok,
         redis_connected=redis_ok,
     )
+
+
+@app.get("/healthz/deep", include_in_schema=False)
+async def healthz_deep() -> dict[str, object]:
+    """End-to-end synthetic probe — Phase A round-9 monitoring closure.
+
+    Tests EVERY maillon of the production pipeline in one request :
+      1. Postgres ping + alembic head version
+      2. Redis ping
+      3. claude-runner reachability (HTTP GET /healthz via CF Tunnel)
+      4. scenario_calibration_bins row count (W105b cron health)
+      5. session_card_audit last 24h count (briefing cron health)
+      6. Most recent push subscribers count (G2 push notif readiness)
+
+    Returns 200 with full JSON status per sub-system when all green,
+    503 if any critical sub-system (db, redis, claude-runner) is down.
+    Non-critical degradations (e.g. empty calibration rows) return
+    200 with `degraded` flag.
+
+    Run from Grafana / external probe / RUNBOOK-018-style checks.
+    """
+    import time as _time
+
+    from sqlalchemy import text as _sql_text
+
+    started = _time.time()
+    body: dict[str, object] = {"timestamp": datetime.now(UTC).isoformat()}
+
+    # 1. Postgres + alembic head
+    db_ok = False
+    alembic_head: str | None = None
+    try:
+        async for session in get_session():
+            await session.execute(_sql_text("SELECT 1"))
+            head_res = await session.execute(
+                _sql_text("SELECT version_num FROM alembic_version LIMIT 1")
+            )
+            alembic_head = head_res.scalar()
+            db_ok = True
+            break
+    except Exception as e:  # noqa: BLE001
+        body["db_error"] = str(e)[:200]
+    body["db_connected"] = db_ok
+    body["alembic_head"] = alembic_head
+
+    # 2. Redis
+    redis_ok = False
+    try:
+        from redis import asyncio as aioredis
+
+        r = aioredis.from_url(_settings.redis_url)
+        await r.ping()
+        redis_ok = True
+        await r.close()
+    except Exception as e:  # noqa: BLE001
+        body["redis_error"] = str(e)[:200]
+    body["redis_connected"] = redis_ok
+
+    # 3. claude-runner reachability (via CF Tunnel + service token).
+    runner_ok = False
+    runner_url = _settings.claude_runner_url or ""
+    if runner_url and _settings.cf_access_client_id and _settings.cf_access_client_secret:
+        try:
+            import httpx
+
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                r = await client.get(
+                    f"{runner_url}/healthz",
+                    headers={
+                        "CF-Access-Client-Id": _settings.cf_access_client_id,
+                        "CF-Access-Client-Secret": _settings.cf_access_client_secret,
+                    },
+                )
+                if r.status_code == 200 and r.json().get("status") == "ok":
+                    runner_ok = True
+                else:
+                    body["runner_status_code"] = r.status_code
+        except Exception as e:  # noqa: BLE001
+            body["runner_error"] = str(e)[:200]
+    body["claude_runner_reachable"] = runner_ok
+
+    # 4. scenario_calibration_bins row count (W105b cron health).
+    calibration_rows = 0
+    try:
+        async for session in get_session():
+            cal_res = await session.execute(
+                _sql_text("SELECT COUNT(*) FROM scenario_calibration_bins")
+            )
+            calibration_rows = int(cal_res.scalar() or 0)
+            break
+    except Exception:  # noqa: BLE001
+        pass
+    body["calibration_rows"] = calibration_rows
+
+    # 5. Cards last 24h (briefing cron health).
+    cards_24h = 0
+    try:
+        async for session in get_session():
+            c_res = await session.execute(
+                _sql_text(
+                    "SELECT COUNT(*) FROM session_card_audit "
+                    "WHERE generated_at > now() - interval '24 hours'"
+                )
+            )
+            cards_24h = int(c_res.scalar() or 0)
+            break
+    except Exception:  # noqa: BLE001
+        pass
+    body["cards_last_24h"] = cards_24h
+
+    # 6. Push subscribers (G2 push notif readiness).
+    push_subs = 0
+    try:
+        from redis import asyncio as aioredis
+
+        r = aioredis.from_url(_settings.redis_url)
+        push_subs = int(await r.scard("ichor:push:subs") or 0)
+        await r.close()
+    except Exception:  # noqa: BLE001
+        pass
+    body["push_subscribers"] = push_subs
+
+    body["elapsed_ms"] = int((_time.time() - started) * 1000)
+
+    critical_ok = db_ok and redis_ok and runner_ok
+    body["status"] = "ok" if critical_ok else "down"
+    body["degraded_reasons"] = [
+        r
+        for r, cond in [
+            ("no_calibration_rows", calibration_rows == 0),
+            ("no_recent_cards", cards_24h == 0),
+            ("no_push_subscribers", push_subs == 0),
+        ]
+        if cond
+    ]
+
+    return JSONResponse(content=body, status_code=200 if critical_ok else 503)
 
 
 @app.get("/healthz/detailed", response_model=HealthDetailedOut)

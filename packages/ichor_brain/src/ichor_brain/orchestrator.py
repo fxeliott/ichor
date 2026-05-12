@@ -29,6 +29,7 @@ from .passes import (
     ScenariosPass,
     StressPass,
 )
+from .passes.base import PassError
 from .runner_client import RunnerCall, RunnerClient, ToolConfig
 from .types import (
     AssetSpecialization,
@@ -137,6 +138,69 @@ class Orchestrator:
         self._model_id = model_id
         self._tool_config = tool_config
 
+    async def _run_pass_with_retry(
+        self,
+        call: RunnerCall,
+        parser,
+        *,
+        step_name: str,
+        max_retries: int = 1,
+    ):
+        """Run a pass call with 1 retry on transient runner / parse error.
+
+        Phase A reliability improvement (round 9, 2026-05-12) : the
+        pre-existing orchestrator gave up after the first failed Pass —
+        a card died if e.g. the Claude CLI returned empty stdout
+        transiently (observed today during Claude auth expiry).
+        Now retries once with exponential backoff (30s) on :
+          * `PassError` — JSON parse failure / Pydantic validation
+          * `httpx`/runner transient errors (bubbled from RunnerClient)
+        Does NOT retry on `asyncio.CancelledError` (operator abort).
+
+        Returns the parser output + `(elapsed_ms, attempt_count)` so
+        the orchestrator can sum durations correctly.
+        """
+        import asyncio
+
+        last_error: Exception | None = None
+        for attempt in range(max_retries + 1):
+            try:
+                resp = await self._runner.run(call)
+                parsed = parser(resp.text)
+                if attempt > 0:
+                    log.info(
+                        "brain.pass.retry_recovered",
+                        step_name=step_name,
+                        attempt=attempt + 1,
+                    )
+                return parsed, resp.duration_ms
+            except PassError as e:
+                last_error = e
+                if attempt < max_retries:
+                    log.warning(
+                        "brain.pass.retry_after_parse_error",
+                        step_name=step_name,
+                        attempt=attempt + 1,
+                        error=str(e)[:200],
+                    )
+                    await asyncio.sleep(30.0)
+                    continue
+                raise
+            except Exception as e:  # noqa: BLE001 — runner transient errors
+                last_error = e
+                if attempt < max_retries:
+                    log.warning(
+                        "brain.pass.retry_after_runner_error",
+                        step_name=step_name,
+                        attempt=attempt + 1,
+                        error=str(e)[:200],
+                    )
+                    await asyncio.sleep(30.0)
+                    continue
+                raise
+        # Unreachable but satisfies type-checker.
+        raise last_error or RuntimeError("retry loop exhausted")
+
     def _tool_fields_for(self, pass_kind: str) -> dict[str, Any]:
         """W87 STEP-5 — emit Capability 5 tool fields for a RunnerCall
         when the pass is in `tool_config.enabled_for_passes`. Returns
@@ -179,9 +243,10 @@ class Orchestrator:
             **self._tool_fields_for("regime"),
         )
         runner_calls.append(call1)
-        resp1 = await self._runner.run(call1)
-        regime = self._regime.parse(resp1.text)
-        total_ms += resp1.duration_ms
+        regime, dur_ms = await self._run_pass_with_retry(
+            call1, self._regime.parse, step_name="pass1_regime"
+        )
+        total_ms += dur_ms
         log.info("brain.pass1.done", quadrant=regime.quadrant, conf=regime.confidence_pct)
 
         regime_block = (
