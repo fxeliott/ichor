@@ -191,8 +191,8 @@ class AssetDiffOut(BaseModel):
     session_type: str
     has_today: bool
     has_yesterday: bool
-    today_card: SessionCardOut | None
-    yesterday_card: SessionCardOut | None
+    today_card: SessionPreview | None
+    yesterday_card: SessionPreview | None
     deltas: list[DiffDeltaOut]
 
 
