@@ -1,7 +1,9 @@
 # Ichor — Claude Code project memory
 
 > Auto-injected at every session start. Keep terse and current.
-> **Last sync: 2026-05-12 16:09 CEST — PIPELINE LIVE PROVEN END-TO-END** (W105 Pass-6 scenarios LIVE Hetzner prod ; first live EUR_USD pre_londres card persisted id=`d2222ea2-7a3a-4ff6-80aa-0258063c45c5` total 173676ms : Pass-1 régime usd_complacency 72% → Pass-2 bias=short 58% → Pass-3 revised 28% → Pass-4 6 invalidation conditions → Pass-6 7 buckets sum=1.0 p_max=0.32 tails 4% → Critic approved. Scenarios JSONB qualité institutionnelle : mechanisms réfèrent chiffres réels stamped (DXY 118, FRED:DGS10 4.38%, SKEW 140.21, corr -0.85, range 6h 38 pips, NFCI -0.51) + ADR-017 boundary 100% respected. Le LLM Sonnet 4.6 effort=medium délivre exactement la vision Eliot "rêve ultime trader" (direction + % + catalyseurs + niveaux clés en français, zero BUY/SELL/TP/SL).
+> **Last sync: 2026-05-12 17:30 CEST — RAG PHASE C LIVE PROVEN END-TO-END (W110b→g shipped)** : alembic head `0041` ; 153 prod session-cards embedded into `rag_chunks_index` (bge-small ONNX CPU Hetzner, 384-dim) ; smoke retrieve on EUR_USD `usd_complacency` returns 3 same-regime analogues cos_dist 0.141/0.146/0.150 ; `ichor-rag-incremental-embed.timer` LIVE next-fire Wed 03:03 CEST ; Pass-1 prompt-builder ready to inject the analogues block via `--enable-rag` (opt-in CLI flag, default OFF). W110f RAGAS eval deferred. ADR-086 invariants all CI-guarded (Cap5 exclusion + embargo + vector(384) pinning).
+>
+> **Pre-W110 sync (2026-05-12 16:09 CEST — PIPELINE LIVE PROVEN END-TO-END)** (W105 Pass-6 scenarios LIVE Hetzner prod ; first live EUR_USD pre_londres card persisted id=`d2222ea2-7a3a-4ff6-80aa-0258063c45c5` total 173676ms : Pass-1 régime usd_complacency 72% → Pass-2 bias=short 58% → Pass-3 revised 28% → Pass-4 6 invalidation conditions → Pass-6 7 buckets sum=1.0 p_max=0.32 tails 4% → Critic approved. Scenarios JSONB qualité institutionnelle : mechanisms réfèrent chiffres réels stamped (DXY 118, FRED:DGS10 4.38%, SKEW 140.21, corr -0.85, range 6h 38 pips, NFCI -0.51) + ADR-017 boundary 100% respected. Le LLM Sonnet 4.6 effort=medium délivre exactement la vision Eliot "rêve ultime trader" (direction + % + catalyseurs + niveaux clés en français, zero BUY/SELL/TP/SL).
 >
 > Pipeline maillons 10/10 OK :
 >
@@ -102,8 +104,26 @@ D:\Ichor
   wired (auth.py JWT verifier + HttpRunnerClient header injection +
   lifespan production guard).
 
-## Latest migrations (head 0038)
+## Latest migrations (head 0041)
 
+- **head 0041** — `0041_rag_align_adr086.py` (W110g production discovery
+  fix) — ALTER `rag_chunks_index` to align with ADR-086 : `id` gains
+  `DEFAULT gen_random_uuid()` ; CHECK constraint dropped + recreated as
+  `(session_card / post_mortem / briefing / adr / runbook)`. Table was
+  empty (0 rows) → no data backfill. Up-migration idempotent via
+  `DROP CONSTRAINT IF EXISTS`. LIVE on Hetzner 2026-05-12.
+- **0040** — `0040_rag_pgvector.py` (W110a, ADR-086) — install pgvector
+  - pgcrypto extensions + `rag_chunks_index` table (id UUID, source_type
+    TEXT, source_id UUID, asset/regime/section, content TEXT, embedding
+    vector(384), content_tsv tsvector GENERATED, metadata JSONB,
+    created_at TIMESTAMPTZ, indexed_at TIMESTAMPTZ DEFAULT now()) + HNSW
+    index (m=16, ef_construction=64, cosine_ops) + GIN tsvector + btree
+    (asset, regime, created_at DESC). Idempotent because the table
+    pre-existed Alembic on Hetzner (discovery round-10 ; cf 0041 ALTER
+    follow-up).
+- **0039** — `0039_scenarios_persistence.py` (W105a, ADR-085) —
+  session_card_audit.scenarios JSONB NOT NULL + realized_scenario_bucket
+  VARCHAR(16) with CHECK constraint enforcing the 7 canonical labels.
 - **head 0038** — `0038_tool_call_audit.py` (W80, Cap5 PRE-2,
   ADR-077 §"Audit row shape") — immutable trigger mirror of
   audit_log. Verified live 2026-05-09. Empty table by design until

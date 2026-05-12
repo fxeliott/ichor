@@ -202,11 +202,75 @@ batch trigger + commit + push + memory pickup sync.
 
 11/11 maillons OK.
 
+## Round 12 (post-summary) — W110b→g RAG Phase C LIVE end-to-end
+
+Context: session resumed after context-summary checkpoint. The pre-summary
+work had committed W110a (migration 0040 idempotent + ORM) but lost the
+W110b service files to disk in the worktree handoff. Round 12 = recreate
+W110b service + ship W110c/d/e/g + the production-discovery migration 0041
+that the smoke embed exposed.
+
+### Shipping log (5 commits, all on origin/main)
+
+| Commit    | Wave         | Scope                                                                                                                                                                                                                                                                                                                              |
+| --------- | ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `0597037` | W110b        | RAG embeddings service (`embed_text` bge-small ONNX + `retrieve_analogues` past-only + `Analogue` dataclass + `format_analogues_prompt_section` Pass-1 builder) + 10 unit tests                                                                                                                                                    |
+| `9b3c12c` | W110c+d+e    | Bulk-embed CLI (`embed_session_cards.py`) + Pass-1 prompt-builder analogues injection + CLI `--enable-rag` opt-in flag + ADR-086 CI guards (Cap5 allowlist exclusion, embargo enforcement, vector(384) pinning)                                                                                                                    |
+| `a9d2db4` | W110g + 0041 | Migration 0041 (ALTER `rag_chunks_index` to ADR-086 contract — default UUID + CHECK constraint realigned to `session_card / post_mortem / briefing / adr / runbook`) + `register-cron-rag-incremental-embed.sh` + `embed_session_cards.py` `--days N` flag + renderer extracts `claim`/`condition` keys (post-prod-data discovery) |
+
+### Production discovery + fix : migration 0041
+
+The W110a migration 0040 was idempotent `CREATE TABLE IF NOT EXISTS`, so
+when it ran on Hetzner the table was already there with a pre-Alembic
+schema drift :
+
+- `id` column had NO `DEFAULT gen_random_uuid()` → every INSERT failed
+  with `NotNullViolationError`.
+- CHECK constraint was `(card / briefing / post_mortem / critic_finding)`
+  but W110c writers emit `'session_card'` → silent rejection.
+
+Verified table was empty (`SELECT count(*) FROM rag_chunks_index = 0`),
+so wrote migration 0041 = pure ALTER, no data migration needed. Deployed
+
+- ran on Hetzner — alembic head now `0041`.
+
+### LIVE proof on Hetzner
+
+1. **`sentence-transformers[onnx]` + `optimum[onnxruntime]`** installed in
+   `/opt/ichor/api/.venv` (st 5.5.0). First `embed_text("...")` returns
+   384-dim normalized vector in <50 ms on Hetzner CPU.
+2. **Bulk embed run** : `embed_session_cards --days 30 --batch-size 25`
+   ingested **153 production session_card_audit rows** (last 30 days,
+   6 assets × 5 sessions) into `rag_chunks_index`. Zero errors. ~12 s
+   total wall-time. Output sample renders the real
+   `claim` / `condition` text (not raw dict repr — W110c rev2 fix
+   verified live).
+3. **Smoke retrieve** : `retrieve_analogues(asset='EUR_USD', k=3,
+embargo_days=1)` on query `"EUR_USD usd_complacency regime DXY
+   weakness real yields contained"` returned 3 same-regime analogues
+   with cosine distances `0.141 / 0.146 / 0.150` (well inside the
+   typical [0, 0.3] same-regime band — semantic retrieval working
+   end-to-end with the pgvector HNSW index).
+4. **systemd timer** : `ichor-rag-incremental-embed.timer` ENABLED +
+   ACTIVE. Next fire `Wed 2026-05-13 03:03:59 CEST`. One-shot
+   `systemctl start` of the service ran cleanly (30 cards eligible,
+   30 already embedded, 0 new — idempotent skip working).
+
+### What remains in the W110 batch
+
+- **W110f** RAGAS triad eval (Faithfulness + Context Precision + Recall
+  ≥ 0.8) — deferred, requires `ragas` install + eval set authoring.
+- **W110 Pass-1 LIVE wire** : flip `--enable-rag` ON in the
+  `ichor-session-cards` batch cron once Eliot validates the prompt
+  shape on one card.
+
 ## Références
 
 - [ADR-085](decisions/ADR-085-pass-6-scenario-decompose-taxonomy.md) — Pass-6 7-bucket taxonomy
+- [ADR-086](decisions/ADR-086-rag-layer-past-only-bge-small.md) — RAG layer past-only + bge-small Voie D + Cap5 exclusion
 - [RUNBOOK-018](runbooks/RUNBOOK-018-cf-access-service-token-claude-runner.md) — CF Access service token
 - Memory pickup : `~/.claude/projects/D--Ichor/memory/ICHOR_SESSION_PICKUP_2026-05-12_v3_POST_PIPELINE_E2E.md`
 - Live card persisted : `session_card_audit` id `d2222ea2-7a3a-4ff6-80aa-0258063c45c5`
-- Commits : `35f539d → b856267` (13 commits, +2700 LOC nettes)
-- Tests : 191 pass locally (111 api + 80 brain)
+- Commits round 1-11 : `35f539d → b856267` (13 commits, +2700 LOC nettes)
+- Commits round 12 RAG : `0597037 → 9b3c12c → a9d2db4` (3 commits, +1377 LOC, +28 tests)
+- Tests : 191 pass round-1-11 + 28 new W110 tests = 219 pass locally
