@@ -64,6 +64,7 @@ async def _run_batch(
     assets: tuple[str, ...],
     live: bool,
     inter_card_sleep_s: float,
+    push_on_complete: bool = True,
 ) -> int:
     if session_type not in _VALID_SESSIONS:
         print(
@@ -75,6 +76,7 @@ async def _run_batch(
     print(f"== batch {session_type} · {len(assets)} cards · {'LIVE' if live else 'DRY-RUN'} ==")
     successes = 0
     failures = 0
+    failed_assets: list[str] = []
     started = time.time()
     for i, asset in enumerate(assets, start=1):
         print(f"\n--- [{i}/{len(assets)}] {asset} ---")
@@ -84,9 +86,11 @@ async def _run_batch(
                 successes += 1
             else:
                 failures += 1
+                failed_assets.append(asset)
                 print(f"!! card {asset} returned non-zero rc={rc}", file=sys.stderr)
         except Exception as e:
             failures += 1
+            failed_assets.append(asset)
             log.error("batch.card_failed", asset=asset, error=str(e))
             print(f"!! card {asset} raised: {e}", file=sys.stderr)
         # Polite spacing so we don't flood the claude-runner — Voie D
@@ -96,6 +100,29 @@ async def _run_batch(
 
     elapsed = time.time() - started
     print(f"\n== batch done · {successes} ok / {failures} failed · elapsed {elapsed:.1f}s ==")
+
+    # G2 fix — push notification at end of LIVE batch. Closes the audit
+    # gap "Eliot ne reçoit rien quand pre_londres est prêt à 06:30 Paris".
+    # Best-effort : a push failure must NOT fail the batch. Subscriber
+    # list lives in Redis `ichor:push:subs` (services/push.py).
+    if live and push_on_complete and successes > 0:
+        try:
+            from ..services.push import send_to_all
+
+            title = f"Ichor — {session_type} prête ({successes}/{len(assets)})"
+            body_parts = [
+                f"{successes} cards générées en {elapsed:.0f}s",
+            ]
+            if failed_assets:
+                body_parts.append(f"Échecs : {', '.join(failed_assets)}")
+            body = " · ".join(body_parts)
+            n_sent = await send_to_all(title, body, url=f"/sessions?session={session_type}")
+            log.info("batch.push_sent", n_recipients=n_sent, session_type=session_type)
+            print(f"   push: {n_sent} subscribers notified")
+        except Exception as e:  # noqa: BLE001
+            log.warning("batch.push_failed", error=str(e))
+            print(f"   push: failed ({e}) — non-fatal", file=sys.stderr)
+
     return 0 if failures == 0 else 1
 
 

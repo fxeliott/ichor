@@ -107,13 +107,38 @@ async def _run(asset: str, session_type: str, *, live: bool) -> int:
             "URL https://www.ecb.europa.eu/press/key/date/2026/html/ecb.sp260502.en.html"
         )
 
-    orch = Orchestrator(runner=runner)
+    # W105d : Pass-6 scenario_decompose enabled by default in live mode.
+    # Dry-run stays Pass-1..4 only so canned responses don't break.
+    # Calibration block is fetched per (asset, session_type) — falls
+    # back to the canonical thresholds if no row exists yet (cold-start
+    # before the W105b weekly Sunday cron has populated bins).
+    calibration_block: str | None = None
+    if live:
+        try:
+            from ..services.scenario_calibration import (
+                compute_calibration_bins,
+                format_calibration_block,
+            )
+
+            async with sm() as cal_session:
+                cal = await compute_calibration_bins(
+                    cal_session,
+                    asset,
+                    session_type,  # type: ignore[arg-type]
+                )
+                calibration_block = format_calibration_block(cal)
+        except Exception as e:  # noqa: BLE001
+            log.warning("calibration.fallback", asset=asset, error=str(e))
+            calibration_block = None
+
+    orch = Orchestrator(runner=runner, enable_scenarios=live)
     result = await orch.run(
         session_type=session_type,  # type: ignore[arg-type]
         asset=asset,
         data_pool=data_pool,
         asset_data=asset_data,
         now=datetime.now(UTC),
+        calibration_block=calibration_block,
     )
 
     async with sm() as session:
