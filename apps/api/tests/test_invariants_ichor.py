@@ -501,6 +501,30 @@ def test_post_mortem_pbs_cli_module_present() -> None:
     )
 
 
+def test_pass3_addenda_injection_feature_flag_key_pinned() -> None:
+    """ADR-087 W116c stage 2 (round-24) : the feature flag key that
+    gates Pass-3 addenda injection in `run_session_card.py` is pinned
+    at `pass3_addenda_injection_enabled`. Renaming silently breaks
+    the consumer (flag query returns False = no injection)."""
+    rsc_path = _REPO_ROOT / "apps" / "api" / "src" / "ichor_api" / "cli" / "run_session_card.py"
+    if not rsc_path.exists():
+        pytest.skip(f"run_session_card.py not found at {rsc_path}")
+    text = rsc_path.read_text(encoding="utf-8")
+    assert "pass3_addenda_injection_enabled" in text, (
+        "ADR-087 W116c stage 2 : the feature flag key "
+        "'pass3_addenda_injection_enabled' must be referenced in "
+        "run_session_card.py. The Stage 2 caller wire is the only "
+        "consumer of pass3_addenda_section ; without this query the "
+        "Phase D loop never closes."
+    )
+    assert "pass3_addenda_section" in text, (
+        "ADR-087 W116c stage 2 : the orchestrator kwarg "
+        "'pass3_addenda_section' (round-22 abstraction) must be passed "
+        "from run_session_card.py to orch.run() — otherwise the "
+        "abstraction is dead code."
+    )
+
+
 def test_realized_open_session_migration_present() -> None:
     """ADR-087 W118 (round-23) : migration 0045 adds the
     `realized_open_session` column to `session_card_audit`. Without it
