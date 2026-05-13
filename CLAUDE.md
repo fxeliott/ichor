@@ -2,7 +2,17 @@
 
 > Auto-injected at every session start. Keep terse and current.
 >
-> **Last sync: 2026-05-13 13:00 CEST — PHASE D AUTO-IMPROVEMENT LOOPS 4/4 LIVE + W117a DSPy FOUNDATION (rounds 14-26 shipped end-to-end)** : alembic head `0045` (W118 `realized_open_session` ALTER) ; 13 PRs merged `#89→#101` over 14 consecutive autonomous rounds ; ZERO Anthropic API spend verified mechanically via W90 invariant test (`import anthropic` scan returns empty across `apps/api/src` + `packages/`) ; frontend gel intact throughout (zero `apps/web2` commits across rounds 13-26).
+> **Last sync: 2026-05-13 19:30 CEST — PHASE D LOOP CLOSED ARCHITECTURALLY (W115c IMPLEMENTED r29 + ADR-090 P0 step-1 Bund 10Y collector + ADR-091 W117b GEPA PROPOSED + Cap5 FORBIDDEN_SET 4→7 + ADR-017 regex 19-pattern superset + Win11 cloudflared http2 LIVE)** : alembic head Hetzner `0045` ; **migration 0046 `bund_10y_observations` IN REPO, NOT yet deployed Hetzner** (Eliot post-merge action) ; PR #102 omnibus 5 commits open `f76f5a0→e9ddcd6`, CI 14/14 PASS, MERGEABLE ; ZERO Anthropic API spend (Voie D mechanical W90) ; frontend gel intact rounds 13-29 (17 rounds, zero `apps/web2` commits).
+>
+> **Round-27→29 same-day deliverables on PR #102 (added round-30 to this sync line)** :
+>
+> 1. **r27 (`f76f5a0+eaaff82+28739c6`)** : CLAUDE.md sync 0041→0045 + ADR-087 retroactive Accepted + 4 PROPOSED ADRs (088/089/090/091) + SPX500→SPY proxy (ADR-089) + Couche-2 530 storm retry envelope `(5,15,45,90)` + RUNBOOK-014 Path E.
+> 2. **r28 (`712b8a8`)** : ADR-017 regex 11→19 patterns superset (security pre-Sunday W116c fire) + Win11 cloudflared `--protocol http2` LIVE (PID 22820, 4 connections registered `protocol=http2`) + phase_d.py SQL filter push-down + ADR-087 loop_kind enum drift 6→4 corrected + ADR-088 rename `confluence_engine`→`pocket_skill_reader` + hysteresis 2-pp dead-band.
+> 3. **r29 (`e9ddcd6`)** : **W115c `pocket_skill_reader.py` IMPLEMENTED** (200 LOC + 22 tests + orchestrator threading) + **ADR-090 P0 step-1 Bund 10Y collector** (migration 0046 + ORM + dual SDMX-CSV+XML parser + 13 tests, source empirically validated 3.13% PROZENT) + **ADR-091 GEPA PROPOSED** (7 invariants + 7 sub-waves, 3 dev-days deferred) + Cap5 FORBIDDEN_SET 4→7 tables.
+>
+> **Phase D loop closed** : `measure (Vovk autonomous fire 03:32:39 CEST) ✓ → read (W115c r29) ✓ → act (Pass-3 stress confluence_section r29) ✓ → optimize (W117b GEPA ADR-091 PROPOSED) ⏳`.
+>
+> **42 new tests + 0 regressions** across r29 commit `e9ddcd6`.
 >
 > **ADR-087 Phase D auto-improvement loops 4/4 architecturally shipped + AUTONOMOUSLY OPERATING** on Hetzner prod :
 >
@@ -21,7 +31,17 @@
 >
 > **Pre-W113 sync (2026-05-12 17:30 CEST — RAG PHASE C LIVE)** : 153 prod session-cards embedded into `rag_chunks_index` (bge-small ONNX CPU Hetzner, 384-dim) ; smoke retrieve on EUR_USD `usd_complacency` returns 3 same-regime analogues cos_dist 0.141/0.146/0.150 ; `ichor-rag-incremental-embed.timer` LIVE next-fire Wed 03:03 CEST ; Pass-1 prompt-builder ready to inject the analogues block via `--enable-rag` (opt-in CLI flag, default OFF). W110f RAGAS eval deferred. ADR-086 invariants all CI-guarded (Cap5 exclusion + embargo + vector(384) pinning).
 >
-> **7 audit gaps for next session** (priorité ranked) :
+> **7 audit gaps — STATUS POST-ROUND-29 (4 closed, 3 ⏳)** :
+>
+> - ✅ #1 CLAUDE.md repo STALE — closed r27 + re-synced r30 (THIS UPDATE).
+> - ⏳ #2 EUR_USD anti-skill n=13 — **P0 step-1 IMPLEMENTED r29** (Bund 10Y collector + migration 0046), Hetzner deploy + data_pool wire + 3 other EZ signals = next session ~2 dev-days.
+> - ✅ #3 SPX500 Polygon 403 — closed r27 (SPY proxy reversible).
+> - ✅ #4 Couche-2 530 storm — closed r27+28 (retry envelope + cloudflared http2 LIVE).
+> - ⏳ #5 W117b GEPA — **ADR-091 PROPOSED draft r29** (7 invariants codified), 3 dev-days deferred (validation set n≥100/pocket prereq).
+> - ✅ #6 W115c pocket_skill_reader — **IMPLEMENTED r29** (200 LOC + 22 tests + orchestrator threading), Hetzner activation = Eliot feature-flag flip.
+> - ⏳ #7 Frontend `/learn` ungel — Eliot decision pending (rule 4 honor).
+>
+> **Original pre-round-27 7-gap list (kept for archaeological context — superseded by status table above)** :
 >
 > 1. **EUR_USD/usd_complacency anti-skill n=13 stat-significant** — Vovk pocket weight 0.300 vs equal_weight 0.350. Investigation needed : Pass-1 régime mis-classification, Pass-2 EUR framework gap (ECB-Fed différentiel, IFO, peripheral spreads), or data-pool gap. ~2h research + 0.5d fix.
 > 2. **SPX500 Polygon `I:SPX` 403** — 1/6 D1 universe dark. Options : Indices add-on $50/mo (Voie D budget pressure), ES1!/SPY proxy, drop from D1. ADR-088+ decision pending.
