@@ -44,6 +44,9 @@ from .cot_position import CotPosition
 # Phase 2
 from .couche2_output import Couche2Output
 from .economic_event import EconomicEvent
+
+# Phase D ADR-090 P0 step-4 — €STR Euro Short-Term Rate daily (round-34)
+from .estr_observation import EstrObservation
 from .finra_short_volume import FinraShortVolume
 
 # Phase 1 Living Macro Entity collectors
@@ -111,6 +114,8 @@ __all__ = [
     # Phase 2
     "Couche2Output",
     "EconomicEvent",
+    # Phase D ADR-090 P0 step-4 — €STR daily (round-34)
+    "EstrObservation",
     # Phase 2 — FINRA Reg SHO daily short volume
     "FinraShortVolume",
     # Phase 1
