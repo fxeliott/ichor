@@ -229,6 +229,7 @@ class Orchestrator:
         now: datetime | None = None,
         calibration_block: str | None = None,
         analogues_section: str = "",
+        pass3_addenda_section: str = "",
     ) -> OrchestratorResult:
         """Run the 4 (+optional 6) passes for one (session_type, asset).
 
@@ -241,6 +242,15 @@ class Orchestrator:
         `services.rag_embeddings.retrieve_analogues`) so the
         orchestrator stays DB-session-free + pure on its 4-pass loop.
         Empty string = pre-W110d byte-identical behaviour.
+
+        `pass3_addenda_section` (W116c, ADR-087 Phase D) is an optional
+        pre-rendered block of operator addenda derived from the W116b
+        post-mortem PBS evaluator. Forwarded to `StressPass.build_prompt`
+        ; the model takes them as adversarial context. Same purity
+        contract as `analogues_section` : caller (apps/api) queries
+        `services.pass3_addendum_injector.select_active_addenda` and
+        renders, gated behind a feature flag. Empty string = pre-W116c
+        byte-identical behaviour.
         """
         generated_at = now or datetime.now(UTC)
         runner_calls: list[RunnerCall] = []
@@ -295,7 +305,11 @@ class Orchestrator:
 
         # Pass 3 — bull-case stress-test
         call3 = RunnerCall(
-            prompt=self._stress.build_prompt(specialization=spec, asset_data=asset_data),
+            prompt=self._stress.build_prompt(
+                specialization=spec,
+                asset_data=asset_data,
+                addenda_section=pass3_addenda_section,
+            ),
             system=self._stress.system_prompt,
             model="opus",
             effort="high",

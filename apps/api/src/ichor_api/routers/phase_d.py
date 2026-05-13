@@ -34,7 +34,7 @@ from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..db import get_session
-from ..models import AutoImprovementLog, BrierAggregatorWeight
+from ..models import AutoImprovementLog, BrierAggregatorWeight, Pass3Addendum
 
 router = APIRouter(prefix="/v1/phase-d", tags=["phase-d"])
 
@@ -89,6 +89,29 @@ class AggregatorWeightsListOut(BaseModel):
     asset_filter: str | None
     regime_filter: str | None
     pocket_version: int
+
+
+class Pass3AddendumOut(BaseModel):
+    """One row of `pass3_addenda` projected to the API surface."""
+
+    id: UUID
+    regime: str
+    asset: str | None
+    content: str
+    importance: float
+    status: str
+    source_card_id: UUID | None
+    created_at: datetime
+    expires_at: datetime
+    superseded_by: UUID | None
+
+
+class Pass3AddendaListOut(BaseModel):
+    rows: list[Pass3AddendumOut]
+    count: int
+    regime_filter: str | None
+    asset_filter: str | None
+    status_filter: str
 
 
 # ──────────────────────────── /audit-log ──────────────────────────
@@ -265,4 +288,98 @@ async def list_aggregator_weights(
         asset_filter=asset,
         regime_filter=regime,
         pocket_version=pocket_version,
+    )
+
+
+# ──────────────────────────── /pass3-addenda ──────────────────────────
+
+
+_VALID_ADDENDUM_STATUSES = frozenset({"active", "expired", "superseded", "rejected"})
+
+
+@router.get("/pass3-addenda", response_model=Pass3AddendaListOut)
+async def list_pass3_addenda(
+    session: Annotated[AsyncSession, Depends(get_session)],
+    regime: Annotated[
+        str | None,
+        Query(
+            pattern=r"^[a-z_]{2,64}$",
+            description="Optional regime filter (e.g. usd_complacency).",
+        ),
+    ] = None,
+    asset: Annotated[
+        str | None,
+        Query(
+            pattern=r"^[A-Z0-9_]{3,16}$",
+            description="Optional asset filter.",
+        ),
+    ] = None,
+    status: Annotated[
+        str,
+        Query(
+            description=(
+                "Addendum lifecycle filter : active | expired | "
+                "superseded | rejected (default 'active')."
+            ),
+        ),
+    ] = "active",
+    limit: Annotated[
+        int,
+        Query(ge=1, le=500, description="Max rows (default 100)."),
+    ] = 100,
+) -> Pass3AddendaListOut:
+    """List `pass3_addenda` rows.
+
+    Defaults to `status='active'`, ordered by `importance DESC`. The
+    actual Pass-3 injection consumer is
+    `services.pass3_addendum_injector.select_active_addenda` which
+    applies an exponential decay re-rank in-Python on top of this DB
+    sort — this endpoint surfaces the raw rows for operator
+    inspection, NOT the decay-weighted selection.
+
+    Unknown status values return empty (lenient — typo'd queries
+    don't 400).
+    """
+    if status not in _VALID_ADDENDUM_STATUSES:
+        return Pass3AddendaListOut(
+            rows=[],
+            count=0,
+            regime_filter=regime,
+            asset_filter=asset,
+            status_filter=status,
+        )
+
+    stmt = (
+        select(Pass3Addendum)
+        .where(Pass3Addendum.status == status)
+        .order_by(desc(Pass3Addendum.importance))
+        .limit(limit)
+    )
+    if regime is not None:
+        stmt = stmt.where(Pass3Addendum.regime == regime)
+    if asset is not None:
+        stmt = stmt.where(Pass3Addendum.asset == asset)
+
+    rows = (await session.execute(stmt)).scalars().all()
+    out = [
+        Pass3AddendumOut(
+            id=r.id,
+            regime=r.regime,
+            asset=r.asset,
+            content=r.content,
+            importance=r.importance,
+            status=r.status,
+            source_card_id=r.source_card_id,
+            created_at=r.created_at,
+            expires_at=r.expires_at,
+            superseded_by=r.superseded_by,
+        )
+        for r in rows
+    ]
+    return Pass3AddendaListOut(
+        rows=out,
+        count=len(out),
+        regime_filter=regime,
+        asset_filter=asset,
+        status_filter=status,
     )

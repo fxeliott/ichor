@@ -153,7 +153,7 @@ def test_aggregator_weights_response_schema_when_200(client: TestClient) -> None
 
 
 def test_openapi_includes_phase_d_routes(client: TestClient) -> None:
-    """The two endpoints must appear in the OpenAPI schema — catches
+    """The 3 endpoints must appear in the OpenAPI schema — catches
     accidental router-deregister."""
     r = client.get("/openapi.json")
     assert r.status_code == 200
@@ -161,3 +161,56 @@ def test_openapi_includes_phase_d_routes(client: TestClient) -> None:
     paths = set(spec["paths"].keys())
     assert "/v1/phase-d/audit-log" in paths
     assert "/v1/phase-d/aggregator-weights" in paths
+    assert "/v1/phase-d/pass3-addenda" in paths
+
+
+# ──────────────────────────── /pass3-addenda (round-22) ──────────────────
+
+
+def test_pass3_addenda_route_registered(client: TestClient) -> None:
+    r = client.get("/v1/phase-d/pass3-addenda")
+    assert r.status_code in (200, 503), (
+        f"Expected 200/503 for registered route, got {r.status_code}"
+    )
+
+
+def test_pass3_addenda_default_status_filter_is_active(client: TestClient) -> None:
+    r = client.get("/v1/phase-d/pass3-addenda")
+    if r.status_code != 200:
+        pytest.skip(f"smoke DB unavailable (status {r.status_code})")
+    body = r.json()
+    assert body["status_filter"] == "active"
+
+
+def test_pass3_addenda_accepts_4_canonical_statuses(client: TestClient) -> None:
+    for status in ("active", "expired", "superseded", "rejected"):
+        r = client.get(f"/v1/phase-d/pass3-addenda?status={status}")
+        assert r.status_code in (200, 503), (
+            f"Expected 200/503 for status={status!r}, got {r.status_code}"
+        )
+
+
+def test_pass3_addenda_unknown_status_returns_empty_not_400(
+    client: TestClient,
+) -> None:
+    """Lenient — typo'd status doesn't 400, returns empty + echoes
+    the filter in the response."""
+    r = client.get("/v1/phase-d/pass3-addenda?status=not_a_real_status")
+    assert r.status_code in (200, 503)
+    if r.status_code == 200:
+        body = r.json()
+        assert body["count"] == 0
+        assert body["rows"] == []
+        assert body["status_filter"] == "not_a_real_status"
+
+
+def test_pass3_addenda_rejects_malformed_asset(client: TestClient) -> None:
+    r = client.get("/v1/phase-d/pass3-addenda?asset=lower")
+    assert r.status_code == 422
+
+
+def test_pass3_addenda_rejects_limit_out_of_bounds(client: TestClient) -> None:
+    r = client.get("/v1/phase-d/pass3-addenda?limit=0")
+    assert r.status_code == 422
+    r = client.get("/v1/phase-d/pass3-addenda?limit=10000")
+    assert r.status_code == 422
