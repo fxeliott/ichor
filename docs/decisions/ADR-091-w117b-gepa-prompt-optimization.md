@@ -51,17 +51,32 @@ class GepaRunBudget:
 
 The budget is **per invocation** and **non-resumable**. A killed cron mid-run does NOT carry the unused budget forward.
 
-### Invariant 2 — ADR-017 fitness penalty regex
+### Invariant 2 — ADR-017 fitness HARD-ZERO gate (amended round-32)
 
-The GEPA fitness function evaluates each candidate prompt by :
+**Round-32 amendment** : the original ADR-091 §"Invariant 2" reading was a soft-lambda penalty `−λ × count_violations(output)`. The ichor-trader round-32 pre-implementation review correctly flagged that as a bypass landmine : a GEPA-evolved candidate prompt with high Brier-skill (e.g. +0.4) + one obfuscated trade signal (e.g. `ＢＵＹ` full-width, `ВUY` Cyrillic, `acheter EUR` FR imperative) could score net-positive fitness despite the boundary breach. Soft-lambda is **averageable** ; trade signals at scale are **unacceptable, ever**.
 
-1. Running the prompt against the validation set (LLM calls).
-2. Scoring the output against the realized outcome (PBS / Brier / skill_delta).
-3. **NEW (round 28 ADR-091)** : apply a penalty term `−λ × adr017_violations(candidate_output)` where `adr017_violations` is the count of `_ADR017_FORBIDDEN_RE` matches across the validation set output.
+The amended doctrine is **hard-zero** :
 
-If a candidate scores higher purely because it emitted "BUY EUR @ 1.0850" (more "decisive" → potentially better fitness on a directional outcome), the regex penalty zeros it out. The fitness landscape is sculpted to reward DESCRIPTIVE-CALIBRATED outputs, not DIRECTIVE outputs.
+```python
+def compute_fitness(brier_skill: float, candidate_output: str) -> float:
+    """Round-32 amended ADR-091 §Invariant 2 — HARD-ZERO gate.
 
-The regex must be the **same** `_ADR017_FORBIDDEN_RE` superset that `services/addendum_generator.py` uses (round-28 19-pattern superset). Single source of truth — extracted to `services/adr017_filter.py` if not already.
+    Any ADR-017 violation forces fitness = -inf, REGARDLESS of the
+    candidate's Brier-skill. The GEPA optimizer cannot promote a
+    candidate that emits trade signals. Period.
+    """
+    if count_violations(candidate_output) > 0:
+        return float("-inf")  # boundary breach = uncompete
+    return brier_skill
+```
+
+**Defense-in-depth at three layers** :
+
+1. **Source-of-truth regex** : `services/adr017_filter.py` (round-31 sub-wave .a) is THE single module. No peer regex copies anywhere.
+2. **Round-32 Unicode + multilingual hardening** : `is_adr017_clean` applies NFKC normalization + zero-width strip + Cyrillic/Greek confusable fold + multilingual lexicon (FR/ES/DE imperatives) BEFORE matching. Bypass vectors closed : `ＢＵＹ`, `ВUY`, `B​UY`, `acheter`, `vendez`, `comprar`, `kaufen`, etc.
+3. **DB CHECK constraint** : migration 0047 ships `ck_gepa_candidate_adr017_hard_zero` = `adr017_violations = 0 OR status = 'rejected'`. Even if the optimizer or admin endpoint glitches, the DB refuses to land a tainted candidate as `'candidate'` or `'adopted'`.
+
+The regex must be the **same** `_ADR017_FORBIDDEN_RE` superset that `services/addendum_generator.py` uses — extracted to `services/adr017_filter.py` round-31 sub-wave .a and hardened round-32. Future LLM-touching modules consuming the filter inherit the hard-zero contract automatically.
 
 ### Invariant 3 — Cron spacing + feature-flag
 
@@ -123,16 +138,17 @@ The 4-pass orchestrator reads `status='adopted'` rows at startup. NO automatic a
 
 ## Implementation roadmap (W117b sub-waves)
 
-| Sub-wave  | Title                                                                                                                                                     | Effort          |
-| --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------- |
-| W117b.a   | `services/adr017_filter.py` extracted from `addendum_generator.py` + shared with GEPA fitness                                                             | 0.25d           |
-| W117b.b   | Migration 0047 `gepa_candidate_prompts` + ORM model                                                                                                       | 0.25d           |
-| W117b.c   | `services/gepa_optimizer.py` core (mutation operators + Pareto frontier selection + budget enforcement)                                                   | 1.0d            |
-| W117b.d   | `cli/run_gepa_optimizer.py` weekly-monthly cron + feature-flag fail-closed + budget exhaustion handler                                                    | 0.5d            |
-| W117b.e   | Hetzner systemd timer `ichor-gepa-optimizer.timer` + register-cron script                                                                                 | 0.25d           |
-| W117b.f   | CI guard tests : (a) `_ADR017_FORBIDDEN_RE` superset single-source, (b) budget cap enforced, (c) sentinel namespace honored, (d) feature-flag fail-closed | 0.5d            |
-| W117b.g   | Adoption admin endpoint `/v1/admin/gepa/adopt-candidate` + audit_log row + invariant test                                                                 | 0.25d           |
-| **Total** |                                                                                                                                                           | **~3 dev-days** |
+| Sub-wave    | Title                                                                                                                                                                                  | Effort          | Status (round-32)                                                                                                             |
+| ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| W117b.a     | `services/adr017_filter.py` extracted from `addendum_generator.py` + shared with GEPA fitness                                                                                          | 0.25d           | ✅ SHIPPED PR #103                                                                                                            |
+| W117b.a.r32 | `services/adr017_filter.py` HARDENED : NFKC + ZWSP strip + Cyrillic/Greek confusables + multilingual FR/ES/DE imperatives                                                              | 0.25d           | ✅ SHIPPED PR #104 commit 1                                                                                                   |
+| W117b.b     | Migration 0047 `gepa_candidate_prompts` + ORM model + DB CHECK hard-zero + Cap5 FORBIDDEN_SET 7→8                                                                                      | 0.25d           | ✅ SHIPPED PR #104 commit 2                                                                                                   |
+| W117b.c     | `services/gepa_optimizer.py` core (mutation operators + Pareto frontier selection + budget enforcement + HARD-ZERO fitness gate per amended §Invariant 2)                              | 1.0d            | ⏳ DEFERRED — needs validation set n ≥ 100 per pocket + dual `ClaudeRunnerLM` (student + reflection_lm) per DSPy 3.2 GEPA API |
+| W117b.d     | `cli/run_gepa_optimizer.py` monthly cron + feature-flag fail-closed + budget exhaustion handler + single-shot auto-disable                                                             | 0.5d            | ⏳ blocked by .c                                                                                                              |
+| W117b.e     | Hetzner systemd timer `ichor-gepa-optimizer.timer` + register-cron script                                                                                                              | 0.25d           | ⏳ blocked by .d                                                                                                              |
+| W117b.f     | CI guard tests : (a) `_ADR017_FORBIDDEN_RE` superset single-source, (b) budget cap enforced, (c) sentinel namespace honored, (d) feature-flag fail-closed, (e) hard-zero gate enforced | 0.5d            | ⏳ blocked by .c + .d                                                                                                         |
+| W117b.g     | Adoption admin endpoint `/v1/admin/gepa/adopt-candidate` + audit_log row + invariant test                                                                                              | 0.25d           | ⏳ orthogonal to .c–.f                                                                                                        |
+| **Total**   |                                                                                                                                                                                        | **~3 dev-days** | **~0.75d shipped (.a + .a.r32 + .b), ~2.25d remaining**                                                                       |
 
 ## Reversibility (rule 19)
 
