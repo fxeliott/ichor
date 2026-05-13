@@ -26,6 +26,7 @@ from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models import (
+    BundYieldObservation,
     CboeSkewObservation,
     CboeVvixObservation,
     CbSpeech,
@@ -497,6 +498,75 @@ async def _section_dollar_smile(session: AsyncSession) -> tuple[str, list[str]]:
         val, when = v
         lines.append(f"- {label} = {fmt.format(val)} (FRED:{series_id}, {when:%Y-%m-%d})")
         sources.append(f"FRED:{series_id}")
+    return "\n".join(lines), sources
+
+
+async def _section_eur_specific(session: AsyncSession, asset: str) -> tuple[str, list[str]]:
+    """## EUR-specific signals — Bund 10Y yield (ADR-090 P0 step-3, round-32).
+
+    Renders the latest Bund 10Y observation + 5-day yield change.
+    Source : Bundesbank SDMX flow
+    `BBSIS/D.I.ZAR.ZI.EUR.S1311.B.A604.R10XX.R.A.A._Z._Z.A` collected
+    by `collectors.bundesbank_bund.fetch_bund_yields` (daily Hetzner
+    cron). Replaces the stale monthly `FRED:IRLTLT01DEM156N` in
+    intraday Pass-2 contexts.
+
+    Gated on `asset == "EUR_USD"` — early-return ("", []) otherwise.
+    `build_data_pool` appends only when `sources` is non-empty so a
+    non-EUR asset (or an empty Bund table pre-deploy) silently skips.
+
+    SYMMETRIC LANGUAGE discipline (ichor-trader review round-32) :
+    the textbook framing "Bund yield rise = EUR-positive" assumes a
+    calm regime where the rise reflects narrowing US/EUR rate
+    differential. Under funding stress or usd_complacency, the same
+    rise can reflect widening Bund/Treasury spread + convertibility
+    risk, which is EUR-negative. We emit the FACTS (level + delta)
+    plus BOTH interpretive branches and let the Pass-2 LLM pick the
+    one consistent with Pass-1's regime label.
+    """
+    if asset != "EUR_USD":
+        return "", []
+
+    stmt = (
+        select(BundYieldObservation.observation_date, BundYieldObservation.yield_pct)
+        .order_by(desc(BundYieldObservation.observation_date))
+        .limit(6)
+    )
+    rows = (await session.execute(stmt)).all()
+    if not rows:
+        return "", []  # collector dormant or pre-deploy — silent skip
+
+    latest_date, latest_pct = rows[0]
+    latest_pct_f = float(latest_pct)
+    sources = [f"Bundesbank:BBSIS/Bund10Y@{latest_date:%Y-%m-%d}"]
+
+    lines = [
+        "## EUR-specific signals — Bund 10Y yield",
+        f"- Bund 10Y = {latest_pct_f:.3f}% (Bundesbank SDMX BBSIS, {latest_date:%Y-%m-%d})",
+    ]
+
+    # 5-day delta if we have the trailing rows. Bundesbank publishes
+    # ~5 trading days per week ; row index 5 is ~7 calendar days ago.
+    if len(rows) >= 6:
+        prior_date, prior_pct = rows[5]
+        delta_pct = latest_pct_f - float(prior_pct)
+        delta_bp = delta_pct * 100.0  # percent → basis points
+        sign = "+" if delta_bp >= 0 else "−"
+        lines.append(
+            f"- 5-trading-day change : {sign}{abs(delta_bp):.1f} bp "
+            f"(from {float(prior_pct):.3f}% on {prior_date:%Y-%m-%d})"
+        )
+        lines.append(
+            "- Interpretation depends on the Pass-1 regime label : "
+            "in a calm regime, a rise narrows the US/EUR rate "
+            "differential (EUR pulls toward USD funding parity) ; "
+            "under funding stress or usd_complacency, the same rise "
+            "can widen the Bund/Treasury spread and signal "
+            "convertibility risk (EUR pulls the OPPOSITE direction). "
+            "A fall is the symmetric reverse. The Pass-2 LLM should "
+            "select the branch matching the regime context above."
+        )
+
     return "\n".join(lines), sources
 
 
@@ -2427,6 +2497,15 @@ async def build_data_pool(
     diff_md, diff_src = await _section_rate_diff(session, asset)
     if diff_md:
         sections.append(("rate_diff", diff_md, diff_src))
+
+    # ADR-090 P0 step-3 (round-32) — EUR-specific Bund 10Y yield.
+    # Asset-gated to EUR_USD ; silent skip otherwise OR if the
+    # Bundesbank collector is dormant / pre-deploy. Symmetric
+    # interpretive language : the Pass-2 LLM picks the right framing
+    # based on Pass-1's regime label.
+    eur_md, eur_src = await _section_eur_specific(session, asset)
+    if eur_src:
+        sections.append(("eur_specific", eur_md, eur_src))
 
     poly_md, poly_src = await _section_polygon_intraday(session, asset)
     sections.append(("polygon_intraday", poly_md, poly_src))
