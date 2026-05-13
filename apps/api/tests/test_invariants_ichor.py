@@ -525,6 +525,71 @@ def test_pass3_addenda_injection_feature_flag_key_pinned() -> None:
     )
 
 
+def test_w116c_addendum_generator_voie_d_compliant() -> None:
+    """ADR-009 + ADR-087 W116c (round-25) : the LLM addendum generator
+    MUST route via the Couche-2 claude-runner path. It MUST NOT import
+    `anthropic` or any other paid-API client.
+
+    The W90 ADR-009 anthropic-imports test already covers the repo-wide
+    invariant — this guard is the W116c-specific pin : the lazy import
+    inside `generate_addendum_text` must reference the canonical Voie D
+    entry point + the ADR-017 defense-in-depth filter must exist."""
+    gen_path = (
+        _REPO_ROOT / "apps" / "api" / "src" / "ichor_api" / "services" / "addendum_generator.py"
+    )
+    if not gen_path.exists():
+        pytest.skip(f"addendum_generator.py not found at {gen_path}")
+    text = gen_path.read_text(encoding="utf-8")
+    assert "ichor_agents.claude_runner" in text, (
+        "ADR-009 + W116c : addendum_generator MUST route via the "
+        "Couche-2 claude-runner subprocess path. The lazy import "
+        "`from ichor_agents.claude_runner import call_agent_task_async` "
+        "is the canonical Voie D entry point."
+    )
+    assert "call_agent_task_async" in text, (
+        "ADR-009 + W116c : the generator MUST call "
+        "`call_agent_task_async` (Voie D async path with retry envelope), "
+        "NOT a direct HTTP POST that bypasses the retry / 530 storm "
+        "mitigations."
+    )
+    assert "addendum_passes_adr017_filter" in text, (
+        "ADR-017 + W116c : the addendum generator MUST run the "
+        "ADR-017 regex filter as a SECOND layer (defense-in-depth) "
+        "even when the LLM obeyed the NO-TRADE-SIGNALS prompt "
+        "instruction."
+    )
+
+
+def test_w116c_cli_present_with_feature_flag_gate() -> None:
+    """ADR-087 W116c CLI (round-25) : `cli/run_addendum_generator.py`
+    MUST exist and MUST gate execution behind feature flag
+    `w116c_llm_addendum_enabled`. Default flag value is False (fail-
+    closed) so the cron does nothing until Eliot explicitly enables
+    it via UPDATE feature_flags."""
+    cli_path = (
+        _REPO_ROOT / "apps" / "api" / "src" / "ichor_api" / "cli" / "run_addendum_generator.py"
+    )
+    if not cli_path.exists():
+        pytest.skip(f"run_addendum_generator.py not found at {cli_path}")
+    text = cli_path.read_text(encoding="utf-8")
+    assert "w116c_llm_addendum_enabled" in text, (
+        "ADR-087 W116c : the CLI MUST check the feature flag "
+        "`w116c_llm_addendum_enabled` before any LLM call. Default "
+        "is False (fail-closed) ; the cron silently no-ops until "
+        "Eliot enables via UPDATE feature_flags."
+    )
+    sh_path = _REPO_ROOT / "scripts" / "hetzner" / "register-cron-addendum-generator.sh"
+    assert sh_path.exists(), (
+        "ADR-087 W116c : register-cron-addendum-generator.sh MUST exist alongside the CLI module."
+    )
+    sh_text = sh_path.read_text(encoding="utf-8")
+    assert "Sun *-*-* 19:00:00 Europe/Paris" in sh_text, (
+        "ADR-087 W116c : the cron schedules at Sunday 19:00 Paris, "
+        "1 hour AFTER the W116b PBS post-mortem cron at 18:00 "
+        "(which provides the input data)."
+    )
+
+
 def test_realized_open_session_migration_present() -> None:
     """ADR-087 W118 (round-23) : migration 0045 adds the
     `realized_open_session` column to `session_card_audit`. Without it
