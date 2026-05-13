@@ -37,6 +37,7 @@ from .routers import (
     market_router,
     narratives_router,
     news_router,
+    phase_d_router,
     polymarket_impact_router,
     portfolio_exposure_router,
     post_mortems_router,
@@ -219,6 +220,7 @@ app.include_router(macro_pulse_router)
 app.include_router(polymarket_impact_router)
 app.include_router(portfolio_exposure_router)
 app.include_router(post_mortems_router)
+app.include_router(phase_d_router)
 app.include_router(scenarios_router)
 app.include_router(sources_router)
 app.include_router(today_router)

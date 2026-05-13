@@ -26,6 +26,7 @@ from .macro_pulse import router as macro_pulse_router
 from .market import router as market_router
 from .narratives import router as narratives_router
 from .news import router as news_router
+from .phase_d import router as phase_d_router
 from .polymarket_impact import router as polymarket_impact_router
 from .portfolio_exposure import router as portfolio_exposure_router
 from .post_mortems import router as post_mortems_router
@@ -64,6 +65,7 @@ __all__ = [
     "market_router",
     "narratives_router",
     "news_router",
+    "phase_d_router",
     "polymarket_impact_router",
     "portfolio_exposure_router",
     "post_mortems_router",
