@@ -2,7 +2,21 @@
 
 > Auto-injected at every session start. Keep terse and current.
 >
-> **Last sync: 2026-05-13 20:35 CEST — ROUND-33 TIER 1 SHIPPED + DEPLOYED + EMPIRICAL TESTED : 6 PRs merged (102→107) + Hetzner alembic 0045→0047 + 7299 Bund rows ingested + W115c flag + Bund daily cron armed (next fire 2026-05-14 16:32 CEST)** : main HEAD = `0a8bbe1` (PR #107 round-33 CLI Bund + cron) ; Hetzner alembic = `0047` LIVE ; `bund_10y_observations` = 7299 rows ; `gepa_candidate_prompts` = 0 (no GEPA run yet) ; feature flags `phase_d_w115c_confluence_enabled=true@100` + `bundesbank_bund_collector_enabled=true@100` ; systemd timer `ichor-bundesbank-bund.timer` ARMED next-fire Thu 2026-05-14 16:32:48 CEST (daily 16:30 Paris + RandomizedDelaySec=300) ; ZERO Anthropic API spend (Voie D mechanical W90) ; frontend gel intact rounds 13-33 (21 rounds, zero `apps/web2` commits).
+> **Last sync: 2026-05-13 21:00 CEST — ROUND-34 SHIPPED + DEPLOYED + EMPIRICAL TESTED : 4 more PRs merged (#77+#78+#109+#110), 6 Dependabot deferred. Hetzner alembic 0047→0048 LIVE. 1692 €STR rows + 7299 Bund rows. €STR cron armed Thu 14-05 16:49 CEST. ADR-090 step-4 EUR-side coverage COMPLETE** : main HEAD = `e3f396d` (PR #110 cosmetic fix) ; Hetzner alembic = `0048` LIVE ; `estr_observations` = 1692 rows + `bund_10y_observations` = 7299 rows + `gepa_candidate_prompts` = 0 ; feature flags ON : `phase_d_w115c_confluence_enabled` + `bundesbank_bund_collector_enabled` + `ecb_estr_collector_enabled` (all true @ 100) ; systemd timers ARMED : `ichor-bundesbank-bund.timer` Thu 2026-05-14 16:32 + `ichor-ecb-estr.timer` Thu 2026-05-14 16:49 ; ZERO Anthropic API spend (Voie D mechanical W90) ; frontend gel intact rounds 13-34 (22 rounds, zero `apps/web2` commits).
+>
+> **Round-34 deliverables on main** :
+>
+> - **r34 (`f27d785` PR #109)** : ADR-090 P0 step-4 — €STR collector LIVE (migration 0048 + ORM `EstrObservation` + collector `ecb_estr.py` with COMMA delimiter + Accept SDMX-CSV 1.0.0 + dual CSV+XML auto-detect + BOM strip + startPeriod incremental) + CLI `cli/run_ecb_estr.py` (mirror Bund r33 + --incremental flag) + register-cron 16:45 Paris + extend `_section_eur_specific` (Bund + €STR + BTP-via-FRED inline + spread calc + symmetric language + frequency mismatch warning) + 23 new tests (14 collector + 9 section). 30/30 r34 tests pass + 163/163 regression = 193 cross-module.
+> - **r34 cosmetic (`e3f396d` PR #110)** : Bund CLI label inversion fix (obs[0]=oldest / obs[-1]=newest, ASCENDING order from Bundesbank SDMX).
+> - **Dependabot triage** : merged #77 pnpm/action-setup 4→6 + #78 actions/setup-python 5→6 (CI bumps, safe). PR #79 actions/checkout 4→6 BLOCKED by OAuth `workflow` scope missing (Eliot manual). 6 PRs deferred with comments (#80 next-react group + #81 tooling group + #83 eslint/js + #84 lucide-react + #85 tailwind-merge + #86 n8n major).
+>
+> **Empirical 3-witness r34 LIVE** :
+>
+> - €STR : `fetched 1692 obs from ECB Data Portal` + `newest = 2026-05-12 = 1.929%` + DB COUNT(\*)=1692 + `ecb_estr.ingestion_complete` structlog
+> - `_section_eur_specific` LIVE rendering : Bund 10Y = 3.130% +9.0 bp 5d + €STR = 1.929% −0.3 bp 5d + 2 source-stamps + symmetric language for both
+> - BTP block gracefully skipped (FRED `IRLTLT01ITM156N` series not yet ingested — audit-gap r35 add to FRED collector series list)
+>
+> **Phase D loop post-round-34** : `measure (Vovk Sun + Bund daily + €STR daily) ✓ AUTONOMOUS 3 sources → read (W115c r29) ✓ AUTONOMOUS → act (ADR-090 step-3+step-4 LIVE incl. BTP-via-FRED inline graceful) ✓ → optimize (W117b .c-.g DEFERRED n≥100/pocket) ⏳`.
 >
 > **Round-33 same-day deliverables on main** :
 >
