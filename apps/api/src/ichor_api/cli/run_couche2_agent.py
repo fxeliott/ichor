@@ -85,7 +85,14 @@ async def run_one(kind: str, *, hours: int = 6) -> int:
     # endpoint /v1/agent-task. One retry with 60s sleep recovers most
     # cases without the structural async migration (deferred Phase D.1).
     log.info("couche2.run.start", kind=kind)
-    max_attempts = 2
+    # Round-27 fix (2026-05-13 08:47 CEST 530 storm) : bump max_attempts
+    # 2 -> 3 and add HTTP 530 to the transient marker tuple. The inner
+    # retry envelope in agents/claude_runner.py covers ≤155 s storms ;
+    # this outer cross-tick retry covers long CF tunnel flap recoveries
+    # (60 s wait between attempts = ~5 min total worst-case). Ban-risk :
+    # 3 attempts x 5 agents x 4 sessions/day = 60 reqs/day max, still
+    # well within Max 20x quota (rule 16).
+    max_attempts = 3
     for attempt in range(max_attempts):
         try:
             output = await chain.run(ctx.body)
@@ -96,7 +103,8 @@ async def run_one(kind: str, *, hours: int = 6) -> int:
         except Exception as exc:
             err = repr(exc)[:1000]
             transient_5xx = any(
-                marker in err for marker in ("HTTP 502", "HTTP 503", "HTTP 504", "HTTP 524")
+                marker in err
+                for marker in ("HTTP 502", "HTTP 503", "HTTP 504", "HTTP 524", "HTTP 530")
             )
             if attempt < max_attempts - 1 and transient_5xx:
                 log.info(

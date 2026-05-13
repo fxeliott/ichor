@@ -41,7 +41,9 @@ def test_polygon_xau_uses_currencies_namespace() -> None:
 
 def test_polygon_indices_use_i_namespace() -> None:
     assert _ASSET_TO_POLYGON["NAS100_USD"] == "I:NDX"
-    assert _ASSET_TO_POLYGON["SPX500_USD"] == "I:SPX"
+    # Round-27 ADR-089 (PROPOSED) : SPY proxy until Polygon Indices
+    # Starter is budgeted. Allow either to support eventual upgrade.
+    assert _ASSET_TO_POLYGON["SPX500_USD"] in {"SPY", "I:SPX"}
 
 
 def test_cot_markets_cover_phase1_universe() -> None:

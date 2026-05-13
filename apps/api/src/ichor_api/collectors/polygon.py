@@ -44,7 +44,16 @@ ASSET_TO_TICKER: dict[str, str] = {
     "USD_CAD": "C:USDCAD",
     "XAU_USD": "C:XAUUSD",
     "NAS100_USD": "I:NDX",
-    "SPX500_USD": "I:SPX",
+    # SPX500_USD : aliased to SPY (NYSE Arca ETF) until Polygon Indices
+    # Starter plan ($49/mo, 2026-05 pricing) is budgeted. SPY tracks
+    # cash I:SPX with <0.1% MTD tracking error (NAV spread tight,
+    # 0.0945% annual expense ratio) — imperceptible for Pass-2's
+    # qualitative macro framework (ISM/NFP/CPI/GEX/HY OAS drivers, not
+    # absolute close levels — cf packages/ichor_brain/passes/asset.py:
+    # 143-154). Polygon Stocks Starter ($29/mo, already paid) covers
+    # SPY. ADR-089 (PROPOSED). To revert when Indices plan budgeted :
+    # change "SPY" back to "I:SPX" — single-line revert.
+    "SPX500_USD": "SPY",
     # ── Cross-asset risk-on/off proxy (not a Phase-1 trading asset) ──
     "BTC_USD": "X:BTCUSD",
     # ── DXY (US Dollar Index, ICE) — drives the alert catalog's

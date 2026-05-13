@@ -38,7 +38,11 @@ def test_asset_to_ticker_uses_correct_namespaces() -> None:
     assert ASSET_TO_TICKER["EUR_USD"] == "C:EURUSD"
     assert ASSET_TO_TICKER["XAU_USD"] == "C:XAUUSD"  # spot gold = currencies, not crypto
     assert ASSET_TO_TICKER["NAS100_USD"] == "I:NDX"
-    assert ASSET_TO_TICKER["SPX500_USD"] == "I:SPX"
+    # SPX500_USD : round-27 ADR-089 (PROPOSED) — SPY ETF proxy until
+    # Polygon Indices Starter ($49/mo) is budgeted. SPY tracks I:SPX
+    # with <0.1% MTD tracking error, invisible for qualitative Pass-2.
+    # Allow either to support eventual upgrade without breaking CI.
+    assert ASSET_TO_TICKER["SPX500_USD"] in {"SPY", "I:SPX"}
 
 
 def test_parse_aggs_returns_one_bar_per_result() -> None:
@@ -127,3 +131,13 @@ def test_fetch_aggs_rejects_unknown_asset() -> None:
             )
 
     asyncio.run(_go())
+
+
+def test_spx500_uses_etf_proxy_or_indices_plan() -> None:
+    """ADR-089 (PROPOSED) — SPX500_USD must map to either SPY (current,
+    Stocks Starter $29/mo covers it) OR I:SPX (after Polygon Indices
+    Starter $49/mo budgeted). Any other mapping is a doctrinal violation
+    of the D1 universe (ADR-083) — SPX500 cards would go dark again."""
+    assert ASSET_TO_TICKER["SPX500_USD"] in {"SPY", "I:SPX"}, (
+        f"SPX500_USD must map to SPY or I:SPX, got {ASSET_TO_TICKER['SPX500_USD']}"
+    )
