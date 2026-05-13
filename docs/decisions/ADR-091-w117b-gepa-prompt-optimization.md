@@ -1,6 +1,6 @@
 # ADR-091: W117b GEPA prompt-optimization wiring (DSPy 3.2 Voie-D-bound)
 
-**Status**: PROPOSED — awaiting Eliot ratify before code lands. Estimated 3 dev-days end-to-end ; design captured here so future round can ship without re-litigation.
+**Status**: Accepted (round-32b ratify, 2026-05-13) — sub-waves .a + .a.r32 + .b SHIPPED (round-31 + round-32, ~0.75 dev-day) ; §"Invariant 2" amended round-32 from soft-lambda penalty to HARD-ZERO gate (3-layer defense codified). Sub-waves .c (gepa_optimizer.py core), .d (cli/run_gepa_optimizer.py), .e (Hetzner systemd timer), .f (CI guard tests), .g (adoption admin endpoint) DEFERRED — ~2.25 dev-days remaining. Prerequisite for sub-wave .c activation : validation set must reach n ≥ 100 per anti-skill pocket (EUR_USD/usd_complacency currently at n = 13, ~14 weeks accumulation needed).
 
 **Date**: 2026-05-13
 

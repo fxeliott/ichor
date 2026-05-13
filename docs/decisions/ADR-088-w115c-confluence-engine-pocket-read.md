@@ -1,6 +1,6 @@
 # ADR-088: W115c pocket-skill reader (close Phase D measure→act loop)
 
-**Status**: PROPOSED — awaiting Eliot ratify before code lands.
+**Status**: Accepted (round-32b ratify, 2026-05-13) — code shipped round-29 commit `e9ddcd6` (`services/pocket_skill_reader.py` 200 LOC + 22 tests + orchestrator `confluence_section` threading + 3 stress-pass threading tests, zero-diff backward-compat). Round-28 amendments applied (`confluence_engine` → `pocket_skill_reader` rename to avoid collision ; hysteresis 2-pp dead-band on band transitions).
 
 **Round-28 amendment (2026-05-13)** — the original ADR-088 draft proposed naming the new service `services/confluence_engine.py`. Audit revealed that file **already exists** at `apps/api/src/ichor_api/services/confluence_engine.py` with a DIFFERENT purpose (multi-factor "5+ confluences" deterministic score over 10 data-pool signals — rate diff, COT, microstructure OFI, daily levels, Polymarket, narrative, regime, surprise, funding, CB intervention). The two services are orthogonal :
 

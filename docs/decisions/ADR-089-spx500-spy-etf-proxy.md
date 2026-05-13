@@ -1,6 +1,6 @@
 # ADR-089: SPX500_USD → SPY ETF proxy (Polygon Indices 403 mitigation, Voie D budget discipline)
 
-**Status**: PROPOSED — awaiting Eliot ratify. Recommended action = Option 3 (SPY proxy).
+**Status**: Accepted (round-32b ratify, 2026-05-13) — SPY proxy shipped round-27 commit `eaaff82` (`data_pool.py:_ASSET_TO_POLYGON["SPX500_USD"] = "SPY"` + tests updated to accept `{SPY, I:SPX}`). Reversible via 1-line revert if Polygon Indices Starter is later budgeted (cf. pricing TBD — re-verify with polygon.io before purchase).
 
 **Date**: 2026-05-13
 
