@@ -71,6 +71,11 @@ class SessionCardAudit(Base):
     realized_close_session: Mapped[float | None] = mapped_column(Float)
     realized_high_session: Mapped[float | None] = mapped_column(Float)
     realized_low_session: Mapped[float | None] = mapped_column(Float)
+    # W118 (migration 0045) — open price at session start (bars[0].open).
+    # Unlocks the W115b Vovk climatology expert's real empirical y=1
+    # rate computation. NULL on legacy rows ; W115b query handles by
+    # excluding them from the historical denominator.
+    realized_open_session: Mapped[float | None] = mapped_column(Float)
     realized_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     brier_contribution: Mapped[float | None] = mapped_column(Float)
 

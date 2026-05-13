@@ -203,13 +203,72 @@ def test_module_exports_main_function() -> None:
 
 
 @pytest.mark.asyncio
-async def test_climatology_rate_returns_half_round19() -> None:
-    """Round-19 stand-in : `_climatology_rate` returns 0.5 regardless
-    of asset. The TODO W118 will swap this when realized_open_session
-    column lands. This test pins the stand-in so a careless swap
-    breaks the test (forcing the migration to land first)."""
+async def test_climatology_rate_falls_back_to_half_on_cold_start() -> None:
+    """W118 (round-23) : `_climatology_rate` returns 0.5 when fewer
+    than 8 observations exist with non-NULL realized_open_session +
+    realized_close_session. Cold-start gate prevents the Vovk AA from
+    being fed a noisy estimate."""
     from ichor_api.cli.run_brier_aggregator import _climatology_rate
 
-    # session arg unused in round-19 stand-in ; pass None.
-    rate = await _climatology_rate(None, "EUR_USD")  # type: ignore[arg-type]
+    class _StubResult:
+        def one(self):
+            return (3, 2)  # n=3 < 8 → cold-start → 0.5
+
+    class _Session:
+        async def execute(self, _stmt: Any) -> _StubResult:
+            return _StubResult()
+
+    rate = await _climatology_rate(_Session(), "EUR_USD")  # type: ignore[arg-type]
     assert rate == 0.5
+
+
+@pytest.mark.asyncio
+async def test_climatology_rate_computes_real_empirical_p_up() -> None:
+    """W118 (round-23) : with n ≥ 8 observations, returns n_up / n."""
+    from ichor_api.cli.run_brier_aggregator import _climatology_rate
+
+    class _StubResult:
+        def __init__(self, n: int, n_up: int) -> None:
+            self.n = n
+            self.n_up = n_up
+
+        def one(self):
+            return (self.n, self.n_up)
+
+    class _Session:
+        def __init__(self, n: int, n_up: int) -> None:
+            self._result = _StubResult(n, n_up)
+
+        async def execute(self, _stmt: Any) -> _StubResult:
+            return self._result
+
+    # 12 cards, 7 up → empirical 7/12 ≈ 0.583
+    rate = await _climatology_rate(_Session(12, 7), "EUR_USD")  # type: ignore[arg-type]
+    assert math.isclose(rate, 7 / 12, abs_tol=1e-9)
+
+    # Edge : n=8 (boundary), all up → 1.0
+    rate = await _climatology_rate(_Session(8, 8), "EUR_USD")  # type: ignore[arg-type]
+    assert rate == 1.0
+
+    # Edge : n=8, none up → 0.0
+    rate = await _climatology_rate(_Session(8, 0), "EUR_USD")  # type: ignore[arg-type]
+    assert rate == 0.0
+
+
+@pytest.mark.asyncio
+async def test_climatology_rate_handles_null_counts() -> None:
+    """SQL `COUNT(*)` always returns int but `SUM(CASE ...)` returns
+    None when there are no rows. The function defensively coerces None
+    → 0."""
+    from ichor_api.cli.run_brier_aggregator import _climatology_rate
+
+    class _StubResult:
+        def one(self):
+            return (None, None)  # both None : zero rows matched
+
+    class _Session:
+        async def execute(self, _stmt: Any) -> _StubResult:
+            return _StubResult()
+
+    rate = await _climatology_rate(_Session(), "EUR_USD")  # type: ignore[arg-type]
+    assert rate == 0.5  # n=0 < 8 → cold-start fallback

@@ -501,6 +501,28 @@ def test_post_mortem_pbs_cli_module_present() -> None:
     )
 
 
+def test_realized_open_session_migration_present() -> None:
+    """ADR-087 W118 (round-23) : migration 0045 adds the
+    `realized_open_session` column to `session_card_audit`. Without it
+    the W115b Vovk-AA climatology expert stays a 0.5 stand-in, the
+    informative empirical y=1 rate is unreachable, and the W116b PBS
+    bull-vs-bear breakdown can't render."""
+    text = _read_migration_text("realized_open_session")
+    assert "session_card_audit" in text, "W118 migration must target session_card_audit table."
+    assert "realized_open_session" in text, (
+        "W118 migration must add the column literally named realized_open_session."
+    )
+    assert "add_column" in text, (
+        "W118 migration must use op.add_column (ADD COLUMN), not "
+        "create_table — additive schema change on a populated table."
+    )
+    assert "nullable=True" in text, (
+        "W118 migration must declare nullable=True so existing 158 rows "
+        "remain valid post-deploy. The W115b query excludes NULL rows "
+        "from the climatology denominator."
+    )
+
+
 def test_brier_aggregator_cli_module_present() -> None:
     """ADR-087 W115b : `cli/run_brier_aggregator.py` is the nightly
     Vovk-AA cron entry point. The Hetzner systemd unit `ExecStart=`
