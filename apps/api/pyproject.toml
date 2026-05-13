@@ -67,6 +67,15 @@ ml = [
 phase-d = [
     "river>=0.21",
 ]
+# Phase D W117 (round-26) — DSPy 3.2 for GEPA meta-prompt optimization.
+# CRITICAL Voie D safeguard : the ONLY allowed LM under DSPy is our
+# custom `ClaudeRunnerLM` wrapping the existing claude-runner subprocess
+# path. `dspy.LM(...)` default uses litellm which routes to paid
+# Anthropic API — forbidden by ADR-009. The W117a invariant guard
+# (test_no_dspy_default_lm_with_claude_model) enforces this at CI time.
+phase-d-w117 = [
+    "dspy>=3.2",
+]
 
 [build-system]
 requires = ["hatchling"]

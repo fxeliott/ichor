@@ -501,6 +501,68 @@ def test_post_mortem_pbs_cli_module_present() -> None:
     )
 
 
+def test_w117a_dspy_lm_voie_d_compliant() -> None:
+    """ADR-009 + ADR-087 W117a (round-26) : the DSPy ClaudeRunnerLM
+    MUST route via `ichor_agents.claude_runner.call_agent_task_async`
+    (the canonical Voie D entry point). The class MUST inherit from
+    `dspy.BaseLM` (or stub when DSPy missing) ; MUST refuse Anthropic-
+    canonical model names ; MUST raise `dspy.ContextWindowExceededError`
+    on 413 so DSPy retry logic engages."""
+    lm_path = (
+        _REPO_ROOT / "apps" / "api" / "src" / "ichor_api" / "services" / "dspy_claude_runner_lm.py"
+    )
+    if not lm_path.exists():
+        pytest.skip(f"dspy_claude_runner_lm.py not found at {lm_path}")
+    text = lm_path.read_text(encoding="utf-8")
+    # Canonical Voie D import path inside the async forward.
+    assert "ichor_agents.claude_runner" in text, (
+        "ADR-009 + W117a : ClaudeRunnerLM MUST lazy-import "
+        "`from ichor_agents.claude_runner import call_agent_task_async` "
+        "in its `_async_forward` path."
+    )
+    assert "call_agent_task_async" in text, (
+        "ADR-009 + W117a : the wrapper MUST call the canonical async "
+        "entry point (NOT the sync `call_agent_task` ; not a raw "
+        "httpx POST that bypasses retry envelope)."
+    )
+    # 413 → ContextWindowExceededError mapping is explicit.
+    assert "ContextWindowExceededError" in text, (
+        "W117a : 413 / context-window failures MUST be mapped to "
+        "`dspy.ContextWindowExceededError` so DSPy retry/truncation "
+        "engages instead of raw RuntimeError bubbling."
+    )
+    # Allowed model tags = sentinel namespace, NOT raw Anthropic names.
+    assert "ichor-claude-runner-haiku" in text, (
+        "ADR-009 W117a : the only model_tag values accepted are "
+        "`ichor-claude-runner-{haiku,sonnet,opus}` sentinels. Raw "
+        "Anthropic names (`claude-3-haiku-*`) would let litellm-aware "
+        "DSPy adapters route to paid API."
+    )
+
+
+def test_w117a_extras_declared_in_pyproject() -> None:
+    """ADR-087 W117a : the `[phase-d-w117]` optional extras MUST be
+    declared in `apps/api/pyproject.toml` with `dspy>=3.2` (the
+    BaseLM-decoupled-from-litellm release). The W90 ADR-009 invariant
+    catches `import anthropic` ; this pin catches a refactor that
+    silently drops the extras and breaks the W117 install flow."""
+    pyp_path = _REPO_ROOT / "apps" / "api" / "pyproject.toml"
+    if not pyp_path.exists():
+        pytest.skip(f"pyproject.toml not found at {pyp_path}")
+    text = pyp_path.read_text(encoding="utf-8")
+    assert "phase-d-w117" in text, (
+        "W117a : `[phase-d-w117]` extras MUST be declared in "
+        "apps/api/pyproject.toml. Mirrors the `[phase-d]` + `[ml]` "
+        "optional-deps pattern."
+    )
+    # `dspy>=3.2` is the BaseLM-decoupled-from-litellm minimum version.
+    assert re.search(r"dspy\s*>=\s*3\.2", text), (
+        "W117a : the phase-d-w117 extras MUST pin `dspy>=3.2`. The "
+        "BaseLM/litellm separation landed in 3.2 ; older versions "
+        "would force-pull litellm + paid-API client wrappers."
+    )
+
+
 def test_pass3_addenda_injection_feature_flag_key_pinned() -> None:
     """ADR-087 W116c stage 2 (round-24) : the feature flag key that
     gates Pass-3 addenda injection in `run_session_card.py` is pinned
