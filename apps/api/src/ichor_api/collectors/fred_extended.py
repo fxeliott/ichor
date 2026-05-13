@@ -98,6 +98,10 @@ EXTENDED_SERIES_TO_POLL: tuple[str, ...] = (
     # CPIAUCSL, PCEPI, PAYEMS, UNRATE, GDPC1, INDPRO, SOFR, DFF
     # ─── Foreign rate differentials ───
     "IRLTLT01DEM156N",  # Germany 10y (for EUR-USD spread)
+    "IRLTLT01ITM156N",  # Italy 10y (BTP-Bund spread proxy via FRED, round-35
+    #                   ; ADR-090 step-4 BTP-via-FRED block activation —
+    #                   Banca d'Italia direct SDMX blocked by CF bot-mit
+    #                   per r33 subagent #2, FRED OECD monthly fallback)
     "IRLTLT01JPM156N",  # Japan 10y (for USD-JPY)
     "IRLTLT01GBM156N",  # UK 10y (for GBP-USD)
     # ─── OECD CLI (Composite Leading Indicators) — Wave 34 ───
