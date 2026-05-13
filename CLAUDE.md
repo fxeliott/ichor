@@ -2,7 +2,20 @@
 
 > Auto-injected at every session start. Keep terse and current.
 >
-> **Last sync: 2026-05-13 18:30 CEST — ROUND-32+32b COMPLETE : 3 PRs MERGED on main + 4 ADRs ratified PROPOSED→Accepted + ADR-090 4 open questions answered** : main HEAD = `85eef7c` (PR #104 round-32) ; PR #102 omnibus merged as `088130f` ; PR #103 round-31 merged as `372b1cb` (rebased via `--onto` to skip squashed-out commits) ; PR #104 round-32 merged as `85eef7c` ; round-32b ratify PR pending on `claude/round-32b-adr-ratify` branch ; alembic head Hetzner still `0045` (migrations 0046 + 0047 IN REPO not yet deployed, Eliot Ansible batch pending) ; ZERO Anthropic API spend (Voie D mechanical W90) ; frontend gel intact rounds 13-32 (20 rounds, zero `apps/web2` commits).
+> **Last sync: 2026-05-13 20:35 CEST — ROUND-33 TIER 1 SHIPPED + DEPLOYED + EMPIRICAL TESTED : 6 PRs merged (102→107) + Hetzner alembic 0045→0047 + 7299 Bund rows ingested + W115c flag + Bund daily cron armed (next fire 2026-05-14 16:32 CEST)** : main HEAD = `0a8bbe1` (PR #107 round-33 CLI Bund + cron) ; Hetzner alembic = `0047` LIVE ; `bund_10y_observations` = 7299 rows ; `gepa_candidate_prompts` = 0 (no GEPA run yet) ; feature flags `phase_d_w115c_confluence_enabled=true@100` + `bundesbank_bund_collector_enabled=true@100` ; systemd timer `ichor-bundesbank-bund.timer` ARMED next-fire Thu 2026-05-14 16:32:48 CEST (daily 16:30 Paris + RandomizedDelaySec=300) ; ZERO Anthropic API spend (Voie D mechanical W90) ; frontend gel intact rounds 13-33 (21 rounds, zero `apps/web2` commits).
+>
+> **Round-33 same-day deliverables on main** :
+>
+> - **r32c (`095b050`)** : Hot-fix Bundesbank collector 2 bugs (URL `?format=csvdata` → 406 + CSV `;` delimiter mismatch) discovered empirically post-Hetzner-deploy. Manual ingestion 7299 rows.
+> - **r33 (`0a8bbe1`)** : `cli/run_bundesbank_bund.py` (~150 LOC + 9 unit tests) + `scripts/hetzner/register-cron-bundesbank-bund.sh` (systemd timer daily 16:30 Paris) + feature flag `bundesbank_bund_collector_enabled`. Empirical 3-witness LIVE : systemctl exit code 0/SUCCESS, journalctl complete chain, 7299 rows idempotent ON CONFLICT DO NOTHING.
+>
+> **Round-33 subagent intel (4 dispatched, 3 returned with actionable findings)** :
+>
+> - **Researcher #2 (ECB + BdI SDMX)** : €STR ECB Data Portal SDMX-CSV LIVE 1.929% on 2026-05-12 via `data-api.ecb.europa.eu/service/data/EST/B.EU000A2X2A25.WT?startPeriod=YYYY-MM-DD`. Delimiter = COMMA (NOT semicolon like Bundesbank — bug class doesn't recur). Accept = `application/vnd.sdmx.data+csv;version=1.0.0`. BTP-Italy 10Y : DO NOT use Banca d'Italia SDMX (CF bot-mitigation blocks, sdmx1 lib doesn't support BdI). USE FRED `IRLTLT01ITM156N` (OECD monthly via FRED API, key already in env).
+> - **Researcher #3 (Claude Code 2026)** : Anthropic Max 20x 5-hour cap **DOUBLED to ~1800 msg on 2026-05-06** (was 900) + peak-hour throttling removed. Weekly cap unchanged. DSPy 3.2.1 + gepa[dspy] 0.0.26 ships **cached evals** (relevant for ADR-091 budget cap). EU AI Act §50.2 deadline confirmed 2026-08-02 (T-3 months) ; Draft Code of Practice 2026-05-03 + consultation until 2026-06-03. Our W88+W89 watermark+disclosure satisfies §50(2)+(5).
+> - **ichor-data-pool-validator (€STR + BTP pre-review)** : €STR YELLOW (URL/Accept fixes listed) → recommended ship round-33 Tier 2 OR defer. BTP Path A (BdI direct) RED → skip. BTP Path B (FRED inline) GREEN with monthly-cadence caveat → no new collector/migration, just extend `_section_eur_specific` to inline FRED lookup + compute BTP-Bund spread + symmetric language.
+>
+> **Tier 2 deferred** (€STR collector + BTP-via-FRED extension to `_section_eur_specific`) : design fully validated, ship next round (estimated 1.5 dev-days). Round-33 closing-session focuses on Tier 1 success + paste-prompt v14 for round-34.
 >
 > **Round-27→32 same-day deliverables on PR #102 + #103 + #104 stack** :
 >
