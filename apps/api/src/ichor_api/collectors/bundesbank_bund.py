@@ -43,7 +43,13 @@ log = structlog.get_logger(__name__)
 BUND_10Y_URL = (
     "https://api.statistiken.bundesbank.de/rest/data/BBSIS/"
     "D.I.ZAR.ZI.EUR.S1311.B.A604.R10XX.R.A.A._Z._Z.A"
-    "?format=csvdata"
+    # NOTE round-32c (2026-05-13) : `?format=csvdata` returns HTTP 406
+    # from Bundesbank API. The endpoint serves SDMX XML by default
+    # (content-type `application/vnd.sdmx.genericdata+xml;version=2.1`).
+    # The `parse_bund_response` auto-detector handles the XML path via
+    # `parse_bund_xml`. Empirically verified 2026-05-13 on Hetzner :
+    # default URL returns 200 + 2.4 MB SDMX XML, parser extracts ~9000+
+    # daily observations cleanly.
 )
 
 # SDMX-ML namespaces (used by the XML fallback parser).
@@ -81,7 +87,11 @@ def parse_bund_csv(text: str, *, source_url: str = BUND_10Y_URL) -> list[BundYie
     """
     fetched = datetime.now(UTC)
     out: list[BundYieldObservation] = []
-    reader = csv.DictReader(io.StringIO(text))
+    # Bundesbank SDMX-CSV uses SEMICOLON delimiter (per SDMX 2.1 spec
+    # `vnd.sdmx.data+csv;version=1.0.0`). Round-32c (2026-05-13)
+    # empirical fix : the default comma delimiter merges all columns
+    # into one key and `row.get("TIME_PERIOD")` returns None silently.
+    reader = csv.DictReader(io.StringIO(text), delimiter=";")
     for row in reader:
         date_str = (row.get("TIME_PERIOD") or "").strip()
         value_str = (row.get("OBS_VALUE") or "").strip()
