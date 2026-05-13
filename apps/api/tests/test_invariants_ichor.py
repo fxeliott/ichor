@@ -642,6 +642,11 @@ def test_pure_data_routes_excluded_from_watermark() -> None:
         "/v1/sources",  # static metadata
         "/v1/correlations",  # computed from collector outputs
         "/v1/macro-pulse",  # idem
+        # W118 round-21 — Phase D observability is pure-data over
+        # ADR-087 audit tables (auto_improvement_log,
+        # brier_aggregator_weights). Cron-computed aggregates, NOT
+        # AI-generated narrative text. ADR-079 watermark MUST exclude.
+        "/v1/phase-d",
         "/healthz",  # infra
         "/livez",  # infra
         "/readyz",  # infra
