@@ -191,6 +191,48 @@ def test_stress_build_prompt_includes_specialization_json() -> None:
     assert "Pass 2 specialization" in prompt
 
 
+def test_stress_build_prompt_empty_addenda_section_byte_identical() -> None:
+    """W116c regression guard : passing empty addenda_section must
+    produce the same prompt text as omitting the kwarg entirely.
+    Pre-W116c byte-identical contract."""
+    p = StressPass()
+    spec = AssetSpecialization.model_validate(ASSET_OK_JSON)
+    prompt_without = p.build_prompt(specialization=spec, asset_data="...")
+    prompt_with_empty = p.build_prompt(specialization=spec, asset_data="...", addenda_section="")
+    prompt_with_whitespace = p.build_prompt(
+        specialization=spec, asset_data="...", addenda_section="   \n\n  "
+    )
+    assert prompt_without == prompt_with_empty
+    assert prompt_without == prompt_with_whitespace
+
+
+def test_stress_build_prompt_injects_addenda_section_when_non_empty() -> None:
+    """W116c : non-empty addenda_section renders the "## Operator
+    addenda" header before the steelman instruction."""
+    p = StressPass()
+    spec = AssetSpecialization.model_validate(ASSET_OK_JSON)
+    addenda_text = (
+        "- Pocket EUR_USD/usd_complacency shows no skill over last 30 d ; "
+        "consider widening stress counter-claims on USD strength.\n"
+        "- Pocket GBP_USD/goldilocks Brier baseline-equivalent ; addenda "
+        "from W116b PBS post-mortem 2026-05-12."
+    )
+    prompt = p.build_prompt(
+        specialization=spec,
+        asset_data="...",
+        addenda_section=addenda_text,
+    )
+    assert "## Operator addenda (Phase D W116b post-mortem)" in prompt
+    assert "Pocket EUR_USD/usd_complacency shows no skill" in prompt
+    # Addenda block must appear BEFORE the steelman instruction (so the
+    # model takes them as adversarial context, not after-thought).
+    addenda_idx = prompt.index("## Operator addenda")
+    steelman_idx = prompt.index("Steelman the OPPOSITE bias")
+    assert addenda_idx < steelman_idx
+    # Pre-existing Pass 2 specialization section remains.
+    assert "Pass 2 specialization" in prompt
+
+
 def test_stress_parse_ok() -> None:
     p = StressPass()
     out = p.parse(_wrap(STRESS_OK_JSON))

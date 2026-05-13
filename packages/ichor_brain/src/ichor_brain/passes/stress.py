@@ -45,13 +45,36 @@ class StressPass(Pass[StressTest]):
         *,
         specialization: AssetSpecialization,
         asset_data: str,
+        addenda_section: str = "",
         **_: Any,
     ) -> str:
+        """Compose the Pass-3 stress prompt.
+
+        `addenda_section` (W116c, ADR-087 Phase D) is an optional pre-
+        rendered block of operator addenda — short directional reminders
+        derived from the W116b post-mortem PBS evaluator. When non-empty,
+        injected BEFORE the steelman instruction so the model takes them
+        as adversarial context (NOT prescriptive evidence — they bias the
+        counter-claim selection, not the final probability).
+
+        Empty string = pre-W116c byte-identical behaviour. The caller
+        (`apps/api`) queries
+        `services.pass3_addendum_injector.select_active_addenda` and
+        renders to the section text, gated behind the
+        `pass3_addenda_injection_enabled` feature flag (default False
+        until W116c populates the table with LLM-generated content).
+        """
+        addenda_block = (
+            f"## Operator addenda (Phase D W116b post-mortem)\n\n{addenda_section}\n\n"
+            if addenda_section.strip()
+            else ""
+        )
         return (
             "## Pass 2 specialization (the bias to challenge)\n\n"
             f"```json\n{specialization.model_dump_json(indent=2)}\n```\n\n"
             "## Data pool (same as Pass 2)\n\n"
             f"{asset_data}\n\n"
+            f"{addenda_block}"
             "---\n\n"
             "Steelman the OPPOSITE bias. Reply with the JSON envelope only."
         )
