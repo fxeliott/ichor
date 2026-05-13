@@ -52,6 +52,9 @@ from .fred_observation import FredObservation
 # Phase 2 — VPIN microstructure (migration 0020)
 from .fx_tick import FxTick
 from .gdelt_event import GdeltEvent
+
+# Phase D ADR-091 W117b sub-wave .b — GEPA candidate prompts (round-32)
+from .gepa_candidate_prompt import GepaCandidatePrompt
 from .gpr_observation import GprObservation
 from .kalshi_market import KalshiMarket
 from .manifold_market import ManifoldMarket
@@ -115,6 +118,8 @@ __all__ = [
     # Phase 2 — VPIN microstructure
     "FxTick",
     "GdeltEvent",
+    # Phase D W117b sub-wave .b — GEPA candidate prompts (round-32)
+    "GepaCandidatePrompt",
     "GprObservation",
     "KalshiMarket",
     "ManifoldMarket",

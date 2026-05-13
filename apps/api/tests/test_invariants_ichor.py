@@ -439,6 +439,92 @@ def test_pass3_addenda_expires_after_created_constraint() -> None:
     )
 
 
+def test_gepa_candidate_prompts_immutable_trigger_present() -> None:
+    """ADR-091 W117b sub-wave .b (round-32) : `gepa_candidate_prompts`
+    migration MUST install the same BEFORE-UPDATE-OR-DELETE trigger
+    pattern as `audit_log` / `tool_call_audit` / `auto_improvement_log`.
+    The W117b.g adoption admin endpoint uses the sanctioned-purge GUC
+    bypass to flip `status` from `candidate` to `adopted` ; without
+    the trigger the audit chain is mutable."""
+    text = _read_migration_text("gepa_candidate_prompts")
+    assert "BEFORE UPDATE OR DELETE" in text, (
+        "ADR-091 W117b.b : gepa_candidate_prompts migration is missing the "
+        "BEFORE UPDATE OR DELETE clause."
+    )
+    assert "RAISE EXCEPTION" in text, (
+        "ADR-091 W117b.b : gepa_candidate_prompts migration is missing a "
+        "RAISE EXCEPTION in the trigger body."
+    )
+    assert "audit_purge_mode" in text, (
+        "ADR-091 W117b.b : gepa_candidate_prompts migration is missing the "
+        "sanctioned-purge GUC `ichor.audit_purge_mode`. The W117b.g "
+        "adoption endpoint cannot flip status without it."
+    )
+
+
+def test_gepa_candidate_prompts_status_enum_pinned() -> None:
+    """ADR-091 W117b.b : the 4 candidate status values are CHECK-pinned.
+    Adding a new state (e.g. `'shadow_testing'`) silently breaks the
+    orchestrator's `WHERE status = 'adopted'` index-backed lookup."""
+    text = _read_migration_text("gepa_candidate_prompts")
+    for status in ("candidate", "adopted", "rejected", "archived"):
+        assert status in text, (
+            f"ADR-091 W117b.b : gepa_candidate_prompts status CHECK is missing {status!r}."
+        )
+
+
+def test_gepa_candidate_prompts_pass_kind_enum_pinned() -> None:
+    """ADR-091 W117b.b : the 4 4-pass labels are CHECK-pinned. Matches
+    the Pass-1/2/3/4 canonical surface ; adding a 5th pass requires
+    a separate ADR + schema migration."""
+    text = _read_migration_text("gepa_candidate_prompts")
+    for kind in ("regime", "asset", "stress", "invalidation"):
+        assert kind in text, (
+            f"ADR-091 W117b.b : gepa_candidate_prompts pass_kind CHECK is missing {kind!r}."
+        )
+
+
+def test_gepa_candidate_prompts_adr017_hard_zero_check_present() -> None:
+    """ADR-091 amended round-32 §"Invariant 2" : a candidate with any
+    ADR-017 violation MUST land as `status='rejected'`, never
+    `'candidate'` or `'adopted'`. The hard-zero contract is enforced
+    at the DB level via CHECK constraint so neither the optimizer nor
+    the admin endpoint can promote a tainted candidate."""
+    text = _read_migration_text("gepa_candidate_prompts")
+    assert "ck_gepa_candidate_adr017_hard_zero" in text, (
+        "ADR-091 amended round-32 : gepa_candidate_prompts migration is "
+        "missing the hard-zero CHECK constraint "
+        "`adr017_violations = 0 OR status = 'rejected'`. Soft-lambda "
+        "penalty was the original ADR-091 §Invariant 2 reading but "
+        "round-32 ichor-trader review proved it allows obfuscated "
+        "candidates to score net-positive fitness — landmine closed."
+    )
+
+
+def test_gepa_candidate_prompts_unique_pocket_generation_run() -> None:
+    """ADR-091 W117b.b : one candidate per pocket per generation per
+    GEPA run. UNIQUE constraint prevents the optimizer from re-emitting
+    duplicate rows when its loop logic glitches."""
+    text = _read_migration_text("gepa_candidate_prompts")
+    assert "uq_gepa_candidate_pocket_generation_run" in text, (
+        "ADR-091 W117b.b : gepa_candidate_prompts migration is missing "
+        "the UNIQUE constraint on (pocket_asset, pocket_regime, "
+        "pocket_session_type, pass_kind, generation, gepa_run_id)."
+    )
+    for col in (
+        "pocket_asset",
+        "pocket_regime",
+        "pocket_session_type",
+        "pass_kind",
+        "generation",
+        "gepa_run_id",
+    ):
+        assert col in text, (
+            f"ADR-091 W117b.b : gepa_candidate_prompts migration is missing "
+            f"column {col!r} (referenced by the UNIQUE constraint)."
+        )
+
+
 def test_brier_aggregator_register_cron_present() -> None:
     """ADR-087 W115b cron : `scripts/hetzner/register-cron-brier-aggregator.sh`
     is the Hetzner systemd timer installer. Without it the Vovk-AA

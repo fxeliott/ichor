@@ -47,6 +47,12 @@ FORBIDDEN_SET: frozenset[str] = frozenset(
         # ADR-087 Loop 4 : addenda are render-only via the injector. The
         # raw table holds candidate prompts the LLM hasn't seen yet.
         "pass3_addenda",
+        # ADR-091 W117b sub-wave .b (round-32) : GEPA candidate prompts
+        # are un-vetted LLM outputs pre-adoption. Couche-2 agents MUST
+        # remain blind to the candidate pool ; only adopted prompts
+        # are loaded by the orchestrator at startup via a code path
+        # that does NOT touch Cap5 query_db.
+        "gepa_candidate_prompts",
     }
 )
 
