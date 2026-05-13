@@ -46,6 +46,7 @@ class StressPass(Pass[StressTest]):
         specialization: AssetSpecialization,
         asset_data: str,
         addenda_section: str = "",
+        confluence_section: str = "",
         **_: Any,
     ) -> str:
         """Compose the Pass-3 stress prompt.
@@ -57,16 +58,27 @@ class StressPass(Pass[StressTest]):
         as adversarial context (NOT prescriptive evidence — they bias the
         counter-claim selection, not the final probability).
 
-        Empty string = pre-W116c byte-identical behaviour. The caller
-        (`apps/api`) queries
-        `services.pass3_addendum_injector.select_active_addenda` and
-        renders to the section text, gated behind the
-        `pass3_addenda_injection_enabled` feature flag (default False
-        until W116c populates the table with LLM-generated content).
+        `confluence_section` (W115c, ADR-088 round-28) is an optional
+        pre-rendered Vovk-skill calibration hint from
+        `services.pocket_skill_reader.render_pass3_addendum`. When
+        non-empty, injected as a second context block AFTER addenda. The
+        model reads it as a *confidence-band hint* — high_skill /
+        neutral / anti_skill — and adjusts the invalidation-risk weighting
+        in its counter-claim selection. NEVER as a directional override
+        of Pass-2 bias / conviction (ADR-017 boundary intact).
+
+        Both kwargs default empty string — zero-diff pre-W115c/W116c
+        baseline behaviour. The caller (`apps/api`) is responsible for
+        feature-flag gating both contexts independently.
         """
         addenda_block = (
             f"## Operator addenda (Phase D W116b post-mortem)\n\n{addenda_section}\n\n"
             if addenda_section.strip()
+            else ""
+        )
+        confluence_block = (
+            f"## Pocket skill calibration hint (Phase D W115c)\n\n{confluence_section}\n\n"
+            if confluence_section.strip()
             else ""
         )
         return (
@@ -75,6 +87,7 @@ class StressPass(Pass[StressTest]):
             "## Data pool (same as Pass 2)\n\n"
             f"{asset_data}\n\n"
             f"{addenda_block}"
+            f"{confluence_block}"
             "---\n\n"
             "Steelman the OPPOSITE bias. Reply with the JSON envelope only."
         )

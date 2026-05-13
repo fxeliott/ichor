@@ -186,6 +186,9 @@ _TFF_MARKET_BY_ASSET: dict[str, str] = {
 }
 
 # Polygon ticker per asset (mirrors collectors/polygon.py).
+# Round-27 ADR-089 (PROPOSED) : SPX500_USD aliased to SPY (NYSE Arca
+# ETF, $0 incremental cost) until Polygon Indices Starter $49/mo is
+# budgeted. Tracking error <0.1% MTD invisible for qualitative Pass-2.
 _ASSET_TO_POLYGON: dict[str, str] = {
     "EUR_USD": "C:EURUSD",
     "GBP_USD": "C:GBPUSD",
@@ -194,7 +197,7 @@ _ASSET_TO_POLYGON: dict[str, str] = {
     "USD_CAD": "C:USDCAD",
     "XAU_USD": "C:XAUUSD",
     "NAS100_USD": "I:NDX",
-    "SPX500_USD": "I:SPX",
+    "SPX500_USD": "SPY",  # was "I:SPX" — ADR-089 SPY proxy
 }
 
 

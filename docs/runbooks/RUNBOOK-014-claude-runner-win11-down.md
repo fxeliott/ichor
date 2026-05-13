@@ -124,6 +124,57 @@ process tree control, toast notifications. Phase A.7 of the
 ROADMAP plans this migration. **Do NOT do it during an outage** —
 schedule it.
 
+### Path E — Couche-2 530 storm (recurrence, round-27 ADR-087 ref)
+
+**Symptom** : 3+ HTTP 530 errors in <60 s on `/v1/agent-task/async`, all retries exhausted, Couche-2 agent (cb_nlp / news_nlp / sentiment / positioning / macro) fails with `AllProvidersFailed` after both the inner envelope (4 retries × backoff 5/15/45/90 s = 155 s) AND the outer CLI retry (60 s × 3 attempts = ~5 min) exhausted.
+
+**Diagnostic steps** :
+
+1. Confirm CF tunnel is alive on Win11 :
+
+   ```powershell
+   cloudflared.exe tunnel list
+   # Look for tunnel 97aab1f6 status "active"
+   ```
+
+2. Bypass-tunnel origin check (must return 200) :
+
+   ```powershell
+   curl http://127.0.0.1:8766/healthz
+   ```
+
+3. Check QUIC vs HTTP/2 protocol :
+   ```powershell
+   Get-Process cloudflared | Select-Object CommandLine
+   # If --protocol quic seen, this is likely the storm cause.
+   ```
+
+**Fix sequence** :
+
+A. **Force `--protocol http2`** (the major lever — round-27 researcher identified QUIC handshake timeouts as primary 530 storm cause, cf [cloudflared issue #1534](https://github.com/cloudflare/cloudflared/issues/1534)) :
+
+```powershell
+# Edit start script to add --protocol http2 flag
+notepad "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Startup\start-cloudflared-user.ps1"
+# Replace argument list to include : --protocol http2
+# Restart :
+Stop-Process -Name cloudflared -Force
+& "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Startup\start-cloudflared-user.ps1"
+```
+
+B. **Verify retry envelope shipped** (round-27 PR) :
+
+```bash
+# Inner async envelope (claude_runner.py:332)
+grep "submit_backoff = (5.0, 15.0, 45.0, 90.0)" packages/agents/src/ichor_agents/claude_runner.py
+# Outer CLI envelope (run_couche2_agent.py:99-100)
+grep -E "max_attempts = 3|HTTP 530" apps/api/src/ichor_api/cli/run_couche2_agent.py
+```
+
+C. **If origin OK but edge 530 > 5 min** : CF edge POP issue, escalate Cloudflare Tunnel support — out of Ichor scope.
+
+**Escalation** : if Couche-2 has full 24h of 530s, the cron will keep firing with full retries (~5 min/fire × 5 agents × 4 sessions/day = ~100 min/day worst case). Watch `journalctl -u ichor-couche2-cb_nlp.service` for storm pattern recognition.
+
 ## Post-incident
 
 - Log incident in `docs/SESSION_LOG_YYYY-MM-DD.md` with timeline.

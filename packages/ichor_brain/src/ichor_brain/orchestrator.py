@@ -230,6 +230,7 @@ class Orchestrator:
         calibration_block: str | None = None,
         analogues_section: str = "",
         pass3_addenda_section: str = "",
+        confluence_section: str = "",
     ) -> OrchestratorResult:
         """Run the 4 (+optional 6) passes for one (session_type, asset).
 
@@ -251,6 +252,19 @@ class Orchestrator:
         `services.pass3_addendum_injector.select_active_addenda` and
         renders, gated behind a feature flag. Empty string = pre-W116c
         byte-identical behaviour.
+
+        `confluence_section` (W115c, ADR-088 round-28) is an optional
+        pre-rendered Vovk-skill calibration hint from
+        `services.pocket_skill_reader.render_pass3_addendum`. When
+        non-empty, forwarded to `StressPass.build_prompt` ; the model
+        uses it as a confidence-band hint (high_skill / neutral /
+        anti_skill) to weight invalidation risks in its counter-claim
+        selection. NEVER a directional override of Pass-2 bias /
+        conviction (ADR-017 boundary intact). Same purity contract :
+        caller (apps/api) queries
+        `services.pocket_skill_reader.read_pocket` + `.render_pass3_addendum`,
+        gated by `phase_d_w115c_confluence_enabled` feature flag.
+        Empty string = pre-W115c byte-identical behaviour.
         """
         generated_at = now or datetime.now(UTC)
         runner_calls: list[RunnerCall] = []
@@ -309,6 +323,7 @@ class Orchestrator:
                 specialization=spec,
                 asset_data=asset_data,
                 addenda_section=pass3_addenda_section,
+                confluence_section=confluence_section,
             ),
             system=self._stress.system_prompt,
             model="opus",

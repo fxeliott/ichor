@@ -1,26 +1,55 @@
 # Ichor — Claude Code project memory
 
 > Auto-injected at every session start. Keep terse and current.
-> **Last sync: 2026-05-12 17:30 CEST — RAG PHASE C LIVE PROVEN END-TO-END (W110b→g shipped)** : alembic head `0041` ; 153 prod session-cards embedded into `rag_chunks_index` (bge-small ONNX CPU Hetzner, 384-dim) ; smoke retrieve on EUR_USD `usd_complacency` returns 3 same-regime analogues cos_dist 0.141/0.146/0.150 ; `ichor-rag-incremental-embed.timer` LIVE next-fire Wed 03:03 CEST ; Pass-1 prompt-builder ready to inject the analogues block via `--enable-rag` (opt-in CLI flag, default OFF). W110f RAGAS eval deferred. ADR-086 invariants all CI-guarded (Cap5 exclusion + embargo + vector(384) pinning).
 >
-> **Pre-W110 sync (2026-05-12 16:09 CEST — PIPELINE LIVE PROVEN END-TO-END)** (W105 Pass-6 scenarios LIVE Hetzner prod ; first live EUR_USD pre_londres card persisted id=`d2222ea2-7a3a-4ff6-80aa-0258063c45c5` total 173676ms : Pass-1 régime usd_complacency 72% → Pass-2 bias=short 58% → Pass-3 revised 28% → Pass-4 6 invalidation conditions → Pass-6 7 buckets sum=1.0 p_max=0.32 tails 4% → Critic approved. Scenarios JSONB qualité institutionnelle : mechanisms réfèrent chiffres réels stamped (DXY 118, FRED:DGS10 4.38%, SKEW 140.21, corr -0.85, range 6h 38 pips, NFCI -0.51) + ADR-017 boundary 100% respected. Le LLM Sonnet 4.6 effort=medium délivre exactement la vision Eliot "rêve ultime trader" (direction + % + catalyseurs + niveaux clés en français, zero BUY/SELL/TP/SL).
+> **Last sync: 2026-05-13 19:30 CEST — PHASE D LOOP CLOSED ARCHITECTURALLY (W115c IMPLEMENTED r29 + ADR-090 P0 step-1 Bund 10Y collector + ADR-091 W117b GEPA PROPOSED + Cap5 FORBIDDEN_SET 4→7 + ADR-017 regex 19-pattern superset + Win11 cloudflared http2 LIVE)** : alembic head Hetzner `0045` ; **migration 0046 `bund_10y_observations` IN REPO, NOT yet deployed Hetzner** (Eliot post-merge action) ; PR #102 omnibus 5 commits open `f76f5a0→e9ddcd6`, CI 14/14 PASS, MERGEABLE ; ZERO Anthropic API spend (Voie D mechanical W90) ; frontend gel intact rounds 13-29 (17 rounds, zero `apps/web2` commits).
 >
-> Pipeline maillons 10/10 OK :
+> **Round-27→29 same-day deliverables on PR #102 (added round-30 to this sync line)** :
 >
-> 1. ✅ Cron systemd Pre-Londres 06:00 Paris
-> 2. ✅ Orchestrator → claude-runner via CF Tunnel (W102 effectivement débloqué — vrai bug = cloudflared local lancé `--url :8000` au lieu de named tunnel `97aab1f6` `:8766`. Fix : kill quick-tunnel zombi + `start-cloudflared-user.ps1`. CF Access service token déjà configuré Hetzner-side depuis le début, Eliot l'avait fait sans s'en rappeler)
-> 3. ✅ Pass-6 enable_scenarios in cron (run_session_card.py)
-> 4. ✅ Migration 0039 deployée Hetzner (`scenarios JSONB NOT NULL` + `realized_scenario_bucket` + CHECK 7 canonical + table `scenario_calibration_bins`)
-> 5. ✅ Persistence scenarios JSONB (vérifié : array de 7 entries persisted, jsonb_pretty lisible)
-> 6. ✅ Push notif "cards ready" wired (G2)
-> 7. ⚠️ `/v1/today/diff` endpoint deployed mais 500 minor Pydantic missing field (non-bloquant, fix post-prod usage)
-> 8. ✅ `/v1/calibration/scoreboard` W105h 7-bucket layer LIVE (27 cells 30d window avec realized_bucket_distribution + brier_multiclass + skill_vs_climatology)
-> 9. ✅ W105g realized_scenario_bucket reconciler wired (`cli/reconcile_outcomes.py`)
-> 10. ✅ Claude CLI Win11 reloggé (`claude /login` OAuth Apple ID Eliott, validé via test echo→OK_AUTH)
+> 1. **r27 (`f76f5a0+eaaff82+28739c6`)** : CLAUDE.md sync 0041→0045 + ADR-087 retroactive Accepted + 4 PROPOSED ADRs (088/089/090/091) + SPX500→SPY proxy (ADR-089) + Couche-2 530 storm retry envelope `(5,15,45,90)` + RUNBOOK-014 Path E.
+> 2. **r28 (`712b8a8`)** : ADR-017 regex 11→19 patterns superset (security pre-Sunday W116c fire) + Win11 cloudflared `--protocol http2` LIVE (PID 22820, 4 connections registered `protocol=http2`) + phase_d.py SQL filter push-down + ADR-087 loop_kind enum drift 6→4 corrected + ADR-088 rename `confluence_engine`→`pocket_skill_reader` + hysteresis 2-pp dead-band.
+> 3. **r29 (`e9ddcd6`)** : **W115c `pocket_skill_reader.py` IMPLEMENTED** (200 LOC + 22 tests + orchestrator threading) + **ADR-090 P0 step-1 Bund 10Y collector** (migration 0046 + ORM + dual SDMX-CSV+XML parser + 13 tests, source empirically validated 3.13% PROZENT) + **ADR-091 GEPA PROPOSED** (7 invariants + 7 sub-waves, 3 dev-days deferred) + Cap5 FORBIDDEN_SET 4→7 tables.
 >
-> 7 rounds autonomous session : commits `35f539d → 6d7c302` (11 ahead origin/main). 191 tests pass. Architecture refactor scenarios.py home → `packages/ichor_brain/scenarios.py` + apps/api re-export shim. CVE batch closed (MinIO IAM privesc + ClickHouse 24.12.5.65 pin). WGC mort drop XAU framework asset.py:122. Pre-commit ADR-081 doctrinal invariants tous verts.
+> **Phase D loop closed** : `measure (Vovk autonomous fire 03:32:39 CEST) ✓ → read (W115c r29) ✓ → act (Pass-3 stress confluence_section r29) ✓ → optimize (W117b GEPA ADR-091 PROPOSED) ⏳`.
 >
-> **REMAINING POST-LIVE-PROOF (non-bloquant)** : frontend `/today` consume new diff endpoint (~1h Next.js) + `/calibration` 7-bucket reliability heatmap render (~1h) + W105b weekly Sunday cron scenario_calibration_bins refresh (~30min systemd timer setup). **Round 5** : G2 push notifs wire `run_session_cards_batch.py` (Eliot reçoit notif 06:30 Paris) + Pass-6 `enable_scenarios=live` activé dans CLI runners + W105g `realized_scenario_bucket` reconciler `cli/reconcile_outcomes.py:_resolve_realized_bucket` (Brier loop closed) + W102 CF API automation `scripts/setup-cf-access.py` (alternative dashboard, Eliot fournit 1 CF API token). **Round 4** : architecture refactor `scenarios.py` home → `packages/ichor_brain/scenarios.py` (close ichor-trader audit JAUNE) + apps/api re-export shim + `ichor-brain` workspace dep + W105b `services/scenario_calibration.py` EWMA λ=0.94 RiskMetrics convention + W105g `services/brier_multiclass.py` Murphy 1973 K=7 + 3 baselines (uniform 42/49, climatology empirique, persistence). **Round 6** : `/v1/calibration/scoreboard` extension 7-bucket layer (realized_bucket_distribution + brier_multiclass + skill_vs_climatology) + new `/v1/today/diff` server-side J-1 delta endpoint for `/today` page G11 closure. 191 tests pass (111 api + 80 brain). Ruff format+check clean + pre-commit ADR-081 invariants green. **Bloqueur unique** = W102 CF Access (Eliot 1 min CF API token OR 9 min dashboard) → unlock Hetzner SSH `alembic upgrade head` + Win11 .env switch en autonomie totale Claude. Migration 0039 pending Hetzner deploy. Frontend `/today` + `/calibration` consume new endpoints = ~2h Next.js rewrite post-W102.
+> **42 new tests + 0 regressions** across r29 commit `e9ddcd6`.
+>
+> **ADR-087 Phase D auto-improvement loops 4/4 architecturally shipped + AUTONOMOUSLY OPERATING** on Hetzner prod :
+>
+> 1. ✅ **W113** `auto_improvement_log` table + ADR-029-class immutable trigger (migration 0042). 16 audit rows ; 73/96 cards backfilled real.
+> 2. ✅ **W114** ADWIN concept-drift detector (`services/drift_detector.py` + `river>=0.21`) ; nightly timer `ichor-drift-detector.timer` armed 02:00 Paris.
+> 3. ✅ **W115** Vovk-Zhdanov AA aggregator (η=1 Brier game, JMLR 2009 Prop 2) + `brier_aggregator_weights` table (migration 0043) + Sunday timer `ichor-brier-aggregator.timer` 03:30 Paris. **AUTONOMOUSLY FIRED 2026-05-13 03:32:39 CEST** — 24 pocket-weights rows, skill evolution per pocket visible via `/v1/phase-d/aggregator-weights`.
+> 4. ✅ **W116** Ahmadian Penalized Brier Score λ=2.0 (arXiv:2407.17697) + `pass3_addenda` store (migration 0044) + Sunday cron `ichor-post-mortem-pbs.timer` 18:00 Paris (armed Sun 2026-05-17 18:01).
+> 5. ✅ **W116c** LLM addendum generator via canonical Voie D entry (`ichor_agents.claude_runner.call_agent_task_async`) + ADR-017 regex defense-in-depth (`_BANNED_TOKENS` frozenset + `_validate_no_signals`) ; Sunday cron `ichor-addendum-generator.timer` 19:00 Paris armed (fail-closed without `phase_d_w117a_pass3_addenda_enabled` feature flag).
+> 6. ✅ **W117a** DSPy 3.2 `ClaudeRunnerLM(BaseLM)` Voie D wrapper + sentinel namespace (`_ALLOWED_MODEL_TAGS = {"ichor-claude-runner-haiku", "-sonnet", "-opus"}`) + try-import stub class pattern + 413 → `dspy.ContextWindowExceededError` mapping + asyncio nested-loop detection. Foundation for W117b GEPA optimizer wiring (deferred next session).
+>
+> **Empirical 3-witness proof of Vovk autonomous fire** : (a) `systemctl list-timers` shows `Wed 2026-05-13 03:32:39 CEST 9h ago ichor-brier-aggregator.service` ; (b) `SELECT count(*) FROM auto_improvement_log WHERE loop_kind='brier_aggregator'` → 16 ; (c) `GET /v1/phase-d/aggregator-weights` returns 24 rows (8 pockets × 3 experts) with prod_predictor weights evolved per `(asset, regime)` pocket — NAS100/usd_complacency 0.358→0.464 (gaining skill), EUR_USD/usd_complacency 0.300 (anti-skill confirmed n=13 stat-significant).
+>
+> **`/v1/phase-d/*` observability endpoints LIVE** : `/audit-log`, `/aggregator-weights`, `/pass3-addenda`, `/pocket-summary` — all read-only, JSON, paged. Frontend `/learn` consume side GEL (rule 4 honor).
+>
+> **5 alembic migrations LIVE** on Hetzner since round-13 baseline `d9f8d35` : 0041 RAG align (W110g) + 0042 audit log (W113) + 0043 brier weights (W115) + 0044 pass3 addenda (W116) + 0045 realized_open_session (W118).
+>
+> **Pre-W113 sync (2026-05-12 17:30 CEST — RAG PHASE C LIVE)** : 153 prod session-cards embedded into `rag_chunks_index` (bge-small ONNX CPU Hetzner, 384-dim) ; smoke retrieve on EUR_USD `usd_complacency` returns 3 same-regime analogues cos_dist 0.141/0.146/0.150 ; `ichor-rag-incremental-embed.timer` LIVE next-fire Wed 03:03 CEST ; Pass-1 prompt-builder ready to inject the analogues block via `--enable-rag` (opt-in CLI flag, default OFF). W110f RAGAS eval deferred. ADR-086 invariants all CI-guarded (Cap5 exclusion + embargo + vector(384) pinning).
+>
+> **7 audit gaps — STATUS POST-ROUND-29 (4 closed, 3 ⏳)** :
+>
+> - ✅ #1 CLAUDE.md repo STALE — closed r27 + re-synced r30 (THIS UPDATE).
+> - ⏳ #2 EUR_USD anti-skill n=13 — **P0 step-1 IMPLEMENTED r29** (Bund 10Y collector + migration 0046), Hetzner deploy + data_pool wire + 3 other EZ signals = next session ~2 dev-days.
+> - ✅ #3 SPX500 Polygon 403 — closed r27 (SPY proxy reversible).
+> - ✅ #4 Couche-2 530 storm — closed r27+28 (retry envelope + cloudflared http2 LIVE).
+> - ⏳ #5 W117b GEPA — **ADR-091 PROPOSED draft r29** (7 invariants codified), 3 dev-days deferred (validation set n≥100/pocket prereq).
+> - ✅ #6 W115c pocket_skill_reader — **IMPLEMENTED r29** (200 LOC + 22 tests + orchestrator threading), Hetzner activation = Eliot feature-flag flip.
+> - ⏳ #7 Frontend `/learn` ungel — Eliot decision pending (rule 4 honor).
+>
+> **Original pre-round-27 7-gap list (kept for archaeological context — superseded by status table above)** :
+>
+> 1. **EUR_USD/usd_complacency anti-skill n=13 stat-significant** — Vovk pocket weight 0.300 vs equal_weight 0.350. Investigation needed : Pass-1 régime mis-classification, Pass-2 EUR framework gap (ECB-Fed différentiel, IFO, peripheral spreads), or data-pool gap. ~2h research + 0.5d fix.
+> 2. **SPX500 Polygon `I:SPX` 403** — 1/6 D1 universe dark. Options : Indices add-on $50/mo (Voie D budget pressure), ES1!/SPY proxy, drop from D1. ADR-088+ decision pending.
+> 3. **Couche-2 530 storm 08:47** — news_nlp failed 3 retries on CF tunnel transient. Retry envelope (round-14) partial mitigation. Full robustness needs ops architecture work (CF tunnel monitoring, retry curve tuning).
+> 4. **W117b GEPA optimizer wiring** — uses W117a `ClaudeRunnerLM` foundation. ADR-088+ + 3d ship. Rule 16 ban-risk paranoia heavy (rate-limit + sentinel namespace + flag-gate).
+> 5. **W115c confluence_engine pocket-read** — Vovk weights stored in DB but NOT yet consumed by 4-pass orchestrator. Loop is open (measure ✓ act ✗). ADR-088 W115c draft this round (PROPOSED status, code gated next session). ~0.5d ship.
+> 6. **Frontend `/learn` ungel decision** — `/v1/phase-d/*` LIVE, consume-side gel'd per rule 4. Eliot decision pending.
+> 7. **NSSM `IchorClaudeRunner` Paused state** — standalone uvicorn 8766 active via user Startup folder ; if Win11 reboots without user login, runner doesn't start. Pre-existing fragility, no regression round 26.
 
 ## What this repo is
 
@@ -104,9 +133,32 @@ D:\Ichor
   wired (auth.py JWT verifier + HttpRunnerClient header injection +
   lifespan production guard).
 
-## Latest migrations (head 0041)
+## Latest migrations (head 0045)
 
-- **head 0041** — `0041_rag_align_adr086.py` (W110g production discovery
+- **head 0045** — `0045_realized_open_session.py` (W118, ADR-087
+  Phase D loop closure) — ALTER `session_card_audit` to add
+  `realized_open_session VARCHAR(16)` for Pass-3 addenda climatology
+  baseline. Empirical climatology built from realized opens (last 30
+  sessions per pocket). LIVE on Hetzner 2026-05-13. Idempotent
+  ADD COLUMN IF NOT EXISTS.
+- **0044** — `0044_pass3_addenda.py` (W116, ADR-087 §addenda store) —
+  `pass3_addenda` store with 4 CHECK constraints (regime ∈ allowed,
+  asset ∈ ADR-083 D1 6-card universe, source ∈ {`llm_generated`,
+  `manual_eliot`, `auto_drift`}, score ∈ [0, 1]). Top-K=3 per pocket
+  with score-eviction + LRU on tie. Consumed by Pass-3 stress
+  injector (gated by feature flag `pass3_addenda_injection_enabled`).
+- **0043** — `0043_brier_aggregator_weights.py` (W115, ADR-087 §Vovk) —
+  `brier_aggregator_weights` table : Vovk pocket per `(asset, regime,
+session_type)` with UNIQUE constraint + JSONB columns for `weights`
+  - `cumulative_losses` + `expert_kinds` ordered tuple. 24 rows LIVE
+    (8 pockets × 3 experts). Persists Vovk-Zhdanov 2009 η=1 state across
+    nightly fires.
+- **0042** — `0042_auto_improvement_log.py` (W113, ADR-087 §audit) —
+  `auto_improvement_log` table + ADR-029-class immutable trigger
+  (UPDATE/DELETE rejected at DB layer). Generic loop log : `loop_kind`
+  VARCHAR(32) CHECK constraint enforced, `payload` JSONB. 16 rows LIVE
+  (autonomous Vovk fire 2026-05-13 03:32:39 CEST + manual round-19 ops).
+- **0041** — `0041_rag_align_adr086.py` (W110g production discovery
   fix) — ALTER `rag_chunks_index` to align with ADR-086 : `id` gains
   `DEFAULT gen_random_uuid()` ; CHECK constraint dropped + recreated as
   `(session_card / post_mortem / briefing / adr / runbook)`. Table was
@@ -141,6 +193,38 @@ D:\Ichor
 - **0028 → 0033** — Phase II Layer 1 collectors: audit_log immutable
   trigger (0028, ADR-029), trader_notes (0029), CBOE SKEW (0030),
   CFTC TFF (0031), CBOE VVIX (0032), Treasury TIC (0033).
+
+## Recent ADRs (2026-05-13 batch — ADR-087 retroactive + ADR-088 DRAFT)
+
+- [ADR-088](docs/decisions/ADR-088-w115c-confluence-engine-pocket-read.md)
+  **W115c confluence_engine pocket-read (PROPOSED, awaiting Eliot
+  ratify)**. Closes the Phase D measure→act loop : the Vovk
+  aggregator weights stored in `brier_aggregator_weights` are
+  consumed by a new `confluence_engine.py` service that surfaces
+  pocket-specific skill diagnostics to the 4-pass orchestrator
+  read-only side. NO Pass-2 reasoning override (rule 4 frontend
+  gel + rule 3 ADR avant code respected) ; the engine emits a JSON
+  blob `{pocket_id, prod_predictor_weight, climatology_weight,
+equal_weight_weight, skill_delta, n_observations,
+weight_confidence}` available to Pass-3 stress as an optional
+  `confluence_section` kwarg. Feature-flag gated
+  `phase_d_w115c_confluence_enabled` (fail-closed). 0.5 day ship.
+- [ADR-087](docs/decisions/ADR-087-phase-d-auto-improvement-loops.md)
+  \*\*Phase D auto-improvement loops (RETROACTIVE, codifies W113-W118
+  - W116c + W117a)\*_. The four canonical loops : (1) audit-log
+    (W113, `auto_improvement_log` immutable trigger) ; (2) drift-detect
+    (W114, ADWIN delta=0.001 stream / 0.002 batch) ; (3) Vovk aggregator
+    (W115, η=1 Brier game JMLR 2009 Prop 2) ; (4) penalized Brier post-
+    mortem (W116, Ahmadian λ=2 arXiv:2407.17697). Plus W116c LLM
+    addendum generator (canonical Voie D entry, ADR-017 regex defense-
+    in-depth) and W117a DSPy foundation (`ClaudeRunnerLM(BaseLM)` Voie
+    D-bound, sentinel namespace, try-import stub). Invariants : every
+    loop has (a) feature-flag fail-closed gate, (b) reversible Hetzner
+    deploy &lt; 30 s via `.bak` chain, (c) idempotent alembic up/down,
+    (d) read-only `/v1/phase-d/_`observability endpoint, (e) Sunday
+weekly OR nightly cron spacing ≥ 5 min between LLM-calling jobs.
+CI-guarded via W90 invariant test (no`import anthropic`, no
+`dspy.LM("claude-\*")` ; sentinel namespace whitelist enforced).
 
 ## Recent ADRs (2026-05-11 batch — ADR-082 / 083 / 084)
 
@@ -328,7 +412,49 @@ D:\Ichor
 | FED_FUNDS_REPRICE    | DORMANT                            | moyen (no FRED feed for ZQ futures, approx via DFF+OIS)                                                                                                                                                |
 | ECB_DEPO_REPRICE     | DORMANT                            | difficile (no free Eurex €STR feed)                                                                                                                                                                    |
 
-## Things that are subtly broken or deferred (post 2026-05-09 batch)
+## Things that are subtly broken or deferred (post 2026-05-13 round-26 batch)
+
+### Audit gaps from rounds 14-26 (high signal for next session)
+
+- **EUR_USD/usd_complacency anti-skill structural, n=13 stat-significant**
+  — Vovk pocket weight 0.300 vs equal_weight 0.350 (skill_delta
+  -0.0497). Round-27 researcher diagnostic identified 5 audit gaps :
+  (GAP-A) `data_pool.py` has NO `_section_eur_specific` ; (GAP-B)
+  cross-asset matrix EUR_USD hints hard-coded USD-positive only,
+  zero EUR-bullish mirror ; (GAP-C) Pass-1 régime taxonomy has zero
+  EZ input ; (GAP-D) Vovk no small-sample Bayesian shrinkage ;
+  (GAP-E) `IRLTLT01DEM156N` (only EZ signal) is monthly → stale in
+  intraday Pass-2. ADR-090 PROPOSED : add Bund 10Y daily +
+  BTP-Bund spread + €STR + ECB OIS rate-path implied. **P0
+  ~3 dev-days. Do NOT wait for more samples (structural, not
+  statistical).**
+- **SPX500 Polygon `I:SPX` 403** — 1/6 D1 universe dark. Round-27
+  researcher matrix : Option 1 Indices Starter $49/mo +
+  Option 2 ES1! futures (rollover complexity) + Option 3 SPY ETF
+  proxy ($0, &lt;0.1% tracking error MTD, reversible one-line)
+  - Option 4 drop SPX500. **ADR-089 PROPOSED Option 3 SPY proxy
+    default**. Eliot decides final.
+- **Couche-2 530 CF tunnel storm 08:47 CEST recurrence** —
+  `services/agents/claude_runner.py:332` retry envelope
+  `(5.0, 15.0, 45.0)` covers ≤65s storms ; `2026-05-13 08:47`
+  observed ~30s window. Round-27 researcher fix proposed :
+  (1) `--protocol http2` on cloudflared Win11 [Eliot manual, 5min],
+  (2) extend submit_backoff to `(5.0, 15.0, 45.0, 90.0)` [code, 5min],
+  (3) match `HTTP 530` in `run_couche2_agent.py:99` CLI regex +
+  `max_attempts=3` [code, 10min]. Ban-risk respected
+  (4 retries × 5 agents × 4 sessions/day = 80 reqs/day max).
+- **W115c confluence_engine pocket-read NOT WIRED** — Vovk weights
+  stored, NOT consumed by orchestrator. Phase D loop is open
+  (measure ✓ act ✗). ADR-088 PROPOSED draft. Feature-flag-gated
+  fail-closed `phase_d_w115c_confluence_enabled`.
+- **NSSM `IchorClaudeRunner` Paused state** — standalone uvicorn
+  8766 active via user Startup folder ; if Win11 reboots without
+  user login, runner doesn't start. Pre-existing fragility, no
+  regression round 26. RUNBOOK-014 documents recovery.
+- **CLAUDE.md repo file STALE BEFORE THIS ROUND** — round 27
+  closing the doctrinal hygiene gap with this very edit.
+
+### Stale items (lower priority)
 
 - `apps/web` legacy retired 2026-05-06. 25 page.tsx on-disk as
   read-only ref.
@@ -336,28 +462,22 @@ D:\Ichor
   pending (Phase B target).
 - **CF Access service token NOT wired** sur
   `claude-runner.fxmilyapp.com` — **PRE-1 blocker for Capability 5
-  Phase D.0** wiring (cf ADR-071).
-- ~~**`tool_call_audit` migration NOT yet shipped** — PRE-2 blocker~~
-  ✅ shipped W80 (commit `274d8e3`, migration 0038, immutable trigger
-  verified live).
-- Capability 5 wiring (ADR-071 6-step sequence) progress :
+  STEP-6 prod e2e** (cf ADR-071, RUNBOOK-018). Note that STEP-6
+  integration e2e was completed W100 against in-memory mock SDK
+  Client (round 14 epoch). STEP-6 prod-grade live integration
+  remains pending PRE-1 manual.
+- Capability 5 wiring (ADR-071 6-step sequence) final status :
   PRE-1 CF Access service token = ⏳ pending Eliot manual ;
   PRE-2 tool_call_audit migration = ✅ W80 ;
   STEP-1 sqlglot whitelist = ✅ W83 ;
   STEP-2 calc dispatcher = ✅ W84 ;
   STEP-3 MCP server = ✅ W85 (ADR-077) ;
   STEP-4 RunnerCall.tools plumbing = ✅ W86 (`bf780f7`, ADR-078) ;
-  STEP-5 orchestrator tool wiring = ✅ **W87 (this commit)** —
-  `ToolConfig` dataclass in `runner_client.py` + `tool_config`
-  argument on `Orchestrator` ; helper `_tool_fields_for(pass_kind)`
-  emits `mcp_config / allowed_tools / max_turns` to RunnerCall when
-  the pass is in `enabled_for_passes` (default `{"regime","asset"}`,
-  Pass-3 stress and Pass-4 invalidation excluded — they operate on
-  prior-pass narrative not raw market data) ; CI guard test
-  `test_tool_query_db_allowlist_guard.py` enforces ADR-078 forbidden
-  set ; 5 orchestrator tool-wiring tests + 4 allowlist guard tests
-  green locally ;
-  STEP-6 integration test = ⏳ final (depends PRE-1 in prod).
+  STEP-5 orchestrator tool wiring = ✅ W87 ;
+  STEP-6 integration test = ✅ **W100** (in-memory MCP SDK Client
+  via `mcp.shared.memory.create_connected_server_and_client_session`,
+  8 tests &lt;1s/run, cross-platform). Prod live e2e remains gated
+  on PRE-1 manual.
   Server tools (`web_search`/`web_fetch`) **excluded** — billed by
   Anthropic since 2026-04, violate Voie D.
 - **WGC quarterly XLSX collector DROPPED 2026-05-11** (W101 strategic
@@ -381,6 +501,76 @@ D:\Ichor
   field (W81 candidate, 1h estimate).
 - Polymarket `WHALES` constant in `polymarket/page.tsx` — no backend
   trade-tape collector yet (W82 candidate, separate ADR needed).
+
+## Recently fixed (2026-05-12 / 2026-05-13 — rounds 14-26 Phase D ship)
+
+- **W113** ✅ (round 15, PR #90) — `auto_improvement_log` immutable
+  audit table (migration 0042 with ADR-029-class trigger). 73/96
+  cards backfilled. Voie D + ADR-017 + ADR-029 + W90 invariant test
+  all green. `services/auto_improvement_log.py` canonical `record()`
+  helper used by all subsequent loops.
+- **W114** ✅ (round 16, PR #91) — ADWIN concept-drift detector
+  (`services/drift_detector.py` + `river>=0.21` in `[phase-d]`
+  optional extras). Nightly timer `ichor-drift-detector.timer`
+  armed 02:00 Paris (Hetzner). `--drift-only --dry-run` exits 0 on
+  stable regime (correct fail-closed behaviour).
+- **W115** ✅ (rounds 17-19, PRs #92-#93) — Vovk-Zhdanov AA aggregator
+  (`services/vovk_aggregator.py`, JMLR 2009 Proposition 2,
+  η=1 weighted-mean substitution for binary Brier) + migration
+  0043 `brier_aggregator_weights` table. 17 unit tests pass.
+  Regret bound ≤ ln(N) constant in T.
+- **W115b** ✅ (round 20, PR #94) — `cli/run_brier_aggregator.py`
+  CLI + Sunday 03:30 systemd timer `ichor-brier-aggregator.timer`.
+  **AUTONOMOUSLY FIRED 2026-05-13 03:32:39 CEST** (gold-standard
+  empirical proof : `journalctl` exec + 16 audit rows + 24 weight
+  rows + `/v1/phase-d/aggregator-weights` evolved pockets).
+- **W116** ✅ (round 21, PR #95) — Ahmadian Penalized Brier Score
+  λ=2.0 (`services/penalized_brier.py`, arXiv:2407.17697 superior-
+  ordering scoring rule) + migration 0044 `pass3_addenda` (4
+  CHECK constraints) + `services/pass3_addendum_injector.py`
+  (top-K=3 per pocket, LRU on tie). 25 unit tests pass.
+  Ahmadian PBS empirically verifies `pbs_correct &lt; pbs_wrong` LIVE.
+- **W116 wire** ✅ (round 22, PR #96) — `passes/stress.py` accepts
+  `addenda_section` kwarg ; `orchestrator.py` threads
+  `pass3_addenda_section` through 4-pass call. Backward-compat
+  preserved (`addenda_section=None` = strict zero-diff).
+- **W116b cron** ✅ (round 23, PR #97) — `cli/run_post_mortem_pbs.py`
+  Sunday 18:00 weekly cron + systemd timer
+  `ichor-post-mortem-pbs.timer` armed Sun 2026-05-17 18:01 CEST.
+- **W116c LLM addendum generator** ✅ (rounds 25, PR #99) —
+  `services/addendum_generator.py` routes via canonical Voie D entry
+  `call_agent_task_async`. ADR-017 regex defense-in-depth :
+  `_BANNED_TOKENS` frozenset (`BUY|SELL|LONG NOW|SHORT NOW|TP\d+|
+SL\d+|STOP-LOSS|TAKE-PROFIT|TARGET \d+\.\d+|ENTRY \d+\.\d+|
+LEVERAGE|MARGIN`) + `_validate_no_signals()` filter BEFORE
+  persistence. Feature-flag fail-closed
+  (`phase_d_w117a_pass3_addenda_enabled`, currently OFF) ;
+  Sunday cron armed `ichor-addendum-generator.timer` 19:03 CEST.
+- **W117a DSPy foundation** ✅ (round 26, PR #101) —
+  `services/dspy_claude_runner_lm.py` custom DSPy 3.2 `BaseLM`
+  wrapper routing `forward()` through `call_agent_task_async`
+  (Voie D-bound). 4 safeguards : (a) sentinel namespace
+  `_ALLOWED_MODEL_TAGS = {"ichor-claude-runner-haiku", "-sonnet",
+"-opus"}` rejects raw Anthropic names ; (b) try-import + stub
+  class pattern (gracefully degrades without DSPy) ; (c) 413 →
+  `dspy.ContextWindowExceededError` mapping ; (d) asyncio nested-
+  loop detection refuses `forward()` from inside event loop.
+  `[phase-d-w117]` optional extras with `dspy>=3.2`. 36 tests + 7
+  skipped (DSPy gated). Foundation for W117b GEPA optimizer wiring
+  (deferred next session, requires ADR-088+).
+- **W118** ✅ (round 23, PR #98) — migration 0045
+  `realized_open_session VARCHAR(16)` on `session_card_audit` for
+  Pass-3 addenda climatology baseline. Empirical climatology built
+  from realized opens (last 30 sessions per pocket).
+- **Round 14 BriefingClient retry envelope** ✅ — defensive against
+  CF 530 transients. 5 new retry-envelope tests. Round 22 Couche-2
+  storm `2026-05-13 08:47 CEST` exposed retry envelope partial
+  mitigation ; ADR-088+ stack planned (extend submit_backoff
+  `(5,15,45)` → `(5,15,45,90)` + CLI `max_attempts=3` + cloudflared
+  `--protocol http2`).
+- **Frontend gel intact across rounds 14-26** — zero
+  `apps/web2` commits across 14 rounds. Consume-side of
+  `/v1/phase-d/*` LIVE endpoints deliberately gel'd per rule 4.
 
 ## Recently fixed (2026-05-11 — W100c+d+e+f : auto-fix avalanche + CF API token rotation)
 

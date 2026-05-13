@@ -22,6 +22,9 @@ from .briefing import Briefing
 
 # Phase D W115 — Vovk-Zhdanov AA Brier aggregator pockets (ADR-087)
 from .brier_aggregator_weights import BrierAggregatorWeight
+
+# Phase D ADR-090 P0 step-1 — Bundesbank Bund 10Y daily (round 29)
+from .bund_10y_observation import BundYieldObservation
 from .cb_speech import CbSpeech
 
 # Phase II Layer 1 — CBOE SKEW Index daily (Wave 24)
@@ -93,6 +96,8 @@ __all__ = [
     "Briefing",
     # Phase D W115 — Vovk-AA Brier aggregator pockets
     "BrierAggregatorWeight",
+    # Phase D ADR-090 P0 step-1 — Bund 10Y daily
+    "BundYieldObservation",
     "CbSpeech",
     "CboeSkewObservation",
     "CboeVvixObservation",

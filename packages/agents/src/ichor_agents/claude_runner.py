@@ -318,9 +318,13 @@ async def call_agent_task_async(
     # standalone-uvicorn brief moment of unavailability (process restart,
     # CF tunnel rewire, transient 530 "no origin") returned
     # AllProvidersFailed and the cron unit went FAILED until the next
-    # OnCalendar tick. Backoff envelope mirrors the sync path
-    # (5 / 15 / 45 s) — total worst-case ~65 s, well under the 10 min
-    # poll budget. Retryable status codes :
+    # OnCalendar tick. Round-27 (2026-05-13 08:47 CEST news_nlp 530
+    # storm observed ~30 s) extended the envelope from 3 to 4 retries
+    # to bridge multi-second QUIC handshake-timeout storms on the
+    # cloudflared edge. Total worst-case 5+15+45+90 = 155 s, still
+    # under the 10 min poll budget. Ban-risk respected : 4 retries x
+    # 5 Couche-2 agents x 4 sessions/day = 80 reqs/day max (rule 16,
+    # Max 20x quota >>> 80). Retryable status codes :
     #   429 — rate-limit
     #   502 — bad gateway (CF edge to origin)
     #   503 — service unavailable (runner busy slot 1/1)
@@ -329,7 +333,7 @@ async def call_agent_task_async(
     _RETRYABLE_SUBMIT_STATUS: frozenset[int] = frozenset(
         {429, 502, 503, 504, 520, 521, 522, 523, 524, 525, 530}
     )
-    submit_backoff = (5.0, 15.0, 45.0)
+    submit_backoff = (5.0, 15.0, 45.0, 90.0)
     async with httpx.AsyncClient(timeout=30.0) as client:
         # Submit (must respond in <100s; the runner immediately returns 202)
         r = None
