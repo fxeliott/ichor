@@ -1,6 +1,15 @@
-# ADR-088: W115c confluence_engine pocket-read (close Phase D measure→act loop)
+# ADR-088: W115c pocket-skill reader (close Phase D measure→act loop)
 
 **Status**: PROPOSED — awaiting Eliot ratify before code lands.
+
+**Round-28 amendment (2026-05-13)** — the original ADR-088 draft proposed naming the new service `services/confluence_engine.py`. Audit revealed that file **already exists** at `apps/api/src/ichor_api/services/confluence_engine.py` with a DIFFERENT purpose (multi-factor "5+ confluences" deterministic score over 10 data-pool signals — rate diff, COT, microstructure OFI, daily levels, Polymarket, narrative, regime, surprise, funding, CB intervention). The two services are orthogonal :
+
+- **Existing `confluence_engine.py`** : factor-aggregation score (long/short/neutral, 0-100). Consumed by trader-grade synthesis.
+- **W115c new service** : Vovk-weight pocket skill diagnostic (high_skill / neutral / anti_skill band). Consumed by Pass-3 stress as calibration hint.
+
+To avoid collision, this ADR renames the new W115c service to **`services/pocket_skill_reader.py`** with `PocketSkillReader` class and `PocketSkill` dataclass. The W115c CI guard test asserts `brier_aggregator_weights NOT in Cap5 ALLOWED_TABLES` (ADR-078 forbidden set extension).
+
+**Round-28 hysteresis amendment** — trader-review YELLOW LOW flagged anti-flicker concern at the `skill_delta = ±0.05` boundary : a pocket fluctuating around -0.049 / -0.051 would toggle `anti_skill ↔ neutral` between sessions, triggering on/off addendum injection. **Resolution** : add a hysteresis dead-band : enter `anti_skill` at `skill_delta <= -0.05`, exit `anti_skill` only at `skill_delta >= -0.03` (and symmetrically for `high_skill` at `>= +0.05` / `<= +0.03`). The 2-percentage-point dead-band stabilises the band classification across nightly Vovk fires.
 
 **Date**: 2026-05-13
 

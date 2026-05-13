@@ -482,6 +482,11 @@ async def list_pocket_summary(
 
     # Step 2 : latest drift event per (asset, regime). Single query
     # with subquery-style filter.
+    # Round-28 : push asset / regime filters into the SQL WHERE clause
+    # (audit-exhaustive finding #2). Pre-round-28 these queries pulled
+    # every adwin_drift row then filtered in Python — O(N_total) instead
+    # of O(N_filtered). TimescaleDB hypertable can grow unbounded so
+    # this matters as the audit log accumulates.
     drift_stmt = (
         select(
             AutoImprovementLog.asset,
@@ -491,6 +496,10 @@ async def list_pocket_summary(
         .where(AutoImprovementLog.loop_kind == "adwin_drift")
         .order_by(desc(AutoImprovementLog.ran_at))
     )
+    if asset is not None:
+        drift_stmt = drift_stmt.where(AutoImprovementLog.asset == asset)
+    if regime is not None:
+        drift_stmt = drift_stmt.where(AutoImprovementLog.regime == regime)
     drift_rows = list((await session.execute(drift_stmt)).all())
     drift_latest: dict[tuple[str | None, str | None], datetime] = {}
     for d_asset, d_regime, d_ran_at in drift_rows:
@@ -498,12 +507,17 @@ async def list_pocket_summary(
         if key not in drift_latest:
             drift_latest[key] = d_ran_at
 
-    # Step 3 : active addenda count per (asset, regime).
+    # Step 3 : active addenda count per (asset, regime). Same filter
+    # push-down as step 2.
     now_ts = datetime.now(UTC)
     addenda_stmt = select(Pass3Addendum).where(
         Pass3Addendum.status == "active",
         Pass3Addendum.expires_at > now_ts,
     )
+    if asset is not None:
+        addenda_stmt = addenda_stmt.where(Pass3Addendum.asset == asset)
+    if regime is not None:
+        addenda_stmt = addenda_stmt.where(Pass3Addendum.regime == regime)
     addenda_rows = list((await session.execute(addenda_stmt)).scalars().all())
     addenda_count: dict[tuple[str | None, str], int] = {}
     for a in addenda_rows:

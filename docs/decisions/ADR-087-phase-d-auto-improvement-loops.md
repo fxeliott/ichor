@@ -46,22 +46,22 @@ CREATE TABLE auto_improvement_log (
 );
 ```
 
-The table is **immutable** (UPDATE/DELETE rejected by trigger, ADR-029-class). The canonical `loop_kind` enum is :
+The table is **immutable** (UPDATE/DELETE rejected by trigger, ADR-029-class). The canonical `loop_kind` enum (pinned by migration `0042_auto_improvement_log.py` CHECK constraint AND service `_VALID_LOOP_KINDS` frozenset) is exactly 4 values :
 
-| `loop_kind`        | Producer                                                                       | Cadence         |
-| ------------------ | ------------------------------------------------------------------------------ | --------------- |
-| `concept_drift`    | `services/drift_detector.py` (W114)                                            | nightly 02:00   |
-| `brier_aggregator` | `cli/run_brier_aggregator.py` (W115b)                                          | nightly 03:30   |
-| `post_mortem`      | `cli/run_post_mortem_pbs.py` (W116b)                                           | Sunday 18:00    |
-| `addendum`         | `cli/run_addendum_generator.py` (W116c)                                        | Sunday 19:00    |
-| `addenda_eviction` | `services/pass3_addendum_injector.py`                                          | per Pass-3 call |
-| `dspy_compile`     | `services/dspy_claude_runner_lm.py` (W117a foundation, W117b consumer pending) | on-demand       |
+| `loop_kind`        | Producer                                                                                                                | Cadence                     |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------- | --------------------------- |
+| `brier_aggregator` | `cli/run_brier_aggregator.py` (W115b)                                                                                   | nightly 03:30               |
+| `adwin_drift`      | `services/drift_detector.py` (W114)                                                                                     | nightly 02:00               |
+| `post_mortem`      | `cli/run_post_mortem_pbs.py` (W116b) AND `cli/run_addendum_generator.py` (W116c — addenda are post-mortem-class writes) | Sunday 18:00 + Sunday 19:00 |
+| `meta_prompt`      | reserved for future W117b GEPA optimizer fires                                                                          | on-demand                   |
+
+**Note (round-28 correction)** : an earlier draft of this ADR listed six `loop_kind` values (`concept_drift`, `addendum`, `addenda_eviction`, `dspy_compile` in addition to the canonical four). Those did NOT match the migration or service code ; the table above is the verified source-of-truth. If a future round needs to add a `loop_kind` value (e.g., `gepa_mutation` for W117b), it MUST ship in a migration that ALTERs the CHECK constraint AND updates `_VALID_LOOP_KINDS` in lockstep, with a CI guard test pinning the equality between the two sets.
 
 Helper `services/auto_improvement_log.py:record(loop_kind, asset, regime, session_type, payload, notes)` is the canonical write API.
 
 ### Loop 2 — ADWIN concept-drift detector (W114, `services/drift_detector.py`)
 
-Replays realized outcomes through River 0.21+ `ADWIN` (delta=0.001 stream / 0.002 batch). On detected change-point, writes `loop_kind='concept_drift'` row with `payload={"change_point_at": ..., "magnitude": ..., "asset": ..., "regime": ...}`. Tiered dispatcher : regime / asset / pair-specific instances.
+Replays realized outcomes through River 0.21+ `ADWIN` (delta=0.001 stream / 0.002 batch). On detected change-point, writes `loop_kind='adwin_drift'` row with `payload={"change_point_at": ..., "magnitude": ..., "asset": ..., "regime": ...}`. Tiered dispatcher : regime / asset / pair-specific instances.
 
 **Cron** : `ichor-drift-detector.timer` nightly 02:00 Paris on Hetzner.
 
@@ -107,7 +107,7 @@ The PBS post-mortem (loop 4) emits a "skill_delta_at_this_session" signal, but t
 1. **Routes only via canonical Voie D entry** `ichor_agents.claude_runner.call_agent_task_async`. NEVER direct httpx to `api.anthropic.com` / `console.anthropic.com`.
 2. **ADR-017 regex defense-in-depth** : `_BANNED_TOKENS = re.compile(r"\b(BUY|SELL|LONG\s+NOW|SHORT\s+NOW|TP\d*|SL\d*|STOP[- ]LOSS|TAKE[- ]PROFIT|TARGET\s+\d+\.\d+|ENTRY\s+\d+\.\d+|LEVERAGE|MARGIN)\b", re.IGNORECASE)` + `_validate_no_signals(text)` filter BEFORE persistence. If any banned token surfaces, raise `ValueError` and DO NOT write to `pass3_addenda`.
 3. **Feature-flag fail-closed** : `phase_d_w117a_pass3_addenda_enabled` row absence in `feature_flags` = "do nothing" exit 0 (NEVER fail-open).
-4. **Cron spacing ≥ 5 min** from other LLM-calling jobs : Sunday 18:00 (W116b PBS) + Sunday 19:00+ (W116c LLM). All Hetzner timer schedules respect this lower bound.
+4. **Cron spacing ≥ 5 min** from other **LLM-calling** jobs : Sunday 18:00 (W116b PBS — CPU-pure compute) + Sunday 19:00+ (W116c addendum LLM call). The 60+ min spacing between any two LLM-calling fires (currently only W116c + future W117b GEPA + future W115c if it ever calls LLM) is the ban-risk-relevant invariant. **CPU-pure jobs (Aggregator W115b 03:30 + Optimizer V1 SGD 03:30) are EXEMPT from this spacing** : their concurrent fire is operationally OK because they don't touch the claude-runner subprocess. Round-28 ADR clarification — pre-round-28 this exemption was implicit and trader-review flagged the apparent contradiction.
 5. **Rate limit** : 24 outputs/24h empirically safe on Max 20x plan (round-26 verified). W116c fires weekly = 1 LLM call/week, well within margin.
 
 **Cron** : `ichor-addendum-generator.timer` Sunday 19:00 Paris on Hetzner. ARMED 2026-05-13 19:03 CEST next fire 2026-05-17.

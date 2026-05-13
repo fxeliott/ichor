@@ -87,6 +87,51 @@ def test_adr017_filter_does_not_reject_buyer_lowercase_in_word() -> None:
     assert addendum_passes_adr017_filter("Seller flow continues.")
 
 
+# ─── Round-28 (ADR-087 superset extension, trader-review RED HIGH #1) ───
+
+
+def test_adr017_filter_rejects_long_now_short_now_imperatives() -> None:
+    """Round-28 : `LONG NOW` / `SHORT NOW` are imperative trade signals
+    that the pre-round-28 regex didn't cover. Trader review RED HIGH."""
+    assert not addendum_passes_adr017_filter("Pocket suggests LONG NOW on EUR.")
+    assert not addendum_passes_adr017_filter("Reframe : SHORT NOW the dollar.")
+    assert not addendum_passes_adr017_filter("Enter long if DXY breaks.")
+    assert not addendum_passes_adr017_filter("Enter short on the rally.")
+
+
+def test_adr017_filter_rejects_numeric_target_and_entry() -> None:
+    """Round-28 : `TARGET 1.0850` / `ENTRY 1.0900` are level-explicit
+    trade orders. The pre-round-28 regex only covered `entry price`
+    (text form), not the numeric form. Trader review RED HIGH."""
+    assert not addendum_passes_adr017_filter("TARGET 1.0850 confluent.")
+    assert not addendum_passes_adr017_filter("ENTRY 1.0900 zone.")
+    assert not addendum_passes_adr017_filter("Target : 1.0850 reachable.")
+    assert not addendum_passes_adr017_filter("ENTRY: 1.0900 tight.")
+    # Decimal-free variants like "TARGET 1" stay borderline-allowed —
+    # the regex requires `\d+\.?\d*` so bare integer numbers pass
+    # `TARGET 1.` and `TARGET 1.0` patterns. Document this edge :
+    assert not addendum_passes_adr017_filter("TARGET 1.0 region.")
+
+
+def test_adr017_filter_rejects_margin_call_compound() -> None:
+    """Round-28 : `MARGIN CALL` compound is a deliberate trade-state
+    signal. `MARGIN` alone stays allowed (legit macro term : 'margin
+    debt', 'FX margin balance'). Trader review YELLOW : avoid
+    over-blocking innocuous macro discourse."""
+    assert not addendum_passes_adr017_filter("MARGIN CALL risk elevated.")
+    # `MARGIN DEBT` is legitimate macro language, must pass :
+    assert addendum_passes_adr017_filter("NYSE margin debt at 12-month high.")
+    assert addendum_passes_adr017_filter("FX margin requirements tightening.")
+
+
+def test_adr017_filter_rejects_tp_with_number_suffix() -> None:
+    """Round-28 : `TP1` / `TP2` / `SL1` patterns are trade-laddering
+    notation. Pre-round-28 only matched bare `TP` / `SL`. The W117 spec
+    in ADR-087 explicitly uses `TP\\d*` / `SL\\d*` for laddering."""
+    assert not addendum_passes_adr017_filter("TP1 1.0900, TP2 1.0950 ladder.")
+    assert not addendum_passes_adr017_filter("SL1 1.0800 trail.")
+
+
 # ──────────────────────────── _build_user_prompt ──────────────────────────
 
 
