@@ -26,7 +26,7 @@ The natural close is a **confluence engine** : a service that reads pocket-speci
 
 ### Invariant 1 — Read-only side, NO Pass-2 reasoning override
 
-W115c MUST NOT modify Pass-2 asset reasoning. The Vovk weight delta is a **diagnostic** (skill signal), not a **directive** (override the 4-pass P(target_up)). Pass-2 continues to emit its own probability ; W115c only surfaces _how confident we should be in that probability_ via a Pass-3 stress addendum.
+W115c MUST NOT modify Pass-2 asset reasoning. The Vovk weight delta is a **diagnostic** (skill signal), not a **directive** (override the 4-pass P(target*up)). Pass-2 continues to emit its own probability ; W115c only surfaces \_how confident we should be in that probability* via a Pass-3 stress addendum.
 
 Rule 3 (ADR avant code) + rule 4 (frontend gel) compliance : the orchestrator change is additive — one optional kwarg on `Orchestrator.run_4pass(..., confluence_section: dict | None = None)` — and zero impact on existing call paths when `confluence_section is None` (zero-diff baseline test required).
 
