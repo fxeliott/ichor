@@ -1,6 +1,6 @@
 # ADR-090: EUR_USD data-pool extension (close structural anti-skill detected by Vovk W115)
 
-**Status**: PROPOSED — awaiting Eliot ratify. P0 implementation = ~3 dev-days, deferred to dedicated round.
+**Status**: Accepted (round-32b ratify, 2026-05-13) — P0 step-1 (Bund 10Y collector + migration 0046 + ORM) shipped round-29 commit `e9ddcd6` ; P0 step-3 (`_section_eur_specific` symmetric render in `data_pool.py`) shipped round-32 commit `66bc3d8` (now `1660af4` post-rebase). 4 open questions answered in §"Open questions resolved (round-32b)" below. P0 step-2 (Hetzner deploy migration 0046) + step-4 (BTP/€STR/ECB-OIS collectors) deferred — step-2 awaits next Hetzner batch deploy ; step-4 backlog refined post-r32 subagent #3 web research (see §"Step-4 backlog refinement (round-32b)").
 
 **Date**: 2026-05-13
 
@@ -151,3 +151,44 @@ If Eliot ratifies, suggested round split :
 - **Round 30** : ship P1 cross-asset matrix symmetry + Pass-1 macro_trinity_snapshot extension. (~1 day)
 - **Round 31+** : observe Vovk pocket evolution for 14 days. Expect prod_weight rebound toward 0.45+.
 - **Future** : P2 Vovk shrinkage if Vovk still shows anti-skill in n=30+ samples.
+
+## Open questions resolved (round-32b ratify, 2026-05-13)
+
+The 4 open questions in §"Open questions for Eliot" above are resolved as follows :
+
+### Q1 — Source : Bundesbank confirmed
+
+**Decision** : Bundesbank SDMX `BBSIS/D.I.ZAR.ZI.EUR.S1311.B.A604.R10XX.R.A.A._Z._Z.A` confirmed as canonical Bund 10Y source.
+
+**Justification** : (a) free + public + no API key + daily refresh ; (b) empirically validated 2026-05-13 = 3.13% PROZENT (round-29 collector test) ; (c) ECB SDW is also free but auth-light — Bundesbank is simpler. Round-32b subagent #3 web research re-validated the source is live and reachable.
+
+### Q2 — Symmetric hints granularity : symmetric per signal (no regime split inside section)
+
+**Decision** : `_section_eur_specific` emits SYMMETRIC interpretive language for any Bund yield move (both "rate-differential narrowing → EUR-positive in calm regime" AND "Bund/Treasury spread widening → EUR-negative under funding stress") and hands off to the Pass-2 LLM to pick the branch matching the Pass-1 regime label.
+
+**Justification** : ichor-trader round-32 pre-implementation review flagged YELLOW on asymmetric "rise = EUR-positive" framing — it breaks under `funding_stress` / `usd_complacency` regimes where convertibility risk flips the mapping. The symmetric design lets the Pass-2 LLM contextualize without baking in a regime-specific bias inside the data-pool render. Code shipped round-32 commit `66bc3d8` (post-rebase `1660af4`).
+
+### Q3 — Pass-1 régime split : NO, single bucket preserved
+
+**Decision** : `usd_complacency` regime stays a single Pass-1 bucket. NO split into `usd_complacency_supported_by_diff` vs `usd_complacency_despite_diff`.
+
+**Justification** : (a) researcher recommendation in original §"Open questions" ; (b) Pass-1 regime classifier surface stays simple (7 canonical regimes) ; (c) the rationale-field improvement happens via the data-pool extension itself — Pass-2 LLM contextualizes the regime via the rich EUR-side signals, not via additional regime granularity ; (d) Vovk pocket diagnostics work per-(asset, regime, session_type) tuple and adding regime variants would fragment the pocket sample sizes further (anti-skill pockets at n=13 → n=6 each on split is worse, not better).
+
+### Q4 — Shipping pace : per-signal for rollback safety + ECB OIS re-scoped
+
+**Decision** : per-signal shipping pace (Bund first ✓, then BTP, then €STR, then **ECB OIS re-scoped or removed**).
+
+**Justification** : (a) researcher recommendation in original §"Open questions" ; (b) rule 19 reversibility favors single-signal commits over batch ; (c) round-32b subagent #3 web research established that **the assumed-shape multi-tenor ECB OIS curve dataflow does NOT exist on ECB public API** — MMSR is volume/rate-weighted by maintenance period (not tenor), YC dataflow is bond yield curve (not OIS). Re-scope ECB OIS to either : (i) derive implied path from €STR forwards via the verified `EST.B.EU000A2QQF32.CR` compounded rates dataflow, OR (ii) drop ECB OIS from ADR-090 step-4 scope and let a future ADR (`ADR-092 ECB OIS curve sourcing`) tackle it separately.
+
+## Step-4 backlog refinement (round-32b)
+
+Post-r32 subagent #3 web research (FX data sources for EUR-side signals) found :
+
+| Signal            | Status                | Source                                                                                                                                                                              | 2026-05 sample value                                | Voie D fit                                                                                                              |
+| ----------------- | --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| **Bund 10Y**      | ✅ SHIPPED r29        | Bundesbank SDMX `BBSIS/D.I.ZAR.ZI.EUR.S1311.B.A604.R10XX.R.A.A._Z._Z.A`                                                                                                             | 3.13% PROZENT                                       | ✅ free + no auth + daily                                                                                               |
+| **€STR**          | ⏳ VERIFIED, pending  | ECB Data Portal SDMX-CSV `data-api.ecb.europa.eu/service/data/EST/B.EU000A2X2A25.WT?lastNObservations=2&format=csvdata`                                                             | 1.929% on 2026-05-12                                | ✅ free + no key + daily ; note Eliot's expected band 3.0-3.5% was WRONG (ECB easing since 2024, actual range 1.5-2.5%) |
+| **BTP-Italy 10Y** | ⏳ PARTIAL            | Primary : Banca d'Italia SDMX (returns HTTP 403 on WebFetch UA — needs real client headers in collector dev). Fallback : FRED `IRLTLT01ITM156N` (OECD monthly, free with FRED key). | 3.87% on 2026-05-12 (Trading Economics cross-check) | ✅ free ; primary needs probe in collector-dev round                                                                    |
+| **ECB OIS curve** | 🚫 BLOCKED — re-scope | MMSR / YC dataflows confirmed NOT in expected shape via subagent #3 web research                                                                                                    | n/a                                                 | Defer to future ADR-092 OR derive from €STR forwards                                                                    |
+
+**Next-round shipping order** : (i) €STR collector (1 day, source confirmed), (ii) BTP-Italy 10Y collector with primary Banca d'Italia SDMX probe + FRED fallback (1.5 days), (iii) ECB OIS deferred / re-scoped via separate ADR-092 once a viable public source is verified.

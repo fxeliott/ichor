@@ -2,7 +2,7 @@
 
 > Auto-injected at every session start. Keep terse and current.
 >
-> **Last sync: 2026-05-13 17:30 CEST — ROUND-32 W117b SUB-WAVE .a.r32 + .b SHIPPED + ADR-090 STEP-3 SHIPPED + ADR-091 §Invariant 2 AMENDED HARD-ZERO** : alembic head Hetzner `0045` ; migrations 0046 + 0047 IN REPO not yet deployed Hetzner (Eliot post-merge action) ; PR #102 omnibus 6 commits CI 15/15 PASS MERGEABLE ; PR #103 stacked 1 commit (round-31 sub-wave .a) ; PR #104 stacked from PR #103 with 4 commits (round-32) ; ZERO Anthropic API spend (Voie D mechanical W90) ; frontend gel intact rounds 13-32 (20 rounds, zero `apps/web2` commits).
+> **Last sync: 2026-05-13 18:30 CEST — ROUND-32+32b COMPLETE : 3 PRs MERGED on main + 4 ADRs ratified PROPOSED→Accepted + ADR-090 4 open questions answered** : main HEAD = `85eef7c` (PR #104 round-32) ; PR #102 omnibus merged as `088130f` ; PR #103 round-31 merged as `372b1cb` (rebased via `--onto` to skip squashed-out commits) ; PR #104 round-32 merged as `85eef7c` ; round-32b ratify PR pending on `claude/round-32b-adr-ratify` branch ; alembic head Hetzner still `0045` (migrations 0046 + 0047 IN REPO not yet deployed, Eliot Ansible batch pending) ; ZERO Anthropic API spend (Voie D mechanical W90) ; frontend gel intact rounds 13-32 (20 rounds, zero `apps/web2` commits).
 >
 > **Round-27→32 same-day deliverables on PR #102 + #103 + #104 stack** :
 >
