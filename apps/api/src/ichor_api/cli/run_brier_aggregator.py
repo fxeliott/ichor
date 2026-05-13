@@ -38,6 +38,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import sys
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import UUID
 
@@ -81,25 +82,46 @@ async def _distinct_pockets(session: AsyncSession) -> list[tuple[str, str]]:
     return [(r[0], r[1]) for r in rows]
 
 
-async def _climatology_rate(session: AsyncSession, asset: str) -> float:  # noqa: ARG001
-    """Empirical historical P(y=1) for this asset.
+async def _climatology_rate(session: AsyncSession, asset: str) -> float:
+    """Empirical historical P(y=1) for this asset over the last 365 d.
 
-    Round-19 stand-in : returns 0.5 (no-info baseline). Computing the
-    real climatology requires `realized_open_session` on the card row,
-    which we don't persist — the reconciler only stores
-    `realized_close_session`, `realized_high_session`,
-    `realized_low_session`. Re-querying Polygon bars per card would
-    double the cron's DB pressure ; for round-19 the climatology expert
-    is a no-info tie-breaker that the Vovk AA will down-weight if it
-    proves uninformative.
+    W118 (migration 0045) made this REAL : queries the empirical
+    fraction of session cards where `realized_close_session >
+    realized_open_session` over the trailing window. Only counts
+    cards where BOTH columns are populated (excludes legacy rows
+    pre-W118).
 
-    TODO W118 : add `realized_open_session` column to
-    `session_card_audit` so this function can compute the real
-    empirical y=1 rate per `(asset, session_type)` over the last
-    365 d window. The Vovk update will then have a genuinely
-    informative second expert.
-    """
-    return 0.5
+    Fallback to 0.5 when fewer than 8 observations exist (cold-start)
+    so the Vovk AA isn't fed a noisy estimate that would propagate
+    into the climatology expert's weight update."""
+    from sqlalchemy import case, func
+
+    cutoff = datetime.now(UTC) - timedelta(days=_CLIMATOLOGY_LOOKBACK_DAYS)
+    stmt = (
+        select(
+            func.count(SessionCardAudit.id).label("n"),
+            func.sum(
+                case(
+                    (
+                        SessionCardAudit.realized_close_session
+                        > SessionCardAudit.realized_open_session,
+                        1,
+                    ),
+                    else_=0,
+                )
+            ).label("n_up"),
+        )
+        .where(SessionCardAudit.asset == asset)
+        .where(SessionCardAudit.realized_open_session.is_not(None))
+        .where(SessionCardAudit.realized_close_session.is_not(None))
+        .where(SessionCardAudit.generated_at >= cutoff)
+    )
+    row = (await session.execute(stmt)).one()
+    n = int(row[0] or 0)
+    n_up = int(row[1] or 0)
+    if n < 8:
+        return 0.5
+    return n_up / n
 
 
 def _expert_predictions(card: SessionCardAudit, climatology: float) -> list[float]:

@@ -133,6 +133,10 @@ async def _reconcile_one(
     card.realized_close_session = outcome.realized_close_session
     card.realized_high_session = outcome.realized_high_session
     card.realized_low_session = outcome.realized_low_session
+    # W118 (migration 0045) — persist the session-start open so the
+    # W115b Vovk climatology expert can compute the empirical y=1 rate
+    # without re-querying Polygon bars per card.
+    card.realized_open_session = open_px
     card.realized_at = datetime.now(UTC)
     card.brier_contribution = outcome.brier_contribution
     if realized_bucket is not None:
