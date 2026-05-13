@@ -2,7 +2,11 @@
 
 > Auto-injected at every session start. Keep terse and current.
 >
-> **Last sync: 2026-05-13 21:00 CEST — ROUND-34 SHIPPED + DEPLOYED + EMPIRICAL TESTED : 4 more PRs merged (#77+#78+#109+#110), 6 Dependabot deferred. Hetzner alembic 0047→0048 LIVE. 1692 €STR rows + 7299 Bund rows. €STR cron armed Thu 14-05 16:49 CEST. ADR-090 step-4 EUR-side coverage COMPLETE** : main HEAD = `e3f396d` (PR #110 cosmetic fix) ; Hetzner alembic = `0048` LIVE ; `estr_observations` = 1692 rows + `bund_10y_observations` = 7299 rows + `gepa_candidate_prompts` = 0 ; feature flags ON : `phase_d_w115c_confluence_enabled` + `bundesbank_bund_collector_enabled` + `ecb_estr_collector_enabled` (all true @ 100) ; systemd timers ARMED : `ichor-bundesbank-bund.timer` Thu 2026-05-14 16:32 + `ichor-ecb-estr.timer` Thu 2026-05-14 16:49 ; ZERO Anthropic API spend (Voie D mechanical W90) ; frontend gel intact rounds 13-34 (22 rounds, zero `apps/web2` commits).
+> **Last sync: 2026-05-13 21:45 CEST — ROUND-35 SHIPPED : ADR-090 step-4 EUR-side COMPLETE end-to-end (Bund + €STR + BTP-Bund spread LIVE 3-block render with 3 source-stamps Bundesbank + ECB + FRED) + EU AI Act Art 50(2)→Art 50(4) deployer correction + r33 EU AI Act date hallucination corrected** : main HEAD = `2c1233d` (PR #114 EU AI Act deployer correction) ; 3 PRs merged this round (#112 FRED Italy add, #113 BTP max_age_days=120 fix, #114 EU AI Act deployer correction) ; Hetzner LIVE Italy 10Y = 3.388% (FRED 2026-02-01 OECD monthly) ingested + `_section_eur_specific` now renders 3-block output ; Anthropic SIGNED GPAI Code of Practice July 2025 (Voie D pattern stays low-friction EU-compliance) ; ZERO Anthropic API spend ; frontend gel intact rounds 13-35 (23 rounds zero `apps/web2`).
+>
+> **Round-35 empirical 3-witness LIVE on Hetzner** : (1) `SELECT * FROM fred_observations WHERE series_id='IRLTLT01ITM156N'` = 1 row (2026-02-01 = 3.388) ; (2) `_section_eur_specific` LIVE renders 3 blocks (Bund 3.130% + €STR 1.929% + BTP-Bund spread +0.26 pp) with 3 source-stamps ; (3) frequency mismatch warning + symmetric fragmentation interpretation surface as designed.
+>
+> **Round-35 hallucination corrected (r33 propagation)** : EU AI Act Code of Practice 2nd draft published EARLY MARCH 2026 (5 or 3 March ambiguous between sources), consultation closed 30 March 2026 (NOT 3 June as r33 said), final Code expected early June 2026 before 2 August 2026 enforcement deadline.
 >
 > **Round-34 deliverables on main** :
 >
