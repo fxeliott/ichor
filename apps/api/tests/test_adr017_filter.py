@@ -188,9 +188,10 @@ def test_count_positive_on_violation() -> None:
 def test_pattern_labels_present_and_nonempty() -> None:
     """The human-readable label set is consumed by diagnostics and
     fitness-function logging (ADR-091). It MUST stay non-empty and
-    cover the 17 distinct pattern labels."""
+    cover the 22 distinct pattern labels post round-32 multilingual
+    extension (17 EN imperatives + 5 multilingual grouped labels)."""
     assert isinstance(ADR017_FORBIDDEN_PATTERN_LABELS, frozenset)
-    assert len(ADR017_FORBIDDEN_PATTERN_LABELS) == 17
+    assert len(ADR017_FORBIDDEN_PATTERN_LABELS) == 22
 
 
 def test_pattern_labels_include_core_imperatives() -> None:
