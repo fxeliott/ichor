@@ -607,7 +607,13 @@ async def _section_eur_specific(session: AsyncSession, asset: str) -> tuple[str,
     # round-33 subagent #2 web research. Compute spread = BTP - Bund
     # at the LATEST common date (Bund daily / BTP monthly — surface
     # the frequency mismatch in the text so the LLM stays honest).
-    btp_latest = await _latest_fred(session, "IRLTLT01ITM156N")
+    # FRED IRLTLT01ITM156N is OECD MONTHLY with 1-month publication
+    # lag. Empirical r35 2026-05-13 : latest published observation was
+    # 2026-02-01 (~100 days old). OECD revisions can push this further.
+    # max_age_days=120 covers standard publication windows. Default 14
+    # (calibrated for DAILY series like DGS10) silently skips the BTP
+    # block even when ingested. Round-35 r34-audit-gap fix.
+    btp_latest = await _latest_fred(session, "IRLTLT01ITM156N", max_age_days=120)
     if btp_latest is not None:
         btp_value, btp_date = btp_latest
         spread_pp = btp_value - bund_latest_f
