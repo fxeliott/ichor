@@ -214,3 +214,55 @@ def test_pass3_addenda_rejects_limit_out_of_bounds(client: TestClient) -> None:
     assert r.status_code == 422
     r = client.get("/v1/phase-d/pass3-addenda?limit=10000")
     assert r.status_code == 422
+
+
+# ──────────────────────────── /pocket-summary (round-24) ──────────────────
+
+
+def test_pocket_summary_route_registered(client: TestClient) -> None:
+    r = client.get("/v1/phase-d/pocket-summary")
+    assert r.status_code in (200, 503), (
+        f"Expected 200/503 for registered route, got {r.status_code}"
+    )
+
+
+def test_pocket_summary_response_schema_when_200(client: TestClient) -> None:
+    r = client.get("/v1/phase-d/pocket-summary")
+    if r.status_code != 200:
+        pytest.skip(f"smoke DB unavailable (status {r.status_code})")
+    body = r.json()
+    assert "rows" in body
+    assert "count" in body
+    assert "pocket_version" in body
+    assert body["pocket_version"] == 1
+    # If rows exist, each must have the canonical fields.
+    for row in body["rows"]:
+        assert "asset" in row
+        assert "regime" in row
+        assert "prod_predictor_weight" in row
+        assert "climatology_weight" in row
+        assert "equal_weight_weight" in row
+        assert "has_skill_vs_baseline" in row
+        assert "skill_delta" in row
+        assert "active_addenda_count" in row
+
+
+def test_pocket_summary_accepts_filters(client: TestClient) -> None:
+    r = client.get("/v1/phase-d/pocket-summary?asset=EUR_USD&regime=usd_complacency")
+    assert r.status_code in (200, 503)
+
+
+def test_pocket_summary_rejects_malformed_asset(client: TestClient) -> None:
+    r = client.get("/v1/phase-d/pocket-summary?asset=lower")
+    assert r.status_code == 422
+
+
+def test_pocket_summary_rejects_bad_pocket_version(client: TestClient) -> None:
+    r = client.get("/v1/phase-d/pocket-summary?pocket_version=0")
+    assert r.status_code == 422
+
+
+def test_openapi_includes_pocket_summary(client: TestClient) -> None:
+    r = client.get("/openapi.json")
+    spec = r.json()
+    assert "/v1/phase-d/pocket-summary" in spec["paths"]

@@ -214,6 +214,42 @@ async def _run(
             log.warning("rag.analogues.fallback", asset=asset, error=str(e))
             analogues_section = ""
 
+    # W116c stage 2 (round-24) — Pass-3 addenda injection consumer.
+    # Reads active addenda from pass3_addenda (populated by future W116c
+    # PBS LLM generator) and renders them into the stress-pass prompt.
+    # Gated by feature flag `pass3_addenda_injection_enabled` (default
+    # False until W116c populates the table with meaningful content).
+    # Regime key falls back to `session_type` because Pass-1 hasn't run
+    # yet — matches the W115b/W116b pocket convention
+    # COALESCE(regime_quadrant, session_type).
+    pass3_addenda_section = ""
+    if live:
+        try:
+            from ..services.feature_flags import is_enabled
+            from ..services.pass3_addendum_injector import select_active_addenda
+
+            async with sm() as ff_session:
+                injection_on = await is_enabled(ff_session, "pass3_addenda_injection_enabled")
+            if injection_on:
+                async with sm() as addenda_session:
+                    addenda = await select_active_addenda(
+                        addenda_session,
+                        regime=session_type,
+                        asset=asset,
+                    )
+                if addenda:
+                    bullets = "\n".join(f"- {a.content}" for a in addenda)
+                    pass3_addenda_section = bullets
+                    log.info(
+                        "pass3_addenda.injected",
+                        asset=asset,
+                        session_type=session_type,
+                        n=len(addenda),
+                    )
+        except Exception as e:  # noqa: BLE001 — best-effort injection
+            log.warning("pass3_addenda.fallback", asset=asset, error=str(e))
+            pass3_addenda_section = ""
+
     orch = Orchestrator(
         runner=runner,
         enable_scenarios=live,
@@ -227,6 +263,7 @@ async def _run(
         now=datetime.now(UTC),
         calibration_block=calibration_block,
         analogues_section=analogues_section,
+        pass3_addenda_section=pass3_addenda_section,
     )
 
     async with sm() as session:

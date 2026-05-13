@@ -114,6 +114,44 @@ class Pass3AddendaListOut(BaseModel):
     status_filter: str
 
 
+class PocketSummaryOut(BaseModel):
+    """Aggregate operator view of one `(asset, regime)` Phase D pocket."""
+
+    asset: str
+    regime: str
+    pocket_version: int
+    # Vovk-AA expert weights (3 rows projected into 3 fields)
+    prod_predictor_weight: float
+    climatology_weight: float
+    equal_weight_weight: float
+    n_observations: int
+    # Derived skill metrics — actionable trader signal
+    has_skill_vs_baseline: bool
+    """True iff prod_predictor weight > equal_weight (Vovk has down-
+    weighted the no-info expert in favor of the live LLM forecaster)."""
+    skill_delta: float
+    """`prod_predictor_weight - equal_weight_weight`. Positive = LLM
+    forecaster has discrimination skill on this pocket. Negative =
+    LLM forecaster is WORSE than equal-weight on this pocket
+    (anti-skill, investigate)."""
+    # Cross-table aggregates
+    latest_drift_event_at: datetime | None
+    """Most recent `auto_improvement_log` row with `loop_kind=
+    'adwin_drift'` for this pocket. None if no drift detected yet."""
+    active_addenda_count: int
+    """Count of `pass3_addenda` rows with `status='active'` and
+    `expires_at > now()` for this pocket."""
+    pocket_updated_at: datetime
+
+
+class PocketSummaryListOut(BaseModel):
+    rows: list[PocketSummaryOut]
+    count: int
+    asset_filter: str | None
+    regime_filter: str | None
+    pocket_version: int
+
+
 # ──────────────────────────── /audit-log ──────────────────────────
 
 
@@ -382,4 +420,134 @@ async def list_pass3_addenda(
         regime_filter=regime,
         asset_filter=asset,
         status_filter=status,
+    )
+
+
+# ──────────────────────────── /pocket-summary ──────────────────────────
+
+
+@router.get("/pocket-summary", response_model=PocketSummaryListOut)
+async def list_pocket_summary(
+    session: Annotated[AsyncSession, Depends(get_session)],
+    asset: Annotated[
+        str | None,
+        Query(
+            pattern=r"^[A-Z0-9_]{3,16}$",
+            description="Optional asset filter.",
+        ),
+    ] = None,
+    regime: Annotated[
+        str | None,
+        Query(
+            pattern=r"^[a-z_]{2,64}$",
+            description="Optional regime filter.",
+        ),
+    ] = None,
+    pocket_version: Annotated[
+        int,
+        Query(ge=1, description="Pocket version (default 1)."),
+    ] = 1,
+) -> PocketSummaryListOut:
+    """One-row-per-pocket operator summary across the 3 Phase D tables.
+
+    For each `(asset, regime)` pocket :
+      * Vovk-AA expert weights (3 fields) + `n_observations` from
+        `brier_aggregator_weights`.
+      * Derived skill metrics : `has_skill_vs_baseline` boolean +
+        `skill_delta` float. Negative skill_delta = LLM forecaster
+        is doing WORSE than equal-weight (anti-skill, actionable).
+      * Latest drift event timestamp from `auto_improvement_log` where
+        `loop_kind='adwin_drift'`.
+      * Active addenda count from `pass3_addenda`.
+
+    Ordered by `skill_delta DESC` so the BEST-performing pockets
+    surface first. Anti-skill pockets sink to the bottom for
+    operator triage.
+    """
+    # Step 1 : pull all expert weight rows for the requested pocket
+    # version (3 rows per pocket).
+    weights_stmt = select(BrierAggregatorWeight).where(
+        BrierAggregatorWeight.pocket_version == pocket_version
+    )
+    if asset is not None:
+        weights_stmt = weights_stmt.where(BrierAggregatorWeight.asset == asset)
+    if regime is not None:
+        weights_stmt = weights_stmt.where(BrierAggregatorWeight.regime == regime)
+    weight_rows = list((await session.execute(weights_stmt)).scalars().all())
+
+    # Group by (asset, regime) → { expert_kind: row }.
+    pockets: dict[tuple[str, str], dict[str, BrierAggregatorWeight]] = {}
+    for w in weight_rows:
+        pockets.setdefault((w.asset, w.regime), {})[w.expert_kind] = w
+
+    # Step 2 : latest drift event per (asset, regime). Single query
+    # with subquery-style filter.
+    drift_stmt = (
+        select(
+            AutoImprovementLog.asset,
+            AutoImprovementLog.regime,
+            AutoImprovementLog.ran_at,
+        )
+        .where(AutoImprovementLog.loop_kind == "adwin_drift")
+        .order_by(desc(AutoImprovementLog.ran_at))
+    )
+    drift_rows = list((await session.execute(drift_stmt)).all())
+    drift_latest: dict[tuple[str | None, str | None], datetime] = {}
+    for d_asset, d_regime, d_ran_at in drift_rows:
+        key = (d_asset, d_regime)
+        if key not in drift_latest:
+            drift_latest[key] = d_ran_at
+
+    # Step 3 : active addenda count per (asset, regime).
+    now_ts = datetime.now(UTC)
+    addenda_stmt = select(Pass3Addendum).where(
+        Pass3Addendum.status == "active",
+        Pass3Addendum.expires_at > now_ts,
+    )
+    addenda_rows = list((await session.execute(addenda_stmt)).scalars().all())
+    addenda_count: dict[tuple[str | None, str], int] = {}
+    for a in addenda_rows:
+        key = (a.asset, a.regime)
+        addenda_count[key] = addenda_count.get(key, 0) + 1
+
+    # Step 4 : project to PocketSummaryOut. Skip pockets that don't
+    # have all 3 expert kinds (defensive — should never happen if the
+    # Vovk cron is correct, but keeps the API robust).
+    out: list[PocketSummaryOut] = []
+    for (a_asset, a_regime), experts in pockets.items():
+        prod = experts.get("prod_predictor")
+        clim = experts.get("climatology")
+        eq = experts.get("equal_weight")
+        if not (prod and clim and eq):
+            continue
+        skill_delta = prod.weight - eq.weight
+        out.append(
+            PocketSummaryOut(
+                asset=a_asset,
+                regime=a_regime,
+                pocket_version=pocket_version,
+                prod_predictor_weight=prod.weight,
+                climatology_weight=clim.weight,
+                equal_weight_weight=eq.weight,
+                n_observations=prod.n_observations,
+                has_skill_vs_baseline=skill_delta > 0.0,
+                skill_delta=skill_delta,
+                latest_drift_event_at=drift_latest.get((a_asset, a_regime)),
+                active_addenda_count=(
+                    addenda_count.get((a_asset, a_regime), 0)
+                    + addenda_count.get((None, a_regime), 0)
+                ),
+                pocket_updated_at=prod.updated_at,
+            )
+        )
+
+    # Sort by skill_delta DESC — top performers first, anti-skill last.
+    out.sort(key=lambda p: p.skill_delta, reverse=True)
+
+    return PocketSummaryListOut(
+        rows=out,
+        count=len(out),
+        asset_filter=asset,
+        regime_filter=regime,
+        pocket_version=pocket_version,
     )
