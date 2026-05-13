@@ -1,28 +1,44 @@
-"""EU AI Act Article 50(2) machine-readable watermark middleware.
+"""EU AI Act Article 50(4) DEPLOYER machine-readable watermark middleware.
 
 Adds `X-Ichor-AI-*` response headers on routes whose body contains
 LLM-derived content (briefings, sessions, scenarios, post-mortems,
 today). Pure-data routes (`/v1/market`, `/v1/fred`, etc.) are NOT
 watermarked because they only return collector outputs.
 
-Enforcement date : 2 August 2026 (EU AI Act Article 113 transitional
-clause for §50 transparency obligations). The header set satisfies
-the December 2025 EU Code of Practice draft on AI-generated content
-marking, which mandates :
+**ICHOR ROLE under EU AI Act** (round-35 correction) : Ichor is an
+Article 50(4) **DEPLOYER** of Anthropic's GPAI Claude family — NOT
+an Article 50(2) GPAI provider. The heavier signed-C2PA + PKI +
+detector-API obligations from the 2nd-draft Code of Practice
+(published early March 2026, consultation closed 30 March 2026, final
+Code expected early June 2026) bind Anthropic upstream, not Ichor.
 
-  - explicit AI-generated flag,
-  - identification of the provider / model family,
-  - timestamp of generation (or response, when generation timestamp
-    is not separately recorded),
-  - link to a human-readable disclosure page.
+This middleware's lighter deployer-tier transparency surface
+(4 `X-Ichor-AI-*` HTTP headers) satisfies §50(4) "disclose that the
+output is AI-generated" plus the human-readable §50(5) page
+(`/legal/ai-disclosure`).
+
+The header set provides :
+
+  - explicit AI-generated flag (X-Ichor-AI-Generated),
+  - identification of the upstream provider / model family (X-Ichor-AI-Provider),
+  - timestamp of response (X-Ichor-AI-Generated-At — generation
+    timestamp not separately recorded),
+  - link to the human-readable disclosure page (X-Ichor-AI-Disclosure).
+
+Enforcement date : 2 August 2026 (EU AI Act Article 113 transitional
+clause). When Anthropic emits C2PA-signed outputs (driven by §50(2)
+GPAI provider obligations under the 2nd-draft Code of Practice),
+Ichor inherits the signed metadata automatically — no first-party
+upgrade required on this middleware.
 
 The middleware is content-agnostic : it does not parse the body. It
 matches by route path-prefix, configurable via
-`Settings.ai_watermarked_route_prefixes`. This keeps the hot path
-allocation-free.
+`Settings.ai_watermarked_route_prefixes`. Hot path allocation-free.
 
-See : ADR-029 (EU AI Act §50 + AMF DOC-2008-23 disclosure footer)
-and ADR-079 (this middleware's design rationale).
+See :
+  - ADR-029 (EU AI Act §50 + AMF DOC-2008-23 disclosure footer)
+  - ADR-079 (this middleware's design rationale, original §50(2)
+    framing — superseded round-35 by §50(4) deployer correction)
 """
 
 from __future__ import annotations
