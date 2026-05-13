@@ -33,6 +33,7 @@ from ..models import (
     CftcTffObservation,
     ClevelandFedNowcast,
     CotPosition,
+    EstrObservation,
     FredObservation,
     GdeltEvent,
     GprObservation,
@@ -502,55 +503,53 @@ async def _section_dollar_smile(session: AsyncSession) -> tuple[str, list[str]]:
 
 
 async def _section_eur_specific(session: AsyncSession, asset: str) -> tuple[str, list[str]]:
-    """## EUR-specific signals — Bund 10Y yield (ADR-090 P0 step-3, round-32).
+    """## EUR-specific signals — Bund 10Y + €STR + BTP-Bund spread (ADR-090 P0 step-3 + step-4).
 
-    Renders the latest Bund 10Y observation + 5-day yield change.
-    Source : Bundesbank SDMX flow
-    `BBSIS/D.I.ZAR.ZI.EUR.S1311.B.A604.R10XX.R.A.A._Z._Z.A` collected
-    by `collectors.bundesbank_bund.fetch_bund_yields` (daily Hetzner
-    cron). Replaces the stale monthly `FRED:IRLTLT01DEM156N` in
-    intraday Pass-2 contexts.
+    Renders the EUR-side macro signals for EUR_USD Pass-2 :
+      1. **Bund 10Y daily** (long-end rate, German benchmark) — round-32 P0 step-3.
+         Source : Bundesbank SDMX `BBSIS/D.I.ZAR.ZI.EUR.S1311.B.A604.R10XX.R.A.A._Z._Z.A`.
+      2. **€STR daily** (front-end EUR funding rate, ECB-published) — round-34 P0 step-4.
+         Source : ECB Data Portal SDMX `EST/B.EU000A2X2A25.WT`.
+      3. **BTP-Bund 10Y spread monthly** (peripheral fragmentation proxy, OECD via FRED) — round-34.
+         Source : FRED `IRLTLT01ITM156N` (OECD Italy 10Y monthly) minus the same-day Bund.
+         NB : BTP series is MONTHLY (1-month lag) — frequency mismatch with daily Bund.
+         Surfaced as a regime indicator, not intraday signal.
 
     Gated on `asset == "EUR_USD"` — early-return ("", []) otherwise.
     `build_data_pool` appends only when `sources` is non-empty so a
-    non-EUR asset (or an empty Bund table pre-deploy) silently skips.
+    non-EUR asset (or empty Bund table pre-deploy) silently skips.
 
-    SYMMETRIC LANGUAGE discipline (ichor-trader review round-32) :
-    the textbook framing "Bund yield rise = EUR-positive" assumes a
-    calm regime where the rise reflects narrowing US/EUR rate
-    differential. Under funding stress or usd_complacency, the same
-    rise can reflect widening Bund/Treasury spread + convertibility
-    risk, which is EUR-negative. We emit the FACTS (level + delta)
-    plus BOTH interpretive branches and let the Pass-2 LLM pick the
-    one consistent with Pass-1's regime label.
+    SYMMETRIC LANGUAGE discipline (ichor-trader r32 review) :
+    each signal emits BOTH interpretive branches (calm regime + funding
+    stress) and lets the Pass-2 LLM pick consistent with Pass-1 regime.
     """
     if asset != "EUR_USD":
         return "", []
 
-    stmt = (
+    # ─── Bund 10Y (round-32 P0 step-3) ─────────────────────────────
+    bund_stmt = (
         select(BundYieldObservation.observation_date, BundYieldObservation.yield_pct)
         .order_by(desc(BundYieldObservation.observation_date))
         .limit(6)
     )
-    rows = (await session.execute(stmt)).all()
-    if not rows:
-        return "", []  # collector dormant or pre-deploy — silent skip
+    bund_rows = (await session.execute(bund_stmt)).all()
+    if not bund_rows:
+        return "", []  # Bund collector dormant or pre-deploy — silent skip
 
-    latest_date, latest_pct = rows[0]
-    latest_pct_f = float(latest_pct)
-    sources = [f"Bundesbank:BBSIS/Bund10Y@{latest_date:%Y-%m-%d}"]
+    bund_latest_date, bund_latest_pct = bund_rows[0]
+    bund_latest_f = float(bund_latest_pct)
+    sources = [f"Bundesbank:BBSIS/Bund10Y@{bund_latest_date:%Y-%m-%d}"]
 
     lines = [
-        "## EUR-specific signals — Bund 10Y yield",
-        f"- Bund 10Y = {latest_pct_f:.3f}% (Bundesbank SDMX BBSIS, {latest_date:%Y-%m-%d})",
+        "## EUR-specific signals",
+        "### Bund 10Y yield",
+        f"- Bund 10Y = {bund_latest_f:.3f}% (Bundesbank SDMX BBSIS, {bund_latest_date:%Y-%m-%d})",
     ]
 
-    # 5-day delta if we have the trailing rows. Bundesbank publishes
-    # ~5 trading days per week ; row index 5 is ~7 calendar days ago.
-    if len(rows) >= 6:
-        prior_date, prior_pct = rows[5]
-        delta_pct = latest_pct_f - float(prior_pct)
-        delta_bp = delta_pct * 100.0  # percent → basis points
+    # 5-day delta + symmetric interpretation
+    if len(bund_rows) >= 6:
+        prior_date, prior_pct = bund_rows[5]
+        delta_bp = (bund_latest_f - float(prior_pct)) * 100.0  # % → bp
         sign = "+" if delta_bp >= 0 else "−"
         lines.append(
             f"- 5-trading-day change : {sign}{abs(delta_bp):.1f} bp "
@@ -565,6 +564,68 @@ async def _section_eur_specific(session: AsyncSession, asset: str) -> tuple[str,
             "convertibility risk (EUR pulls the OPPOSITE direction). "
             "A fall is the symmetric reverse. The Pass-2 LLM should "
             "select the branch matching the regime context above."
+        )
+
+    # ─── €STR (round-34 P0 step-4) ─────────────────────────────────
+    # Front-end EUR funding rate. Together with Bund 10Y, covers the
+    # 0-10y EUR rate curve fresh-daily. Silent skip if empty table.
+    estr_stmt = (
+        select(EstrObservation.observation_date, EstrObservation.rate_pct)
+        .order_by(desc(EstrObservation.observation_date))
+        .limit(6)
+    )
+    estr_rows = (await session.execute(estr_stmt)).all()
+    if estr_rows:
+        estr_latest_date, estr_latest_pct = estr_rows[0]
+        estr_latest_f = float(estr_latest_pct)
+        sources.append(f"ECB:EST/ESTR@{estr_latest_date:%Y-%m-%d}")
+        lines.append("### €STR (Euro Short-Term Rate)")
+        lines.append(
+            f"- €STR = {estr_latest_f:.3f}% (ECB Data Portal SDMX EST, {estr_latest_date:%Y-%m-%d})"
+        )
+        if len(estr_rows) >= 6:
+            estr_prior_date, estr_prior_pct = estr_rows[5]
+            estr_delta_bp = (estr_latest_f - float(estr_prior_pct)) * 100.0
+            estr_sign = "+" if estr_delta_bp >= 0 else "−"
+            lines.append(
+                f"- 5-trading-day change : {estr_sign}{abs(estr_delta_bp):.1f} bp "
+                f"(from {float(estr_prior_pct):.3f}% on {estr_prior_date:%Y-%m-%d})"
+            )
+            # Symmetric interpretation : €STR rise = ECB hawkish proxy.
+            lines.append(
+                "- Interpretation : €STR rise reflects ECB tightening "
+                "stance OR front-end stress repricing. In a calm regime, "
+                "rise narrows the policy-rate gap with the Fed (EUR-positive) ; "
+                "under funding stress, rise can reflect euro-area money-market "
+                "fragmentation (EUR-negative). The Pass-2 LLM picks the "
+                "branch matching the Pass-1 regime."
+            )
+
+    # ─── BTP-Bund spread (round-34 P0 step-4, via FRED inline) ─────
+    # Italy 10Y benchmark yield (OECD monthly via FRED). Direct BdI
+    # SDMX is blocked by Cloudflare bot-mitigation, FRED fallback per
+    # round-33 subagent #2 web research. Compute spread = BTP - Bund
+    # at the LATEST common date (Bund daily / BTP monthly — surface
+    # the frequency mismatch in the text so the LLM stays honest).
+    btp_latest = await _latest_fred(session, "IRLTLT01ITM156N")
+    if btp_latest is not None:
+        btp_value, btp_date = btp_latest
+        spread_pp = btp_value - bund_latest_f
+        sources.append(f"FRED:IRLTLT01ITM156N@{btp_date:%Y-%m-%d}")
+        lines.append("### BTP-Bund 10Y spread (peripheral fragmentation)")
+        lines.append(
+            f"- Italy 10Y = {btp_value:.2f}% (FRED IRLTLT01ITM156N, "
+            f"{btp_date:%Y-%m-%d} — OECD monthly, 1-month lag)"
+        )
+        lines.append(f"- BTP-Bund spread = {spread_pp:+.2f} pp (Italy 10Y minus Bund 10Y)")
+        lines.append(
+            "- Frequency mismatch : Bund is DAILY (above), BTP is "
+            "MONTHLY. Treat this spread as a REGIME indicator, NOT "
+            "an intraday signal. Spread widening (>2.0 pp) historically "
+            "co-incides with eurozone fragmentation episodes (2011-12 "
+            "sovereign crisis, 2018 Italy populist budget) — EUR-negative. "
+            "Spread tightening (<1.0 pp) reflects ECB credibility + "
+            "convergence trades — EUR-positive."
         )
 
     return "\n".join(lines), sources
