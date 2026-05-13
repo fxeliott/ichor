@@ -100,9 +100,14 @@ async def _run(*, dry_run: bool, batch_size: int) -> int:
         return 0
 
     print(f"fetched {len(obs)} observation(s) from Bundesbank")
+    # Bundesbank SDMX returns ASCENDING dates (oldest first), so :
+    #   obs[0]  = oldest in time
+    #   obs[-1] = newest in time
+    # Round-34 cosmetic fix : the r33 print line had labels inverted
+    # (called obs[0] "latest"). Mirror the r34 €STR CLI labeling.
     print(
-        f"  latest = {obs[0].observation_date} : {float(obs[0].yield_pct):.4f}%  "
-        f"oldest = {obs[-1].observation_date} : {float(obs[-1].yield_pct):.4f}%"
+        f"  oldest = {obs[0].observation_date} : {float(obs[0].yield_pct):.4f}%  "
+        f"newest = {obs[-1].observation_date} : {float(obs[-1].yield_pct):.4f}%"
     )
 
     if dry_run:
@@ -130,8 +135,8 @@ async def _run(*, dry_run: bool, batch_size: int) -> int:
         "bundesbank_bund.ingestion_complete",
         n_attempted=n_attempted,
         n_chunks=n_chunks,
-        latest_date=str(obs[0].observation_date),
-        latest_pct=float(obs[0].yield_pct),
+        newest_date=str(obs[-1].observation_date),
+        newest_pct=float(obs[-1].yield_pct),
     )
     print(
         f"OK : {n_attempted} row(s) attempted across {n_chunks} batch(es) "
