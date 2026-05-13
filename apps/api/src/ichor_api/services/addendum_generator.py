@@ -30,8 +30,24 @@ from typing import Any
 import structlog
 from pydantic import BaseModel, Field
 
+# ADR-017 defense-in-depth — round-31 sub-wave .a (ADR-091 §"Invariant 2")
+# extracted the 19-pattern regex superset to `services/adr017_filter.py`
+# so the future GEPA optimizer (W117b) consumes the SAME source of
+# truth as the W116c addendum generator. The compiled regex and the
+# canonical helper are re-exported below for backward compatibility :
+# `from ichor_api.services.addendum_generator import
+# addendum_passes_adr017_filter` continues to work.
+from .adr017_filter import _ADR017_FORBIDDEN_RE, is_adr017_clean
+
 log = structlog.get_logger(__name__)
 
+__all__ = [
+    "MAX_ADDENDUM_CHARS",
+    "MIN_ADDENDUM_CHARS",
+    "_ADR017_FORBIDDEN_RE",
+    "addendum_passes_adr017_filter",
+    "generate_addendum_text",
+]
 
 # Max addendum body length — matches the W116 `pass3_addenda.content`
 # CHECK constraint (8..4096 chars). Soft cap at 256 to keep the
@@ -73,33 +89,6 @@ class _AddendumOut(BaseModel):
 
     addendum_text: str = Field(..., min_length=MIN_ADDENDUM_CHARS, max_length=MAX_ADDENDUM_CHARS)
     importance: float = Field(..., ge=0.0, le=1.0)
-
-
-# ADR-017 defense-in-depth regex — superset codified by ADR-087 §"LLM
-# extension 1 W116c addendum generator". Round-28 (2026-05-13) extended
-# the original W117 set to cover the trader-review HIGH finding : the
-# pre-round-28 regex missed `LONG NOW`, `SHORT NOW`, numeric `TARGET
-# 1.0850`, numeric `ENTRY 1.0850`, and `MARGIN CALL`. All eight test
-# cases pinned in `test_addendum_generator.py:test_adr017_filter_*`.
-#
-# Strictness rationale : we WANT false positives over false negatives.
-# An LLM that occasionally has a benign macro mention like "margin
-# debt" filtered out is acceptable. An LLM that emits "TARGET 1.0850
-# ENTRY 1.0900" and slips past the regex is NOT acceptable (it would
-# be persisted to `pass3_addenda` and injected to Pass-3 stress next
-# fire). Caller MUST gate `record_new_addendum` on
-# `addendum_passes_adr017_filter()` and persist NOTHING when False.
-_ADR017_FORBIDDEN_RE = __import__("re").compile(
-    r"\b(BUY|SELL|"
-    r"LONG\s+NOW|SHORT\s+NOW|LONG\s+AT|SHORT\s+AT|"
-    r"ENTER\s+(?:LONG|SHORT)|"
-    r"TP\d*|SL\d*|"
-    r"take[\s_-]*profit|stop[\s_-]*loss|"
-    r"TARGET[\s:]+\d+\.?\d*|ENTRY[\s:]+\d+\.?\d*|entry\s+price|"
-    r"leverage|MARGIN\s+CALL"
-    r")\b",
-    __import__("re").IGNORECASE,
-)
 
 
 def _build_user_prompt(
@@ -144,8 +133,13 @@ def _build_user_prompt(
 
 def addendum_passes_adr017_filter(text: str) -> bool:
     """Defensive : `False` if the addendum contains any ADR-017
-    forbidden token. Caller MUST gate `record_new_addendum` on this."""
-    return _ADR017_FORBIDDEN_RE.search(text) is None
+    forbidden token. Caller MUST gate `record_new_addendum` on this.
+
+    Round-31 sub-wave .a : delegates to the canonical helper
+    `services.adr017_filter.is_adr017_clean` so the regex superset
+    has a single source of truth (ADR-091 §"Invariant 2").
+    """
+    return is_adr017_clean(text)
 
 
 async def generate_addendum_text(
