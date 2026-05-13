@@ -36,6 +36,17 @@ FORBIDDEN_SET: frozenset[str] = frozenset(
         "audit_log",
         "tool_call_audit",
         "feature_flags",
+        # ADR-088 (W115c, round-28) Invariant 3 : Vovk pocket weights
+        # are read ONLY through `services/pocket_skill_reader.py` which
+        # applies hysteresis + small-sample shielding + feature-flag
+        # gate. Couche-2 agents MUST NOT bypass via raw SQL.
+        "brier_aggregator_weights",
+        # ADR-087 Loop 1 : audit log is immutable (ADR-029-class). No
+        # Cap5 read path — query_db consumers must not see audit rows.
+        "auto_improvement_log",
+        # ADR-087 Loop 4 : addenda are render-only via the injector. The
+        # raw table holds candidate prompts the LLM hasn't seen yet.
+        "pass3_addenda",
     }
 )
 

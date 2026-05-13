@@ -233,6 +233,71 @@ def test_stress_build_prompt_injects_addenda_section_when_non_empty() -> None:
     assert "Pass 2 specialization" in prompt
 
 
+def test_stress_build_prompt_empty_confluence_section_byte_identical() -> None:
+    """W115c (ADR-088 round-28) regression guard : passing empty
+    confluence_section must produce the same prompt text as omitting
+    the kwarg entirely. Pre-W115c byte-identical contract."""
+    p = StressPass()
+    spec = AssetSpecialization.model_validate(ASSET_OK_JSON)
+    prompt_without = p.build_prompt(specialization=spec, asset_data="...")
+    prompt_with_empty = p.build_prompt(specialization=spec, asset_data="...", confluence_section="")
+    prompt_with_whitespace = p.build_prompt(
+        specialization=spec, asset_data="...", confluence_section="   \n\n  "
+    )
+    assert prompt_without == prompt_with_empty
+    assert prompt_without == prompt_with_whitespace
+
+
+def test_stress_build_prompt_injects_confluence_section_when_non_empty() -> None:
+    """W115c (ADR-088 round-28) : non-empty confluence_section renders
+    the '## Pocket skill calibration hint' header AFTER addenda but
+    BEFORE the steelman instruction. The model takes it as calibration
+    context, not as a directional override (ADR-017 boundary intact)."""
+    p = StressPass()
+    spec = AssetSpecialization.model_validate(ASSET_OK_JSON)
+    confluence_text = (
+        "[Round-28 Phase D W115c confluence signal]\n"
+        "Pocket (EUR_USD, usd_complacency) : anti_skill "
+        "(n=13, skill_delta=-0.0497).\n"
+        "The 4-pass output for this pocket has historically been "
+        "less reliable than equal-weight on realized outcomes."
+    )
+    prompt = p.build_prompt(
+        specialization=spec,
+        asset_data="...",
+        confluence_section=confluence_text,
+    )
+    assert "## Pocket skill calibration hint (Phase D W115c)" in prompt
+    assert "anti_skill" in prompt
+    # Confluence block must appear BEFORE the steelman instruction.
+    confluence_idx = prompt.index("## Pocket skill calibration hint")
+    steelman_idx = prompt.index("Steelman the OPPOSITE bias")
+    assert confluence_idx < steelman_idx
+    # ADR-017 boundary : confluence text must not leak BUY/SELL/TARGET.
+    forbidden = ("BUY", "SELL", "TARGET ", "ENTRY ", "TP1", "SL1")
+    for token in forbidden:
+        assert token not in prompt, f"ADR-017 leak in confluence text : {token!r}"
+
+
+def test_stress_build_prompt_addenda_before_confluence_ordering() -> None:
+    """When BOTH addenda_section AND confluence_section are non-empty,
+    the order in the prompt is :
+        Pass 2 spec → data_pool → addenda → confluence → steelman.
+    Stable ordering matters for prompt-caching downstream."""
+    p = StressPass()
+    spec = AssetSpecialization.model_validate(ASSET_OK_JSON)
+    prompt = p.build_prompt(
+        specialization=spec,
+        asset_data="...",
+        addenda_section="- some operator note here",
+        confluence_section="- some confluence hint here",
+    )
+    addenda_idx = prompt.index("## Operator addenda")
+    confluence_idx = prompt.index("## Pocket skill calibration hint")
+    steelman_idx = prompt.index("Steelman the OPPOSITE bias")
+    assert addenda_idx < confluence_idx < steelman_idx
+
+
 def test_stress_parse_ok() -> None:
     p = StressPass()
     out = p.parse(_wrap(STRESS_OK_JSON))
