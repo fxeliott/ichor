@@ -516,3 +516,394 @@ async def test_tetlock_thresholds_monthly_cadence_not_daily(monkeypatch) -> None
     # is daily). The thresholds for the AUD drivers themselves are
     # 2-monthly-prints scale.
     assert "across 2 consecutive monthly prints" in md or "across 2 monthly prints" in md
+
+
+# ════════════════════════════════════════════════════════════════════════
+# STRESS TESTS — round-46 round-2-mandatory empirical validation beyond
+# happy-path mock-passing. Eliot directive : "fais en sorte que tout
+# fonctionne... pas que ça fonctionne simplement". Each test surfaces a
+# pathological FRED return shape that the 17 happy-path tests above don't
+# exercise. Goal : confirm no crash, no partial render bleed-through, no
+# ADR-017 violation, no f-string overflow under degenerate inputs.
+# ════════════════════════════════════════════════════════════════════════
+
+
+# ──────────────────────────── Stress: NaN values ───────────────────────
+
+
+@pytest.mark.asyncio
+async def test_stress_au10y_nan_does_not_crash(monkeypatch) -> None:
+    """STRESS : `_latest_fred` returns (nan, date) for AU 10Y. The
+    f-string `f"{nan:.2f}"` renders `"nan"` (Python convention) ; the
+    differential math `dgs10 - nan = nan` propagates correctly without
+    raising. Rendered text must still pass ADR-017 + must not break the
+    section (no exception)."""
+    nan = float("nan")
+    monkeypatch.setattr(
+        "ichor_api.services.data_pool._latest_fred",
+        _make_fred_stub(
+            au10y=(nan, date(2026, 4, 1)),
+            dgs10=_DGS10,
+            china_m1=_CHINA_M1,
+            iron=_IRON,
+            copper=_COPPER,
+        ),
+    )
+    session = AsyncMock()
+    # Must not raise
+    md, sources = await _section_aud_specific(session, "AUD_USD")
+    # NaN renders as literal "nan" in f-string
+    assert "AU 10Y = nan%" in md
+    # Differential = dgs10 - nan = nan ; f"{nan:+.2f}" renders "+nan"
+    assert "nan pp" in md
+    # Rendered text still passes ADR-017 boundary
+    assert is_adr017_clean(md), "ADR-017 violation on NaN render."
+    # 5 source-stamps still emitted (data is "present" even if pathological)
+    assert len(sources) == 5
+
+
+@pytest.mark.asyncio
+async def test_stress_all_five_fred_returns_nan_does_not_crash(monkeypatch) -> None:
+    """STRESS : ALL 5 FRED returns are (nan, date). Section should render
+    every block (data is "present") with `nan` tokens but not crash."""
+    nan = float("nan")
+    monkeypatch.setattr(
+        "ichor_api.services.data_pool._latest_fred",
+        _make_fred_stub(
+            au10y=(nan, date(2026, 4, 1)),
+            dgs10=(nan, date(2026, 5, 13)),
+            china_m1=(nan, date(2026, 4, 1)),
+            iron=(nan, date(2026, 4, 1)),
+            copper=(nan, date(2026, 4, 1)),
+        ),
+    )
+    session = AsyncMock()
+    md, sources = await _section_aud_specific(session, "AUD_USD")
+    # Composite triangle still emitted (all 4 secondaries non-None)
+    assert "commodity-currency triangle composite" in md
+    # ADR-017 clean
+    assert is_adr017_clean(md), "ADR-017 violation on all-NaN render."
+    assert len(sources) == 5
+
+
+# ──────────────────────────── Stress: Inf values ───────────────────────
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("inf_field",),
+    [
+        ("au10y",),
+        ("dgs10",),
+        ("china_m1",),
+        ("iron",),
+        ("copper",),
+    ],
+)
+async def test_stress_inf_in_any_fred_return_does_not_crash(monkeypatch, inf_field: str) -> None:
+    """STRESS : +inf in any of the 5 FRED returns. Section must not crash
+    and rendered text must still pass ADR-017."""
+    pos_inf = float("inf")
+    fields = {
+        "au10y": _AU10Y,
+        "dgs10": _DGS10,
+        "china_m1": _CHINA_M1,
+        "iron": _IRON,
+        "copper": _COPPER,
+    }
+    # Replace the chosen field with (+inf, original_date)
+    _, original_date = fields[inf_field]
+    fields[inf_field] = (pos_inf, original_date)
+    monkeypatch.setattr(
+        "ichor_api.services.data_pool._latest_fred",
+        _make_fred_stub(**fields),
+    )
+    session = AsyncMock()
+    md, _ = await _section_aud_specific(session, "AUD_USD")
+    # Must contain "inf" token somewhere (the inf-stamped field rendered)
+    assert "inf" in md
+    # ADR-017 clean
+    assert is_adr017_clean(md), f"ADR-017 violation on +inf {inf_field} render."
+
+
+@pytest.mark.asyncio
+async def test_stress_negative_inf_does_not_crash(monkeypatch) -> None:
+    """STRESS : -inf for au10y. Section must render `-inf%` and the
+    differential `DGS10 - (-inf) = +inf` without raising."""
+    neg_inf = float("-inf")
+    monkeypatch.setattr(
+        "ichor_api.services.data_pool._latest_fred",
+        _make_fred_stub(
+            au10y=(neg_inf, date(2026, 4, 1)),
+            dgs10=_DGS10,
+            china_m1=_CHINA_M1,
+            iron=_IRON,
+            copper=_COPPER,
+        ),
+    )
+    session = AsyncMock()
+    md, _ = await _section_aud_specific(session, "AUD_USD")
+    assert "AU 10Y = -inf%" in md
+    # dgs10 - (-inf) = +inf, formatted as "+inf pp"
+    assert "+inf pp" in md or "inf pp" in md
+    assert is_adr017_clean(md), "ADR-017 violation on -inf render."
+
+
+# ──────────────────────────── Stress: Very-large values ────────────────
+
+
+@pytest.mark.asyncio
+async def test_stress_china_m1_very_large_value_comma_formatter(monkeypatch) -> None:
+    """STRESS : China M1 = 999_999_999 CNY-bn. The `{:,.0f}` formatter
+    must render `999,999,999` without overflow or exception. Tests that
+    the comma-separator format works on 9-digit values."""
+    monkeypatch.setattr(
+        "ichor_api.services.data_pool._latest_fred",
+        _make_fred_stub(
+            au10y=_AU10Y,
+            dgs10=_DGS10,
+            china_m1=(999_999_999.0, date(2026, 4, 1)),
+            iron=_IRON,
+            copper=_COPPER,
+        ),
+    )
+    session = AsyncMock()
+    md, _ = await _section_aud_specific(session, "AUD_USD")
+    assert "China M1 = 999,999,999 CNY-bn" in md
+    assert is_adr017_clean(md)
+
+
+@pytest.mark.asyncio
+async def test_stress_china_m1_extreme_large_value(monkeypatch) -> None:
+    """STRESS : China M1 = 1e15 (quadrillion-scale). Stress the comma
+    formatter on a value far beyond any realistic empirical range."""
+    monkeypatch.setattr(
+        "ichor_api.services.data_pool._latest_fred",
+        _make_fred_stub(
+            au10y=_AU10Y,
+            dgs10=_DGS10,
+            china_m1=(1e15, date(2026, 4, 1)),
+            iron=_IRON,
+            copper=_COPPER,
+        ),
+    )
+    session = AsyncMock()
+    md, _ = await _section_aud_specific(session, "AUD_USD")
+    # 1e15 = 1,000,000,000,000,000
+    assert "1,000,000,000,000,000" in md
+    assert is_adr017_clean(md)
+
+
+# ──────────────────────────── Stress: Negative yields ──────────────────
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("au10y_value", "dgs10_value", "expected_diff_str", "expected_au_str"),
+    [
+        (-0.50, 4.45, "+4.95 pp", "AU 10Y = -0.50%"),  # AU deeply negative
+        (-0.10, -0.20, "-0.10 pp", "AU 10Y = -0.10%"),  # both negative, US wider neg
+        (-1.50, 0.00, "+1.50 pp", "AU 10Y = -1.50%"),  # AU very negative, US zero
+    ],
+)
+async def test_stress_negative_yields_render_with_correct_signs(
+    monkeypatch, au10y_value, dgs10_value, expected_diff_str, expected_au_str
+) -> None:
+    """STRESS : negative-rate scenarios (theoretical post-2019-ZIRP).
+    `{:+.2f}` must render the differential with explicit sign on both
+    sides ; the raw AU 10Y print uses `{:.2f}` which preserves `-`
+    prefix natively."""
+    monkeypatch.setattr(
+        "ichor_api.services.data_pool._latest_fred",
+        _make_fred_stub(
+            au10y=(au10y_value, date(2026, 4, 1)),
+            dgs10=(dgs10_value, date(2026, 5, 13)),
+        ),
+    )
+    session = AsyncMock()
+    md, _ = await _section_aud_specific(session, "AUD_USD")
+    assert expected_au_str in md
+    assert expected_diff_str in md
+    assert is_adr017_clean(md)
+
+
+# ──────────────────────────── Stress: Zero values ──────────────────────
+
+
+@pytest.mark.asyncio
+async def test_stress_zero_iron_and_copper_render_composite(monkeypatch) -> None:
+    """STRESS : iron-ore = 0.0 AND copper = 0.0 (degenerate but non-None).
+    Composite triangle still gates open (all 4 secondaries not None) and
+    renders both `0.00 index` lines without crash."""
+    monkeypatch.setattr(
+        "ichor_api.services.data_pool._latest_fred",
+        _make_fred_stub(
+            au10y=_AU10Y,
+            dgs10=_DGS10,
+            china_m1=_CHINA_M1,
+            iron=(0.0, date(2026, 4, 1)),
+            copper=(0.0, date(2026, 4, 1)),
+        ),
+    )
+    session = AsyncMock()
+    md, _ = await _section_aud_specific(session, "AUD_USD")
+    assert "Iron Ore (PIORECRUSDM) = 0.00 index" in md
+    assert "Copper (PCOPPUSDM) = 0.00 index" in md
+    # Composite triangle still emitted (0.0 is not None)
+    assert "commodity-currency triangle composite" in md
+    assert is_adr017_clean(md)
+
+
+@pytest.mark.asyncio
+async def test_stress_zero_china_m1_does_not_crash(monkeypatch) -> None:
+    """STRESS : China M1 = 0 CNY-bn (degenerate). Comma formatter must
+    render `0` without exception."""
+    monkeypatch.setattr(
+        "ichor_api.services.data_pool._latest_fred",
+        _make_fred_stub(
+            au10y=_AU10Y,
+            dgs10=_DGS10,
+            china_m1=(0.0, date(2026, 4, 1)),
+            iron=_IRON,
+            copper=_COPPER,
+        ),
+    )
+    session = AsyncMock()
+    md, _ = await _section_aud_specific(session, "AUD_USD")
+    assert "China M1 = 0 CNY-bn" in md
+    assert is_adr017_clean(md)
+
+
+# ──────────────────────────── Stress: Future / past dates ──────────────
+
+
+@pytest.mark.asyncio
+async def test_stress_future_date_2099_renders_correctly(monkeypatch) -> None:
+    """STRESS : `_latest_fred` returns (value, date(2099, 1, 1)). The
+    f-string `{date:%Y-%m-%d}` renders `2099-01-01` without overflow.
+    Source-stamp uses identical format."""
+    monkeypatch.setattr(
+        "ichor_api.services.data_pool._latest_fred",
+        _make_fred_stub(
+            au10y=(4.45, date(2099, 1, 1)),
+            dgs10=(4.45, date(2099, 1, 1)),
+            china_m1=(320000.0, date(2099, 1, 1)),
+            iron=(108.5, date(2099, 1, 1)),
+            copper=(9420.0, date(2099, 1, 1)),
+        ),
+    )
+    session = AsyncMock()
+    md, sources = await _section_aud_specific(session, "AUD_USD")
+    assert "2099-01-01" in md
+    assert "FRED:IRLTLT01AUM156N@2099-01-01" in sources
+    assert "FRED:DGS10@2099-01-01" in sources
+    assert is_adr017_clean(md)
+
+
+@pytest.mark.asyncio
+async def test_stress_past_date_1990_renders_correctly(monkeypatch) -> None:
+    """STRESS : `_latest_fred` returns (value, date(1990, 1, 1)). Pre-
+    Australian-data era. Section just renders the old date without
+    interpretation logic crashing."""
+    monkeypatch.setattr(
+        "ichor_api.services.data_pool._latest_fred",
+        _make_fred_stub(
+            au10y=(13.5, date(1990, 1, 1)),  # high-yield era
+            dgs10=(8.0, date(1990, 1, 1)),
+            china_m1=(1000.0, date(1990, 1, 1)),
+            iron=(15.0, date(1990, 1, 1)),
+            copper=(2500.0, date(1990, 1, 1)),
+        ),
+    )
+    session = AsyncMock()
+    md, sources = await _section_aud_specific(session, "AUD_USD")
+    assert "1990-01-01" in md
+    assert "AU 10Y = 13.50%" in md
+    assert "FRED:IRLTLT01AUM156N@1990-01-01" in sources
+    assert is_adr017_clean(md)
+
+
+# ──────────────────────────── Stress: All 5 None / no partial bleed ────
+
+
+@pytest.mark.asyncio
+async def test_stress_all_five_fred_returns_none_yields_clean_empty(monkeypatch) -> None:
+    """STRESS : ALL 5 FRED returns are None. Primary-anchor gate triggers
+    silent skip — `("", [])`. Critical : NO partial render bleed-through
+    (no header line, no orphan source-stamp, nothing leaks)."""
+    monkeypatch.setattr(
+        "ichor_api.services.data_pool._latest_fred",
+        _make_fred_stub(),  # all defaults = None
+    )
+    session = AsyncMock()
+    md, sources = await _section_aud_specific(session, "AUD_USD")
+    assert md == ""
+    assert sources == []
+    # Strictly empty — no whitespace, no header-only leak
+    assert len(md) == 0
+    assert len(sources) == 0
+
+
+# ──────────────────────────── Stress: Asset gate casing ────────────────
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "weird_asset",
+    [
+        "aud_usd",  # lowercase
+        "AUD_usd",  # mixed
+        "Aud_Usd",  # title case
+        "AUDUSD",  # no underscore
+        "AUD-USD",  # dash
+        " AUD_USD",  # leading whitespace
+        "AUD_USD ",  # trailing whitespace
+        "",  # empty
+    ],
+)
+async def test_stress_asset_gate_rejects_non_exact_casing(monkeypatch, weird_asset: str) -> None:
+    """STRESS : the asset gate uses `if asset != "AUD_USD"` — strict
+    exact match. Lowercase, mixed case, no-underscore, dash, padding
+    variants all return `("", [])` with ZERO DB I/O. Verifies the gate
+    is not silently case-insensitive."""
+    # Even if FRED stub would return data, the gate fires first
+    monkeypatch.setattr(
+        "ichor_api.services.data_pool._latest_fred",
+        _make_fred_stub(au10y=_AU10Y, dgs10=_DGS10, china_m1=_CHINA_M1, iron=_IRON, copper=_COPPER),
+    )
+    session = AsyncMock()
+    md, sources = await _section_aud_specific(session, weird_asset)
+    assert md == ""
+    assert sources == []
+    # Critical : zero DB I/O on gate fail
+    assert session.execute.await_count == 0
+
+
+# ──────────────────────────── Stress: Mixed pathological combos ────────
+
+
+@pytest.mark.asyncio
+async def test_stress_mixed_pathological_nan_inf_zero_negative_combo(monkeypatch) -> None:
+    """STRESS : worst-case combo — au10y=nan, dgs10=-inf, china_m1=0,
+    iron=very-large, copper=negative. Section must render every block
+    without crash and pass ADR-017."""
+    monkeypatch.setattr(
+        "ichor_api.services.data_pool._latest_fred",
+        _make_fred_stub(
+            au10y=(float("nan"), date(2026, 4, 1)),
+            dgs10=(float("-inf"), date(2026, 5, 13)),
+            china_m1=(0.0, date(2026, 4, 1)),
+            iron=(1e10, date(2026, 4, 1)),
+            copper=(-500.0, date(2026, 4, 1)),  # negative copper price (impossible but defensive)
+        ),
+    )
+    session = AsyncMock()
+    md, sources = await _section_aud_specific(session, "AUD_USD")
+    # Section did not crash
+    assert "AUD-specific signals" in md
+    # All 5 source-stamps emitted
+    assert len(sources) == 5
+    # Composite triangle still gates open
+    assert "commodity-currency triangle composite" in md
+    # ADR-017 holds even under degenerate inputs
+    assert is_adr017_clean(md), "ADR-017 violation on mixed pathological combo."
