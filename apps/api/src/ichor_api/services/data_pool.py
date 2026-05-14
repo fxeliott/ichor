@@ -878,6 +878,256 @@ async def _section_xau_specific(session: AsyncSession, asset: str) -> tuple[str,
     return "\n".join(lines), sources
 
 
+async def _section_nas_specific(session: AsyncSession, asset: str) -> tuple[str, list[str]]:
+    """## NAS-specific signals — duration headwind + vol-of-vol (r42, GAP-A continuation).
+
+    Renders tech-heavy index specific macro signals for NAS100_USD Pass-2 via
+    the canonical Hou-Mo-Xue 2015 q-factor duration channel + Whaley 2009
+    vol-of-vol VVIX regime + tail-risk CBOE SKEW :
+      1. **DGS10 daily** (US 10Y nominal yield) — primary duration headwind
+         driver for long-duration tech equities. Source : FRED `DGS10`,
+         daily publication, default 14d max-age.
+      2. **VVIX daily** (CBOE VIX-of-VIX) — vol-of-vol regime per Whaley
+         2009. Source : `cboe_vvix_observations` (migration 0032).
+         Bands : <85 = calm tail-pricing ; 85-100 = modest ; 100-140 =
+         elevated turbulence ; >140 = vol-surface blowup territory.
+      3. **SKEW daily** (CBOE Tail-Risk Index) — tail-skew premium.
+         Source : `cboe_skew_observations` (migration 0030).
+         Bands : <115 = complacent ; 115-130 = modest tail bid ;
+         130-150 = elevated stress ; >150 = panic priced in.
+
+    Gated on `asset == "NAS100_USD"` — early-return ("", []) otherwise.
+    `build_data_pool` appends only when `sources` is non-empty so a
+    pre-FRED-ingestion NAS100_USD silently skips.
+
+    SYMMETRIC LANGUAGE discipline (ichor-trader r32+ doctrine carried
+    through r34/r41) : each interpretive section MUST emit BOTH branches
+    (NAS-bid AND NAS-soft) so the Pass-2 LLM picks consistent with
+    Pass-1's regime label. The pre-r42 cross_asset_matrix v2 NAS hints
+    at `data_pool.py:1747-1754` were UNI-DIRECTIONAL bearish (duration
+    headwind + multiple compression + vol-of-vol drag with zero bullish
+    mirror). This section adds the missing bullish mirror per
+    ichor-trader r41 audit YELLOW finding.
+
+    TETLOCK INVALIDATION discipline (r39+ codified, r40 R23 default-
+    round-opener confirmation) : threshold-flip conditions emitted
+    inline so a falsified hypothesis is visible immediately.
+
+    R24 SUBSET-not-SUPERSET mirror : all 3 drivers (DGS10 + VVIX + SKEW)
+    are daily-FRED OR daily-CBOE — no monthly-OECD staleness trap.
+    """
+    if asset != "NAS100_USD":
+        return "", []
+
+    # ─── DGS10 (US 10Y nominal yield) — primary duration headwind ──
+    # Hou-Mo-Xue 2015 q-factor : duration channel impacts long-duration
+    # equity multiples through the discount-rate denominator. Tech-heavy
+    # NAS-100 has avg duration ~25-30 years (vs SPX ~18-22), so its
+    # multiple is most sensitive to long-end rate moves. FRED DGS10 is
+    # DAILY publication ; default 14d max-age sufficient.
+    dgs_cutoff = datetime.now(UTC).date() - timedelta(days=_max_age_days_for("DGS10"))
+    dgs_stmt = (
+        select(FredObservation.observation_date, FredObservation.value)
+        .where(
+            FredObservation.series_id == "DGS10",
+            FredObservation.observation_date >= dgs_cutoff,
+            FredObservation.value.is_not(None),
+        )
+        .order_by(desc(FredObservation.observation_date))
+        .limit(6)
+    )
+    dgs_rows = (await session.execute(dgs_stmt)).all()
+    if not dgs_rows:
+        return "", []  # DGS10 missing → silent skip (primary driver)
+
+    dgs_latest_date, dgs_latest_value = dgs_rows[0]
+    dgs_latest_f = float(dgs_latest_value)
+    sources = [f"FRED:DGS10@{dgs_latest_date:%Y-%m-%d}"]
+
+    lines = [
+        "## NAS-specific signals",
+        "### US 10Y nominal yield (DGS10) — duration headwind driver",
+        f"- DGS10 = {dgs_latest_f:.2f}% (FRED, {dgs_latest_date:%Y-%m-%d})",
+    ]
+
+    if len(dgs_rows) >= 6:
+        prior_date, prior_value = dgs_rows[5]
+        delta_bp = (dgs_latest_f - float(prior_value)) * 100.0
+        sign = "+" if delta_bp >= 0 else "−"
+        lines.append(
+            f"- 5-trading-day change : {sign}{abs(delta_bp):.1f} bp "
+            f"(from {float(prior_value):.2f}% on {prior_date:%Y-%m-%d})"
+        )
+        lines.append(
+            "- Interpretation depends on the Pass-1 regime label : "
+            "in a risk-off or vol_elevated regime, rate rise compresses "
+            "tech multiples (NAS-soft, Hou-Mo-Xue duration channel) ; "
+            "in a goldilocks or risk-on regime with growth-not-inflation "
+            "framing, the same rise can be read as cyclical re-acceleration "
+            "supportive of high-beta tech earnings (NAS-bid). A fall is "
+            "the symmetric reverse — duration relief in calm, growth-scare "
+            "in stress. The Pass-2 LLM should select the branch matching "
+            "the regime context above."
+        )
+        lines.append(
+            "- Tetlock invalidation : duration-headwind NAS-soft thesis "
+            "is invalidated if DGS10 rises > +15 bp over 5 sessions WHILE "
+            "Pass-1 regime is goldilocks AND high-beta tech 1m-realized-vol "
+            "stays sub-30% (growth-not-inflation framing holds). The "
+            "+15 bp threshold approximates a 1-sigma 5-session DGS10 "
+            "move per FRED 2010-2024 empirical distribution (daily sigma "
+            "~6-8 bp). Growth-acceleration NAS-bid thesis is invalidated "
+            "if DGS10 rise co-incides with VVIX > 100 (vol-of-vol regime "
+            "says rates are pricing tail-risk not growth)."
+        )
+
+    # ─── VVIX (CBOE vol-of-vol) — vol-regime classifier ────────────
+    # VVIX is the volatility-of-VIX, i.e. how much the implied-vol
+    # *surface* itself is shifting (CBOE 2007 introduction ; academic
+    # treatment Park 2015, Bevilacqua-Tunaru 2021). Historically
+    # VVIX > 100 coincides with elevated NAS drawdown risk via
+    # vol-control fund deleveraging mechanics. VVIX < 85 = calm-tail
+    # regime where systematic-vol sellers (CTAs, vol-control funds)
+    # accumulate beta inducing NAS-bid pressure mechanically.
+    vvix_cutoff = datetime.now(UTC).date() - timedelta(days=30)
+    vvix_stmt = (
+        select(CboeVvixObservation)
+        .where(CboeVvixObservation.observation_date >= vvix_cutoff)
+        .order_by(desc(CboeVvixObservation.observation_date))
+        .limit(6)
+    )
+    vvix_rows = list((await session.execute(vvix_stmt)).scalars().all())
+    if vvix_rows:
+        vvix_latest = vvix_rows[0]
+        vvix_v = vvix_latest.vvix_value
+        # Band classification per existing _section_vol_surface convention
+        if vvix_v >= 140:
+            vvix_band = "vol-surface blowup territory (>140)"
+        elif vvix_v >= 100:
+            vvix_band = "elevated turbulence (100-140)"
+        elif vvix_v >= 85:
+            vvix_band = "modest bid (85-100)"
+        else:
+            vvix_band = "calm tail-pricing (<85)"
+        sources.append(f"CBOE:VVIX@{vvix_latest.observation_date:%Y-%m-%d}")
+        lines.append("### VVIX (CBOE VIX-of-VIX) — vol-of-vol regime")
+        lines.append(
+            f"- VVIX = {vvix_v:.2f} on {vvix_latest.observation_date:%Y-%m-%d} — {vvix_band}"
+        )
+        if len(vvix_rows) >= 6:
+            vvix_prior = vvix_rows[5]
+            vvix_delta = vvix_v - vvix_prior.vvix_value
+            vvix_sign = "+" if vvix_delta >= 0 else "−"
+            lines.append(
+                f"- 5-trading-day change : {vvix_sign}{abs(vvix_delta):.2f} "
+                f"(from {vvix_prior.vvix_value:.2f} on "
+                f"{vvix_prior.observation_date:%Y-%m-%d})"
+            )
+            lines.append(
+                "- Interpretation : VVIX rise reflects an unstable vol "
+                "surface — gamma-flip risk, dispersion-trade unwind, "
+                "vol-of-vol regime shift (NAS-soft, mechanical vol-control "
+                "deleveraging). VVIX fall in a calm-tail regime mechanically "
+                "supports NAS-bid via systematic vol-seller beta "
+                "accumulation. The Pass-2 LLM picks the branch matching "
+                "the Pass-1 regime."
+            )
+            lines.append(
+                "- Tetlock invalidation : vol-of-vol drag NAS-soft thesis "
+                "is invalidated if VVIX falls below 85 within 3 sessions "
+                "AND SKEW < 130 concurrent (calm-tail regime confirmed, "
+                "vol-control rebuilds beta) ; vol-bid NAS-bid thesis is "
+                "invalidated if VVIX exceeds 100 alongside an SKEW move "
+                "to 130+ (vol surface re-pricing tail risk in earnest)."
+            )
+
+    # ─── SKEW (CBOE tail-risk premium) — tail-bid regime classifier ─
+    # CBOE SKEW measures the relative pricing of OTM puts vs calls.
+    # 100 = no skew, equal pricing ; >130 = market paying real premium
+    # for downside hedges (latent tail-bid). Independent dimension to
+    # VVIX : VVIX is HOW much the surface moves, SKEW is WHICH SIDE
+    # of the smile is bid.
+    skew_cutoff = datetime.now(UTC).date() - timedelta(days=30)
+    skew_stmt = (
+        select(CboeSkewObservation)
+        .where(CboeSkewObservation.observation_date >= skew_cutoff)
+        .order_by(desc(CboeSkewObservation.observation_date))
+        .limit(6)
+    )
+    skew_rows = list((await session.execute(skew_stmt)).scalars().all())
+    if skew_rows:
+        skew_latest = skew_rows[0]
+        skew_v = skew_latest.skew_value
+        if skew_v >= 150:
+            skew_band = "panic priced in (>150)"
+        elif skew_v >= 130:
+            skew_band = "elevated stress (130-150)"
+        elif skew_v >= 115:
+            skew_band = "modest tail bid (115-130)"
+        else:
+            skew_band = "neutral / complacent (<115)"
+        sources.append(f"CBOE:SKEW@{skew_latest.observation_date:%Y-%m-%d}")
+        lines.append("### SKEW (CBOE tail-risk premium) — tail-bid regime")
+        lines.append(
+            f"- SKEW = {skew_v:.2f} on {skew_latest.observation_date:%Y-%m-%d} — {skew_band}"
+        )
+        if len(skew_rows) >= 6:
+            skew_prior = skew_rows[5]
+            skew_delta = skew_v - skew_prior.skew_value
+            skew_sign = "+" if skew_delta >= 0 else "−"
+            lines.append(
+                f"- 5-trading-day change : {skew_sign}{abs(skew_delta):.2f} "
+                f"(from {skew_prior.skew_value:.2f} on "
+                f"{skew_prior.observation_date:%Y-%m-%d})"
+            )
+            lines.append(
+                "- Interpretation : SKEW rise reflects rising tail-bid "
+                "(hedge demand outpacing call demand) — NAS-soft via "
+                "concentrated mega-cap tail-hedging flows. SKEW fall in "
+                "a complacent regime reflects under-priced tail risk, "
+                "which mechanically allows continued NAS-bid as "
+                "downside-hedge unwinds free up risk budget. Pass-2 LLM "
+                "picks consistent with Pass-1 regime."
+            )
+            lines.append(
+                "- Tetlock invalidation : SKEW tail-bid NAS-soft thesis "
+                "is invalidated if SKEW falls below 115 within 3 sessions "
+                "AND VVIX < 85 concurrent (complacent regime fully "
+                "confirmed, tail-hedge bid unwound) ; complacent-tail "
+                "NAS-bid thesis is invalidated if SKEW rises above 130 "
+                "alongside DGS10 widening > +10 bp (tail-pricing + "
+                "duration-stress co-rising — pre-drawdown configuration "
+                "per the Park 2015 + Bevilacqua-Tunaru 2021 VVIX-SKEW "
+                "joint regime literature)."
+            )
+
+    # ─── NAS triangle composite (R24 SUBSET-not-SUPERSET clears) ────
+    # Surface ONLY when ALL 3 drivers fresh — the framework needs the
+    # 3-driver pairing to disambiguate growth-acceleration regimes from
+    # tail-stress regimes (which can both feature DGS10 rises).
+    if (
+        len(dgs_rows) >= 6
+        and vvix_rows
+        and len(vvix_rows) >= 6
+        and skew_rows
+        and len(skew_rows) >= 6
+    ):
+        lines.append("### NAS duration-vol-tail triangle (Hou-Mo-Xue + Whaley)")
+        lines.append(
+            "- The 3-driver NAS pricing framework is FULLY available "
+            "for this asset (R24 SUBSET-not-SUPERSET clears, all 3 "
+            "daily). When DGS10 rises CONCURRENT with VVIX < 85 AND "
+            "SKEW < 115 the regime is growth-not-inflation (NAS-bid "
+            "override) ; DGS10 rising WITH VVIX > 100 OR SKEW > 130 "
+            "is the duration-stress-tail-stress 3-corner-bear "
+            "configuration (NAS-soft high conviction). The Pass-2 LLM "
+            "should triangulate explicitly using all 3 dimensions before "
+            "committing to a directional read."
+        )
+
+    return "\n".join(lines), sources
+
+
 async def _section_rate_diff(session: AsyncSession, asset: str) -> tuple[str, list[str]]:
     """## Rate differential — US 10Y minus the relevant foreign 10Y for FX pairs."""
     pair = _RATE_DIFF_PAIRS.get(asset)
@@ -2928,6 +3178,14 @@ async def build_data_pool(
     xau_md, xau_src = await _section_xau_specific(session, asset)
     if xau_src:
         sections.append(("xau_specific", xau_md, xau_src))
+
+    # Round-42 — NAS-specific duration-vol-tail triangle (GAP-A
+    # continuation 2/5, R24 SUBSET-not-SUPERSET clears : DGS10 daily
+    # FRED + VVIX/SKEW daily CBOE). Asset-gated to NAS100_USD ; silent
+    # skip otherwise OR if DGS10 absent (primary duration driver).
+    nas_md, nas_src = await _section_nas_specific(session, asset)
+    if nas_src:
+        sections.append(("nas_specific", nas_md, nas_src))
 
     poly_md, poly_src = await _section_polygon_intraday(session, asset)
     sections.append(("polygon_intraday", poly_md, poly_src))
