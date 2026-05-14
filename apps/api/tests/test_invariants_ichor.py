@@ -1047,6 +1047,65 @@ def test_ai_watermark_default_prefixes_match_settings() -> None:
     )
 
 
+def test_ai_watermark_module_docstring_pinned_to_art_50_4_deployer() -> None:
+    """ADR-079 §"Round-35+38 amendment" — W90 r39 anti-future-drift
+    guard. Pins the `ai_watermark.py` module docstring header to the
+    Article 50(4) DEPLOYER framing. Catches a refactor that
+    re-introduces the pre-round-35 over-claim "EU AI Act §50.2
+    machine-readable watermark middleware" (Ichor is a deployer of
+    Anthropic Claude under §50(4), NOT a GPAI provider under §50(2)
+    — the heavier signed-C2PA + PKI + detector-API obligations from
+    the 2nd-draft Code of Practice bind Anthropic upstream).
+
+    Round-35 (commit `2c1233d`) corrected the docstring text but the
+    ADR-079 document drifted out-of-sync for 4 rounds (closed
+    round-38). This test prevents the docstring side from drifting
+    back."""
+    import re
+    from pathlib import Path
+
+    path = Path(__file__).parent.parent / "src" / "ichor_api" / "middleware" / "ai_watermark.py"
+    text = path.read_text(encoding="utf-8")
+
+    # Match the module-level docstring (string literal at the very
+    # start of the file). DOTALL needed because docstring spans many
+    # lines.
+    m = re.match(r'\s*"""(.+?)"""', text, re.DOTALL)
+    assert m is not None, "ai_watermark.py module docstring missing"
+    docstring = m.group(1)
+    first_line = docstring.lstrip().split("\n", 1)[0]
+
+    # Positive assertion : the header line must explicitly mention
+    # "Article 50(4)" AND "DEPLOYER" (canonical r35 framing).
+    assert "Article 50(4)" in first_line, (
+        f"ai_watermark.py docstring header lost 'Article 50(4)' marker : {first_line!r}. "
+        "See ADR-079 §'Round-35+38 amendment'."
+    )
+    assert "DEPLOYER" in first_line.upper(), (
+        f"ai_watermark.py docstring header lost 'DEPLOYER' marker : {first_line!r}. "
+        "See ADR-079 §'Round-35+38 amendment'."
+    )
+
+    # Negative assertion : the docstring MUST NOT reintroduce the
+    # canonical over-claim phrasing "EU AI Act §50.2 machine-readable
+    # watermark middleware" / "EU AI Act Article 50(2) machine-readable
+    # watermark middleware" — those were the pre-r35 wordings that
+    # conflated Ichor's deployer role with Anthropic's upstream
+    # provider obligations. Mentioning §50(2) IS allowed (line 10
+    # legitimately attributes the burden to Anthropic) but it must
+    # not be the middleware's claimed compliance article.
+    over_claims = (
+        "Article 50(2) machine-readable watermark middleware",
+        "§50.2 machine-readable watermark middleware",
+        "Article 50.2 machine-readable watermark middleware",
+    )
+    for phrase in over_claims:
+        assert phrase not in docstring, (
+            f"ai_watermark.py docstring reintroduced the pre-r35 over-claim {phrase!r}. "
+            "Ichor is an Art 50(4) deployer per ADR-079 §'Round-35+38 amendment'."
+        )
+
+
 # ────────────────────────── ADR-085 Pass-6 ──────────────────────────
 
 

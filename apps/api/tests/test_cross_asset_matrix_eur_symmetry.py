@@ -145,9 +145,14 @@ async def test_eur_positive_regime_renders_3_eur_bid_hints(monkeypatch: pytest.M
     )
     md, _src = await _section_cross_asset_matrix(session)
     eur_block = md.split("EUR_USD")[1].split("GBP_USD")[0]
-    assert "EUR-bid (NFCI loose, broad USD-weakness flow)" in eur_block
-    assert "EUR-bid (carry-friendly calm regime)" in eur_block
-    assert "EUR-bid (Fed easing path, rate-differential narrowing)" in eur_block
+    # Round-39 GAP-C closure : each EUR-bid hint now carries a
+    # Tetlock-invalidation threshold inline. The exact prefix +
+    # invalidation phrase must appear.
+    assert "EUR-bid (NFCI loose, broad USD-weakness flow" in eur_block
+    assert "EUR-bid (carry-friendly calm regime" in eur_block
+    assert "EUR-bid (Fed easing path, rate-differential narrowing" in eur_block
+    # 3 invalidation clauses must be present (one per EUR-bid hint).
+    assert eur_block.count("invalidated if") == 3
     assert "USD-bid" not in eur_block
 
 
@@ -181,7 +186,8 @@ async def test_balanced_regime_falls_back_to_balanced_label(
     md, _src = await _section_cross_asset_matrix(session)
     eur_block = md.split("EUR_USD")[1].split("GBP_USD")[0]
     # mild-loose IS in liquidity_loose set → triggers 1 EUR-bid hint
-    assert "EUR-bid (NFCI loose, broad USD-weakness flow)" in eur_block
+    # (with round-39 Tetlock invalidation suffix — match prefix only)
+    assert "EUR-bid (NFCI loose, broad USD-weakness flow" in eur_block
     # other 2 EUR-bid hints require stronger conditions
     assert "carry-friendly calm regime" not in eur_block
     assert "Fed easing path" not in eur_block
@@ -221,6 +227,56 @@ async def test_eur_usd_hint_count_symmetric_with_usd_eur(monkeypatch: pytest.Mon
         f"Expected 3 EUR-bid hints in extreme EUR-bullish regime, got {eur_bid_count}. "
         "Symmetric mirror with the 3 USD-bid hints is the audit-gap #2 closure invariant."
     )
+
+
+# ──────────────────── Tetlock invalidation (round-39 GAP-C) ────────────────────
+
+
+@pytest.mark.asyncio
+async def test_eur_bid_hints_carry_testable_invalidation_threshold(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Round-39 ichor-trader GAP-C closure : every EUR-bid hint emitted
+    by `_section_cross_asset_matrix` MUST carry an inline Tetlock
+    invalidation threshold (a numerical condition that flips the
+    directional thesis). Catches a refactor that adds a new EUR-bid
+    trigger without attaching an exit rule — the kind of asymmetric
+    forward-looking claim Pass-2 LLMs were observed adopting verbatim
+    in n=13 Vovk anti-skill pocket diagnostics."""
+
+    async def fake_latest_fred(
+        _session: object, series_id: str, *, max_age_days: int = 14
+    ) -> tuple[float, datetime] | None:
+        if series_id == "NFCI":
+            return (-0.7, datetime.now(UTC))
+        if series_id == "VIXCLS":
+            return (13.0, datetime.now(UTC))
+        return None
+
+    monkeypatch.setattr("ichor_api.services.data_pool._latest_fred", fake_latest_fred)
+
+    session = _make_session_execute_mock(
+        mct_val=2.10, nowcast_val=2.05, skew_val=120.0, sbet_val=105.0
+    )
+    md, _src = await _section_cross_asset_matrix(session)
+    eur_block = md.split("EUR_USD")[1].split("GBP_USD")[0]
+
+    # Hints are joined with " · " on a single line. Split on the EUR-bid
+    # delimiter and count the resulting fragments instead of lines.
+    eur_bid_fragments = ["EUR-bid " + frag for frag in eur_block.split("EUR-bid ") if frag.strip()]
+    # Filter out fragments that don't actually start a hint (e.g. trailing
+    # text from the asset block).
+    eur_bid_hints = [frag for frag in eur_bid_fragments if frag.startswith("EUR-bid (")]
+    assert len(eur_bid_hints) >= 3, (
+        f"Expected ≥3 EUR-bid hints in extreme EUR-bullish regime, got "
+        f"{len(eur_bid_hints)} : {eur_bid_hints!r}"
+    )
+    for hint in eur_bid_hints:
+        assert "invalidated if" in hint.lower(), (
+            f"EUR-bid hint missing Tetlock invalidation clause : {hint!r}. "
+            "Pass-2 LLM cannot adopt a directional thesis without an explicit "
+            "testable exit (round-39 GAP-C invariant)."
+        )
 
 
 # ──────────────────── ADR-017 boundary ────────────────────
