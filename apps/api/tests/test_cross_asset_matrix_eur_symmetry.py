@@ -308,3 +308,165 @@ async def test_eur_bullish_hints_contain_no_trade_signals(monkeypatch: pytest.Mo
         assert forbidden not in eur_block.upper().replace("EUR-USD", "").replace("USD-USD", ""), (
             f"ADR-017 boundary breach : {forbidden!r} in EUR_USD hints block"
         )
+
+
+# ──────────────────── Round-40 GBP_USD symmetry ────────────────────
+
+
+@pytest.mark.asyncio
+async def test_gbp_usd_no_longer_copies_eur_usd_list(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Round-40 GAP-A bug-fix invariant : GBP_USD hints must NOT be a
+    verbatim copy of EUR_USD hints (pre-r40 `gbp_usd = list(eur_usd)`
+    was wrong — GBP is risk-currency, EUR has ECB-Fed mechanic, no
+    structural reason for them to share triggers). The GBP block
+    MUST mention `GBP-bid` AND/OR `GBP risk-currency` text, NOT
+    `EUR-bid`."""
+
+    async def fake_latest_fred(
+        _session: object, series_id: str, *, max_age_days: int = 14
+    ) -> tuple[float, datetime] | None:
+        if series_id == "NFCI":
+            return (-0.7, datetime.now(UTC))
+        if series_id == "VIXCLS":
+            return (13.0, datetime.now(UTC))
+        return None
+
+    monkeypatch.setattr("ichor_api.services.data_pool._latest_fred", fake_latest_fred)
+
+    session = _make_session_execute_mock(
+        mct_val=2.10, nowcast_val=2.05, skew_val=120.0, sbet_val=105.0
+    )
+    md, _src = await _section_cross_asset_matrix(session)
+    gbp_block = md.split("GBP_USD")[1].split("USD_JPY")[0]
+
+    # GBP_USD block must NOT contain "EUR-bid" anywhere (the pre-r40
+    # bug copied EUR-bid hints into GBP).
+    assert "EUR-bid" not in gbp_block, (
+        "GAP-A regression : GBP_USD inherits EUR-bid hints "
+        f"(pre-r40 bug). GBP block : {gbp_block!r}"
+    )
+    # GBP_USD block must contain GBP-specific markers.
+    assert "GBP-bid" in gbp_block or "GBP risk-currency" in gbp_block, (
+        f"GBP_USD missing GBP-specific marker : {gbp_block!r}"
+    )
+
+
+@pytest.mark.asyncio
+async def test_gbp_usd_bullish_subset_of_eur_pattern(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Round-40 GAP-A : GBP-bid is SUBSET of EUR-bid pattern (only
+    broad USD-weakness flows propagate, NOT ECB-specific rate-
+    differential narrative). Expect 2 GBP-bid triggers (subset) vs
+    EUR's 3."""
+
+    async def fake_latest_fred(
+        _session: object, series_id: str, *, max_age_days: int = 14
+    ) -> tuple[float, datetime] | None:
+        if series_id == "NFCI":
+            return (-0.7, datetime.now(UTC))
+        if series_id == "VIXCLS":
+            return (13.0, datetime.now(UTC))
+        return None
+
+    monkeypatch.setattr("ichor_api.services.data_pool._latest_fred", fake_latest_fred)
+
+    session = _make_session_execute_mock(
+        mct_val=2.10, nowcast_val=2.05, skew_val=120.0, sbet_val=105.0
+    )
+    md, _src = await _section_cross_asset_matrix(session)
+    gbp_block = md.split("GBP_USD")[1].split("USD_JPY")[0]
+    eur_block = md.split("EUR_USD")[1].split("GBP_USD")[0]
+
+    eur_bid_count = eur_block.count("EUR-bid (")
+    gbp_bid_count = gbp_block.count("GBP-bid (")
+    assert eur_bid_count == 3
+    assert gbp_bid_count == 2, (
+        f"GBP-bid count should be 2 (SUBSET of EUR pattern). Got {gbp_bid_count}"
+    )
+    # Every GBP-bid hint must carry Tetlock invalidation.
+    gbp_hints = ["GBP-bid " + frag for frag in gbp_block.split("GBP-bid ") if frag.strip()]
+    gbp_bid_hints = [h for h in gbp_hints if h.startswith("GBP-bid (")]
+    for hint in gbp_bid_hints:
+        assert "invalidated if" in hint.lower(), (
+            f"GBP-bid hint missing Tetlock invalidation : {hint!r}"
+        )
+
+
+# ──────────────────── Round-40 USD_CAD symmetry ────────────────────
+
+
+@pytest.mark.asyncio
+async def test_usd_cad_has_at_least_one_cad_bid_branch(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Round-40 GAP-A : pre-r40 USD_CAD had ONLY 1 USD-bid trigger
+    (vol_elevated) and ZERO CAD-bullish branch. r40 adds 3 USD-bid +
+    1 CAD-bid (commodity reflation via broad risk-on flow ;
+    Tetlock-defensible without oil-price overclaim). The 2 deferred
+    CAD-bid framings (BoC-hawkish-oil-carry / tail_calm-oil-positive)
+    await DCOILWTICO empirical surface in r41+."""
+
+    async def fake_latest_fred(
+        _session: object, series_id: str, *, max_age_days: int = 14
+    ) -> tuple[float, datetime] | None:
+        if series_id == "NFCI":
+            return (-0.7, datetime.now(UTC))  # loose
+        if series_id == "VIXCLS":
+            return (13.0, datetime.now(UTC))
+        return None
+
+    monkeypatch.setattr("ichor_api.services.data_pool._latest_fred", fake_latest_fred)
+
+    session = _make_session_execute_mock(
+        mct_val=2.10,
+        nowcast_val=2.05,
+        skew_val=120.0,
+        sbet_val=105.0,  # sentiment_strong
+    )
+    md, _src = await _section_cross_asset_matrix(session)
+    cad_block = md.split("USD_CAD")[1].split("XAU_USD")[0]
+
+    # 1 CAD-bid trigger expected under (liquidity_loose AND
+    # sentiment_strong).
+    cad_bid_count = cad_block.count("CAD-bid (")
+    assert cad_bid_count == 1, (
+        f"USD_CAD should have 1 CAD-bid trigger in liquidity_loose+sentiment_strong regime. "
+        f"Got {cad_bid_count}. Block : {cad_block!r}"
+    )
+    # CAD-bid must carry Tetlock invalidation.
+    assert "invalidated if NFCI" in cad_block, (
+        f"CAD-bid hint missing NFCI Tetlock invalidation : {cad_block!r}"
+    )
+
+
+@pytest.mark.asyncio
+async def test_usd_cad_usd_bid_branch_3_triggers(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Round-40 GAP-A : USD_CAD USD-bid branch expanded from 1 trigger
+    (vol_elevated pre-r40) to 3 (vol_elevated + liquidity_tight +
+    tail_fear)."""
+
+    async def fake_latest_fred(
+        _session: object, series_id: str, *, max_age_days: int = 14
+    ) -> tuple[float, datetime] | None:
+        if series_id == "NFCI":
+            return (0.8, datetime.now(UTC))  # tight
+        if series_id == "VIXCLS":
+            return (35.0, datetime.now(UTC))  # panic
+        return None
+
+    monkeypatch.setattr("ichor_api.services.data_pool._latest_fred", fake_latest_fred)
+
+    session = _make_session_execute_mock(
+        mct_val=3.50, nowcast_val=3.55, skew_val=160.0, sbet_val=92.0
+    )
+    md, _src = await _section_cross_asset_matrix(session)
+    cad_block = md.split("USD_CAD")[1].split("XAU_USD")[0]
+    usd_bid_count = cad_block.count("USD-bid (")
+    assert usd_bid_count == 3, (
+        f"USD_CAD USD-bid branch should have 3 triggers in USD-positive regime. Got {usd_bid_count}"
+    )

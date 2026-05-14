@@ -1645,9 +1645,46 @@ async def _section_cross_asset_matrix(
         )
     asset_hints.append(asset("EUR_USD", eur_usd or ["balanced"]))
 
-    gbp_usd: list[str] = list(eur_usd)
+    # ── GBP_USD : risk-currency with BoE-Fed differential ──
+    # Round-40 GAP-A closure (ichor-trader r39+r40 audit) : pre-r40
+    # was `list(eur_usd)` — wrong because GBP is NOT EUR (no ECB-Fed
+    # mechanic, no peripheral fragmentation, distinct UK gilt + BoE
+    # cycle).
+    # r40 ichor-trader caveat applied : GBP-mirror is SUBSET of EUR
+    # pattern, not SUPERSET. Only the broadest USD-weakness flows
+    # propagate (liquidity_loose, vol-calm carry). ECB-specific
+    # rate-differential narrative ("Fed easing path") is DROPPED for
+    # GBP because BoE-Fed path diverged 2025-2026 (Bailey vs Powell)
+    # and would need a gilt-Bund spread signal — deferred r41+ pending
+    # gilt-Bund daily-proxy ingestion.
+    gbp_usd: list[str] = []
+    # USD-positive scenarios for GBP_USD (4 triggers — GBP is
+    # risk-currency, distinct from EUR safe-haven dimension) :
+    if liquidity_tight:
+        gbp_usd.append("USD-bid (NFCI tight, GBP risk-currency soft)")
+    if vol_elevated:
+        gbp_usd.append("USD-bid (vol regime, GBP risk-currency drawdown)")
+    if tail_fear:
+        gbp_usd.append("USD-bid (tail-fear, GBP risk-currency aversion)")
     if sentiment_weak:
-        gbp_usd.append("UK growth-tail downside")
+        gbp_usd.append("USD-bid (UK growth-tail downside ; invalidated if SBOI returns above 98)")
+    # GBP-positive scenarios (SUBSET mirror of EUR pattern,
+    # Tetlock invalidations) :
+    if liquidity_loose:
+        gbp_usd.append(
+            "GBP-bid (NFCI loose, broad USD-weakness flow ; "
+            "invalidated if NFCI ≥ 0.0 within 5 sessions)"
+        )
+    if vol_complacent and sentiment_strong:
+        gbp_usd.append(
+            "GBP-bid (risk-on carry regime favors GBP ; invalidated if VIX > 22 OR SBOI < 98)"
+        )
+    # NOTE r40 deferred to r41+ : `inflation_anchored AND
+    # sentiment_strong → GBP-bid (BoE-Fed easing parity)` requires
+    # gilt-Bund spread daily signal (IRLTLT01GBM156N is monthly
+    # → stale at intraday Pass-2 ; r37 frequency-aware registry
+    # sets 120d max-age but the rate-differential narrative still
+    # needs a daily proxy).
     asset_hints.append(asset("GBP_USD", gbp_usd or ["balanced"]))
 
     usd_jpy: list[str] = []
@@ -1664,9 +1701,38 @@ async def _section_cross_asset_matrix(
         aud_usd.append("commodity tail-up support")
     asset_hints.append(asset("AUD_USD", aud_usd or ["balanced"]))
 
+    # ── USD_CAD : commodity-currency with BoC-Fed differential ──
+    # Round-40 GAP-A closure : pre-r40 had ONLY `vol_elevated → USD-bid`
+    # (zero CAD-bullish branch). r40 ichor-trader audit caveat applied :
+    # CAD-bullish framings without an empirical oil-price signal are
+    # 2-step inferences (inflation/sentiment → oil → CAD) the LLM
+    # cannot verify falsifiably. Conservative ship : the broad
+    # commodity-reflation flow (liquidity_loose AND sentiment_strong)
+    # is defensible as risk-on broad-USD-weakness ; the BoC-hawkish-
+    # oil-carry framing is DEFERRED r41+ pending DCOILWTICO empirical
+    # surface. Asymmetric (3 USD-bid vs 1 CAD-bid) but Tetlock-honest.
     usd_cad: list[str] = []
+    # USD-positive scenarios :
     if vol_elevated:
-        usd_cad.append("USD-bid (vol regime)")
+        usd_cad.append("USD-bid (vol regime, commodity-CAD risk-off)")
+    if liquidity_tight:
+        usd_cad.append("USD-bid (NFCI tight, commodity-currency soft)")
+    if tail_fear:
+        usd_cad.append("USD-bid (tail-fear, CAD risk-off)")
+    # CAD-positive scenarios (Tetlock-defensible only — broad risk-on
+    # flow without oil-price overclaim) :
+    if liquidity_loose and sentiment_strong:
+        usd_cad.append(
+            "CAD-bid (commodity reflation via broad risk-on flow ; "
+            "invalidated if NFCI ≥ 0.0 OR SBOI < 98)"
+        )
+    # NOTE r40 deferred to r41+ :
+    #   - `inflation_pressure_up AND vol_complacent → CAD-bid
+    #     (BoC-hawkish-oil-carry)` is 2-step (inflation → oil → CAD)
+    #     unfalsifiable without DCOILWTICO empirical surface.
+    #   - `tail_calm AND sentiment_strong → CAD-bid (oil-positive
+    #     backdrop)` triple-counts the broad risk-on signal already
+    #     captured by `liquidity_loose AND sentiment_strong` above.
     asset_hints.append(asset("USD_CAD", usd_cad or ["balanced"]))
 
     xau_usd: list[str] = []
