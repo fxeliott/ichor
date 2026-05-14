@@ -836,6 +836,106 @@ def test_vovk_aggregator_eta_default_is_one() -> None:
     )
 
 
+# ────────────────────────── ADR-091 W117b.c skeleton (round-36) ──────────────────────────
+
+
+def test_gepa_optimizer_budget_hard_cap_pinned_at_100() -> None:
+    """ADR-091 §"Invariant 1" : `_GEPA_BUDGET_HARD_CAP` MUST equal 100.
+
+    Round-36 W117b.c skeleton fixes this as the maximum LLM-calls-per-
+    optimization-run. A future refactor bumping this without a
+    successor ADR would silently raise the Anthropic Max 20x quota
+    burn rate (rule 16 ban-risk minimisation).
+
+    Source inspection : the constant declaration MUST appear verbatim
+    as `_GEPA_BUDGET_HARD_CAP: Final[int] = 100`. A rename, an int
+    different from 100, or removal of the `Final` type hint all fail
+    this guard.
+    """
+    gepa_path = _REPO_ROOT / "apps" / "api" / "src" / "ichor_api" / "services" / "gepa_optimizer.py"
+    if not gepa_path.exists():
+        pytest.skip(f"gepa_optimizer.py not found at {gepa_path}")
+    text = gepa_path.read_text(encoding="utf-8")
+    assert re.search(r"_GEPA_BUDGET_HARD_CAP\s*:\s*Final\[int\]\s*=\s*100\b", text), (
+        "ADR-091 §Invariant 1 : the budget hard cap MUST be 100 calls "
+        "per GEPA optimization run, declared as "
+        "`_GEPA_BUDGET_HARD_CAP: Final[int] = 100`. A successor ADR is "
+        "required to raise this number (rule 16 ban-risk minimisation)."
+    )
+
+
+def test_gepa_optimizer_imports_adr017_count_violations() -> None:
+    """ADR-091 §"Invariant 2" amended r32 + round-36 W117b.c :
+    `gepa_optimizer.py` MUST import `count_violations` from
+    `services.adr017_filter`. This is the LAYER 1 of the 3-layer
+    ADR-017 defense (regex source-of-truth + this Python fitness gate
+    + DB CHECK constraint).
+
+    Removing the import would break the hard-zero gate at the Python
+    layer ; only the DB CHECK would catch tainted candidates, and
+    that's too late (the optimizer would emit them, pollute the
+    Pareto frontier, and waste budget on them).
+    """
+    gepa_path = _REPO_ROOT / "apps" / "api" / "src" / "ichor_api" / "services" / "gepa_optimizer.py"
+    if not gepa_path.exists():
+        pytest.skip(f"gepa_optimizer.py not found at {gepa_path}")
+    text = gepa_path.read_text(encoding="utf-8")
+    assert "from .adr017_filter import count_violations" in text, (
+        "ADR-091 §Invariant 2 round-36 : gepa_optimizer.py MUST import "
+        "`count_violations` from `.adr017_filter`. This is layer 1 of "
+        "the 3-layer ADR-017 hard-zero defense — its absence would "
+        "demote the boundary check to DB-only (too late)."
+    )
+
+
+def test_gepa_optimizer_uses_hard_zero_not_soft_lambda() -> None:
+    """ADR-091 §"Invariant 2" amended r32 + round-36 W117b.c :
+    `compute_fitness_with_hard_zero` MUST return `float("-inf")` when
+    `count_violations(...)` is positive — not a soft-lambda subtraction.
+
+    The original ADR-091 draft proposed `fitness = brier_skill - lambda
+    * count_violations(...)` but the ichor-trader r32 pre-implementation
+    review correctly identified that as a bypass landmine (a candidate
+    with high Brier skill + 1 obfuscated trade signal could score
+    net-positive fitness). The amended r32 doctrine is HARD-ZERO.
+
+    Source inspection : the body of `compute_fitness_with_hard_zero`
+    MUST contain BOTH :
+      1. `count_violations(candidate_output)` — the boundary check
+      2. `float("-inf")` — the hard-zero return value
+
+    A refactor introducing a soft-lambda penalty would fail this guard.
+    """
+    gepa_path = _REPO_ROOT / "apps" / "api" / "src" / "ichor_api" / "services" / "gepa_optimizer.py"
+    if not gepa_path.exists():
+        pytest.skip(f"gepa_optimizer.py not found at {gepa_path}")
+    text = gepa_path.read_text(encoding="utf-8")
+    # Find the function body
+    fn_match = re.search(
+        r"def compute_fitness_with_hard_zero\([^)]*\)[^:]*:(.*?)(?=^def |\Z)",
+        text,
+        re.MULTILINE | re.DOTALL,
+    )
+    assert fn_match is not None, (
+        "ADR-091 round-36 : `compute_fitness_with_hard_zero` function "
+        "definition not found in gepa_optimizer.py — was it renamed or "
+        "removed ? This is the canonical fitness gate."
+    )
+    fn_body = fn_match.group(1)
+    assert "count_violations(" in fn_body, (
+        "ADR-091 §Invariant 2 amended r32 : compute_fitness_with_hard_zero "
+        "MUST call count_violations() to check the ADR-017 boundary. "
+        "Without it, ANY candidate passes through unfiltered."
+    )
+    assert 'float("-inf")' in fn_body or "float('-inf')" in fn_body, (
+        "ADR-091 §Invariant 2 amended r32 : compute_fitness_with_hard_zero "
+        "MUST return float('-inf') on violation (HARD-ZERO), NOT a soft-"
+        "lambda subtraction. Soft-lambda was the original draft reading, "
+        "REJECTED r32 because it lets candidates with high Brier skill + "
+        "1 obfuscated signal score net-positive fitness."
+    )
+
+
 # ────────────────────────── ADR-079 ──────────────────────────
 
 
