@@ -3000,29 +3000,135 @@ async def _section_cross_asset_matrix(
     #     captured by `liquidity_loose AND sentiment_strong` above.
     asset_hints.append(asset("USD_CAD", usd_cad or ["balanced"]))
 
+    # ── XAU_USD : gold-real-yield triangle (Erb/Harvey + dollar-smile) ──
+    # Round-46 r46-round-5 GAP-A retroactive symmetric mirror (R47 pattern
+    # codified r46-round-2). Pre-r46-r5 XAU had 3 partial-symmetric uni-
+    # directional hints with `(++)` / `(-)` notation but NO XAU-soft mirror
+    # branch despite `_section_xau_specific` (r41) being fully symmetric
+    # with Tetlock invalidation on both branches.
+    # R47 retroactive symmetric mirror per cross-asset matrix R47 pattern
+    # codified r46-round-2 : extend to a balanced bid/soft mirror with
+    # Tetlock invalidation thresholds matching `_section_xau_specific`
+    # (Erb-Harvey 2013 real-yield law + Stephen-Jen 2018 dollar-smile).
     xau_usd: list[str] = []
+    # XAU-bid scenarios (real-yield support + safe-haven flight) :
     if inflation_pressure_up:
-        xau_usd.append("real-yield support (++)")
+        xau_usd.append(
+            "XAU-bid (real-yield support via Erb-Harvey channel ; "
+            "invalidated if DFII10 rises > 20 bp within 5 sessions WHILE Pass-1 regime stays calm)"
+        )
     if tail_fear or vol_elevated:
-        xau_usd.append("safe-haven flow (++)")
+        xau_usd.append(
+            "XAU-bid (safe-haven flight + dollar-smile co-bid per Brunnermeier-Pedersen 2009 ; "
+            "invalidated if VIX falls below 16 AND SKEW < 135 concurrent)"
+        )
     if liquidity_tight:
-        xau_usd.append("USD-strength counter-pressure (-)")
+        xau_usd.append(
+            "XAU-bid (USD-strength counter-pressure mitigated by funding-stress flight bid ; "
+            "invalidated if HY OAS fails to widen > 50 bp during DTWEXBGS up-move)"
+        )
+    # XAU-soft scenarios (real-yield rise + risk-on carry under-allocation) :
+    if inflation_anchored and sentiment_strong:
+        xau_usd.append(
+            "XAU-soft (real yields rising in goldilocks, gold-yield-headwind via Erb-Harvey ; "
+            "invalidated if DFII10 falls > 15 bp within 5 sessions OR VIX rises above 22)"
+        )
+    if liquidity_loose and vol_complacent:
+        xau_usd.append(
+            "XAU-soft (risk-on carry-receiving regime, gold under-allocated vs high-yielders ; "
+            "invalidated if NFCI rises above 0 OR VIX rises above 22 within 5 sessions)"
+        )
     asset_hints.append(asset("XAU_USD", xau_usd or ["balanced"]))
 
+    # ── NAS100_USD : duration-vol-tail triangle (Hou-Mo-Xue + Park 2015) ──
+    # Round-46 r46-round-5 GAP-A retroactive symmetric mirror (R47 pattern
+    # codified r46-round-2). Pre-r46-r5 NAS had 3 uni-directional NAS-soft
+    # hints with `(-)` notation and ZERO NAS-bid mirror despite
+    # `_section_nas_specific` (r42) being fully symmetric on all 3 drivers
+    # (DGS10 + VVIX + SKEW) with Tetlock invalidation on both branches.
+    # R47 retroactive symmetric mirror per cross-asset matrix R47 pattern
+    # codified r46-round-2 : extend to a balanced bid/soft mirror with
+    # Tetlock invalidation thresholds matching `_section_nas_specific`
+    # (Hou-Mo-Xue 2015 q-factor duration + Park 2015 / Bevilacqua-Tunaru
+    # 2021 VVIX-SKEW joint regime literature).
     nas: list[str] = []
+    # NAS-soft scenarios (duration + multiple compression + vol-of-vol) :
     if inflation_pressure_up:
-        nas.append("duration headwind (-)")
+        nas.append(
+            "NAS-soft (duration headwind via Hou-Mo-Xue q-factor discount-rate channel ; "
+            "invalidated if DGS10 rises > 15 bp WHILE 1m-realized-vol stays sub-30% in goldilocks)"
+        )
     if liquidity_tight:
-        nas.append("multiple-compression risk (-)")
+        nas.append(
+            "NAS-soft (multiple-compression via funding-stress discount-rate denominator ; "
+            "invalidated if NFCI falls below 0 within 4 sessions AND VVIX stays sub-100)"
+        )
     if vol_elevated:
-        nas.append("vol-of-vol drag (-)")
+        nas.append(
+            "NAS-soft (vol-of-vol drag, mechanical vol-control deleveraging per Park 2015 ; "
+            "invalidated if VVIX falls below 85 within 3 sessions AND SKEW < 130 concurrent)"
+        )
+    # NAS-bid scenarios (calm-tail mechanical bid + reflation + dispersion absorption) :
+    if liquidity_loose and vol_complacent:
+        nas.append(
+            "NAS-bid (carry-bid risk-on regime, multiple-expansion + duration tailwind ; "
+            "invalidated if NFCI rises above 0 OR VVIX exceeds 100 within 5 sessions)"
+        )
+    if inflation_anchored and sentiment_strong:
+        nas.append(
+            "NAS-bid (real-yield easing + earnings reflation via Hou-Mo-Xue duration relief ; "
+            "invalidated if MCT > 2.75 OR SBOI < 98 within 2 monthly prints)"
+        )
+    if tail_calm and vol_complacent:
+        nas.append(
+            "NAS-bid (vol-of-vol low + dispersion absorption per Bevilacqua-Tunaru 2021 ; "
+            "invalidated if SKEW > 130 alongside DGS10 widening > 10 bp)"
+        )
     asset_hints.append(asset("NAS100_USD", nas or ["balanced"]))
 
+    # ── SPX500_USD : VIX-funding-sentiment triangle (Brunnermeier-Pedersen) ──
+    # Round-46 r46-round-5 GAP-A retroactive symmetric mirror (R47 pattern
+    # codified r46-round-2). Pre-r46-r5 SPX had only 2 uni-directional SPX-
+    # soft hints with `(-)` notation and ZERO SPX-bid mirror despite
+    # `_section_spx_specific` (r43) being fully symmetric on all 3 drivers
+    # (VIX term-structure + NFCI + SBOI) with Tetlock invalidation on both
+    # branches.
+    # R47 retroactive symmetric mirror per cross-asset matrix R47 pattern
+    # codified r46-round-2 : extend to a balanced bid/soft mirror with
+    # Tetlock invalidation thresholds matching `_section_spx_specific`
+    # (Brunnermeier-Pedersen 2009 funding-liquidity-spiral framework, the
+    # SPX-equity analogue of the Stephen-Jen USD broken-smile).
+    # SOURCE-PURITY CAVEAT (ADR-089) : SPX500_USD Polygon ticker = `SPY`
+    # NYSE Arca ETF proxy (not `I:SPX`, $49/mo subscription blocked). Tracking
+    # error <0.1% MTD invisible for qualitative Pass-2 framing.
     spx: list[str] = []
+    # SPX-soft scenarios (risk-off + funding stress + earnings-tail) :
     if liquidity_tight or tail_fear:
-        spx.append("risk-off pressure (-)")
+        spx.append(
+            "SPX-soft (risk-off pressure via Brunnermeier-Pedersen funding-liquidity spiral ; "
+            "invalidated if NFCI falls below 0 within 4 sessions AND VIX-term-structure stays contango)"
+        )
     if sentiment_weak:
-        spx.append("earnings-tail downside (-)")
+        spx.append(
+            "SPX-soft (earnings-tail downside via SBOI contractionary regime ; "
+            "invalidated if SBOI rebounds above 100 alongside NFCI falling below -0.3)"
+        )
+    # SPX-bid scenarios (broad reflation + goldilocks mechanical beta + roll-yield) :
+    if liquidity_loose and sentiment_strong:
+        spx.append(
+            "SPX-bid (broad reflation + multiple-expansion via funding-loose + sentiment-strong ; "
+            "invalidated if NFCI rises above 0 OR SBOI falls below 95 within 2 monthly prints)"
+        )
+    if inflation_anchored and vol_complacent:
+        spx.append(
+            "SPX-bid (goldilocks regime, mechanical beta accumulation via vol-control rebuild ; "
+            "invalidated if MCT > 2.75 OR VIX rises above 22 within 5 sessions)"
+        )
+    if tail_calm and vol_complacent:
+        spx.append(
+            "SPX-bid (VIX-term-structure contango + vol-seller roll-yield extraction ; "
+            "invalidated if VIX-term-structure flips to backwardation OR SKEW > 130 within 3 sessions)"
+        )
     asset_hints.append(asset("SPX500_USD", spx or ["balanced"]))
 
     for asset_name, hints in asset_hints:
