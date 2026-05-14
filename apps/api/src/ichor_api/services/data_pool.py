@@ -809,7 +809,7 @@ async def _section_xau_specific(session: AsyncSession, asset: str) -> tuple[str,
 
     # ─── DTWEXBGS (USD broad trade-weighted) — counter-driver ──────
     # Dollar smile : in calm regime USD and gold are inverse ; under
-    # left-tail crisis (Stephen Jen broken-smile) USD-bid AND gold-bid
+    # left-tail crisis (Brunnermeier-Pedersen 2009 funding-liquidity spiral) USD-bid AND gold-bid
     # co-occur. DTWEXBGS is the broad index FRED publishes daily ; DXY
     # ICE is a narrower 6-currency basket also tracked in fred.py:49.
     dxy_cutoff = datetime.now(UTC).date() - timedelta(days=_max_age_days_for("DTWEXBGS"))
@@ -842,7 +842,7 @@ async def _section_xau_specific(session: AsyncSession, asset: str) -> tuple[str,
             lines.append(
                 "- Interpretation : USD strength is gold-soft in a "
                 "calm regime (foreign buyers face higher cost) ; under "
-                "left-tail crisis (Stephen Jen broken-smile), USD and "
+                "left-tail crisis (Brunnermeier-Pedersen 2009 funding-liquidity spiral), USD and "
                 "gold can co-bid as defensive assets. A fall is the "
                 "symmetric reverse. The Pass-2 LLM picks the branch "
                 "matching the Pass-1 regime."
@@ -1123,6 +1123,243 @@ async def _section_nas_specific(session: AsyncSession, asset: str) -> tuple[str,
             "configuration (NAS-soft high conviction). The Pass-2 LLM "
             "should triangulate explicitly using all 3 dimensions before "
             "committing to a directional read."
+        )
+
+    return "\n".join(lines), sources
+
+
+async def _section_spx_specific(session: AsyncSession, asset: str) -> tuple[str, list[str]]:
+    """## SPX-specific signals — VIX term-structure + funding + uncertainty (r43, GAP-A continuation 3/5).
+
+    Renders broad-market S&P 500 specific macro signals for SPX500_USD
+    Pass-2 via 3-driver framework :
+      1. **VIX term-structure** (VIXCLS / VXVCLS ratio) — primary
+         tail-pricing regime classifier. Source : FRED `VIXCLS`
+         (front-month VIX) + `VXVCLS` (3-month VIX), both daily.
+         Contango (ratio < 1.0) = calm-regime tail-bid under-priced ;
+         backwardation (ratio > 1.0) = stress-regime tail-bid front-
+         loaded. Weak-form efficient-market literature : term-structure
+         inversion historically precedes 80%+ of VIX-30+ spikes (Whaley
+         + Park literature, broad sector tail-bid).
+      2. **NFCI weekly** (Chicago Fed National Financial Conditions
+         Index) — funding stress complement via the Brunnermeier-
+         Pedersen 2009 funding-liquidity-spiral framework (the
+         SPX analogue of the Stephen Jen USD broken-smile, applied
+         to the equity-vol-funding doom loop rather than dollar
+         strength). Source : FRED `NFCI`, weekly publication,
+         max-age 14d. Z-score with zero baseline ; negative = loose
+         conditions, positive = tight.
+      3. **NFIB SBOI** (Small Business Optimism Index monthly) —
+         small-business sentiment leading indicator for the broad
+         economic regime. Source : `nfib_sbet_observations` (migration
+         0036, monthly publication 1986=100 base, max-age ~60d).
+         Frequency mismatch with VIXCLS/VXVCLS daily — surface as
+         REGIME indicator, NOT intraday signal.
+
+    Gated on `asset == "SPX500_USD"` — early-return ("", []) otherwise.
+    `build_data_pool` appends only when `sources` is non-empty so a
+    pre-FRED-ingestion SPX500 silently skips.
+
+    SYMMETRIC LANGUAGE discipline (ichor-trader r32/r41/r42 carry-
+    forward) : each interpretive section MUST emit BOTH SPX-bid AND
+    SPX-soft branches so the Pass-2 LLM picks consistent with Pass-1
+    regime. The pre-r43 cross_asset_matrix v2 SPX hints at
+    `data_pool.py:1756-1761` were UNI-DIRECTIONAL bearish (risk-off +
+    earnings-tail with zero bullish mirror). This section adds the
+    missing bullish mirror.
+
+    TETLOCK INVALIDATION discipline on ALL 3 drivers (r42 R28 carry-
+    forward, citation-quality discipline applied).
+
+    R24 SUBSET-not-SUPERSET mirror : VIXCLS + VXVCLS daily, NFCI weekly,
+    SBOI monthly (frequency-mismatch surfaced inline) — no monthly OECD
+    staleness trap.
+
+    SOURCE-PURITY CAVEAT (ADR-089) : SPX500_USD Polygon ticker = `SPY`
+    NYSE Arca ETF proxy (not `I:SPX` index, blocked $49/mo subscription).
+    Tracking error <0.1% MTD invisible for qualitative Pass-2 framing
+    but Critic should be aware of the proxy substitution when validating
+    quantitative claims.
+    """
+    if asset != "SPX500_USD":
+        return "", []
+
+    # ─── VIX term-structure (VIXCLS / VXVCLS) — primary regime ─────
+    # VIX = 30-day implied vol on SPX, VXVCLS = 3-month implied vol.
+    # Ratio VXVCLS/VIXCLS > 1 = contango (calm, longer-vol bid) ;
+    # ratio < 1 = backwardation (stress, front-vol bid). FRED daily
+    # publication, max_age 7 days conservative (existing convention
+    # _section_executive_summary line 363).
+    vix_latest = await _latest_fred(session, "VIXCLS", max_age_days=7)
+    if vix_latest is None:
+        return "", []  # VIX missing → silent skip (primary driver)
+    vix_value, vix_date = vix_latest
+    sources = [f"FRED:VIXCLS@{vix_date:%Y-%m-%d}"]
+
+    lines = [
+        "## SPX-specific signals (Polygon ticker = SPY proxy, ADR-089)",
+        "### VIX term-structure (VIXCLS / VXVCLS) — primary tail regime",
+        f"- VIXCLS = {vix_value:.2f} (FRED, {vix_date:%Y-%m-%d}, front-month 30-day implied vol)",
+    ]
+
+    # 3-month VIX for term-structure
+    vxv_latest = await _latest_fred(session, "VXVCLS", max_age_days=7)
+    if vxv_latest is not None:
+        vxv_value, vxv_date = vxv_latest
+        sources.append(f"FRED:VXVCLS@{vxv_date:%Y-%m-%d}")
+        ratio = vxv_value / vix_value if vix_value > 0 else 0.0
+        if ratio >= 1.10:
+            term_band = "deep contango (calm regime, tail under-priced)"
+        elif ratio >= 1.00:
+            term_band = "modest contango (calm bias)"
+        elif ratio >= 0.95:
+            term_band = "near-flat (transitional regime)"
+        else:
+            term_band = "backwardation (stress regime, tail bid front-loaded)"
+        lines.append(f"- VXVCLS = {vxv_value:.2f} (FRED, {vxv_date:%Y-%m-%d}, 3-month implied vol)")
+        lines.append(f"- Term-structure ratio = {ratio:.3f} — {term_band}")
+        lines.append(
+            "- Interpretation depends on the Pass-1 regime label : "
+            "in a goldilocks or risk-on regime, contango (ratio > 1) "
+            "is the calm-tail equilibrium where systematic vol-sellers "
+            "extract roll-yield (SPX-bid via mechanical beta accumulation) ; "
+            "under risk-off or vol_elevated, backwardation (ratio < 1) "
+            "marks a regime where the front-month VIX leads the curve "
+            "higher (SPX-soft via dispersion-trade unwind + vol-control "
+            "deleveraging). The Pass-2 LLM should select the branch "
+            "matching the regime context above."
+        )
+        lines.append(
+            "- Tetlock invalidation : contango SPX-bid thesis is "
+            "invalidated if VIX-term-structure flips to backwardation "
+            "(ratio drops below 1.00) within 3 sessions WHILE VIX > 22 "
+            "concurrent (full-flip regime signal) ; backwardation "
+            "SPX-soft thesis is invalidated if ratio rises above 1.05 "
+            "AND VIX falls below 18 (mean-reversion to calm-tail "
+            "equilibrium confirmed)."
+        )
+
+    # ─── NFCI weekly (Chicago Fed funding stress) ──────────────────
+    # NFCI z-scored with zero baseline. Negative = loose ; positive =
+    # tight. Weekly publication, max-age 14d. Funding stress regime
+    # complement to Brunnermeier-Pedersen 2009 funding-liquidity-spiral
+    # framework (the SPX-equity analogue of the Stephen Jen USD broken-
+    # smile, applied to vol-funding doom loop not dollar strength).
+    # Critical for SPX because liquidity provision drives multiple expansion.
+    nfci_latest = await _latest_fred(session, "NFCI", max_age_days=14)
+    if nfci_latest is not None:
+        nfci_value, nfci_date = nfci_latest
+        sources.append(f"FRED:NFCI@{nfci_date:%Y-%m-%d}")
+        if nfci_value >= 0.5:
+            nfci_band = "tight (>+0.5, funding-stress regime)"
+        elif nfci_value >= 0.0:
+            nfci_band = "modestly tight (0 to +0.5)"
+        elif nfci_value >= -0.5:
+            nfci_band = "modestly loose (-0.5 to 0)"
+        else:
+            nfci_band = "very loose (<-0.5, abundant-liquidity regime)"
+        lines.append("### NFCI (Chicago Fed funding conditions) — weekly")
+        lines.append(f"- NFCI = {nfci_value:+.3f} (FRED, {nfci_date:%Y-%m-%d}) — {nfci_band}")
+        lines.append(
+            "- Interpretation : NFCI tightening (positive Z, rising) "
+            "compresses risk-asset multiples mechanically (SPX-soft via "
+            "discount-rate denominator + margin-debt deleveraging) ; "
+            "loosening (negative Z, falling) supports multiple expansion "
+            "and margin-debt rebuild (SPX-bid). Pass-2 LLM picks "
+            "consistent with Pass-1 regime."
+        )
+        lines.append(
+            "- Tetlock invalidation : tight-NFCI SPX-soft thesis is "
+            "invalidated if NFCI falls below 0 within 4 sessions AND "
+            "VIX-term-structure stays in contango (full-loosening "
+            "confirmation) ; loose-NFCI SPX-bid thesis is invalidated "
+            "if NFCI rises above +0.3 alongside VIX-term-structure "
+            "ratio dropping below 1.00 (liquidity-tightening + tail-"
+            "regime co-pricing — the broken-smile crisis configuration)."
+        )
+
+    # ─── NFIB SBOI monthly (small business uncertainty) ────────────
+    # NFIB Small Business Optimism Index. 1986=100 base. Survey month
+    # 1-month lag vs publish month. Leading indicator for hiring and
+    # capex plans — captures broad-economy regime that SPX earnings
+    # ultimately track. Monthly cadence : surface as REGIME indicator
+    # NOT intraday signal (similar treatment to BTP-Italy in EUR r34).
+    sboi_stmt = (
+        select(NfibSbetObservation).order_by(desc(NfibSbetObservation.report_month)).limit(2)
+    )
+    sboi_rows = list((await session.execute(sboi_stmt)).scalars().all())
+    if sboi_rows:
+        sboi_latest = sboi_rows[0]
+        sources.append(f"NFIB:SBOI@{sboi_latest.report_month:%Y-%m}")
+        if sboi_latest.sboi >= 100.0:
+            sboi_band = "expansionary (>=100, above 1986 baseline)"
+        elif sboi_latest.sboi >= 95.0:
+            sboi_band = "modestly contractionary (95-100)"
+        elif sboi_latest.sboi >= 90.0:
+            sboi_band = "contractionary (90-95)"
+        else:
+            sboi_band = "deeply contractionary (<90, recession-class)"
+        lines.append("### NFIB SBOI (Small Business Optimism, monthly)")
+        lines.append(
+            f"- SBOI = {sboi_latest.sboi:.1f} on {sboi_latest.report_month:%Y-%m} — {sboi_band}"
+        )
+        if sboi_latest.uncertainty_index is not None:
+            lines.append(f"- Uncertainty Index sub-component = {sboi_latest.uncertainty_index:.1f}")
+        if len(sboi_rows) >= 2:
+            sboi_prior = sboi_rows[1]
+            sboi_delta = sboi_latest.sboi - sboi_prior.sboi
+            sboi_sign = "+" if sboi_delta >= 0 else "−"
+            lines.append(
+                f"- 1-month change : {sboi_sign}{abs(sboi_delta):.1f} "
+                f"(from {sboi_prior.sboi:.1f} on "
+                f"{sboi_prior.report_month:%Y-%m})"
+            )
+        lines.append(
+            "- Frequency mismatch : SBOI is MONTHLY (1-month publish "
+            "lag), VIX/NFCI are DAILY/WEEKLY. Treat as REGIME indicator "
+            "NOT intraday signal. Interpretation : SBOI rising in "
+            "calm-NFCI regime is broad-economy reflation (SPX-bid via "
+            "earnings-tail expansion + margin-debt rebuild) ; SBOI "
+            "falling in tight-NFCI regime is the recession-class "
+            "configuration (SPX-soft via earnings-tail compression "
+            "+ multiple contraction)."
+        )
+        lines.append(
+            "- Tetlock invalidation : expansionary-SBOI SPX-bid thesis "
+            "is invalidated if SBOI falls below 95 within 2 monthly "
+            "prints AND NFCI rises above 0 concurrent ; contractionary-"
+            "SBOI SPX-soft thesis is invalidated if SBOI rebounds above "
+            "100 alongside NFCI falling below -0.3 (full-reflation "
+            "confirmation in slow-cadence)."
+        )
+
+    # ─── SPX 3-driver composite (R24 SUBSET-not-SUPERSET clears) ────
+    # Surface ONLY when ALL 3 drivers fresh — the framework needs the
+    # 3-driver pairing to disambiguate broken-smile-crisis from
+    # transitional-regime-noise.
+    if vxv_latest is not None and nfci_latest is not None and sboi_rows:
+        lines.append("### SPX VIX-funding-sentiment triangle composite")
+        lines.append(
+            "- The 3-driver SPX pricing framework is FULLY available "
+            "for this asset (R24 SUBSET-not-SUPERSET clears : VIX/VXV "
+            "daily + NFCI weekly + SBOI monthly cadences). When "
+            "VIX-term-structure CONTANGO AND NFCI < 0 AND SBOI >= 100 "
+            "the regime is broad-risk-on (SPX-bid high conviction) ; "
+            "BACKWARDATION combined with NFCI > 0 OR SBOI < 95 is the "
+            "tail-stress-funding-stress-or-sentiment-stress 3-corner-"
+            "bear configuration (SPX-soft high conviction, Brunnermeier-"
+            "Pedersen 2009 funding-liquidity-spiral crisis configuration "
+            "— the SPX-equity analogue of the Stephen Jen USD broken-"
+            "smile, applied to the vol-funding doom loop). Note the "
+            "AND/OR asymmetry between the broad-risk-on (3-of-3 AND) "
+            "and 3-corner-bear (1-of-2 OR with VIX-backwardation "
+            "anchor) configurations is intentional : empirically "
+            "vol-and-funding stress propagates faster than calm-regime "
+            "accumulation, so weaker bear evidence justifies higher "
+            "conviction than equally-weak bull evidence. The Pass-2 "
+            "LLM should triangulate all 3 dimensions before committing "
+            "to a directional read. SPY-proxy caveat (ADR-089) applies "
+            "to quantitative claims only — directional framing unchanged."
         )
 
     return "\n".join(lines), sources
@@ -3186,6 +3423,15 @@ async def build_data_pool(
     nas_md, nas_src = await _section_nas_specific(session, asset)
     if nas_src:
         sections.append(("nas_specific", nas_md, nas_src))
+
+    # Round-43 — SPX-specific VIX-term-structure + funding + sentiment
+    # triangle (GAP-A continuation 3/5, R24 SUBSET-not-SUPERSET clears
+    # via VIX/VXV daily + NFCI weekly + SBOI monthly with frequency
+    # mismatch warning inline). Asset-gated to SPX500_USD ; silent skip
+    # otherwise OR if VIXCLS absent (primary tail-regime driver).
+    spx_md, spx_src = await _section_spx_specific(session, asset)
+    if spx_src:
+        sections.append(("spx_specific", spx_md, spx_src))
 
     poly_md, poly_src = await _section_polygon_intraday(session, asset)
     sections.append(("polygon_intraday", poly_md, poly_src))
