@@ -1589,6 +1589,22 @@ async def _section_cross_asset_matrix(
     tail_fear = skew_band in {"elevated", "tail-fear"}
     vol_elevated = vix_band in {"elevated", "panic"}
     sentiment_weak = sbet_band in {"recession-pre", "below-avg"}
+    # ── Inverse conditions (round-38 r37-audit-gap #2 partial closure :
+    # EUR-bullish symmetry mirror).
+    # The 3 USD-positive triggers above (liquidity_tight, vol_elevated,
+    # inflation_pressure_up) have NO symmetric EUR-bullish counterparts
+    # → EUR_USD hints surface "balanced" in usd_complacency regimes
+    # even though the macro structure favours EUR_USD upside via
+    # broad-USD-weakness flow + carry-friendly calm regime + Fed-easing
+    # rate-differential narrowing. Round-32b ratification of ADR-090
+    # documented the gap in `_section_eur_specific` (Bund + €STR + BTP
+    # symmetric language) but cross_asset_matrix was left asymmetric.
+    # This round closes that asymmetry for the n=13 anti-skill pocket.
+    liquidity_loose = nfci_band in {"loose", "mild-loose"}
+    vol_complacent = vix_band == "complacent"
+    tail_calm = skew_band == "calm"
+    sentiment_strong = sbet_band == "expansionary"
+    inflation_anchored = mct_band in {"anchored", "near-target"}
 
     lines.append("")
     lines.append("### Per-asset macro-pressure tags (research only, ADR-017)")
@@ -1598,12 +1614,22 @@ async def _section_cross_asset_matrix(
         return name, hints
 
     eur_usd: list[str] = []
+    # ── USD-positive scenarios (asymmetric pre-round-38) ──
     if liquidity_tight:
         eur_usd.append("USD-bid (NFCI tight)")
     if vol_elevated:
         eur_usd.append("USD-bid (vol regime)")
     if inflation_pressure_up:
         eur_usd.append("Fed-on-hold supports USD")
+    # ── EUR-bullish scenarios (round-38 symmetric mirror, audit-gap #2
+    # partial closure ; ADR-017 research framing — Pass-2 LLM weighs
+    # both sides against the active regime). ──
+    if liquidity_loose:
+        eur_usd.append("EUR-bid (NFCI loose, broad USD-weakness flow)")
+    if vol_complacent and tail_calm:
+        eur_usd.append("EUR-bid (carry-friendly calm regime)")
+    if inflation_anchored and sentiment_strong:
+        eur_usd.append("EUR-bid (Fed easing path, rate-differential narrowing)")
     asset_hints.append(asset("EUR_USD", eur_usd or ["balanced"]))
 
     gbp_usd: list[str] = list(eur_usd)
