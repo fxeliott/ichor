@@ -52,15 +52,32 @@ def test_italy_10y_monthly_resolves_to_120_days() -> None:
     assert _max_age_days_for("IRLTLT01ITM156N") == 120
 
 
-def test_germany_japan_uk_10y_monthly_all_120_days() -> None:
-    """The 3 other OECD foreign-10y series mirror Italy 10Y."""
+def test_germany_japan_uk_australia_10y_monthly_all_120_days() -> None:
+    """The 4 other OECD foreign-10y series mirror Italy 10Y.
+    Australia added round-46 ADR-092 §T1.AUD-3 (AUD-USD GAP-A 5/5)."""
     for series_id in (
         "IRLTLT01DEM156N",
         "IRLTLT01JPM156N",
         "IRLTLT01GBM156N",
+        "IRLTLT01AUM156N",
     ):
         assert _FRED_SERIES_MAX_AGE_DAYS[series_id] == 120
         assert _max_age_days_for(series_id) == 120
+
+
+def test_imf_pinkbook_composite_monthly_series_60_days() -> None:
+    """Round-46 ADR-092 §T1.AUD-1 + §T1.AUD-2 ship : 3 IMF World Bank
+    PinkBook composite series at 60d max-age (acceptable since PinkBook
+    publishes early-month, vs OECD MEI mid-month at 120d). Empirical
+    cadence validated post-deploy ; if silent-skip emerges, bump to 90d
+    or 120d in a follow-up hygiene round (code-reviewer r46 M2 caveat)."""
+    for series_id in (
+        "MYAGM2CNM189N",  # China M2 broad-money
+        "PIORECRUSDM",  # Global Iron Ore Price Index
+        "PCOPPUSDM",  # Global Copper Price Index
+    ):
+        assert _FRED_SERIES_MAX_AGE_DAYS[series_id] == 60
+        assert _max_age_days_for(series_id) == 60
 
 
 def test_oecd_cli_series_all_120_days() -> None:
@@ -120,6 +137,10 @@ def test_registry_monthly_series_are_at_least_30_days() -> None:
         "IRLTLT01ITM156N",
         "IRLTLT01JPM156N",
         "IRLTLT01GBM156N",
+        "IRLTLT01AUM156N",  # round-46 ADR-092 §T1.AUD-3
+        "MYAGM2CNM189N",  # round-46 ADR-092 §T1.AUD-1 (IMF PinkBook)
+        "PIORECRUSDM",  # round-46 ADR-092 §T1.AUD-2 (IMF PinkBook)
+        "PCOPPUSDM",  # round-46 ADR-092 §T1.AUD-2 (IMF PinkBook)
         "UMCSENT",
         "CIVPART",
         "AHETPI",
