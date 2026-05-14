@@ -1,6 +1,12 @@
-# ADR-079: EU AI Act §50.2 machine-readable watermark middleware
+# ADR-079: EU AI Act §50 deployer disclosure — machine-readable watermark middleware
 
-- **Status**: Accepted
+- **Status**: Accepted (Date: 2026-05-09 — original Art 50(2) framing) ;
+  **Amended round-35** (2026-05-13) — W88 middleware docstring corrected
+  to Art 50(4) deployer ;
+  **Amended round-38** (2026-05-14) — this ADR text re-framed Art 50(2)
+  GPAI provider → Art 50(4) deployer (cf §"Round-35+38 amendment" below).
+  Functional implementation unchanged (same HTTP headers, same gated
+  prefixes, same single-source-of-truth with W89 well-known endpoint).
 - **Date**: 2026-05-09
 - **Deciders**: Eliot
 - **Supersedes**: none
@@ -165,6 +171,80 @@ the legal distinction.
 - If Ichor ever generates synthetic images (e.g. matplotlib regime
   charts that are LLM-prompted), C2PA manifests need a parallel
   middleware (image-content-type aware). Successor ADR.
+
+## Round-35+38 amendment — Art 50(2) GPAI provider → Art 50(4) deployer
+
+**TL;DR** : the original ADR-079 framing treated Ichor as an "Article
+50(2) Provider" of synthetic content. Round-35 W88 docstring audit
+caught this as over-claim ; round-38 (this section) formalises the
+amendment at the ADR text level.
+
+### Why the re-framing matters
+
+EU AI Act splits the §50 transparency obligations across roles :
+
+| Article    | Bound role                                                                    | Obligation                                                                                                                  |
+| ---------- | ----------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| **§50(2)** | **Providers** of GPAI / synthetic-content models (Anthropic, OpenAI, etc.)    | Mark outputs in a machine-readable format and detectable as artificially generated. Burden lives **upstream**.              |
+| **§50(4)** | **Deployers** that use a GPAI to generate AI-generated content shown publicly | **Disclose** to the recipient that the content has been artificially generated or manipulated. Burden lives **downstream**. |
+
+Ichor does NOT train or host a generative model. It calls Anthropic's
+hosted Claude via Voie D (subprocess `claude -p` on the Win11 runner).
+Ichor is unambiguously a **deployer**, not a provider. The §50(2)
+machine-readable signing burden (C2PA, watermark embedding in pixels
+or token-level signatures) is **Anthropic's** to discharge upstream
+(and they have — Anthropic signed the GPAI Code of Practice in July
+2025, committing to AI Office guidance on content provenance).
+
+### What this changes in practice
+
+**Nothing** in the technical implementation. The Ichor deployer
+disclosure obligation (§50(4)) is fully satisfied by :
+
+1. The `AIWatermarkMiddleware` HTTP response headers
+   (`X-Ichor-AI-Generated: true` + provider tag + RFC3339 timestamp +
+   disclosure URL) — which are MORE than what §50(4) literally
+   demands, and double as machine-discoverable metadata for any
+   downstream consumer.
+2. The `AIDisclosureBanner` sticky banner + `LegalFooter` mount
+   on web2 (ADR-029) — the human-readable surface.
+3. The W89 well-known endpoint `/.well-known/ai-content` — the
+   machine-discovery surface (ADR-080).
+
+Ichor inherits Anthropic's upstream §50(2) compliance automatically
+through the Voie D subprocess call : when the C2PA / signed-metadata
+spec finalises (expected with the AI Office implementing acts ~mid-
+2026), every Claude response will carry the upstream signature, and
+Ichor's deployer disclosure surface will reference it without code
+changes on our side.
+
+### Why round-35 caught it
+
+Pre-round-35 the W88 middleware docstring claimed Ichor "satisfies
+EU AI Act §50(2) machine-readable watermark requirements". Round-35
+subagent #3 (EU AI Act compliance audit) cross-referenced the
+Regulation 2024/1689 actual text + 5 primary sources (AI Office GPAI
+Code of Practice Q&A, Trail of Bits compliance analysis, IAPP/Reed
+Smith deployer-vs-provider breakdown, Bird & Bird EU AI Act compliance
+guide, EU Commission FAQ) — all five agreed Ichor's role is
+deployer-only.
+
+### Why round-38 closes the loop
+
+The W88 docstring was fixed r35 commit `2c1233d`. This ADR text
+remained out-of-sync with the code (the very contract drift this
+ADR aims to prevent at the doctrinal level). Round-38 closes that
+gap — the ADR text and the code now both correctly say "Art 50(4)
+deployer". The HTTP header set is unchanged ; only the framing is
+corrected.
+
+### Anti-future-drift guard
+
+A W90 invariant test could pin the docstring framing
+(`Art 50(4)` present, `Art 50(2)` absent in the middleware
+docstring) to catch a future refactor that re-introduces the
+over-claim. Deferred to a future round-39+ when the W90 invariant
+suite is next extended.
 
 ## Implementation references
 
