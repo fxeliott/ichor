@@ -2,9 +2,11 @@
 
 > Auto-injected at every session start. Keep terse and current.
 >
-> **Last sync: 2026-05-14 10:20 CEST — ROUND-39 SHIPPED : W90 docstring-pin for ai_watermark.py Art 50(4) DEPLOYER framing (anti-future-drift guard, audit-gap #12 closure) + GAP-C closure (Tetlock invalidation thresholds inline on cross_asset_matrix EUR-bid hints, ichor-trader r39 audit catch)** : main HEAD = `a1ccfcb` (PR #122 round-39 omnibus 2-commit squash). 1 PR merged r39. ichor-trader subagent caught 2 RED gaps for r40 menu : GAP-A (7 other asset pairs asymmetric same way EUR_USD was pre-r38, GBP_USD literally `list(eur_usd)` copy — 1.5 day) + GAP-B (RegimeQuadrant ENUM US-centric ceiling, requires ADR-093 + Vovk weights schema migration — 3 day). Frontend gel rounds 13-39 (27 rounds zero `apps/web2`). ZERO Anthropic API spend.
+> **Last sync: 2026-05-14 11:30 CEST — ROUND-40 SHIPPED : GAP-A partial closure (GBP_USD bug fix + USD_CAD CAD-bid branch) per r39+r40 ichor-trader audit ; GBP `list(eur_usd)` copy bug eliminated ; SUBSET-not-SUPERSET mirror doctrine codified (ECB-specific narrative deferred for non-EUR assets without rate-differential daily proxy)** : main HEAD = `5deb1f1` (PR #124 r40 omnibus). 1 PR merged r40. Both new hints sets carry r39 Tetlock invalidation discipline inline. r40 ichor-trader audit (R23) caught NEW GAP-D : monthly OECD series `IRLTLT01XXM156N` used for rate-differential at intraday Pass-2 → 30-90d stale (deferred r41+ with daily-proxy ingestion plan). 5 asset pairs still pending GAP-A continuation : JPY/AUD/XAU/NAS/SPX. Frontend gel rounds 13-40 (28 rounds zero `apps/web2`). ZERO Anthropic API spend.
 >
-> **Round-38 line preserved for archeology** : ROUND-38 SHIPPED : cross_asset_matrix EUR_USD symmetric bias hints + ADR-079 formal Art 50(2)→Art 50(4) deployer amendment. main HEAD was `7440cda` post-r38. 2 PRs merged r38.
+> **Round-39 line preserved for archeology** : ROUND-39 SHIPPED : W90 docstring-pin for ai_watermark.py + GAP-C Tetlock invalidation thresholds inline + ichor-trader subagent caught GAP-A + GAP-B. main HEAD was `38ef82d` post-r39.
+>
+> **Round-38 line preserved for archeology** : ROUND-38 SHIPPED : cross_asset_matrix EUR_USD symmetric bias hints + ADR-079 formal Art 50(2)→Art 50(4) deployer amendment. main HEAD was `7440cda` post-r38.
 >
 > **Round-37 line preserved for archeology** : ROUND-37 SHIPPED : 3 W90 guards for gepa_optimizer + `_FRED_SERIES_MAX_AGE_DAYS` registry + bundesbank r32c-followup fixtures. main HEAD was `0737c7e` post-r37. 2 PRs merged r37.
 >
