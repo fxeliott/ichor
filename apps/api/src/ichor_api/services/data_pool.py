@@ -1365,6 +1365,151 @@ async def _section_spx_specific(session: AsyncSession, asset: str) -> tuple[str,
     return "\n".join(lines), sources
 
 
+async def _section_jpy_specific(session: AsyncSession, asset: str) -> tuple[str, list[str]]:
+    """## JPY-specific signals — US-JP rate-differential triangulation (r45, GAP-A continuation 4/5).
+
+    Renders USD/JPY-specific macro signals for USD_JPY Pass-2 via the
+    canonical Engel-West 2005 rate-differential channel + Brunnermeier-
+    Nagel-Pedersen 2009 carry-crash skew framework. Tier 1 inline-FRED
+    ship per ADR-092 PROPOSED round-44 (degraded SUPERSET, BTP r34
+    cadence-mismatch precedent) :
+
+      1. **Japan 10Y monthly via FRED `IRLTLT01JPM156N`** — primary
+         JPY-specific anchor. Source : OECD MEI monthly with 1-month
+         publication lag. Registry max-age 120d (r37 frequency-aware).
+         Framework : Engel-West 2005 "Exchange Rates and Fundamentals",
+         J.Political Economy 113(3):485-517, DOI:10.1086/429137 — under
+         near-unity discount factor, rate-differential proxies USD/JPY
+         directional bias even when fundamentals are quasi-martingale.
+      2. **US 10Y daily via FRED `DGS10`** — differential anchor. Source :
+         FRED `DGS10` daily, default 14d max-age. Computed differential
+         (DGS10 - IRLTLT01JPM156N) is the canonical institutional carry
+         signal. Framework : Adrian-Etula-Muir 2014 "Financial
+         Intermediaries and the Cross-Section of Asset Returns",
+         J.Finance 69(6):2557-2596, DOI:10.1111/jofi.12189 — broker-
+         dealer leverage factor transmits carry-funding stress.
+
+    Gated on `asset == "USD_JPY"` — early-return ("", []) otherwise.
+    `build_data_pool` appends only when `sources` is non-empty so a
+    pre-FRED-ingestion USD_JPY silently skips.
+
+    SYMMETRIC LANGUAGE discipline (ichor-trader r32/r41/r42/r43 carry-
+    forward) : the rate-differential interpretation emits BOTH USD-bid
+    (carry-bid regime) AND JPY-bid (carry-unwind regime) branches so
+    the Pass-2 LLM picks consistent with Pass-1 regime. The pre-r45
+    USD_JPY stub at `data_pool.py:2341-2346` was 2 lines uni-directional
+    (`vol_elevated → JPY-bid safe haven` + `inflation_pressure_up → UST
+    yield up → USD-bid`). This section adds the missing rate-differential
+    layer with regime-conditional symmetry.
+
+    TETLOCK INVALIDATION discipline on the differential reading (r42 R28 +
+    r43 carry-forward) : both regime-conditional branches emit explicit
+    invalidation thresholds with VIX-cross-confirmation, derived from
+    Brunnermeier-Nagel-Pedersen 2009 NBER Macro Annual 23(1):313-348
+    DOI:10.1086/593088 carry-crash cascade configuration.
+
+    R24 SUBSET-not-SUPERSET cleared via cadence-mismatch BTP r34
+    precedent : DGS10 daily + IRLTLT01JPM156N monthly. Frequency
+    mismatch warning emitted inline ; differential surfaces as REGIME
+    indicator, NOT intraday signal.
+
+    Tier 2 BoJ JGB 10Y daily collector deferred to ADR-094 (PROPOSED
+    after Eliot UI confirms BoJ Time-Series stat-search.boj.or.jp series
+    code per ADR-092 §T2.JPY-Daily). MoF FX intervention monthly via
+    e-Stat deferred to ADR-095 (Ito-Yabu 2007 reaction function,
+    DOI:10.1016/j.jimonfin.2006.12.001 corrected per round-44 verifier).
+    """
+    if asset != "USD_JPY":
+        return "", []
+
+    # ─── Japan 10Y monthly via FRED IRLTLT01JPM156N (Japan-specific anchor) ──
+    # Primary JPY driver. If absent → silent skip (no JPY-specific value
+    # without the Japan anchor). Registry max_age 120d auto-resolves per
+    # r37 frequency-aware lookup.
+    jp10y_latest = await _latest_fred(session, "IRLTLT01JPM156N")
+    if jp10y_latest is None:
+        return "", []  # JP 10Y missing → silent skip (primary anchor)
+    jp10y_value, jp10y_date = jp10y_latest
+    sources = [f"FRED:IRLTLT01JPM156N@{jp10y_date:%Y-%m-%d}"]
+
+    lines = [
+        "## JPY-specific signals (Engel-West rate-differential channel)",
+        "### Japan 10Y yield (IRLTLT01JPM156N) — OECD MEI monthly, Japan-specific anchor",
+        f"- JP 10Y = {jp10y_value:.2f}% (FRED IRLTLT01JPM156N, {jp10y_date:%Y-%m-%d} "
+        "— OECD monthly, 1-month publication lag)",
+    ]
+
+    # ─── US 10Y daily via FRED DGS10 (differential anchor) ──
+    # Secondary driver — computes the US-JP 10Y differential, the
+    # canonical institutional carry-funding signal per Adrian-Etula-Muir
+    # 2014 financial-intermediary-leverage channel.
+    dgs10_latest = await _latest_fred(session, "DGS10")
+    if dgs10_latest is not None:
+        dgs10_value, dgs10_date = dgs10_latest
+        sources.append(f"FRED:DGS10@{dgs10_date:%Y-%m-%d}")
+        rate_diff = dgs10_value - jp10y_value
+        lines.append("### US 10Y nominal yield (DGS10) — daily differential anchor")
+        lines.append(f"- DGS10 = {dgs10_value:.2f}% (FRED, {dgs10_date:%Y-%m-%d})")
+        lines.append(f"- US-JP 10Y differential = {rate_diff:+.2f} pp (DGS10 minus JP 10Y)")
+        lines.append(
+            "- Frequency mismatch : DGS10 is DAILY, JP 10Y is MONTHLY "
+            "(OECD MEI). Treat the differential as a REGIME indicator, "
+            "NOT an intraday signal (BTP r34 precedent for cadence-"
+            "mismatch handling)."
+        )
+        lines.append(
+            "- Interpretation depends on the Pass-1 regime label : in a "
+            "carry-bid regime (goldilocks, vol_complacent), a wider "
+            "differential supports USD/JPY upside via JPY-funded carry "
+            "positioning accumulation (Adrian-Etula-Muir 2014 broker-"
+            "dealer balance-sheet channel transmits the rate-spread to "
+            "FX pricing via intermediary-funding capacity) ; under risk-"
+            "off or vol_elevated, the SAME wider differential can flip "
+            "to JPY-bid via carry-unwind cascade (Brunnermeier-Nagel-"
+            "Pedersen 2009 currency-crash skew — JPY-funded carry-shorts "
+            "unwinding amplify the JPY-positive move non-linearly). A "
+            "narrower differential is the symmetric reverse (USD-soft "
+            "in carry-bid regime, JPY-soft in risk-off as carry "
+            "rebuilds). The Pass-2 LLM should select the branch matching "
+            "the regime context above."
+        )
+        lines.append(
+            "- Tetlock invalidation : wider-differential USD-bid carry "
+            "thesis is invalidated if VIX > 25 AND US-JP 10Y narrows by "
+            "> 20 bp within 5 sessions concurrent (full carry-unwind "
+            "regime onset, Brunnermeier-Nagel-Pedersen 2009 cascade "
+            "configuration) ; carry-unwind JPY-bid thesis is invalidated "
+            "if VIX falls below 18 AND DGS10 rises by > 10 bp (calm-"
+            "regime re-anchoring confirmed, carry-bid framework reasserts). "
+            "Note : BoJ intervention tail-risk (Ito-Yabu 2007 reaction "
+            "function, DOI:10.1016/j.jimonfin.2006.12.001) is a separate "
+            "signal deferred to ADR-095 (e-Stat MoF FX intervention "
+            "monthly collector)."
+        )
+
+        # Composite (R24 SUBSET-not-SUPERSET via cadence-mismatch BTP r34 precedent)
+        lines.append(
+            "### JPY rate-differential triangle (Engel-West + Brunnermeier-Nagel-Pedersen)"
+        )
+        lines.append(
+            "- The 2-driver JPY pricing framework is AVAILABLE for this "
+            "asset (R24 SUBSET-not-SUPERSET cleared via cadence-mismatch "
+            "BTP r34 precedent : DGS10 daily + JP 10Y monthly). The Engel-"
+            "West 2005 fundamentals channel (DOI:10.1086/429137) transmits "
+            "rate-differential to USD/JPY directional bias via near-unity "
+            "discount factor — the spot rate is quasi-martingale yet "
+            "fundamentals still determine the level. Brunnermeier-Nagel-"
+            "Pedersen 2009 carry-crash skew (DOI:10.1086/593088) amplifies "
+            "the same signal under risk-off via JPY-funded short positions "
+            "unwinding non-linearly. Pass-2 LLM should triangulate both "
+            "regime-conditional branches before committing to a directional "
+            "read. Tetlock invalidation thresholds emit asymmetric regime-"
+            "flip conditions consistent with r43 SPX precedent."
+        )
+
+    return "\n".join(lines), sources
+
+
 async def _section_rate_diff(session: AsyncSession, asset: str) -> tuple[str, list[str]]:
     """## Rate differential — US 10Y minus the relevant foreign 10Y for FX pairs."""
     pair = _RATE_DIFF_PAIRS.get(asset)
@@ -3432,6 +3577,16 @@ async def build_data_pool(
     spx_md, spx_src = await _section_spx_specific(session, asset)
     if spx_src:
         sections.append(("spx_specific", spx_md, spx_src))
+
+    # Round-45 — JPY-specific US-JP rate-differential triangulation
+    # (GAP-A continuation 4/5 via ADR-092 PROPOSED Tier 1 inline-FRED ship,
+    # BTP r34 cadence-mismatch precedent). Asset-gated to USD_JPY ; silent
+    # skip otherwise OR if IRLTLT01JPM156N absent (primary JPY anchor).
+    # Frameworks : Engel-West 2005 + Adrian-Etula-Muir 2014 + Brunnermeier-
+    # Nagel-Pedersen 2009 carry-crash skew.
+    jpy_md, jpy_src = await _section_jpy_specific(session, asset)
+    if jpy_src:
+        sections.append(("jpy_specific", jpy_md, jpy_src))
 
     poly_md, poly_src = await _section_polygon_intraday(session, asset)
     sections.append(("polygon_intraday", poly_md, poly_src))
