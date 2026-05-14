@@ -1623,13 +1623,26 @@ async def _section_cross_asset_matrix(
         eur_usd.append("Fed-on-hold supports USD")
     # ── EUR-bullish scenarios (round-38 symmetric mirror, audit-gap #2
     # partial closure ; ADR-017 research framing — Pass-2 LLM weighs
-    # both sides against the active regime). ──
+    # both sides against the active regime).
+    # Round-39 Tetlock-invalidation discipline (ichor-trader audit
+    # GAP-C closure) : each EUR-bid hint carries a TESTABLE INVALIDATION
+    # threshold so the Pass-2 LLM cannot adopt the directional thesis
+    # without an explicit "if X then thesis dead" exit. Mirrors
+    # `_section_eur_specific` symmetric language doctrine (line 644). ──
     if liquidity_loose:
-        eur_usd.append("EUR-bid (NFCI loose, broad USD-weakness flow)")
+        eur_usd.append(
+            "EUR-bid (NFCI loose, broad USD-weakness flow ; "
+            "invalidated if NFCI ≥ 0.0 within 5 sessions)"
+        )
     if vol_complacent and tail_calm:
-        eur_usd.append("EUR-bid (carry-friendly calm regime)")
+        eur_usd.append(
+            "EUR-bid (carry-friendly calm regime ; invalidated if VIX > 22 OR SKEW > 145)"
+        )
     if inflation_anchored and sentiment_strong:
-        eur_usd.append("EUR-bid (Fed easing path, rate-differential narrowing)")
+        eur_usd.append(
+            "EUR-bid (Fed easing path, rate-differential narrowing ; "
+            "invalidated if MCT > 2.75 OR SBOI < 98)"
+        )
     asset_hints.append(asset("EUR_USD", eur_usd or ["balanced"]))
 
     gbp_usd: list[str] = list(eur_usd)
