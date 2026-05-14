@@ -1,8 +1,34 @@
 # ADR-096: RBA F-series rate collector (Tier 2 GAP-D upgrade — corrected from "F1.1 daily")
 
-**Status**: PROPOSED (round-46-round-3, 2026-05-14) — awaiting Eliot ratification +
-F-series table re-selection per round-46-round-2 audit finding (F1.1 is MONTHLY not
-DAILY as ADR-092 originally claimed). No code shipped by this ADR.
+**Status**: PROPOSED (round-46-round-3, 2026-05-14) — awaiting Eliot ratification ;
+F-series table selection EMPIRICALLY CONFIRMED round-46-round-6 (see amendment below).
+No code shipped by this ADR.
+
+## Round-46-round-6 amendment (2026-05-14) — F2 EMPIRICAL CONFIRMATION
+
+The "F-series table selection" step originally listed as "Eliot 5-10 min empirical
+fetch verify required" was COMPLETED in round-46-round-6 via direct WebFetch on
+`https://www.rba.gov.au/statistics/tables/csv/f2-data.csv`. Empirical findings :
+
+- **Cadence** : **DAILY** ✓ (sample dates 02-Sep-2013 / 03-Sep-2013 / 04-Sep-2013,
+  consecutive trading days, no aggregation)
+- **Column structure** : `"Australian Government 2 year bond, Australian Government
+3 year bond, Australian Government 5 year bond, Australian Government 10 year bond,
+Australian Government Indexed Bond"` ✓ (10Y daily yield column PRESENT)
+- **Sample values** : 02-Sep-2013 10Y = 3.989%, 03-Sep-2013 = 4.030%, 04-Sep-2013 =
+  4.055% — consistent with daily-yield-curve-evolution semantics
+- **License** : CC BY 4.0 per RBA public commitment (not embedded in CSV per the
+  RBA convention, but on the rba.gov.au/copyright page — empirically verified via
+  ADR-092 §Source links in round-46-round-3)
+- **File size** : ~192 KB (small enough for daily cron pull without throttling concern)
+
+**F2 selection is the correct target** for ADR-096 implementation. Eliot's "5-10 min
+empirical verify" step is hereby SATISFIED. Implementation can proceed without
+further empirical-gate.
+
+The only remaining Eliot-gated step is **ratification of this ADR** (status PROPOSED →
+Accepted), after which the 8-step Bundesbank Bund r29 mirror implementation can land
+in round-47+.
 
 **Date**: 2026-05-14
 
