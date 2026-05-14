@@ -11,7 +11,14 @@ dependencies = [
     "structlog>=25.1.0",
     "anyio>=4.7.0",
     "httpx>=0.28.0",
-    "python-jose[cryptography]>=3.3.0",  # CF Access JWT verify
+    # python-jose 3.3.0-era versions are vulnerable to CVE-2024-33663
+    # (algorithm-confusion) + CVE-2025-61152 (timing-attack). Lib was
+    # dormant 2021-2024, resumed 3.5.0 in May 2025. Floor bumped to
+    # 3.5.0 in r46-round-5 per dependency-auditor recommendation
+    # (round-46-round-3 audit). Future migration to `pyjwt` or
+    # `joserfc` recommended (FastAPI docs prefer pyjwt for new code)
+    # but defer until python-jose actually breaks something.
+    "python-jose[cryptography]>=3.5.0",  # CF Access JWT verify
 ]
 
 [project.optional-dependencies]
