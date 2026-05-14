@@ -4,6 +4,19 @@
 "degraded explicit" surface annotation pattern referenced in ADR-092 §Tier 1 §AUD acceptance
 criterion 4 (R24 SUBSET-not-SUPERSET compliance via 3/3 monthly drivers + inline annotation).
 
+**Round-2 audit amendment (2026-05-14 post-r46-ship)**: the originally-proposed China credit-
+impulse proxy `MYAGM2CNM189N` (China M2 broad-money monthly via IMF IFS) was empirically
+discovered to be **DISCONTINUED since August 2019** via the post-r46 researcher audit
+(WebFetch FRED metadata returned latest observation 2019-08, ~6 years stale). The series
+was swapped to `MYAGM1CNM189N` (China M1 = currency + demand deposits, same IMF IFS family,
+verified LIVE through Dec 2025 via researcher web-cache lookup) before any post-merge code
+shipped to production. M1 is a NARROWER aggregate than M2 but PRESERVES the canonical
+Chen-Rogoff 2003 transmission proxy — M1 YoY surges historically lead CFETS commodity
+demand by ~3-6 months per Barcelona-Cascaldi-Garcia-Hoek-Van Leemput 2022 Fed IFDP 1360
+"What Happens in China Does Not Stay in China". This ADR retains the documented Chen-Rogoff
+framing + adds Barcelona 2022 + Ferriani-Gazzani 2025 + RBA Bulletin Apr 2024 as
+supplementary citations. The amendment trail is preserved in the r46-round-2 audit log.
+
 **Date**: 2026-05-14
 
 **Supersedes**: none
@@ -41,9 +54,10 @@ ambitions and ratified the **monthly composite via FRED** as the only Voie-D-saf
 - `PIORECRUSDM` (Global Iron Ore Price Index, IMF World Bank pinkbook composite, monthly)
 - `PCOPPUSDM` (Global Copper Price Index, same source family, monthly)
 
-Combined with monthly Australia 10Y (`IRLTLT01AUM156N`) and monthly China M2
-(`MYAGM2CNM189N`), the round-46 AUD section presents **3/3 monthly drivers** with **zero
-daily-clean signal**. This is a strictly degraded signal-quality posture relative to the
+Combined with monthly Australia 10Y (`IRLTLT01AUM156N`) and monthly China M1
+(`MYAGM1CNM189N` — see r46-round-2 audit amendment below for the swap from the
+originally-proposed but DISCONTINUED `MYAGM2CNM189N`), the round-46 AUD section
+presents **3/3 monthly drivers** with **zero daily-clean signal**. This is a strictly degraded signal-quality posture relative to the
 r41 XAU (DFII10+DTWEXBGS both daily-clean), r42 NAS (DGS10+VVIX+SKEW all daily-clean) and
 r43 SPX (VIX/VXV daily + NFCI weekly + SBOI monthly with explicit mismatch warning) ships.
 

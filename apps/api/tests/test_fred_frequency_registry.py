@@ -72,7 +72,7 @@ def test_imf_pinkbook_composite_monthly_series_60_days() -> None:
     cadence validated post-deploy ; if silent-skip emerges, bump to 90d
     or 120d in a follow-up hygiene round (code-reviewer r46 M2 caveat)."""
     for series_id in (
-        "MYAGM2CNM189N",  # China M2 broad-money
+        "MYAGM1CNM189N",  # China M2 broad-money
         "PIORECRUSDM",  # Global Iron Ore Price Index
         "PCOPPUSDM",  # Global Copper Price Index
     ):
@@ -138,7 +138,7 @@ def test_registry_monthly_series_are_at_least_30_days() -> None:
         "IRLTLT01JPM156N",
         "IRLTLT01GBM156N",
         "IRLTLT01AUM156N",  # round-46 ADR-092 §T1.AUD-3
-        "MYAGM2CNM189N",  # round-46 ADR-092 §T1.AUD-1 (IMF PinkBook)
+        "MYAGM1CNM189N",  # round-46 ADR-092 §T1.AUD-1 (IMF PinkBook)
         "PIORECRUSDM",  # round-46 ADR-092 §T1.AUD-2 (IMF PinkBook)
         "PCOPPUSDM",  # round-46 ADR-092 §T1.AUD-2 (IMF PinkBook)
         "UMCSENT",

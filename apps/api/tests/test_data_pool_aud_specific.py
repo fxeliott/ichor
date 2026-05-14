@@ -20,7 +20,8 @@ pattern) :
  10. Degraded-explicit annotation cites ADR-093 in header + composite.
  11. Frequency mismatch warning emitted inline (BTP r34 + JPY r45 precedent).
  12. R24 SUBSET-not-SUPERSET via "degraded explicit" documented inline.
- 13. China M2 TSF caveat (M2 is a PROXY for credit impulse).
+ 13. China M1 (currency + demand deposits) TSF caveat + r46-round-2 audit
+     swap trail (M2 series MYAGM2CNM189N DISCONTINUED Aug 2019).
  14. Composite triangle absent when any of 4 secondary drivers missing.
  15. Iron-without-copper renders Driver 3 with PARTIAL Tetlock note.
  16. Copper-without-iron silently skips Driver 3 entirely (M1 fix gate).
@@ -43,7 +44,7 @@ from ichor_api.services.adr017_filter import is_adr017_clean
 from ichor_api.services.data_pool import _section_aud_specific
 
 
-def _make_fred_stub(au10y=None, dgs10=None, china_m2=None, iron=None, copper=None):
+def _make_fred_stub(au10y=None, dgs10=None, china_m1=None, iron=None, copper=None):
     """Build a _latest_fred replacement that returns canned values per
     series_id. None means "series not available" (returns None)."""
 
@@ -52,8 +53,8 @@ def _make_fred_stub(au10y=None, dgs10=None, china_m2=None, iron=None, copper=Non
             return au10y
         if series_id == "DGS10":
             return dgs10
-        if series_id == "MYAGM2CNM189N":
-            return china_m2
+        if series_id == "MYAGM1CNM189N":
+            return china_m1
         if series_id == "PIORECRUSDM":
             return iron
         if series_id == "PCOPPUSDM":
@@ -66,7 +67,7 @@ def _make_fred_stub(au10y=None, dgs10=None, china_m2=None, iron=None, copper=Non
 # Canonical post-2026 prints used across happy-path tests
 _AU10Y = (4.45, date(2026, 4, 1))  # AU 10Y monthly
 _DGS10 = (4.45, date(2026, 5, 13))  # US 10Y daily
-_CHINA_M2 = (320000.0, date(2026, 4, 1))  # China M2 monthly (CNY-bn)
+_CHINA_M1 = (320000.0, date(2026, 4, 1))  # China M1 monthly (CNY-bn)
 _IRON = (108.50, date(2026, 4, 1))  # Iron Ore composite monthly
 _COPPER = (9420.0, date(2026, 4, 1))  # Copper composite monthly
 
@@ -106,7 +107,7 @@ async def test_returns_empty_when_au10y_missing(monkeypatch) -> None:
     secondary drivers have data)."""
     monkeypatch.setattr(
         "ichor_api.services.data_pool._latest_fred",
-        _make_fred_stub(au10y=None, dgs10=_DGS10, china_m2=_CHINA_M2, iron=_IRON, copper=_COPPER),
+        _make_fred_stub(au10y=None, dgs10=_DGS10, china_m1=_CHINA_M1, iron=_IRON, copper=_COPPER),
     )
     session = AsyncMock()
     md, sources = await _section_aud_specific(session, "AUD_USD")
@@ -132,7 +133,7 @@ async def test_renders_au10y_only_when_secondary_absent(monkeypatch) -> None:
     assert "OECD MEI monthly" in md
     # No secondary blocks
     assert "DGS10 = " not in md
-    assert "China M2" not in md
+    assert "China M1" not in md
     assert "Iron Ore" not in md
     assert "Copper" not in md
     # No composite triangle
@@ -149,7 +150,7 @@ async def test_renders_full_triangle_when_all_drivers_present(monkeypatch) -> No
     + composite triangle + 5 source-stamps."""
     monkeypatch.setattr(
         "ichor_api.services.data_pool._latest_fred",
-        _make_fred_stub(au10y=_AU10Y, dgs10=_DGS10, china_m2=_CHINA_M2, iron=_IRON, copper=_COPPER),
+        _make_fred_stub(au10y=_AU10Y, dgs10=_DGS10, china_m1=_CHINA_M1, iron=_IRON, copper=_COPPER),
     )
     session = AsyncMock()
     md, sources = await _section_aud_specific(session, "AUD_USD")
@@ -158,9 +159,9 @@ async def test_renders_full_triangle_when_all_drivers_present(monkeypatch) -> No
     # Rate-differential block
     assert "DGS10 = 4.45%" in md
     assert "US-AU 10Y differential = " in md
-    # China M2 block
-    assert "China M2 = " in md
-    assert "MYAGM2CNM189N" in md
+    # China M1 block
+    assert "China M1 = " in md
+    assert "MYAGM1CNM189N" in md
     # Commodity block
     assert "Iron Ore (PIORECRUSDM)" in md
     assert "Copper (PCOPPUSDM)" in md
@@ -169,7 +170,7 @@ async def test_renders_full_triangle_when_all_drivers_present(monkeypatch) -> No
     # 5 source-stamps
     assert "FRED:IRLTLT01AUM156N@2026-04-01" in sources
     assert "FRED:DGS10@2026-05-13" in sources
-    assert "FRED:MYAGM2CNM189N@2026-04-01" in sources
+    assert "FRED:MYAGM1CNM189N@2026-04-01" in sources
     assert "FRED:PIORECRUSDM@2026-04-01" in sources
     assert "FRED:PCOPPUSDM@2026-04-01" in sources
     assert len(sources) == 5
@@ -216,7 +217,7 @@ async def test_rendered_text_passes_adr017_filter(monkeypatch) -> None:
     BUY/SELL/LONG NOW/SHORT NOW/etc. token in any rendered branch)."""
     monkeypatch.setattr(
         "ichor_api.services.data_pool._latest_fred",
-        _make_fred_stub(au10y=_AU10Y, dgs10=_DGS10, china_m2=_CHINA_M2, iron=_IRON, copper=_COPPER),
+        _make_fred_stub(au10y=_AU10Y, dgs10=_DGS10, china_m1=_CHINA_M1, iron=_IRON, copper=_COPPER),
     )
     session = AsyncMock()
     md, _ = await _section_aud_specific(session, "AUD_USD")
@@ -234,7 +235,7 @@ async def test_symmetric_AUD_bid_and_AUD_soft_branches_emitted(monkeypatch) -> N
     deflation, China credit contraction) branches."""
     monkeypatch.setattr(
         "ichor_api.services.data_pool._latest_fred",
-        _make_fred_stub(au10y=_AU10Y, dgs10=_DGS10, china_m2=_CHINA_M2, iron=_IRON, copper=_COPPER),
+        _make_fred_stub(au10y=_AU10Y, dgs10=_DGS10, china_m1=_CHINA_M1, iron=_IRON, copper=_COPPER),
     )
     session = AsyncMock()
     md, _ = await _section_aud_specific(session, "AUD_USD")
@@ -259,7 +260,7 @@ async def test_tetlock_invalidation_thresholds_visible_all_drivers(monkeypatch) 
     (ichor-trader r46 RED-2 review post-time-horizon-fix)."""
     monkeypatch.setattr(
         "ichor_api.services.data_pool._latest_fred",
-        _make_fred_stub(au10y=_AU10Y, dgs10=_DGS10, china_m2=_CHINA_M2, iron=_IRON, copper=_COPPER),
+        _make_fred_stub(au10y=_AU10Y, dgs10=_DGS10, china_m1=_CHINA_M1, iron=_IRON, copper=_COPPER),
     )
     session = AsyncMock()
     md, _ = await _section_aud_specific(session, "AUD_USD")
@@ -285,7 +286,7 @@ async def test_degraded_explicit_annotation_in_header_and_composite(monkeypatch)
     'commodity surface gap'."""
     monkeypatch.setattr(
         "ichor_api.services.data_pool._latest_fred",
-        _make_fred_stub(au10y=_AU10Y, dgs10=_DGS10, china_m2=_CHINA_M2, iron=_IRON, copper=_COPPER),
+        _make_fred_stub(au10y=_AU10Y, dgs10=_DGS10, china_m1=_CHINA_M1, iron=_IRON, copper=_COPPER),
     )
     session = AsyncMock()
     md, _ = await _section_aud_specific(session, "AUD_USD")
@@ -310,7 +311,7 @@ async def test_frequency_mismatch_warning_emitted(monkeypatch) -> None:
     the differential as a REGIME indicator, not an intraday signal."""
     monkeypatch.setattr(
         "ichor_api.services.data_pool._latest_fred",
-        _make_fred_stub(au10y=_AU10Y, dgs10=_DGS10, china_m2=_CHINA_M2, iron=_IRON, copper=_COPPER),
+        _make_fred_stub(au10y=_AU10Y, dgs10=_DGS10, china_m1=_CHINA_M1, iron=_IRON, copper=_COPPER),
     )
     session = AsyncMock()
     md, _ = await _section_aud_specific(session, "AUD_USD")
@@ -321,23 +322,32 @@ async def test_frequency_mismatch_warning_emitted(monkeypatch) -> None:
     assert "BTP r34" in md and "JPY r45" in md
 
 
-# ──────────────────────────── China M2 TSF caveat ──────────────────────
+# ──────────────────────────── China M1 TSF caveat ──────────────────────
 
 
 @pytest.mark.asyncio
-async def test_china_m2_tsf_caveat_present(monkeypatch) -> None:
-    """ADR-092 §DEFER firmly : TSF direct collector deferred. M2 is a
-    PROXY for credit impulse, NOT direct TSF. The section MUST surface
-    this caveat inline."""
+async def test_china_m1_tsf_caveat_present(monkeypatch) -> None:
+    """ADR-092 §DEFER firmly + r46-round-2 audit swap : TSF direct collector
+    deferred ; M1 (narrower than M2) is a PROXY for credit impulse, NOT direct
+    TSF. The section MUST surface this caveat inline + acknowledge the swap
+    from the original MYAGM2CNM189N (DISCONTINUED Aug 2019)."""
     monkeypatch.setattr(
         "ichor_api.services.data_pool._latest_fred",
-        _make_fred_stub(au10y=_AU10Y, dgs10=_DGS10, china_m2=_CHINA_M2, iron=_IRON, copper=_COPPER),
+        _make_fred_stub(au10y=_AU10Y, dgs10=_DGS10, china_m1=_CHINA_M1, iron=_IRON, copper=_COPPER),
     )
     session = AsyncMock()
     md, _ = await _section_aud_specific(session, "AUD_USD")
-    assert "M2 is a PROXY for credit impulse" in md
+    # M1 (post-swap) caveat
+    assert "M1 (currency + demand deposits) is a NARROWER aggregate" in md
+    assert "PROXY" in md and "credit impulse" in md
     assert "NOT direct TSF" in md
-    assert "ADR-092" in md  # cited at the M2 caveat block
+    assert "ADR-092" in md  # cited at the caveat block
+    # r46-round-2 audit trail : acknowledge M2 was DISCONTINUED Aug 2019
+    assert "MYAGM2CNM189N" in md  # cited as the discontinued series
+    assert "DISCONTINUED Aug 2019" in md
+    # Barcelona et al. 2022 framework citation for M1 leading-indicator empirics
+    assert "Barcelona" in md
+    assert "Fed IFDP 1360" in md
 
 
 # ──────────────────────────── Composite triangle conditional render ────
@@ -345,23 +355,23 @@ async def test_china_m2_tsf_caveat_present(monkeypatch) -> None:
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    ("dgs10", "china_m2", "iron", "copper"),
+    ("dgs10", "china_m1", "iron", "copper"),
     [
-        (None, _CHINA_M2, _IRON, _COPPER),  # DGS10 missing
-        (_DGS10, None, _IRON, _COPPER),  # China M2 missing
-        (_DGS10, _CHINA_M2, None, _COPPER),  # Iron missing
-        (_DGS10, _CHINA_M2, _IRON, None),  # Copper missing
+        (None, _CHINA_M1, _IRON, _COPPER),  # DGS10 missing
+        (_DGS10, None, _IRON, _COPPER),  # China M1 missing
+        (_DGS10, _CHINA_M1, None, _COPPER),  # Iron missing
+        (_DGS10, _CHINA_M1, _IRON, None),  # Copper missing
     ],
 )
 async def test_composite_absent_when_any_secondary_missing(
-    monkeypatch, dgs10, china_m2, iron, copper
+    monkeypatch, dgs10, china_m1, iron, copper
 ) -> None:
     """Composite triangle requires ALL 4 secondary drivers fresh. Any
     missing → no composite paragraph (other rendered blocks still present
     if their data is available)."""
     monkeypatch.setattr(
         "ichor_api.services.data_pool._latest_fred",
-        _make_fred_stub(au10y=_AU10Y, dgs10=dgs10, china_m2=china_m2, iron=iron, copper=copper),
+        _make_fred_stub(au10y=_AU10Y, dgs10=dgs10, china_m1=china_m1, iron=iron, copper=copper),
     )
     session = AsyncMock()
     md, _ = await _section_aud_specific(session, "AUD_USD")
@@ -379,7 +389,7 @@ async def test_iron_only_renders_partial_driver3_with_softer_tetlock(monkeypatch
     triangle (composite gates on all 4 secondaries)."""
     monkeypatch.setattr(
         "ichor_api.services.data_pool._latest_fred",
-        _make_fred_stub(au10y=_AU10Y, dgs10=_DGS10, china_m2=_CHINA_M2, iron=_IRON, copper=None),
+        _make_fred_stub(au10y=_AU10Y, dgs10=_DGS10, china_m1=_CHINA_M1, iron=_IRON, copper=None),
     )
     session = AsyncMock()
     md, sources = await _section_aud_specific(session, "AUD_USD")
@@ -406,7 +416,7 @@ async def test_copper_only_silently_skips_driver3(monkeypatch) -> None:
     `iron_latest is not None`."""
     monkeypatch.setattr(
         "ichor_api.services.data_pool._latest_fred",
-        _make_fred_stub(au10y=_AU10Y, dgs10=_DGS10, china_m2=_CHINA_M2, iron=None, copper=_COPPER),
+        _make_fred_stub(au10y=_AU10Y, dgs10=_DGS10, china_m1=_CHINA_M1, iron=None, copper=_COPPER),
     )
     session = AsyncMock()
     md, sources = await _section_aud_specific(session, "AUD_USD")
@@ -421,7 +431,7 @@ async def test_copper_only_silently_skips_driver3(monkeypatch) -> None:
     # Other drivers (AU 10Y + DGS10 + M2) still rendered
     assert "AU 10Y = 4.45%" in md
     assert "DGS10 = 4.45%" in md
-    assert "China M2 = " in md
+    assert "China M1 = " in md
 
 
 # ──────────────────────────── Future upgrade path mention ──────────────
@@ -434,7 +444,7 @@ async def test_future_upgrade_path_mentioned_in_composite(monkeypatch) -> None:
     AKShare re-vetting)."""
     monkeypatch.setattr(
         "ichor_api.services.data_pool._latest_fred",
-        _make_fred_stub(au10y=_AU10Y, dgs10=_DGS10, china_m2=_CHINA_M2, iron=_IRON, copper=_COPPER),
+        _make_fred_stub(au10y=_AU10Y, dgs10=_DGS10, china_m1=_CHINA_M1, iron=_IRON, copper=_COPPER),
     )
     session = AsyncMock()
     md, _ = await _section_aud_specific(session, "AUD_USD")
@@ -454,7 +464,7 @@ async def test_framework_dois_present(monkeypatch) -> None:
     (Engel-West 2005 + Chen-Rogoff 2003 + Ready-Roussanov-Ward 2017)."""
     monkeypatch.setattr(
         "ichor_api.services.data_pool._latest_fred",
-        _make_fred_stub(au10y=_AU10Y, dgs10=_DGS10, china_m2=_CHINA_M2, iron=_IRON, copper=_COPPER),
+        _make_fred_stub(au10y=_AU10Y, dgs10=_DGS10, china_m1=_CHINA_M1, iron=_IRON, copper=_COPPER),
     )
     session = AsyncMock()
     md, _ = await _section_aud_specific(session, "AUD_USD")
@@ -476,7 +486,7 @@ async def test_r24_subset_not_superset_documented_inline(monkeypatch) -> None:
     explicit' + ADR-093."""
     monkeypatch.setattr(
         "ichor_api.services.data_pool._latest_fred",
-        _make_fred_stub(au10y=_AU10Y, dgs10=_DGS10, china_m2=_CHINA_M2, iron=_IRON, copper=_COPPER),
+        _make_fred_stub(au10y=_AU10Y, dgs10=_DGS10, china_m1=_CHINA_M1, iron=_IRON, copper=_COPPER),
     )
     session = AsyncMock()
     md, _ = await _section_aud_specific(session, "AUD_USD")
@@ -494,7 +504,7 @@ async def test_tetlock_thresholds_monthly_cadence_not_daily(monkeypatch) -> None
     REGIME-indicator framing."""
     monkeypatch.setattr(
         "ichor_api.services.data_pool._latest_fred",
-        _make_fred_stub(au10y=_AU10Y, dgs10=_DGS10, china_m2=_CHINA_M2, iron=_IRON, copper=_COPPER),
+        _make_fred_stub(au10y=_AU10Y, dgs10=_DGS10, china_m1=_CHINA_M1, iron=_IRON, copper=_COPPER),
     )
     session = AsyncMock()
     md, _ = await _section_aud_specific(session, "AUD_USD")
