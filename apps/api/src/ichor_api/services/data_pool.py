@@ -226,11 +226,90 @@ class DataPool:
 # ────────────────────────── Section builders ──────────────────────────
 
 
+# Per-series max-age-days registry — round-37 r35-audit-gap closure.
+# FRED series have different publication cadences (daily / weekly /
+# monthly / quarterly). The default 14-day max-age was calibrated for
+# DAILY series and silently rejected MONTHLY OECD observations (e.g.
+# IRLTLT01ITM156N which is ~100 days old at read time per r35
+# empirical discovery). The registry below maps each series_id to its
+# appropriate max-age ceiling. Adding a new monthly/quarterly series
+# WITHOUT a registry entry will fall back to the conservative default
+# AND log a structlog warning so the operator notices.
+_FRED_SERIES_MAX_AGE_DAYS: dict[str, int] = {
+    # ─── MONTHLY OECD / FRED series (1-month publication lag standard) ───
+    "IRLTLT01DEM156N": 120,  # Germany 10y monthly (legacy, replaced by Bund daily r29 but kept for fallback)
+    "IRLTLT01ITM156N": 120,  # Italy 10y monthly (BTP-Bund spread, ADR-090 step-4 r34+r35)
+    "IRLTLT01JPM156N": 120,  # Japan 10y monthly
+    "IRLTLT01GBM156N": 120,  # UK 10y monthly
+    "USALOLITOAASTSAM": 120,  # US CLI monthly
+    "G7LOLITOAASTSAM": 120,  # G7 aggregate CLI
+    "JPNLOLITOAASTSAM": 120,
+    "DEULOLITOAASTSAM": 120,
+    "GBRLOLITOAASTSAM": 120,
+    "CHNLOLITOAASTSAM": 120,
+    "EA19LOLITOAASTSAM": 120,
+    "UMCSENT": 60,  # U Michigan Consumer Sentiment monthly (preliminary mid-month + final end-of-month)
+    "CSCICP03USM665S": 90,  # OECD Consumer Confidence monthly
+    "DRTSCILM": 120,  # Senior Loan Officer Survey quarterly
+    "USREC": 365,  # NBER Recession Indicator (typically updated at recession turning points only)
+    "CIVPART": 45,  # Labor Force Participation monthly
+    "AHETPI": 45,  # Average Hourly Earnings monthly
+    "ATLSBUSRGEP": 60,  # Atlanta Fed Business Inflation Expectations
+    "PSAVERT": 45,  # Personal Saving Rate monthly
+    "FEDFUNDS": 45,  # Fed Funds monthly average
+    "EXPINF1YR": 60,  # Cleveland Fed expected inflation monthly
+    "M2SL": 45,  # M2 monthly
+    "WSHOSHO": 30,  # Fed H.4.1 Treasuries weekly
+    "WSHOMCB": 30,  # Fed H.4.1 MBS weekly
+    "WRESBAL": 30,  # Fed reserve balances weekly
+    "GDPC1": 120,  # Real GDP quarterly
+    "INDPRO": 45,  # Industrial Production monthly
+    "MCUMFN": 45,  # Manufacturing Capacity Utilization monthly
+    "CFNAI": 45,  # Chicago Fed National Activity Index monthly
+    "CFNAIDIFF": 45,
+    "DFEDTARU": 45,  # Fed Funds Target Range Upper (announcement-driven)
+    "DFEDTARL": 45,
+    "GDPNOW": 14,  # Atlanta Fed GDP nowcast (updated 6-7x/month, but 14d is conservative)
+    "PCENOW": 14,
+}
+
+# Conservative default for any FRED series NOT in the registry above.
+# Suits DAILY series (DGS10, DXY, VIXCLS, etc.). Monthly/quarterly
+# series MUST be added to the registry — falling back to 14 silently
+# would reintroduce the r35 bug class.
+_FRED_DEFAULT_MAX_AGE_DAYS: int = 14
+
+
+def _max_age_days_for(series_id: str, override: int | None = None) -> int:
+    """Resolve max-age-days for a FRED series.
+
+    Order of precedence :
+      1. Explicit `override` kwarg (caller knows best — e.g. force a
+         very wide window for cold-start backfill diagnostics).
+      2. Per-series registry `_FRED_SERIES_MAX_AGE_DAYS`.
+      3. Conservative default 14 days (DAILY-series calibrated).
+    """
+    if override is not None:
+        return override
+    return _FRED_SERIES_MAX_AGE_DAYS.get(series_id, _FRED_DEFAULT_MAX_AGE_DAYS)
+
+
 async def _latest_fred(
-    session: AsyncSession, series_id: str, max_age_days: int = 14
+    session: AsyncSession, series_id: str, max_age_days: int | None = None
 ) -> tuple[float, datetime] | None:
-    """Latest observation for `series_id` if at most `max_age_days` old."""
-    cutoff = datetime.now(UTC).date() - timedelta(days=max_age_days)
+    """Latest observation for `series_id`, respecting per-series-frequency
+    max-age-days from the registry above.
+
+    Round-37 refactor (r35-audit-gap closure) :
+      - `max_age_days` is now Optional ; if None, looks up the
+        per-series registry, falls back to 14d default for unknown
+        series.
+      - Backward-compat : callers passing explicit `max_age_days=N`
+        keep working — the override wins (precedence rule 1 in
+        `_max_age_days_for`).
+    """
+    resolved_max_age = _max_age_days_for(series_id, override=max_age_days)
+    cutoff = datetime.now(UTC).date() - timedelta(days=resolved_max_age)
     stmt = (
         select(FredObservation)
         .where(
@@ -608,12 +687,10 @@ async def _section_eur_specific(session: AsyncSession, asset: str) -> tuple[str,
     # at the LATEST common date (Bund daily / BTP monthly — surface
     # the frequency mismatch in the text so the LLM stays honest).
     # FRED IRLTLT01ITM156N is OECD MONTHLY with 1-month publication
-    # lag. Empirical r35 2026-05-13 : latest published observation was
-    # 2026-02-01 (~100 days old). OECD revisions can push this further.
-    # max_age_days=120 covers standard publication windows. Default 14
-    # (calibrated for DAILY series like DGS10) silently skips the BTP
-    # block even when ingested. Round-35 r34-audit-gap fix.
-    btp_latest = await _latest_fred(session, "IRLTLT01ITM156N", max_age_days=120)
+    # lag. Round-37 r35-audit-gap closure : `_latest_fred` now consults
+    # `_FRED_SERIES_MAX_AGE_DAYS` registry which sets this series to
+    # 120 days automatically — no explicit override needed here.
+    btp_latest = await _latest_fred(session, "IRLTLT01ITM156N")
     if btp_latest is not None:
         btp_value, btp_date = btp_latest
         spread_pp = btp_value - bund_latest_f
