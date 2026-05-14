@@ -74,7 +74,7 @@
 > 2. ✅ **W114** ADWIN concept-drift detector (`services/drift_detector.py` + `river>=0.21`) ; nightly timer `ichor-drift-detector.timer` armed 02:00 Paris.
 > 3. ✅ **W115** Vovk-Zhdanov AA aggregator (η=1 Brier game, JMLR 2009 Prop 2) + `brier_aggregator_weights` table (migration 0043) + Sunday timer `ichor-brier-aggregator.timer` 03:30 Paris. **AUTONOMOUSLY FIRED 2026-05-13 03:32:39 CEST** — 24 pocket-weights rows, skill evolution per pocket visible via `/v1/phase-d/aggregator-weights`.
 > 4. ✅ **W116** Ahmadian Penalized Brier Score λ=2.0 (arXiv:2407.17697) + `pass3_addenda` store (migration 0044) + Sunday cron `ichor-post-mortem-pbs.timer` 18:00 Paris (armed Sun 2026-05-17 18:01).
-> 5. ✅ **W116c** LLM addendum generator via canonical Voie D entry (`ichor_agents.claude_runner.call_agent_task_async`) + ADR-017 regex defense-in-depth (`_BANNED_TOKENS` frozenset + `_validate_no_signals`) ; Sunday cron `ichor-addendum-generator.timer` 19:00 Paris armed (fail-closed without `phase_d_w117a_pass3_addenda_enabled` feature flag).
+> 5. ✅ **W116c** LLM addendum generator via canonical Voie D entry (`ichor_agents.claude_runner.call_agent_task_async`) + ADR-017 regex defense-in-depth (`_BANNED_TOKENS` frozenset + `_validate_no_signals`) ; Sunday cron `ichor-addendum-generator.timer` 19:00 Paris armed (fail-closed without `w116c_llm_addendum_enabled` feature flag — source of truth `apps/api/src/ichor_api/services/addendum_generator.py:21` + `cli/run_addendum_generator.py:44` ; earlier CLAUDE.md drafts cited `phase_d_w117a_pass3_addenda_enabled` which was a conflation with the W117a DSPy foundation and does NOT exist anywhere in code).
 > 6. ✅ **W117a** DSPy 3.2 `ClaudeRunnerLM(BaseLM)` Voie D wrapper + sentinel namespace (`_ALLOWED_MODEL_TAGS = {"ichor-claude-runner-haiku", "-sonnet", "-opus"}`) + try-import stub class pattern + 413 → `dspy.ContextWindowExceededError` mapping + asyncio nested-loop detection. Foundation for W117b GEPA optimizer wiring (deferred next session).
 >
 > **Empirical 3-witness proof of Vovk autonomous fire** : (a) `systemctl list-timers` shows `Wed 2026-05-13 03:32:39 CEST 9h ago ichor-brier-aggregator.service` ; (b) `SELECT count(*) FROM auto_improvement_log WHERE loop_kind='brier_aggregator'` → 16 ; (c) `GET /v1/phase-d/aggregator-weights` returns 24 rows (8 pockets × 3 experts) with prod_predictor weights evolved per `(asset, regime)` pocket — NAS100/usd_complacency 0.358→0.464 (gaining skill), EUR_USD/usd_complacency 0.300 (anti-skill confirmed n=13 stat-significant).
@@ -187,14 +187,35 @@ D:\Ichor
   wired (auth.py JWT verifier + HttpRunnerClient header injection +
   lifespan production guard).
 
-## Latest migrations (head 0045)
+## Latest migrations (head 0048)
 
-- **head 0045** — `0045_realized_open_session.py` (W118, ADR-087
+- **head 0048** — `0048_estr_observations.py` (r34, ADR-090 P0 step-4) —
+  `estr_observations` TimescaleDB hypertable + ORM `EstrObservation` +
+  UNIQUE(observation_date) + CHECK rate_pct ∈ [-1.5, 10.0] %.
+  Source : ECB Data Portal SDMX `EST/B.EU000A2X2A25.WT` (COMMA delimiter,
+  NOT semicolon like Bundesbank). 1692 rows backfilled
+  2019-10-01 → 2026-05-12 (€STR = 1.929% empirically verified).
+- **0047** — `0047_gepa_candidate_prompts.py` (r32, W117b sub-wave .b,
+  ADR-091) — `gepa_candidate_prompts` table + immutable trigger
+  (ADR-029-class with sanctioned `audit_purge_mode` GUC bypass) +
+  DB CHECK `ck_gepa_candidate_adr017_hard_zero` enforcing
+  `adr017_violations = 0 OR status = 'rejected'` (defense-in-depth
+  3rd layer for ADR-091 §Invariant 2 hard-zero amendment).
+- **0046** — `0046_bund_10y_observations.py` (r29, ADR-090 P0 step-1) —
+  `bund_10y_observations` TimescaleDB hypertable + UNIQUE(observation_date)
+  - CHECK yield_pct ∈ [-2.0, 10.0] %. Source : Bundesbank SDMX
+    `BBSIS/D.I.ZAR.ZI.EUR.S1311.B.A604.R10XX.R.A.A._Z._Z.A` (SEMICOLON
+    delimiter ; dual CSV+XML auto-detect parser).
+- **0045** — `0045_realized_open_session.py` (W118, ADR-087
   Phase D loop closure) — ALTER `session_card_audit` to add
-  `realized_open_session VARCHAR(16)` for Pass-3 addenda climatology
+  `realized_open_session Float nullable` for Pass-3 addenda climatology
   baseline. Empirical climatology built from realized opens (last 30
-  sessions per pocket). LIVE on Hetzner 2026-05-13. Idempotent
-  ADD COLUMN IF NOT EXISTS.
+  sessions per pocket). NB : implementation is `sa.Float() nullable=True`
+  per `0045_realized_open_session.py:45` ; earlier CLAUDE.md drafts
+  cited "VARCHAR(16) + idempotent ADD COLUMN IF NOT EXISTS" which was
+  wrong on both type and idempotence (raw ADD COLUMN, no IF NOT EXISTS).
+  Idempotence on second `alembic upgrade` is provided by alembic itself
+  via `alembic_version` ; the SQL is not idempotent in isolation.
 - **0044** — `0044_pass3_addenda.py` (W116, ADR-087 §addenda store) —
   `pass3_addenda` store with 4 CHECK constraints (regime ∈ allowed,
   asset ∈ ADR-083 D1 6-card universe, source ∈ {`llm_generated`,
@@ -598,7 +619,8 @@ CI-guarded via W90 invariant test (no`import anthropic`, no
 SL\d+|STOP-LOSS|TAKE-PROFIT|TARGET \d+\.\d+|ENTRY \d+\.\d+|
 LEVERAGE|MARGIN`) + `_validate_no_signals()` filter BEFORE
   persistence. Feature-flag fail-closed
-  (`phase_d_w117a_pass3_addenda_enabled`, currently OFF) ;
+  (`w116c_llm_addendum_enabled`, currently OFF — canonical name per
+  `services/addendum_generator.py:21` + `cli/run_addendum_generator.py:44`) ;
   Sunday cron armed `ichor-addendum-generator.timer` 19:03 CEST.
 - **W117a DSPy foundation** ✅ (round 26, PR #101) —
   `services/dspy_claude_runner_lm.py` custom DSPy 3.2 `BaseLM`

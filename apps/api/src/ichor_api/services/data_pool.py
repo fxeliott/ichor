@@ -714,6 +714,170 @@ async def _section_eur_specific(session: AsyncSession, asset: str) -> tuple[str,
     return "\n".join(lines), sources
 
 
+async def _section_xau_specific(session: AsyncSession, asset: str) -> tuple[str, list[str]]:
+    """## XAU-specific signals — Gold-Real-Yield-Triangle (r41, GAP-A continuation).
+
+    Renders gold-USD specific macro signals for XAU_USD Pass-2 via the
+    canonical Erb/Harvey 2013 real-yield + dollar framework :
+      1. **DFII10 daily** (US 10Y TIPS real yield) — primary gold driver.
+         Source : FRED `DFII10`, daily publication, max-age default 14d.
+         Inverse-real-yield law : rising real yields raise the opportunity
+         cost of holding non-yielding gold.
+      2. **DTWEXBGS daily** (USD broad trade-weighted, DXY proxy) —
+         counter-driver. Source : FRED `DTWEXBGS`, daily publication.
+         Gold is negotiated in USD, foreign buyers face higher cost as
+         USD strengthens. Under safe-haven stress USD and gold can co-bid.
+
+    Gated on `asset == "XAU_USD"` — early-return ("", []) otherwise.
+    `build_data_pool` appends only when `sources` is non-empty so a
+    pre-FRED-ingestion XAU_USD silently skips.
+
+    SYMMETRIC LANGUAGE discipline (ichor-trader r32+ doctrine) :
+    each signal emits BOTH interpretive branches (gold-bid + gold-soft)
+    and lets the Pass-2 LLM pick consistent with Pass-1's regime label.
+
+    TETLOCK INVALIDATION discipline (r39+ codified, r40 R23 default-
+    round-opener confirmation) : threshold-flip conditions emitted inline
+    so a falsified hypothesis is visible immediately rather than waiting
+    for the n=13 statistical lag observed on EUR_USD/usd_complacency.
+
+    R24 SUBSET-not-SUPERSET mirror : the gold-real-yield triangle has BOTH
+    daily proxies already in `fred_observations` (DFII10 + DTWEXBGS) — no
+    monthly OECD staleness trap (cf round-40 GBP rate-differential defer).
+    """
+    if asset != "XAU_USD":
+        return "", []
+
+    # ─── DFII10 (US 10Y TIPS real yield) — primary gold driver ─────
+    # Erb/Harvey 2013 "The Golden Dilemma" : gold has a stable long-run
+    # inverse relationship with US real yields (TIPS-implied). Empirical
+    # correlation -0.5 to -0.7 baseline (catalog.py:181-187 XAU/DFII10
+    # divergence alert). FRED DFII10 is DAILY publication ; the default
+    # 14-day max-age is sufficient.
+    dfii_cutoff = datetime.now(UTC).date() - timedelta(days=_max_age_days_for("DFII10"))
+    dfii_stmt = (
+        select(FredObservation.observation_date, FredObservation.value)
+        .where(
+            FredObservation.series_id == "DFII10",
+            FredObservation.observation_date >= dfii_cutoff,
+            FredObservation.value.is_not(None),
+        )
+        .order_by(desc(FredObservation.observation_date))
+        .limit(6)
+    )
+    dfii_rows = (await session.execute(dfii_stmt)).all()
+    if not dfii_rows:
+        return "", []  # DFII10 missing → silent skip (primary driver)
+
+    dfii_latest_date, dfii_latest_value = dfii_rows[0]
+    dfii_latest_f = float(dfii_latest_value)
+    sources = [f"FRED:DFII10@{dfii_latest_date:%Y-%m-%d}"]
+
+    lines = [
+        "## XAU-specific signals",
+        "### US 10Y TIPS real yield (DFII10) — primary gold driver",
+        f"- DFII10 = {dfii_latest_f:.2f}% (FRED, {dfii_latest_date:%Y-%m-%d})",
+    ]
+
+    if len(dfii_rows) >= 6:
+        prior_date, prior_value = dfii_rows[5]
+        delta_bp = (dfii_latest_f - float(prior_value)) * 100.0
+        sign = "+" if delta_bp >= 0 else "−"
+        lines.append(
+            f"- 5-trading-day change : {sign}{abs(delta_bp):.1f} bp "
+            f"(from {float(prior_value):.2f}% on {prior_date:%Y-%m-%d})"
+        )
+        lines.append(
+            "- Interpretation depends on the Pass-1 regime label : "
+            "in a calm regime, real-yield rise raises gold's opportunity "
+            "cost (XAU-soft, Erb/Harvey law) ; under safe-haven stress "
+            "(vol_elevated or tail_fear from Pass-1), the same rise can "
+            "be over-ridden by flight demand (XAU-bid). A fall is the "
+            "symmetric reverse. The Pass-2 LLM should select the branch "
+            "matching the regime context above."
+        )
+        lines.append(
+            "- Tetlock invalidation : Erb/Harvey real-yield support "
+            "thesis is invalidated if DFII10 rises > +20 bp over 5 "
+            "sessions WHILE Pass-1 regime is calm (no tail_fear or "
+            "vol_elevated label). The +20 bp threshold tracks DFII10 "
+            "historical 5-session 1.5-2 sigma move (daily sigma ~10-12 bp). "
+            "Safe-haven thesis is invalidated if VIX drops below 16 AND "
+            "SKEW < 135 concurrent (Whaley 2009 vol-of-vol regime, "
+            "normal-tail pricing)."
+        )
+
+    # ─── DTWEXBGS (USD broad trade-weighted) — counter-driver ──────
+    # Dollar smile : in calm regime USD and gold are inverse ; under
+    # left-tail crisis (Stephen Jen broken-smile) USD-bid AND gold-bid
+    # co-occur. DTWEXBGS is the broad index FRED publishes daily ; DXY
+    # ICE is a narrower 6-currency basket also tracked in fred.py:49.
+    dxy_cutoff = datetime.now(UTC).date() - timedelta(days=_max_age_days_for("DTWEXBGS"))
+    dxy_stmt = (
+        select(FredObservation.observation_date, FredObservation.value)
+        .where(
+            FredObservation.series_id == "DTWEXBGS",
+            FredObservation.observation_date >= dxy_cutoff,
+            FredObservation.value.is_not(None),
+        )
+        .order_by(desc(FredObservation.observation_date))
+        .limit(6)
+    )
+    dxy_rows = (await session.execute(dxy_stmt)).all()
+    if dxy_rows:
+        dxy_latest_date, dxy_latest_value = dxy_rows[0]
+        dxy_latest_f = float(dxy_latest_value)
+        sources.append(f"FRED:DTWEXBGS@{dxy_latest_date:%Y-%m-%d}")
+        lines.append("### USD broad trade-weighted (DTWEXBGS) — counter-driver")
+        lines.append(f"- DTWEXBGS = {dxy_latest_f:.2f} (FRED, {dxy_latest_date:%Y-%m-%d})")
+        if len(dxy_rows) >= 6:
+            dxy_prior_date, dxy_prior_value = dxy_rows[5]
+            dxy_prior_f = float(dxy_prior_value)
+            dxy_pct = ((dxy_latest_f - dxy_prior_f) / dxy_prior_f) * 100.0
+            dxy_sign = "+" if dxy_pct >= 0 else "−"
+            lines.append(
+                f"- 5-trading-day change : {dxy_sign}{abs(dxy_pct):.2f}% "
+                f"(from {dxy_prior_f:.2f} on {dxy_prior_date:%Y-%m-%d})"
+            )
+            lines.append(
+                "- Interpretation : USD strength is gold-soft in a "
+                "calm regime (foreign buyers face higher cost) ; under "
+                "left-tail crisis (Stephen Jen broken-smile), USD and "
+                "gold can co-bid as defensive assets. A fall is the "
+                "symmetric reverse. The Pass-2 LLM picks the branch "
+                "matching the Pass-1 regime."
+            )
+            lines.append(
+                "- Tetlock invalidation : USD-strength gold-soft thesis "
+                "is invalidated if DTWEXBGS rises > 1.5% over 5 sessions "
+                "WHILE DFII10 simultaneously falls (suggests stagflation "
+                "regime, both can co-rise on flight) ; gold-bid co-flight "
+                "thesis is invalidated if HY OAS does not widen by more "
+                "than +50 bp during the DTWEXBGS up-move (cycle-invariant "
+                "delta semantics aligned with the LIQUIDITY_TIGHTENING "
+                "alert : no funding-stress delta = calm-regime gold-soft "
+                "branch confirmed)."
+            )
+
+    # ─── Gold-Real-Yield triangle composite (R24 SUBSET-not-SUPERSET) ──
+    # Surface ONLY when BOTH series are fresh — the framework needs the
+    # 2-driver pairing to disambiguate stagflation from normal regimes.
+    # Single-driver renders above stand alone in their own right.
+    if len(dfii_rows) >= 6 and dxy_rows and len(dxy_rows) >= 6:
+        lines.append("### Gold-Real-Yield triangle (Erb/Harvey + dollar-smile)")
+        lines.append(
+            "- The 2-driver gold pricing framework is FULLY available "
+            "for this asset (R24 SUBSET-not-SUPERSET clears). When "
+            "DFII10 and DTWEXBGS move in OPPOSITE directions the "
+            "Pass-2 narrative should emphasise the DOMINANT mover ; "
+            "when they CO-MOVE the regime is either flight (both up "
+            "under stress, gold-bid co-flight override) or risk-on "
+            "(both down, gold-soft with neutral-to-modest conviction)."
+        )
+
+    return "\n".join(lines), sources
+
+
 async def _section_rate_diff(session: AsyncSession, asset: str) -> tuple[str, list[str]]:
     """## Rate differential — US 10Y minus the relevant foreign 10Y for FX pairs."""
     pair = _RATE_DIFF_PAIRS.get(asset)
@@ -2755,6 +2919,15 @@ async def build_data_pool(
     eur_md, eur_src = await _section_eur_specific(session, asset)
     if eur_src:
         sections.append(("eur_specific", eur_md, eur_src))
+
+    # Round-41 — XAU-specific Gold-Real-Yield-Triangle (GAP-A continuation,
+    # R24 SUBSET-not-SUPERSET clears : both DFII10 + DTWEXBGS are daily-
+    # available in fred_observations, no monthly-OECD staleness trap).
+    # Asset-gated to XAU_USD ; silent skip otherwise OR if DFII10 absent
+    # (primary gold driver — without it, the section refuses to render).
+    xau_md, xau_src = await _section_xau_specific(session, asset)
+    if xau_src:
+        sections.append(("xau_specific", xau_md, xau_src))
 
     poly_md, poly_src = await _section_polygon_intraday(session, asset)
     sections.append(("polygon_intraday", poly_md, poly_src))
