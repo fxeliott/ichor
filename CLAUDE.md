@@ -2,7 +2,9 @@
 
 > Auto-injected at every session start. Keep terse and current.
 >
-> **Last sync: 2026-05-14 09:15 CEST — ROUND-38 SHIPPED : cross_asset_matrix EUR_USD symmetric bias hints (audit-gap #2 partial closure — n=13 anti-skill pocket usd_complacency regime now surfaces 3 EUR-bullish hints mirroring 3 USD-positive ones) + ADR-079 formal Art 50(2)→Art 50(4) deployer amendment (W88 docstring corrected r35, ADR text out-of-sync until r38)** : main HEAD = `8459fa7` (PR #120 round-38 omnibus). 1 PR merged r38. 5 new symmetry tests + 70/70 EUR+invariant regression + 52/52 cross_asset+eur_specific+data_pool regression. NO functional change in ADR-079 amendment (header set + W89 well-known unchanged) — pure doctrinal hygiene. Frontend gel intact rounds 13-38 (26 rounds zero `apps/web2`). ZERO Anthropic API spend.
+> **Last sync: 2026-05-14 10:20 CEST — ROUND-39 SHIPPED : W90 docstring-pin for ai_watermark.py Art 50(4) DEPLOYER framing (anti-future-drift guard, audit-gap #12 closure) + GAP-C closure (Tetlock invalidation thresholds inline on cross_asset_matrix EUR-bid hints, ichor-trader r39 audit catch)** : main HEAD = `a1ccfcb` (PR #122 round-39 omnibus 2-commit squash). 1 PR merged r39. ichor-trader subagent caught 2 RED gaps for r40 menu : GAP-A (7 other asset pairs asymmetric same way EUR_USD was pre-r38, GBP_USD literally `list(eur_usd)` copy — 1.5 day) + GAP-B (RegimeQuadrant ENUM US-centric ceiling, requires ADR-093 + Vovk weights schema migration — 3 day). Frontend gel rounds 13-39 (27 rounds zero `apps/web2`). ZERO Anthropic API spend.
+>
+> **Round-38 line preserved for archeology** : ROUND-38 SHIPPED : cross_asset_matrix EUR_USD symmetric bias hints + ADR-079 formal Art 50(2)→Art 50(4) deployer amendment. main HEAD was `7440cda` post-r38. 2 PRs merged r38.
 >
 > **Round-37 line preserved for archeology** : ROUND-37 SHIPPED : 3 W90 guards for gepa_optimizer + `_FRED_SERIES_MAX_AGE_DAYS` registry + bundesbank r32c-followup fixtures. main HEAD was `0737c7e` post-r37. 2 PRs merged r37.
 >
