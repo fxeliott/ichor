@@ -36,6 +36,7 @@ upstream data. ZERO LLM call. ZERO new paid feed. ZERO ban-risk
 
 from .gamma_flip import compute_gamma_flip_levels
 from .peg_break import compute_hkma_peg_break
+from .polymarket import compute_polymarket_decision_levels
 from .tga import compute_tga_key_level
 from .types import KeyLevel
 from .vol_regime import (
@@ -49,6 +50,7 @@ __all__ = [
     "compute_gamma_flip_levels",
     "compute_hkma_peg_break",
     "compute_hy_oas_percentile",
+    "compute_polymarket_decision_levels",
     "compute_skew_regime_switch",
     "compute_tga_key_level",
     "compute_vix_regime_switch",

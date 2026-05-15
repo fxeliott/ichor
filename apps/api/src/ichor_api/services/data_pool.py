@@ -616,6 +616,7 @@ async def _section_key_levels(session: AsyncSession) -> tuple[str, list[str]]:
         compute_gamma_flip_levels,
         compute_hkma_peg_break,
         compute_hy_oas_percentile,
+        compute_polymarket_decision_levels,
         compute_skew_regime_switch,
         compute_tga_key_level,
         compute_vix_regime_switch,
@@ -653,7 +654,13 @@ async def _section_key_levels(session: AsyncSession) -> tuple[str, list[str]]:
             levels.append(kl)
             sources.append(kl.source)
 
-    # r58+ : polymarket_decision, peg_break_pboc_fix here.
+    # r58 : polymarket_decision (top-N macro markets in extreme zones).
+    for kl in await compute_polymarket_decision_levels(session):
+        levels.append(kl)
+        sources.append(kl.source)
+
+    # Future : peg_break_pboc_fix when DEXCHUS history >100 rows + CFETS
+    # source ADR. call_wall + put_wall optional from gex_snapshots extras.
 
     if not levels:
         body = (
