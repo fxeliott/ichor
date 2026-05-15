@@ -1,6 +1,24 @@
 # ADR-095: e-Stat MoF FX intervention monthly collector (Tier 2 GAP-D upgrade)
 
-**Status**: PROPOSED (round-46-round-5, 2026-05-14) — awaiting Eliot ratification +
+**Status**: **Accepted** (round-48, 2026-05-15) — ratified by Eliot post-empirical-Path-B-confirmation. Round-46-round-10 researcher deep-dive RESOLVED the statsDataId mystery : **`000040061200` is a `stat_infid` (file ID), NOT an API `statsDataId`**. The dataset is FILE-ONLY on e-Stat (database entries=0, file entries=1 per e-Stat search result for `toukei=00350502`). The supposed Path A "e-Stat API" benefit does NOT exist for this dataset — there is no `getStatsData?statsDataId=...` queryable version. **Path B is the canonical path** : MoF direct CSV at `https://www.mof.go.jp/policy/international_policy/reference/feio/foreign_exchange_intervention_operations.csv` (Apr 1991 → present, Shift-JIS encoding, no auth needed, single static URL stable across MoF refreshes).
+
+## Round-46-round-10 amendment (2026-05-15) — Path A is mythical, Path B is canonical
+
+The 4 prior rounds of research (r46-r2 + r46-r5 + r46-r7 + this r10) attempted to find a non-existent e-Stat API statsDataId. The definitive r10 finding : e-Stat hosts this dataset as a FILE only, NOT as an API-queryable database. The implementation target is therefore unambiguously the MoF direct CSV (Path B).
+
+**Implementation target** :
+
+- **MoF FX intervention CSV** : `https://www.mof.go.jp/policy/international_policy/reference/feio/foreign_exchange_intervention_operations.csv`
+- **Coverage** : April 1991 → present (~450+ rows)
+- **Cadence** : monthly totals released monthly, intervention-by-intervention details quarterly
+- **Encoding** : Shift-JIS (`cp932`) — collector MUST `pd.read_csv(..., encoding='shift_jis')` not UTF-8
+- **Auth** : none (public static CSV)
+- **License** : MoF public data, attribution via source-stamp `MOF:feio@<YYYY-MM>`
+- **No appId needed** — eliminates the e-Stat registration friction from ADR-092 §T2.JPY-Intervention
+
+This pivot REMOVES both Eliot manual steps (statsDataId verify + appId registration) entirely. Implementation cleared for ship in round-49+ following the standard CSV-collector pattern.
+
+**Original Status** (preserved for archeology) : PROPOSED (round-46-round-5, 2026-05-14) — awaiting Eliot ratification +
 empirical statsDataId verification step. No code shipped by this ADR.
 
 **Date**: 2026-05-14
