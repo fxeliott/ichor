@@ -35,14 +35,15 @@ Mirror the BTP-via-FRED r34 inline pattern : `_section_jpy_specific` and `_secti
 - **Framework anchor**: **Engel-West 2005**, "Exchange Rates and Fundamentals", J. Political Economy 113(3):485-517, DOI:10.1086/429137 — under near-unity discount factor, rate-differential proxies USD/JPY directional bias even when fundamentals are quasi-martingale.
 - **Computed alongside**: `FRED:DGS10` (US 10Y daily) → `(DGS10 - IRLTLT01JPM156N)` US-JP 10Y differential. Cadence mismatch (daily / monthly) → surface as REGIME indicator, not intraday signal.
 
-#### T1.AUD-1 — China M2 monthly via FRED `MYAGM2CNM189N`
+#### T1.AUD-1 — China M1 monthly via FRED `MYAGM1CNM189N` (post r46-round-2 audit swap from discontinued `MYAGM2CNM189N`)
 
-- **Endpoint**: `https://api.stlouisfed.org/fred/series/observations?series_id=MYAGM2CNM189N`
+- **Endpoint**: `https://api.stlouisfed.org/fred/series/observations?series_id=MYAGM1CNM189N`
+- **r46-round-2 audit amendment**: the originally-proposed `MYAGM2CNM189N` (M2 broad-money) was empirically DISCONTINUED Aug 2019 per IMF IFS / FRED — last observation 2019-08, ~6 years stale. Swapped to `MYAGM1CNM189N` (M1 = currency + demand deposits, same IMF IFS family, LIVE through Dec 2025 per researcher cache lookup). M1 is narrower than M2 but PRESERVES Chen-Rogoff transmission proxy.
 - **Ingestion status**: ❌ NOT in `fred_extended.py` yet — adding 1 line in r46 implementation is the only delta.
-- **Cadence**: IMF-sourced monthly.
-- **History**: 1996 → present.
-- **Registry add**: `_FRED_SERIES_MAX_AGE_DAYS["MYAGM2CNM189N"] = 60` (monthly 1-2 month lag).
-- **Framework anchor**: AUD as commodity-currency proxy for China credit impulse — China M2 YoY growth is a known leading indicator of iron-ore demand and AUD spot via the China-property-construction channel. Adjacent to **Chen-Rogoff 2003** "Commodity Currencies" J.Int.Econ 60(1):133-160, DOI:10.1016/S0022-1996(02)00072-7 (commodity terms-of-trade transmitted to AUD spot in real time).
+- **Cadence**: IMF IFS monthly, 1-2 month publication lag.
+- **History**: 1996 → present (verified Dec 2025 latest).
+- **Registry add**: `_FRED_SERIES_MAX_AGE_DAYS["MYAGM1CNM189N"] = 60` (monthly 1-2 month lag).
+- **Framework anchor**: AUD as commodity-currency proxy for China credit impulse — China M1 YoY surges are a known leading indicator of iron-ore demand and AUD spot via the China-property-construction channel, leading CFETS commodity demand by ~3-6 months per **Barcelona-Cascaldi-Garcia-Hoek-Van Leemput 2022** "What Happens in China Does Not Stay in China", Fed IFDP 1360. Adjacent to **Chen-Rogoff 2003** "Commodity Currencies" J.Int.Econ 60(1):133-160, DOI:10.1016/S0022-1996(02)00072-7 (commodity terms-of-trade transmitted to AUD spot in real time) + **Ferriani-Gazzani 2025** CEPR "International Transmission of Chinese Monetary Policy and the Commodity Channel" (commodity channel = PRIMARY China→AUD transmission) + **RBA Bulletin April 2024** "China's Monetary Policy Framework and Financial Market Transmission" (Australia institutional view).
 
 #### T1.AUD-2 — Global iron-ore + copper monthly via FRED `PIORECRUSDM` + `PCOPPUSDM`
 
@@ -81,13 +82,14 @@ These have CLEAR specs but moderate dev-days + require Eliot manual identificati
 - **Framework anchor**: **Ito-Yabu 2007**, "What prompts Japan to intervene in the Forex market? A new approach to a reaction function", J.Int.Money & Finance 26(2):193-212, DOI:10.1016/j.jimonfin.2006.12.001 (corrected DOI per round-44 verifier — the originally-claimed `.11.002` resolves to Kasuga 2007, an adjacent paper). Friction-ordered-probit modelling of MoF intervention reaction function ; deviation vs 21-day MA + asymmetric political cost (strong JPY hurts exporters).
 - **Future ADR**: ADR-095 "MoF FX intervention reserves collector" (PROPOSED).
 
-#### T2.AUD-RBA — RBA F1.1 cash-rate-target CSV daily collector (~0.5 dev-days)
+#### T2.AUD-RBA — RBA F1.1 cash-rate-target CSV **monthly** collector (~0.5 dev-days)
 
 - **Endpoint**: `https://www.rba.gov.au/statistics/tables/csv/f1.1-data.csv`
-- **Auth**: none. License: **CC BY 4.0** (RBA public commitment) — Voie D safe + ToS clear.
+- **r46-round-2 audit correction**: this ADR originally claimed "daily" cadence for F1.1. Researcher empirical fetch round-2 confirmed F1.1 is **MONTHLY** (Cash Rate Target + Interbank Overnight Cash Rate + BABs/NCDs + OIS + Treasury Notes, all marked "Frequency: Monthly"). For a true RBA daily series, ADR-096 PROPOSED draft should target a different F-series table (e.g. RBA F2 "Capital Market Yields") OR accept the F1.1 monthly cadence and update ADR-093 daily-clean upgrade-path text accordingly.
+- **Auth**: none. License: **CC BY 4.0** (RBA public commitment, on RBA page) — Voie D safe + ToS clear.
 - **History**: 1990 → present.
-- **Pattern**: identical to Bundesbank Bund r29 (CSV pull + migration + ORM + register-cron daily 10:00 Paris = Sydney 18:00 close +2h).
-- **Future ADR**: ADR-096 "RBA F1.1 cash rate target collector" (PROPOSED).
+- **Pattern**: identical to Bundesbank Bund r29 (CSV pull + migration + ORM + register-cron monthly first-business-day-Sydney-close +2h).
+- **Future ADR**: ADR-096 "RBA F-series rate collector" (PROPOSED — needs table re-selection for daily ambition, or accept monthly).
 
 ### DEFER firmly — fail Voie D cost-benefit
 
@@ -159,7 +161,8 @@ Each Tier 2 collector ships under its own ADR (PROPOSED → Accepted gate), each
 
 - [FRED IRLTLT01JPM156N Japan 10Y monthly](https://fred.stlouisfed.org/series/IRLTLT01JPM156N)
 - [FRED IRLTLT01AUM156N Australia 10Y monthly](https://fred.stlouisfed.org/series/IRLTLT01AUM156N)
-- [FRED MYAGM2CNM189N China M2 monthly](https://fred.stlouisfed.org/series/MYAGM2CNM189N)
+- [FRED MYAGM1CNM189N China M1 monthly (r46-round-2 SWAP from discontinued M2)](https://fred.stlouisfed.org/series/MYAGM1CNM189N)
+- [FRED MYAGM2CNM189N China M2 monthly — DISCONTINUED Aug 2019, kept for archeology](https://fred.stlouisfed.org/series/MYAGM2CNM189N)
 - [FRED PIORECRUSDM Global Iron Ore monthly](https://fred.stlouisfed.org/series/PIORECRUSDM)
 - [FRED PCOPPUSDM Global Copper monthly](https://fred.stlouisfed.org/series/PCOPPUSDM)
 - [FRED IRSTCB01JPM156N Japan Central Bank Rate monthly](https://fred.stlouisfed.org/series/IRSTCB01JPM156N)
@@ -179,3 +182,7 @@ Each Tier 2 collector ships under its own ADR (PROPOSED → Accepted gate), each
 - Brunnermeier, Nagel & Pedersen 2009, "Carry Trades and Currency Crashes", NBER Macro Annual 23(1):313-348 — `10.1086/593088`
 - Chen & Rogoff 2003, "Commodity currencies", J.Int.Economics 60(1):133-160 — `10.1016/S0022-1996(02)00072-7`
 - Ready, Roussanov & Ward 2017, "Commodity Trade and the Carry Trade: A Tale of Two Countries", J.Finance 72(6):2629-2684 — `10.1111/jofi.12546`
+- Barcelona, Cascaldi-Garcia, Hoek & Van Leemput 2022, "What Happens in China Does Not Stay in China", Fed IFDP 1360 — (r46-round-2 audit add) M1 leading-indicator empirics for AUD commodity-currency channel
+- Ferriani & Gazzani 2025, "International Transmission of Chinese Monetary Policy and the Commodity Channel", CEPR VoxEU column — (r46-round-2 audit add) commodity channel = PRIMARY China→AUD transmission, financial-channel modest
+- Miranda-Agrippino, Nenova & Rey 2025, "The Ins & Outs of Chinese Monetary Policy Transmission", CEPR DP 20958 — (r46-round-2 audit add) Composite Monetary Policy Indicator (CMPI) framework, PBoC quantity-to-rate transition
+- RBA Bulletin April 2024, "China's Monetary Policy Framework and Financial Market Transmission" — (r46-round-2 audit add) Australia institutional view, property-credit → iron-ore-demand mechanism

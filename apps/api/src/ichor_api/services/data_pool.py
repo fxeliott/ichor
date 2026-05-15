@@ -241,6 +241,20 @@ _FRED_SERIES_MAX_AGE_DAYS: dict[str, int] = {
     "IRLTLT01ITM156N": 120,  # Italy 10y monthly (BTP-Bund spread, ADR-090 step-4 r34+r35)
     "IRLTLT01JPM156N": 120,  # Japan 10y monthly
     "IRLTLT01GBM156N": 120,  # UK 10y monthly
+    "IRLTLT01AUM156N": 120,  # Australia 10y monthly (round-46 ADR-092 §T1.AUD-3)
+    # ─── IMF World Bank PinkBook composite monthly series (round-46 ADR-092) ───
+    # 60d max-age acceptable because IMF PinkBook publishes early-month
+    # (vs OECD MEI mid-month with 1-month publication lag → OECD entries
+    # need 120d). r46 ship validates empirically post-deploy ; if FRED
+    # silent-skip emerges (60-65d delay scenarios), bump to 90d or 120d
+    # in a follow-up hygiene round (code-reviewer M2 review caveat).
+    "MYAGM1CNM189N": 60,  # China M1 monthly (round-46 r46-round-2 audit swap from
+    #                       MYAGM2CNM189N which was DISCONTINUED Aug 2019 per IMF
+    #                       IFS / FRED) ; credit-impulse proxy preserved per
+    #                       Barcelona et al. 2022 Fed IFDP 1360 ; TSF direct
+    #                       deferred per ADR-092 §DEFER firmly
+    "PIORECRUSDM": 60,  # Global Iron Ore Price Index monthly (round-46 ADR-092 §T1.AUD-2)
+    "PCOPPUSDM": 60,  # Global Copper Price Index monthly (round-46 ADR-092 §T1.AUD-2)
     "USALOLITOAASTSAM": 120,  # US CLI monthly
     "G7LOLITOAASTSAM": 120,  # G7 aggregate CLI
     "JPNLOLITOAASTSAM": 120,
@@ -1396,11 +1410,15 @@ async def _section_jpy_specific(session: AsyncSession, asset: str) -> tuple[str,
     SYMMETRIC LANGUAGE discipline (ichor-trader r32/r41/r42/r43 carry-
     forward) : the rate-differential interpretation emits BOTH USD-bid
     (carry-bid regime) AND JPY-bid (carry-unwind regime) branches so
-    the Pass-2 LLM picks consistent with Pass-1 regime. The pre-r45
-    USD_JPY stub at `data_pool.py:2341-2346` was 2 lines uni-directional
-    (`vol_elevated → JPY-bid safe haven` + `inflation_pressure_up → UST
-    yield up → USD-bid`). This section adds the missing rate-differential
-    layer with regime-conditional symmetry.
+    the Pass-2 LLM picks consistent with Pass-1 regime. The USD_JPY
+    cross-asset matrix stub at `data_pool.py` line ~2878 was 2 lines
+    uni-directional pre-r45 (`vol_elevated → JPY-bid safe haven` +
+    `inflation_pressure_up → UST yield up → USD-bid`) ; r46-round-2
+    extended that stub to a symmetric mirror with Tetlock invalidation.
+    This `_section_jpy_specific` section adds the rate-differential
+    layer for JPY with regime-conditional symmetry (parametric in the
+    DGS10 + IRLTLT01JPM156N FRED data, complementary to the macro-
+    state-conditional hints in the cross-asset matrix).
 
     TETLOCK INVALIDATION discipline on the differential reading (r42 R28 +
     r43 carry-forward) : both regime-conditional branches emit explicit
@@ -1507,6 +1525,388 @@ async def _section_jpy_specific(session: AsyncSession, asset: str) -> tuple[str,
             "regime-conditional branches before committing to a directional "
             "read. Tetlock invalidation thresholds emit asymmetric regime-"
             "flip conditions consistent with r43 SPX precedent."
+        )
+
+    return "\n".join(lines), sources
+
+
+async def _section_aud_specific(session: AsyncSession, asset: str) -> tuple[str, list[str]]:
+    """## AUD-specific signals — commodity-currency triangulation (r46, GAP-A continuation 5/5).
+
+    Renders AUD/USD-specific macro signals for AUD_USD Pass-2 via 3-driver
+    framework. Tier 1 inline-FRED ship per ADR-092 PROPOSED round-44 +
+    ADR-093 PROPOSED round-46 "degraded explicit" surface pattern. R24
+    SUBSET-not-SUPERSET cleared via "degraded explicit" annotation — all
+    3 drivers are MONTHLY cadence, ZERO daily-clean signal (iron-ore daily
+    DEFER firmly per ADR-093 Voie D cost-benefit) :
+
+      1. **Australia-Fed rate differential** (Engel-West channel) —
+         primary AUD anchor. Source : FRED `IRLTLT01AUM156N` (AU 10Y
+         monthly, OECD MEI 1-month publication lag, registry max-age 120d)
+         paired with `DGS10` (US 10Y daily) for the differential. Framework :
+         Engel-West 2005 "Exchange Rates and Fundamentals", J.Political
+         Economy 113(3):485-517, DOI:10.1086/429137 — rate-differential
+         proxies AUD/USD directional bias under near-unity discount factor.
+      2. **China credit-impulse proxy** (Chen-Rogoff commodity-currency
+         channel) — secondary AUD driver via China demand transmission.
+         Source : FRED `MYAGM1CNM189N` (China M1 monthly = currency +
+         demand deposits, IMF-IFS sourced, registry max-age 60d). NB :
+         this is a r46-round-2 audit swap from the original `MYAGM2CNM189N`
+         (M2 broad-money) which was empirically DISCONTINUED Aug 2019 per
+         IMF IFS / FRED. M1 is narrower than M2 but PRESERVES the canonical
+         Chen-Rogoff 2003 transmission proxy — M1 YoY surges historically
+         lead CFETS commodity demand by ~3-6 months per Barcelona-Cascaldi-
+         Garcia-Hoek-Van Leemput 2022 Fed IFDP 1360 "What Happens in China
+         Does Not Stay in China". Frameworks : Chen-Rogoff 2003 "Commodity
+         currencies", J.Int.Economics 60(1):133-160, DOI:10.1016/S0022-
+         1996(02)00072-7 — commodity terms-of-trade transmitted to AUD
+         spot in real time via the China-property-construction channel ;
+         Barcelona et al. 2022 Fed IFDP 1360 — M1 leading-indicator
+         empirics for AUD ; Ferriani-Gazzani 2025 CEPR — China monetary
+         policy commodity-channel primary AUD transmission. NB : M1 is a
+         PROXY for credit impulse, NOT direct TSF — Total Social Financing
+         (TSF) direct collector deferred per ADR-092 §DEFER firmly (PBoC
+         HTML scrape, Trading Economics rate-limit blocker).
+      3. **Commodity terms-of-trade composite** (Ready-Roussanov-Ward
+         carry-commodity channel) — tertiary AUD driver via base-metals
+         complex. Source : FRED `PIORECRUSDM` (Global Iron Ore Price Index
+         monthly) + `PCOPPUSDM` (Global Copper Price Index monthly), both
+         IMF World Bank pinkbook composite, registry max-age 60d each.
+         Framework : Ready-Roussanov-Ward 2017 "Commodity Trade and the
+         Carry Trade: A Tale of Two Countries", J.Finance 72(6):2629-2684,
+         DOI:10.1111/jofi.12546 — commodity-exporter currencies (AUD/CAD)
+         co-move with terms-of-trade ; structural carry premium emerges
+         from commodity-exporter / final-goods-producer specialization.
+
+    Gated on `asset == "AUD_USD"` — early-return ("", []) otherwise.
+    Primary-anchor gate on `IRLTLT01AUM156N` : silent skip if absent (no
+    AUD-specific value without the Australia anchor). `build_data_pool`
+    appends only when `sources` is non-empty so a pre-FRED-ingestion
+    AUD_USD silently skips.
+
+    DEGRADED EXPLICIT surface pattern (ADR-093) : the section header AND
+    composite triangle paragraph BOTH cite ADR-093 by number. The
+    annotation surfaces that all 3 drivers are monthly, that DGS10 daily
+    is the only daily anchor (used solely for the rate-differential
+    computation), that the section is a REGIME indicator NOT an intraday
+    signal, and that the iron-ore daily feed gap is the empirical reason
+    for the degraded posture (deferred per Voie D cost-benefit). Future
+    upgrade path : ADR-096 RBA F1.1 CSV daily would shift the daily-clean
+    count to 1-of-3 ; AKShare/LME re-vetting would shift to 2-of-3.
+
+    SYMMETRIC LANGUAGE discipline (ichor-trader r32/r41/r42/r43/r45 carry-
+    forward) : each driver paragraph emits BOTH AUD-bid (carry-bid regime,
+    commodity reflation, China credit expansion) AND AUD-soft (carry-
+    unwind, commodity deflation, China credit contraction) regime-
+    conditional branches so the Pass-2 LLM picks consistent with Pass-1
+    regime. The AUD_USD cross-asset matrix hints at `data_pool.py` line
+    ~2885 were pre-r46 a 2-line uni-directional stub ; r46-round-2
+    extends to a symmetric mirror with Tetlock invalidation thresholds
+    (commodity-currency-first-to-unwind cascade in risk-off, broad
+    commodity-reflation in carry-bid regime). This `_section_aud_specific`
+    adds the empirical layer parametric in the FRED data (China M1 +
+    iron-ore + copper), complementary to the macro-state-conditional
+    hints in the cross-asset matrix.
+
+    SIGN CONVENTION : rate-differential is computed as `US - AU` (DGS10
+    minus AU 10Y) to match the legacy `_section_rate_diff` convention
+    (line ~1832 + `_RATE_DIFF_PAIRS` line ~155) and avoid the dual-sign
+    landmine flagged by ichor-trader r46 pre-merge review. JPY r45
+    follows the same `US - foreign` convention. WIDER POSITIVE US-AU =
+    US fundamentals stronger than AU → USD-bid via Engel-West channel ;
+    NARROWING / NEGATIVE US-AU = AU fundamentals catching up to or
+    surpassing US → AUD-bid via the same channel.
+
+    TETLOCK INVALIDATION discipline on ALL 3 drivers (r39 codified,
+    r42+r43+r45 carry-forward). Magnitudes pinned at the monthly cadence
+    (2-month thresholds, NOT n-day — consistent with the degraded-explicit
+    REGIME-indicator framing).
+    """
+    if asset != "AUD_USD":
+        return "", []
+
+    # ─── Australia 10Y monthly via FRED IRLTLT01AUM156N (Australia-specific anchor) ──
+    # Primary AUD driver. If absent → silent skip (no AUD-specific value
+    # without the Australia anchor). Registry max_age 120d auto-resolves
+    # per r37 frequency-aware lookup.
+    au10y_latest = await _latest_fred(session, "IRLTLT01AUM156N")
+    if au10y_latest is None:
+        return "", []  # AU 10Y missing → silent skip (primary anchor)
+    au10y_value, au10y_date = au10y_latest
+    sources = [f"FRED:IRLTLT01AUM156N@{au10y_date:%Y-%m-%d}"]
+
+    lines = [
+        "## AUD-specific signals (degraded explicit per ADR-093 — commodity surface gap)",
+        "### Australia 10Y yield (IRLTLT01AUM156N) — OECD MEI monthly, Australia-specific anchor",
+        f"- AU 10Y = {au10y_value:.2f}% (FRED IRLTLT01AUM156N, {au10y_date:%Y-%m-%d} "
+        "— OECD monthly, 1-month publication lag)",
+    ]
+
+    # ─── US 10Y daily via FRED DGS10 (rate-differential anchor) ──
+    # Computes the AU-Fed 10Y differential. DGS10 daily is the ONLY daily
+    # anchor in this section (used solely for the differential computation).
+    # The differential itself is a REGIME indicator (cadence mismatch with
+    # AU 10Y monthly), NOT an intraday signal.
+    dgs10_latest = await _latest_fred(session, "DGS10")
+    if dgs10_latest is not None:
+        dgs10_value, dgs10_date = dgs10_latest
+        sources.append(f"FRED:DGS10@{dgs10_date:%Y-%m-%d}")
+        # SIGN convention : US - AU to match _section_rate_diff legacy
+        # `US - foreign` pattern (line ~1832, _RATE_DIFF_PAIRS line ~155).
+        # JPY r45 follows the same convention. Flipping AUD r46 prevents
+        # the dual-sign landmine flagged by ichor-trader pre-merge review.
+        rate_diff = dgs10_value - au10y_value
+        lines.append("### US 10Y nominal yield (DGS10) — daily differential anchor")
+        lines.append(f"- DGS10 = {dgs10_value:.2f}% (FRED, {dgs10_date:%Y-%m-%d})")
+        lines.append(f"- US-AU 10Y differential = {rate_diff:+.2f} pp (DGS10 minus AU 10Y)")
+        lines.append(
+            "- Frequency mismatch : DGS10 is DAILY, AU 10Y is MONTHLY "
+            "(OECD MEI). Treat the differential as a REGIME indicator, "
+            "NOT an intraday signal (BTP r34 + JPY r45 cadence-mismatch "
+            "precedent)."
+        )
+        lines.append(
+            "- Interpretation depends on the Pass-1 regime label : in a "
+            "carry-bid regime (goldilocks, vol_complacent), a WIDER "
+            "POSITIVE US-AU differential supports USD-bid via Engel-"
+            "West 2005 near-unity-discount fundamentals channel "
+            "(DOI:10.1086/429137 — higher-yielding currency strengthens "
+            "under fundamentals transmission) reinforced by AUD-funded "
+            "USD carry positioning accumulation → AUD-soft ; under risk-"
+            "off or vol_elevated, the SAME wider POSITIVE US-AU "
+            "differential persists USD-bid via flight-to-quality + "
+            "commodity collapse (Ready-Roussanov-Ward 2017 commodity-"
+            "currency carry-and-commodity-tail double cascade, "
+            "DOI:10.1111/jofi.12546) → AUD-soft. A NARROWING POSITIVE "
+            "OR NEGATIVE US-AU differential (AU yields catching up to "
+            "or surpassing US) is the symmetric reverse : AUD-bid in "
+            "carry-bid regime via the same fundamentals channel ; AUD-"
+            "bid persists in stress only when commodity reflation co-"
+            "confirms (Driver 3 above-baseline). The Pass-2 LLM should "
+            "select the branch matching the regime context above."
+        )
+        lines.append(
+            "- Tetlock invalidation : NARROWING-or-NEGATIVE-US-AU AUD-"
+            "bid carry thesis is invalidated if US-AU differential "
+            "WIDENS POSITIVE by > 30 bp across 2 consecutive monthly "
+            "prints AND DXY rises by > 2.0% within 20 sessions "
+            "concurrent (US fundamentals re-asserting + broad USD-bid "
+            "co-confirmation, full carry-unwind regime onset, commodity-"
+            "currency-first-to-unwind cascade) ; WIDER-POSITIVE-US-AU "
+            "USD-bid thesis is invalidated if US-AU differential "
+            "NARROWS by > 25 bp across 2 monthly prints AND DXY falls "
+            "below its trailing 6-month mean within 20 sessions "
+            "concurrent (AU fundamentals catching up + USD softening "
+            "co-confirmation, calm-regime re-anchoring AUD-bid framework "
+            "reasserts ; magnitude symmetric vs the 30-bp WIDEN-positive "
+            "threshold per ichor-trader r46 post-sign-flip review). "
+            "Pass-2 LLM should reference the trailing 2 FRED prints from "
+            "the data_pool context window if visible, else flag the "
+            "Tetlock as pending next monthly print."
+        )
+
+    # ─── China M1 monthly via FRED MYAGM1CNM189N (credit-impulse proxy) ──
+    # Secondary AUD driver via Chen-Rogoff 2003 commodity-currency channel.
+    # M1 YoY growth is a documented leading indicator of iron-ore demand
+    # via the China-property-construction transmission mechanism (Barcelona-
+    # Cascaldi-Garcia-Hoek-Van Leemput 2022 Fed IFDP 1360). r46-round-2 swap
+    # from MYAGM2CNM189N (DISCONTINUED Aug 2019, ~6y stale per FRED).
+    china_m1_latest = await _latest_fred(session, "MYAGM1CNM189N")
+    if china_m1_latest is not None:
+        china_m1_value, china_m1_date = china_m1_latest
+        sources.append(f"FRED:MYAGM1CNM189N@{china_m1_date:%Y-%m-%d}")
+        lines.append(
+            "### China M1 (MYAGM1CNM189N) — currency + demand deposits, credit-impulse proxy"
+        )
+        lines.append(
+            f"- China M1 = {china_m1_value:,.0f} CNY-bn (FRED MYAGM1CNM189N, "
+            f"{china_m1_date:%Y-%m-%d} — IMF IFS monthly, 1-2 month "
+            "publication lag). STOCK measure ; absent trailing 12-month "
+            "context in this render (single-print constraint), the Pass-"
+            "2 LLM SHOULD NOT extrapolate direction-of-travel from this "
+            "single observation. Treat as baseline level marker only. "
+            "YoY growth computation at the data-pool layer is deferred "
+            "to round-47+ refinement if AUD anti-skill emerges in Vovk "
+            "Sunday aggregator (ichor-trader r46 YELLOW-2 review)."
+        )
+        lines.append(
+            "- NB : M1 (currency + demand deposits) is a NARROWER aggregate "
+            "than M2 but PRESERVES the Chen-Rogoff 2003 commodity-currency "
+            "transmission proxy (Barcelona et al. 2022 Fed IFDP 1360 — M1 "
+            "YoY surges historically lead CFETS commodity demand by ~3-6 "
+            "months ; Ferriani-Gazzani 2025 CEPR — commodity channel is "
+            "PRIMARY China→AUD transmission, M1 is the canonical PBoC-"
+            "policy-stance proxy). Original r46 ship targeted MYAGM2CNM189N "
+            "which was empirically DISCONTINUED Aug 2019 per IMF IFS / FRED "
+            "(r46-round-2 audit caught the dead-series bug). M1 is a PROXY "
+            "for credit impulse, NOT direct TSF — Total Social Financing "
+            "direct collector deferred per ADR-092 §DEFER firmly (PBoC HTML "
+            "scrape + Trading Economics free-tier rate-limit blocker). M1 "
+            "captures the narrow-money / transactions-demand side of the "
+            "credit cycle ; CRDQCNAPUBIS (BIS Total Credit, quarterly) is a "
+            "deferred r47+ complement per the r46-round-2 researcher audit."
+        )
+        lines.append(
+            "- Interpretation depends on the Pass-1 regime label : in a "
+            "China-credit-expansion regime (rising M1 YoY + PBoC easing "
+            "cycle), commodity demand strengthens and AUD-bid emerges "
+            "via Chen-Rogoff 2003 commodity-currency transmission "
+            "(DOI:10.1016/S0022-1996(02)00072-7 — terms-of-trade "
+            "transmitted to AUD spot in real time) ; in a contraction "
+            "regime (M1 YoY decelerating + PBoC tightening or property "
+            "deleverage), commodity demand softens and AUD-soft is the "
+            "symmetric expectation. The Pass-2 LLM should select the "
+            "branch matching the regime context above."
+        )
+        lines.append(
+            "- Tetlock invalidation : China-expansion AUD-bid thesis is "
+            "invalidated if M1 prints below its trailing 12-month mean "
+            "across 2 consecutive monthly prints AND iron-ore composite "
+            "(see Driver 3) prints below its trailing 6-month mean "
+            "concurrent (full China-deceleration confirmation) ; "
+            "contraction AUD-soft thesis is invalidated if M1 rebounds "
+            "above its trailing 12-month mean AND iron-ore composite "
+            "prints above the same trailing baseline (full reflation "
+            "confirmation in slow-cadence). Pass-2 LLM should reference "
+            "the trailing 12 FRED prints from the data_pool context "
+            "window if visible, else flag the Tetlock as pending next "
+            "monthly print."
+        )
+
+    # ─── Commodity terms-of-trade composite (iron ore + copper) ──
+    # Tertiary AUD driver via Ready-Roussanov-Ward 2017 carry-commodity
+    # channel. Iron-ore is the PRIMARY signal (Australia is the largest
+    # global exporter) ; copper is the CROSS-CONFIRMATION via base-metals
+    # complex co-move. Both monthly cadence, IMF World Bank pinkbook
+    # composite. Outer gate on `iron_latest is not None` per ichor-trader
+    # r46 M1/YELLOW-1 review : copper alone (without iron primary) is
+    # meaningless for the AUD commodity-currency framing, so the entire
+    # Driver 3 silently skips when iron-ore data is absent.
+    iron_latest = await _latest_fred(session, "PIORECRUSDM")
+    copper_latest = await _latest_fred(session, "PCOPPUSDM")
+    if iron_latest is not None:
+        iron_value, iron_date = iron_latest
+        sources.append(f"FRED:PIORECRUSDM@{iron_date:%Y-%m-%d}")
+        lines.append("### Commodity terms-of-trade composite (iron ore + copper)")
+        lines.append(
+            f"- Iron Ore (PIORECRUSDM) = {iron_value:.2f} index "
+            f"(FRED, {iron_date:%Y-%m-%d} — IMF World Bank pinkbook "
+            "composite monthly, AUD-positive commodity ToT primary "
+            "anchor since Australia is the largest global exporter)"
+        )
+        if copper_latest is not None:
+            copper_value, copper_date = copper_latest
+            sources.append(f"FRED:PCOPPUSDM@{copper_date:%Y-%m-%d}")
+            lines.append(
+                f"- Copper (PCOPPUSDM) = {copper_value:.2f} index "
+                f"(FRED, {copper_date:%Y-%m-%d} — same source family, "
+                "cross-confirmation via base-metals complex co-move)"
+            )
+        lines.append(
+            "- Interpretation : iron-ore rising in a China-expansion "
+            "regime is the canonical AUD-bid configuration (Chen-Rogoff "
+            "2003 + Ready-Roussanov-Ward 2017 commodity-final-goods "
+            "specialization, DOI:10.1111/jofi.12546 — commodity-exporter "
+            "currencies co-move with terms-of-trade) ; iron-ore falling "
+            "in a tightening or risk-off regime amplifies AUD-soft via "
+            "the carry-and-commodity-tail double cascade. Copper "
+            "co-moving with iron-ore confirms the base-metals-complex "
+            "signal ; copper diverging (e.g. iron-ore down + copper "
+            "flat-or-up) suggests an Australia-specific iron-ore demand "
+            "shock without broader commodity collapse, which is a "
+            "moderate AUD-soft (not the full 3-corner bear). The Pass-2 "
+            "LLM should select the branch matching the regime context "
+            "above."
+        )
+        if copper_latest is not None:
+            lines.append(
+                "- Tetlock invalidation : iron-ore AUD-bid thesis is "
+                "invalidated if iron-ore prints below its trailing 6-"
+                "month mean across 2 consecutive monthly prints AND "
+                "copper co-confirms (below same baseline) AND DXY rises "
+                "by > 2.0% within 20 sessions concurrent (full commodity-"
+                "collapse + USD-bid double-tightening) ; iron-ore AUD-"
+                "soft thesis is invalidated if iron-ore rebounds above "
+                "its trailing 6-month mean AND copper co-confirms AND "
+                "China M1 prints above its trailing 12-month mean "
+                "concurrent (full reflation confirmation across all 3 "
+                "drivers). Pass-2 LLM should reference the trailing 6 "
+                "FRED prints from the data_pool context window if "
+                "visible, else flag the Tetlock as pending next monthly "
+                "print."
+            )
+        else:
+            lines.append(
+                "- Tetlock invalidation (PARTIAL — copper cross-"
+                "confirmation absent this render) : iron-ore AUD-bid "
+                "thesis is invalidated if iron-ore prints below its "
+                "trailing 6-month mean across 2 consecutive monthly "
+                "prints AND DXY rises by > 2.0% within 20 sessions "
+                "concurrent (commodity-collapse + USD-bid co-tightening, "
+                "iron-only signal) ; iron-ore AUD-soft thesis is "
+                "invalidated if iron-ore rebounds above its trailing 6-"
+                "month mean AND China M1 prints above its trailing 12-"
+                "month mean (reflation confirmation in 2-of-3 drivers, "
+                "partial). Conviction reduced vs the full 3-driver "
+                "Tetlock (composite triangle absent this render)."
+            )
+
+    # ─── AUD 3-driver composite (R24 SUBSET-not-SUPERSET via degraded explicit) ────
+    # Surface ONLY when ALL 3 drivers fresh — the framework needs the
+    # 3-driver pairing (rate-diff + China credit + commodity ToT) to
+    # disambiguate broad-commodity-currency-cycle from idiosyncratic-
+    # Australia-shock. DGS10 is REQUIRED for Driver 1 (rate-diff) so
+    # gate on dgs10_latest is non-None. Both iron and copper required
+    # for Driver 3 composite (Australia primary + base-metals
+    # cross-confirmation).
+    if (
+        dgs10_latest is not None
+        and china_m1_latest is not None
+        and iron_latest is not None
+        and copper_latest is not None
+    ):
+        lines.append(
+            "### AUD commodity-currency triangle composite (Engel-West + Chen-Rogoff + Ready-Roussanov-Ward)"
+        )
+        lines.append(
+            "- The 3-driver AUD pricing framework is FULLY available "
+            "for this asset (R24 SUBSET-not-SUPERSET cleared via "
+            "DEGRADED EXPLICIT surface per ADR-093 — commodity surface "
+            "gap : 3/3 drivers MONTHLY cadence, ZERO daily-clean signal, "
+            "DGS10 is the only daily anchor used solely for the rate-"
+            "differential computation). The Engel-West 2005 fundamentals "
+            "channel (DOI:10.1086/429137) anchors directionality via "
+            "rate-differential ; Chen-Rogoff 2003 commodity-currency "
+            "channel (DOI:10.1016/S0022-1996(02)00072-7) transmits "
+            "China credit impulse to AUD spot via the property-"
+            "construction-iron-ore demand chain ; Ready-Roussanov-Ward "
+            "2017 commodity-final-goods specialization (DOI:10.1111/"
+            "jofi.12546) explains the structural AUD carry premium. "
+            "When US-AU differential NARROWING (AU yields catching up "
+            "to or surpassing US) AND China M1 EXPANDING AND iron-ore "
+            "+ copper BOTH ABOVE trailing-6m baseline, the regime is "
+            "full commodity-currency reflation (AUD-bid high conviction "
+            "in carry-bid regime) ; US-AU WIDENING POSITIVE (US "
+            "fundamentals re-asserting over AU) AND China M1 "
+            "CONTRACTING AND iron-ore + copper BOTH BELOW the same "
+            "baseline is the symmetric AUD-soft 3-corner-bear "
+            "configuration (carry-unwind + China-deceleration + "
+            "commodity-collapse, high conviction). Note the AND/AND "
+            "symmetric structure across both regimes is intentional — "
+            "unlike SPX r43 where tail-stress propagates faster than "
+            "calm accumulation (asymmetric AND/OR), AUD's commodity-"
+            "currency cycle is slower-cadence on both sides (months-"
+            "quarters) and the empirical evidence asymmetry is "
+            "negligible, so equally-weak bull and bear evidence "
+            "justifies equal conviction (symmetric AND/AND). The "
+            "Pass-2 LLM should treat this section as a REGIME indicator "
+            "(NOT intraday signal) and triangulate all 3 dimensions "
+            "before committing to a directional read. "
+            "Future upgrade path per ADR-093 : ADR-096 RBA F1.1 daily "
+            "CSV would shift the daily-clean count to 1-of-3 ; AKShare/"
+            "LME re-vetting would shift to 2-of-3 (currently DEFER "
+            "firmly per Voie D cost-benefit until AUD anti-skill "
+            "emerges in Vovk Sunday aggregator)."
         )
 
     return "\n".join(lines), sources
@@ -2485,18 +2885,85 @@ async def _section_cross_asset_matrix(
     # needs a daily proxy).
     asset_hints.append(asset("GBP_USD", gbp_usd or ["balanced"]))
 
+    # ── USD_JPY : safe-haven funding-currency with US-JP differential ──
+    # Round-46 r46-round-2 GAP-A symmetric mirror (post-r45 ship of
+    # `_section_jpy_specific` Engel-West rate-differential + Brunnermeier-
+    # Nagel-Pedersen 2009 carry-crash skew). Pre-r46 had only 2 uni-
+    # directional lines ; r46 extends to a symmetric mirror with Tetlock
+    # invalidation thresholds consistent with r38 EUR + r40 GBP/CAD
+    # patterns.
     usd_jpy: list[str] = []
-    if vol_elevated or tail_fear:
-        usd_jpy.append("JPY-bid (safe haven)")
+    # USD-positive scenarios (carry-bid regime, JPY-funded USD-long accum.) :
     if inflation_pressure_up:
-        usd_jpy.append("UST yield up → USD-bid")
+        usd_jpy.append(
+            "USD-bid (UST yield up → carry-bid US/JPY ; "
+            "invalidated if VIX > 25 AND US-JP differential narrows > 20 bp within 5 sessions)"
+        )
+    if vol_complacent and tail_calm:
+        usd_jpy.append(
+            "USD-bid (calm carry regime, JPY-funded USD-long accumulation ; "
+            "invalidated if SKEW > 145 OR VIX > 22)"
+        )
+    if liquidity_loose and sentiment_strong:
+        usd_jpy.append(
+            "USD-bid (broad risk-on flow favors high-yielder over JPY ; "
+            "invalidated if NFCI rises above 0 within 5 sessions)"
+        )
+    # JPY-positive scenarios (safe-haven + carry-crash skew Brunnermeier-Nagel-Pedersen 2009) :
+    if vol_elevated or tail_fear:
+        usd_jpy.append(
+            "JPY-bid (safe-haven flight + carry-crash skew per Brunnermeier-Nagel-Pedersen 2009 ; "
+            "invalidated if VIX falls below 18 AND DGS10 rises > 15 bp within 5 sessions)"
+        )
+    if sentiment_weak and liquidity_tight:
+        usd_jpy.append(
+            "JPY-bid (US-led risk-off + funding tightness, full carry-unwind ; "
+            "invalidated if NFCI eases below 0 AND VIX below 20 concurrent)"
+        )
     asset_hints.append(asset("USD_JPY", usd_jpy or ["balanced"]))
 
+    # ── AUD_USD : commodity-currency with China credit + Iron-ore ──
+    # Round-46 r46-round-2 GAP-A symmetric mirror (post-r46 ship of
+    # `_section_aud_specific` Engel-West rate-differential + Chen-Rogoff
+    # commodity-currency + Ready-Roussanov-Ward 2017). Pre-r46 had only
+    # 2 uni-directional lines ; r46 extends to a symmetric mirror with
+    # Tetlock invalidation thresholds. NB : actual commodity reflation
+    # / China credit regime is surfaced empirically via
+    # `_section_aud_specific` (Driver 2 China M1 + Driver 3 iron+copper
+    # composite) — this macro-state shortlist is a quick-pass overlay.
     aud_usd: list[str] = []
+    # USD-positive scenarios (AUD-soft, risk-off, commodity collapse) :
     if liquidity_tight or tail_fear:
-        aud_usd.append("AUD-soft (risk-off)")
+        aud_usd.append(
+            "AUD-soft (risk-off + commodity-currency-first-to-unwind cascade ; "
+            "invalidated if NFCI eases below 0 AND iron-ore rebounds above trailing 6m baseline)"
+        )
+    if vol_elevated:
+        aud_usd.append(
+            "AUD-soft (vol regime, commodity-currency drawdown ; "
+            "invalidated if VIX falls below 18 within 5 sessions)"
+        )
+    if sentiment_weak:
+        aud_usd.append(
+            "AUD-soft (broad slowdown proxy for China-deceleration risk ; "
+            "invalidated if SBOI rebounds above 100)"
+        )
+    # AUD-positive scenarios (commodity reflation, China credit expansion, carry-bid) :
     if inflation_pressure_up:
-        aud_usd.append("commodity tail-up support")
+        aud_usd.append(
+            "AUD-bid (commodity tail-up support via terms-of-trade ; "
+            "invalidated if iron-ore prints below trailing 6m baseline)"
+        )
+    if liquidity_loose and sentiment_strong:
+        aud_usd.append(
+            "AUD-bid (broad commodity reflation regime, China credit-impulse upside ; "
+            "invalidated if NFCI rises above 0 OR China M1 prints below trailing 12m mean)"
+        )
+    if vol_complacent and tail_calm:
+        aud_usd.append(
+            "AUD-bid (calm carry regime, AUD-receiver carry attractive ; "
+            "invalidated if VIX > 22 OR SKEW > 145)"
+        )
     asset_hints.append(asset("AUD_USD", aud_usd or ["balanced"]))
 
     # ── USD_CAD : commodity-currency with BoC-Fed differential ──
@@ -2533,29 +3000,135 @@ async def _section_cross_asset_matrix(
     #     captured by `liquidity_loose AND sentiment_strong` above.
     asset_hints.append(asset("USD_CAD", usd_cad or ["balanced"]))
 
+    # ── XAU_USD : gold-real-yield triangle (Erb/Harvey + dollar-smile) ──
+    # Round-46 r46-round-5 GAP-A retroactive symmetric mirror (R47 pattern
+    # codified r46-round-2). Pre-r46-r5 XAU had 3 partial-symmetric uni-
+    # directional hints with `(++)` / `(-)` notation but NO XAU-soft mirror
+    # branch despite `_section_xau_specific` (r41) being fully symmetric
+    # with Tetlock invalidation on both branches.
+    # R47 retroactive symmetric mirror per cross-asset matrix R47 pattern
+    # codified r46-round-2 : extend to a balanced bid/soft mirror with
+    # Tetlock invalidation thresholds matching `_section_xau_specific`
+    # (Erb-Harvey 2013 real-yield law + Stephen-Jen 2018 dollar-smile).
     xau_usd: list[str] = []
+    # XAU-bid scenarios (real-yield support + safe-haven flight) :
     if inflation_pressure_up:
-        xau_usd.append("real-yield support (++)")
+        xau_usd.append(
+            "XAU-bid (real-yield support via Erb-Harvey channel ; "
+            "invalidated if DFII10 rises > 20 bp within 5 sessions WHILE Pass-1 regime stays calm)"
+        )
     if tail_fear or vol_elevated:
-        xau_usd.append("safe-haven flow (++)")
+        xau_usd.append(
+            "XAU-bid (safe-haven flight + dollar-smile co-bid per Brunnermeier-Pedersen 2009 ; "
+            "invalidated if VIX falls below 16 AND SKEW < 135 concurrent)"
+        )
     if liquidity_tight:
-        xau_usd.append("USD-strength counter-pressure (-)")
+        xau_usd.append(
+            "XAU-bid (USD-strength counter-pressure mitigated by funding-stress flight bid ; "
+            "invalidated if HY OAS fails to widen > 50 bp during DTWEXBGS up-move)"
+        )
+    # XAU-soft scenarios (real-yield rise + risk-on carry under-allocation) :
+    if inflation_anchored and sentiment_strong:
+        xau_usd.append(
+            "XAU-soft (real yields rising in goldilocks, gold-yield-headwind via Erb-Harvey ; "
+            "invalidated if DFII10 falls > 15 bp within 5 sessions OR VIX rises above 22)"
+        )
+    if liquidity_loose and vol_complacent:
+        xau_usd.append(
+            "XAU-soft (risk-on carry-receiving regime, gold under-allocated vs high-yielders ; "
+            "invalidated if NFCI rises above 0 OR VIX rises above 22 within 5 sessions)"
+        )
     asset_hints.append(asset("XAU_USD", xau_usd or ["balanced"]))
 
+    # ── NAS100_USD : duration-vol-tail triangle (Hou-Mo-Xue + Park 2015) ──
+    # Round-46 r46-round-5 GAP-A retroactive symmetric mirror (R47 pattern
+    # codified r46-round-2). Pre-r46-r5 NAS had 3 uni-directional NAS-soft
+    # hints with `(-)` notation and ZERO NAS-bid mirror despite
+    # `_section_nas_specific` (r42) being fully symmetric on all 3 drivers
+    # (DGS10 + VVIX + SKEW) with Tetlock invalidation on both branches.
+    # R47 retroactive symmetric mirror per cross-asset matrix R47 pattern
+    # codified r46-round-2 : extend to a balanced bid/soft mirror with
+    # Tetlock invalidation thresholds matching `_section_nas_specific`
+    # (Hou-Mo-Xue 2015 q-factor duration + Park 2015 / Bevilacqua-Tunaru
+    # 2021 VVIX-SKEW joint regime literature).
     nas: list[str] = []
+    # NAS-soft scenarios (duration + multiple compression + vol-of-vol) :
     if inflation_pressure_up:
-        nas.append("duration headwind (-)")
+        nas.append(
+            "NAS-soft (duration headwind via Hou-Mo-Xue q-factor discount-rate channel ; "
+            "invalidated if DGS10 rises > 15 bp WHILE 1m-realized-vol stays sub-30% in goldilocks)"
+        )
     if liquidity_tight:
-        nas.append("multiple-compression risk (-)")
+        nas.append(
+            "NAS-soft (multiple-compression via funding-stress discount-rate denominator ; "
+            "invalidated if NFCI falls below 0 within 4 sessions AND VVIX stays sub-100)"
+        )
     if vol_elevated:
-        nas.append("vol-of-vol drag (-)")
+        nas.append(
+            "NAS-soft (vol-of-vol drag, mechanical vol-control deleveraging per Park 2015 ; "
+            "invalidated if VVIX falls below 85 within 3 sessions AND SKEW < 130 concurrent)"
+        )
+    # NAS-bid scenarios (calm-tail mechanical bid + reflation + dispersion absorption) :
+    if liquidity_loose and vol_complacent:
+        nas.append(
+            "NAS-bid (carry-bid risk-on regime, multiple-expansion + duration tailwind ; "
+            "invalidated if NFCI rises above 0 OR VVIX exceeds 100 within 5 sessions)"
+        )
+    if inflation_anchored and sentiment_strong:
+        nas.append(
+            "NAS-bid (real-yield easing + earnings reflation via Hou-Mo-Xue duration relief ; "
+            "invalidated if MCT > 2.75 OR SBOI < 98 within 2 monthly prints)"
+        )
+    if tail_calm and vol_complacent:
+        nas.append(
+            "NAS-bid (vol-of-vol low + dispersion absorption per Bevilacqua-Tunaru 2021 ; "
+            "invalidated if SKEW > 130 alongside DGS10 widening > 10 bp)"
+        )
     asset_hints.append(asset("NAS100_USD", nas or ["balanced"]))
 
+    # ── SPX500_USD : VIX-funding-sentiment triangle (Brunnermeier-Pedersen) ──
+    # Round-46 r46-round-5 GAP-A retroactive symmetric mirror (R47 pattern
+    # codified r46-round-2). Pre-r46-r5 SPX had only 2 uni-directional SPX-
+    # soft hints with `(-)` notation and ZERO SPX-bid mirror despite
+    # `_section_spx_specific` (r43) being fully symmetric on all 3 drivers
+    # (VIX term-structure + NFCI + SBOI) with Tetlock invalidation on both
+    # branches.
+    # R47 retroactive symmetric mirror per cross-asset matrix R47 pattern
+    # codified r46-round-2 : extend to a balanced bid/soft mirror with
+    # Tetlock invalidation thresholds matching `_section_spx_specific`
+    # (Brunnermeier-Pedersen 2009 funding-liquidity-spiral framework, the
+    # SPX-equity analogue of the Stephen-Jen USD broken-smile).
+    # SOURCE-PURITY CAVEAT (ADR-089) : SPX500_USD Polygon ticker = `SPY`
+    # NYSE Arca ETF proxy (not `I:SPX`, $49/mo subscription blocked). Tracking
+    # error <0.1% MTD invisible for qualitative Pass-2 framing.
     spx: list[str] = []
+    # SPX-soft scenarios (risk-off + funding stress + earnings-tail) :
     if liquidity_tight or tail_fear:
-        spx.append("risk-off pressure (-)")
+        spx.append(
+            "SPX-soft (risk-off pressure via Brunnermeier-Pedersen funding-liquidity spiral ; "
+            "invalidated if NFCI falls below 0 within 4 sessions AND VIX-term-structure stays contango)"
+        )
     if sentiment_weak:
-        spx.append("earnings-tail downside (-)")
+        spx.append(
+            "SPX-soft (earnings-tail downside via SBOI contractionary regime ; "
+            "invalidated if SBOI rebounds above 100 alongside NFCI falling below -0.3)"
+        )
+    # SPX-bid scenarios (broad reflation + goldilocks mechanical beta + roll-yield) :
+    if liquidity_loose and sentiment_strong:
+        spx.append(
+            "SPX-bid (broad reflation + multiple-expansion via funding-loose + sentiment-strong ; "
+            "invalidated if NFCI rises above 0 OR SBOI falls below 95 within 2 monthly prints)"
+        )
+    if inflation_anchored and vol_complacent:
+        spx.append(
+            "SPX-bid (goldilocks regime, mechanical beta accumulation via vol-control rebuild ; "
+            "invalidated if MCT > 2.75 OR VIX rises above 22 within 5 sessions)"
+        )
+    if tail_calm and vol_complacent:
+        spx.append(
+            "SPX-bid (VIX-term-structure contango + vol-seller roll-yield extraction ; "
+            "invalidated if VIX-term-structure flips to backwardation OR SKEW > 130 within 3 sessions)"
+        )
     asset_hints.append(asset("SPX500_USD", spx or ["balanced"]))
 
     for asset_name, hints in asset_hints:
@@ -3589,6 +4162,19 @@ async def build_data_pool(
     jpy_md, jpy_src = await _section_jpy_specific(session, asset)
     if jpy_src:
         sections.append(("jpy_specific", jpy_md, jpy_src))
+
+    # Round-46 — AUD-specific commodity-currency triangulation (GAP-A
+    # continuation 5/5 closure via ADR-092 PROPOSED Tier 1 inline-FRED
+    # ship + ADR-093 PROPOSED "degraded explicit" surface pattern).
+    # Asset-gated to AUD_USD ; silent skip otherwise OR if IRLTLT01AUM156N
+    # absent (primary AUD anchor). 3/3 monthly drivers (rate-diff via AU 10Y
+    # + DGS10 + China M1 + iron-ore + copper composite) with degraded
+    # explicit annotation — DGS10 is the only daily anchor used solely for
+    # the rate-differential computation. Frameworks : Engel-West 2005 +
+    # Chen-Rogoff 2003 + Ready-Roussanov-Ward 2017.
+    aud_md, aud_src = await _section_aud_specific(session, asset)
+    if aud_src:
+        sections.append(("aud_specific", aud_md, aud_src))
 
     poly_md, poly_src = await _section_polygon_intraday(session, asset)
     sections.append(("polygon_intraday", poly_md, poly_src))

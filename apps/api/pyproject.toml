@@ -13,6 +13,13 @@ dependencies = [
     "alembic>=1.14.0",
     "redis[hiredis]>=5.2.0",
     "httpx>=0.28.0",
+    # Round-46-round-3 dependency-auditor finding : urllib3 transitive
+    # was pinned at 2.6.3 (vuln to CVE-2026-44431 sensitive-headers leak
+    # via ProxyManager.connection_from_url(...).urlopen(..., assert_same_host=False)).
+    # Ichor never uses that low-level API so zero exploit path, but bump
+    # the floor anyway to silence the Dependabot moderate alert + prevent
+    # accidental regression. CVSS 6.1, GHSA-qccp-gfcp-xxvc 2026-05-11.
+    "urllib3>=2.7.0",
     "defusedxml>=0.7.1",
     "structlog>=25.1.0",
     "opentelemetry-api>=1.30.0",

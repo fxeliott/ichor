@@ -104,6 +104,25 @@ EXTENDED_SERIES_TO_POLL: tuple[str, ...] = (
     #                   per r33 subagent #2, FRED OECD monthly fallback)
     "IRLTLT01JPM156N",  # Japan 10y (for USD-JPY)
     "IRLTLT01GBM156N",  # UK 10y (for GBP-USD)
+    "IRLTLT01AUM156N",  # Australia 10y (for AUD-USD, round-46 ADR-092 §T1.AUD-3
+    #                   Engel-West rate-differential channel with DGS10)
+    # ─── China credit-impulse proxy + commodity terms-of-trade (round-46 ADR-092 §T1.AUD) ───
+    # AUD as commodity-currency : 3-driver triangulation per Chen-Rogoff 2003 +
+    # Ready-Roussanov-Ward 2017. Each monthly OECD/IMF-sourced FRED series anchors
+    # one leg of the AUD section (China credit impulse + iron-ore + copper).
+    "MYAGM1CNM189N",  # China M1 monthly — currency + demand deposits (round-46
+    #                   r46-round-2 audit swap from MYAGM2CNM189N which was
+    #                   DISCONTINUED Aug 2019 per IMF IFS / FRED). M1 is
+    #                   narrower than M2 but PRESERVES Chen-Rogoff 2003
+    #                   commodity-currency transmission proxy ; M1 YoY
+    #                   surges historically lead CFETS commodity demand by
+    #                   ~3-6 months per Barcelona-Cascaldi-Garcia-Hoek-Van
+    #                   Leemput 2022 Fed IFDP 1360. TSF direct deferred per
+    #                   ADR-092 §DEFER firmly (PBoC HTML scrape blocker).
+    "PIORECRUSDM",  # Global Iron Ore Price Index monthly (IMF World Bank
+    #                   pinkbook composite — AUD-positive commodity ToT primary)
+    "PCOPPUSDM",  # Global Copper Price Index monthly (same source family —
+    #                   confirms iron-ore signal via base-metal complex co-move)
     # ─── OECD CLI (Composite Leading Indicators) — Wave 34 ───
     # Monthly. >100 = above trend (expansion), <100 = below trend
     # (slowdown). Turning points lead GDP by 6-9 months. FRED redistributes
