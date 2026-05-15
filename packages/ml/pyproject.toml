@@ -8,6 +8,12 @@ dependencies = [
     "lightgbm>=4.5.0",
     "xgboost>=2.1.0",
     "scikit-learn>=1.6.0",
+    # Schema / validation (used by src/ichor_ml/types.py for FomcToneScore
+    # + BiasModelOutput etc.). Was being pulled transitively via dowhy +
+    # mlflow + evidently before r46-r5 [ml-research] purge ; added as
+    # DIRECT dep r46-round-7 after CI failure ModuleNotFoundError caught
+    # the missing transitive (gh run 25883287270 packages/ml job exit 2).
+    "pydantic>=2.10.0",
     # Numerical
     # numpy>=2 required by river>=0.24.2 (concept drift detector). All
     # other deps (lightgbm/xgboost/scipy/scikit-learn) support numpy 2.x
