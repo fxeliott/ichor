@@ -1,0 +1,54 @@
+name: FRED-DB liveness nightly
+
+# ADR-097 R53 codification : nightly mechanical check that all FRED
+# series in `merged_series()` are still alive + within their per-series
+# max-age registry threshold. Prevents r46-class hallucinations where
+# researcher subagents claim "series LIVE" based on web-search cache
+# while the FRED series is actually discontinued.
+#
+# MVP scope per r50.5 wave-2 critique :
+# - NO LLM-suggested replacements (out of scope)
+# - NO auto-issue creation (out of scope)
+# - JUST fail CI hard on RED + emit JSON report artifact
+#
+# Cadence : daily 04:00 UTC (after FRED's overnight publication window).
+# Manual trigger via workflow_dispatch for ad-hoc verification.
+
+on:
+  schedule:
+    - cron: "0 4 * * *" # 04:00 UTC daily
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  liveness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v5
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install minimal deps (httpx only — no full apps/api install)
+        run: |
+          python -m pip install --upgrade pip
+          pip install httpx
+
+      - name: Run FRED liveness check
+        env:
+          ICHOR_CI_FRED_API_KEY: ${{ secrets.ICHOR_CI_FRED_API_KEY }}
+        run: python scripts/ci/fred_liveness_check.py
+
+      - name: Upload report artifact
+        if: always() # upload even on failure for debugging
+        uses: actions/upload-artifact@v5
+        with:
+          name: fred-liveness-report-${{ github.run_id }}
+          path: fred_liveness_report.json
+          retention-days: 30

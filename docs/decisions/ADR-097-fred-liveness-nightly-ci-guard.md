@@ -1,6 +1,15 @@
 # ADR-097: Nightly FRED-DB liveness CI guard (R53 codified preventive guard)
 
-**Status**: PROPOSED (round-50, 2026-05-15) — awaiting Eliot ratification. Code prototype not yet shipped. Estimated effort 1 dev-day (CI workflow + pytest assertions + alerts wiring).
+**Status**: **Accepted (round-61 ratify, 2026-05-15)** — corrections from r50.5 wave-2 critique applied + actual code shipped (`scripts/ci/fred_liveness_check.py` + `.github/workflows/fred-liveness.yml`). Eliot still needs to provision `ICHOR_CI_FRED_API_KEY` GitHub secret for first nightly run (manual ~2 min). Original PROPOSED status preserved below for archeology.
+
+**Corrections applied (per r50.5 wave-2 subagent E critique)** :
+
+- **Rate-limit math fixed** : original "60 req/35s" would trip FRED 120/min limit (60 burst in <5s = 12 req/sec). Shipped script uses 0.5s sleep between requests = 2 req/sec sustained = safe.
+- **Import paths verified** : `merged_series` confirmed at `apps/api/src/ichor_api/collectors/fred_extended.py:190` ; `_FRED_SERIES_MAX_AGE_DAYS` + `_FRED_DEFAULT_MAX_AGE_DAYS` confirmed at `apps/api/src/ichor_api/services/data_pool.py:238+294` (private API, acceptable for CI internal use).
+- **MVP scope tightened** : removed LLM-suggested replacements + auto-issue creation from initial spec (out of MVP scope). Script just fails CI on RED + emits JSON report artifact. Issue creation can be r62+ extension if useful.
+- **GitHub Actions versions** : updated to `actions/checkout@v5` + `actions/setup-python@v6` + `actions/upload-artifact@v5` (verified GA versions per github.com/actions/\* registry).
+
+**Original Status (PROPOSED)** : "PROPOSED (round-50, 2026-05-15) — awaiting Eliot ratification. Code prototype not yet shipped. Estimated effort 1 dev-day (CI workflow + pytest assertions + alerts wiring)."
 
 **Date**: 2026-05-15
 

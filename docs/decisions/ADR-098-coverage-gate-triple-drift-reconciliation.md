@@ -1,6 +1,15 @@
 # ADR-098: Coverage gate triple-drift reconciliation (ADR-028 amend or honor)
 
-**Status**: PROPOSED (round-50, 2026-05-15) — awaiting Eliot decision (3 options listed below).
+**Status**: **PROPOSED-CORRECTED (round-61 2026-05-15)** — corrections from r50.5 wave-2 critique applied : the "triple drift" premise was based on a fabricated `pyproject.toml:192` citation. **Reality is "double drift"** (workflow + ADR-028) only. Eliot still needs to choose path A/B/C — this is a SCOPE decision, not a correction. ADR-097 has been ratified to Accepted r61 ; ADR-098 stays PROPOSED until Eliot's path choice.
+
+**Corrections applied** :
+
+- ❌ FAUX : "ADR-028 cov-fail-under=70 vs reality 49 (`pyproject.toml:192`) vs CLAUDE.md Phase A.3 60%" = TRIPLE drift
+- ✅ VRAI : "ADR-028 cov-fail-under=70 vs reality 49 (`.github/workflows/ci.yml:155`) only" = DOUBLE drift
+- The CLAUDE.md "Phase A.3 60%" reference was hand-wavy in the original ADR ; verified r61 — no such citation exists in CLAUDE.md (was speculation by subagent E, propagated unchecked into ADR-098).
+- The 3 options A/B/C below remain VALID ; the underlying problem (49 vs 70 promise gap) is real.
+
+**Original Status (PROPOSED, fabricated triple drift)** : "PROPOSED (round-50, 2026-05-15) — awaiting Eliot decision (3 options listed below)."
 
 **Date**: 2026-05-15
 
