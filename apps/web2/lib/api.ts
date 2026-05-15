@@ -117,6 +117,35 @@ export interface CalibrationStatSchema {
   trend: "bull" | "bear" | "neutral";
 }
 
+// r62 (ADR-083 D3) — KeyLevel snapshot persisted into session_card_audit.
+// Mirror of `apps/api/src/ichor_api/routers/key_levels.py:KeyLevelOut`.
+export type KeyLevelKind =
+  | "tga_liquidity_gate"
+  | "rrp_liquidity_gate"
+  | "gamma_flip"
+  | "gex_call_wall"
+  | "gex_put_wall"
+  | "peg_break_hkma"
+  | "peg_break_pboc_fix"
+  | "vix_regime_switch"
+  | "skew_regime_switch"
+  | "hy_oas_percentile"
+  | "polymarket_decision";
+
+export interface KeyLevel {
+  asset: string;
+  level: number;
+  kind: KeyLevelKind;
+  side: string;
+  source: string;
+  note: string;
+}
+
+export interface KeyLevelsResponse {
+  count: number;
+  items: KeyLevel[];
+}
+
 export interface SessionCard {
   id: string;
   generated_at: string;
@@ -135,6 +164,9 @@ export interface SessionCard {
   catalysts: unknown;
   correlations_snapshot: unknown;
   polymarket_overlay: unknown;
+  /** r62 (ADR-083 D3) — KeyLevel snapshot persisted at orchestrator
+   *  finalization. Empty array `[]` is the canonical "all NORMAL" state. */
+  key_levels: KeyLevel[];
   source_pool_hash: string;
   critic_verdict: string | null;
   critic_findings: unknown;
@@ -151,6 +183,11 @@ export interface SessionCard {
   ideas: IdeaSetSchema | null;
   confluence_drivers: ConfluenceDriverSchema[] | null;
   calibration: CalibrationStatSchema | null;
+}
+
+/** r65 — fetch the live KeyLevels snapshot from `/v1/key-levels`. */
+export async function getKeyLevels(): Promise<KeyLevelsResponse | null> {
+  return apiGet<KeyLevelsResponse>("/v1/key-levels");
 }
 
 export interface SessionCardList {
