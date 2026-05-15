@@ -1,23 +1,42 @@
 /**
- * /briefing — landing index for the 5-asset pre-session surface.
+ * /briefing — the pre-session cockpit landing.
  *
- * Shows a hero + the AssetSwitcher grid + macro context summary.
- * Click on any asset → /briefing/[asset] deep-dive.
+ * r71 — the r70 synthesis applied at the entry point : a one-line
+ * deterministic verdict per priority asset so the trader sees all 5
+ * reads at a glance before drilling in. Uses the SAME pure
+ * `deriveVerdict` as the deep-dive VerdictBanner (single source of
+ * truth) — derived server-side at SSR (deriveVerdict is pure / no
+ * client deps), zero client round-trips.
  *
- * r65 — first ungeled frontend route in the rule-4 chapter.
+ * r71 — first ungeled frontend route family (rule-4 chapter).
  */
 
 import type { Metadata } from "next";
 import { Suspense } from "react";
 
 import { AssetSwitcher } from "@/components/briefing/AssetSwitcher";
+import { PRIORITY_ASSETS } from "@/components/briefing/assets";
 import { SessionStatus } from "@/components/briefing/SessionStatus";
-import { apiGet, isLive, type TodaySnapshotOut } from "@/lib/api";
+import { VerdictRow } from "@/components/briefing/VerdictRow";
+import {
+  apiGet,
+  getCalendarUpcoming,
+  getKeyLevels,
+  getPositioning,
+  isLive,
+  type CalendarUpcoming,
+  type KeyLevelsResponse,
+  type PositioningOut,
+  type SessionCard,
+  type SessionCardList,
+  type TodaySnapshotOut,
+} from "@/lib/api";
+import { deriveVerdict, type VerdictSummary } from "@/lib/verdict";
 
 export const metadata: Metadata = {
   title: "Briefings · Ichor",
   description:
-    "Pré-session briefings pour 5 actifs : EUR/USD, GBP/USD, XAU/USD, S&P 500, Nasdaq 100.",
+    "Cockpit pré-session : verdict synthétique des 5 actifs prioritaires (EUR/USD, GBP/USD, XAU/USD, S&P 500, Nasdaq 100).",
 };
 
 const RISK_BAND_TONE: Record<string, string> = {
@@ -37,7 +56,33 @@ const VIX_REGIME_LABEL: Record<string, string> = {
 };
 
 export default async function BriefingIndexPage() {
-  const today = await apiGet<TodaySnapshotOut>("/v1/today");
+  // Parallel : per-asset latest card + shared keyLevels/positioning/
+  // calendar/today macro. deriveVerdict is pure → run it server-side.
+  const [today, keyLevels, positioning, calendar, ...cards] = await Promise.all([
+    apiGet<TodaySnapshotOut>("/v1/today"),
+    getKeyLevels() as Promise<KeyLevelsResponse | null>,
+    getPositioning() as Promise<PositioningOut | null>,
+    getCalendarUpcoming() as Promise<CalendarUpcoming | null>,
+    ...PRIORITY_ASSETS.map((a) =>
+      apiGet<SessionCardList>(`/v1/sessions/${encodeURIComponent(a.code)}?limit=1`),
+    ),
+  ]);
+
+  const kl = keyLevels?.items ?? [];
+  const pos = positioning?.entries ?? [];
+  const cal = calendar?.events ?? [];
+
+  const verdicts: { asset: string; pair: string; summary: VerdictSummary | null }[] =
+    PRIORITY_ASSETS.map((a, i) => {
+      const list = cards[i] ?? null;
+      const card: SessionCard | null =
+        isLive(list) && list.items.length > 0 ? (list.items[0] ?? null) : null;
+      return {
+        asset: a.code,
+        pair: a.pair,
+        summary: card ? deriveVerdict(a.code, card, kl, pos, cal) : null,
+      };
+    });
 
   return (
     <main className="mx-auto max-w-6xl space-y-10 px-4 py-10 md:px-8 md:py-14">
@@ -47,17 +92,30 @@ export default async function BriefingIndexPage() {
 
       <section className="space-y-4">
         <p className="text-[10px] uppercase tracking-[0.3em] text-[--color-text-muted]">
-          Ichor · Pré-session briefings
+          Ichor · Cockpit pré-session
         </p>
         <h1 className="font-serif text-5xl tracking-tight text-[--color-text-primary] md:text-6xl">
           Comprends le marché
           <span className="block text-[--color-text-secondary]">avant qu&apos;il ouvre.</span>
         </h1>
         <p className="max-w-2xl text-base leading-relaxed text-[--color-text-secondary]">
-          Macro · fondamental · sentiment · positionnement · corrélation · niveaux microstructure.
-          Tout ce qui n&apos;est pas analyse technique, en un seul écran. Cinq actifs prioritaires,
-          deux briefings par jour, 100 % autonome.
+          Verdict synthétique des 5 actifs — biais, conviction, caractère, confluence, catalyseur —
+          en un coup d&apos;œil. Clique pour le détail complet.
         </p>
+      </section>
+
+      <section aria-labelledby="cockpit-heading" className="space-y-3">
+        <div className="flex items-baseline justify-between gap-4">
+          <h2 id="cockpit-heading" className="font-serif text-2xl text-[--color-text-primary]">
+            Lecture du jour · 5 actifs
+          </h2>
+          <span className="text-[10px] uppercase tracking-widest text-[--color-text-muted]">
+            synthèse déterministe · zéro LLM
+          </span>
+        </div>
+        {verdicts.map((v, i) => (
+          <VerdictRow key={v.asset} asset={v.asset} pair={v.pair} summary={v.summary} index={i} />
+        ))}
       </section>
 
       <AssetSwitcher previews={isLive(today) ? today.top_sessions : []} />
