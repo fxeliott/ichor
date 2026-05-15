@@ -38,10 +38,18 @@ from .gamma_flip import compute_gamma_flip_levels
 from .peg_break import compute_hkma_peg_break
 from .tga import compute_tga_key_level
 from .types import KeyLevel
+from .vol_regime import (
+    compute_hy_oas_percentile,
+    compute_skew_regime_switch,
+    compute_vix_regime_switch,
+)
 
 __all__ = [
     "KeyLevel",
     "compute_gamma_flip_levels",
     "compute_hkma_peg_break",
+    "compute_hy_oas_percentile",
+    "compute_skew_regime_switch",
     "compute_tga_key_level",
+    "compute_vix_regime_switch",
 ]

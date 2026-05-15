@@ -615,7 +615,10 @@ async def _section_key_levels(session: AsyncSession) -> tuple[str, list[str]]:
     from .key_levels import (
         compute_gamma_flip_levels,
         compute_hkma_peg_break,
+        compute_hy_oas_percentile,
+        compute_skew_regime_switch,
         compute_tga_key_level,
+        compute_vix_regime_switch,
     )
 
     levels: list = []
@@ -638,9 +641,19 @@ async def _section_key_levels(session: AsyncSession) -> tuple[str, list[str]]:
         levels.append(kl)
         sources.append(kl.source)
 
-    # r57+ : add vix_regime, polymarket_decision, hy_oas_percentile,
-    # peg_break_pboc_fix here. Each computer returns KeyLevel | None
-    # OR list[KeyLevel] for batch computers like gamma_flip.
+    # r57 : vol/credit regime switches (VIX + SKEW + HY OAS).
+    # Each returns KeyLevel | None ; only fires outside normal bands.
+    for computer in (
+        compute_vix_regime_switch,
+        compute_skew_regime_switch,
+        compute_hy_oas_percentile,
+    ):
+        kl = await computer(session)
+        if kl is not None:
+            levels.append(kl)
+            sources.append(kl.source)
+
+    # r58+ : polymarket_decision, peg_break_pboc_fix here.
 
     if not levels:
         body = (
