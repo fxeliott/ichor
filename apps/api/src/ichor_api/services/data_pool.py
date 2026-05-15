@@ -612,7 +612,7 @@ async def _section_key_levels(session: AsyncSession) -> tuple[str, list[str]]:
     of skipping the section entirely — Pass 2 LLM benefits from the
     explicit "no key level fired this session" signal vs missing section.
     """
-    from .key_levels import compute_tga_key_level
+    from .key_levels import compute_hkma_peg_break, compute_tga_key_level
 
     levels: list = []
     sources: list[str] = []
@@ -622,8 +622,15 @@ async def _section_key_levels(session: AsyncSession) -> tuple[str, list[str]]:
         levels.append(tga)
         sources.append(tga.source)
 
-    # r55+ : add peg_break, gamma_flip, vix_regime, polymarket_decision,
-    # hy_oas_percentile here. Each computer returns KeyLevel | None.
+    # r55 : HKMA USD/HKD peg break (band [7.75, 7.85] convertibility).
+    hkma = await compute_hkma_peg_break(session)
+    if hkma is not None:
+        levels.append(hkma)
+        sources.append(hkma.source)
+
+    # r56+ : add gamma_flip, vix_regime, polymarket_decision,
+    # hy_oas_percentile, peg_break_pboc_fix here. Each computer
+    # returns KeyLevel | None.
 
     if not levels:
         body = (
