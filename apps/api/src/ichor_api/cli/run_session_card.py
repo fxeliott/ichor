@@ -266,6 +266,41 @@ async def _run(
         pass3_addenda_section=pass3_addenda_section,
     )
 
+    # === r51 ADR-017 + Critic verdict safety gate (P0.1 + P0.2) ===
+    # Closes gap identified by r50.5 wave-2 audit (subagents F + I) :
+    # boundary regex was wired only in addendum_generator (W116c) and
+    # Pass 6 _reject_trade_tokens ; the main session_card persist path
+    # had ZERO content-level safety check, and Critic verdict was
+    # purely cosmetic (persisted to column without gating, surfaced via
+    # /v1/today DISTINCT-ON exactly like an approved card).
+    from ..services.session_card_safety_gate import evaluate_safety_gate
+
+    _safety = evaluate_safety_gate(result.card)
+    if _safety.rejected:
+        log.warning(
+            "session_card.safety_reject",
+            asset=asset,
+            session_type=session_type,
+            **_safety.log_fields(),
+        )
+        _reason_label = (
+            "ADR-017 token" if _safety.primary_reason == "adr017_token" else "Critic blocked"
+        )
+        print(
+            f"REJECT · session_card NOT persisted (safety gate)\n"
+            f"  asset      : {asset}\n"
+            f"  session    : {session_type}\n"
+            f"  adr017     : {len(_safety.adr017_violations)} violations "
+            f"{list(_safety.adr017_violations[:3])}\n"
+            f"  critic     : {_safety.critic_verdict}\n"
+            f"  reason     : {_reason_label}",
+            file=sys.stderr,
+        )
+        # Exit code 4 = safety reject (distinct from 0 success / 2 invalid
+        # arg / 3 import error). Batch wrapper logs non-zero rc and
+        # continues to next asset (run_session_cards_batch.py:107).
+        return 4
+
     async with sm() as session:
         row = to_audit_row(result.card)
         session.add(row)
