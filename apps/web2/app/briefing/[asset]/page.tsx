@@ -35,6 +35,7 @@ import { NewsPanel } from "@/components/briefing/NewsPanel";
 import { ScenariosPanel } from "@/components/briefing/ScenariosPanel";
 import { SentimentPanel } from "@/components/briefing/SentimentPanel";
 import { SessionStatus } from "@/components/briefing/SessionStatus";
+import { VerdictBanner } from "@/components/briefing/VerdictBanner";
 import {
   apiGet,
   getCalendarUpcoming,
@@ -118,6 +119,16 @@ export default async function BriefingPage({ params }: PageParams) {
       <AssetSwitcher active={normalisedAsset} previews={previews} />
 
       <BriefingHeader asset={normalisedAsset} card={card} isLive={card !== null} />
+
+      {card && (
+        <VerdictBanner
+          asset={normalisedAsset}
+          card={card}
+          keyLevels={renderedKeyLevels}
+          positioning={positioning?.entries ?? []}
+          calendar={calendar?.events ?? []}
+        />
+      )}
 
       <section aria-labelledby="key-levels-heading">
         <div className="mb-4 flex items-baseline justify-between gap-4">
