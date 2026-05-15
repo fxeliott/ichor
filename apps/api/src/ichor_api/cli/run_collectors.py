@@ -38,7 +38,10 @@ from ..collectors.dts_treasury import fetch_operating_cash, latest_tga_close
 from ..collectors.ecb_sdmx import SERIES_TO_POLL as _ECB_SERIES
 from ..collectors.ecb_sdmx import fetch_series as fetch_ecb_series
 from ..collectors.eia_petroleum import fetch_steo, fetch_weekly_petroleum_stocks
-from ..collectors.finra_short import fetch_daily_short_volume
+from ..collectors.finra_short import (
+    fetch_daily_short_volume,
+    fetch_daily_short_volume_flatfile,
+)
 from ..collectors.flashalpha import poll_all as poll_flashalpha
 from ..collectors.forex_factory import (
     fetch_ff_calendar,
@@ -999,8 +1002,19 @@ async def _run_finra_short(*, persist: bool) -> int:
         "AMZN",
         "META",
     )
+    # r53 : prefer free CDN flat-file path. The OAuth-gated API path
+    # (`fetch_daily_short_volume`) was the silent-dead root cause per
+    # r52 wave-2 subagent M finding — without `finra_api_token`, every
+    # `compareFilters` query returned 401 silently swallowed.
+    # Flat-file path is no-auth, no rate-limit, free per Voie D. If
+    # `finra_api_token` IS provisioned later (Eliot manual), API path
+    # remains available as alternate (richer fields).
     try:
-        rows = await fetch_daily_short_volume(sample_symbols, api_token=token)
+        rows = await fetch_daily_short_volume_flatfile(sample_symbols)
+        if not rows and token:
+            # Empty flat-file (long weekend/holiday) → try API as fallback.
+            print("FINRA short · flatfile empty, trying API fallback")
+            rows = await fetch_daily_short_volume(sample_symbols, api_token=token)
     except Exception as e:
         print(f"FINRA short · fetch error: {e}")
         return 1
