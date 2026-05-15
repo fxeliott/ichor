@@ -232,9 +232,21 @@ D:\Ichor
   wired (auth.py JWT verifier + HttpRunnerClient header injection +
   lifespan production guard).
 
-## Latest migrations (head 0048)
+## Latest migrations (head 0049)
 
-- **head 0048** — `0048_estr_observations.py` (r34, ADR-090 P0 step-4) —
+- **head 0049** — `0049_session_card_key_levels.py` (r62, ADR-083 D3 → D4
+  bridge) — `session_card_audit.key_levels JSONB NOT NULL DEFAULT '[]'::jsonb`.
+  Per-card snapshot of all currently-firing KeyLevel objects (9 computers :
+  TGA + HKMA + gamma_flip + call_wall + put_wall + VIX + SKEW + HY OAS +
+  polymarket) captured at 4-pass orchestrator finalization. Mirror of 0039
+  `scenarios` pattern verbatim (W105a, ADR-085). Single source of truth :
+  `services/key_levels/orchestration.py:compose_key_levels_snapshot()`
+  consumed by both `/v1/key-levels` HTTP endpoint AND `cli/run_session_card.py`
+  persistence path — router and orchestrator can never drift on which
+  KeyLevels fire. Closes the ADR-083 D3 → D4 architectural bridge :
+  D4 frontend replay + Brier post-mortem now read the snapshot frozen at
+  card generation time rather than recomputing.
+- **0048** — `0048_estr_observations.py` (r34, ADR-090 P0 step-4) —
   `estr_observations` TimescaleDB hypertable + ORM `EstrObservation` +
   UNIQUE(observation_date) + CHECK rate_pct ∈ [-1.5, 10.0] %.
   Source : ECB Data Portal SDMX `EST/B.EU000A2X2A25.WT` (COMMA delimiter,

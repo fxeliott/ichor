@@ -302,7 +302,23 @@ async def _run(
         return 4
 
     async with sm() as session:
-        row = to_audit_row(result.card)
+        # r62 (ADR-083 D3) : snapshot the currently-firing KeyLevels at
+        # finalization so D4 frontend replay + Brier post-mortem read
+        # the exact state at card generation time. Pure-Python compute,
+        # no LLM call (Voie D respect). Best-effort : if the snapshot
+        # fails (e.g. upstream table empty in a fresh test DB) we fall
+        # back to [] — `session_card_audit.key_levels` NOT NULL default
+        # is `'[]'::jsonb` so an empty list is the canonical NORMAL.
+        from ..services.key_levels.orchestration import compose_key_levels_snapshot
+
+        try:
+            key_levels_snapshot = await compose_key_levels_snapshot(session)
+        except Exception as e:  # noqa: BLE001 — never fail the persist on KL snapshot error
+            log.warning("key_levels_snapshot.fallback", asset=asset, error=str(e))
+            key_levels_snapshot = []
+
+        card_with_levels = result.card.model_copy(update={"key_levels": key_levels_snapshot})
+        row = to_audit_row(card_with_levels)
         session.add(row)
         await session.commit()
         log.info(

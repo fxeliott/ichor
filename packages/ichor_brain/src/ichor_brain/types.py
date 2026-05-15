@@ -177,6 +177,17 @@ class SessionCard(BaseModel):
     (migration 0039) — the W108 reconciler reads it to compute Brier
     multi-class K=7 vs `realized_scenario_bucket`."""
 
+    key_levels: list[dict[str, Any]] | None = None
+    """ADR-083 D3 KeyLevel snapshot at orchestrator finalization (r62).
+    Shape : list[{asset: str, level: float, kind: str, side: str,
+    source: str, note: str}] — mirror of `/v1/key-levels` response
+    items. Empty list `[]` is the canonical "all bands NORMAL" state ;
+    None for pipelines that don't compose the snapshot (pre-r62
+    legacy). Persisted as `session_card_audit.key_levels` JSONB
+    column (migration 0049, NOT NULL DEFAULT `'[]'::jsonb`) — D4
+    frontend replay + Brier post-mortem read this snapshot rather
+    than recomputing."""
+
     @field_validator("asset")
     @classmethod
     def _normalize_asset(cls, v: str) -> str:

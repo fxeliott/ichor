@@ -91,3 +91,13 @@ class SessionCardAudit(Base):
     # constraint enforced at DB level (migration 0039) ; the writer
     # uses `services/scenarios.bucket_for_zscore` to derive the label.
     realized_scenario_bucket: Mapped[str | None] = mapped_column(String(16))
+
+    # r62 (migration 0049) — ADR-083 D3 KeyLevel snapshot at orchestrator
+    # finalization. Shape : list[{asset, level, kind, side, source, note}]
+    # — mirror of /v1/key-levels response items. Empty list `[]` is the
+    # canonical "all bands NORMAL" state (distinct from NULL = "not
+    # computed"). NOT NULL with server_default `'[]'::jsonb` per
+    # migration 0049 so existing rows backfill cleanly. Closes the
+    # ADR-083 D3 -> D4 architectural bridge : Pass-2 prompt enrichment
+    # + D4 frontend replay read this snapshot rather than recomputing.
+    key_levels: Mapped[Any] = mapped_column(JSONB, nullable=False)

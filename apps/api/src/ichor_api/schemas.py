@@ -341,6 +341,12 @@ class SessionCardOut(BaseModel):
     catalysts: Any | None = None
     correlations_snapshot: Any | None = None
     polymarket_overlay: Any | None = None
+    # r62 (ADR-083 D3) : KeyLevel snapshot at card generation. Mirror
+    # of /v1/key-levels response items shape — list[{asset, level,
+    # kind, side, source, note}]. Default `[]` covers legacy rows
+    # that predate migration 0049 ; never None on rows persisted
+    # post-r62 because the column is NOT NULL DEFAULT '[]'::jsonb.
+    key_levels: list[dict[str, Any]] = []
     source_pool_hash: str
     critic_verdict: str | None
     critic_findings: Any | None = None
