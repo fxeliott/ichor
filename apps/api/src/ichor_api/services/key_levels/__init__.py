@@ -34,8 +34,14 @@ upstream data. ZERO LLM call. ZERO new paid feed. ZERO ban-risk
 (per ADR-091 §invariants).
 """
 
+from .gamma_flip import compute_gamma_flip_levels
 from .peg_break import compute_hkma_peg_break
 from .tga import compute_tga_key_level
 from .types import KeyLevel
 
-__all__ = ["KeyLevel", "compute_hkma_peg_break", "compute_tga_key_level"]
+__all__ = [
+    "KeyLevel",
+    "compute_gamma_flip_levels",
+    "compute_hkma_peg_break",
+    "compute_tga_key_level",
+]
