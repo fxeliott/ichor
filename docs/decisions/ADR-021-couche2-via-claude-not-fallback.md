@@ -1,10 +1,10 @@
 # ADR-021: Couche-2 agents route via Claude (Opus/Sonnet/Haiku); Cerebras/Groq are fallback only
 
-- **Status**: Superseded by [ADR-023](ADR-023-couche2-haiku-not-sonnet-on-free-cf-tunnel.md) (round-50 marker correction 2026-05-15 — was previously left "Accepted" but ADR-023 narrows the model choice from "Opus/Sonnet/Haiku" to "Haiku low" specifically because Sonnet medium hits CF Free 100s edge timeout)
-- **Date**: 2026-05-04
+- **Status**: **Partially superseded by [ADR-023](ADR-023-couche2-haiku-not-sonnet-on-free-cf-tunnel.md) (model-choice scope only)** — refined r50.5 wave-2 finding (subagent G). ADR-023 narrows the model dimension from "Opus/Sonnet/Haiku via Claude" to "Haiku low only" (because Sonnet medium hits CF Free 100s edge timeout) ; ADR-021 still holds for the **fallback chain decision** (Cerebras→Groq→static when Claude unreachable). Note: r50.5 wave-2 subagent G also flagged that the fallback chain itself is BROKEN SILENTLY in production per ADR-067/068 logs (`MissingCredentials` on Cerebras + Groq env) — deciding whether to provision credentials OR amend ADR-021 to "Claude-only with no functional fallback" is pending Eliot review (P3.13 in SESSION_LOG_r50.5-MASTER-READINESS).
+- **Date**: 2026-05-04 (initial) / 2026-05-15 (r50.5 status precision)
 - **Decider**: Eliot (validated 2026-05-04, interview for SPEC.md §3.1)
 - **Supersedes**: partial supersede of [ADR-009](ADR-009-voie-d-no-api-consumption.md) §"Couche 2 24/7"
-- **Superseded by**: [ADR-023](ADR-023-couche2-haiku-not-sonnet-on-free-cf-tunnel.md) (Haiku low only, ADR-023 ratified Accepted)
+- **Partially superseded by**: [ADR-023](ADR-023-couche2-haiku-not-sonnet-on-free-cf-tunnel.md) on the model-choice dimension only (Haiku low replaces Opus/Sonnet/Haiku triplet). The fallback chain Cerebras→Groq scope of ADR-021 remains unsuperseded.
 
 ## Context
 

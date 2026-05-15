@@ -99,12 +99,25 @@ _FRAMEWORK_USD_JPY = (
 )
 
 _FRAMEWORK_AUD_USD = (
-    "AUD/USD framework :\n"
-    "  - Primary driver  : China activity proxies (PMI, credit impulse).\n"
-    "  - Secondary       : Iron ore + LME copper momentum (HG=F).\n"
-    "  - Tertiary        : RBA NLP + AUDUSD COT + AU-US 2Y diff.\n"
-    "  - Catalysts watch : RBA, China data, US-China trade headlines.\n"
-    "  - Régime overlay  : funding_stress → AUD short alongside copper sell-off.\n"
+    "AUD/USD framework (r51 update — ADR-093 graceful-degradation acknowledged) :\n"
+    "  - Primary driver  : commodity terms-of-trade (iron-ore PIORECRUSDM\n"
+    "                      + copper PCOPPUSDM monthly via FRED) per Ferriani-\n"
+    "                      Gazzani 2025 + Ready-Roussanov-Ward 2017.\n"
+    "  - Rate-diff       : DGS10 - IRLTLT01AUM156N (US-AU 10Y differential)\n"
+    "                      per Engel-West 2005 + Adrian-Etula-Muir 2014.\n"
+    "  - China credit    : MYAGM1CNM189N IMF IFS M1 narrow money was the\n"
+    "                      r46 Driver-2 anchor BUT empirically DEAD since\n"
+    "                      2019-08-01 (R49+R50 disclosure). ADR-093\n"
+    "                      gracefully skips this channel ; AUD section\n"
+    "                      operates with Driver-1 (commodity ToT) + Driver-3\n"
+    "                      (US-AU rate-diff) only. CRDQCNAPABIS (BIS Total\n"
+    "                      Credit Break-Adjusted, Q3 2025 LIVE) is the\n"
+    "                      candidate replacement deferred to r51+.\n"
+    "  - Tertiary        : RBA F2 daily 10Y benchmark (ADR-096) + AUDUSD COT.\n"
+    "  - Catalysts watch : RBA decisions, AU GDP, China PMIs (when LIVE),\n"
+    "                      US-China trade headlines.\n"
+    "  - Régime overlay  : funding_stress → AUD short alongside iron+copper\n"
+    "                      sell-off (procyclical commodity-currency).\n"
 )
 
 _FRAMEWORK_USD_CAD = (

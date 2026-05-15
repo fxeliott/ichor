@@ -161,12 +161,34 @@ D:\Ichor
 │                             41 routes SSR + ISR. Hooks dir empty (TODO).
 └── packages/
     ├── ichor_brain/          4-pass orchestrator (regime → asset → stress → invalidation)
-    │                         + Pass 5 counterfactual. HttpRunnerClient with retry.
+    │                         + Pass 5 counterfactual + Pass 6 scenarios (7 buckets,
+    │                         sonnet medium, ADR-085). HttpRunnerClient with retry.
+    │                         NB Phase D code (Vovk aggregator W115, ADWIN drift
+    │                         W114, pocket_skill_reader W115c, dspy_claude_runner_lm
+    │                         W117a, gepa_optimizer skeleton W117b.c) lives in
+    │                         apps/api/src/ichor_api/services/, NOT in this package
+    │                         (drift fix r51 — was previously misdescribed).
     ├── agents/               5 Couche-2 agents (cb_nlp, news_nlp, sentiment,
     │                         positioning, macro). All on Claude Haiku low (ADR-023).
-    ├── ml/                   HAR-RV, HMM, DTW, FinBERT-tone, FOMC-Roberta,
-    │                         ADWIN, Brier optimizer, 7 bias trainers (ADR-022)
-    └── ui/                   shadcn-style 15 components, used by apps/web only
+    │                         Critic agent (rule-based pure-Python sourcing only,
+    │                         NO BUY/SELL token check — see r51 session_card_safety_gate
+    │                         for that defense layer) lives at agents/critic/reviewer.py.
+    ├── ml/                   5 LIVE cron-fired modules : HAR-RV, HMM regime, DTW
+    │                         analogues, ADWIN concept-drift, VPIN microstructure.
+    │                         1 code-ready activation-pending : FOMC-RoBERTa (Wave
+    │                         5 transformers install Hetzner). 1 ORPHAN never wired :
+    │                         vol/sabr_svi.py. ALL 6 trainers under training/
+    │                         (lightgbm/xgboost/random_forest/logistic/mlp/numpyro,
+    │                         ADR-022) + bias_aggregator + features.py are ORPHAN
+    │                         — not imported by apps/, drift identified r51 wave-2,
+    │                         delete-vs-revive decision pending Eliot (P3.20).
+    │                         FinBERT-tone wired via apps/api/services/news_tone_scorer.
+    ├── ml/training/          DEPRECATED-pending-decision (see above).
+    └── ui/                   shadcn-style 15 components, originally used by apps/web
+                              (legacy retired 2026-05-06). apps/web2 declares
+                              workspace:* dependency but has ZERO `from "@ichor/ui"`
+                              import. Effectively orphan for current frontend
+                              (delete decision pending Eliot — P3.21).
 ```
 
 > `packages/shared-types` was removed in Phase A.1.3 cleanup (was a stub
