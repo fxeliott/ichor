@@ -1,6 +1,8 @@
 # ADR-093: AUD commodity surface degraded explicit (GAP-A continuation 5/5)
 
-**Status**: PROPOSED (round-46, 2026-05-14) — awaiting Eliot ratification. Implements the
+**Status**: **Accepted** (round-47, 2026-05-15) — ratified by Eliot post-merge of PR #134 (commit `f764e35` on main). Implementation already shipped round-46 (`_section_aud_specific` in `apps/api/src/ichor_api/services/data_pool.py:1525-1900` + 58/58 tests + ADR-093 doctrinal primitive "degraded explicit surface annotation pattern" formalized).
+
+**Original Status** (preserved for archeology) : PROPOSED (round-46, 2026-05-14) — awaiting Eliot ratification. Implements the
 "degraded explicit" surface annotation pattern referenced in ADR-092 §Tier 1 §AUD acceptance
 criterion 4 (R24 SUBSET-not-SUPERSET compliance via 3/3 monthly drivers + inline annotation).
 
