@@ -21,11 +21,21 @@
 set -euo pipefail
 
 # Service template (single binary, briefing_type passed as arg)
+#
+# r51 hardening (subagent F + M wave 2 finding) : OnFailure inline at
+# template level. The post-hoc install-onfailure-dropins.sh excludes
+# `^ichor-.*\.service$` matches against `@.service` templates by regex
+# (line 14-15), so concrete instances `ichor-briefing@pre_ny.service`
+# never gained the failure-notify drop-in. As a result, briefing
+# 530-storm failures during 2026-05-13 -> 2026-05-15 blackout went
+# silently to journalctl with no notify. Inline OnFailure here so
+# the template propagates the directive to every instance unit.
 cat > /etc/systemd/system/ichor-briefing@.service <<'EOF'
 [Unit]
 Description=Ichor briefing runner (%i)
 After=network-online.target postgresql.service
 Wants=network-online.target
+OnFailure=ichor-notify@%n.service
 
 [Service]
 Type=oneshot
