@@ -68,6 +68,32 @@ async def test_zero_or_negative_flip_skipped() -> None:
     """Defensive : flip <= 0 (data anomaly) → skipped."""
     session = _mock_session_with_rows([("SPY", 748.0, 0.0, _TS)])
     assert await compute_gamma_flip_levels(session) == []
+
+
+@pytest.mark.asyncio
+async def test_implausibly_far_flip_rejected_r67() -> None:
+    """r67 defense-in-depth : a flip > 25 % from spot is corrupt
+    collector data (the gex_snapshots QQQ 2026-05-15 21:30 row :
+    spot 710.74 / flip 310.43 = -56%, which rendered '+128.95%'
+    nonsense on the /briefing dashboard). The computer MUST NOT emit
+    a KeyLevel for it — a missing level is honest, a garbage one
+    erodes dashboard trust."""
+    session = _mock_session_with_rows([("QQQ", 710.74, 310.4334, _TS)])
+    assert await compute_gamma_flip_levels(session) == []
+
+
+@pytest.mark.asyncio
+async def test_plausible_flip_still_emitted_r67() -> None:
+    """r67 guard must NOT over-reject : a sane flip near spot (the GOOD
+    QQQ rows, e.g. spot 719.79 / flip 715.00 = -0.67%) still emits a
+    KeyLevel normally."""
+    levels = await compute_gamma_flip_levels(
+        _mock_session_with_rows([("QQQ", 719.79, 715.0011, _TS)])
+    )
+    assert len(levels) == 1
+    assert levels[0].asset == "NAS100_USD"
+    assert levels[0].kind == "gamma_flip"
+    assert levels[0].level == pytest.approx(715.0011)
     session2 = _mock_session_with_rows([("SPY", 748.0, -1.0, _TS)])
     assert await compute_gamma_flip_levels(session2) == []
 

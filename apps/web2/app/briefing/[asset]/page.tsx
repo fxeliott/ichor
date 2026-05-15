@@ -79,10 +79,19 @@ export default async function BriefingPage({ params }: PageParams) {
     apiGet<TodaySnapshotOut>("/v1/today"),
   ]);
 
-  // KeyLevels persisted on the session card (r62) take precedence — they
-  // are the snapshot frozen at card generation time. Falls back to live
-  // /v1/key-levels otherwise. This honors the ADR-083 D3 → D4 contract.
-  const renderedKeyLevels = card?.key_levels?.length ? card.key_levels : (keyLevels?.items ?? []);
+  // r67 — render-source precedence corrected. r65 preferred the
+  // persisted card.key_levels snapshot, but for a LIVE pre-session
+  // briefing ("comprends le marché avant qu'il ouvre" = current state)
+  // the live /v1/key-levels is the correct truth : the persisted
+  // snapshot freezes whatever was true at card-generation time, which
+  // can be HOURS stale AND can carry data that was corrupt then but
+  // fixed since (e.g. the pre-r67 gamma_flip −56% garbage frozen into
+  // cards generated before the gex_yfinance band fix). r62 persistence
+  // is NOT wasted — it remains the source for explicit historical
+  // /replay routes (ADR-083 D4 replay), where the frozen snapshot IS
+  // the desired "what was true then" semantic. Live first, persisted
+  // fallback only when the live fetch failed.
+  const renderedKeyLevels = keyLevels?.items?.length ? keyLevels.items : (card?.key_levels ?? []);
 
   const previews = isLive(today) ? today.top_sessions : [];
 

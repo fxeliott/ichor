@@ -48,6 +48,21 @@ from .types import KeyLevel
 # Threshold for "transition zone" — within ±0.5% of gamma_flip.
 GAMMA_FLIP_TRANSITION_DELTA_PCT = 0.005
 
+# r67 defense-in-depth — reject an implausibly-far flip. The collector
+# (gex_yfinance._GAMMA_FLIP_MAX_SPOT_DISTANCE_PCT = 0.15) is the primary
+# domain constraint, but `gex_snapshots` already contains garbage rows
+# persisted before that fix (QQQ 2026-05-15 21:30 spot 710.74 / flip
+# 310.43 = -56%, rendering "+128.95%" nonsense on the /briefing
+# dashboard). This read-path guard is the backstop : a flip more than
+# 25% from spot is definitionally corrupt (a real dealer gamma flip is
+# structurally near spot, empirically within ~1%). 25% is deliberately
+# more lenient than the collector's 15% — the computer doesn't
+# second-guess borderline-but-plausible collector output, it only
+# hard-rejects the unambiguous garbage class. Skipping the KeyLevel is
+# honest ; a wrong number on a premium UI erodes trust faster than a
+# missing one.
+_GAMMA_FLIP_SANITY_MAX_DISTANCE_PCT = 0.25
+
 # Asset proxy mapping per ADR-089.
 _GEX_ASSET_TO_ICHOR_ASSET = {
     "SPY": "SPX500_USD",
@@ -96,6 +111,14 @@ async def compute_gamma_flip_levels(session: AsyncSession) -> list[KeyLevel]:
 
         distance_pct = (spot_f - flip_f) / flip_f
         abs_distance_pct = abs(distance_pct)
+
+        # r67 defense-in-depth : reject a flip that is implausibly far
+        # from spot (corrupt collector data already persisted before the
+        # gex_yfinance band fix). A real dealer gamma flip is structurally
+        # near spot ; >25% away is numerical garbage, not signal.
+        if abs_distance_pct > _GAMMA_FLIP_SANITY_MAX_DISTANCE_PCT:
+            continue
+
         source = f"flashalpha:{asset_gex} {captured_at:%Y-%m-%d %H:%M} (proxy for {ichor_asset})"
 
         if abs_distance_pct <= GAMMA_FLIP_TRANSITION_DELTA_PCT:
