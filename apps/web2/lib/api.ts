@@ -149,7 +149,10 @@ export interface KeyLevelsResponse {
 export interface SessionCard {
   id: string;
   generated_at: string;
-  session_type: "pre_londres" | "pre_ny" | "event_driven";
+  // Canonical 5-window contract — mirror of ichor_brain.types.SessionType
+  // + apps/api schemas.py SessionCardOut (r66 fix : was 3-value, drifted
+  // from the 4-windows/day backend design, 500'd /v1/sessions).
+  session_type: "pre_londres" | "pre_ny" | "ny_mid" | "ny_close" | "event_driven";
   asset: string;
   model_id: string;
   regime_quadrant: string | null;

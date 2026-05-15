@@ -24,6 +24,8 @@ interface BriefingHeaderProps {
 const SESSION_LABEL: Record<SessionCard["session_type"], string> = {
   pre_londres: "Pré-session Londres",
   pre_ny: "Pré-session New York",
+  ny_mid: "Mi-session New York",
+  ny_close: "Clôture New York",
   event_driven: "Event-driven",
 };
 

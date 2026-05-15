@@ -36,6 +36,7 @@ import {
   isLive,
   type KeyLevelsResponse,
   type SessionCard,
+  type SessionCardList,
   type TodaySnapshotOut,
 } from "@/lib/api";
 
@@ -52,14 +53,14 @@ export async function generateMetadata({ params }: PageParams): Promise<Metadata
 }
 
 async function fetchSessionCardForAsset(asset: string): Promise<SessionCard | null> {
-  // /v1/today returns top sessions list ; we filter by asset. If we
-  // need a richer per-asset SessionCard we can add /v1/sessions/{asset}/latest
-  // in a future round.
-  const today = await apiGet<TodaySnapshotOut>("/v1/today");
-  if (!isLive(today)) return null;
-  // TodaySessionPreview doesn't carry every SessionCard field, so we
-  // also fetch the raw list from /v1/sessions to get the full card.
-  const sessions = await apiGet<{ items: SessionCard[] }>(`/v1/sessions?asset=${asset}&limit=1`);
+  // r66 fix : the correct endpoint is `/v1/sessions/{asset}` (path
+  // param, returns SessionCardListOut newest-first). The pre-r66 code
+  // hit `/v1/sessions?asset=X&limit=1` — query params are ignored by
+  // the list endpoint and `/v1/sessions` itself 500'd until the
+  // r66 SessionCardOut Literal widening. `limit=1` → newest card.
+  const sessions = await apiGet<SessionCardList>(
+    `/v1/sessions/${encodeURIComponent(asset)}?limit=1`,
+  );
   if (!isLive(sessions) || sessions.items.length === 0) return null;
   return sessions.items[0] ?? null;
 }

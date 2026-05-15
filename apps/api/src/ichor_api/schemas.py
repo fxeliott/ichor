@@ -326,7 +326,18 @@ class SessionCardOut(BaseModel):
 
     id: UUID
     generated_at: datetime
-    session_type: Literal["pre_londres", "pre_ny", "event_driven"]
+    # Canonical 5-window contract — mirror of
+    # `ichor_brain.types.SessionType` (ADR-031 single source via
+    # get_args). r66 fix : pre-r66 this Literal was hardcoded to 3
+    # windows (pre_londres|pre_ny|event_driven), so `from_orm_row()`
+    # raised pydantic ValidationError 500 for any DB row written in the
+    # `ny_mid` / `ny_close` window (4 windows/day × 8 assets design).
+    # W101e fixed the *input* regex in sessions.py / calibration.py but
+    # missed this *output* schema Literal — both `/v1/sessions` and
+    # `/v1/sessions/{asset}` 500'd in production for every ny_mid /
+    # ny_close card. Widening a Literal only accepts more valid values,
+    # never breaks existing callers.
+    session_type: Literal["pre_londres", "pre_ny", "ny_mid", "ny_close", "event_driven"]
     asset: str
     model_id: str
     regime_quadrant: str | None
