@@ -1,6 +1,8 @@
 # ADR-096: RBA F-series rate collector (Tier 2 GAP-D upgrade — corrected from "F1.1 daily")
 
-**Status**: PROPOSED (round-46-round-3, 2026-05-14) — awaiting Eliot ratification ;
+**Status**: **Accepted** (round-47, 2026-05-15) — ratified by Eliot post-merge of PR #134. F-series table selection (F2 "Capital Market Yields") empirically confirmed round-46-round-6 via direct WebFetch — Eliot 5-min verification step SATISFIED autonomously. Implementation (migration 0050 + ORM + collector + register-cron daily Sydney close + tests) cleared for ship in round-48+ following the Bundesbank Bund r29 pattern mirror. Backfill horizon : 5 years (analogue-library DTW default).
+
+**Original Status** (preserved for archeology) : PROPOSED (round-46-round-3, 2026-05-14) — awaiting Eliot ratification ;
 F-series table selection EMPIRICALLY CONFIRMED round-46-round-6 (see amendment below).
 No code shipped by this ADR.
 
