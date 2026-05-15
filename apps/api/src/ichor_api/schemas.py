@@ -358,6 +358,16 @@ class SessionCardOut(BaseModel):
     # that predate migration 0049 ; never None on rows persisted
     # post-r62 because the column is NOT NULL DEFAULT '[]'::jsonb.
     key_levels: list[dict[str, Any]] = []
+    # r68 — Pass-6 7-bucket scenario decomposition (ADR-085, migration
+    # 0039 `scenarios` JSONB NOT NULL DEFAULT '[]'). Shape per ADR-085 :
+    # list[{label, p, magnitude_pips:[low,high], mechanism}] — 7 entries
+    # canonical-ordered (crash_flush..melt_up), sum(p)==1.0. Same
+    # Pydantic-projection-gap class as the r66 session_type fix : the
+    # ORM column existed + was populated (32/110 cards/7d) but
+    # SessionCardOut never surfaced it, so the /briefing dashboard could
+    # not render the outcome-probability distribution (THE "prendre plus
+    # ou moins de risque" answer). `[]` for legacy/pre-Pass-6 cards.
+    scenarios: list[dict[str, Any]] = []
     source_pool_hash: str
     critic_verdict: str | None
     critic_findings: Any | None = None

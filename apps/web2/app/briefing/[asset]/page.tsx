@@ -27,13 +27,18 @@ import { Suspense } from "react";
 import { AssetSwitcher } from "@/components/briefing/AssetSwitcher";
 import { PRIORITY_ASSET_CODES } from "@/components/briefing/assets";
 import { BriefingHeader } from "@/components/briefing/BriefingHeader";
+import { CorrelationsStrip } from "@/components/briefing/CorrelationsStrip";
+import { EconomicCalendarPanel } from "@/components/briefing/EconomicCalendarPanel";
 import { KeyLevelsPanel } from "@/components/briefing/KeyLevelsPanel";
 import { NarrativeBlocks } from "@/components/briefing/NarrativeBlocks";
+import { ScenariosPanel } from "@/components/briefing/ScenariosPanel";
 import { SessionStatus } from "@/components/briefing/SessionStatus";
 import {
   apiGet,
+  getCalendarUpcoming,
   getKeyLevels,
   isLive,
+  type CalendarUpcoming,
   type KeyLevelsResponse,
   type SessionCard,
   type SessionCardList,
@@ -73,10 +78,11 @@ export default async function BriefingPage({ params }: PageParams) {
     notFound();
   }
 
-  const [card, keyLevels, today] = await Promise.all([
+  const [card, keyLevels, today, calendar] = await Promise.all([
     fetchSessionCardForAsset(normalisedAsset),
     getKeyLevels() as Promise<KeyLevelsResponse | null>,
     apiGet<TodaySnapshotOut>("/v1/today"),
+    getCalendarUpcoming() as Promise<CalendarUpcoming | null>,
   ]);
 
   // r67 — render-source precedence corrected. r65 preferred the
@@ -134,6 +140,49 @@ export default async function BriefingPage({ params }: PageParams) {
           />
         </section>
       )}
+
+      {card && (
+        <section aria-labelledby="scenarios-heading">
+          <div className="mb-4 flex items-baseline justify-between gap-4">
+            <h2 id="scenarios-heading" className="font-serif text-2xl text-[--color-text-primary]">
+              Scénarios
+            </h2>
+            <span className="text-[10px] uppercase tracking-widest text-[--color-text-muted]">
+              ADR-085 · Pass-6 · distribution de probabilité
+            </span>
+          </div>
+          <ScenariosPanel scenarios={card.scenarios} />
+        </section>
+      )}
+
+      <section aria-labelledby="calendar-heading">
+        <div className="mb-4 flex items-baseline justify-between gap-4">
+          <h2 id="calendar-heading" className="font-serif text-2xl text-[--color-text-primary]">
+            Calendrier
+          </h2>
+          <span className="text-[10px] uppercase tracking-widest text-[--color-text-muted]">
+            Événements macro · {calendar?.horizon_days ?? "—"} j horizon
+          </span>
+        </div>
+        <EconomicCalendarPanel events={calendar?.events ?? []} highlightAsset={normalisedAsset} />
+      </section>
+
+      {card?.correlations_snapshot ? (
+        <section aria-labelledby="correlations-heading">
+          <div className="mb-4 flex items-baseline justify-between gap-4">
+            <h2
+              id="correlations-heading"
+              className="font-serif text-2xl text-[--color-text-primary]"
+            >
+              Corrélations
+            </h2>
+            <span className="text-[10px] uppercase tracking-widest text-[--color-text-muted]">
+              Snapshot carte · co-mouvement complexe
+            </span>
+          </div>
+          <CorrelationsStrip snapshot={card.correlations_snapshot} />
+        </section>
+      ) : null}
 
       <footer className="pt-6 text-[10px] uppercase tracking-widest text-[--color-text-muted]">
         Ichor v2 · Pre-trade context only · No BUY/SELL signals (ADR-017 boundary)

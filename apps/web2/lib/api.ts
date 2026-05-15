@@ -146,6 +146,28 @@ export interface KeyLevelsResponse {
   items: KeyLevel[];
 }
 
+// r68 — Pass-6 7-bucket scenario decomposition (ADR-085). Mirror of
+// session_card_audit.scenarios JSONB. 7 canonical-ordered entries
+// (crash_flush..melt_up), sum(p) == 1.0. The outcome-probability
+// distribution = the "prendre plus ou moins de risque" answer.
+export type ScenarioLabel =
+  | "crash_flush"
+  | "strong_bear"
+  | "mild_bear"
+  | "base"
+  | "mild_bull"
+  | "strong_bull"
+  | "melt_up";
+
+export interface Scenario {
+  label: ScenarioLabel;
+  /** Probability in [0, 0.95] ; the 7 entries sum to 1.0. */
+  p: number;
+  /** [low, high] pip move for this bucket (signed : negative = down). */
+  magnitude_pips: [number, number];
+  mechanism: string;
+}
+
 export interface SessionCard {
   id: string;
   generated_at: string;
@@ -170,6 +192,9 @@ export interface SessionCard {
   /** r62 (ADR-083 D3) — KeyLevel snapshot persisted at orchestrator
    *  finalization. Empty array `[]` is the canonical "all NORMAL" state. */
   key_levels: KeyLevel[];
+  /** r68 — Pass-6 7-bucket scenario decomposition (ADR-085). `[]` for
+   *  legacy / pre-Pass-6 cards. 7 entries sum(p)==1.0 when present. */
+  scenarios: Scenario[];
   source_pool_hash: string;
   critic_verdict: string | null;
   critic_findings: unknown;
@@ -191,6 +216,11 @@ export interface SessionCard {
 /** r65 — fetch the live KeyLevels snapshot from `/v1/key-levels`. */
 export async function getKeyLevels(): Promise<KeyLevelsResponse | null> {
   return apiGet<KeyLevelsResponse>("/v1/key-levels");
+}
+
+/** r68 — fetch the upcoming economic calendar from `/v1/calendar/upcoming`. */
+export async function getCalendarUpcoming(): Promise<CalendarUpcoming | null> {
+  return apiGet<CalendarUpcoming>("/v1/calendar/upcoming");
 }
 
 export interface SessionCardList {
