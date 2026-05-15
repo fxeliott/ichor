@@ -1,6 +1,22 @@
 # ADR-094: BoJ Time-Series JGB 10Y daily collector (Tier 2 GAP-D upgrade)
 
-**Status**: PROPOSED (round-46-round-3, 2026-05-14) — awaiting Eliot UI exploration of
+**Status**: **Accepted** (round-48, 2026-05-15) — ratified by Eliot post-empirical-pivot. Original "BoJ stat-search.boj.or.jp" target was **EMPIRICALLY DEAD-END** per round-46-round-10 researcher deep-dive (5 prior rounds of failed search confirmed by definitive evidence) : BoJ FM01-FM09 categories do NOT include a "JGB benchmark yield" sub-code ; FM01=Call rate daily, FM02=ST money mkt, FM05=Bond issuance, FM06=Bond trading, FM08=FX, FM09=Eff. FX — no daily JGB yield series in the BoJ catalog. **PIVOT to MoF direct CSV** = `https://www.mof.go.jp/english/policy/jgbs/reference/interest_rate/jgbcme.csv` (rolling current) + `historical/jgbcme_all.csv` (1974→present). MoF is the authoritative publisher of constant-maturity JGB yields (1Y/2Y/5Y/10Y/20Y/30Y/40Y, daily business days). Implementation pattern : mirror ADR-095 Path B (MoF CSV direct, no auth). The original Bundesbank Bund r29 implementation pattern still applies (1 migration + 1 ORM + 1 collector + 1 CLI + 1 register-cron daily Tokyo close +2h Paris) but CSV-source instead of SDMX.
+
+## Round-46-round-10 amendment (2026-05-15) — BoJ stat-search PIVOT to MoF direct CSV
+
+The "Eliot UI exploration of stat-search.boj.or.jp series code" step originally listed in this ADR was EMPIRICALLY UNNECESSARY — the data Ichor needs (JGB 10Y daily benchmark yield) is NOT published by BoJ in their stat-search system. It is published by **Ministry of Finance Japan** directly as a CSV. Round-46-round-10 deep-dive (15 WebFetch + WebSearch calls across BoJ stat-search portal + GitHub wrappers `bojpy` / `delihiros-boj-api-client` + 5 academic papers + 3 alternative dataset doc sites) found ZERO BoJ codes for JGB yields, and HIGH-confidence evidence that MoF is the canonical source (Masadir dataset doc + MOF reference rate page live + Richard Katz Substack analysis 2025-12-15 cross-citing).
+
+**New implementation target** :
+
+- **Daily CSV** : `https://www.mof.go.jp/english/policy/jgbs/reference/interest_rate/jgbcme.csv`
+- **Historical 1974→present** : `https://www.mof.go.jp/english/policy/jgbs/reference/interest_rate/historical/jgbcme_all.csv`
+- **Format** : CSV, constant-maturity 1Y/2Y/.../10Y/.../40Y, daily business days, public, no auth
+- **Encoding** : UTF-8 (English MoF endpoint per round-46-r10 inspection)
+- **Architectural precedent** : ADR-090 step-4 BTP-via-FRED inline pattern + ADR-095 MoF direct CSV (Path B chosen post-r46-r10 same audit cycle)
+
+This pivot REMOVES the Eliot UI step entirely — no manual blocker remains. Implementation cleared for ship in round-49+ following the standard Bundesbank Bund r29 CSV-collector mirror.
+
+**Original Status** (preserved for archeology) : PROPOSED (round-46-round-3, 2026-05-14) — awaiting Eliot UI exploration of
 stat-search.boj.or.jp series code identification before implementation. No code shipped
 by this ADR.
 
