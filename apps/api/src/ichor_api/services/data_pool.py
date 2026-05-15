@@ -595,6 +595,55 @@ async def _section_dollar_smile(session: AsyncSession) -> tuple[str, list[str]]:
     return "\n".join(lines), sources
 
 
+async def _section_key_levels(session: AsyncSession) -> tuple[str, list[str]]:
+    """## Key levels (non-technical / fundamental switches) — ADR-083 D3.
+
+    Cross-asset section listing fundamental price thresholds that act as
+    macro/microstructure switches. Per ADR-083 D3, these are NOT technical
+    analysis levels (Eliot does TA on TradingView himself) — they are
+    DATA-DERIVED triggers : TGA balance bands, peg break thresholds,
+    gamma flip prices, VIX/SKEW regime switches, HY OAS percentiles,
+    Polymarket binary contract resolutions.
+
+    r54 phase 1 ships TGA only as proof of pattern. r55+ extends to
+    peg break, gamma flip, VIX threshold, Polymarket per the roadmap.
+
+    Returns ("...md...", []) (no source-stamps if no level fired) instead
+    of skipping the section entirely — Pass 2 LLM benefits from the
+    explicit "no key level fired this session" signal vs missing section.
+    """
+    from .key_levels import compute_tga_key_level
+
+    levels: list = []
+    sources: list[str] = []
+
+    tga = await compute_tga_key_level(session)
+    if tga is not None:
+        levels.append(tga)
+        sources.append(tga.source)
+
+    # r55+ : add peg_break, gamma_flip, vix_regime, polymarket_decision,
+    # hy_oas_percentile here. Each computer returns KeyLevel | None.
+
+    if not levels:
+        body = (
+            "## Key levels (non-technical, ADR-083 D3)\n"
+            "_(no fundamental threshold fired this session — TGA in mid-band, "
+            "no peg/gamma/regime switch active. Phase 1 covers TGA only ; "
+            "r55+ will add peg_break + gamma_flip + vix_regime + polymarket.)_"
+        )
+        return body, sources
+
+    lines = ["## Key levels (non-technical, ADR-083 D3)"]
+    lines.extend(kl.to_markdown_line() for kl in levels)
+    lines.append(
+        "_(threshold-driven macro switches ; not technical analysis. "
+        "Pass 2 should weigh these as cross-asset modulators, not as "
+        "primary entry triggers.)_"
+    )
+    return "\n".join(lines), sources
+
+
 async def _section_eur_specific(session: AsyncSession, asset: str) -> tuple[str, list[str]]:
     """## EUR-specific signals — Bund 10Y + €STR + BTP-Bund spread (ADR-090 P0 step-3 + step-4).
 
@@ -4024,6 +4073,14 @@ async def build_data_pool(
 
     smile_md, smile_src = await _section_dollar_smile(session)
     sections.append(("dollar_smile", smile_md, smile_src))
+
+    # Round-54 — Key levels (non-technical, ADR-083 D3 phase 1).
+    # Cross-asset section : TGA threshold for liquidity-gate switch.
+    # r55+ extends with peg_break, gamma_flip, vix_regime, polymarket.
+    # Always-rendered (even when no level fires) so Pass 2 sees the
+    # explicit "no switch active" state instead of missing data.
+    kl_md, kl_src = await _section_key_levels(session)
+    sections.append(("key_levels", kl_md, kl_src))
 
     vix_md, vix_src = await _section_vix_term(session)
     sections.append(("vix_term", vix_md, vix_src))
