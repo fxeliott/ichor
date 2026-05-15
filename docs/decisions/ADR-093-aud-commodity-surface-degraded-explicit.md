@@ -2,6 +2,31 @@
 
 **Status**: **Accepted** (round-47, 2026-05-15) — ratified by Eliot post-merge of PR #134 (commit `f764e35` on main). Implementation already shipped round-46 (`_section_aud_specific` in `apps/api/src/ichor_api/services/data_pool.py:1525-1900` + 58/58 tests + ADR-093 doctrinal primitive "degraded explicit surface annotation pattern" formalized).
 
+## Round-49 amendment (2026-05-15) — China M1 also DISCONTINUED ; degraded-explicit pattern empirically VALIDATES
+
+Post-Hetzner-deploy r49 (commit `8b8e021` on main → live) empirical FRED DB query revealed :
+
+```
+psql -d ichor -c "SELECT series_id, MAX(observation_date), COUNT(*) FROM fred_observations WHERE series_id LIKE 'MYAGM%';"
+ MYAGM1CNM189N   | 2019-08-01 |    1
+```
+
+**MYAGM1CNM189N (China M1) is ALSO DISCONTINUED since August 2019**, identical to MYAGM2CNM189N that triggered the r46-r2 swap. The researcher r46-r10 cited "M1 LIVE Dec 2025 per researcher web-cache lookup" — this was a WEB-SEARCH CACHE HALLUCINATION. Ground truth FRED API confirms M1 last_obs 2019-08-01.
+
+**Doctrinal impact** : Driver 2 (China credit-impulse proxy) silently skips post-deploy because the registry max-age 60d rejects a 6-year-old observation. AUD section continues operating with Driver 1 (US-AU rate-differential) + Driver 3 (iron + copper commodity ToT) when those are fresh. **The "degraded explicit" pattern is doing its job — graceful degradation, no catastrophic failure**. ADR-093 framework remains sound, just one less driver active.
+
+**New audit-gap (r49 logged)** : find alternative China money supply / credit-impulse LIVE series. Candidates to evaluate empirically via FRED API (NOT via web-search cache) :
+
+- `MABMM301CNM189S` (M3 seasonally-adj) — researcher r46-r2 flagged DEAD Dec 2018, but verify via DB
+- Direct PBoC HTML scrape (per ADR-092 §DEFER firmly — reconsider given M1+M2 dead)
+- AKShare GitHub Python wrapper (per ADR-093 §DEFER firmly — ToS opacity, reconsider for read-only)
+- Trading Economics free tier (rate-limit cap)
+- China credit-impulse alternatives (PMI, M3 + others via OECD CLI series CHNLOLITOAASTSAM)
+
+**New R53 doctrinal pattern codified (r46-r49)** : "EMPIRICAL FRED DB liveness check > web-search cache. Researcher reports can hallucinate LIVE-status via cached snippets. ALWAYS verify via `psql -d ichor -c \"SELECT MAX(observation_date) FROM fred_observations WHERE series_id='X'\"` post-deploy. The R45 pattern (empirical 3rd-party series liveness before deploy) is necessary BUT NOT SUFFICIENT — researcher web-cache lookups are unreliable for liveness ; only authoritative API queries are."
+
+Honest disclosure : the r46-r2 M2 → M1 swap was justified given the evidence at the time (researcher r46-r2 web-search cache claimed M1 LIVE Dec 2025), but the resulting r46 ship effectively still has a stale Driver 2. This is acceptable per the graceful-degradation pattern but the audit-gap remains open.
+
 **Original Status** (preserved for archeology) : PROPOSED (round-46, 2026-05-14) — awaiting Eliot ratification. Implements the
 "degraded explicit" surface annotation pattern referenced in ADR-092 §Tier 1 §AUD acceptance
 criterion 4 (R24 SUBSET-not-SUPERSET compliance via 3/3 monthly drivers + inline annotation).
