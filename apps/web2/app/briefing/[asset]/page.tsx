@@ -31,15 +31,21 @@ import { CorrelationsStrip } from "@/components/briefing/CorrelationsStrip";
 import { EconomicCalendarPanel } from "@/components/briefing/EconomicCalendarPanel";
 import { KeyLevelsPanel } from "@/components/briefing/KeyLevelsPanel";
 import { NarrativeBlocks } from "@/components/briefing/NarrativeBlocks";
+import { NewsPanel } from "@/components/briefing/NewsPanel";
 import { ScenariosPanel } from "@/components/briefing/ScenariosPanel";
+import { SentimentPanel } from "@/components/briefing/SentimentPanel";
 import { SessionStatus } from "@/components/briefing/SessionStatus";
 import {
   apiGet,
   getCalendarUpcoming,
   getKeyLevels,
+  getNews,
+  getPositioning,
   isLive,
   type CalendarUpcoming,
   type KeyLevelsResponse,
+  type NewsItem,
+  type PositioningOut,
   type SessionCard,
   type SessionCardList,
   type TodaySnapshotOut,
@@ -78,11 +84,13 @@ export default async function BriefingPage({ params }: PageParams) {
     notFound();
   }
 
-  const [card, keyLevels, today, calendar] = await Promise.all([
+  const [card, keyLevels, today, calendar, news, positioning] = await Promise.all([
     fetchSessionCardForAsset(normalisedAsset),
     getKeyLevels() as Promise<KeyLevelsResponse | null>,
     apiGet<TodaySnapshotOut>("/v1/today"),
     getCalendarUpcoming() as Promise<CalendarUpcoming | null>,
+    getNews(12) as Promise<NewsItem[] | null>,
+    getPositioning() as Promise<PositioningOut | null>,
   ]);
 
   // r67 — render-source precedence corrected. r65 preferred the
@@ -165,6 +173,30 @@ export default async function BriefingPage({ params }: PageParams) {
           </span>
         </div>
         <EconomicCalendarPanel events={calendar?.events ?? []} highlightAsset={normalisedAsset} />
+      </section>
+
+      <section aria-labelledby="sentiment-heading">
+        <div className="mb-4 flex items-baseline justify-between gap-4">
+          <h2 id="sentiment-heading" className="font-serif text-2xl text-[--color-text-primary]">
+            Positionnement
+          </h2>
+          <span className="text-[10px] uppercase tracking-widest text-[--color-text-muted]">
+            MyFXBook retail · contrarian
+          </span>
+        </div>
+        <SentimentPanel entries={positioning?.entries ?? []} asset={normalisedAsset} />
+      </section>
+
+      <section aria-labelledby="news-heading">
+        <div className="mb-4 flex items-baseline justify-between gap-4">
+          <h2 id="news-heading" className="font-serif text-2xl text-[--color-text-primary]">
+            Actualités
+          </h2>
+          <span className="text-[10px] uppercase tracking-widest text-[--color-text-muted]">
+            Flux récent · tonalité
+          </span>
+        </div>
+        <NewsPanel news={news ?? []} />
       </section>
 
       {card?.correlations_snapshot ? (

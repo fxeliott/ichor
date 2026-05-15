@@ -30,6 +30,7 @@ from .news import router as news_router
 from .phase_d import router as phase_d_router
 from .polymarket_impact import router as polymarket_impact_router
 from .portfolio_exposure import router as portfolio_exposure_router
+from .positioning import router as positioning_router
 from .post_mortems import router as post_mortems_router
 from .predictions import router as predictions_router
 from .push import router as push_router
@@ -70,6 +71,7 @@ __all__ = [
     "phase_d_router",
     "polymarket_impact_router",
     "portfolio_exposure_router",
+    "positioning_router",
     "post_mortems_router",
     "predictions_router",
     "push_router",

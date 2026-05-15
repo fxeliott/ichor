@@ -223,6 +223,40 @@ export async function getCalendarUpcoming(): Promise<CalendarUpcoming | null> {
   return apiGet<CalendarUpcoming>("/v1/calendar/upcoming");
 }
 
+/** r69 — fetch recent news items from `/v1/news` (bare list, tone-scored). */
+export async function getNews(limit = 12): Promise<NewsItem[] | null> {
+  return apiGet<NewsItem[]>(`/v1/news?limit=${limit}`);
+}
+
+// r69 — MyFXBook retail positioning (contrarian sentiment). Mirror of
+// apps/api routers/positioning.py PositioningOut. The W77 collector was
+// LIVE since 2026-05-09 but had no read endpoint until r69.
+export interface PositioningEntry {
+  pair: string;
+  long_pct: number;
+  short_pct: number;
+  long_volume: number | null;
+  short_volume: number | null;
+  long_positions: number | null;
+  short_positions: number | null;
+  fetched_at: string;
+  dominant_side: "long" | "short" | "balanced";
+  intensity: "balanced" | "crowded" | "extreme";
+  contrarian_tilt: "bullish" | "bearish" | "neutral";
+  note: string;
+}
+
+export interface PositioningOut {
+  generated_at: string;
+  n_pairs: number;
+  entries: PositioningEntry[];
+}
+
+/** r69 — fetch MyFXBook retail positioning from `/v1/positioning`. */
+export async function getPositioning(): Promise<PositioningOut | null> {
+  return apiGet<PositioningOut>("/v1/positioning");
+}
+
 export interface SessionCardList {
   total: number;
   items: SessionCard[];
