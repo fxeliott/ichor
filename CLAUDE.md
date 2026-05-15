@@ -2,6 +2,8 @@
 
 > Auto-injected at every session start. Keep terse and current.
 >
+> **Last sync: 2026-05-15 ROUND-50 — production triage + doctrinal hygiene + 2 architectural ADR proposals.** Hetzner main HEAD `635a0a9` (PR #137 r49 ratify). Empirical findings r50 verified read-only via SSH/psql/FRED API : (1) **2-day production blackout 2026-05-13 → 2026-05-15** root-caused to cloudflared Win11 tunnel dead (NOT CF Access policy as auto-resume claimed) — restarted today 15:11:12, recovery EMPIRICALLY PROVEN by `cb_nlp` Couche-2 service success at 16:18:38 (claude-runner async via Haiku low, ADR-023 happy path) + `positioning` 15:30:49 OK. 7 failed services (4 briefings + 3 couche2) reset-failed r50, will recover naturally at next cron fire (news_nlp 16:48 / ny_mid 17:01 / ny_close 22:00). (2) **CF Access service token IS WIRED + VALIDATED r50** — `ICHOR_API_CF_ACCESS_CLIENT_ID` + `_CLIENT_SECRET` already present in `/etc/ichor/api.env` (auto-resume "needs Eliot manual" was hallucination — R50 doctrine "always try empirically before declaring blocked" applied). HTTP 200 healthz + HTTP 422 agent-task post-auth = chain works. ⚠️ Token EXPOSED in journal logs (FRED API key 9088…, CF Access secret 1fdb…) — both should rotate. (3) **r46 PIORECRUSDM + PCOPPUSDM STILL 0 rows in DB** despite EXTENDED_SERIES_TO_POLL inclusion + FRED API confirms LIVE data exists (PIORECRUSDM=107.58 on 2026-03-01 / PCOPPUSDM=12528.7) — silent-skip cause TBD investigation at next 18:30 fire ; ADR-093 graceful-degradation still hides this in AUD section. (4) **CRDQCNAPABIS NOT in code** but FRED-LIVE Q3 2025 (279584) = candidate r51 China-credit replacement for dead MYAGM1CNM189N. Doctrinal hygiene r50 : CLAUDE.md component counts re-synced via authoritative Glob (routers 35→38 / services 66→78 / collectors 44→47 / CLI 42→48 / models 33→42) ; ADR-088 status drift "PROPOSED draft" → "Accepted r32b ratify" corrected ; CF Access "NOT wired" → "wired+validated r50" corrected ; NSSM Paused → empirically Running corrected. ADR-092 PROPOSED → Accepted r50 ratify (all 4 children 093-096 Accepted, parent inversion fixed). 2 new ADRs PROPOSED for next session : ADR-097 R53 nightly FRED liveness CI test (prevents r46-class hallucination future) + ADR-098 coverage gate reconciliation (ADR-028 cov 70 vs reality 49 vs CLAUDE.md "Phase A.3 60%" triple drift). Frontend gel rounds 13-50 (37 rounds zero `apps/web2`). ZERO Anthropic API spend.\*\* Plus pre-round-50 line :
+>
 > **Last sync: 2026-05-15 ROUND-49 — Hetzner deploy LIVE post-r46/r47/r48 (commit `8b8e021` on main) + 2 EMPIRICAL FINDINGS HONEST DISCLOSURE : (1) MYAGM1CNM189N (China M1) DISCONTINUED Aug 2019 just like MYAGM2CNM189N — researcher r46-r10 cited "M1 LIVE Dec 2025" was a WEB-SEARCH CACHE HALLUCINATION ; ground truth FRED API DB confirms latest_obs 2019-08-01. Both IMF IFS China money series are dead. ADR-093 graceful-degradation Driver 2 silently skips ; AUD section continues working with Driver 1 (US-AU rate-differential) + Driver 3 (iron+copper) only. (2) FRED API 403 transient post-deploy on fred_extended SERIES_TO_POLL — likely rate-limit burst (basic fred.py + fred_extended consecutive). Will resolve at next scheduled cron fire (~3h). Iron-ore + copper not yet ingested but no code blocker. Hetzner systemd timers 30+ LIVE confirmed via SSH read-only. NEW r49 audit-gap : find alternative China money supply LIVE series (FRED IMF IFS family dead). NEW R53 pattern codified : EMPIRICAL FRED DB liveness check > web-search cache (researcher reports can hallucinate via cached snippets ; ALWAYS verify via `psql -d ichor -c "SELECT MAX(observation_date) FROM fred_observations WHERE series_id='X'"` post-deploy).** Plus pre-round-49 line :
 >
 > **Last sync: 2026-05-15 ROUND-48 — ADR-094 + ADR-095 PIVOT to MoF direct CSV + RATIFIED to Accepted (researcher r46-r10 deep-dive resolved BOTH "Eliot UI step" blockers : (1) BoJ stat-search has NO JGB yield series ; MoF publishes daily JGB constant-maturity 1Y/2Y/.../10Y/.../40Y at `https://www.mof.go.jp/english/policy/jgbs/reference/interest_rate/jgbcme.csv` ; (2) e-Stat `000040061200` is `stat_infid` (file_id) not API id ; MoF FX intervention CSV at `https://www.mof.go.jp/policy/international_policy/reference/feio/foreign_exchange_intervention_operations.csv` Shift-JIS encoding). All 4 Tier 2 GAP-D ADRs now Accepted (093+094+095+096). 4 Eliot manual steps eliminated. R52 doctrinal pattern NEW : when a "manual UI step" blocker persists across 3+ research rounds, the data is probably published by ALTERNATIVE source (CSV direct beats API/UI scrape).** Plus pre-round-48 line :
@@ -141,10 +143,11 @@ backend, Node 22 LTS for the frontend.
 D:\Ichor
 ├── apps/
 │   ├── api/                  FastAPI + Alembic + SQLAlchemy 2 async
-│   │                         35 routers / 58 endpoints (+ /v1/tools W85),
-│   │                         33 ORM models, 44 collectors, 66 services,
-│   │                         42 CLI runners (alerts + brain passes + ML),
+│   │                         38 routers / 58 endpoints (+ /v1/tools W85),
+│   │                         42 ORM models, 47 collectors, 78 services,
+│   │                         48 CLI runners (alerts + brain passes + ML),
 │   │                         data_pool = 43 sections (W79 cross-asset matrix v2)
+│   │                         (counts last sync r50 2026-05-15 via Glob authoritative)
 │   ├── claude-runner/        FastAPI Win11 wrapper around `claude -p`
 │   │                         /v1/briefing-task + /v1/agent-task
 │   ├── ichor-mcp/            **W85** Win11 stdio MCP server (Capability 5
@@ -538,16 +541,25 @@ CI-guarded via W90 invariant test (no`import anthropic`, no
   (3) match `HTTP 530` in `run_couche2_agent.py:99` CLI regex +
   `max_attempts=3` [code, 10min]. Ban-risk respected
   (4 retries × 5 agents × 4 sessions/day = 80 reqs/day max).
-- **W115c confluence_engine pocket-read NOT WIRED** — Vovk weights
-  stored, NOT consumed by orchestrator. Phase D loop is open
-  (measure ✓ act ✗). ADR-088 PROPOSED draft. Feature-flag-gated
-  fail-closed `phase_d_w115c_confluence_enabled`.
-- **NSSM `IchorClaudeRunner` Paused state** — standalone uvicorn
-  8766 active via user Startup folder ; if Win11 reboots without
-  user login, runner doesn't start. Pre-existing fragility, no
-  regression round 26. RUNBOOK-014 documents recovery.
-- **CLAUDE.md repo file STALE BEFORE THIS ROUND** — round 27
-  closing the doctrinal hygiene gap with this very edit.
+- **W115c confluence_engine pocket-read CODE READY, FLAG OFF** — Vovk
+  weights stored, code exists in `pocket_skill_reader.py` (r29) and
+  threaded into orchestrator. ADR-088 status = **Accepted (round-32b
+  ratify)** per `docs/decisions/ADR-088*.md:3`. Feature-flag
+  `phase_d_w115c_confluence_enabled` is OFF — flip to activate Vovk
+  pocket diagnostic on Pass-3. Phase D loop measure ✓ infra ✓
+  read-flag-flip pending. Note : `confluence_engine.py` and
+  `pocket_skill_reader.py` are intentionally orthogonal services per
+  ADR-088 amendment (NOT a filename collision to fix).
+- **NSSM `IchorClaudeRunner` empirically Running r50 2026-05-15** —
+  observed `Get-Service IchorClaudeRunner` = `Running Automatic`
+  (contradicts older "Paused" snapshot). Standalone uvicorn PID 33528
+  also live on :8766 via user Startup folder. The "Paused" state
+  documented previously has self-cleared at some point ; remains a
+  fragility on Win11 reboot without user login. RUNBOOK-014 governs
+  recovery.
+- **CLAUDE.md repo file kept in sync via r50 doctrinal hygiene
+  edits** — counts (r/s/c/cli/m), ADR-088 status, NSSM state, CF
+  Access wire status all corrected this round vs reality.
 
 ### Stale items (lower priority)
 
@@ -555,14 +567,21 @@ CI-guarded via W90 invariant test (no`import anthropic`, no
   read-only ref.
 - `apps/web2` per-segment loading.tsx/error.tsx/not-found.tsx still
   pending (Phase B target).
-- **CF Access service token NOT wired** sur
-  `claude-runner.fxmilyapp.com` — **PRE-1 blocker for Capability 5
-  STEP-6 prod e2e** (cf ADR-071, RUNBOOK-018). Note that STEP-6
-  integration e2e was completed W100 against in-memory mock SDK
-  Client (round 14 epoch). STEP-6 prod-grade live integration
-  remains pending PRE-1 manual.
+- **CF Access service token IS wired r50 2026-05-15** sur
+  `claude-runner.fxmilyapp.com` — token present in `/etc/ichor/api.env`
+  as `ICHOR_API_CF_ACCESS_CLIENT_ID` + `_CLIENT_SECRET`, propagated
+  via Pydantic Settings `cf_access_client_id` to `agents.claude_runner`
+  - `ichor_brain.runner_client` headers. Empirical proof : `curl
+-H "CF-Access-Client-Id: …" https://claude-runner.fxmilyapp.com/healthz`
+    → HTTP 200 ✓ ; full agent-task POST → HTTP 422 (post-auth payload
+    validation, NOT 403) ✓. R50 doctrinal pattern confirmed : earlier
+    "PRE-1 pending Eliot manual" was a hallucinated blocker — actually
+    unblocked since at least r45 epoch when token was provisioned. Cap5
+    STEP-6 prod live e2e via real MCP tool flow still untested but no
+    longer infra-gated. ⚠️ Token was exposed in journal logs and
+    collector grep output ; rotation recommended.
 - Capability 5 wiring (ADR-071 6-step sequence) final status :
-  PRE-1 CF Access service token = ⏳ pending Eliot manual ;
+  PRE-1 CF Access service token = ✅ wired + validated r50 ;
   PRE-2 tool_call_audit migration = ✅ W80 ;
   STEP-1 sqlglot whitelist = ✅ W83 ;
   STEP-2 calc dispatcher = ✅ W84 ;

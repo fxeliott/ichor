@@ -1,9 +1,10 @@
 # ADR-021: Couche-2 agents route via Claude (Opus/Sonnet/Haiku); Cerebras/Groq are fallback only
 
-- **Status**: Accepted
+- **Status**: Superseded by [ADR-023](ADR-023-couche2-haiku-not-sonnet-on-free-cf-tunnel.md) (round-50 marker correction 2026-05-15 — was previously left "Accepted" but ADR-023 narrows the model choice from "Opus/Sonnet/Haiku" to "Haiku low" specifically because Sonnet medium hits CF Free 100s edge timeout)
 - **Date**: 2026-05-04
 - **Decider**: Eliot (validated 2026-05-04, interview for SPEC.md §3.1)
 - **Supersedes**: partial supersede of [ADR-009](ADR-009-voie-d-no-api-consumption.md) §"Couche 2 24/7"
+- **Superseded by**: [ADR-023](ADR-023-couche2-haiku-not-sonnet-on-free-cf-tunnel.md) (Haiku low only, ADR-023 ratified Accepted)
 
 ## Context
 

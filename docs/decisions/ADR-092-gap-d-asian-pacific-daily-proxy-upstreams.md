@@ -1,8 +1,8 @@
 # ADR-092: GAP-D Asian-Pacific daily-proxy upstreams (unblock JPY + AUD GAP-A continuation 4/5 + 5/5)
 
-**Status**: PROPOSED (round-44, 2026-05-14) — awaiting Eliot ratification. No code shipped by this ADR. Tier 1 inline FRED lookups (no new collectors) implemented in subsequent rounds : `_section_jpy_specific` round-45, `_section_aud_specific` round-46. Tier 2 collectors (BoJ Time-Series JGB 10Y daily, e-Stat MoF FX intervention monthly, RBA F1.1 cash-rate-target CSV daily) deferred to future ADRs once Tier 1 validated empirically on Hetzner.
+**Status**: Accepted (round-50 ratify, 2026-05-15) — Tier 1 inline FRED lookups shipped r45 (`_section_jpy_specific`) + r46 (`_section_aud_specific`) ; all 4 children ratified Accepted in subsequent rounds (ADR-093 r47 AUD degraded explicit, ADR-094 r48 BoJ→MoF JGB CSV pivot, ADR-095 r48 e-Stat→MoF FX-intervention CSV pivot, ADR-096 r47 RBA F2 daily). Parent-child status inversion corrected r50 (was PROPOSED while all 4 children Accepted). Original Status line preserved for archeology : "PROPOSED (round-44, 2026-05-14) — awaiting Eliot ratification."
 
-**Date**: 2026-05-14
+**Date**: 2026-05-14 (proposed) / 2026-05-15 (ratified)
 
 **Supersedes**: none
 

@@ -1,7 +1,7 @@
 # ADR-074: MyFXBook Community Outlook replaces discontinued OANDA orderbook
 
-- **Status**: Accepted (dormant — pending Eliot account signup)
-- **Date**: 2026-05-09
+- **Status**: Accepted (LIVE since 2026-05-09 — W77b session_id raw URL concat fix landed, MyFXBook collector ingesting 6 pair snapshots / 4h on Hetzner per CLAUDE.md "Recently fixed" §W77b. The earlier "dormant pending Eliot signup" status was stale post-W77b ; r50 hygiene corrects.)
+- **Date**: 2026-05-09 (initial decision) / 2026-05-15 (status correction r50)
 - **Deciders**: Eliot
 - **Related**: ADR-009 (Voie D), ADR-017 (research-only)
 
