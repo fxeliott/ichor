@@ -613,10 +613,12 @@ async def _section_key_levels(session: AsyncSession) -> tuple[str, list[str]]:
     explicit "no key level fired this session" signal vs missing section.
     """
     from .key_levels import (
+        compute_call_wall_levels,
         compute_gamma_flip_levels,
         compute_hkma_peg_break,
         compute_hy_oas_percentile,
         compute_polymarket_decision_levels,
+        compute_put_wall_levels,
         compute_skew_regime_switch,
         compute_tga_key_level,
         compute_vix_regime_switch,
@@ -639,6 +641,15 @@ async def _section_key_levels(session: AsyncSession) -> tuple[str, list[str]]:
     # r56 : gamma_flip for SPX500 (SPY proxy) + NAS100 (QQQ proxy)
     # per ADR-089. Returns 0-2 KeyLevels (one per asset with data).
     for kl in await compute_gamma_flip_levels(session):
+        levels.append(kl)
+        sources.append(kl.source)
+
+    # r60 : gex call_wall + put_wall (gex_snapshots extras), same proxy.
+    # Each computer returns 0-2 KeyLevels (only fires in actionable zone).
+    for kl in await compute_call_wall_levels(session):
+        levels.append(kl)
+        sources.append(kl.source)
+    for kl in await compute_put_wall_levels(session):
         levels.append(kl)
         sources.append(kl.source)
 

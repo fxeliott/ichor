@@ -38,10 +38,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..db import get_session
 from ..services.key_levels import (
+    compute_call_wall_levels,
     compute_gamma_flip_levels,
     compute_hkma_peg_break,
     compute_hy_oas_percentile,
     compute_polymarket_decision_levels,
+    compute_put_wall_levels,
     compute_skew_regime_switch,
     compute_tga_key_level,
     compute_vix_regime_switch,
@@ -59,6 +61,8 @@ class KeyLevelOut(BaseModel):
         "tga_liquidity_gate",
         "rrp_liquidity_gate",
         "gamma_flip",
+        "gex_call_wall",
+        "gex_put_wall",
         "peg_break_hkma",
         "peg_break_pboc_fix",
         "vix_regime_switch",
@@ -102,6 +106,12 @@ async def get_key_levels(
 
     # Phase 3 : gamma_flip (batch returns list[KeyLevel])
     for kl in await compute_gamma_flip_levels(session):
+        out.append(KeyLevelOut(**kl.to_dict()))
+
+    # Phase 3-extension r60 : call_wall + put_wall (gex_snapshots extras)
+    for kl in await compute_call_wall_levels(session):
+        out.append(KeyLevelOut(**kl.to_dict()))
+    for kl in await compute_put_wall_levels(session):
         out.append(KeyLevelOut(**kl.to_dict()))
 
     # Phase 4 : VIX + SKEW + HY OAS (each returns KeyLevel | None)

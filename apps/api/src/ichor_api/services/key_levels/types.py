@@ -16,6 +16,8 @@ KeyLevelKind = Literal[
     "tga_liquidity_gate",
     "rrp_liquidity_gate",
     "gamma_flip",
+    "gex_call_wall",
+    "gex_put_wall",
     "peg_break_hkma",
     "peg_break_pboc_fix",
     "vix_regime_switch",
