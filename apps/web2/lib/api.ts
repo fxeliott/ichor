@@ -277,6 +277,41 @@ export async function getIntradayBars(
   );
 }
 
+// r76 — geopolitics briefing (AI-GPR headline + negative GDELT). Mirror
+// of apps/api routers/geopolitics.py GeopoliticsBriefingOut. `band` is a
+// ratio to the published GPR baseline (100 = 1985-2019 mean), NOT a
+// fabricated threshold ; `as_of_days` surfaces GPR source lag honestly.
+export interface GprReading {
+  value: number;
+  observation_date: string;
+  as_of_days: number;
+  band: "bas" | "normal" | "élevé" | "très élevé";
+  baseline: number;
+}
+
+export interface GdeltNegative {
+  tone: number;
+  title: string;
+  domain: string | null;
+  query_label: string | null;
+  url: string | null;
+}
+
+export interface GeopoliticsBriefing {
+  gpr: GprReading | null;
+  gdelt_window_hours: number;
+  n_events_window: number;
+  gdelt_negatives: GdeltNegative[];
+}
+
+/** r77 — fetch the geopolitics briefing from `/v1/geopolitics/briefing`. */
+export async function getGeopoliticsBriefing(
+  hours = 48,
+  top = 6,
+): Promise<GeopoliticsBriefing | null> {
+  return apiGet<GeopoliticsBriefing>(`/v1/geopolitics/briefing?hours=${hours}&top=${top}`);
+}
+
 export interface SessionCardList {
   total: number;
   items: SessionCard[];

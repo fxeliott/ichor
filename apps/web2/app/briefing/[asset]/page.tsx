@@ -29,6 +29,7 @@ import { PRIORITY_ASSET_CODES } from "@/components/briefing/assets";
 import { BriefingHeader } from "@/components/briefing/BriefingHeader";
 import { CorrelationsStrip } from "@/components/briefing/CorrelationsStrip";
 import { EconomicCalendarPanel } from "@/components/briefing/EconomicCalendarPanel";
+import { GeopoliticsPanel } from "@/components/briefing/GeopoliticsPanel";
 import { KeyLevelsPanel } from "@/components/briefing/KeyLevelsPanel";
 import { NarrativeBlocks } from "@/components/briefing/NarrativeBlocks";
 import { NewsPanel } from "@/components/briefing/NewsPanel";
@@ -42,10 +43,12 @@ import {
   getCalendarUpcoming,
   getIntradayBars,
   getKeyLevels,
+  getGeopoliticsBriefing,
   getNews,
   getPositioning,
   isLive,
   type CalendarUpcoming,
+  type GeopoliticsBriefing,
   type IntradayBarOut,
   type KeyLevelsResponse,
   type NewsItem,
@@ -88,15 +91,17 @@ export default async function BriefingPage({ params }: PageParams) {
     notFound();
   }
 
-  const [card, keyLevels, today, calendar, news, positioning, intraday] = await Promise.all([
-    fetchSessionCardForAsset(normalisedAsset),
-    getKeyLevels() as Promise<KeyLevelsResponse | null>,
-    apiGet<TodaySnapshotOut>("/v1/today"),
-    getCalendarUpcoming() as Promise<CalendarUpcoming | null>,
-    getNews(12) as Promise<NewsItem[] | null>,
-    getPositioning() as Promise<PositioningOut | null>,
-    getIntradayBars(normalisedAsset) as Promise<IntradayBarOut[] | null>,
-  ]);
+  const [card, keyLevels, today, calendar, news, positioning, intraday, geopolitics] =
+    await Promise.all([
+      fetchSessionCardForAsset(normalisedAsset),
+      getKeyLevels() as Promise<KeyLevelsResponse | null>,
+      apiGet<TodaySnapshotOut>("/v1/today"),
+      getCalendarUpcoming() as Promise<CalendarUpcoming | null>,
+      getNews(12) as Promise<NewsItem[] | null>,
+      getPositioning() as Promise<PositioningOut | null>,
+      getIntradayBars(normalisedAsset) as Promise<IntradayBarOut[] | null>,
+      getGeopoliticsBriefing() as Promise<GeopoliticsBriefing | null>,
+    ]);
 
   // The endpoint returns the whole ≤72h window ascending (oldest→newest,
   // verified R59). Ship only the most recent ~90 bars to the client.
@@ -192,6 +197,18 @@ export default async function BriefingPage({ params }: PageParams) {
           </span>
         </div>
         <EconomicCalendarPanel events={calendar?.events ?? []} highlightAsset={normalisedAsset} />
+      </section>
+
+      <section aria-labelledby="geopolitics-heading">
+        <div className="mb-4 flex items-baseline justify-between gap-4">
+          <h2 id="geopolitics-heading" className="font-serif text-2xl text-[--color-text-primary]">
+            Géopolitique
+          </h2>
+          <span className="text-[10px] uppercase tracking-widest text-[--color-text-muted]">
+            AI-GPR · GDELT · risque macro-géopolitique
+          </span>
+        </div>
+        <GeopoliticsPanel data={geopolitics} />
       </section>
 
       <section aria-labelledby="sentiment-heading">
