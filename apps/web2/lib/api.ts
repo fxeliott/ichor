@@ -360,6 +360,13 @@ export async function getInstitutionalPositioning(
   );
 }
 
+/** r82 — live cross-asset correlation matrix from `/v1/correlations`
+ *  (reuses CorrelationMatrix). Fallback source for the briefing
+ *  Corrélations panel when `card.correlations_snapshot` is absent. */
+export async function getCorrelations(windowDays = 30): Promise<CorrelationMatrix | null> {
+  return apiGet<CorrelationMatrix>(`/v1/correlations?window_days=${windowDays}`);
+}
+
 // r78 — DST-correct market session + US-holiday signal. Mirror of
 // apps/api routers/calendar.py SessionStatusOut. Consumed CLIENT-side by
 // SessionStatus.tsx via the same-origin /v1 proxy (next.config rewrite) —

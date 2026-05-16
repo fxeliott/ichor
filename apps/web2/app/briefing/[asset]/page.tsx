@@ -42,6 +42,7 @@ import { VolumePanel } from "@/components/briefing/VolumePanel";
 import {
   apiGet,
   getCalendarUpcoming,
+  getCorrelations,
   getInstitutionalPositioning,
   getIntradayBars,
   getKeyLevels,
@@ -50,6 +51,7 @@ import {
   getPositioning,
   isLive,
   type CalendarUpcoming,
+  type CorrelationMatrix,
   type GeopoliticsBriefing,
   type InstitutionalPositioning,
   type IntradayBarOut,
@@ -104,6 +106,7 @@ export default async function BriefingPage({ params }: PageParams) {
     intraday,
     geopolitics,
     institutional,
+    correlations,
   ] = await Promise.all([
     fetchSessionCardForAsset(normalisedAsset),
     getKeyLevels() as Promise<KeyLevelsResponse | null>,
@@ -114,7 +117,49 @@ export default async function BriefingPage({ params }: PageParams) {
     getIntradayBars(normalisedAsset) as Promise<IntradayBarOut[] | null>,
     getGeopoliticsBriefing() as Promise<GeopoliticsBriefing | null>,
     getInstitutionalPositioning(normalisedAsset) as Promise<InstitutionalPositioning | null>,
+    getCorrelations() as Promise<CorrelationMatrix | null>,
   ]);
+
+  // r82 Tier 1.5 — Corrélations unconditional. Prefer the card's
+  // per-asset complex co-move snapshot ; else derive THIS asset's row
+  // from the live /v1/correlations matrix (compact keys so the existing
+  // CorrelationsStrip parser renders "EUR/USD" etc. — zero component
+  // change). Honest empty-state only when BOTH are absent.
+  const _CORR_KEY: Record<string, string> = {
+    EUR_USD: "EURUSD",
+    GBP_USD: "GBPUSD",
+    XAU_USD: "XAUUSD",
+    SPX500_USD: "SPX500",
+    NAS100_USD: "NAS100",
+  };
+  const _compactCorrKey = (code: string): string => _CORR_KEY[code] ?? code.replace(/_/g, "");
+  function deriveCorrelationRow(
+    m: CorrelationMatrix,
+    asset: string,
+  ): Record<string, number> | null {
+    const i = m.assets.indexOf(asset);
+    if (i < 0) return null;
+    const row: Record<string, number> = {};
+    m.assets.forEach((other, j) => {
+      if (j === i) return;
+      const v = m.matrix[i]?.[j];
+      if (typeof v === "number") row[_compactCorrKey(other)] = Math.round(v * 100) / 100;
+    });
+    return Object.keys(row).length > 0 ? row : null;
+  }
+  const cardCorr =
+    card?.correlations_snapshot &&
+    typeof card.correlations_snapshot === "object" &&
+    !Array.isArray(card.correlations_snapshot)
+      ? (card.correlations_snapshot as Record<string, unknown>)
+      : null;
+  const liveCorrRow = correlations ? deriveCorrelationRow(correlations, normalisedAsset) : null;
+  const correlationSnapshot: Record<string, unknown> | null = cardCorr ?? liveCorrRow;
+  const correlationSource = cardCorr
+    ? "Snapshot carte · co-mouvement complexe"
+    : liveCorrRow
+      ? `Live · fenêtre ${correlations?.window_days ?? 30} j`
+      : "Indisponible";
 
   // The endpoint returns the whole ≤72h window ascending (oldest→newest,
   // verified R59). Ship only the most recent ~90 bars to the client.
@@ -275,22 +320,24 @@ export default async function BriefingPage({ params }: PageParams) {
         <VolumePanel asset={normalisedAsset} bars={recentBars} />
       </section>
 
-      {card?.correlations_snapshot ? (
-        <section aria-labelledby="correlations-heading">
-          <div className="mb-4 flex items-baseline justify-between gap-4">
-            <h2
-              id="correlations-heading"
-              className="font-serif text-2xl text-[--color-text-primary]"
-            >
-              Corrélations
-            </h2>
-            <span className="text-[10px] uppercase tracking-widest text-[--color-text-muted]">
-              Snapshot carte · co-mouvement complexe
-            </span>
+      <section aria-labelledby="correlations-heading">
+        <div className="mb-4 flex items-baseline justify-between gap-4">
+          <h2 id="correlations-heading" className="font-serif text-2xl text-[--color-text-primary]">
+            Corrélations
+          </h2>
+          <span className="text-[10px] uppercase tracking-widest text-[--color-text-muted]">
+            {correlationSource}
+          </span>
+        </div>
+        {correlationSnapshot ? (
+          <CorrelationsStrip snapshot={correlationSnapshot} />
+        ) : (
+          <div className="rounded-2xl border border-[--color-border-subtle] bg-[--color-bg-surface]/40 px-6 py-8 text-center text-sm text-[--color-text-muted] backdrop-blur-xl">
+            Corrélations indisponibles — ni snapshot carte ni matrice live pour{" "}
+            {normalisedAsset.replace("_", "/")}.
           </div>
-          <CorrelationsStrip snapshot={card.correlations_snapshot} />
-        </section>
-      ) : null}
+        )}
+      </section>
 
       <footer className="pt-6 text-[10px] uppercase tracking-widest text-[--color-text-muted]">
         Ichor v2 · Pre-trade context only · No BUY/SELL signals (ADR-017 boundary)
