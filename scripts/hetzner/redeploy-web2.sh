@@ -154,11 +154,18 @@ WantedBy=multi-user.target
 UNIT
 sudo systemctl daemon-reload"
 
-  log "Step 4: enable --now ${SVC} + ${TUN}; wait for readiness"
+  log "Step 4: (re)start ${SVC} to load the new build; keep ${TUN} URL stable"
+  # ${SVC}: MUST restart, not 'enable --now' — the latter no-ops on an
+  # already-active service and would keep serving the OLD .next build
+  # (the re-deploy bug caught r75). ${TUN}: start only if inactive — a
+  # quick tunnel mints a NEW *.trycloudflare.com URL on every restart,
+  # so we never restart it on an app-only redeploy (URL stays stable
+  # within the tunnel's lifetime; named tunnel = RUNBOOK-019 Tier 0.2).
   ${SSH} "
-    sudo systemctl enable --now ${SVC}.service
-    sudo systemctl restart ${TUN}.service
-    sudo systemctl enable ${TUN}.service
+    sudo systemctl enable ${SVC}.service >/dev/null 2>&1 || true
+    sudo systemctl restart ${SVC}.service
+    sudo systemctl enable ${TUN}.service >/dev/null 2>&1 || true
+    sudo systemctl is-active --quiet ${TUN}.service || sudo systemctl start ${TUN}.service
     for i in \$(seq 1 30); do
       code=\$(curl -fsS -o /dev/null -w '%{http_code}' http://127.0.0.1:${PORT}/briefing 2>/dev/null || echo 000)
       [ \"\$code\" = 200 ] && break

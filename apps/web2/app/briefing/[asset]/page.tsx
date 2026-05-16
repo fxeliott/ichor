@@ -36,14 +36,17 @@ import { ScenariosPanel } from "@/components/briefing/ScenariosPanel";
 import { SentimentPanel } from "@/components/briefing/SentimentPanel";
 import { SessionStatus } from "@/components/briefing/SessionStatus";
 import { VerdictBanner } from "@/components/briefing/VerdictBanner";
+import { VolumePanel } from "@/components/briefing/VolumePanel";
 import {
   apiGet,
   getCalendarUpcoming,
+  getIntradayBars,
   getKeyLevels,
   getNews,
   getPositioning,
   isLive,
   type CalendarUpcoming,
+  type IntradayBarOut,
   type KeyLevelsResponse,
   type NewsItem,
   type PositioningOut,
@@ -85,14 +88,19 @@ export default async function BriefingPage({ params }: PageParams) {
     notFound();
   }
 
-  const [card, keyLevels, today, calendar, news, positioning] = await Promise.all([
+  const [card, keyLevels, today, calendar, news, positioning, intraday] = await Promise.all([
     fetchSessionCardForAsset(normalisedAsset),
     getKeyLevels() as Promise<KeyLevelsResponse | null>,
     apiGet<TodaySnapshotOut>("/v1/today"),
     getCalendarUpcoming() as Promise<CalendarUpcoming | null>,
     getNews(12) as Promise<NewsItem[] | null>,
     getPositioning() as Promise<PositioningOut | null>,
+    getIntradayBars(normalisedAsset) as Promise<IntradayBarOut[] | null>,
   ]);
+
+  // The endpoint returns the whole ≤72h window ascending (oldest→newest,
+  // verified R59). Ship only the most recent ~90 bars to the client.
+  const recentBars: IntradayBarOut[] = intraday ? intraday.slice(-90) : [];
 
   // r67 — render-source precedence corrected. r65 preferred the
   // persisted card.key_levels snapshot, but for a LIVE pre-session
@@ -208,6 +216,18 @@ export default async function BriefingPage({ params }: PageParams) {
           </span>
         </div>
         <NewsPanel news={news ?? []} />
+      </section>
+
+      <section aria-labelledby="volume-heading">
+        <div className="mb-4 flex items-baseline justify-between gap-4">
+          <h2 id="volume-heading" className="font-serif text-2xl text-[--color-text-primary]">
+            Volume
+          </h2>
+          <span className="text-[10px] uppercase tracking-widest text-[--color-text-muted]">
+            Activité intraday · proxy tick Polygon
+          </span>
+        </div>
+        <VolumePanel asset={normalisedAsset} bars={recentBars} />
       </section>
 
       {card?.correlations_snapshot ? (

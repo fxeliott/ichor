@@ -257,6 +257,26 @@ export async function getPositioning(): Promise<PositioningOut | null> {
   return apiGet<PositioningOut>("/v1/positioning");
 }
 
+/**
+ * r75 (ADR-099 Tier 1.1) — intraday OHLCV bars from
+ * `/v1/market/intraday/{asset}` (reuses `IntradayBarOut`). The endpoint
+ * caps `hours` at 72 and returns the whole window ASCENDING; `limit`
+ * truncates from the OLDEST end (verified R59). So to reach the most
+ * recent bar even on a weekend/holiday (markets closed → last data is
+ * Friday) we request the full window and the caller slices the tail
+ * server-side. `volume` is a Polygon tick/aggregate ACTIVITY proxy, not
+ * real exchange volume (FX is decentralised — true volume does not exist).
+ */
+export async function getIntradayBars(
+  asset: string,
+  hours = 72,
+  limit = 10000,
+): Promise<IntradayBarOut[] | null> {
+  return apiGet<IntradayBarOut[]>(
+    `/v1/market/intraday/${encodeURIComponent(asset)}?hours=${hours}&limit=${limit}`,
+  );
+}
+
 export interface SessionCardList {
   total: number;
   items: SessionCard[];
