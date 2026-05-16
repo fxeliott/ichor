@@ -312,6 +312,30 @@ export async function getGeopoliticsBriefing(
   return apiGet<GeopoliticsBriefing>(`/v1/geopolitics/briefing?hours=${hours}&top=${top}`);
 }
 
+// r78 — DST-correct market session + US-holiday signal. Mirror of
+// apps/api routers/calendar.py SessionStatusOut. Consumed CLIENT-side by
+// SessionStatus.tsx via the same-origin /v1 proxy (next.config rewrite) —
+// it replaces the old DST-naive browser UTC heuristic. `next_open_paris`
+// is an absolute ISO instant so the live countdown needs no local tz math.
+export interface SessionStatusOut {
+  now_paris: string;
+  weekday: string;
+  state:
+    | "weekend"
+    | "us_holiday"
+    | "pre_londres"
+    | "london_active"
+    | "pre_ny"
+    | "ny_active"
+    | "off_hours";
+  market_closed_fx: boolean;
+  market_closed_us_equity: boolean;
+  holiday_name: string | null;
+  next_open_label: string;
+  next_open_paris: string;
+  minutes_until_next_open: number;
+}
+
 export interface SessionCardList {
   total: number;
   items: SessionCard[];
