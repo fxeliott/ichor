@@ -9,18 +9,34 @@ Aggregates the recent GDELT corpus by `sourcecountry` and emits :
 
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..db import get_session
-from ..models import GdeltEvent
+from ..models import GdeltEvent, GprObservation
 
 router = APIRouter(prefix="/v1/geopolitics", tags=["geopolitics"])
+
+# AI-GPR (Caldara & Iacoviello) is normalised so 100 = the 1985-2019
+# mean. Bands are expressed strictly as a ratio to that PUBLISHED
+# baseline — no fabricated academic thresholds (anti-hallucination).
+_GPR_BASELINE = 100.0
+
+
+def _gpr_band(value: float) -> str:
+    r = value / _GPR_BASELINE
+    if r < 0.8:
+        return "bas"
+    if r < 1.3:
+        return "normal"
+    if r < 2.2:
+        return "élevé"
+    return "très élevé"
 
 
 class CountryHotspot(BaseModel):
@@ -86,4 +102,83 @@ async def heatmap(
         window_hours=hours,
         n_events=len(rows),
         countries=countries,
+    )
+
+
+# ─── /briefing : AI-GPR headline + most-negative GDELT (briefing panel) ───
+# Mirrors services/data_pool.py:_section_geopolitics so the /briefing
+# dashboard surfaces the SAME geopolitical read the 4-pass LLM sees
+# (ADR-099 Tier 1.2). Read-only, ADR-017-safe (pure risk description).
+
+
+class GprReading(BaseModel):
+    value: float
+    observation_date: date
+    as_of_days: int  # staleness vs today (GPR source lags a few days)
+    band: str  # bas | normal | élevé | très élevé — ratio to base 100
+    baseline: float = _GPR_BASELINE
+
+
+class GdeltNegative(BaseModel):
+    tone: float
+    title: str
+    domain: str | None = None
+    query_label: str | None = None
+    url: str | None = None
+
+
+class GeopoliticsBriefingOut(BaseModel):
+    gpr: GprReading | None
+    gdelt_window_hours: int
+    n_events_window: int
+    gdelt_negatives: list[GdeltNegative]
+
+
+@router.get("/briefing", response_model=GeopoliticsBriefingOut)
+async def briefing(
+    session: Annotated[AsyncSession, Depends(get_session)],
+    hours: int = Query(24, ge=1, le=168),
+    top: int = Query(5, ge=1, le=20),
+) -> GeopoliticsBriefingOut:
+    gpr_row = (
+        (
+            await session.execute(
+                select(GprObservation).order_by(desc(GprObservation.observation_date)).limit(1)
+            )
+        )
+        .scalars()
+        .first()
+    )
+
+    gpr: GprReading | None = None
+    if gpr_row is not None:
+        gpr = GprReading(
+            value=round(float(gpr_row.ai_gpr), 1),
+            observation_date=gpr_row.observation_date,
+            as_of_days=(datetime.now(UTC).date() - gpr_row.observation_date).days,
+            band=_gpr_band(float(gpr_row.ai_gpr)),
+        )
+
+    cutoff = datetime.now(UTC) - timedelta(hours=hours)
+    rows = list(
+        (await session.execute(select(GdeltEvent).where(GdeltEvent.seendate >= cutoff)))
+        .scalars()
+        .all()
+    )
+    negatives = sorted(rows, key=lambda r: r.tone)[:top]
+
+    return GeopoliticsBriefingOut(
+        gpr=gpr,
+        gdelt_window_hours=hours,
+        n_events_window=len(rows),
+        gdelt_negatives=[
+            GdeltNegative(
+                tone=round(float(r.tone), 1),
+                title=r.title,
+                domain=r.domain,
+                query_label=r.query_label,
+                url=r.url,
+            )
+            for r in negatives
+        ],
     )
