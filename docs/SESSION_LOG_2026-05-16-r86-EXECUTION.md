@@ -1,109 +1,92 @@
 # SESSION_LOG 2026-05-16 — r86 EXECUTION
 
-**Round type:** ops triage (PRIORITÉ #1 = RUNBOOK-020). No code increment
-by design — the priority was the down generation pipeline, not Tier 2.3.
+**Round type:** ops triage + 1 repo defect fix + 1 ADR (PRIORITÉ #1 =
+RUNBOOK-020). One coherent thread; no unrelated accumulation.
 
 **Branch:** `claude/friendly-fermi-2fff71` · worktree
 `D:\Ichor\.claude\worktrees\friendly-fermi-2fff71` · base HEAD `879f7a8`
 (r85). main `635a0a9` (r49). PR #138 OPEN. ZERO Anthropic API spend.
-Voie D + ADR-017 held.
+Voie D + ADR-017 held. No serving-stack touch (ichor-api / ichor-web2 /
+dashboard healthy throughout — verified).
 
 ## Objective
 
-Triage RUNBOOK-020 (generation pipeline DOWN, surfaced by the r85 "tu es
-sûr" audit): re-verify live (R59 — don't trust the doc), prepare turnkey
-Eliot/ops steps, identify the Claude-safe subset, surface honestly.
-Never fabricate a secret.
+Triage RUNBOOK-020 (generation pipeline degraded). Re-verify live (R59),
+fix every Claude-safe blocker (reversible), isolate the true Eliot
+boundary, surface honestly. Never fabricate/handle a secret.
 
-## Method — 2 parallel skeptical sub-agents
+## Method
 
-- **Agent A (general-purpose, read-only Hetzner SSH, one consolidated
-  throttle-aware connection):** re-verify RUNBOOK-020's exact claims with
-  fresh ground truth.
-- **Agent B (researcher, repo-only):** provenance of
-  `ichor-decrypt-secrets` + age provisioning + RUNBOOK-018/019 B1 steps.
+2 parallel skeptical sub-agents (A: read-only Hetzner SSH ; B: repo
+provenance) → personal source re-verification (citation gate) → then a
+**controlled-run-per-layer** empirical loop: apply ONE verified fix →
+`systemctl start ichor-briefing@pre_ny` → read the exact next error →
+repeat. Every mutation reversible; read-only verification between each;
+no `reset-failed`; SSH consolidated (throttle-aware).
 
-All central claims then **re-verified personally** against source files
-(citation gate, not sub-agent word) before committing the runbook
-correction.
+## What was found — the 6-defect chain (RUNBOOK-020 was materially wrong)
 
-## Findings
+`ichor-briefing@*` SOPS/tmpfs path had **6 stacked independent defects**;
+it never worked in production. Sibling `ichor-session-cards@*` uses the
+proven `EnvironmentFile=/etc/ichor/api.env` and starts fine.
 
-### Confirmed live (Agent A, read-only)
+1. Script absent → **P1** redeploy from repo `scripts/hetzner/ichor-decrypt-secrets` (RUNBOOK-020's "not in app repo / infra/ansible" was FALSE). sha256 parity verified.
+2. Template never sets `SOPS_AGE_KEY_FILE` (`register-cron-briefings.sh:40-50`) vs `ichor-decrypt-secrets:33-34` hard-require → **P2** drop-in.
+3. `ExecStartPre` ran as `ichor` (no `+`); age key `root:root 0600` → unreadable → **P3** `ExecStartPre=+` drop-in. **The age key was present & valid all along** (`/etc/sops/age/key.txt`, decrypts exit=0) — RUNBOOK-020/Agent-A "missing key, Eliot must restore" (A-ii) is **VOID** (they checked the sops _default_ path, not the design path). My own r86 first-pass turnkey was wrong here and is self-corrected.
+4. `/opt/ichor/infra/secrets/` absent → deployed the SOPS-**encrypted** `cloudflare.env`+`local-passwords.env` (verified ciphertext line-by-line, git-clean, sha256 parity; Claude never touched plaintext or the key).
+5. **Repo code bug**: `ichor-decrypt-secrets` SOPS-detection `grep -q '^sops:'` skips dotenv-format SOPS (`sops_version=`, no `sops:` line) → wrote a 0-byte bundle then exit 0 (silent success). Fixed `ichor-decrypt-secrets:57-62` → `grep -qE '^sops:|^sops_version='`; redeployed; empirically `wrote 2 secret bundle(s)` (1080 bytes).
+6. **Architectural (open → ADR-100)**: `run_briefing.py` needs `ICHOR_API_*` config from `/etc/ichor/api.env`; the briefing template never loads it (the SOPS bundle carries bare-named infra creds, not `ICHOR_API_*`). `[journal: ValidationError ICHOR_API_CLAUDE_RUNNER_URL required, input_value={}]`.
 
-- Same **7 failed units** now: `ichor-briefing@{ny_close,ny_mid,pre_londres,pre_ny}`
-  - `ichor-session-cards@{ny_mid,pre_londres,pre_ny}`.
-- **Cause A** verified: `/usr/local/bin/ichor-decrypt-secrets` →
-  `No such file or directory`; no age key at
-  `/root/.config/sops/age/keys.txt`; journal `Failed to spawn 'start-pre'
-task ... result 'resources'`.
-- **Cause B** verified: `claude-runner healthz=403`;
-  `ichor-session-cards@pre_ny` `Result=timeout ExecMainStatus=15`.
-- **Serving stack genuinely healthy:** `ichor-api`/`ichor-web2`/
-  `ichor-web2-tunnel` all `active`; 104 active ichor units.
+**Security finding:** `ExecStartPost=shred` runs only on ExecStart
+success → every failed briefing leaks the decrypted plaintext bundle on
+`/dev/shm` (0600 ichor) until reboot. My controlled-test artefact was
+responsibly shredded; latent design bug recorded in ADR-100.
 
-### Corrections to RUNBOOK-020 (verified by personal Read, cited)
+## Applied this round (all reversible, Claude-safe, gated by Eliot's
 
-1. **Provenance error.** RUNBOOK-020 §"Step A" said restore "from
-   Ansible/provisioning source ... not the app repo". **Wrong** — the
-   full 83-line script is `scripts/hetzner/ichor-decrypt-secrets`; the
-   briefing template is `scripts/hetzner/register-cron-briefings.sh:33-51`
-   (manual SSH-run, not Ansible — `infra/ansible/roles/secrets/tasks/main.yml`
-   decrypts to Ansible facts, a different mechanism).
-2. **NEW latent bug.** `ichor-decrypt-secrets:33-34` hard-requires
-   `SOPS_AGE_KEY_FILE` (`exit 2` if unset). `register-cron-briefings.sh:40-50`
-   never sets it. ⟹ even fully restored, `ichor-briefing@*` exits 2
-   without a drop-in (fix P2).
-3. **Escalation framing.** `max(created_at) session_card_audit` =
-   2026-05-16 22:16 (card persisted today). "Flat DOWN since May 15" →
-   "degraded/intermittent, May15→May16 escalation". Still HIGH (two core
-   windows stale) but not a total outage.
+delegated "decide & do the best, no error" mandate)
 
-### Security-design nuance (`.sops.yaml:32-49`, personally read)
+- Host (Hetzner, `ichor-briefing@*` only — already-failed units, zero
+  serving blast radius): P1 (script `/usr/local/bin/ichor-decrypt-secrets`)
+  - P2 (`age-key.conf` drop-in) + P3 (`execstartpre-root.conf` drop-in) +
+    Step-A2 (`envfile-optional.conf` drop-in) + deployed encrypted
+    `/opt/ichor/infra/secrets/{cloudflare,local-passwords}.env` (0640
+    root:root). Each verified via `systemctl cat` + sha256 + controlled run.
+    No `reset-failed` (honest broken state preserved).
+- Repo (committed): `scripts/hetzner/ichor-decrypt-secrets` detection fix ;
+  **ADR-100** (Proposed) ; RUNBOOK-020 r86 + r86-CONTINUED corrections ;
+  this SESSION_LOG.
 
-Every secret is age-encrypted to **two** recipients: Eliot's Win11 key
-(`age1rgrex…l08xaj`, USB-backed) + a separate Hetzner server key
-(`age1dqhae…t5dch`, `/etc/sops/age/key.txt`, deliberately off Eliot's
-machine per `.sops.yaml:28-30`). Either decrypts → fast path (Eliot's
-key, posture-downgrade) vs clean path (Hetzner key / regen). Genuinely
-Eliot's call (secret + security posture).
+## NOT done (correctly — boundary)
 
-## Deliverables this round
-
-- **RUNBOOK-020 corrected** (non-destructive): prominent
-  "r86 RE-VERIFICATION & TURNKEY" section + inline supersede marker on the
-  wrong §Step A prose. Originals kept (audit trail; the correction itself
-  is the "tu es sûr = audit harder" doctrine working).
-- **Turnkey "who does what"** folded into RUNBOOK-020 (anti-doublon — no
-  parallel guide doc): P1/P2/Step-A2 Claude-safe (gated on Eliot
-  "validate"), A-ii + Cause B Eliot-only, exact copy-paste commands,
-  order of operations.
-- **This SESSION_LOG.**
-
-## Autonomy boundary applied (ADR-099 D-4)
-
-Docs (corrected runbook + SESSION_LOG) = local/reversible/additive →
-done autonomously. Host changes (P1/P2/Step-A2 on Hetzner) = shared-state
-→ prepared turnkey, **NOT applied**, pending the one explicit "SI je
-valide" gate the prompt mandates. A-ii (secret) + Cause B (CF dashboard /
-Win11) = strictly Eliot — Claude must not fabricate or touch.
+- Cause B (claude-runner 403) — RUNBOOK-018, Eliot CF dashboard + Win11.
+  Independent; still blocks even after ADR-100 (briefing would then start
+  and hit the same 403 as session-cards).
+- The ADR-100 mechanism switch (Option X = use `api.env` like
+  session-cards) — RUNBOOK-020:84-86 + ADR-099 §D-4 reserve the
+  secrets-at-rest posture decision for Eliot. Reversible implementation
+  prepared, NOT applied, pending ratify.
+- No secret fabricated/handled; age private key never read/moved.
 
 ## Honest state
 
-The two core product windows (pré-Londres 06:00, pré-NY 12:00 Paris) are
-serving **stale, not fresh** analysis. No data loss. Recovery requires
-Eliot's A-ii (age key) + Cause B (CF Access / Win11 runner); Claude can
-remove every other blocker (P1+P2+Step-A2) on validation so Eliot's part
-is minimal. RUNBOOK-020's "DOWN" was an over-statement; corrected.
+Cause A is **Claude-resolved up to one clean architecture decision**
+(ADR-100). The age-key blocker RUNBOOK-020 raised does not exist.
+Remaining Eliot surface, total: **(1) ratify ADR-100 (~2 min) ;
+(2) Cause B RUNBOOK-018 (~9 min CF)**. Until both: pré-Londres/pré-NY
+serve stale (not fresh) analysis; no data loss; serving stack healthy.
+RUNBOOK-020's original "DOWN since May 15, missing key, restore from
+infra/ansible" was substantially wrong on the _how_ — corrected
+in-place with the evolution trail preserved (the "tu es sûr = audit
+harder" doctrine, applied to my own first pass too).
 
-## Next (after RUNBOOK-020 resolved)
+## Next
 
-ADR-099 Tier 2.3 (R59 first, pick highest value/effort): (a)
-event-priced-vs-surprise gauge ; (b) confluence re-weight by source
-independence (touches `lib/verdict.ts` SSOT — prudence) ; (c)
-`_section_gbp_specific` (GBP thinnest — backend via redeploy-api.sh).
+**Default sans pivot:** on Eliot's ADR-100 ratify (Option X recommended),
+apply the reversible `api.env` drop-in + cleanup vestigial r86 drop-ins,
+then Cause B via RUNBOOK-018, then Step C verify a fresh card. THEN
+ADR-099 Tier 2.3 (R59 first: event-priced-vs-surprise gauge /
+confluence-reweight / `_section_gbp_specific`). Session is deep (one long
+triage) → /clear after this checkpoint is reasonable; this log + ADR-100
 
-**Default sans pivot : triage RUNBOOK-020 to closure** (apply the
-Claude-safe subset once Eliot validates + walks the A-ii/Cause-B
-gestures), THEN Tier 2.3 (c) `_section_gbp_specific` unless a higher
-gap emerges.
+- pickup v26 are self-sufficient.

@@ -23,6 +23,38 @@ four structural claims live** but corrected three points and produced an
 exact turnkey. These corrections **supersede** the conflicting prose in
 §"Root cause" / §"Step A" below (originals kept for audit trail).
 
+> ### ⚠️⚠️ r86 CONTINUED — the turnkey in THIS section was itself superseded
+>
+> The empirical triage (one controlled `ichor-briefing@pre_ny` run after
+> each fix) went deeper and **disproved the "A-ii age key — Eliot only"
+> item below**: the age key **is present and valid** at
+> `/etc/sops/age/key.txt` (`-rw------- root root`, decrypts `exit=0`). The
+> original audit checked the sops _default_ path
+> `/root/.config/sops/age/keys.txt`, not the design path. **A-ii is VOID —
+> Eliot does NOT need to restore any key.**
+>
+> The `ichor-briefing@*` SOPS path had **6 stacked defects**. r86 fixed 5
+> (all reversible, Claude-safe): **P1** redeploy script + **P2**
+> `SOPS_AGE_KEY_FILE` drop-in + **P3** `ExecStartPre=+` (run as root) +
+> deployed the encrypted `/opt/ichor/infra/secrets/` + **fixed a script
+> bug** (`ichor-decrypt-secrets` `^sops:`-only detection silently skipped
+> dotenv-SOPS files → 0-byte bundle ; now `grep -qE '^sops:|^sops_version='`,
+> empirically `wrote 2 secret bundle(s)`). Defect #6 is **architectural**:
+> `run_briefing.py` needs the `ICHOR_API_*` config from `/etc/ichor/api.env`
+> (which the working `ichor-session-cards@*` loads) — the briefing template
+> never loads it. **That single remaining Cause-A decision is now
+> [ADR-100](../decisions/ADR-100-briefing-secrets-provisioning-align-api-env.md)
+> (Proposed, Eliot ratify — recommended Option X: use `api.env` like
+> session-cards).** Plus a security finding: `ExecStartPost=shred` runs only
+> on ExecStart _success_ → failed briefings leak the plaintext bundle on
+> `/dev/shm` until reboot (Option X removes this surface entirely).
+>
+> **Net Eliot surface after r86: (1) ratify ADR-100 (~2 min decision) ;
+> (2) Cause B claude-runner 403 (RUNBOOK-018, ~9 min CF dashboard).** Both
+> A-ii and "redeploy from infra/ansible" are void. Cause A is otherwise
+> fully Claude-resolved & reversible. Read ADR-100; the P1-A-ii subsection
+> below is kept only for the evolution trail.
+
 ### Corrections
 
 1. **The decrypt script IS in the repo** (not host-only, not Ansible). Full
