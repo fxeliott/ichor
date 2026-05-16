@@ -20,15 +20,16 @@ indices" gracefully.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
-from sqlalchemy import text
+from sqlalchemy import desc, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..db import get_session
+from ..models import CftcTffObservation, CotPosition
 
 router = APIRouter(prefix="/v1/positioning", tags=["positioning"])
 
@@ -153,3 +154,150 @@ async def get_positioning(
         n_pairs=len(entries),
         entries=entries,
     )
+
+
+# ─── /institutional : CFTC TFF + COT (the "acteurs du marché" layer) ───
+# ADR-099 Tier 1.4a. Mirrors data_pool._section_tff_positioning +
+# _section_cot EXACTLY (same trader conventions) so the dashboard
+# surfaces the SAME institutional read the 4-pass LLM sees. CFTC is
+# weekly, data cut-off Tuesday, released ~Friday — `report_date` makes
+# the lag explicit (honest, no fake freshness). ADR-017-safe: pure
+# positioning facts + a descriptive smart-money divergence flag, no
+# BUY/SELL. TFF covers all 5 priority assets (incl. SPX500 13874A) ;
+# COT covers 4 (no SPX500 E-mini in the collector yet).
+
+
+class TffPositioning(BaseModel):
+    market_code: str
+    report_date: date
+    open_interest: int
+    dealer_net: int
+    asset_mgr_net: int
+    lev_money_net: int
+    other_net: int
+    dealer_dw: int | None
+    asset_mgr_dw: int | None
+    lev_money_dw: int | None
+    smart_money_divergence: bool
+
+
+class CotPositioning(BaseModel):
+    market_code: str
+    report_date: date
+    open_interest: int
+    managed_money_net: int
+    swap_dealer_net: int
+    producer_net: int
+    delta_1w: int | None
+    delta_4w: int | None
+    delta_12w: int | None
+    pattern: Literal["accelerating", "reversal", "stable"]
+
+
+class InstitutionalPositioningOut(BaseModel):
+    asset: str
+    cadence: str = "Hebdomadaire — données CFTC arrêtées au mardi, publiées ~vendredi"
+    tff: TffPositioning | None
+    cot: CotPositioning | None
+
+
+@router.get("/institutional", response_model=InstitutionalPositioningOut)
+async def get_institutional_positioning(
+    session: Annotated[AsyncSession, Depends(get_session)],
+    asset: Annotated[str, Query(min_length=3, max_length=16)],
+) -> InstitutionalPositioningOut:
+    """CFTC TFF (4-class + smart-money divergence) + COT (managed-money
+    trend) for one asset. Each block is `null` if the asset is not in
+    that source's tracked-market map or has no rows (ADR-093 degraded-
+    explicit — the dashboard renders an honest empty state)."""
+    asset = asset.upper().replace("-", "_")
+    # Lazy import : the market maps are the single source of truth in
+    # data_pool (anti-doublon) ; importing inside the handler avoids any
+    # module-load/circular-import risk against that very large module.
+    from ..services.data_pool import _COT_MARKET_BY_ASSET, _TFF_MARKET_BY_ASSET
+
+    tff: TffPositioning | None = None
+    tff_market = _TFF_MARKET_BY_ASSET.get(asset)
+    if tff_market is not None:
+        rows = list(
+            (
+                await session.execute(
+                    select(CftcTffObservation)
+                    .where(CftcTffObservation.market_code == tff_market)
+                    .order_by(desc(CftcTffObservation.report_date))
+                    .limit(2)
+                )
+            )
+            .scalars()
+            .all()
+        )
+        if rows:
+            cur = rows[0]
+            prev = rows[1] if len(rows) > 1 else None
+            dealer_net = cur.dealer_long - cur.dealer_short
+            am_net = cur.asset_mgr_long - cur.asset_mgr_short
+            lev_net = cur.lev_money_long - cur.lev_money_short
+            other_net = cur.other_rept_long - cur.other_rept_short
+            dealer_dw = am_dw = lev_dw = None
+            if prev is not None:
+                prev_dealer = prev.dealer_long - prev.dealer_short
+                # Trader convention (mirror _section_tff_positioning):
+                # positive = longer this week in the trader's own direction.
+                dealer_dw = -((prev_dealer) - dealer_net)
+                am_dw = am_net - (prev.asset_mgr_long - prev.asset_mgr_short)
+                lev_dw = lev_net - (prev.lev_money_long - prev.lev_money_short)
+            divergence = lev_net != 0 and am_net != 0 and (lev_net > 0) != (am_net > 0)
+            tff = TffPositioning(
+                market_code=tff_market,
+                report_date=cur.report_date,
+                open_interest=cur.open_interest,
+                dealer_net=dealer_net,
+                asset_mgr_net=am_net,
+                lev_money_net=lev_net,
+                other_net=other_net,
+                dealer_dw=dealer_dw,
+                asset_mgr_dw=am_dw,
+                lev_money_dw=lev_dw,
+                smart_money_divergence=divergence,
+            )
+
+    cot: CotPositioning | None = None
+    cot_market = _COT_MARKET_BY_ASSET.get(asset)
+    if cot_market is not None:
+        crows = list(
+            (
+                await session.execute(
+                    select(CotPosition)
+                    .where(CotPosition.market_code == cot_market)
+                    .order_by(desc(CotPosition.report_date))
+                    .limit(13)
+                )
+            )
+            .scalars()
+            .all()
+        )
+        if crows:
+            c = crows[0]
+            d1 = c.managed_money_net - crows[1].managed_money_net if len(crows) > 1 else None
+            d4 = c.managed_money_net - crows[4].managed_money_net if len(crows) > 4 else None
+            d12 = c.managed_money_net - crows[12].managed_money_net if len(crows) > 12 else None
+            pattern: Literal["accelerating", "reversal", "stable"] = "stable"
+            if d1 is not None and d4 is not None:
+                if d1 * d4 < 0 and abs(d4) > 5000:
+                    pattern = "reversal"
+                elif abs(d1) > 0.3 * abs(d4) and abs(d4) > 10_000:
+                    pattern = "accelerating"
+            cot = CotPositioning(
+                market_code=cot_market,
+                report_date=c.report_date,
+                open_interest=c.open_interest,
+                managed_money_net=c.managed_money_net,
+                swap_dealer_net=c.swap_dealer_net,
+                producer_net=c.producer_net,
+                delta_1w=d1,
+                delta_4w=d4,
+                delta_12w=d12,
+                pattern=pattern,
+            )
+
+    return InstitutionalPositioningOut(asset=asset, tff=tff, cot=cot)
