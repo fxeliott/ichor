@@ -16,22 +16,25 @@ import { Suspense } from "react";
 
 import { AssetSwitcher } from "@/components/briefing/AssetSwitcher";
 import { PRIORITY_ASSETS } from "@/components/briefing/assets";
+import { NetExposureLens } from "@/components/briefing/NetExposureLens";
 import { SessionStatus } from "@/components/briefing/SessionStatus";
 import { VerdictRow } from "@/components/briefing/VerdictRow";
 import {
   apiGet,
   getCalendarUpcoming,
+  getCorrelations,
   getKeyLevels,
   getPositioning,
   isLive,
   type CalendarUpcoming,
+  type CorrelationMatrix,
   type KeyLevelsResponse,
   type PositioningOut,
   type SessionCard,
   type SessionCardList,
   type TodaySnapshotOut,
 } from "@/lib/api";
-import { deriveVerdict, type VerdictSummary } from "@/lib/verdict";
+import { computeNetExposure, deriveVerdict, type VerdictSummary } from "@/lib/verdict";
 
 export const metadata: Metadata = {
   title: "Briefings · Ichor",
@@ -58,11 +61,12 @@ const VIX_REGIME_LABEL: Record<string, string> = {
 export default async function BriefingIndexPage() {
   // Parallel : per-asset latest card + shared keyLevels/positioning/
   // calendar/today macro. deriveVerdict is pure → run it server-side.
-  const [today, keyLevels, positioning, calendar, ...cards] = await Promise.all([
+  const [today, keyLevels, positioning, calendar, correlations, ...cards] = await Promise.all([
     apiGet<TodaySnapshotOut>("/v1/today"),
     getKeyLevels() as Promise<KeyLevelsResponse | null>,
     getPositioning() as Promise<PositioningOut | null>,
     getCalendarUpcoming() as Promise<CalendarUpcoming | null>,
+    getCorrelations() as Promise<CorrelationMatrix | null>,
     ...PRIORITY_ASSETS.map((a) =>
       apiGet<SessionCardList>(`/v1/sessions/${encodeURIComponent(a.code)}?limit=1`),
     ),
@@ -83,6 +87,17 @@ export default async function BriefingIndexPage() {
         summary: card ? deriveVerdict(a.code, card, kl, pos, cal) : null,
       };
     });
+
+  // r83 Tier 2.1 — cross-asset net-exposure lens (ichor-trader #1 gap).
+  const netExposure = computeNetExposure(
+    verdicts
+      .filter((v) => v.summary !== null)
+      .map((v) => ({ code: v.asset, tone: v.summary!.bias.tone })),
+    correlations,
+  );
+  const assetLabels: Record<string, string> = Object.fromEntries(
+    PRIORITY_ASSETS.map((a) => [a.code, a.pair]),
+  );
 
   return (
     <main className="mx-auto max-w-6xl space-y-10 px-4 py-10 md:px-8 md:py-14">
@@ -117,6 +132,8 @@ export default async function BriefingIndexPage() {
           <VerdictRow key={v.asset} asset={v.asset} pair={v.pair} summary={v.summary} index={i} />
         ))}
       </section>
+
+      <NetExposureLens data={netExposure} labels={assetLabels} />
 
       <AssetSwitcher previews={isLive(today) ? today.top_sessions : []} />
 

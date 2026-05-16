@@ -19,7 +19,14 @@
  * disclaimer.
  */
 
-import type { CalendarEvent, KeyLevel, PositioningEntry, Scenario, SessionCard } from "./api";
+import type {
+  CalendarEvent,
+  CorrelationMatrix,
+  KeyLevel,
+  PositioningEntry,
+  Scenario,
+  SessionCard,
+} from "./api";
 
 export type VerdictTone = "bull" | "bear" | "neutral" | "warn";
 
@@ -240,5 +247,101 @@ export function deriveVerdict(
     confiance,
     confluence,
     watch: { catalyst, invalidation: tightestInvalidation(card.invalidations) },
+  };
+}
+
+// ─── Cross-asset net-exposure lens (ADR-099 Tier 2.1) ───
+// The ichor-trader #1 gap: 5 per-asset verdicts presented as
+// independent are NOT (SPX≈NAS ~0.9, EUR/GBP co-move). This clusters
+// the directional reads by live correlation so the trader sees how
+// many INDEPENDENT bets the 5 rows actually represent + where two
+// reads are the same underlying view expressed twice (less real
+// diversification) or cross-asset incoherent. ADR-017: pure
+// exposure-STRUCTURE context — never sizing, never an order.
+
+const _CORR_STRONG = 0.6;
+
+export type NetExposureKind = "redundant" | "conflict";
+
+export interface NetExposurePair {
+  a: string;
+  aTone: VerdictTone;
+  b: string;
+  bTone: VerdictTone;
+  rho: number;
+  kind: NetExposureKind;
+}
+
+export interface NetExposure {
+  nDirectional: number; // assets with a bull/bear (non-neutral) read
+  independentBets: number; // distinct strong-correlation clusters w/ ≥1 bet
+  pairs: NetExposurePair[]; // strong-corr pairs, both directional
+}
+
+/** Pure cross-asset clustering. `reads` = one entry per asset that has
+ *  a verdict ; `tone` is the bias tone. Returns null when the live
+ *  correlation matrix is unavailable (caller renders nothing). */
+export function computeNetExposure(
+  reads: { code: string; tone: VerdictTone }[],
+  matrix: CorrelationMatrix | null,
+): NetExposure | null {
+  if (!matrix || matrix.assets.length === 0 || reads.length === 0) return null;
+
+  const idx = (code: string) => matrix.assets.indexOf(code);
+  const rho = (a: string, b: string): number | null => {
+    const i = idx(a);
+    const j = idx(b);
+    if (i < 0 || j < 0) return null;
+    const v = matrix.matrix[i]?.[j];
+    return typeof v === "number" ? v : null;
+  };
+
+  // Union-find over the read assets ; edge when |ρ| ≥ strong threshold.
+  const parent = new Map<string, string>();
+  reads.forEach((r) => parent.set(r.code, r.code));
+  const find = (x: string): string => {
+    let p = parent.get(x) ?? x;
+    while (p !== parent.get(p)) p = parent.get(p) ?? p;
+    parent.set(x, p);
+    return p;
+  };
+  const union = (x: string, y: string) => {
+    const px = find(x);
+    const py = find(y);
+    if (px !== py) parent.set(px, py);
+  };
+
+  const pairs: NetExposurePair[] = [];
+  for (let m = 0; m < reads.length; m++) {
+    for (let n = m + 1; n < reads.length; n++) {
+      const ra = reads[m]!;
+      const rb = reads[n]!;
+      const r = rho(ra.code, rb.code);
+      if (r === null || Math.abs(r) < _CORR_STRONG) continue;
+      union(ra.code, rb.code);
+      const aDir = ra.tone === "bull" || ra.tone === "bear";
+      const bDir = rb.tone === "bull" || rb.tone === "bear";
+      if (!aDir || !bDir) continue;
+      // Aligned = same underlying read expressed twice :
+      //   ρ>0 & same tone   OR   ρ<0 & opposite tone.
+      const aligned = r > 0 ? ra.tone === rb.tone : ra.tone !== rb.tone;
+      pairs.push({
+        a: ra.code,
+        aTone: ra.tone,
+        b: rb.code,
+        bTone: rb.tone,
+        rho: Math.round(r * 100) / 100,
+        kind: aligned ? "redundant" : "conflict",
+      });
+    }
+  }
+
+  const directional = reads.filter((r) => r.tone === "bull" || r.tone === "bear");
+  const betClusters = new Set(directional.map((r) => find(r.code)));
+
+  return {
+    nDirectional: directional.length,
+    independentBets: betClusters.size,
+    pairs,
   };
 }
