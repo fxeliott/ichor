@@ -30,6 +30,7 @@ import { BriefingHeader } from "@/components/briefing/BriefingHeader";
 import { CorrelationsStrip } from "@/components/briefing/CorrelationsStrip";
 import { EconomicCalendarPanel } from "@/components/briefing/EconomicCalendarPanel";
 import { GeopoliticsPanel } from "@/components/briefing/GeopoliticsPanel";
+import { InstitutionalPositioningPanel } from "@/components/briefing/InstitutionalPositioningPanel";
 import { KeyLevelsPanel } from "@/components/briefing/KeyLevelsPanel";
 import { NarrativeBlocks } from "@/components/briefing/NarrativeBlocks";
 import { NewsPanel } from "@/components/briefing/NewsPanel";
@@ -41,6 +42,7 @@ import { VolumePanel } from "@/components/briefing/VolumePanel";
 import {
   apiGet,
   getCalendarUpcoming,
+  getInstitutionalPositioning,
   getIntradayBars,
   getKeyLevels,
   getGeopoliticsBriefing,
@@ -49,6 +51,7 @@ import {
   isLive,
   type CalendarUpcoming,
   type GeopoliticsBriefing,
+  type InstitutionalPositioning,
   type IntradayBarOut,
   type KeyLevelsResponse,
   type NewsItem,
@@ -91,17 +94,27 @@ export default async function BriefingPage({ params }: PageParams) {
     notFound();
   }
 
-  const [card, keyLevels, today, calendar, news, positioning, intraday, geopolitics] =
-    await Promise.all([
-      fetchSessionCardForAsset(normalisedAsset),
-      getKeyLevels() as Promise<KeyLevelsResponse | null>,
-      apiGet<TodaySnapshotOut>("/v1/today"),
-      getCalendarUpcoming() as Promise<CalendarUpcoming | null>,
-      getNews(12) as Promise<NewsItem[] | null>,
-      getPositioning() as Promise<PositioningOut | null>,
-      getIntradayBars(normalisedAsset) as Promise<IntradayBarOut[] | null>,
-      getGeopoliticsBriefing() as Promise<GeopoliticsBriefing | null>,
-    ]);
+  const [
+    card,
+    keyLevels,
+    today,
+    calendar,
+    news,
+    positioning,
+    intraday,
+    geopolitics,
+    institutional,
+  ] = await Promise.all([
+    fetchSessionCardForAsset(normalisedAsset),
+    getKeyLevels() as Promise<KeyLevelsResponse | null>,
+    apiGet<TodaySnapshotOut>("/v1/today"),
+    getCalendarUpcoming() as Promise<CalendarUpcoming | null>,
+    getNews(12) as Promise<NewsItem[] | null>,
+    getPositioning() as Promise<PositioningOut | null>,
+    getIntradayBars(normalisedAsset) as Promise<IntradayBarOut[] | null>,
+    getGeopoliticsBriefing() as Promise<GeopoliticsBriefing | null>,
+    getInstitutionalPositioning(normalisedAsset) as Promise<InstitutionalPositioning | null>,
+  ]);
 
   // The endpoint returns the whole ≤72h window ascending (oldest→newest,
   // verified R59). Ship only the most recent ~90 bars to the client.
@@ -221,6 +234,21 @@ export default async function BriefingPage({ params }: PageParams) {
           </span>
         </div>
         <SentimentPanel entries={positioning?.entries ?? []} asset={normalisedAsset} />
+      </section>
+
+      <section aria-labelledby="institutional-heading">
+        <div className="mb-4 flex items-baseline justify-between gap-4">
+          <h2
+            id="institutional-heading"
+            className="font-serif text-2xl text-[--color-text-primary]"
+          >
+            Acteurs du marché
+          </h2>
+          <span className="text-[10px] uppercase tracking-widest text-[--color-text-muted]">
+            CFTC TFF + COT · smart money
+          </span>
+        </div>
+        <InstitutionalPositioningPanel data={institutional} />
       </section>
 
       <section aria-labelledby="news-heading">

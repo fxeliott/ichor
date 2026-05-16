@@ -312,6 +312,54 @@ export async function getGeopoliticsBriefing(
   return apiGet<GeopoliticsBriefing>(`/v1/geopolitics/briefing?hours=${hours}&top=${top}`);
 }
 
+// r80 — CFTC institutional positioning ("acteurs du marché" / smart
+// money, distinct from MyFXBook retail). Mirror of apps/api
+// routers/positioning.py InstitutionalPositioningOut. Weekly cadence ;
+// `report_date` makes the CFTC lag explicit. tff covers all 5 assets
+// (incl. SPX500) ; cot covers 4 (null otherwise — honest, ADR-093).
+export interface TffPositioning {
+  market_code: string;
+  report_date: string;
+  open_interest: number;
+  dealer_net: number;
+  asset_mgr_net: number;
+  lev_money_net: number;
+  other_net: number;
+  dealer_dw: number | null;
+  asset_mgr_dw: number | null;
+  lev_money_dw: number | null;
+  smart_money_divergence: boolean;
+}
+
+export interface CotPositioning {
+  market_code: string;
+  report_date: string;
+  open_interest: number;
+  managed_money_net: number;
+  swap_dealer_net: number;
+  producer_net: number;
+  delta_1w: number | null;
+  delta_4w: number | null;
+  delta_12w: number | null;
+  pattern: "accelerating" | "reversal" | "stable";
+}
+
+export interface InstitutionalPositioning {
+  asset: string;
+  cadence: string;
+  tff: TffPositioning | null;
+  cot: CotPositioning | null;
+}
+
+/** r81 — fetch CFTC institutional positioning from `/v1/positioning/institutional`. */
+export async function getInstitutionalPositioning(
+  asset: string,
+): Promise<InstitutionalPositioning | null> {
+  return apiGet<InstitutionalPositioning>(
+    `/v1/positioning/institutional?asset=${encodeURIComponent(asset)}`,
+  );
+}
+
 // r78 — DST-correct market session + US-holiday signal. Mirror of
 // apps/api routers/calendar.py SessionStatusOut. Consumed CLIENT-side by
 // SessionStatus.tsx via the same-origin /v1 proxy (next.config rewrite) —
