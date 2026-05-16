@@ -15,6 +15,143 @@ rounds — that deferral is the real process miss this RUNBOOK closes).
 loop — the _serving_ stack (`ichor-api`, `ichor-web2`, the `/briefing`
 dashboard, all read endpoints) is fully healthy and unaffected.
 
+## ⚠️ r86 RE-VERIFICATION & TURNKEY (2026-05-16) — read before §Recovery
+
+A skeptical 2-agent re-audit on 2026-05-16 (r86: read-only Hetzner SSH +
+repo provenance, doctrine R59 / "tu es sûr"=audit-harder) **confirmed all
+four structural claims live** but corrected three points and produced an
+exact turnkey. These corrections **supersede** the conflicting prose in
+§"Root cause" / §"Step A" below (originals kept for audit trail).
+
+### Corrections
+
+1. **The decrypt script IS in the repo** (not host-only, not Ansible). Full
+   83-line working script: `scripts/hetzner/ichor-decrypt-secrets`. The
+   briefing systemd template that calls it: `scripts/hetzner/register-cron-briefings.sh:33-51`
+   (manual SSH-run installer; no Ansible role deploys either —
+   `infra/ansible/roles/secrets/tasks/main.yml` decrypts to Ansible
+   _facts_, a different mechanism, not `/dev/shm`). ⟹ Step A1 is a
+   **redeploy of an existing non-secret repo artefact**, not a
+   reconstruction. (§"Step A" lines below saying "restore from
+   Ansible/provisioning source ... not the app repo" are **wrong**.)
+
+2. **NEW confirmed latent bug — `SOPS_AGE_KEY_FILE` is never set for the
+   briefing units.** The script hard-requires it:
+   `scripts/hetzner/ichor-decrypt-secrets:33-34` →
+   `fail "SOPS_AGE_KEY_FILE not set" 2`. The briefing template `[Service]`
+   block (`register-cron-briefings.sh:40-50`) sets `EnvironmentFile=` +
+   `ExecStartPre=` but **no `Environment=SOPS_AGE_KEY_FILE=`**. ⟹ even
+   with the script + age key restored, `ichor-briefing@*` still
+   `exit 2` unless a drop-in supplies it (fix **P2** below). Encrypted
+   files live at `/opt/ichor/infra/secrets/*.env`
+   (`ichor-decrypt-secrets:25`); design key path is `/etc/sops/age/key.txt`
+   (`.sops.yaml:26` + `infra/ansible/roles/secrets/tasks/main.yml:26,45`).
+
+3. **"DOWN since May 15" → "degraded/intermittent, escalating".** Live
+   `select max(created_at) from session_card_audit` = **2026-05-16 22:16**
+   (a card persisted today). Failure escalated: May 15 the script existed
+   but decrypt failed (key/perm); by May 16 the binary itself is gone.
+   Accurate framing: the **two core windows (pré-Londres 06:00, pré-NY
+   12:00 Paris) serve stale/not-fresh analysis** — still HIGH severity
+   (the product's core read is stale on its two key windows), but not a
+   flat outage.
+
+### Key recovery fact — multi-recipient SOPS (`.sops.yaml:32-49`)
+
+Every `infra/secrets/*.env` is age-encrypted to **two** recipients:
+(1) Eliot's Win11 key `age1rgrex…l08xaj` (private: USB
+`E:\age-key-ichor-2026-05-02.txt` + `%APPDATA%\sops\age\keys.txt`);
+(2) the separate Hetzner server key `age1dqhae…t5dch` (private:
+`/etc/sops/age/key.txt` root:root 0600 — deliberately kept off Eliot's
+machine, `.sops.yaml:28-30`). The host currently has neither the script
+nor any key. **Either** private key can decrypt (multi-recipient) — that
+is what gives Eliot a fast path and a clean path in A-ii below.
+
+### TURNKEY — exactly who does what
+
+**Cause A — `ichor-briefing@*` (4 units). Three Claude-safe sub-fixes +
+one Eliot-only secret:**
+
+- **P1 — redeploy the repo script** (Claude-safe: non-secret git artefact,
+  reversible; gated on Eliot "validate" per the autonomy boundary):
+
+  ```bash
+  # local, from the friendly-fermi worktree root
+  scp scripts/hetzner/ichor-decrypt-secrets ichor-hetzner:/tmp/ichor-decrypt-secrets
+  ssh ichor-hetzner 'sudo install -m 0755 -o root -g root /tmp/ichor-decrypt-secrets /usr/local/bin/ichor-decrypt-secrets && command -v sops && command -v age'
+  ```
+
+  Reversible: `sudo rm /usr/local/bin/ichor-decrypt-secrets`. If
+  `sops`/`age` absent → `sudo apt-get install -y age && sudo snap install sops`
+  (Eliot/ops if apt needs interaction).
+
+- **P2 — systemd drop-in for the missing `SOPS_AGE_KEY_FILE`** (Claude-safe,
+  reversible, path only — no secret; gated on validation):
+
+  ```bash
+  ssh ichor-hetzner 'sudo mkdir -p /etc/systemd/system/ichor-briefing@.service.d && printf "[Service]\nEnvironment=SOPS_AGE_KEY_FILE=/etc/sops/age/key.txt\n" | sudo tee /etc/systemd/system/ichor-briefing@.service.d/age-key.conf && sudo systemctl daemon-reload'
+  ```
+
+  Reversible: `rm` the drop-in + `daemon-reload`.
+
+- **Step-A2 — `EnvironmentFile` graceful-degrade** (Claude-safe, reversible;
+  gated): the original RUNBOOK-020 hardening (see §"Step A2" below) — the
+  `-` prefix so a future decrypt-miss soft-fails instead of hard-failing.
+
+- **A-ii — restore a working age private key to `/etc/sops/age/key.txt`
+  (root:root, `chmod 600`). ELIOT ONLY — secret material, Claude must NOT
+  touch or fabricate.** Pick ONE:
+  - **Fast (posture-downgrade — your explicit call):** copy Eliot's own
+    private key from USB `E:\age-key-ichor-2026-05-02.txt` to host
+    `/etc/sops/age/key.txt`. Works immediately (recipient #1). ⚠️ Places
+    Eliot's master key on the server, which `.sops.yaml:28-30` deliberately
+    avoided. Acceptable stopgap; rotate after.
+  - **Clean (preserves design):** restore the **Hetzner** key
+    (`age1dqhae…`) private backup to `/etc/sops/age/key.txt`. If lost:
+    on host `sudo age-keygen -o /etc/sops/age/key.txt && sudo chmod 600 /etc/sops/age/key.txt`,
+    take the printed `# public key:`, replace recipient #2 in
+    `.sops.yaml:37,43,49`, `sops updatekeys infra/secrets/*.env` locally
+    (Eliot's Win11 key authorizes it), commit the re-encrypted files,
+    redeploy them to `/opt/ichor/infra/secrets/`. Claude can do the
+    `.sops.yaml` edit + redeploy once you give the new public key; the
+    private key never leaves the host.
+
+**Cause B — `ichor-session-cards@*` (3 units): claude-runner 403. ELIOT
+~9 min (see RUNBOOK-018).**
+
+- Shortcut check first (`RUNBOOK-018:46-61`):
+  `one.dash.cloudflare.com → Access → Applications` — if a `claude-runner`
+  app already exists you may only need the 4 values from the existing
+  service token (skip dashboard Steps 1-3).
+- Else RUNBOOK-018 Steps 1-3 (~9 min): enable CF Access + note team
+  domain · create Service Token `ichor-hetzner-orchestrator` (copy
+  CLIENT_ID + CLIENT_SECRET once to your password manager) · create
+  Self-hosted Access app on `claude-runner.fxmilyapp.com` + Service-Auth
+  policy + `/healthz` Bypass + note 64-hex AUD tag.
+- Paste the 4 values (format `RUNBOOK-018:33-38`) → Claude wires
+  `/etc/ichor/api.env` + restarts (Steps 4-6).
+- Also confirm the Win11 claude-runner runs in `production`
+  (RUNBOOK-018 Step 5 / RUNBOOK-014) — if NSSM-Paused or the standalone
+  uvicorn is down, healthz stays unreachable even with the token wired.
+
+**Step C — verify (Claude, after A-ii + B done).** One consolidated SSH:
+`sudo systemctl reset-failed 'ichor-*'`, start `ichor-session-cards@pre_londres`
+
+- `ichor-briefing@pre_londres`, watch journal for a clean run + a fresh
+  `session_card_audit` row.
+
+### Order of operations (minimal Eliot effort)
+
+1. **Eliot:** A-ii (age key — fast or clean) + RUNBOOK-018 Steps 1-3,
+   paste the 4 values.
+2. **Claude (on Eliot "validate"):** P1 + P2 + Step-A2 (one consolidated
+   SSH), then RUNBOOK-018 Steps 4-6.
+3. **Claude:** Step C verify read-only, surface the first fresh
+   pré-Londres/pré-NY card honestly.
+
+Until A-ii + B are done, the two core windows keep serving stale analysis
+(no data loss; degraded freshness only).
+
 ## Symptom
 
 `systemctl --failed | grep ichor` →
@@ -73,6 +210,11 @@ Claude's autonomous deploys this session were additive (`ichor-web2`)
 ## Recovery — detailed
 
 ### Step A — restore decrypt-secrets (Eliot/ops)
+
+> **⚠️ SUPERSEDED by §"r86 RE-VERIFICATION & TURNKEY" above.** The next
+> paragraph's "not the app repo / confirm in infra/ansible/" is **wrong**:
+> the script is `scripts/hetzner/ichor-decrypt-secrets` (in the repo).
+> Follow the r86 turnkey (P1/P2/Step-A2/A-ii), not the prose below.
 
 The `ichor-briefing@*` design decrypts secrets to a tmpfs file just for
 the run, then shreds it. The script `/usr/local/bin/ichor-decrypt-secrets`
