@@ -34,6 +34,7 @@ import { InstitutionalPositioningPanel } from "@/components/briefing/Institution
 import { KeyLevelsPanel } from "@/components/briefing/KeyLevelsPanel";
 import { NarrativeBlocks } from "@/components/briefing/NarrativeBlocks";
 import { NewsPanel } from "@/components/briefing/NewsPanel";
+import { PocketSkillBadge } from "@/components/briefing/PocketSkillBadge";
 import { ScenariosPanel } from "@/components/briefing/ScenariosPanel";
 import { SentimentPanel } from "@/components/briefing/SentimentPanel";
 import { SessionStatus } from "@/components/briefing/SessionStatus";
@@ -48,6 +49,7 @@ import {
   getKeyLevels,
   getGeopoliticsBriefing,
   getNews,
+  getPocketSummary,
   getPositioning,
   isLive,
   type CalendarUpcoming,
@@ -55,6 +57,7 @@ import {
   type GeopoliticsBriefing,
   type InstitutionalPositioning,
   type IntradayBarOut,
+  type PocketSummaryList,
   type KeyLevelsResponse,
   type NewsItem,
   type PositioningOut,
@@ -107,6 +110,7 @@ export default async function BriefingPage({ params }: PageParams) {
     geopolitics,
     institutional,
     correlations,
+    pocketSummary,
   ] = await Promise.all([
     fetchSessionCardForAsset(normalisedAsset),
     getKeyLevels() as Promise<KeyLevelsResponse | null>,
@@ -118,6 +122,7 @@ export default async function BriefingPage({ params }: PageParams) {
     getGeopoliticsBriefing() as Promise<GeopoliticsBriefing | null>,
     getInstitutionalPositioning(normalisedAsset) as Promise<InstitutionalPositioning | null>,
     getCorrelations() as Promise<CorrelationMatrix | null>,
+    getPocketSummary(normalisedAsset) as Promise<PocketSummaryList | null>,
   ]);
 
   // r82 Tier 1.5 — Corrélations unconditional. Prefer the card's
@@ -200,6 +205,8 @@ export default async function BriefingPage({ params }: PageParams) {
           calendar={calendar?.events ?? []}
         />
       )}
+
+      <PocketSkillBadge data={pocketSummary} regime={card?.regime_quadrant ?? null} />
 
       <section aria-labelledby="key-levels-heading">
         <div className="mb-4 flex items-baseline justify-between gap-4">

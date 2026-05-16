@@ -367,6 +367,41 @@ export async function getCorrelations(windowDays = 30): Promise<CorrelationMatri
   return apiGet<CorrelationMatrix>(`/v1/correlations?window_days=${windowDays}`);
 }
 
+// r84 — Phase-D pocket skill (Vovk-AA aggregator self-assessment).
+// Mirror of apps/api routers/phase_d.py PocketSummaryOut. The system's
+// HONEST historical discrimination skill per (asset,regime) pocket :
+// skill_delta = prod_predictor_weight − equal_weight_weight. Negative
+// = the LLM forecaster has historically done WORSE than a no-info
+// baseline on this pocket (anti-skill → weight its read down). LIVE at
+// /v1/phase-d/* but never surfaced to the trader until now.
+export interface PocketSummary {
+  asset: string;
+  regime: string;
+  pocket_version: number;
+  prod_predictor_weight: number;
+  climatology_weight: number;
+  equal_weight_weight: number;
+  n_observations: number;
+  has_skill_vs_baseline: boolean;
+  skill_delta: number;
+  latest_drift_event_at: string | null;
+  active_addenda_count: number;
+  pocket_updated_at: string;
+}
+
+export interface PocketSummaryList {
+  rows: PocketSummary[];
+  count: number;
+  asset_filter: string | null;
+  regime_filter: string | null;
+  pocket_version: number;
+}
+
+/** r84 — per-asset Phase-D pocket skill from `/v1/phase-d/pocket-summary`. */
+export async function getPocketSummary(asset: string): Promise<PocketSummaryList | null> {
+  return apiGet<PocketSummaryList>(`/v1/phase-d/pocket-summary?asset=${encodeURIComponent(asset)}`);
+}
+
 // r78 — DST-correct market session + US-holiday signal. Mirror of
 // apps/api routers/calendar.py SessionStatusOut. Consumed CLIENT-side by
 // SessionStatus.tsx via the same-origin /v1 proxy (next.config rewrite) —
