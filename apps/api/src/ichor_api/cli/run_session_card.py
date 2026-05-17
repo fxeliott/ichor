@@ -18,11 +18,13 @@ from __future__ import annotations
 import asyncio
 import sys
 from datetime import UTC, datetime
+from typing import Any
 
 import structlog
 
 from ..config import get_settings
 from ..db import get_engine, get_sessionmaker
+from ..schemas import DegradedInputOut
 
 log = structlog.get_logger(__name__)
 
@@ -96,6 +98,22 @@ async def _run(
             )
             asset_data = await build_asset_data_only(build_session, asset)
         data_pool = pool.markdown
+        # r95 (ADR-104) : freeze the ADR-103 runtime FRED-liveness
+        # manifest at generation so the persisted card (→ r96
+        # `/briefing` badge) reflects ITS data health, not a drifting
+        # live recompute. Serialised via the schemas.py SSOT model
+        # (mode="json" → date→ISO ; shape parity with the projection).
+        degraded_inputs_payload: list[dict[str, Any]] | None = [
+            DegradedInputOut(
+                series_id=di.series_id,
+                status=di.status,
+                latest_date=di.latest_date,
+                age_days=di.age_days,
+                max_age_days=di.max_age_days,
+                impacted=di.impacted,
+            ).model_dump(mode="json")
+            for di in pool.degraded_inputs
+        ]
         log.info(
             "data_pool.built",
             asset=asset,
@@ -114,6 +132,10 @@ async def _run(
             f"{asset} : DGS10=4.18 IRLTLT01DEM156N=2.45 COT MM_short=80th_pct "
             "URL https://www.ecb.europa.eu/press/key/date/2026/html/ecb.sp260502.en.html"
         )
+        # Dry-run never ran the liveness audit → None = honest "not
+        # tracked" (NOT [] "all fresh"), matching the 0050 tri-state
+        # semantics (ADR-104).
+        degraded_inputs_payload = None
 
     # W105d : Pass-6 scenario_decompose enabled by default in live mode.
     # Dry-run stays Pass-1..4 only so canned responses don't break.
@@ -319,6 +341,13 @@ async def _run(
 
         card_with_levels = result.card.model_copy(update={"key_levels": key_levels_snapshot})
         row = to_audit_row(card_with_levels)
+        # r95 (ADR-104) : thread the ADR-103 degraded-input manifest
+        # (captured from the DataPool in live mode / None in dry-run)
+        # onto the row AFTER to_audit_row — to_audit_row (shared
+        # ichor_brain.persistence, brain SessionCard→ORM) stays
+        # byte-identical : the api↔DataPool cross-cut belongs in the
+        # api layer, not the brain package.
+        row.degraded_inputs = degraded_inputs_payload
         session.add(row)
         await session.commit()
         log.info(

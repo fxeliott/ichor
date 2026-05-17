@@ -101,3 +101,16 @@ class SessionCardAudit(Base):
     # ADR-083 D3 -> D4 architectural bridge : Pass-2 prompt enrichment
     # + D4 frontend replay read this snapshot rather than recomputing.
     key_levels: Mapped[Any] = mapped_column(JSONB, nullable=False)
+
+    # r95 (migration 0050) — ADR-104 (ADR-099 §T3.2) FRED-liveness
+    # degraded-input manifest (the ADR-103 runtime
+    # `DataPool.degraded_inputs`) frozen at card generation. Shape :
+    # list[{series_id, status: "stale"|"absent", latest_date, age_days,
+    # max_age_days, impacted}] — mirror of the `DegradedInputOut`
+    # schemas.py SSOT. DELIBERATELY NULLABLE with NO server_default
+    # (diverges on purpose from key_levels/scenarios NOT NULL DEFAULT
+    # '[]') : NULL = "liveness not tracked at this card's generation"
+    # (every pre-0050 card — honest "unknown", NOT "all fresh") ;
+    # [] = "tracked, all anchors fresh" ; [...] = "degraded". A '[]'
+    # backfill would be the exact silent-skip dishonesty ADR-103 kills.
+    degraded_inputs: Mapped[Any | None] = mapped_column(JSONB, nullable=True)

@@ -9,31 +9,24 @@ VISION_2026 — operator transparency tool.
 
 from __future__ import annotations
 
-from datetime import date, datetime
-from typing import Annotated, Literal
+from datetime import datetime
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..db import get_session
+from ..schemas import DegradedInputOut
 from ..services.data_pool import build_data_pool
 
 router = APIRouter(prefix="/v1/data-pool", tags=["data-pool"])
 
 
-class DegradedInputOut(BaseModel):
-    """ADR-103 (ADR-099 §T3.2) — a critical FRED anchor that is stale or
-    absent so its dependent section/sub-driver silently degrades. Makes
-    the silent-skip chain operator-visible deterministically (and is the
-    zero-rework foundation for the r94 end-user `/briefing` badge)."""
-
-    series_id: str
-    status: Literal["stale", "absent"]
-    latest_date: date | None
-    age_days: int | None
-    max_age_days: int
-    impacted: str
+# DegradedInputOut: single source of truth in ichor_api.schemas (ADR-104
+# anti-accumulation — also consumed by SessionCardOut). Re-imported above
+# so DataPoolOut.degraded_inputs stays byte-identical (identity-pinned in
+# tests). ADR-103 (ADR-099 §T3.2) origin.
 
 
 class DataPoolOut(BaseModel):

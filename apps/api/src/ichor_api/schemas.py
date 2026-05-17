@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any, Literal
 from uuid import UUID
 
@@ -314,6 +314,20 @@ def extract_pass4_scenarios(mechanisms: Any | None) -> list[Pass4Scenario]:
     return out
 
 
+class DegradedInputOut(BaseModel):
+    """ADR-103 (ADR-099 §T3.2) — a critical FRED anchor that is stale or
+    absent so its dependent section/sub-driver silently degrades. Makes
+    the silent-skip chain operator-visible deterministically (and is the
+    zero-rework foundation for the r94 end-user `/briefing` badge)."""
+
+    series_id: str
+    status: Literal["stale", "absent"]
+    latest_date: date | None
+    age_days: int | None
+    max_age_days: int
+    impacted: str
+
+
 class SessionCardOut(BaseModel):
     """One row of `session_card_audit` projected for the dashboard.
 
@@ -369,6 +383,16 @@ class SessionCardOut(BaseModel):
     # ou moins de risque" answer). `[]` for legacy/pre-Pass-6 cards.
     scenarios: list[dict[str, Any]] = []
     source_pool_hash: str
+    # r95 (ADR-104, ADR-099 §T3.2) — FRED-liveness degraded-input
+    # manifest frozen at card generation (the ADR-103 runtime
+    # `DataPool.degraded_inputs`, persisted via migration 0050).
+    # Deliberate TRI-STATE honesty (diverges from key_levels/scenarios
+    # NOT-NULL-DEFAULT-[] on purpose) : None = "liveness not tracked at
+    # this card's generation" (every pre-0050 card — honest "unknown",
+    # NOT "clean") ; [] = "tracked, all critical anchors fresh" ;
+    # non-empty = "generated on degraded inputs". Auto-projected from
+    # the ORM column by from_orm_row's model_validate, like key_levels.
+    degraded_inputs: list[DegradedInputOut] | None = None
     critic_verdict: str | None
     critic_findings: Any | None = None
     claude_duration_ms: int | None

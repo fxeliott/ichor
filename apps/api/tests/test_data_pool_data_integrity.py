@@ -319,3 +319,67 @@ async def test_iron_copper_genuine_death_still_caught_at_120d(series_id: str) ->
     assert lv.status == "stale"
     assert lv.age_days == 130
     assert lv.max_age_days == 120
+
+
+# ──────── ADR-104 : DegradedInputOut SSOT + producer→wire parity ───────
+# r95 (ADR-104) extracts DegradedInputOut to the schemas.py SSOT (consumed
+# by BOTH DataPoolOut and SessionCardOut) and persists the manifest on the
+# card. These pin (a) the byte-identical re-export (anti-accumulation
+# doctrine #4 — identity, not a duplicated definition) and (b) the
+# producer DegradedInput dataclass → schemas SSOT model → JSON dict parity
+# run_session_card relies on (no Pydantic-projection-gap at the persist
+# boundary — the r66/r68 failure class structurally closed here).
+
+
+def test_degraded_input_out_is_single_source_of_truth() -> None:
+    """routers.data_pool.DegradedInputOut must BE schemas.DegradedInputOut
+    (object identity) — a re-export, not a 3rd duplicated definition
+    (ADR-104 §Decision-1). DataPoolOut's shape therefore stays
+    byte-identical to pre-r95."""
+    from ichor_api.routers.data_pool import DegradedInputOut as RouterDIO
+    from ichor_api.schemas import DegradedInputOut as SchemaDIO
+
+    assert RouterDIO is SchemaDIO
+    assert set(SchemaDIO.model_fields) == {
+        "series_id",
+        "status",
+        "latest_date",
+        "age_days",
+        "max_age_days",
+        "impacted",
+    }
+
+
+def test_degraded_input_dataclass_serialises_through_ssot_for_persistence() -> None:
+    """The exact run_session_card persist serialisation : producer
+    DegradedInput frozen dataclass → schemas SSOT DegradedInputOut →
+    model_dump(mode="json"). Pins date→ISO + 6-key shape parity with the
+    SessionCardOut projection (the anti-projection-gap property end to
+    end : what the persist path writes is exactly what the card endpoint
+    reads back)."""
+    from ichor_api.schemas import DegradedInputOut
+
+    di = DegradedInput(
+        series_id="MYAGM1CNM189N",
+        status="stale",
+        latest_date=date(2019, 8, 1),
+        age_days=2481,
+        max_age_days=60,
+        impacted="AUD composite — China M1 credit-impulse driver",
+    )
+    payload = DegradedInputOut(
+        series_id=di.series_id,
+        status=di.status,
+        latest_date=di.latest_date,
+        age_days=di.age_days,
+        max_age_days=di.max_age_days,
+        impacted=di.impacted,
+    ).model_dump(mode="json")
+    assert payload == {
+        "series_id": "MYAGM1CNM189N",
+        "status": "stale",
+        "latest_date": "2019-08-01",  # date → ISO string for the JSONB column
+        "age_days": 2481,
+        "max_age_days": 60,
+        "impacted": "AUD composite — China M1 credit-impulse driver",
+    }
