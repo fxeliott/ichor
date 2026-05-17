@@ -223,6 +223,15 @@ export async function getCalendarUpcoming(): Promise<CalendarUpcoming | null> {
   return apiGet<CalendarUpcoming>("/v1/calendar/upcoming");
 }
 
+/** r89 (ADR-099 Tier 2.3) — themed Polymarket prediction-market impact
+ *  from `/v1/polymarket-impact` (themes + per-asset transmission).
+ *  Reuses the existing `PolymarketImpact` type (declared below). The
+ *  standalone `/polymarket` route calls this endpoint inline with
+ *  query params ; the briefing wants the default themed view. */
+export async function getPolymarketImpact(): Promise<PolymarketImpact | null> {
+  return apiGet<PolymarketImpact>("/v1/polymarket-impact");
+}
+
 /** r69 — fetch recent news items from `/v1/news` (bare list, tone-scored). */
 export async function getNews(limit = 12): Promise<NewsItem[] | null> {
   return apiGet<NewsItem[]>(`/v1/news?limit=${limit}`);

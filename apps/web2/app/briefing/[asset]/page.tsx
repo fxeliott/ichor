@@ -29,6 +29,7 @@ import { PRIORITY_ASSET_CODES } from "@/components/briefing/assets";
 import { BriefingHeader } from "@/components/briefing/BriefingHeader";
 import { CorrelationsStrip } from "@/components/briefing/CorrelationsStrip";
 import { EconomicCalendarPanel } from "@/components/briefing/EconomicCalendarPanel";
+import { EventSurpriseGauge } from "@/components/briefing/EventSurpriseGauge";
 import { GeopoliticsPanel } from "@/components/briefing/GeopoliticsPanel";
 import { InstitutionalPositioningPanel } from "@/components/briefing/InstitutionalPositioningPanel";
 import { KeyLevelsPanel } from "@/components/briefing/KeyLevelsPanel";
@@ -50,6 +51,7 @@ import {
   getGeopoliticsBriefing,
   getNews,
   getPocketSummary,
+  getPolymarketImpact,
   getPositioning,
   isLive,
   type CalendarUpcoming,
@@ -60,11 +62,13 @@ import {
   type PocketSummaryList,
   type KeyLevelsResponse,
   type NewsItem,
+  type PolymarketImpact,
   type PositioningOut,
   type SessionCard,
   type SessionCardList,
   type TodaySnapshotOut,
 } from "@/lib/api";
+import { deriveEventSurprise } from "@/lib/eventSurprise";
 
 interface PageParams {
   params: Promise<{ asset: string }>;
@@ -111,6 +115,7 @@ export default async function BriefingPage({ params }: PageParams) {
     institutional,
     correlations,
     pocketSummary,
+    polymarketImpact,
   ] = await Promise.all([
     fetchSessionCardForAsset(normalisedAsset),
     getKeyLevels() as Promise<KeyLevelsResponse | null>,
@@ -123,6 +128,7 @@ export default async function BriefingPage({ params }: PageParams) {
     getInstitutionalPositioning(normalisedAsset) as Promise<InstitutionalPositioning | null>,
     getCorrelations() as Promise<CorrelationMatrix | null>,
     getPocketSummary(normalisedAsset) as Promise<PocketSummaryList | null>,
+    getPolymarketImpact() as Promise<PolymarketImpact | null>,
   ]);
 
   // r82 Tier 1.5 — Corrélations unconditional. Prefer the card's
@@ -183,6 +189,15 @@ export default async function BriefingPage({ params }: PageParams) {
   // the desired "what was true then" semantic. Live first, persisted
   // fallback only when the live fetch failed.
   const renderedKeyLevels = keyLevels?.items?.length ? keyLevels.items : (card?.key_levels ?? []);
+
+  // r89 (ADR-099 Tier 2.3) — anticipation-vs-surprise synthesis (pure,
+  // derived server-side ; null when no catalyst at horizon → the
+  // component renders nothing, the rest of the briefing still stands).
+  const eventSurprise = deriveEventSurprise(
+    normalisedAsset,
+    calendar?.events ?? [],
+    polymarketImpact,
+  );
 
   const previews = isLive(today) ? today.top_sessions : [];
 
@@ -263,6 +278,8 @@ export default async function BriefingPage({ params }: PageParams) {
         </div>
         <EconomicCalendarPanel events={calendar?.events ?? []} highlightAsset={normalisedAsset} />
       </section>
+
+      <EventSurpriseGauge data={eventSurprise} assetPair={normalisedAsset.replace("_", "/")} />
 
       <section aria-labelledby="geopolitics-heading">
         <div className="mb-4 flex items-baseline justify-between gap-4">
