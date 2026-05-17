@@ -64,6 +64,22 @@ WATCHED_TICKERS: tuple[str, ...] = ("SPY", "QQQ")
 # dries up and noise dominates ; pulling everything also wastes I/O.
 _MAX_EXPIRIES = 8
 
+# r67 — gamma_flip plausibility band. The cumulative-from-low running
+# GEX sum can cross zero at deep-OTM strikes where open interest is
+# tiny and the sum is numerical noise, producing an economically
+# meaningless "flip" far from spot (observed empirically : spot 710.74
+# / flip 310.43 = -56%, spot 715.60 / flip 549.77 = -23% on
+# gex_snapshots QQQ rows 2026-05-13/15). A real dealer gamma flip is
+# structurally proximate to spot — it's the price near which dealers
+# transition long↔short gamma, which is meaningless where there's
+# negligible OI. Empirically the GOOD QQQ rows have flip within ~1% of
+# spot. We accept crossings within ±15% of spot (very generous vs the
+# observed ~1% real dispersion, but a hard reject of the -56%/-23%
+# garbage class). If no crossing falls in-band, flip is None — a
+# missing flip is honest ; a garbage flip corrupts the Pass-2 regime
+# read + the /briefing dashboard KeyLevels surface.
+_GAMMA_FLIP_MAX_SPOT_DISTANCE_PCT = 0.15
+
 
 # ── Types ────────────────────────────────────────────────────────────
 
@@ -199,7 +215,18 @@ def aggregate_dealer_gex(
                 crossings.append(prev_k + t * (cur_k - prev_k))
             else:
                 crossings.append(cur_k)
-    flip_strike = min(crossings, key=lambda x: abs(x - spot)) if crossings else None
+
+    # r67 — only consider crossings within a plausible band of spot.
+    # Far-OTM crossings are numerical noise from accumulating tiny
+    # low-OI gamma, not a real dealer flip (see
+    # _GAMMA_FLIP_MAX_SPOT_DISTANCE_PCT rationale). A missing flip
+    # (None) is honest ; a -56% garbage flip is not.
+    in_band = [
+        c
+        for c in crossings
+        if spot > 0 and abs(c - spot) / spot <= _GAMMA_FLIP_MAX_SPOT_DISTANCE_PCT
+    ]
+    flip_strike = min(in_band, key=lambda x: abs(x - spot)) if in_band else None
 
     # call_wall = strike with max |call dealer gex|
     # put_wall  = strike with max |put dealer gex|

@@ -17,9 +17,16 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..db import get_session
+from ..schemas import DegradedInputOut
 from ..services.data_pool import build_data_pool
 
 router = APIRouter(prefix="/v1/data-pool", tags=["data-pool"])
+
+
+# DegradedInputOut: single source of truth in ichor_api.schemas (ADR-104
+# anti-accumulation — also consumed by SessionCardOut). Re-imported above
+# so DataPoolOut.degraded_inputs stays byte-identical (identity-pinned in
+# tests). ADR-103 (ADR-099 §T3.2) origin.
 
 
 class DataPoolOut(BaseModel):
@@ -29,6 +36,9 @@ class DataPoolOut(BaseModel):
     sections_emitted: list[str]
     sources_count: int
     sources: list[str]
+    # ADR-103 — runtime FRED-liveness degraded-input manifest (empty
+    # list = all critical anchors fresh this build).
+    degraded_inputs: list[DegradedInputOut]
     markdown: str
 
 
@@ -112,5 +122,16 @@ async def get_pool(
         sections_emitted=list(pool.sections_emitted),
         sources_count=len(pool.sources),
         sources=list(pool.sources),
+        degraded_inputs=[
+            DegradedInputOut(
+                series_id=d.series_id,
+                status=d.status,
+                latest_date=d.latest_date,
+                age_days=d.age_days,
+                max_age_days=d.max_age_days,
+                impacted=d.impacted,
+            )
+            for d in pool.degraded_inputs
+        ],
         markdown=pool.markdown,
     )

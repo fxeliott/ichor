@@ -155,6 +155,9 @@ EXTENDED_SERIES_TO_POLL: tuple[str, ...] = (
     "DEXSZUS",  # CHF per USD
     "DEXUSAL",  # USD per AUD
     "DEXUSNZ",  # USD per NZD
+    "DEXHKUS",  # HKD per USD — r55 ADR-083 D3 phase 2 peg_break_hkma input.
+    #              HKMA convertibility band is [7.75, 7.85] around 7.80 hard
+    #              peg. Watch for approach to either intervention threshold.
     # Fed monetary stance
     "FEDFUNDS",  # Fed Funds effective monthly
     "EFFR",  # Effective Fed Funds Rate daily

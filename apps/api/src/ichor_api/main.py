@@ -33,6 +33,7 @@ from .routers import (
     graph_router,
     hourly_volatility_router,
     journal_router,
+    key_levels_router,
     macro_pulse_router,
     market_router,
     narratives_router,
@@ -40,6 +41,7 @@ from .routers import (
     phase_d_router,
     polymarket_impact_router,
     portfolio_exposure_router,
+    positioning_router,
     post_mortems_router,
     predictions_router,
     push_router,
@@ -216,11 +218,13 @@ app.include_router(correlations_router)
 app.include_router(hourly_volatility_router)
 app.include_router(journal_router)
 app.include_router(brier_feedback_router)
+app.include_router(key_levels_router)
 app.include_router(macro_pulse_router)
 app.include_router(polymarket_impact_router)
 app.include_router(portfolio_exposure_router)
 app.include_router(post_mortems_router)
 app.include_router(phase_d_router)
+app.include_router(positioning_router)
 app.include_router(scenarios_router)
 app.include_router(sources_router)
 app.include_router(today_router)

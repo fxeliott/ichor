@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any, Literal
 from uuid import UUID
 
@@ -314,6 +314,20 @@ def extract_pass4_scenarios(mechanisms: Any | None) -> list[Pass4Scenario]:
     return out
 
 
+class DegradedInputOut(BaseModel):
+    """ADR-103 (ADR-099 §T3.2) — a critical FRED anchor that is stale or
+    absent so its dependent section/sub-driver silently degrades. Makes
+    the silent-skip chain operator-visible deterministically (and is the
+    zero-rework foundation for the r94 end-user `/briefing` badge)."""
+
+    series_id: str
+    status: Literal["stale", "absent"]
+    latest_date: date | None
+    age_days: int | None
+    max_age_days: int
+    impacted: str
+
+
 class SessionCardOut(BaseModel):
     """One row of `session_card_audit` projected for the dashboard.
 
@@ -326,7 +340,18 @@ class SessionCardOut(BaseModel):
 
     id: UUID
     generated_at: datetime
-    session_type: Literal["pre_londres", "pre_ny", "event_driven"]
+    # Canonical 5-window contract — mirror of
+    # `ichor_brain.types.SessionType` (ADR-031 single source via
+    # get_args). r66 fix : pre-r66 this Literal was hardcoded to 3
+    # windows (pre_londres|pre_ny|event_driven), so `from_orm_row()`
+    # raised pydantic ValidationError 500 for any DB row written in the
+    # `ny_mid` / `ny_close` window (4 windows/day × 8 assets design).
+    # W101e fixed the *input* regex in sessions.py / calibration.py but
+    # missed this *output* schema Literal — both `/v1/sessions` and
+    # `/v1/sessions/{asset}` 500'd in production for every ny_mid /
+    # ny_close card. Widening a Literal only accepts more valid values,
+    # never breaks existing callers.
+    session_type: Literal["pre_londres", "pre_ny", "ny_mid", "ny_close", "event_driven"]
     asset: str
     model_id: str
     regime_quadrant: str | None
@@ -341,7 +366,33 @@ class SessionCardOut(BaseModel):
     catalysts: Any | None = None
     correlations_snapshot: Any | None = None
     polymarket_overlay: Any | None = None
+    # r62 (ADR-083 D3) : KeyLevel snapshot at card generation. Mirror
+    # of /v1/key-levels response items shape — list[{asset, level,
+    # kind, side, source, note}]. Default `[]` covers legacy rows
+    # that predate migration 0049 ; never None on rows persisted
+    # post-r62 because the column is NOT NULL DEFAULT '[]'::jsonb.
+    key_levels: list[dict[str, Any]] = []
+    # r68 — Pass-6 7-bucket scenario decomposition (ADR-085, migration
+    # 0039 `scenarios` JSONB NOT NULL DEFAULT '[]'). Shape per ADR-085 :
+    # list[{label, p, magnitude_pips:[low,high], mechanism}] — 7 entries
+    # canonical-ordered (crash_flush..melt_up), sum(p)==1.0. Same
+    # Pydantic-projection-gap class as the r66 session_type fix : the
+    # ORM column existed + was populated (32/110 cards/7d) but
+    # SessionCardOut never surfaced it, so the /briefing dashboard could
+    # not render the outcome-probability distribution (THE "prendre plus
+    # ou moins de risque" answer). `[]` for legacy/pre-Pass-6 cards.
+    scenarios: list[dict[str, Any]] = []
     source_pool_hash: str
+    # r95 (ADR-104, ADR-099 §T3.2) — FRED-liveness degraded-input
+    # manifest frozen at card generation (the ADR-103 runtime
+    # `DataPool.degraded_inputs`, persisted via migration 0050).
+    # Deliberate TRI-STATE honesty (diverges from key_levels/scenarios
+    # NOT-NULL-DEFAULT-[] on purpose) : None = "liveness not tracked at
+    # this card's generation" (every pre-0050 card — honest "unknown",
+    # NOT "clean") ; [] = "tracked, all critical anchors fresh" ;
+    # non-empty = "generated on degraded inputs". Auto-projected from
+    # the ORM column by from_orm_row's model_validate, like key_levels.
+    degraded_inputs: list[DegradedInputOut] | None = None
     critic_verdict: str | None
     critic_findings: Any | None = None
     claude_duration_ms: int | None

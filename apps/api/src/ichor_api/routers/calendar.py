@@ -15,8 +15,37 @@ from ..services.economic_calendar import (
     assess_calendar,
     filter_for_asset,
 )
+from ..services.market_session import compute_session_status
 
 router = APIRouter(prefix="/v1/calendar", tags=["calendar"])
+
+
+class SessionStatusOut(BaseModel):
+    now_paris: str
+    weekday: str
+    state: Literal[
+        "weekend",
+        "us_holiday",
+        "pre_londres",
+        "london_active",
+        "pre_ny",
+        "ny_active",
+        "off_hours",
+    ]
+    market_closed_fx: bool
+    market_closed_us_equity: bool
+    holiday_name: str | None
+    next_open_label: str
+    next_open_paris: str
+    minutes_until_next_open: int
+
+
+@router.get("/session-status", response_model=SessionStatusOut)
+async def get_session_status() -> SessionStatusOut:
+    """ADR-099 Tier 1.3 — DST-correct (zoneinfo) market state + US
+    holiday awareness. Pure compute, no DB. Replaces the crude DST-naive
+    UTC heuristic that was client-side in SessionStatus.tsx."""
+    return SessionStatusOut(**compute_session_status().to_dict())
 
 
 class CalendarEventOut(BaseModel):

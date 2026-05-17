@@ -18,11 +18,13 @@ from __future__ import annotations
 import asyncio
 import sys
 from datetime import UTC, datetime
+from typing import Any
 
 import structlog
 
 from ..config import get_settings
 from ..db import get_engine, get_sessionmaker
+from ..schemas import DegradedInputOut
 
 log = structlog.get_logger(__name__)
 
@@ -96,6 +98,22 @@ async def _run(
             )
             asset_data = await build_asset_data_only(build_session, asset)
         data_pool = pool.markdown
+        # r95 (ADR-104) : freeze the ADR-103 runtime FRED-liveness
+        # manifest at generation so the persisted card (→ r96
+        # `/briefing` badge) reflects ITS data health, not a drifting
+        # live recompute. Serialised via the schemas.py SSOT model
+        # (mode="json" → date→ISO ; shape parity with the projection).
+        degraded_inputs_payload: list[dict[str, Any]] | None = [
+            DegradedInputOut(
+                series_id=di.series_id,
+                status=di.status,
+                latest_date=di.latest_date,
+                age_days=di.age_days,
+                max_age_days=di.max_age_days,
+                impacted=di.impacted,
+            ).model_dump(mode="json")
+            for di in pool.degraded_inputs
+        ]
         log.info(
             "data_pool.built",
             asset=asset,
@@ -114,6 +132,10 @@ async def _run(
             f"{asset} : DGS10=4.18 IRLTLT01DEM156N=2.45 COT MM_short=80th_pct "
             "URL https://www.ecb.europa.eu/press/key/date/2026/html/ecb.sp260502.en.html"
         )
+        # Dry-run never ran the liveness audit → None = honest "not
+        # tracked" (NOT [] "all fresh"), matching the 0050 tri-state
+        # semantics (ADR-104).
+        degraded_inputs_payload = None
 
     # W105d : Pass-6 scenario_decompose enabled by default in live mode.
     # Dry-run stays Pass-1..4 only so canned responses don't break.
@@ -266,8 +288,66 @@ async def _run(
         pass3_addenda_section=pass3_addenda_section,
     )
 
+    # === r51 ADR-017 + Critic verdict safety gate (P0.1 + P0.2) ===
+    # Closes gap identified by r50.5 wave-2 audit (subagents F + I) :
+    # boundary regex was wired only in addendum_generator (W116c) and
+    # Pass 6 _reject_trade_tokens ; the main session_card persist path
+    # had ZERO content-level safety check, and Critic verdict was
+    # purely cosmetic (persisted to column without gating, surfaced via
+    # /v1/today DISTINCT-ON exactly like an approved card).
+    from ..services.session_card_safety_gate import evaluate_safety_gate
+
+    _safety = evaluate_safety_gate(result.card)
+    if _safety.rejected:
+        log.warning(
+            "session_card.safety_reject",
+            asset=asset,
+            session_type=session_type,
+            **_safety.log_fields(),
+        )
+        _reason_label = (
+            "ADR-017 token" if _safety.primary_reason == "adr017_token" else "Critic blocked"
+        )
+        print(
+            f"REJECT · session_card NOT persisted (safety gate)\n"
+            f"  asset      : {asset}\n"
+            f"  session    : {session_type}\n"
+            f"  adr017     : {len(_safety.adr017_violations)} violations "
+            f"{list(_safety.adr017_violations[:3])}\n"
+            f"  critic     : {_safety.critic_verdict}\n"
+            f"  reason     : {_reason_label}",
+            file=sys.stderr,
+        )
+        # Exit code 4 = safety reject (distinct from 0 success / 2 invalid
+        # arg / 3 import error). Batch wrapper logs non-zero rc and
+        # continues to next asset (run_session_cards_batch.py:107).
+        return 4
+
     async with sm() as session:
-        row = to_audit_row(result.card)
+        # r62 (ADR-083 D3) : snapshot the currently-firing KeyLevels at
+        # finalization so D4 frontend replay + Brier post-mortem read
+        # the exact state at card generation time. Pure-Python compute,
+        # no LLM call (Voie D respect). Best-effort : if the snapshot
+        # fails (e.g. upstream table empty in a fresh test DB) we fall
+        # back to [] — `session_card_audit.key_levels` NOT NULL default
+        # is `'[]'::jsonb` so an empty list is the canonical NORMAL.
+        from ..services.key_levels.orchestration import compose_key_levels_snapshot
+
+        try:
+            key_levels_snapshot = await compose_key_levels_snapshot(session)
+        except Exception as e:  # noqa: BLE001 — never fail the persist on KL snapshot error
+            log.warning("key_levels_snapshot.fallback", asset=asset, error=str(e))
+            key_levels_snapshot = []
+
+        card_with_levels = result.card.model_copy(update={"key_levels": key_levels_snapshot})
+        row = to_audit_row(card_with_levels)
+        # r95 (ADR-104) : thread the ADR-103 degraded-input manifest
+        # (captured from the DataPool in live mode / None in dry-run)
+        # onto the row AFTER to_audit_row — to_audit_row (shared
+        # ichor_brain.persistence, brain SessionCard→ORM) stays
+        # byte-identical : the api↔DataPool cross-cut belongs in the
+        # api layer, not the brain package.
+        row.degraded_inputs = degraded_inputs_payload
         session.add(row)
         await session.commit()
         log.info(
