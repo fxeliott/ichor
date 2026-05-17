@@ -15,6 +15,47 @@ rounds — that deferral is the real process miss this RUNBOOK closes).
 loop — the _serving_ stack (`ichor-api`, `ichor-web2`, the `/briefing`
 dashboard, all read endpoints) is fully healthy and unaffected.
 
+## ✅✅ r88 CLOSURE (2026-05-17) — EMPIRICALLY PROVEN, read this first
+
+**This supersedes the §r87 CLOSURE below.** r87 declared "CLOSED" on a
+**forecast** (it predicted the ~12:00 CEST scheduled fires would witness
+the session-cards fix, but never observed them — a real process error
+caught by an "tu es sûr" audit). r88 supplied the **missing empirical
+proof** via a controlled run, and it confirms the fix works:
+
+- **Controlled `ichor-session-cards@pre_ny`** 2026-05-17 10:20:59→10:53:58
+  CEST: `Result=success`, `ExecMainStatus=0`,
+  **`== batch done · 6 ok / 0 failed · elapsed 1977.0s ==`**. The batch
+  needs **1977 s (~33 min)** — i.e. it genuinely exceeded the old
+  `TimeoutStartSec=1800` (the exact reason it was SIGTERM-killed before)
+  and completes comfortably under the new `5400` (2.7× headroom).
+  **`TimeoutStartSec=5400` is now empirically MEASURED sufficient, not
+  inferred.**
+- **6 fresh `pre_ny` cards persisted** 2026-05-17 10:25→10:53
+  (EUR_USD/GBP_USD/USD_CAD/XAU_USD/NAS100_USD/SPX500_USD), each 19.9–25.5
+  KB JSONB (`min_row_len=19901` — none empty/degraded), **`adr017_total=0`**
+  (zero BUY/SELL/TP/SL/etc. forbidden tokens — ADR-017 held in the actual
+  produced content). Via claude-runner (Voie D, zero Anthropic API).
+- `systemctl --failed` clean. Briefing side already proven r87
+  (`ichor-briefing@pre_ny` completed, briefing row 08:35).
+
+**RUNBOOK-020 is CLOSED with evidence.** The only Eliot residual is the
+**optional, non-blocking** `/healthz` CF Access Bypass (uptime-monitoring
+nicety; generation does not need it — proven twice). Flagged future
+(not fixed, scope discipline): Pass-6 occasional ADR-017-token retry
+(guard HELD); the old 2026-05-17 06:29 `pre_londres` `USD_CAD` card had
+near-empty mechanisms — the fresh r88 cards are all substantial, so this
+was likely a one-off on the pre-fix stale run (watch, not blocking).
+
+> **NOTE on the §r87 and §r86 sections + the TL;DR/turnkey tables and
+> §"Step A" below:** they were written before this empirical proof and
+> before the Cause-B reframe. Any text below that still says "Cause B =
+> claude-runner 403, Eliot-gated ~9 min", "Eliot must restore the age
+> key", or "both causes are Eliot/ops-gated" is \*\*SUPERSEDED by this §r88
+>
+> - §r87\*\* — kept only as the evolution/audit trail. Read top-down; the
+>   truth is here.
+
 ## ✅ r87 CLOSURE (2026-05-17) — RESOLVED autonomously, read this first
 
 The r87 round closed this incident. **The original "Cause B = claude-runner
@@ -273,6 +314,11 @@ https://claude-runner.fxmilyapp.com/healthz` → **HTTP 403**. The Win11
 fragility — the long-documented W102 / RUNBOOK-018 item). Even if Cause
 A were fixed, `ichor-briefing@*` would then also hit this 403.
 
+> ⚠️ **SUPERSEDED by §r88/§r87 CLOSURE (top of file).** The paragraph
+> below is FALSE post-r87/r88: the decrypt script was in the repo &
+> Claude-redeployed, the age key was present all along (A-ii VOID), and
+> "Cause B" was a misdiagnosis. Kept as evolution trail only.
+
 **Both causes pre-date the r72→r84 session and are Eliot/ops-gated**:
 recreating a secrets-decrypt script + age key, or fixing CF-Access /
 the Win11 runner, requires credentials/dashboards Claude must not
@@ -284,6 +330,14 @@ Claude's autonomous deploys this session were additive (`ichor-web2`)
   timestamps May 15 predate the May 16 session).
 
 ## TL;DR — who does what
+
+> ⚠️ **SUPERSEDED by §r88/§r87 CLOSURE (top of file).** This table
+> reflects the original (wrong) diagnosis: A1 "Eliot restores
+> decrypt-secrets + age key" is VOID (script was in-repo, key present);
+> B1 "Eliot ~9 min CF dashboard" was a misdiagnosis (the 403 is only the
+> cosmetic unauth `/healthz`; generation works without it — proven). The
+> real fix was Claude-side (ADR-100 Option X + `TimeoutStartSec=5400`).
+> Kept as audit trail only — do NOT action this table.
 
 | #   | Step                                                                                                                                                     | Who                                                          | Why                                                            |
 | --- | -------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ | -------------------------------------------------------------- |
