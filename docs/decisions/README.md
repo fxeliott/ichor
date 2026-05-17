@@ -99,6 +99,7 @@
 | [102](ADR-102-confluence-source-independence-reweight.md)              | Accepted | Confluence re-weighted by source independence                          | 2026-05-17 |
 | [103](ADR-103-runtime-fred-liveness-degraded-data-explicit-surface.md) | Accepted | Runtime FRED-liveness degraded-data explicit surface                   | 2026-05-17 |
 | [104](ADR-104-degraded-inputs-persisted-on-session-card.md)            | Accepted | Degraded-inputs persisted on the session card                          | 2026-05-17 |
+| [105](ADR-105-market-closed-gate-session-card-generation.md)           | Accepted | Market-closed gate for session-card generation (ADR-099 §Tier-3)       | 2026-05-17 |
 
 > **Note**: SPEC_V2_HARDENING.md §4 originally referred to "ADR-008 to
 > ADR-011 prévus" for Phase 2 decisions. Those numbers were already taken

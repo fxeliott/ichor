@@ -224,3 +224,26 @@ def compute_session_status(now: datetime | None = None) -> SessionStatus:
         next_open_paris=target,
         minutes_until_next_open=mins_to(target),
     )
+
+
+# US-equity assets in the ADR-083 D1 batch universe : closed on weekends
+# AND US market (NYSE/Nasdaq) holidays. The FX/XAU assets
+# (EUR_USD / GBP_USD / USD_CAD / XAU_USD) trade through US holidays —
+# closed weekends only.
+_US_EQUITY_ASSETS: frozenset[str] = frozenset({"SPX500_USD", "NAS100_USD"})
+
+
+def market_closed_for_asset(asset: str, status: SessionStatus) -> bool:
+    """True iff `asset`'s market is closed in `status` (ADR-105 gate SSOT).
+
+    Weekend (`status.market_closed_fx`) closes every asset ; a US market
+    holiday (`status.market_closed_us_equity` with FX still open) closes
+    only the US-equity assets — FX/XAU keep trading. Pure calendar truth :
+    the caller (the ADR-105 fail-open gate) owns all error handling ;
+    this function never raises on a well-formed `SessionStatus`.
+    """
+    if status.market_closed_fx:
+        return True
+    if asset in _US_EQUITY_ASSETS and status.market_closed_us_equity:
+        return True
+    return False

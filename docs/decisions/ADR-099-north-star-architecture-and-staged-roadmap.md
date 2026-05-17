@@ -57,6 +57,15 @@ structured-vs-momentum character only.
 Events / Pass-6 scenarios / news / calendar = COVERED. **Holiday/weekend = NOT
 handled** (backend timers fire 365 d/yr; frontend `SessionStatus.tsx` is a crude
 DST-naive UTC heuristic with zero holiday calendar) — an explicit unmet requirement.
+**[r78/r79 + r98 DONE — both halves of this gap are now closed: the
+FRONTEND signal side (r78 `services/market_session.py` DST-correct +
+NYSE-holiday engine + r79 `SessionStatus.tsx` rewired off the
+DST-naive heuristic, §T1.3) ; the BACKEND card-gen-gate side (r98
+[ADR-105](ADR-105-market-closed-gate-session-card-generation.md) — the
+`run_session_cards_batch` pure-Python gate skips market-closed assets
+per-asset, FAIL-OPEN, ships feature-flag OFF, ZERO systemd/register-cron
+change). Residual: the `run_briefing` symmetric gate is the r99
+follow-up — flagged, not silently skipped.]**
 
 ### Synthesis-quality & robustness findings (world-class trading + autonomy review)
 
