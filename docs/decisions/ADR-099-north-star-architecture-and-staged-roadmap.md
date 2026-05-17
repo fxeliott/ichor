@@ -152,6 +152,18 @@ push. Tiers are executed in order; within a tier, highest value/effort first.
   both + added the first unit test. ADR-097 §Amendment (r92). Residual Eliot gesture:
   `gh secret set ICHOR_CI_FRED_API_KEY` (RUNBOOK-019) — the guard auto-activates then.]**
 - T3.2 Human-visible degraded-data alert (break the silent-skip chain).
+  **[r93→r97 DONE — silent-skip chain broken end-to-end : r93 ADR-103
+  runtime FRED-liveness surface (LLM-input `_section_data_integrity` +
+  operator `/v1/data-pool.degraded_inputs`) ; r94 ADR-092 §r94
+  recalibration (the r93 surface exposed a latent false-DEGRADED
+  mis-calibration it then fixed) ; r95 ADR-104 persisted
+  `SessionCard.degraded_inputs` on the card (migration 0050,
+  point-in-time honest) ; r96 ADR-104 §Implementation end-user
+  `/briefing` `DataIntegrityBadge` (tri-state, ADR-017 footer) ; r97
+  CI-gated the r96 `deriveDataIntegrity` + r91 `deriveVerdict` SSOT
+  regression harnesses (vite/vitest peer-skew realign — they were
+  CI-invisible before, the chain could silently drift). The alert is
+  now explicit at every layer AND regression-protected.]**
 - T3.3 Enforce briefing/session-card ordering (`After=`) + batch-success watchdog.
 - T3.4 Trace & resolve the Couche-2 Claude-vs-Cerebras/Groq doctrine divergence.
 
