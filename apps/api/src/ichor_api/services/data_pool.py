@@ -2009,6 +2009,191 @@ async def _section_aud_specific(session: AsyncSession, asset: str) -> tuple[str,
     return "\n".join(lines), sources
 
 
+async def _section_gbp_specific(session: AsyncSession, asset: str) -> tuple[str, list[str]]:
+    """## GBP-specific signals — UK-US rate-differential + sterling risk-premium (r90, ADR-101).
+
+    Renders GBP/USD-specific macro signals for GBP_USD Pass-2 via a
+    2-driver framework, mirroring the proven JPY r45 inline-FRED pattern.
+    Tier 1 inline-FRED ship per ADR-101 (extends Accepted ADR-092 to
+    GBP_USD — the only ADR-083 priority asset previously without a
+    per-asset section ; r40 only fixed a generic GBP path bug). ZERO new
+    FRED ingestion : both series already polled, GBP already in
+    `_RATE_DIFF_PAIRS` :
+
+      1. **UK 10Y monthly via FRED `IRLTLT01GBM156N`** — primary
+         GBP-specific anchor. Source : OECD MEI monthly, 1-month
+         publication lag. Registry max-age 120d (r37 frequency-aware).
+         Framework : Engel-West 2005 "Exchange Rates and Fundamentals",
+         J.Political Economy 113(3):485-517, DOI:10.1086/429137 — under
+         a near-unity discount factor the spot rate is quasi-martingale
+         yet the rate-differential still determines its level (currency-
+         agnostic ; applies to GBP exactly as to JPY r45).
+      2. **US 10Y daily via FRED `DGS10`** — the Engel-West differential
+         anchor : `dgs10 - uk10y` (US minus UK, the `_RATE_DIFF_PAIRS`
+         sign convention). Layered ON this — an INDEPENDENT structural
+         lens, NOT a reinterpretation of the differential — is Della
+         Corte-Sarno-Sestieri 2012 "The Predictive Information Content
+         of External Imbalances for Exchange Rate Returns",
+         Rev.Econ.Stat. 94(1):100-115, DOI:10.1162/REST_a_00157 : a
+         country's net-foreign-asset / current-account position carries
+         a time-varying currency risk premium. For sterling (a
+         structural current-account-deficit currency) this is an
+         ADDITIVE GBP-soft risk premium under UK funding stress (the
+         2022 LDI/gilt-crisis configuration), separate from the rate
+         differential.
+
+    SIGN-CONVENTION DISCIPLINE (R44 ; the r40 GBP bug class) : GBP/USD
+    quotes USD per GBP, so USD is the QUOTE currency — same polarity as
+    EUR/USD (`IRLTLT01DEM156N`), OPPOSITE to USD/JPY & USD/CAD where USD
+    is the base. A WIDER (more positive) US-UK differential ⟹ US carry
+    advantage ⟹ USD-bid ⟹ GBP/USD DOWNSIDE (GBP-soft). This is the
+    inverse of the JPY r45 template's "wider differential → USD/JPY
+    upside" ; the section states the polarity explicitly so the Pass-2
+    LLM cannot mis-apply the JPY-class reading to GBP.
+
+    Gated on `asset == "GBP_USD"` — early-return ("", []) otherwise.
+    `build_data_pool` appends only when `sources` is non-empty so a
+    pre-FRED-ingestion GBP_USD silently skips.
+
+    SYMMETRIC LANGUAGE discipline (ichor-trader r32/r41/r42/r43 carry-
+    forward) : the rate-differential interpretation emits BOTH GBP-soft
+    (USD-bid carry regime) AND GBP-bid (sterling rate-advantage regime)
+    branches so the Pass-2 LLM picks consistent with the Pass-1 regime.
+
+    TETLOCK INVALIDATION discipline (r42 R28 + r43 carry-forward) : both
+    regime-conditional branches emit explicit invalidation thresholds
+    with VIX cross-confirmation, asymmetric magnitudes per the JPY r45
+    ichor-trader precedent.
+
+    R24 SUBSET-not-SUPERSET cleared via cadence-mismatch BTP r34
+    precedent : DGS10 daily + IRLTLT01GBM156N monthly. Frequency
+    mismatch warning emitted inline ; the differential surfaces as a
+    REGIME indicator, NOT an intraday signal.
+
+    Sterling is NOT a USD safe-haven (Ranaldo-Soderlind 2010,
+    DOI:10.1093/rof/rfq007) — surfaced as a one-line caveat, not a
+    driver. Driver 3 (BoE-vs-Fed reaction-function divergence, Clarida-
+    Gali-Gertler 1998 DOI:10.1016/S0014-2921(98)00016-6) is DEFERRED :
+    it needs `IR3TIB01GBM156N` (UK 3M interbank) which is NOT currently
+    polled and whose liveness has not been prod-DB-verified (scope
+    discipline + r88 lesson — no new unverified-liveness series this
+    round).
+    """
+    if asset != "GBP_USD":
+        return "", []
+
+    # ─── UK 10Y monthly via FRED IRLTLT01GBM156N (UK-specific anchor) ──
+    # Primary GBP driver. If absent → silent skip (no GBP-specific value
+    # without the UK anchor). Registry max-age 120d auto-resolves per
+    # r37 frequency-aware lookup (OECD MEI 1-month publication lag).
+    uk10y_latest = await _latest_fred(session, "IRLTLT01GBM156N")
+    if uk10y_latest is None:
+        return "", []  # UK 10Y missing → silent skip (primary anchor)
+    uk10y_value, uk10y_date = uk10y_latest
+    sources = [f"FRED:IRLTLT01GBM156N@{uk10y_date:%Y-%m-%d}"]
+
+    lines = [
+        "## GBP-specific signals (Engel-West rate-differential + sterling risk-premium, ADR-101)",
+        "### UK 10Y yield (IRLTLT01GBM156N) — OECD MEI monthly, UK-specific anchor",
+        f"- UK 10Y = {uk10y_value:.2f}% (FRED IRLTLT01GBM156N, {uk10y_date:%Y-%m-%d} "
+        "— OECD monthly, 1-month publication lag)",
+    ]
+
+    # ─── US 10Y daily via FRED DGS10 (differential anchor) ──
+    # Secondary driver — computes the US-UK 10Y differential. NOTE the
+    # GBP/USD polarity is INVERSE to USD/JPY : USD is the QUOTE currency
+    # here (as in EUR/USD), so a wider US-UK differential is GBP-soft.
+    dgs10_latest = await _latest_fred(session, "DGS10")
+    if dgs10_latest is not None:
+        dgs10_value, dgs10_date = dgs10_latest
+        sources.append(f"FRED:DGS10@{dgs10_date:%Y-%m-%d}")
+        rate_diff = dgs10_value - uk10y_value
+        lines.append("### US 10Y nominal yield (DGS10) — daily differential anchor")
+        lines.append(f"- DGS10 = {dgs10_value:.2f}% (FRED, {dgs10_date:%Y-%m-%d})")
+        lines.append(f"- US-UK 10Y differential = {rate_diff:+.2f} pp (DGS10 minus UK 10Y)")
+        lines.append(
+            "- Polarity (R44 sign-convention) : GBP/USD quotes USD per "
+            "GBP — USD is the QUOTE currency (same as EUR/USD, OPPOSITE "
+            "to USD/JPY). A WIDER (more positive) US-UK differential is "
+            "USD-bid → GBP/USD DOWNSIDE (GBP-soft) ; a NARROWER or "
+            "NEGATIVE differential (UK yield ≥ US) is a sterling rate "
+            "advantage → GBP-bid."
+        )
+        lines.append(
+            "- Frequency mismatch : DGS10 is DAILY, UK 10Y is MONTHLY "
+            "(OECD MEI). Treat the differential as a REGIME indicator, "
+            "NOT an intraday signal (BTP r34 precedent for cadence-"
+            "mismatch handling)."
+        )
+        lines.append(
+            "- Interpretation depends on the Pass-1 regime label : in a "
+            "calm / carry-bid regime, a wider US-UK 10Y differential "
+            "supports GBP/USD downside (GBP-soft) via USD-funded carry "
+            "advantage (Engel-West 2005 present-value channel — rate "
+            "fundamentals determine the level under a near-unity discount "
+            "factor). SEPARATELY — an INDEPENDENT additive lens, NOT a "
+            "reinterpretation of the differential — the sterling "
+            "external-imbalance risk premium (Della Corte-Sarno-Sestieri "
+            "2012 : a net-foreign-asset / current-account position "
+            "carries a time-varying currency risk premium) adds its own "
+            "GBP-soft pressure under UK funding stress (the 2022 LDI/"
+            "gilt-crisis configuration), layered on the Engel-West read. "
+            "A narrower or negative "
+            "differential is the symmetric reverse : GBP-bid in a calm "
+            "regime via gilt carry inflows, but it can still be GBP-soft "
+            "if it is UK-inflation-surprise-driven and the risk premium "
+            "dominates the carry. The Pass-2 LLM should select the "
+            "branch matching the regime context above."
+        )
+        lines.append(
+            "- Tetlock invalidation : the wider-differential GBP-soft "
+            "thesis is invalidated if VIX > 25 AND US-UK 10Y narrows by "
+            "> 20 bp within 5 sessions concurrent (sterling-funding-"
+            "stress regime onset, risk premium repricing) ; the narrow/"
+            "negative-differential GBP-bid thesis is invalidated if VIX "
+            "falls below 18 AND DGS10 rises by > 15 bp within 5 sessions "
+            "(US-rate re-anchoring, USD carry reasserts ; threshold "
+            "asymmetric vs the 20-bp magnitude per the JPY r45 ichor-"
+            "trader precedent). Note : sterling is NOT a USD safe-haven "
+            "— in acute risk-off USD is the bid leg of GBP/USD (Ranaldo-"
+            "Soderlind 2010, DOI:10.1093/rof/rfq007) ; this is a "
+            "qualitative caveat, not a driver. The BoE-vs-Fed reaction-"
+            "function front-end leg (Clarida-Gali-Gertler 1998, "
+            "DOI:10.1016/S0014-2921(98)00016-6) is DEFERRED — it needs "
+            "the unpolled IR3TIB01GBM156N UK 3M interbank series (ADR-101 "
+            "§Deferred)."
+        )
+
+        # Composite (R24 SUBSET-not-SUPERSET via cadence-mismatch BTP r34 precedent)
+        lines.append("### GBP rate-differential triangle (Engel-West + Della Corte-Sarno-Sestieri)")
+        lines.append(
+            "- The 2-driver GBP pricing framework is AVAILABLE for this "
+            "asset (R24 SUBSET-not-SUPERSET cleared via cadence-mismatch "
+            "BTP r34 precedent : DGS10 daily + UK 10Y monthly). The "
+            "Engel-West 2005 fundamentals channel (DOI:10.1086/429137) "
+            "transmits the rate-differential to GBP/USD directional bias "
+            "under a near-unity discount factor — the spot rate is "
+            "quasi-martingale yet the differential still determines its "
+            "level (GBP/USD polarity : wider US-UK = GBP-soft, USD being "
+            "the quote currency). Della Corte-Sarno-Sestieri 2012 "
+            "(DOI:10.1162/REST_a_00157) is an INDEPENDENT external-"
+            "imbalance predictor — a net-foreign-asset / current-account "
+            "position carries a time-varying currency risk premium ; it "
+            "does NOT reinterpret the rate differential. For sterling (a "
+            "structural current-account-deficit currency) it implies an "
+            "ADDITIVE GBP-soft risk premium under UK funding stress (the "
+            "2022 LDI/gilt-crisis configuration), layered on — not "
+            "derived from — the Engel-West rate-differential read. "
+            "Pass-2 LLM should triangulate "
+            "both regime-conditional branches before committing to a "
+            "directional read. Tetlock invalidation thresholds emit "
+            "asymmetric regime-flip conditions consistent with the JPY "
+            "r45 precedent."
+        )
+
+    return "\n".join(lines), sources
+
+
 async def _section_rate_diff(session: AsyncSession, asset: str) -> tuple[str, list[str]]:
     """## Rate differential — US 10Y minus the relevant foreign 10Y for FX pairs."""
     pair = _RATE_DIFF_PAIRS.get(asset)
@@ -4280,6 +4465,20 @@ async def build_data_pool(
     aud_md, aud_src = await _section_aud_specific(session, asset)
     if aud_src:
         sections.append(("aud_specific", aud_md, aud_src))
+
+    # Round-90 — GBP-specific UK-US rate-differential + sterling risk-
+    # premium (ADR-099 Tier 2 continuation ; ADR-101 extends Accepted
+    # ADR-092 to GBP_USD — the only ADR-083 priority asset previously
+    # without a per-asset section). Asset-gated to GBP_USD ; silent skip
+    # otherwise OR if IRLTLT01GBM156N absent (primary UK anchor). 2-driver
+    # inline-FRED, ZERO new ingestion (IRLTLT01GBM156N + DGS10 already
+    # polled, GBP already in _RATE_DIFF_PAIRS). GBP/USD polarity is
+    # INVERSE to USD/JPY (USD is the quote currency). Frameworks :
+    # Engel-West 2005 + Della Corte-Sarno-Sestieri 2012 ; BoE-Fed
+    # reaction-function (Clarida-Gali-Gertler 1998) deferred per ADR-101.
+    gbp_md, gbp_src = await _section_gbp_specific(session, asset)
+    if gbp_src:
+        sections.append(("gbp_specific", gbp_md, gbp_src))
 
     poly_md, poly_src = await _section_polygon_intraday(session, asset)
     sections.append(("polygon_intraday", poly_md, poly_src))
