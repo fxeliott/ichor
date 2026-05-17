@@ -168,6 +168,21 @@ export interface Scenario {
   mechanism: string;
 }
 
+/** r95 (ADR-104, migration 0050) — one stale/absent critical FRED anchor
+ *  that silently degraded a section/sub-driver, frozen at card generation.
+ *  Mirror of the backend `DegradedInputOut` (schemas.py SSOT). */
+export interface DegradedInput {
+  series_id: string;
+  status: "stale" | "absent";
+  /** ISO date (YYYY-MM-DD) of the last ingested observation ; null when
+   *  the series was never ingested (status === "absent"). */
+  latest_date: string | null;
+  age_days: number | null;
+  max_age_days: number;
+  /** which section / sub-driver this anchor reduces reliability on. */
+  impacted: string;
+}
+
 export interface SessionCard {
   id: string;
   generated_at: string;
@@ -203,6 +218,16 @@ export interface SessionCard {
   realized_at: string | null;
   brier_contribution: number | null;
   created_at: string;
+
+  // r95 (ADR-104, migration 0050) — FRED-liveness degraded-input
+  // manifest frozen at card generation. DELIBERATE TRI-STATE (mirrors
+  // the backend nullable-no-default column) : `null` = liveness not
+  // tracked at this card's generation (legacy/pre-0050 card — honest
+  // "unknown", NOT "all fresh") ; `[]` = tracked, all critical anchors
+  // fresh ; non-empty = generated on degraded inputs. The r96
+  // DataIntegrityBadge consumes ONLY this card field (ADR-104
+  // §Cross-endpoint — never the live /v1/data-pool recompute).
+  degraded_inputs: DegradedInput[] | null;
 
   // Phase 2 typed enrichment — populated when claude_raw_response exposes
   // the structured sub-objects ; null otherwise.

@@ -28,6 +28,7 @@ import { AssetSwitcher } from "@/components/briefing/AssetSwitcher";
 import { PRIORITY_ASSET_CODES } from "@/components/briefing/assets";
 import { BriefingHeader } from "@/components/briefing/BriefingHeader";
 import { CorrelationsStrip } from "@/components/briefing/CorrelationsStrip";
+import { DataIntegrityBadge } from "@/components/briefing/DataIntegrityBadge";
 import { EconomicCalendarPanel } from "@/components/briefing/EconomicCalendarPanel";
 import { EventSurpriseGauge } from "@/components/briefing/EventSurpriseGauge";
 import { GeopoliticsPanel } from "@/components/briefing/GeopoliticsPanel";
@@ -68,6 +69,7 @@ import {
   type SessionCardList,
   type TodaySnapshotOut,
 } from "@/lib/api";
+import { deriveDataIntegrity } from "@/lib/dataIntegrity";
 import { deriveEventSurprise } from "@/lib/eventSurprise";
 
 interface PageParams {
@@ -199,6 +201,13 @@ export default async function BriefingPage({ params }: PageParams) {
     polymarketImpact,
   );
 
+  // r96 (ADR-104 §Cross-endpoint) — per-card FRED-liveness data-health,
+  // derived server-side from the card-bound `degraded_inputs` ONLY (never
+  // the live /v1/data-pool recompute). `null` when there is no card at
+  // all → the badge renders nothing (the page surfaces card-absence
+  // elsewhere) ; given a card it always renders the honest tri-state.
+  const dataIntegrity = card ? deriveDataIntegrity(card.degraded_inputs) : null;
+
   const previews = isLive(today) ? today.top_sessions : [];
 
   return (
@@ -222,6 +231,8 @@ export default async function BriefingPage({ params }: PageParams) {
       )}
 
       <PocketSkillBadge data={pocketSummary} regime={card?.regime_quadrant ?? null} />
+
+      <DataIntegrityBadge data={dataIntegrity} />
 
       <section aria-labelledby="key-levels-heading">
         <div className="mb-4 flex items-baseline justify-between gap-4">

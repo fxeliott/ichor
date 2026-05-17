@@ -243,3 +243,33 @@ pool.markdown`, dual-branch assignment precedent), `:320-323` (`to_audit_row` + 
   NOT NULL DEFAULT pattern this ADR deliberately diverges from for honest tri-state).
 - [ADR-103](ADR-103-runtime-fred-liveness-degraded-data-explicit-surface.md) §Related/§Scope
   boundary/§Negative (the anticipated child) + §Amendment(r94).
+
+## Implementation (r96, 2026-05-17) — frontend badge shipped exactly as specified
+
+The r96 follow-up named in §Related and bound by §Cross-endpoint was implemented as
+specified (commit recorded in SESSION_LOG r96 / pickup §r96 — this ADR is committed within
+that same commit, so its hash is not self-referenceable here; no fabricated hash). No new
+ADR was authored: §Cross-endpoint **is** the r96 specification, and this dated note closes
+the forward-reference per the immutable-ADR append discipline (doctrine #9 — history not
+rewritten).
+
+- **NEW pure SSOT `apps/web2/lib/dataIntegrity.ts`** (no `"use client"`, no React/JSX —
+  RSC-safe, mirrors `lib/eventSurprise.ts`): `deriveDataIntegrity(degraded_inputs)` →
+  discriminated `DataIntegritySummary` tri-state (`untracked` / `all_fresh` / `degraded`),
+  all FR display strings precomputed in the pure module.
+- **NEW thin client `apps/web2/components/briefing/DataIntegrityBadge.tsx`** mirroring the
+  `EventSurpriseGauge` / `PocketSkillBadge` house style byte-faithfully; ADR-017 boundary
+  footer on every state; renders nothing only when there is no card at all.
+- **`apps/web2/lib/api.ts`**: new `DegradedInput` interface + `degraded_inputs:
+DegradedInput[] | null` on `SessionCard` (mirrors the r95 backend wire shape exactly).
+- **`apps/web2/app/briefing/[asset]/page.tsx`**: 1 component import + 1 SSOT import + the
+  server-side `deriveDataIntegrity(card.degraded_inputs)` derive + the standalone
+  `<DataIntegrityBadge>` placed between `<PocketSkillBadge>` and the "Niveaux clés" section
+  (the epistemic-sibling placement specified in §Cross-endpoint / §Related).
+
+§Cross-endpoint honored verbatim: consumes ONLY `SessionCard.degraded_inputs` (the
+`/v1/sessions` card field), **no `/v1/data-pool` sidecar**, **no new fetch** (the card was
+already fetched); `null` renders as "non suivie — absence d'information, à ne pas
+interpréter comme un état sain", **never** as "fresh". Zero backend change, Voie D
+(pure deterministic presentation, zero LLM), additive-only. See SESSION_LOG r96 for the
+3-witness live verification on real prod data.

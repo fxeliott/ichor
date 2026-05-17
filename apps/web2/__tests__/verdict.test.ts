@@ -50,6 +50,7 @@ function mkCard(p: Partial<SessionCard> = {}): SessionCard {
     realized_at: null,
     brier_contribution: null,
     created_at: "2026-05-17T08:00:00Z",
+    degraded_inputs: null,
     thesis: null,
     trade_plan: null,
     ideas: null,
