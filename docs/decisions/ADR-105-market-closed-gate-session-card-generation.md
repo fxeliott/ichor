@@ -282,3 +282,79 @@ After=ichor-briefing@weekly.service` is ordering-only and chains off
   fused-briefing asset-prune + its interim in-briefing
   `holiday_name` caveat are explicitly-deferred next increments
   (ichor-trader R28 r99 YELLOW-1/2 — flagged, not "fully done").
+
+## Implementation (r100, 2026-05-17) — the in-briefing closed-market caveat
+
+This dated note records the r100 implementation of the
+**ichor-trader R28 r99 YELLOW-1 interim honesty floor** committed in
+§Implementation(r99) (immutable-ADR discipline — no new ADR ; this ADR
+IS the gate/honesty spec, §Implementation(r99) explicitly reserved this
+caveat as the next clean increment). One focused read-only R59
+sub-agent mapped the real `run_briefing.py` + `market_session.py`
+shapes (file:line, not guessed) and the design was re-verified against
+the real code, **reshaping the §Implementation(r99) premise**
+(doctrine #3 — R59 primes over a memory/prompt hypothesis) :
+
+- **R59 reshape — `_assemble_context` computes its OWN status (the
+  §Impl(r99) "the path already computes `status`" premise is
+  load-bearing-wrong for the deployed state).** The r99 gate's `status`
+  local (`run_briefing.py:458`) is bound **only** inside `if gate_on:`
+  inside the `try` (`:454-471`). On the **ships-OFF default**
+  (`briefing_market_closed_gate_enabled` row absent ⇒ `gate_on=False` —
+  the actual prod state) and on the fail-open `except` path
+  (`:472-477`), `status` is **never bound** ⇒ referencing it at the
+  `_assemble_context` call site (`:496`) would raise
+  `UnboundLocalError`. Therefore `_assemble_context` recomputes its own
+  `compute_session_status()` — verified pure / zero-DB / never-raising
+  on well-formed input (`market_session.py:144-226`, no I/O, datetime
+  math + dict lookup) ⇒ **zero new DB dependency**, safe on every path.
+  Documented, not silently deviated.
+- **NEW pure SSOT `briefing_market_caveat(briefing_type, status) ->
+str | None`** in `services/market_session.py`, placed next to
+  `should_skip_briefing` (the gate-decision SSOT home) — the caveat
+  decision/wording IS the SSOT, NOT inlined in `run_briefing.py` so a
+  future drift fails a test (anti-accumulation #4 ; mirrors the r99
+  `should_skip_briefing` extraction).
+- **Scope = the COMPLETE daily-briefing closed-market caveat in ONE
+  coherent SSOT — NOT scope creep.** It closes the documented r99
+  YELLOW-1 (US-equity holiday : `market_closed_us_equity` +
+  `holiday_name`, FX/XAU trading — SPX 500 / Nasdaq sections must not
+  read as a live US-equity session) **AND** the byte-identical sibling
+  defect : a DAILY briefing generated on a **weekend** because the r99
+  gate ships flag-OFF (`market_closed_fx` — the whole fused briefing is
+  a closed-market read). Shipping only the holiday half would leave the
+  exact same defect class (a closed-market daily briefing read as live)
+  for ~104 weekends/yr whenever the gate flag is OFF — precisely the
+  "ce qui peut manquer" the standing brief forbids leaving half-built
+  (doctrine #1). `weekly` / `crisis` / any unrecognised type remain
+  **EXEMPT** — `briefing_market_caveat` reuses the exact
+  `_DAILY_BRIEFING_TYPES` gate of `should_skip_briefing`, so a
+  "markets closed" line never noises the intentional Sunday-18:00
+  week-ahead `weekly` or the event-driven `crisis`.
+- **Both assembler paths covered (the caveat is an invariant of
+  `_assemble_context` regardless of internal path).** Computed once at
+  the top of `_assemble_context` (before the rich/legacy branch).
+  Legacy path (the proven deployed default, `ICHOR_RICH_CONTEXT`
+  opt-in) : injected into the `parts` preamble immediately after
+  `Generated at`. Rich path (`ICHOR_RICH_CONTEXT=1`) : prepended to the
+  delegated `build_rich_context` markdown with an honest
+  `tok_est += len(caveat)//4 + 1` bump (the rich-path token budget is
+  body-scoped ; a ~1-line banner is negligible and honestly accounted).
+- **Still explicitly DEFERRED (calibrated honesty — NOT "holiday-gate
+  fully done").** The **US-holiday fused-briefing asset-PRUNE** (a
+  mid-flow `assets` mutation on a critical path ; ~10 US-holidays/yr ;
+  YAGNI per §Implementation(r99)) is unchanged-deferred. r100 closes
+  the _caveat_ half of the r99 YELLOW-1, **not** the prune. The
+  ADR-099 §Coverage annotation is extended `[… + r100 DONE]` only for
+  the caveat, with the asset-prune still named as the residual.
+- Mechanism unchanged from §1 (pure-Python ; ZERO systemd /
+  register-cron / migration ; deploy `redeploy-api.sh` additive,
+  auto-rollback). ADR-017 / Voie D untouched — the caveat is a pure
+  calendar string (no LLM, no signal, no BUY/SELL ;
+  `test_invariants_ichor` ADR-081 green). Tests : pure-SSOT exhaustive
+  matrix (weekend-daily / us-holiday-daily / normal-daily-None /
+  weekly-None / crisis-None / unknown-None / holiday-name-surfaced /
+  weekend-carries-no-holiday-name) + async wiring
+  (`_assemble_context` emits the caveat into the legacy preamble on a
+  US holiday ; normal weekday emits none) — appended to the sibling
+  `tests/test_market_session.py` (anti-accumulation #4).

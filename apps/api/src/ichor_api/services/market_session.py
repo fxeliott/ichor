@@ -275,3 +275,57 @@ def should_skip_briefing(briefing_type: str, status: SessionStatus) -> bool:
     if briefing_type not in _DAILY_BRIEFING_TYPES:
         return False
     return status.market_closed_fx
+
+
+def briefing_market_caveat(briefing_type: str, status: SessionStatus) -> str | None:
+    """One-line market-closed honesty banner for the fused DAILY briefing
+    preamble — ADR-105 §Implementation(r100) SSOT, sibling of
+    `should_skip_briefing`.
+
+    `should_skip_briefing` SKIPS a daily briefing on a weekend only when
+    the r99 gate flag is enabled ; it ships OFF, so (a) on a weekend
+    (flag-OFF) a daily briefing is still generated, and (b) on a US-equity
+    holiday it is ALWAYS generated (`market_closed_fx` is False there —
+    FX/XAU 4/6 trade, `should_skip_briefing` returns False). Either way the
+    fused market-wide artefact carries SPX500/NAS100 content a reader (or
+    the consuming LLM) could mistake for a live US-equity pre-session read
+    (ichor-trader R28 r99 YELLOW-1). This returns the explicit caveat line
+    to thread into `_assemble_context`'s preamble, or None when none is
+    warranted.
+
+    Scope mirrors `should_skip_briefing` EXACTLY (same `_DAILY_BRIEFING_TYPES`
+    gate) : only the 4 DAILY windows are caveated ; `weekly` (the
+    intentional Sunday-18:00 week-ahead prep) / `crisis` (event-driven) /
+    any unrecognised type ⇒ None — they are deliberately
+    market-closed-time forward-looking artefacts, a "markets closed" line
+    there is noise, not honesty. Weekend takes precedence over US holiday
+    (matches `compute_session_status` branch order : a weekend that is also
+    a holiday is classified `weekend`, `holiday_name=None`). Pure : never
+    raises on a well-formed `SessionStatus` (the caller — the fail-open
+    gate context — owns all error handling ; `compute_session_status` is
+    itself zero-DB / non-raising).
+    """
+    if briefing_type not in _DAILY_BRIEFING_TYPES:
+        return None
+    if status.market_closed_fx:
+        # Weekend : FX, equities and gold are ALL closed (the whole fused
+        # briefing is a closed-market read, not a live pre-session one).
+        return (
+            "> **MARKET CLOSED — weekend.** FX, equities and gold are all "
+            "closed (FX reopens Sunday ~22:00 Paris). Treat every section "
+            "below as forward-looking preparation, NOT a live pre-session "
+            "read — do not describe any asset as showing live or intraday "
+            "session behaviour. (ADR-105 market-closed honesty gate.)"
+        )
+    if status.market_closed_us_equity and status.holiday_name:
+        # US-equity holiday (weekday) : SPX 500 / Nasdaq closed ; FX & gold
+        # trade normally. Their sections reflect the prior close.
+        return (
+            f"> **US EQUITIES CLOSED — {status.holiday_name}.** S&P 500 "
+            "(SPX500) and Nasdaq (NAS100) are NOT in a live session today; "
+            "their signals reflect the prior close, not a live pre-session "
+            "read. FX and gold (EUR/USD, GBP/USD, XAU/USD) trade normally. "
+            "Do not describe SPX500/NAS100 as showing live pre-session "
+            "momentum. (ADR-105 market-closed honesty gate.)"
+        )
+    return None

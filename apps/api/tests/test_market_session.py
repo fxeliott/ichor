@@ -13,12 +13,14 @@ from unittest.mock import AsyncMock, MagicMock
 from zoneinfo import ZoneInfo
 
 import pytest
+from ichor_api.cli.run_briefing import _assemble_context
 from ichor_api.cli.run_briefing import main as _briefing_main
 from ichor_api.cli.run_session_cards_batch import _DEFAULT_ASSETS, _run_batch
 from ichor_api.services.market_session import (
     _DAILY_BRIEFING_TYPES,
     _US_EQUITY_ASSETS,
     _easter,
+    briefing_market_caveat,
     compute_session_status,
     market_closed_for_asset,
     should_skip_briefing,
@@ -417,3 +419,156 @@ async def test_briefing_gate_FAILS_OPEN_when_flag_check_raises(monkeypatch):
     await _briefing_main("pre_londres")
 
     reached.assert_awaited()  # FAIL-OPEN: execution proceeded past the gate
+
+
+# ─── ADR-105 §Implementation(r100) — briefing_market_caveat SSOT + wiring ──
+
+# Independently-checkable 2026 dates (file docstring) : 2026-05-16 = Sat
+# (weekend) ; 2026-12-25 = Fri = Christmas Day (US-equity holiday, FX
+# open) ; 2026-01-19 = Mon = MLK (US-equity holiday) ; 2026-05-13 = Wed
+# 07:00 = normal pre_londres (reused from the existing suite).
+_WEEKEND_DT = datetime(2026, 5, 16, 12, 0, tzinfo=PARIS)
+_XMAS_DT = datetime(2026, 12, 25, 10, 0, tzinfo=PARIS)
+_MLK_DT = datetime(2026, 1, 19, 10, 0, tzinfo=PARIS)
+_NORMAL_WED_DT = datetime(2026, 5, 13, 7, 0, tzinfo=PARIS)
+
+
+def test_caveat_weekend_daily_returns_weekend_banner():
+    s = compute_session_status(_WEEKEND_DT)
+    assert s.state == "weekend" and s.holiday_name is None
+    cav = briefing_market_caveat("pre_ny", s)
+    assert cav is not None
+    assert "MARKET CLOSED" in cav and "weekend" in cav and "ADR-105" in cav
+    # weekend has no holiday_name → the equity-holiday wording must NOT leak
+    assert "US EQUITIES CLOSED" not in cav
+
+
+def test_caveat_us_holiday_daily_surfaces_holiday_name():
+    s = compute_session_status(_XMAS_DT)
+    assert s.state == "us_holiday" and s.holiday_name == "Christmas Day"
+    assert s.market_closed_fx is False and s.market_closed_us_equity is True
+    cav = briefing_market_caveat("pre_londres", s)
+    assert cav is not None
+    # the r99 YELLOW-1 requirement : holiday_name is surfaced verbatim
+    assert s.holiday_name in cav
+    assert "US EQUITIES CLOSED" in cav
+    assert "SPX500" in cav and "NAS100" in cav and "ADR-105" in cav
+    assert "MARKET CLOSED — weekend" not in cav
+
+
+def test_caveat_us_holiday_surfaces_name_for_a_second_holiday_mlk():
+    # not coupled to the exact NYSE spelling — assert the field is surfaced
+    s = compute_session_status(_MLK_DT)
+    assert s.state == "us_holiday" and s.holiday_name
+    cav = briefing_market_caveat("ny_close", s)
+    assert cav is not None and s.holiday_name in cav
+
+
+def test_caveat_normal_weekday_daily_returns_none():
+    s = compute_session_status(_NORMAL_WED_DT)
+    assert s.state == "pre_londres"
+    assert briefing_market_caveat("pre_londres", s) is None
+
+
+def test_caveat_weekly_EXEMPT_even_on_weekend():
+    s = compute_session_status(_WEEKEND_DT)
+    assert briefing_market_caveat("weekly", s) is None  # R59-critical mirror
+
+
+def test_caveat_crisis_EXEMPT_even_on_weekend():
+    s = compute_session_status(_WEEKEND_DT)
+    assert briefing_market_caveat("crisis", s) is None
+
+
+def test_caveat_unknown_type_returns_none():
+    s = compute_session_status(_WEEKEND_DT)
+    assert briefing_market_caveat("totally_unknown_type", s) is None
+
+
+def test_caveat_all_daily_types_get_one_identical_weekend_banner():
+    s = compute_session_status(_WEEKEND_DT)
+    cavs = {bt: briefing_market_caveat(bt, s) for bt in _DAILY_BRIEFING_TYPES}
+    assert all(c is not None for c in cavs.values())
+    assert len(set(cavs.values())) == 1  # market-wide → identical for all 4
+
+
+class _EmptyResult:
+    """SQLAlchemy-result stand-in : every query returns empty so
+    _assemble_context takes all its defensive empty-state branches and the
+    assertion is purely on the preamble caveat (the SSOT logic itself is
+    proven by the pure tests above — this is the wiring proof)."""
+
+    def scalars(self):
+        return self
+
+    def all(self):
+        return []
+
+    def first(self):
+        return None
+
+
+def _patch_assemble_empty_session(monkeypatch):
+    sess = MagicMock()
+    sess.execute = AsyncMock(return_value=_EmptyResult())
+    monkeypatch.setattr(
+        "ichor_api.cli.run_briefing.get_sessionmaker",
+        lambda: MagicMock(return_value=_async_ctx(sess)),
+    )
+
+
+@pytest.mark.asyncio
+async def test_assemble_context_threads_us_holiday_caveat_into_preamble(monkeypatch):
+    """_assemble_context (legacy path) emits the US-equity-holiday caveat
+    in the preamble, BEFORE the first content section, with holiday_name
+    surfaced — the r99 YELLOW-1 wiring proof."""
+    _patch_assemble_empty_session(monkeypatch)
+    holiday = compute_session_status(_XMAS_DT)
+    monkeypatch.setattr(
+        "ichor_api.cli.run_briefing.compute_session_status",
+        lambda *a, **k: holiday,
+    )
+
+    text, tok_est = await _assemble_context("pre_ny", ["EUR_USD", "SPX500_USD"])
+
+    assert "US EQUITIES CLOSED" in text
+    assert holiday.holiday_name in text  # YELLOW-1 : holiday_name surfaced
+    # preamble position : the caveat precedes the first content section
+    assert text.index("US EQUITIES CLOSED") < text.index("## Bias signals")
+    assert tok_est > 0
+
+
+@pytest.mark.asyncio
+async def test_assemble_context_weekend_threads_weekend_caveat(monkeypatch):
+    """A DAILY briefing generated on a weekend (gate flag-OFF default)
+    carries the weekend closed-market caveat — the sibling defect r100
+    closes alongside the documented holiday case."""
+    _patch_assemble_empty_session(monkeypatch)
+    weekend = compute_session_status(_WEEKEND_DT)
+    monkeypatch.setattr(
+        "ichor_api.cli.run_briefing.compute_session_status",
+        lambda *a, **k: weekend,
+    )
+
+    text, _ = await _assemble_context("pre_londres", ["EUR_USD"])
+
+    assert "MARKET CLOSED" in text and "weekend" in text
+    assert text.index("MARKET CLOSED") < text.index("## Bias signals")
+
+
+@pytest.mark.asyncio
+async def test_assemble_context_normal_weekday_emits_no_caveat(monkeypatch):
+    """Zero-regression on the common path : a normal trading weekday adds
+    NO caveat line to the preamble (the briefing is unchanged)."""
+    _patch_assemble_empty_session(monkeypatch)
+    normal = compute_session_status(_NORMAL_WED_DT)
+    monkeypatch.setattr(
+        "ichor_api.cli.run_briefing.compute_session_status",
+        lambda *a, **k: normal,
+    )
+
+    text, _ = await _assemble_context("pre_ny", ["EUR_USD"])
+
+    assert "MARKET CLOSED" not in text
+    assert "US EQUITIES CLOSED" not in text
+    assert text.startswith("# Briefing context (pre_ny)")

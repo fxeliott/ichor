@@ -51,7 +51,11 @@ from ..models import (
     NewsItem,
 )
 from ..services.feature_flags import is_enabled
-from ..services.market_session import compute_session_status, should_skip_briefing
+from ..services.market_session import (
+    briefing_market_caveat,
+    compute_session_status,
+    should_skip_briefing,
+)
 
 log = structlog.get_logger(__name__)
 
@@ -90,6 +94,16 @@ async def _assemble_context(briefing_type: str, assets: list[str]) -> tuple[str,
         `briefing.context_builder.build_rich_context` which adds news,
         polymarket, and market_data with a token budget. See ADR-013.
     """
+    # ADR-105 §Implementation(r100) — in-briefing closed-market caveat.
+    # Recompute our OWN status : the r99 gate's `status` local is bound
+    # only inside `if gate_on:` inside its try, so on the ships-OFF
+    # default (no flag row) / fail-open path it is never bound and cannot
+    # be threaded here (R59 reshape, doctrine #3). compute_session_status
+    # is pure / zero-DB / never-raising on well-formed input — no new DB
+    # dependency. The caveat is an invariant of _assemble_context on BOTH
+    # the rich and legacy paths.
+    caveat = briefing_market_caveat(briefing_type, compute_session_status())
+
     if os.environ.get("ICHOR_RICH_CONTEXT") == "1":
         sm = get_sessionmaker()
         async with sm() as session:
@@ -98,6 +112,9 @@ async def _assemble_context(briefing_type: str, assets: list[str]) -> tuple[str,
                 briefing_type,
                 assets,
             )
+        if caveat:
+            md = f"{caveat}\n\n{md}"
+            tok_est += len(caveat) // 4 + 1
         log.info(
             "context.rich_used",
             briefing_type=briefing_type,
@@ -132,6 +149,8 @@ async def _assemble_context(briefing_type: str, assets: list[str]) -> tuple[str,
     parts: list[str] = []
     parts.append(f"# Briefing context ({briefing_type})")
     parts.append(f"Generated at {datetime.now(UTC).isoformat()}")
+    if caveat:
+        parts.append(caveat)
     parts.append("")
 
     parts.append("## Bias signals (24h horizon, latest per asset)")
