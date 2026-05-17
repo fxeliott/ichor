@@ -82,7 +82,9 @@ RUNBOOK-008. If 429 → see RUNBOOK-013.
 Get-Process python | Where-Object { $_.MainWindowTitle -like "*claude-runner*" } | Stop-Process -Force
 
 # 2. Re-launch via the canonical .bat
-& "C:\Users\eliot\Ichor\scripts\windows\start-claude-runner-standalone.bat"
+#    (r87 fix: was C:\Users\eliot\Ichor\... — that path does not exist;
+#     projects live on D:\ and the .bat cd's to D:\Ichor\apps\claude-runner)
+& "D:\Ichor\scripts\windows\start-claude-runner-standalone.bat"
 
 # 3. Verify
 Start-Sleep -Seconds 3

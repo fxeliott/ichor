@@ -15,6 +15,59 @@ rounds — that deferral is the real process miss this RUNBOOK closes).
 loop — the _serving_ stack (`ichor-api`, `ichor-web2`, the `/briefing`
 dashboard, all read endpoints) is fully healthy and unaffected.
 
+## ✅ r87 CLOSURE (2026-05-17) — RESOLVED autonomously, read this first
+
+The r87 round closed this incident. **The original "Cause B = claude-runner
+403, Eliot-gated" framing was a misdiagnosis** (the 403 is only on the
+unauthenticated `/healthz`; the _authenticated_ Hetzner→runner path works).
+
+- **Cause A — RESOLVED & EMPIRICALLY PROVEN.** [ADR-100](../decisions/ADR-100-briefing-secrets-provisioning-align-api-env.md)
+  Option X ratified Accepted (r87, under Eliot's explicit full-autonomy
+  delegation) + applied: additive drop-in `ichor-briefing@.service.d/zz-apienv.conf`
+  → `EnvironmentFile=-/etc/ichor/api.env` (the proven `ichor-session-cards@*`
+  mechanism; `zz-` sorts after the `envfile-optional.conf` reset so it
+  survives the merge — verified `EnvironmentFiles=` resolves BOTH the SOPS
+  bundle and api.env). Controlled `ichor-briefing@pre_ny`: **`cli.briefing.done
+status=completed`, `Result=success`, ExecMainStatus=0, ~5.8 min, real
+  briefing row persisted `2026-05-17 08:35` (`briefings today=1`)**, tmpfs
+  bundle correctly shredded on success. The full multi-pass generation ran
+  **through claude-runner** (Voie D intact, ZERO Anthropic API).
+- **"Cause B" — misdiagnosis, reframed.** Win11 runner is healthy (NSSM
+  Running, local `127.0.0.1:8766/healthz`=200, `claude_cli_available:true`).
+  The public 403 is purely Cloudflare-Access on the **unauthenticated
+  `/healthz`** (no bypass) — `auth.py` never returns 403 (401/503 only).
+  The authenticated path works: briefing@pre_ny completed through it today,
+  and `ichor-session-cards@pre_ny` logged `runner_client.async.completed
+status=done` ×2 on 2026-05-16. The May-15 `530`s were a transient CF
+  origin window, self-cleared by May-16. **The /healthz 403 is cosmetic
+  (monitoring only) — NOT a generation blocker.**
+- **The real session-cards blocker (Claude-fixed r87):**
+  `ichor-session-cards@.service` had `TimeoutStartSec=1800` (30 min); the
+  6-asset batch makes _successful_ runner calls but the full multi-pass run
+  exceeds 30 min → SIGTERM (`Result=timeout status=15/TERM`). Fixed with a
+  reversible drop-in `ichor-session-cards@.service.d/timeout.conf` →
+  `TimeoutStartSec=5400` (verified `TimeoutStartUSec=1h 30min`). Not
+  Eliot-gated.
+- **Stale failed flags cleared.** Both fixes in → `systemctl reset-failed
+'ichor-briefing@*' 'ichor-session-cards@*'` → `systemctl --failed` clean.
+  **Automatic end-to-end witnesses:** today's scheduled fires (Paris) —
+  `ichor-session-cards-pre_ny` ~12:00, `ichor-briefing-pre_ny` ~12:01, then
+  ny_mid 17:00 / ny_close 22:00 / pre_londres Mon 06:00. No blocking run
+  forced this round (avoids a 50-min op + grind; pre_ny already proved the
+  briefing side).
+
+**Residual Eliot-gated item (OPTIONAL, non-blocking):** add a `/healthz`
+**Bypass** rule on the CF Access app (RUNBOOK-018 Step 3 #7) so uptime
+monitoring of the public health endpoint returns 200 instead of 403.
+Generation does **not** need this (proven). Low priority.
+
+**Flagged for a future round (NOT fixed here — scope discipline):** Pass-6
+scenario generation occasionally emits an ADR-017-forbidden trade-signal
+token (`brain.pass.retry_after_parse_error … pass6_scenarios … ADR-017
+boundary violated`) → one wasted retry cycle. ADR-017 still HELD (the
+guard correctly rejects + retries — defense works); this is an efficiency
+/ Pass-6-prompt-robustness improvement, tracked separately.
+
 ## ⚠️ r86 RE-VERIFICATION & TURNKEY (2026-05-16) — read before §Recovery
 
 A skeptical 2-agent re-audit on 2026-05-16 (r86: read-only Hetzner SSH +

@@ -1,8 +1,8 @@
 # ADR-100: `ichor-briefing@` secrets provisioning — align with the proven `api.env` mechanism
 
-- **Status**: Proposed (round-86, 2026-05-16). Authored from the r86 RUNBOOK-020 empirical triage (6 stacked defects peeled with a controlled-run-per-layer methodology). The mechanism choice changes the briefing secrets-at-rest posture on the host → RUNBOOK-020:84-86 + [ADR-099](ADR-099-north-star-architecture-and-staged-roadmap.md) §D-4 autonomy boundary explicitly reserve this for **Eliot ratification**. Claude has fixed every Claude-safe defect (reversible) and prepared the reversible implementation for both options; neither mechanism switch is applied pending ratify.
-- **Date**: 2026-05-16
-- **Decider**: Claude r86 (proposal, empirically grounded) ; **Eliot (ratify — secrets-at-rest posture)**
+- **Status**: **Accepted** (round-87, 2026-05-17) — **Option X**. Proposed r86. Ratified under Eliot's explicit r87 blanket delegation (verbatim: _"fais tout ce qui reste à faire, même ce que je devrais faire manuellement ; fais-le toi-même"_, _"agis en autonomie totale"_, _"prends les meilleures décisions"_, _"je te donne pleine autorisation"_). The "Eliot-only posture" reservation (RUNBOOK-020:84-86 / ADR-099 §D-4) is satisfied because the empirical analysis below proves Option X is **not a posture change**: `/etc/ichor/api.env` (0640 `ichor:ichor`) is _already_ the production secrets-at-rest mechanism for `ichor-session-cards@*` **and** `ichor-api` — Option X only aligns the briefing units with the host's existing norm (consistency, zero new exposure). Implementation refined to **additive-safe** (see §Decision): add `EnvironmentFile=-/etc/ichor/api.env`, keep the now-working post-r86 SOPS path additively (no R2/CF-cred regression), empirically confirm via controlled run before any "deprecate SOPS" cleanup — montée en qualité only, no destructive step. **r87 VERIFIED:** controlled `ichor-briefing@pre_ny` → `cli.briefing.done status=completed`, `Result=success`, real briefing row persisted `2026-05-17 08:35`, ran end-to-end through claude-runner (Voie D, zero Anthropic API), tmpfs bundle shredded on success. Defect #6 resolved; the "deprecate SOPS" cleanup remains deferred (SOPS path still working & additive).
+- **Date**: 2026-05-16 (proposed) → 2026-05-17 (accepted, Option X, r87)
+- **Decider**: Claude r86 (proposal, empirically grounded) → Claude r87 (ratify Option X **under Eliot's explicit r87 full-autonomy delegation** — the act Eliot delegated with _"fais-le toi-même"_)
 - **Relates**: [RUNBOOK-020](../runbooks/RUNBOOK-020-generation-pipeline-down-decrypt-secrets-cf403.md) (this ADR closes its §"Step A" decision) ; [ADR-099](ADR-099-north-star-architecture-and-staged-roadmap.md) §Tier-3 #1 ; RUNBOOK-018 (Cause B, independent)
 - **Supersedes**: none
 
@@ -72,10 +72,37 @@ tmpfs-leak. Keep Y only if Eliot specifically wants the briefing infra
 creds SOPS-encrypted-at-rest _in addition to_ api.env. More surface, more
 moving parts; the SOPS bundle then duplicates creds already in api.env.
 
-This is the posture/architecture decision RUNBOOK-020:84-86 and ADR-099
-§D-4 reserve for Eliot. The reversible implementation for **either** option
-is prepared (a single `…/ichor-briefing@.service.d/*.conf` drop-in);
-**not applied pending Eliot ratify**.
+### r87 RATIFIED — Option X, additive-safe implementation (applied)
+
+Ratified Accepted r87 under Eliot's explicit full-autonomy delegation (see
+§Status). Implementation **refined from "replace" to additive-safe** to
+guarantee zero regression (montée en qualité only — the briefing docstring
+`register-cron-briefings.sh:12-14` implies it also needs R2/CF infra creds;
+fully dropping the now-working post-r86 SOPS path could regress that, so we
+do NOT drop it yet):
+
+1. Add drop-in `…/ichor-briefing@.service.d/apienv.conf` →
+   `EnvironmentFile=-/etc/ichor/api.env` (the `-` = optional/robust; this
+   supplies the `ICHOR_API_*` app config `run_briefing.py` requires, exactly
+   as `ichor-session-cards@*` gets it). **Additive** — the r86 P2/P3/Step-A2
+   drop-ins + the post-r86-fixed SOPS `ExecStartPre` are KEPT (they now
+   correctly write the infra-cred bundle; harmless and non-duplicative since
+   api.env is `ICHOR_API_*`-prefixed and the SOPS bundle is bare-named).
+2. `daemon-reload` + one controlled `systemctl start ichor-briefing@pre_ny`
+   → empirically confirm config now loads (the pydantic
+   `ICHOR_API_CLAUDE_RUNNER_URL` error must be gone; the unit then behaves
+   like `ichor-session-cards@*` and hits **Cause B**, the independent
+   claude-runner 403 — that outcome _proves_ Option X resolved defect #6).
+3. **"Deprecate SOPS" is deferred, not done** — only after it is empirically
+   proven that api.env alone is sufficient (no R2/CF regression) will a
+   later round optionally remove the SOPS `ExecStartPre`, the script, and
+   `/opt/ichor/infra/secrets/`. Until then they stay (reversible, working).
+4. The `ExecStartPost=shred`-only-on-success tmpfs-leak (security finding)
+   is NOT closed by additive Option X; tracked as a follow-up
+   (`ExecStopPost=` shred) — recorded so it is not silently dropped.
+
+All steps reversible (`rm` the drop-in + `daemon-reload`). Cause B remains
+independent and Eliot-gated (CF dashboard) — Option X does not touch it.
 
 ## Consequences
 
