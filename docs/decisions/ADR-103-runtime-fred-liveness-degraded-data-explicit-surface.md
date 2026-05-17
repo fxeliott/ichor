@@ -199,3 +199,26 @@ Pure additions to `data_pool.py` (`FredLiveness`/`DegradedInput` dataclasses + `
   silently absent) + §T3.2 (`:154`).
 - [ADR-097](ADR-097-fred-liveness-nightly-ci-guard.md) §Amendment (r92 — the
   `fred_age_registry` dep-free SSOT this ADR reuses at runtime).
+
+## Amendment (r94, 2026-05-17) — the first live DEGRADED was a registry mis-calibration; the surface behaved exactly as designed
+
+r93's first live run reported `Status : ⚠️ DEGRADED — 3 of 10` for `AUD_USD`:
+`MYAGM1CNM189N` (genuinely dead, 2481 d) **plus** `PIORECRUSDM` + `PCOPPUSDM`
+at 77 d > 60 d. r94 ran the R53 triage with three independent authoritative
+sources (prod-DB + live `fred.stlouisfed.org` primary source + the code-map):
+iron/copper are **LIVE monthly IMF-PCPS series** (latest Mar 2026, NOT
+discontinued) with a ~2-week-after-month-end publication lag, so their freshest
+observation is _inherently_ ~75–90 d old. The DEGRADED on iron/copper was a
+**false alarm caused by a mis-calibrated registry input** (ADR-092 §T1.AUD-2's
+`= 60`, premise empirically refuted), **not** by this surface. ADR-103 worked
+**exactly as designed** — §Decision-1/§Negative state it judges liveness vs the
+registry SSOT and is "not itself a liveness oracle"; it correctly exposed a
+latent mis-calibration that had silently dropped the AUD commodity composite
+for ~10+ rounds (the silent-skip chain it was built to break). **ADR-103 is
+NOT amended in substance** — the fix is at the registry layer
+([ADR-092 §Round-94 amendment](ADR-092-gap-d-asian-pacific-daily-proxy-upstreams.md):
+`PIORECRUSDM`/`PCOPPUSDM` 60→120 d), not by weakening this contract. The
+China-M1 DEGRADED remains correct and desirable (a real dead series, kept at
+60 d). Net: the surface's first production signal was a true-positive
+_mechanism_ find (a real latent bug), validating the T3.2 design. See
+SESSION_LOG r94.

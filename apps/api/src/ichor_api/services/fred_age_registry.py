@@ -39,19 +39,33 @@ FRED_SERIES_MAX_AGE_DAYS: dict[str, int] = {
     "IRLTLT01JPM156N": 120,  # Japan 10y monthly
     "IRLTLT01GBM156N": 120,  # UK 10y monthly
     "IRLTLT01AUM156N": 120,  # Australia 10y monthly (round-46 ADR-092 §T1.AUD-3)
-    # ─── IMF World Bank PinkBook composite monthly series (round-46 ADR-092) ───
-    # 60d max-age acceptable because IMF PinkBook publishes early-month
-    # (vs OECD MEI mid-month with 1-month publication lag → OECD entries
-    # need 120d). r46 ship validates empirically post-deploy ; if FRED
-    # silent-skip emerges (60-65d delay scenarios), bump to 90d or 120d
-    # in a follow-up hygiene round (code-reviewer M2 review caveat).
-    "MYAGM1CNM189N": 60,  # China M1 monthly (round-46 r46-round-2 audit swap from
-    #                       MYAGM2CNM189N which was DISCONTINUED Aug 2019 per IMF
-    #                       IFS / FRED) ; credit-impulse proxy preserved per
-    #                       Barcelona et al. 2022 Fed IFDP 1360 ; TSF direct
-    #                       deferred per ADR-092 §DEFER firmly
-    "PIORECRUSDM": 60,  # Global Iron Ore Price Index monthly (round-46 ADR-092 §T1.AUD-2)
-    "PCOPPUSDM": 60,  # Global Copper Price Index monthly (round-46 ADR-092 §T1.AUD-2)
+    # ─── IMF Primary Commodity Price System monthly series ───
+    # r94 RECALIBRATION (ADR-092 §Round-94 amendment) : the r46 "60d
+    # acceptable because IMF PinkBook publishes early-month" assumption
+    # was empirically REFUTED by the r93 ADR-103 liveness surface + the
+    # r94 R53 triage (prod-DB + live fred.stlouisfed.org primary source) :
+    # IMF PCPS publishes month-M ~mid-month-M+1 (~2-week-after-month-end
+    # lag), so the freshest observation is INHERENTLY ~75-90d old by
+    # period-date in normal operation. 60d false-DEGRADED the AUD
+    # iron-ore + copper composite every card. Recalibrated 60→120d to
+    # match the monthly-OECD precedent (ADR-092:63 set AU-10Y=120 ; all
+    # other monthly series here are 120) ; still catches a genuine
+    # China-M1-class death within ~4 months for a composite sub-driver.
+    "MYAGM1CNM189N": 60,  # China M1 monthly — GENUINELY DISCONTINUED 2019-08-01
+    #                       (latest obs frozen 2019, age ~2481d ; ADR-093
+    #                       §r49). Left at 60d INTENTIONALLY : any threshold
+    #                       flags a 6-year-dead series ; correctly DEGRADED
+    #                       by the ADR-103 surface (do NOT widen — that
+    #                       would mask a real dead series). Swap history :
+    #                       r46-round-2 from MYAGM2CNM189N (also dead) ;
+    #                       credit-impulse proxy per Barcelona et al. 2022
+    #                       Fed IFDP 1360 ; TSF direct deferred ADR-092 §DEFER
+    "PIORECRUSDM": 120,  # Global Iron Ore Price Index monthly, IMF PCPS — LIVE
+    #                      (r94 R53-verified : latest Mar 2026, NOT discontinued).
+    #                      60→120 r94 recalibration, ADR-092 §Round-94 amendment.
+    "PCOPPUSDM": 120,  # Global Copper Price Index monthly, IMF PCPS — LIVE
+    #                    (r94 R53-verified : latest Mar 2026, NOT discontinued).
+    #                    60→120 r94 recalibration, ADR-092 §Round-94 amendment.
     "USALOLITOAASTSAM": 120,  # US CLI monthly
     "G7LOLITOAASTSAM": 120,  # G7 aggregate CLI
     "JPNLOLITOAASTSAM": 120,

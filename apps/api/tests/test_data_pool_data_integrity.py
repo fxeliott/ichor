@@ -283,3 +283,39 @@ async def test_adr017_clean_degraded(monkeypatch) -> None:
     md, _, degraded = await _section_data_integrity(AsyncMock(), "AUD_USD")
     assert is_adr017_clean(md), "ADR-017 violation in DEGRADED render"
     assert len(degraded) == 2
+
+
+# ───────────── r94 iron/copper registry recalibration proof ────────────
+# ADR-092 §Round-94 amendment : PIORECRUSDM/PCOPPUSDM 60→120d. These pin
+# the END-TO-END behavioural consequence (not just the registry value,
+# which test_fred_frequency_registry covers) : at the exact r93-observed
+# age, the corrected registry makes _fred_liveness classify the live
+# monthly series FRESH (false-DEGRADED gone) while a genuine death is
+# still caught at 120d. _fred_liveness reads the registry via
+# _max_age_days_for (override=None for these per _ASSET_CRITICAL_ANCHORS).
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("series_id", ["PIORECRUSDM", "PCOPPUSDM"])
+async def test_iron_copper_77d_is_fresh_post_r94_recalibration(series_id: str) -> None:
+    """The exact r93 ground-truth scenario : latest obs 77 days old.
+    Pre-r94 (registry 60d) → STALE = false-DEGRADED every AUD card.
+    Post-r94 (registry 120d) → FRESH. This is the false-alarm fix,
+    proven at the _fred_liveness layer that the ADR-103 audit consumes."""
+    lv = await _fred_liveness(_session_returning(_TODAY - timedelta(days=77)), series_id)
+    assert lv.status == "fresh"
+    assert lv.max_age_days == 120  # the r94-recalibrated registry value
+    assert lv.age_days == 77
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("series_id", ["PIORECRUSDM", "PCOPPUSDM"])
+async def test_iron_copper_genuine_death_still_caught_at_120d(series_id: str) -> None:
+    """The 60→120 widening must NOT blind the surface to a genuine
+    China-M1-class death : an observation older than 120d still
+    classifies STALE (the death-catch is preserved, just at a
+    correctly-calibrated threshold — ~4 months for a sub-driver)."""
+    lv = await _fred_liveness(_session_returning(_TODAY - timedelta(days=130)), series_id)
+    assert lv.status == "stale"
+    assert lv.age_days == 130
+    assert lv.max_age_days == 120

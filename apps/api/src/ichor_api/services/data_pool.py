@@ -2088,6 +2088,19 @@ async def _section_aud_specific(session: AsyncSession, asset: str) -> tuple[str,
                 "cross-confirmation via base-metals complex co-move)"
             )
         lines.append(
+            "- Staleness caveat (r94, ADR-092 §Round-94) : PIORECRUSDM + "
+            "PCOPPUSDM are IMF-PCPS MONTHLY series with a ~2-week-after-"
+            "month-end publication lag, so the as-of dates above are "
+            "inherently ~2.5-4 months behind spot (registry tolerance "
+            "widened 60→120 d after the r93 false-DEGRADED triage). Treat "
+            "this composite as a SLOW terms-of-trade REGIME marker only ; "
+            "the Pass-2 LLM SHOULD NOT extrapolate near-term direction "
+            "from a single stale monthly print, and SHOULD cross-check "
+            "the iron/copper as-of dates against the AU-10Y and DGS10 "
+            "as-of dates above before triangulating the 3-driver "
+            "composite (mirrors the China-M1 single-print constraint)."
+        )
+        lines.append(
             "- Interpretation : iron-ore rising in a China-expansion "
             "regime is the canonical AUD-bid configuration (Chen-Rogoff "
             "2003 + Ready-Roussanov-Ward 2017 commodity-final-goods "

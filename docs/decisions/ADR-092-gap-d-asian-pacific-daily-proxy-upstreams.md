@@ -10,6 +10,18 @@
 
 **Related**: ADR-093 (PROPOSED future round — AUD commodity surface degraded explicit, iron-ore daily deferred).
 
+## Round-94 amendment (2026-05-17) — §T1.AUD-2 `PIORECRUSDM`/`PCOPPUSDM` 60→120 d max-age recalibration ("PinkBook publishes early-month" assumption empirically REFUTED)
+
+§T1.AUD-2 (`ADR-092:54`) authored `_FRED_SERIES_MAX_AGE_DAYS["PIORECRUSDM"] = 60` + same for `PCOPPUSDM`, justified by the assumption _"IMF PinkBook publishes early-month (vs OECD MEI mid-month with 1-month publication lag → OECD entries need 120d)"_ (`fred_age_registry.py:43-44`). The same registry block pre-sanctioned a fix: _"if FRED silent-skip emerges (60-65d delay scenarios), bump to 90d or 120d in a follow-up hygiene round (code-reviewer M2 caveat)"_ (`fred_age_registry.py:45-47`).
+
+**r93 (ADR-103 runtime FRED-liveness surface) empirically surfaced it**, and r94 ran the R53 triage with **three independent authoritative sources, zero guess** (the China-M1 web-cache-hallucination lesson):
+
+- **prod-DB ground-truth** (`psql -d ichor`, 2026-05-17): `PIORECRUSDM` + `PCOPPUSDM` latest observation `2026-03-01`, age 77 d (vs the dead China-M1 `MYAGM1CNM189N` at 2481 d — a categorically different profile; vs the live monthly OECD anchors `IRLTLT01{AU,GB}M156N` at 46 d under their 120 d entry, correctly FRESH).
+- **FRED primary source** (live `fred.stlouisfed.org` series pages rendered in-browser, 2026-05-17): both **Monthly**, IMF Primary Commodity Price System, latest obs **Mar 2026**, last updated by FRED **2026-04-15**, **NOT discontinued / actively maintained**.
+- The "PinkBook publishes early-month" premise is **false**: IMF PCPS publishes month-_M_ roughly **mid-month _M+1_** (~2-week-after-month-end lag). The freshest possible observation is therefore _inherently_ ~75–90 d old by period-date in normal operation, routinely reaching ~85–90 d right before each mid-month IMF release. The 60 d ceiling false-fires every cycle.
+
+**Correction (this amendment is authoritative; §T1.AUD-2's `= 60` is superseded):** `_FRED_SERIES_MAX_AGE_DAYS["PIORECRUSDM"]` and `["PCOPPUSDM"]` are recalibrated **60 → 120 d**, matching the monthly-OECD precedent this very ADR used for AU-10Y (`ADR-092:63` → `IRLTLT01AUM156N = 120`, "matches r37 registry pattern for OECD MEI series") and every other monthly series in the registry (`fred_age_registry.py:37-41,55-61`). 120 d gives ~30 d margin over the ~90 d normal worst-case and still catches a genuine China-M1-class death within ~4 months — acceptable for a composite _sub-driver_ (the AUD section still renders on its primary AU anchor; the alternative — false-DEGRADED every card — destroys trust in the entire ADR-103 surface). `MYAGM1CNM189N` stays at 60 d **unchanged** (genuinely discontinued 2019-08-01 — correctly DEGRADED; ADR-093 §r49). The r93 ADR-103 surface behaved **exactly as designed** (it judges vs the registry SSOT and is not itself amended) — it correctly exposed a latent ADR-092 mis-calibration that had been silently dropping the AUD commodity composite for ~10+ rounds. See SESSION_LOG r94 + ADR-103 §Amendment (r94).
+
 ## Context
 
 Round-40 codified the **R24 SUBSET-not-SUPERSET mirror discipline** : a per-asset `_section_<asset>_specific` must triangulate via drivers whose cadences are **already daily** in the existing data pool, OR explicitly surface a frequency-mismatch warning (BTP r34 precedent). The 8-asset D1 universe progressed `_section_<asset>_specific` to **3/5 closed** through GAP-A continuation rounds 41-43 (XAU/NAS100/SPX500). 2 paires remain blocked :
