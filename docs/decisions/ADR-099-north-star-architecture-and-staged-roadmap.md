@@ -69,6 +69,11 @@ DST-naive UTC heuristic with zero holiday calendar) — an explicit unmet requir
 - **ADR-097 FRED-liveness CI is NON-FUNCTIONAL**: workflow references
   `scripts/ci/fred_liveness_check.py` which **does not exist** in the worktree
   (ADR-097:3 "code shipped" is inaccurate — empirically refuted). Dead-series guard does not run.
+  **[r92 CORRECTION — this r72-epoch audit finding is STALE at HEAD: the script + workflow were
+  actually shipped r61 and have existed since (the r72 audit checked a state ~56 commits old).
+  They were however non-functional via 2 latent defects ; r92 fixed both (registry extracted to
+  the dep-free `services/fred_age_registry.py` ; workflow `pip install httpx structlog` +
+  secret-gate). The guard is now genuinely functional — see ADR-097 §Amendment (r92).]**
 - Silent-skip chain (`fred.py:95` + `data_pool` `return "",[]` + `run_session_card.py:316`
   broad except) degrades the briefing with no human-visible alert.
 - Couche-2 CLI docstring describes Cerebras→Groq primary — a description-vs-doctrine
@@ -143,6 +148,9 @@ push. Tiers are executed in order; within a tier, highest value/effort first.
 **Tier 3 — Autonomy hardening.**
 
 - T3.1 Ship the missing `scripts/ci/fred_liveness_check.py` (make ADR-097 real).
+  **[r92 DONE — the script existed since r61 but was broken by 2 latent defects ; r92 fixed
+  both + added the first unit test. ADR-097 §Amendment (r92). Residual Eliot gesture:
+  `gh secret set ICHOR_CI_FRED_API_KEY` (RUNBOOK-019) — the guard auto-activates then.]**
 - T3.2 Human-visible degraded-data alert (break the silent-skip chain).
 - T3.3 Enforce briefing/session-card ordering (`After=`) + batch-success watchdog.
 - T3.4 Trace & resolve the Couche-2 Claude-vs-Cerebras/Groq doctrine divergence.

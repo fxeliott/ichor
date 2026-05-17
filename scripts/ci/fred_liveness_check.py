@@ -15,12 +15,15 @@ Rate-limit math (corrected per r50.5 wave-2 critique) :
 - Original ADR-097 spec : 60 req in <5s burst → would trip rate-limit
 - This script : 0.5s sleep between requests = ≤2 req/sec = safe
 
-Imports use existing canonical sources :
+Imports use existing canonical sources. r92 : the max-age registry was
+extracted to a dependency-free SSOT so this CI guard no longer pulls
+data_pool's SQLAlchemy + 33-ORM graph — the latent Defect A that made
+every run exit-4 since r61 (the docstring below anticipated exactly
+this extraction) :
 - `merged_series()` from `apps/api/src/ichor_api/collectors/fred_extended.py`
-- `_FRED_SERIES_MAX_AGE_DAYS` + `_FRED_DEFAULT_MAX_AGE_DAYS` from
-  `apps/api/src/ichor_api/services/data_pool.py` (private API,
-  acceptable for CI internal use ; future r62+ can extract to
-  dedicated `services/fred_age_registry.py` if needed elsewhere)
+- `FRED_SERIES_MAX_AGE_DAYS` + `FRED_DEFAULT_MAX_AGE_DAYS` from
+  `apps/api/src/ichor_api/services/fred_age_registry.py` (dependency-
+  free SSOT ; `data_pool.py` re-exports them byte-identically)
 
 Severity bands (per ADR-097) :
 - GREEN : staleness ≤ threshold
@@ -65,9 +68,11 @@ def _import_canonical_sources() -> tuple[tuple[str, ...], dict[str, int], int]:
             sys.path.insert(0, apps_api_src)
 
         from ichor_api.collectors.fred_extended import merged_series
-        from ichor_api.services.data_pool import (
-            _FRED_DEFAULT_MAX_AGE_DAYS,
-            _FRED_SERIES_MAX_AGE_DAYS,
+        from ichor_api.services.fred_age_registry import (
+            FRED_DEFAULT_MAX_AGE_DAYS as _FRED_DEFAULT_MAX_AGE_DAYS,
+        )
+        from ichor_api.services.fred_age_registry import (
+            FRED_SERIES_MAX_AGE_DAYS as _FRED_SERIES_MAX_AGE_DAYS,
         )
 
         series = merged_series()

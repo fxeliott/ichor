@@ -35,18 +35,45 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install minimal deps (httpx only — no full apps/api install)
+      # r92 Defect-A fix : the shipped bare `pip install httpx` made the
+      # script's canonical-source import exit-4 on every run since r61
+      # (fred.py needs structlog). The CI guard's full import graph =
+      # fred_age_registry (dep-free, extracted r92) + fred_extended
+      # (clean) + fred (httpx + structlog) — so httpx + structlog is
+      # sufficient ; no heavy apps/api install (ADR-097 "minimal deps").
+      - name: Install minimal deps (httpx + structlog)
         run: |
           python -m pip install --upgrade pip
-          pip install httpx
+          pip install httpx structlog
+
+      # r92 Defect-B fix (additive) : ICHOR_CI_FRED_API_KEY is an
+      # Eliot-gated GitHub secret not yet set (RUNBOOK-019). The script
+      # is fail-closed per ADR-097 (exit 3 when the key is absent). To
+      # land additively WITHOUT reding the Actions tab on every nightly
+      # cron until Eliot runs `gh secret set ICHOR_CI_FRED_API_KEY`, gate
+      # the run on the secret's presence — the guard auto-activates the
+      # moment the secret lands. The script's fail-closed contract is
+      # unchanged (still exit-3 for local / manual runs without the key).
+      - name: Detect CI FRED key presence
+        id: keycheck
+        env:
+          ICHOR_CI_FRED_API_KEY: ${{ secrets.ICHOR_CI_FRED_API_KEY }}
+        run: |
+          if [ -n "$ICHOR_CI_FRED_API_KEY" ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::ICHOR_CI_FRED_API_KEY not set — FRED liveness check skipped (RUNBOOK-019 ; auto-activates once Eliot sets the secret)"
+          fi
 
       - name: Run FRED liveness check
+        if: steps.keycheck.outputs.present == 'true'
         env:
           ICHOR_CI_FRED_API_KEY: ${{ secrets.ICHOR_CI_FRED_API_KEY }}
         run: python scripts/ci/fred_liveness_check.py
 
       - name: Upload report artifact
-        if: always() # upload even on failure for debugging
+        if: always() && steps.keycheck.outputs.present == 'true'
         uses: actions/upload-artifact@v5
         with:
           name: fred-liveness-report-${{ github.run_id }}

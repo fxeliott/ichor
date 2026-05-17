@@ -201,3 +201,42 @@ if __name__ == "__main__":
 - **W90 r37** : `_FRED_SERIES_MAX_AGE_DAYS` registry per-series thresholds
 - **ADR-093** : graceful-degradation pattern for runtime dead-series (this ADR-097 is preventive, ADR-093 is reactive — both needed)
 - **R50 r50_smoketest empirical evidence** : PIORECRUSDM + PCOPPUSDM are FRED-LIVE (latest 2026-03-01) but DB has 0 rows — this is the silent-skip bug class CI guard would have caught.
+
+## Amendment (r92, 2026-05-17) — guard was shipped-but-broken since r61 ; made genuinely functional
+
+ADR is immutable once Accepted ; this amendment records the r92 fix (ADR-093-r49 precedent).
+
+**Finding (R59, r92).** The script + workflow were shipped r61 and have existed ever since (the
+ADR-099 §"empirical ground truth" claim that they "do not exist / ADR-097:3 refuted" was a
+**stale r72-audit finding** against a state ~56 commits old by r92 — corrected in ADR-099). BUT
+the guard was **non-functional from r61 to r92** due to two latent defects, so the R53/r88
+dead-series lesson was never actually mechanically enforced :
+
+- **Defect A (import / exit-4).** The script imported the max-age registry from
+  `services/data_pool.py`, which pulls SQLAlchemy + 33 ORM models + ~25 sibling services ;
+  `fred-liveness.yml` installed only `httpx`. The canonical-source import therefore failed
+  → exit 4 on every run, even with a valid key.
+- **Defect B (key-absent / nightly red).** Key-absent is fail-closed exit-3 (correct per this
+  ADR), but `ICHOR_CI_FRED_API_KEY` is an Eliot-gated secret not yet set (RUNBOOK-019) → the
+  nightly cron would red the Actions tab indefinitely once on the default branch.
+
+**r92 fix (additive, no contract weakening).**
+
+1. The max-age registry was **extracted to the dependency-free
+   `services/fred_age_registry.py`** (`FRED_SERIES_MAX_AGE_DAYS` + `FRED_DEFAULT_MAX_AGE_DAYS`)
+   — exactly the extraction this ADR anticipated. `data_pool.py` re-exports it under the
+   historic private names, byte-identical (r71/r91 extract-to-SSOT). The guard now imports the
+   dep-free registry → `pip install httpx structlog` is sufficient (Defect A fixed ; Invariants
+   1 & 2 intact ; "minimal deps" intent honoured — no heavy apps/api install).
+2. The workflow now **secret-gates** the run step : it skips cleanly with a `::notice::` until
+   `gh secret set ICHOR_CI_FRED_API_KEY` is run, then auto-activates (Defect B fixed
+   additively). **The script's fail-closed exit-3 contract is UNCHANGED** — local / manual
+   runs without the key still exit 3. Workflow-additive amendment, not a relaxation of the
+   ADR's fail-closed spec.
+3. First unit test added : `apps/api/tests/test_fred_liveness_check.py` (severity boundaries,
+   httpx-MockTransport `check_series`, the byte-identical registry-extraction guard, and the
+   fail-closed contract lock).
+
+**Net.** The guard genuinely runs the moment Eliot sets the CI secret ; until then it skips
+cleanly (no false nightly failure). The R53/r88 dead-series lesson is, for the first time
+since r61, actually mechanically enforceable.
