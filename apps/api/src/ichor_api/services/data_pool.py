@@ -20,7 +20,8 @@ gap surfaced by the first --live run on 2026-05-04 (id 93903a14).
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
+from typing import Literal
 
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -222,6 +223,50 @@ class DataPool:
     markdown: str
     sources: list[str] = field(default_factory=list)
     sections_emitted: list[str] = field(default_factory=list)
+    # ADR-103 (ADR-099 §T3.2) — runtime FRED-liveness degraded-input
+    # manifest. Default `[]` so every existing constructor stays valid
+    # (additive, frozen-dataclass-safe). Projected into `DataPoolOut`
+    # for the operator surface + the r94 end-user badge foundation.
+    degraded_inputs: list[DegradedInput] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class FredLiveness:
+    """Liveness verdict for one FRED series — ADR-103.
+
+    `_latest_fred` folds `observation_date >= cutoff` into SQL so a
+    series that is *stale* beyond its registry max-age returns the same
+    `None` as one that was *never ingested* (`data_pool.py:285-286`) —
+    the stale-vs-absent distinction is destroyed at the query layer.
+    This carries it explicitly. `status` semantics:
+      - `fresh`  : a non-null obs exists within the registry max-age
+                   (⟺ `_latest_fred` would return a row — byte-consistent)
+      - `stale`  : a non-null obs exists but is OLDER than max-age
+                   (the China-M1-class dead series ; ADR-093 §r49)
+      - `absent` : no non-null obs ever ingested for this series
+    """
+
+    series_id: str
+    status: Literal["fresh", "stale", "absent"]
+    latest_date: date | None
+    age_days: int | None
+    max_age_days: int
+
+
+@dataclass(frozen=True)
+class DegradedInput:
+    """A critical FRED anchor that is stale/absent → its dependent
+    section or sub-driver silently degrades. Projected onto `DataPool`
+    + `DataPoolOut` (ADR-103, ADR-099 §D-2 "never silently absent").
+    Never carries `status == "fresh"` (a fresh input is not degraded).
+    """
+
+    series_id: str
+    status: Literal["stale", "absent"]
+    latest_date: date | None
+    age_days: int | None
+    max_age_days: int
+    impacted: str
 
 
 # ────────────────────────── Section builders ──────────────────────────
@@ -288,6 +333,202 @@ async def _latest_fred(
         float(row.value),
         datetime.combine(row.observation_date, datetime.min.time(), tzinfo=UTC),
     )
+
+
+# ─────────────── ADR-103 — runtime FRED-liveness audit ────────────────
+# ADR-099 §T3.2 "human-visible degraded-data alert — break the
+# silent-skip chain". `_latest_fred` collapses absent vs stale → None ;
+# `_fred_liveness` runs the cutoff-FREE latest query (the info that
+# collapse destroys) and classifies against the r92 fred_age_registry
+# SSOT. `_latest_fred` itself is byte-identical (no contract change).
+
+
+async def _fred_liveness(
+    session: AsyncSession, series_id: str, *, override: int | None = None
+) -> FredLiveness:
+    """Liveness of `series_id` WITHOUT `_latest_fred`'s absent/stale fold.
+
+    One extra cheap indexed `LIMIT 1` (PK-ordered, value-not-null) with
+    NO `>= cutoff` predicate, so the *actual* latest observation_date
+    survives. `fresh` ⟺ `age <= max_age` ⟺ `observation_date >=
+    today - max_age` ⟺ `_latest_fred` returns a row — provably the same
+    boundary (byte-consistency invariant, unit-pinned). Invoked only by
+    the always-on integrity audit (≤ a dozen series / card).
+    """
+    max_age = _max_age_days_for(series_id, override=override)
+    stmt = (
+        select(FredObservation.observation_date)
+        .where(
+            FredObservation.series_id == series_id,
+            FredObservation.value.is_not(None),
+        )
+        .order_by(desc(FredObservation.observation_date))
+        .limit(1)
+    )
+    latest = (await session.execute(stmt)).scalars().first()
+    if latest is None:
+        return FredLiveness(series_id, "absent", None, None, max_age)
+    age = (datetime.now(UTC).date() - latest).days
+    status: Literal["fresh", "stale", "absent"] = "fresh" if age <= max_age else "stale"
+    return FredLiveness(series_id, status, latest, age, max_age)
+
+
+@dataclass(frozen=True)
+class _CriticalAnchor:
+    """A FRED series whose `None` causes a SILENT section-skip or
+    sub-driver drop. `max_age_override` mirrors the exact override the
+    consuming section passes to `_latest_fred` (so the audit's `fresh`
+    means precisely "the consumer got its data") ; None ⟹ registry SSOT.
+    Derived from VERIFIED `_section_*` reads (r93 R59), not guessed.
+    """
+
+    series_id: str
+    max_age_override: int | None
+    impacted: str
+
+
+# Pass-1 régime classifier inputs — audited for EVERY asset (régime is
+# universal). Overrides verbatim from `_section_executive_summary`
+# (`data_pool.py:324-329`, r93-verified).
+_MACRO_CORE_ANCHORS: tuple[_CriticalAnchor, ...] = (
+    _CriticalAnchor("VIXCLS", 7, "Pass-1 régime classifier (VIX panic input)"),
+    _CriticalAnchor("BAMLH0A0HYM2", 14, "Pass-1 régime classifier (HY-OAS credit input)"),
+    _CriticalAnchor("NFCI", 14, "Pass-1 régime classifier (financial-conditions input)"),
+    _CriticalAnchor("USALOLITOAASTSAM", 90, "Pass-1 régime classifier (US CLI cycle input)"),
+    _CriticalAnchor("EXPINF1YR", 45, "Pass-1 régime classifier (1y inflation-expectations input)"),
+    _CriticalAnchor("THREEFYTP10", 30, "Pass-1 régime classifier (term-premium input)"),
+)
+
+# Per-asset primary anchors whose absence silently kills the per-asset
+# section, + the ADR-093 AUD composite sub-drivers that silently drop.
+# series_ids verified from the `_section_*` reads (r93 R59) ; max-age
+# judged against the registry SSOT (override only where the consuming
+# section passes one — VIXCLS@7). EUR_USD's Bund anchor is NON-FRED
+# (`BundYieldObservation`, no cutoff) → out of FRED-liveness scope this
+# round (documented in ADR-103 §Negative).
+_ASSET_CRITICAL_ANCHORS: dict[str, tuple[_CriticalAnchor, ...]] = {
+    "XAU_USD": (
+        _CriticalAnchor("DFII10", None, "xau_specific section (primary real-yield driver)"),
+    ),
+    "NAS100_USD": (
+        _CriticalAnchor("DGS10", None, "nas_specific section (primary duration driver)"),
+    ),
+    "SPX500_USD": (
+        _CriticalAnchor("VIXCLS", 7, "spx_specific section (primary tail-regime driver)"),
+    ),
+    "USD_JPY": (
+        _CriticalAnchor("IRLTLT01JPM156N", None, "jpy_specific section (primary JP anchor)"),
+    ),
+    "AUD_USD": (
+        _CriticalAnchor(
+            "IRLTLT01AUM156N", None, "aud_specific section (primary AU anchor — section skips)"
+        ),
+        _CriticalAnchor(
+            "MYAGM1CNM189N", None, "aud_specific China-credit driver (ADR-093 composite)"
+        ),
+        _CriticalAnchor("PIORECRUSDM", None, "aud_specific iron-ore driver (ADR-093 composite)"),
+        _CriticalAnchor("PCOPPUSDM", None, "aud_specific copper driver (ADR-093 composite)"),
+    ),
+    "GBP_USD": (
+        _CriticalAnchor("IRLTLT01GBM156N", None, "gbp_specific section (primary UK anchor)"),
+    ),
+}
+
+
+async def _section_data_integrity(
+    session: AsyncSession, asset: str
+) -> tuple[str, list[str], list[DegradedInput]]:
+    """## Data integrity — runtime FRED critical-anchor liveness (ADR-103).
+
+    ALWAYS rendered (never the `("", [])` sentinel ; appended
+    unconditionally near the top of `build_data_pool`, mirroring the
+    `_section_key_levels` "explicit state instead of missing data"
+    doctrine, `data_pool.py:4260-4261`) so Pass-1 régime + Pass-2 are
+    primed with data-health context BEFORE they read the macro blocks.
+
+    Breaks the silent-skip chain (ADR-099 §D-2 "never silently absent"):
+    a dead/stale critical anchor (the China-M1 class, ADR-093 §r49) is
+    now deterministically + explicitly surfaced every card instead of a
+    section vanishing with zero trace. ADR-017-clean — data-provenance
+    vocabulary only, explicit boundary note, no directional/signal
+    language.
+
+    Returns `(markdown, sources, degraded_inputs)` (3-tuple like
+    `_section_daily_levels`). `sources` stamps only the FRESH series
+    (legit provenance) ; the section still renders when all degraded
+    (unconditional append).
+    """
+    asset = asset.upper()
+    # macro-core (universal) + this asset's per-asset anchors, deduped by
+    # series_id (macro-core wins ; VIXCLS appears in both for SPX with the
+    # same @7 override → no conflict).
+    seen: set[str] = set()
+    anchors: list[_CriticalAnchor] = []
+    for a in (*_MACRO_CORE_ANCHORS, *_ASSET_CRITICAL_ANCHORS.get(asset, ())):
+        if a.series_id in seen:
+            continue
+        seen.add(a.series_id)
+        anchors.append(a)
+
+    livenesses: list[tuple[_CriticalAnchor, FredLiveness]] = []
+    for a in anchors:
+        lv = await _fred_liveness(session, a.series_id, override=a.max_age_override)
+        livenesses.append((a, lv))
+
+    degraded: list[DegradedInput] = [
+        DegradedInput(
+            series_id=lv.series_id,
+            status=lv.status,  # type: ignore[arg-type]  # never "fresh" in this branch
+            latest_date=lv.latest_date,
+            age_days=lv.age_days,
+            max_age_days=lv.max_age_days,
+            impacted=a.impacted,
+        )
+        for a, lv in livenesses
+        if lv.status != "fresh"
+    ]
+    fresh = [(a, lv) for a, lv in livenesses if lv.status == "fresh"]
+    sources = [f"FRED:{lv.series_id}@{lv.latest_date:%Y-%m-%d}" for _, lv in fresh]
+
+    n = len(livenesses)
+    lines: list[str] = ["## Data integrity — FRED critical-anchor liveness (ADR-103)"]
+    if not degraded:
+        lines.append(
+            f"**Status : ALL FRESH** — {n} critical FRED anchor(s) verified live against "
+            "the r92 `fred_age_registry` thresholds (Pass-1 régime core + this asset's "
+            "per-asset anchors). No silent degradation this card (ADR-099 §D-2 honored)."
+        )
+    else:
+        k = len(degraded)
+        lines.append(
+            f"**Status : ⚠️ DEGRADED** — {k} of {n} critical FRED anchor(s) stale or "
+            "absent (ADR-103 · ADR-099 §D-2 'never silently absent' · the ADR-093 "
+            "'degraded explicit' primitive generalized to a dynamic runtime audit)."
+        )
+        for d in degraded:
+            if d.status == "absent":
+                detail = "ABSENT (no observation ever ingested)"
+            else:
+                detail = (
+                    f"STALE (latest obs {d.latest_date:%Y-%m-%d}, "
+                    f"age {d.age_days} d > registry threshold {d.max_age_days} d)"
+                )
+            lines.append(f"- **{d.series_id}** — {detail} → impacted: {d.impacted}.")
+        lines.append(
+            "- Data-integrity context — the analysis on the impacted axes reads at "
+            "reduced reliability where an anchor is stale/absent; this is data-provenance "
+            "context, not a signal (ADR-017 boundary)."
+        )
+    if fresh:
+        lines.append(
+            "- Fresh anchors: "
+            + ", ".join(
+                f"{lv.series_id}@{lv.latest_date:%Y-%m-%d} ({lv.age_days} d ≤ {lv.max_age_days} d)"
+                for _, lv in fresh
+            )
+            + "."
+        )
+    return "\n".join(lines), sources, degraded
 
 
 async def _section_executive_summary(session: AsyncSession) -> tuple[str, list[str]]:
@@ -4251,6 +4492,17 @@ async def build_data_pool(
     exec_md, exec_src = await _section_executive_summary(session)
     sections.insert(0, ("executive_summary", exec_md, exec_src))
 
+    # ADR-103 (ADR-099 §T3.2) — runtime FRED-liveness audit, ALWAYS
+    # rendered, inserted at index 1 (right after executive_summary,
+    # before macro_trinity) so Pass-1 régime + Pass-2 are primed with
+    # data-health context first. Breaks the silent-skip chain — a
+    # dead/stale critical anchor (China-M1 class, ADR-093 §r49) is now
+    # explicit every card instead of a section vanishing with zero
+    # trace. `degraded_inputs` is carried to the deterministic header +
+    # the DataPool projection (operator surface / r94 badge foundation).
+    integ_md, integ_src, degraded_inputs = await _section_data_integrity(session, asset)
+    sections.insert(1, ("data_integrity", integ_md, integ_src))
+
     smile_md, smile_src = await _section_dollar_smile(session)
     sections.append(("dollar_smile", smile_md, smile_src))
 
@@ -4529,9 +4781,17 @@ async def build_data_pool(
     sections_emitted = [name for name, _, _ in sections]
 
     now = datetime.now(UTC)
+    # ADR-103 — deterministic, LLM-independent integrity line in the
+    # header machine-truth (separate from the LLM-primed section body).
+    integrity_line = f"Data integrity : {len(degraded_inputs)} critical FRED anchor(s) degraded" + (
+        " — " + ", ".join(f"{d.series_id}({d.status})" for d in degraded_inputs)
+        if degraded_inputs
+        else " (all fresh)"
+    )
     header = (
         f"# Ichor data pool — {asset} — generated {now:%Y-%m-%d %H:%M UTC}\n\n"
         f"Sections : {', '.join(sections_emitted)}\n"
+        f"{integrity_line}\n"
         f"Total sources cited : {len(all_sources)}\n\n---"
     )
     markdown = f"{header}\n\n{body}\n"
@@ -4541,6 +4801,7 @@ async def build_data_pool(
         markdown=markdown,
         sources=all_sources,
         sections_emitted=sections_emitted,
+        degraded_inputs=degraded_inputs,
     )
 
 

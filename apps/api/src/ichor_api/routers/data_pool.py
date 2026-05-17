@@ -9,8 +9,8 @@ VISION_2026 — operator transparency tool.
 
 from __future__ import annotations
 
-from datetime import datetime
-from typing import Annotated
+from datetime import date, datetime
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
@@ -22,6 +22,20 @@ from ..services.data_pool import build_data_pool
 router = APIRouter(prefix="/v1/data-pool", tags=["data-pool"])
 
 
+class DegradedInputOut(BaseModel):
+    """ADR-103 (ADR-099 §T3.2) — a critical FRED anchor that is stale or
+    absent so its dependent section/sub-driver silently degrades. Makes
+    the silent-skip chain operator-visible deterministically (and is the
+    zero-rework foundation for the r94 end-user `/briefing` badge)."""
+
+    series_id: str
+    status: Literal["stale", "absent"]
+    latest_date: date | None
+    age_days: int | None
+    max_age_days: int
+    impacted: str
+
+
 class DataPoolOut(BaseModel):
     asset: str
     generated_at: datetime
@@ -29,6 +43,9 @@ class DataPoolOut(BaseModel):
     sections_emitted: list[str]
     sources_count: int
     sources: list[str]
+    # ADR-103 — runtime FRED-liveness degraded-input manifest (empty
+    # list = all critical anchors fresh this build).
+    degraded_inputs: list[DegradedInputOut]
     markdown: str
 
 
@@ -112,5 +129,16 @@ async def get_pool(
         sections_emitted=list(pool.sections_emitted),
         sources_count=len(pool.sources),
         sources=list(pool.sources),
+        degraded_inputs=[
+            DegradedInputOut(
+                series_id=d.series_id,
+                status=d.status,
+                latest_date=d.latest_date,
+                age_days=d.age_days,
+                max_age_days=d.max_age_days,
+                impacted=d.impacted,
+            )
+            for d in pool.degraded_inputs
+        ],
         markdown=pool.markdown,
     )
