@@ -50,11 +50,18 @@ from ..models import (
     FredObservation,
     NewsItem,
 )
+from ..services.feature_flags import is_enabled
+from ..services.market_session import compute_session_status, should_skip_briefing
 
 log = structlog.get_logger(__name__)
 
 
 VALID_TYPES = {"pre_londres", "pre_ny", "ny_mid", "ny_close", "weekly", "crisis"}
+
+# ADR-105 §Implementation(r99) — distinct from the session-cards flag so
+# the two surfaces are enabled independently. Absent row ⇒ is_enabled
+# returns False ⇒ the gate is fully inert (ships OFF).
+_BRIEFING_MARKET_CLOSED_GATE_FLAG = "briefing_market_closed_gate_enabled"
 
 
 def _resolve_assets(briefing_type: str, settings: Settings) -> list[str]:
@@ -435,6 +442,39 @@ async def main(briefing_type: str) -> int:
     triggered_at = datetime.now(UTC)
 
     sm = get_sessionmaker()
+
+    # ADR-105 §Implementation(r99) — market-closed gate, symmetric to the
+    # r98 session-card gate. FAIL-OPEN : suppress ONLY on a positive,
+    # error-free weekend determination for a DAILY intraday briefing ; any
+    # exception ⇒ proceed (a missed real pre-session briefing is
+    # unrecoverable — the timer does not re-fire). `weekly`/`crisis` are
+    # EXEMPT inside should_skip_briefing (intentionally market-closed-time
+    # artefacts). Runs BEFORE the pending row insert so a closed day writes
+    # no wasted `pending` row. Inert unless the flag row exists (ships OFF).
+    try:
+        async with sm() as _flag_session:
+            gate_on = await is_enabled(_flag_session, _BRIEFING_MARKET_CLOSED_GATE_FLAG)
+        if gate_on:
+            status = compute_session_status()
+            if should_skip_briefing(briefing_type, status):
+                hol = f" · {status.holiday_name}" if status.holiday_name else ""
+                log.info(
+                    "briefing.market_closed_gate_skip",
+                    briefing_type=briefing_type,
+                    state=status.state,
+                    holiday=status.holiday_name,
+                )
+                print(
+                    f"== market-closed gate ({status.state}{hol}) : daily "
+                    f"briefing {briefing_type!r} skipped (markets closed) =="
+                )
+                return 0
+    except Exception as e:  # noqa: BLE001 — FAIL-OPEN : never turn an error into a skip
+        log.warning("briefing.market_closed_gate_failed_open", error=str(e))
+        print(
+            f"   market-closed gate errored ({e}) — proceeding (fail-open)",
+            file=sys.stderr,
+        )
 
     # 1. Insert pending row
     async with sm() as session:

@@ -247,3 +247,31 @@ def market_closed_for_asset(asset: str, status: SessionStatus) -> bool:
     if asset in _US_EQUITY_ASSETS and status.market_closed_us_equity:
         return True
     return False
+
+
+# The 4 DAILY intraday briefing windows — the ones that ARE "live
+# pre-session" reads, where a closed-market briefing served as if live is
+# the r98/r99 data-honesty defect. `weekly` (deliberately scheduled
+# Sunday 18:00 to prepare the week ahead WHILE markets are closed) and
+# `crisis` (event-driven — a weekend shock is precisely when it matters
+# most) are INTENTIONALLY market-closed-time artefacts and are EXEMPT
+# from the gate (ADR-105 §Implementation r99).
+_DAILY_BRIEFING_TYPES: frozenset[str] = frozenset({"pre_londres", "pre_ny", "ny_mid", "ny_close"})
+
+
+def should_skip_briefing(briefing_type: str, status: SessionStatus) -> bool:
+    """True iff a DAILY intraday briefing should be suppressed because the
+    FX market is closed (weekend) — ADR-105 §Implementation(r99) gate SSOT.
+
+    Only the 4 daily windows are gated ; `weekly` / `crisis` (and any
+    unrecognised type) are NEVER skipped (`weekly` is the intentional
+    Sunday-18:00 week-ahead prep ; `crisis` is event-driven). A US market
+    holiday does NOT skip either — `market_closed_fx` is False there, FX/XAU
+    keep trading (4/6 assets live), and the market-wide briefing keeps its
+    forward-looking value (under-suppression is the fail-safe direction,
+    ADR-105 §Negative). Pure : the caller (the fail-open gate) owns all
+    error handling ; this never raises on a well-formed `SessionStatus`.
+    """
+    if briefing_type not in _DAILY_BRIEFING_TYPES:
+        return False
+    return status.market_closed_fx

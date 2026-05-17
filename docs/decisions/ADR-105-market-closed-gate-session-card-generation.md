@@ -196,3 +196,89 @@ shell-lint) not exercised (no `.sh` modified).
   `cli/run_session_cards_batch.py` (the gated entrypoint),
   `cli/run_bundesbank_bund.py:42,79-87` (the canonical feature-flag
   fail-pattern mirrored).
+
+## Implementation (r99, 2026-05-17) — the `run_briefing` symmetric gate
+
+This ADR §5 reserved the `run_briefing` symmetric gate as the r99
+follow-up. r99 ships it. This dated note records the implementation
+(immutable-ADR discipline — no new ADR ; this ADR IS the gate spec).
+A focused read-only R59 sub-agent mapped the real `run_briefing.py`
+structure (file:line, not guessed) and **reshaped the design vs the
+binding-default hypothesis** (doctrine #3 — R59 primes over the prompt):
+
+- **Market-wide, NOT per-asset (R59).** Unlike `run_session_cards_batch`
+  (a per-asset loop), `run_briefing.main` produces ONE fused
+  market-wide artefact per `briefing_type` (single `Briefing` row +
+  single `_assemble_context` + single claude-runner POST —
+  `run_briefing.py:434/441-446/456/474`). The §Decision per-asset
+  `market_closed_for_asset` filter therefore does **not** map ;
+  `market_closed_for_asset` is correctly NOT reused here (a coarser
+  surface needs a coarser decision — this is not a doctrine-#4
+  violation : the reused SSOT is `compute_session_status`, and the
+  briefing decision logic is itself extracted to a NEW pure SSOT, not
+  inlined/duplicated). The binding-default note "r99 reuses
+  `market_closed_for_asset` byte-identically" is superseded by this
+  R59 finding — documented, not silently deviated.
+- **`weekly` / `crisis` are EXEMPT (R59-critical).** The `weekly`
+  briefing fires **Sunday 18:00 Paris** (`register-cron-briefings.sh`)
+  — which `market_session.py` correctly classifies as
+  `market_closed_fx=True` (weekend). A naïve weekend-skip would
+  suppress the very Sunday-evening week-ahead prep the weekly briefing
+  exists to produce. `crisis` is event-driven — a weekend shock is
+  precisely when it matters most. Both are **intentionally
+  market-closed-time artefacts** and are exempt. The gate applies
+  ONLY to the 4 daily intraday windows (`pre_londres`, `pre_ny`,
+  `ny_mid`, `ny_close`). This exemption would have been a bug if the
+  design had been guessed from memory rather than R59'd.
+- **NEW pure SSOT `should_skip_briefing(briefing_type, status)`** in
+  `services/market_session.py` (next to `market_closed_for_asset`,
+  the gate-decision SSOT home) : returns True iff
+  `briefing_type in _DAILY_BRIEFING_TYPES and status.market_closed_fx`.
+  weekly/crisis/unknown ⇒ never skip. The exemption is encoded in the
+  SSOT so a future drift fails a test (anti-accumulation #4 — the
+  decision IS the SSOT, not inlined).
+- **US-holiday ⇒ KEEP the briefing (do NOT skip, do NOT prune).**
+  `market_closed_fx` is False on a US holiday (FX/XAU trade, 4/6
+  assets live) so `should_skip_briefing` returns False. The
+  market-wide briefing retains forward-looking value (under-suppression
+  = the fail-safe direction, §Negative). Pruning the 2 US-equity
+  assets from the fused briefing on a holiday was evaluated and
+  **deferred** (a mid-flow `assets` mutation adds blast on a critical
+  path for a marginal purity gain ; US holidays are ~10/yr vs ~104
+  weekends/yr so the weekend-skip captures the overwhelming majority ;
+  YAGNI — a clean future increment if wanted). Stated, not silently
+  skipped. **Interim honesty floor (ichor-trader R28 r99 YELLOW-1) :**
+  because r98 SKIPS the SPX500/NAS100 session-cards on a US holiday
+  while r99 KEEPS those assets' content in the fused briefing, the
+  next clean increment SHOULD surface `status.holiday_name` inside
+  `_assemble_context` so the briefing's SPX/NAS sections are not read
+  as a live US-equity session on a US holiday. The
+  `should_skip_briefing` path already computes `status` (carrying
+  `holiday_name`) ; `_assemble_context` does not yet consume it — a
+  small, well-scoped follow-up, flagged not silently deferred.
+- **Distinct flag `briefing_market_closed_gate_enabled`** (NOT the
+  session-cards flag) so the two surfaces are enabled independently.
+  Absent row ⇒ `is_enabled` False ⇒ inert (ships OFF).
+- **Insert point `run_briefing.py` between `sm = get_sessionmaker()`
+  and the pending-row insert** — so a gated closed day writes NO
+  wasted `pending` `Briefing` row. FAIL-OPEN structural (mirrors the
+  r98 §3 invariant + the ichor-trader r98 YELLOW-1 lesson) : the
+  try/except proceeds on any error ; the only skip path is a positive
+  `should_skip_briefing` True for a flag-enabled daily type — there is
+  no empty-set ambiguity here (a boolean skip, simpler than the r98
+  per-asset filter, so the r98 YELLOW-1 anomaly class does not arise).
+- **No `After=` impact.** Gating a DAILY briefing does not affect the
+  weekly post-mortem (`register-cron-post-mortem.sh:20
+After=ichor-briefing@weekly.service` is ordering-only and chains off
+  the EXEMPT `weekly` instance — confirmed R59).
+- Mechanism unchanged from §1 (pure-Python guard ; ZERO
+  systemd/register-cron ; deploy `redeploy-api.sh` additive,
+  auto-rollback ; ZERO migration). ADR-017 / Voie D untouched (pure
+  calendar). Tests : +8 pure (incl. the weekly-EXEMPT-on-Sunday-18:00
+  R59-critical pin) + 2 async (skip-fires-before-assembly ;
+  fail-open-when-flag-raises). ADR-099 §Coverage annotation extended
+  `[r78/r79 + r98 + r99 DONE]` — the **weekend-skip** holiday-gate is
+  now end-to-end (session-cards r98 + briefing r99) ; the US-holiday
+  fused-briefing asset-prune + its interim in-briefing
+  `holiday_name` caveat are explicitly-deferred next increments
+  (ichor-trader R28 r99 YELLOW-1/2 — flagged, not "fully done").

@@ -57,15 +57,23 @@ structured-vs-momentum character only.
 Events / Pass-6 scenarios / news / calendar = COVERED. **Holiday/weekend = NOT
 handled** (backend timers fire 365 d/yr; frontend `SessionStatus.tsx` is a crude
 DST-naive UTC heuristic with zero holiday calendar) — an explicit unmet requirement.
-**[r78/r79 + r98 DONE — both halves of this gap are now closed: the
+**[r78/r79 + r98 + r99 DONE — this gap is now closed END-TO-END: the
 FRONTEND signal side (r78 `services/market_session.py` DST-correct +
 NYSE-holiday engine + r79 `SessionStatus.tsx` rewired off the
 DST-naive heuristic, §T1.3) ; the BACKEND card-gen-gate side (r98
 [ADR-105](ADR-105-market-closed-gate-session-card-generation.md) — the
-`run_session_cards_batch` pure-Python gate skips market-closed assets
-per-asset, FAIL-OPEN, ships feature-flag OFF, ZERO systemd/register-cron
-change). Residual: the `run_briefing` symmetric gate is the r99
-follow-up — flagged, not silently skipped.]**
+`run_session_cards_batch` per-asset pure-Python gate, FAIL-OPEN,
+feature-flag OFF, ZERO systemd/register-cron) ; the BACKEND
+BRIEFING-gate side (r99 ADR-105 §Implementation(r99) — the
+`run_briefing` market-wide gate ; `weekly`/`crisis` EXEMPT as
+intentional market-closed-time artefacts ; weekend-skip only [US
+holidays keep the briefing — FX/XAU trade] ; distinct flag, FAIL-OPEN,
+ships OFF). The **weekend-skip** holiday-gate is now complete on both
+generation paths (session-cards r98 + briefing r99) — no *weekend*
+residual ; the US-holiday fused-briefing asset-prune AND its interim
+in-briefing `holiday_name` caveat remain explicitly-deferred future
+increments (ichor-trader R28 r99 YELLOW-1/2 — flagged precisely, NOT
+rounded up to "holiday-gate fully done").]**
 
 ### Synthesis-quality & robustness findings (world-class trading + autonomy review)
 

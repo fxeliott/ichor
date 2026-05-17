@@ -13,12 +13,15 @@ from unittest.mock import AsyncMock, MagicMock
 from zoneinfo import ZoneInfo
 
 import pytest
+from ichor_api.cli.run_briefing import main as _briefing_main
 from ichor_api.cli.run_session_cards_batch import _DEFAULT_ASSETS, _run_batch
 from ichor_api.services.market_session import (
+    _DAILY_BRIEFING_TYPES,
     _US_EQUITY_ASSETS,
     _easter,
     compute_session_status,
     market_closed_for_asset,
+    should_skip_briefing,
     us_market_holidays,
 )
 
@@ -290,3 +293,127 @@ async def test_gate_anomaly_empty_keepset_on_open_market_fails_open(monkeypatch,
     err = capsys.readouterr()
     assert "anomaly" in err.err and "fail-open" in err.err
     assert "no cards this tick" not in err.out
+
+
+# ─── ADR-105 §Implementation(r99) — should_skip_briefing pure SSOT ───────
+
+
+def test_daily_briefing_types_set_pinned():
+    # The gated set MUST be exactly the 4 daily intraday windows ; weekly
+    # + crisis are deliberately absent (exempt). A future change here is a
+    # conscious decision (the gate's correctness depends on this set).
+    assert _DAILY_BRIEFING_TYPES == frozenset({"pre_londres", "pre_ny", "ny_mid", "ny_close"})
+
+
+def test_should_skip_briefing_weekly_EXEMPT_even_on_sunday_weekend():
+    # 2026-05-17 = Sunday (the day after the pinned 2026-05-16 Saturday) ;
+    # 18:00 Paris = the actual `weekly` cron fire (wd==6, hour<22 ⇒
+    # market_closed_fx True). The weekly briefing is DELIBERATELY scheduled
+    # in the weekend to prep the week ahead — it must NEVER be gated.
+    s = compute_session_status(datetime(2026, 5, 17, 18, 0, tzinfo=PARIS))
+    assert s.state == "weekend"
+    assert s.market_closed_fx is True
+    assert should_skip_briefing("weekly", s) is False  # R59-critical
+
+
+def test_should_skip_briefing_crisis_EXEMPT_on_weekend():
+    # crisis = event-driven ; a weekend shock is exactly when it matters
+    # most — never gated.
+    s = compute_session_status(datetime(2026, 5, 16, 12, 0, tzinfo=PARIS))  # Saturday
+    assert s.state == "weekend"
+    assert should_skip_briefing("crisis", s) is False
+
+
+def test_should_skip_briefing_daily_skipped_on_weekend():
+    s = compute_session_status(datetime(2026, 5, 16, 12, 0, tzinfo=PARIS))  # Saturday
+    assert s.state == "weekend"
+    for bt in ("pre_londres", "pre_ny", "ny_mid", "ny_close"):
+        assert should_skip_briefing(bt, s) is True, bt
+
+
+def test_should_skip_briefing_daily_NOT_skipped_on_us_holiday():
+    # 2026-12-25 Christmas (Friday weekday) → us_holiday, market_closed_fx
+    # False (FX/XAU trade) → the market-wide briefing keeps forward value
+    # (under-suppression = fail-safe direction, ADR-105 §Negative).
+    s = compute_session_status(datetime(2026, 12, 25, 10, 0, tzinfo=PARIS))
+    assert s.state == "us_holiday"
+    assert s.market_closed_fx is False
+    for bt in ("pre_londres", "pre_ny", "ny_mid", "ny_close"):
+        assert should_skip_briefing(bt, s) is False, bt
+
+
+def test_should_skip_briefing_daily_NOT_skipped_normal_weekday():
+    s = compute_session_status(datetime(2026, 5, 13, 7, 0, tzinfo=PARIS))  # Wed
+    assert s.state == "pre_londres"
+    assert should_skip_briefing("pre_ny", s) is False
+
+
+def test_should_skip_briefing_unknown_type_never_skipped():
+    # Defensive : an unrecognised briefing_type is NEVER skipped (fail-safe
+    # — never suppress something the gate doesn't understand).
+    s = compute_session_status(datetime(2026, 5, 16, 12, 0, tzinfo=PARIS))  # Saturday
+    assert s.market_closed_fx is True
+    assert should_skip_briefing("totally_unknown_type", s) is False
+
+
+# ─── ADR-105 §Implementation(r99) — run_briefing.main gate wiring ────────
+
+
+def _patch_briefing_session(monkeypatch):
+    s = MagicMock()
+    s.add = MagicMock()
+    s.flush = AsyncMock()
+    s.commit = AsyncMock()
+    s.get = AsyncMock(return_value=MagicMock())
+    fake_sm = MagicMock(return_value=_async_ctx(s))
+    monkeypatch.setattr(
+        "ichor_api.cli.run_briefing.get_sessionmaker",
+        lambda: fake_sm,
+    )
+
+
+@pytest.mark.asyncio
+async def test_briefing_gate_skips_daily_on_weekend(monkeypatch, capsys):
+    """Flag ON + weekend + a DAILY briefing ⇒ main returns 0 BEFORE the
+    pending-row insert / _assemble_context (clean early skip, no wasted
+    DB row, no claude-runner POST)."""
+    _patch_briefing_session(monkeypatch)
+    monkeypatch.setattr(
+        "ichor_api.cli.run_briefing.is_enabled",
+        AsyncMock(return_value=True),
+    )
+    weekend = compute_session_status(datetime(2026, 5, 16, 12, 0, tzinfo=PARIS))
+    monkeypatch.setattr(
+        "ichor_api.cli.run_briefing.compute_session_status",
+        lambda *a, **k: weekend,
+    )
+    # Tripwire : if the gate did NOT short-circuit, this is awaited.
+    tripwire = AsyncMock()
+    monkeypatch.setattr("ichor_api.cli.run_briefing._assemble_context", tripwire)
+
+    rc = await _briefing_main("pre_londres")
+
+    assert rc == 0
+    tripwire.assert_not_awaited()  # gate returned BEFORE briefing assembly
+    assert "skipped (markets closed)" in capsys.readouterr().out
+
+
+@pytest.mark.asyncio
+async def test_briefing_gate_FAILS_OPEN_when_flag_check_raises(monkeypatch):
+    """SAFETY-CRITICAL : if the gate errors (flag-DB read raises), main
+    MUST proceed past the gate (a missed real pre-session briefing is
+    unrecoverable — the timer does not re-fire). Proven by _assemble_context
+    being reached (the gate did NOT convert the error into a skip)."""
+    _patch_briefing_session(monkeypatch)
+    monkeypatch.setattr(
+        "ichor_api.cli.run_briefing.is_enabled",
+        AsyncMock(side_effect=RuntimeError("feature_flags DB unreachable")),
+    )
+    reached = AsyncMock(side_effect=RuntimeError("SENTINEL — _assemble_context reached"))
+    monkeypatch.setattr("ichor_api.cli.run_briefing._assemble_context", reached)
+
+    # main handles the sentinel via its own try/except (marks the row
+    # failed) ; we only assert the gate fell through (fail-open).
+    await _briefing_main("pre_londres")
+
+    reached.assert_awaited()  # FAIL-OPEN: execution proceeded past the gate
