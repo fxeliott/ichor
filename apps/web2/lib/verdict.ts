@@ -190,40 +190,70 @@ export function deriveVerdict(
   const myfxPair = ASSET_TO_MYFXBOOK[asset];
   const posEntry = myfxPair ? (positioning.find((p) => p.pair === myfxPair) ?? null) : null;
   const contrarian = posEntry?.contrarian_tilt ?? null;
-  const signals: ("bull" | "bear" | "neutral")[] = [biasSign, skewSign];
-  if (contrarian && contrarian !== "neutral") {
-    signals.push(contrarian === "bullish" ? "bull" : "bear");
-  }
-  const directional = signals.filter((s) => s !== "neutral");
-  const allBull = directional.length >= 2 && directional.every((s) => s === "bull");
-  const allBear = directional.length >= 2 && directional.every((s) => s === "bear");
-  const conflict =
-    directional.length >= 2 &&
-    directional.some((s) => s === "bull") &&
-    directional.some((s) => s === "bear");
+  // ── Confluence by SOURCE INDEPENDENCE (ADR-099 §T2.2 ; ADR-102) ──
+  // biasSign (Pass-2) and skewSign (Pass-6) are the SAME Claude 4-pass
+  // analysis of the SAME card — their agreement is internal consistency,
+  // NOT independent corroboration. The old rule counted them as 2 aligned
+  // votes → "haute confluence" on a single analytical read echoed twice
+  // (the ADR-099 §T2.2 correlated-evidence overconfidence trap ; worst
+  // for indices, which have NO retail source at all). The MyFXBook retail
+  // contrarian tilt is the only signal structurally independent of the
+  // Claude analysis (and is absent for indices). High confluence is now
+  // reserved for genuine cross-source corroboration. biasSign/skewSign/
+  // asymCoherent are READ only (they also feed `confiance` — must stay
+  // byte-identical) ; the weighting is built from copies.
+  const claudeVote: "bull" | "bear" | "neutral" =
+    biasSign !== "neutral" && skewSign !== "neutral"
+      ? biasSign === skewSign
+        ? biasSign
+        : biasSign // Pass-2 bias anchors when Pass-6 skew disagrees
+      : biasSign !== "neutral"
+        ? biasSign
+        : skewSign;
+  const claudeCoherent =
+    !(biasSign !== "neutral" && skewSign !== "neutral") || biasSign === skewSign;
+  const indepVote: "bull" | "bear" | "neutral" =
+    contrarian === "bullish" ? "bull" : contrarian === "bearish" ? "bear" : "neutral";
+  // Indices (myfxPair === null) have no retail-positioning source —
+  // structurally no independent corroborator, so never "haute confluence".
+  const indepAvailable = myfxPair !== null;
   const posTxt = contrarian
     ? `retail contrarian ${contrarian}`
     : myfxPair === null
       ? "positionnement N/A (indice)"
       : "retail neutre";
+  const claudeWord =
+    claudeVote === "bull" ? "haussière" : claudeVote === "bear" ? "baissière" : "neutre";
 
   let confluence: VerdictPart;
-  if (allBull || allBear) {
+  if (claudeVote === "neutral") {
+    confluence = {
+      label: "confluence partielle",
+      detail: `biais ${bias.word.toLowerCase()} · scénarios ${skewSign} · ${posTxt} — pas de lecture directionnelle nette`,
+      tone: "neutral",
+    };
+  } else if (indepAvailable && indepVote !== "neutral" && indepVote === claudeVote) {
     confluence = {
       label: "signaux alignés",
-      detail: `biais Pass-2 + asymétrie scénarios + ${posTxt} pointent dans le même sens — haute confluence`,
-      tone: allBull ? "bull" : "bear",
+      detail: `lecture Claude ${claudeWord} (Pass-2 + Pass-6) confirmée par une source indépendante (${posTxt}) — confluence inter-sources`,
+      tone: claudeVote === "bull" ? "bull" : "bear",
     };
-  } else if (conflict) {
+  } else if (indepAvailable && indepVote !== "neutral" && indepVote !== claudeVote) {
     confluence = {
       label: "signaux en conflit",
-      detail: `biais Pass-2 (${bias.word.toLowerCase()}), asymétrie scénarios (${skewSign}), ${posTxt} divergent — prudence interprétative`,
+      detail: `lecture Claude ${claudeWord} contredite par une source indépendante (${posTxt}) — divergence inter-sources, prudence interprétative`,
       tone: "warn",
+    };
+  } else if (!claudeCoherent) {
+    confluence = {
+      label: "source unique (Claude seule)",
+      detail: `biais Pass-2 et asymétrie scénarios Pass-6 divergent (incohérence interne) ; ${posTxt} — confluence faible, lecture mono-source non corroborée`,
+      tone: "neutral",
     };
   } else {
     confluence = {
-      label: "confluence partielle",
-      detail: `biais ${bias.word.toLowerCase()} · scénarios ${skewSign} · ${posTxt}`,
+      label: "source unique (Claude seule)",
+      detail: `lecture Claude ${claudeWord} (Pass-2 + Pass-6 cohérents) sans source indépendante confirmante (${posTxt}) — confluence non-indépendante : Pass-2 et Pass-6 partagent la même origine analytique, pas une corroboration croisée`,
       tone: "neutral",
     };
   }
