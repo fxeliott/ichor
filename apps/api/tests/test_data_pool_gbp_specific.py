@@ -322,8 +322,9 @@ async def test_polarity_binds_both_sign_directions(monkeypatch) -> None:
 async def test_deferred_driver3_and_safe_haven_caveat(monkeypatch) -> None:
     """Honest scope discipline (r88 anti-over-claim) : the BoE-vs-Fed
     Driver 3 (Clarida-Gali-Gertler 1998) is surfaced as DEFERRED (needs
-    the unpolled IR3TIB01GBM156N) and sterling's NON-safe-haven status
-    is a one-line caveat (Ranaldo-Soderlind 2010), each with correct DOIs."""
+    IR3TIB01GBM156N — poller-configured r101, liveness R53-deferred) and
+    sterling's NON-safe-haven status is a one-line caveat
+    (Ranaldo-Soderlind 2010), each with correct DOIs."""
     monkeypatch.setattr(
         "ichor_api.services.data_pool._latest_fred",
         _make_fred_stub(

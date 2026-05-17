@@ -179,3 +179,122 @@ fully reverses it; `redeploy-api.sh rollback` reverses the deploy in <30s.
 - Clarida, Galí & Gertler 1998, EER — DOI 10.1016/S0014-2921(98)00016-6 (deferred Driver 3; RePEc + ScienceDirect open-archive confirmed, Crossref 429 rate-limit only)
 - [FRED IRLTLT01GBM156N (UK 10Y, monthly, LIVE 2026-04-01 prod-DB verified)](https://fred.stlouisfed.org/series/IRLTLT01GBM156N)
 - [FRED DGS10 (US 10Y, daily, LIVE 2026-05-14 prod-DB verified)](https://fred.stlouisfed.org/series/DGS10)
+
+## Implementation (r101, 2026-05-17) — Driver-3 ingestion plumbing (step 1 of the §Deferred unblock)
+
+This dated note records r101. **No new ADR** (doctrine #9 — the
+ADR-104 §Implementation(r96) / ADR-105 §Implementation(r99,r100)
+immutable-append precedent) : this ADR's **§Deferred section IS the
+spec** for Driver-3. The §Related line's "future ADR for the deferred
+Driver 3" anticipation is **superseded by this dated §Implementation** —
+a redundant child ADR is not authored when the parent already specs the
+work (doctrine #9). One focused read-only R59 sub-agent mapped the real
+FRED-ingestion surface (file:line) and the design was re-verified
+against the real code before any edit (doctrine #3).
+
+**Scope = ONLY the first two of the three §Deferred steps.** §Deferred
+states verbatim: _"add to `fred_extended.py` SERIES_TO_POLL +
+`_FRED_SERIES_MAX_AGE_DAYS` + R53 liveness verify, then a Driver-3
+paragraph"_. r101 ships **step 1 (poller add) + step 2 (max-age
+registry)**. **Step 3 (R53 prod-DB liveness verify) + the Driver-3
+paragraph in `_section_gbp_specific` remain explicitly deferred to a
+LATER round** — this is the documented chicken-egg: `IR3TIB01GBM156N`
+liveness can only be prod-DB-verified _after_ a scheduled FRED collector
+cron cycle has ingested it (r88 lesson #1 forecast≠preuve, lesson #2
+SHIPPED≠FUNCTIONAL — r101 deliberately makes **no** liveness claim).
+
+**§Acceptance criteria #4 reconciliation (calibrated honesty).**
+§Acceptance #4 reads "No new collector / migration / ORM / cron / FRED
+series" — that criterion governed the **r90 Drivers-1+2 inline ship**
+(which reused already-polled `IRLTLT01GBM156N` + `DGS10`). The **r101
+FRED-series add is the §Deferred-sanctioned exception** that §Deferred
+itself prescribes ("add to `fred_extended.py` SERIES_TO_POLL"). r101
+is therefore **outside the scope of** §Acceptance #4 (which governed
+the r90 Drivers-1+2 inline ship) — it executes the §Deferred unblock
+§Acceptance #4 was explicitly scoped to exclude. (A future reviewer
+grepping §Acceptance #4 must read it as r90-Driver-1+2 scoped ;
+§Deferred is the authorizing spec for the r101 series add — this is a
+staged-ADR boundary, not a contradiction.)
+
+**What r101 shipped (2 code + 3 test touch-points ; ZERO migration).**
+
+- **`collectors/fred_extended.py`** — `"IR3TIB01GBM156N"` added to
+  `EXTENDED_SERIES_TO_POLL` adjacent to the existing
+  `"IRLTLT01GBM156N"` (UK 10Y) GBP-grouping line (the proven r45/r46
+  add-point — `fred.py` base `SERIES_TO_POLL` is correctly NOT
+  touched). `merged_series()` dedup-merges it into the polled tuple ;
+  the next FRED collector cron fire fetches it into the existing
+  generic `fred_observations` table.
+- **`services/fred_age_registry.py`** — `"IR3TIB01GBM156N": 120`
+  added to `FRED_SERIES_MAX_AGE_DAYS` adjacent to the OECD-MEI
+  monthly-120 family (`IRLTLT01{DE,IT,JP,GB,AU}M156N` are all 120).
+  `IR3TIB01GBM156N` is the **same OECD-MEI monthly family** as
+  `IRLTLT01GBM156N` (identical `…01GBM156N` suffix, 1-month
+  publication lag ; only the indicator differs: 3-month interbank vs
+  10Y long-term). The cadence value **120 is mirrored from the
+  established sibling precedent, not invented** — a missing entry
+  would fall back to the 14-day DAILY default and be silently
+  always-stale (the r35 bug class). `data_pool.py` re-exports the same
+  object under `_FRED_SERIES_MAX_AGE_DAYS` (zero-diff backward-compat,
+  auto-inherited).
+- **`tests/test_fred_frequency_registry.py`** — a **dedicated** new
+  test `test_uk_3m_interbank_monthly_120_days` (NOT folded into the
+  existing `…_10y_monthly_all_120_days` test, whose name/docstring is
+  semantically 10Y-only — folding a 3M series in would make that
+  test's contract lie ; semantic honesty + anti-accumulation) +
+  `"IR3TIB01GBM156N"` added to the generic `monthly_series ≥30`
+  sanity tuple (semantically a monthly series, correctly extends
+  that loop). `test_registry_size_lower_bound` (`≥20`, non-tight)
+  stays green.
+- **`tests/test_fred_liveness_check.py`** — added
+  `assert "IR3TIB01GBM156N" in series` (the merged-poller membership
+  pin — the only safety net against forgetting the poller add, as no
+  exhaustive `EXTENDED_SERIES_TO_POLL` completeness test exists) +
+  `assert registry["IR3TIB01GBM156N"] == 120` in
+  `test_import_canonical_sources_resolves_from_dep_free_registry`.
+
+**ZERO migration (definitive).** All FRED series write to the single
+generic `fred_observations` table (`models/fred_observation.py` —
+`series_id` is an indexed column, not a per-series table). Adding a
+series to the poller + max-age registry is a pure config/registry
+change ; new rows land on the next cron fire. ADR-101 §Acceptance #4
+and ADR-092 §Reversibility both state "NO new migration / ORM / cron".
+Revert = single-commit `git revert` + `redeploy-api.sh rollback`.
+
+**Deploy is the §Deferred unblock.** The additive `redeploy-api.sh`
+ships the new poller config to prod so the **next scheduled FRED
+collector cron cycle ingests `IR3TIB01GBM156N`** — which is precisely
+what makes the _later_ round's step-3 R53 prod-DB liveness verify
+possible (resolving the chicken-egg ADR-101:117 deliberately left at
+r90). Voie D untouched (FRED is a free public API, key already in env —
+zero new paid feed, zero Anthropic). ADR-017 untouched (pure ingestion
+plumbing, no signal, no BUY/SELL).
+
+**Still explicitly DEFERRED (NOT done — calibrated honesty).**
+
+- Step 3: `IR3TIB01GBM156N` R53 prod-DB liveness verification (a
+  LATER round, post-cron-cycle — r101 makes no liveness claim).
+- The Driver-3 paragraph in `_section_gbp_specific` (post-liveness).
+- The US-side leg for the eventual BoE-vs-Fed _3-month policy-rate_
+  differential is **unresolved and not pinned by this ADR**: the
+  existing GBP/JPY/AUD rate-differential drivers all use `DGS10` (US
+  10Y) ; a true front-end policy-rate differential (Clarida-Galí-Gertler
+  is a _reaction-function_ lens) would conceptually want a 3M-vs-3M
+  pair (`IR3TIB01USM156N`, US 3M interbank — **not** in the codebase,
+  **not** ingested by r101). Whether Driver-3 reuses the established
+  `DGS10` 10Y anchor or also ingests `IR3TIB01USM156N` is a
+  **Driver-3-wiring-round decision, out of r101 scope** — flagged
+  here so the future round R59s it explicitly rather than inheriting
+  an unstated assumption. **Future-round RED (ichor-trader r101 R28
+  Axis-5 desk note) :** if the Driver-3 wiring round reuses the
+  established `DGS10` (US 10Y long-rate) anchor _while keeping the
+  Clarida-Galí-Gertler label_, that is a framework-attribution
+  mis-stamp — a 10Y long-rate differential is NOT a front-end
+  reaction-function proxy (Clarida-Galí-Gertler 1998 is explicitly a
+  _policy-rate_ reaction-function paper) ; it would be a Driver-1
+  duplicate under a wrong label (the "regime-conditional lens
+  over-claim" class ichor-trader caught at r90 YELLOW-1). The wiring
+  round MUST treat "reuse `DGS10` 10Y ⟹ keep the Clarida-Galí-Gertler
+  attribution" as a RED to resolve then (either ingest a true
+  `IR3TIB01USM156N` 3M-vs-3M pair, or relabel the framework).
+  `IRSTCB01GBM156N` does NOT exist (do not use, per §Deferred).

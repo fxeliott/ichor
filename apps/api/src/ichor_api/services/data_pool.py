@@ -2275,10 +2275,11 @@ async def _section_gbp_specific(session: AsyncSession, asset: str) -> tuple[str,
     DOI:10.1093/rof/rfq007) — surfaced as a one-line caveat, not a
     driver. Driver 3 (BoE-vs-Fed reaction-function divergence, Clarida-
     Gali-Gertler 1998 DOI:10.1016/S0014-2921(98)00016-6) is DEFERRED :
-    it needs `IR3TIB01GBM156N` (UK 3M interbank) which is NOT currently
-    polled and whose liveness has not been prod-DB-verified (scope
-    discipline + r88 lesson — no new unverified-liveness series this
-    round).
+    it needs `IR3TIB01GBM156N` (UK 3M interbank) which is
+    poller-configured since r101 (ADR-101 §Implementation(r101)) but
+    whose liveness is not yet R53 prod-DB-verified — the Driver-3
+    paragraph stays deferred to a post-cron-cycle round (r88 lesson :
+    SHIPPED≠FUNCTIONAL, no liveness claim until observed).
     """
     if asset != "GBP_USD":
         return "", []
@@ -2361,8 +2362,9 @@ async def _section_gbp_specific(session: AsyncSession, asset: str) -> tuple[str,
             "qualitative caveat, not a driver. The BoE-vs-Fed reaction-"
             "function front-end leg (Clarida-Gali-Gertler 1998, "
             "DOI:10.1016/S0014-2921(98)00016-6) is DEFERRED — it needs "
-            "the unpolled IR3TIB01GBM156N UK 3M interbank series (ADR-101 "
-            "§Deferred)."
+            "the IR3TIB01GBM156N UK 3M interbank series, poller-configured "
+            "since r101 but not yet prod-ingested / R53-liveness-verified "
+            "(ADR-101 §Deferred + §Implementation(r101))."
         )
 
         # Composite (R24 SUBSET-not-SUPERSET via cadence-mismatch BTP r34 precedent)

@@ -65,6 +65,16 @@ def test_germany_japan_uk_australia_10y_monthly_all_120_days() -> None:
         assert _max_age_days_for(series_id) == 120
 
 
+def test_uk_3m_interbank_monthly_120_days() -> None:
+    """IR3TIB01GBM156N (UK 3M interbank) is the same OECD-MEI monthly
+    family as IRLTLT01GBM156N (UK 10Y) — same 120d cadence, NOT the
+    14d DAILY default. Added round-101 ADR-101 §Implementation(r101)
+    as the GBP Driver-3 (BoE-vs-Fed) ingestion-plumbing unblock ;
+    liveness R53-deferred to a later round (chicken-egg)."""
+    assert _FRED_SERIES_MAX_AGE_DAYS["IR3TIB01GBM156N"] == 120
+    assert _max_age_days_for("IR3TIB01GBM156N") == 120
+
+
 def test_china_m1_dead_series_stays_60d() -> None:
     """`MYAGM1CNM189N` (China M1, NOT M2 — the r46-round-2 swap target)
     is GENUINELY DISCONTINUED since 2019-08-01 (latest obs frozen 2019,
@@ -149,6 +159,7 @@ def test_registry_monthly_series_are_at_least_30_days() -> None:
         "IRLTLT01ITM156N",
         "IRLTLT01JPM156N",
         "IRLTLT01GBM156N",
+        "IR3TIB01GBM156N",  # round-101 ADR-101 §Implementation(r101) GBP Driver-3 ingestion
         "IRLTLT01AUM156N",  # round-46 ADR-092 §T1.AUD-3
         "MYAGM1CNM189N",  # round-46 ADR-092 §T1.AUD-1 (IMF PinkBook)
         "PIORECRUSDM",  # round-46 ADR-092 §T1.AUD-2 (IMF PinkBook)

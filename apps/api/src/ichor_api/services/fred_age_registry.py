@@ -38,6 +38,7 @@ FRED_SERIES_MAX_AGE_DAYS: dict[str, int] = {
     "IRLTLT01ITM156N": 120,  # Italy 10y monthly (BTP-Bund spread, ADR-090 step-4 r34+r35)
     "IRLTLT01JPM156N": 120,  # Japan 10y monthly
     "IRLTLT01GBM156N": 120,  # UK 10y monthly
+    "IR3TIB01GBM156N": 120,  # UK 3M interbank monthly (OECD-MEI family, round-101 ADR-101 §Implementation(r101) GBP Driver-3 ingestion)
     "IRLTLT01AUM156N": 120,  # Australia 10y monthly (round-46 ADR-092 §T1.AUD-3)
     # ─── IMF Primary Commodity Price System monthly series ───
     # r94 RECALIBRATION (ADR-092 §Round-94 amendment) : the r46 "60d

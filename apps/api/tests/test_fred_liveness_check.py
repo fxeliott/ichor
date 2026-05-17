@@ -139,9 +139,14 @@ def test_import_canonical_sources_resolves_from_dep_free_registry() -> None:
     series, registry, default_days = flc._import_canonical_sources()
     assert isinstance(series, tuple) and len(series) > 20
     assert "DGS10" in series  # base SERIES_TO_POLL merged in
+    # r101 ADR-101 §Implementation(r101) GBP Driver-3 ingestion pin —
+    # the only safety net against forgetting the EXTENDED poller add
+    # (no exhaustive EXTENDED_SERIES_TO_POLL completeness test exists) :
+    assert "IR3TIB01GBM156N" in series  # EXTENDED merge (UK 3M interbank)
     # Byte-identical extraction pins (the r92 data_pool re-export must
     # not have changed any value) :
     assert registry["IRLTLT01GBM156N"] == 120  # UK 10y monthly (r90)
+    assert registry["IR3TIB01GBM156N"] == 120  # UK 3M interbank monthly (r101 ADR-101 §Impl(r101))
     assert registry["MYAGM1CNM189N"] == 60  # China M1 monthly (r46)
     assert registry["USREC"] == 365
     assert default_days == 14  # _FRED_DEFAULT_MAX_AGE_DAYS unchanged
