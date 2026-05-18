@@ -146,7 +146,9 @@ def test_import_canonical_sources_resolves_from_dep_free_registry() -> None:
     # Byte-identical extraction pins (the r92 data_pool re-export must
     # not have changed any value) :
     assert registry["IRLTLT01GBM156N"] == 120  # UK 10y monthly (r90)
-    assert registry["IR3TIB01GBM156N"] == 120  # UK 3M interbank monthly (r101 ADR-101 §Impl(r101))
+    assert (
+        registry["IR3TIB01GBM156N"] == 180
+    )  # UK 3M interbank monthly (r101 ingestion + r102 §Impl(r102) 120→180 R53 recalibration — OECD-MEI family laggard)
     assert registry["MYAGM1CNM189N"] == 60  # China M1 monthly (r46)
     assert registry["USREC"] == 365
     assert default_days == 14  # _FRED_DEFAULT_MAX_AGE_DAYS unchanged

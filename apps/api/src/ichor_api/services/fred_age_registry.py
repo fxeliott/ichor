@@ -38,7 +38,39 @@ FRED_SERIES_MAX_AGE_DAYS: dict[str, int] = {
     "IRLTLT01ITM156N": 120,  # Italy 10y monthly (BTP-Bund spread, ADR-090 step-4 r34+r35)
     "IRLTLT01JPM156N": 120,  # Japan 10y monthly
     "IRLTLT01GBM156N": 120,  # UK 10y monthly
-    "IR3TIB01GBM156N": 120,  # UK 3M interbank monthly (OECD-MEI family, round-101 ADR-101 §Implementation(r101) GBP Driver-3 ingestion)
+    # r102 RECALIBRATION (ADR-101 §Implementation(r102), step 3 of the
+    # §Deferred unblock ; precedent : r94 ADR-092 §Round-94 commit
+    # `17e3780` PCPS 60→120 — the SAME "healthy-but-slow feed tripped a
+    # too-tight threshold" false-DEGRADE class). r101 set `120` as the
+    # correct conservative no-data mirror of the OECD-MEI monthly family
+    # (a missing entry falls back to the 14d DAILY default = the r35
+    # always-stale bug ; mirroring family-120 was the safe no-data
+    # default). Step-3 R53 prod-DB liveness verify + FRED primary-source
+    # citation-gate (https://fred.stlouisfed.org/series/IR3TIB01GBM156N
+    # + …/graph/fredgraph.csv?id=IR3TIB01GBM156N) REFUTED 120 for THIS
+    # member specifically : latest obs 2026-01-01 = 3.71%, ~137d stale
+    # at verify (2026-05-18), NO discontinued banner — alive-but-slow,
+    # NOT the China-M1 (MYAGM1CNM189N) dead class below. It is
+    # empirically the SLOW member of its own family (~137d vs the ~47d
+    # of siblings IRLTLT01GBM156N / IR3TIB01USM156N — do NOT apply the
+    # family 47d figure to it). 120 < 137 ⟹ would false-DEGRADE the
+    # r103 GBP Driver-3 paragraph every card (the r94 PCPS pathology).
+    # Recalibrated 120→180 applying the r94 MARGIN DISCIPLINE — NOT a
+    # verbatim "×1.33 rule" : ADR-092 §Round-94 used a ~30d ABSOLUTE
+    # margin over the ~90d worst-case (→120) + a qualitative "still
+    # catches a death within ~4 months". For this member's ~137d
+    # worst-case the proportionalized form of that same discipline is
+    # ≈1.33× / ~+43d margin → 182, taken to a clean 6-month ceiling
+    # 180. The independent citation-gate evidence-floor was 170
+    # (=137+~1 monthly bin) ; 180 chosen for r94 margin-discipline
+    # parity + family-laggard robustness + a clean auditable ceiling.
+    # 180d STILL catches a genuine
+    # China-M1-class >6-month freeze for a sub-driver (the r94 safety
+    # property preserved). Sole non-120 OECD-MEI monthly entry BY
+    # DESIGN AND ON EVIDENCE, not an inconsistency. LATENT fix : not yet
+    # a consumed/critical-anchor series → unblocks r103, not a live-card
+    # change (calibrated honesty).
+    "IR3TIB01GBM156N": 180,  # UK 3M interbank monthly (OECD-MEI family laggard ; r101 ADR-101 §Impl(r101) ingestion + r102 §Impl(r102) 120→180 R53 recalibration)
     "IRLTLT01AUM156N": 120,  # Australia 10y monthly (round-46 ADR-092 §T1.AUD-3)
     # ─── IMF Primary Commodity Price System monthly series ───
     # r94 RECALIBRATION (ADR-092 §Round-94 amendment) : the r46 "60d

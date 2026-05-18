@@ -65,14 +65,20 @@ def test_germany_japan_uk_australia_10y_monthly_all_120_days() -> None:
         assert _max_age_days_for(series_id) == 120
 
 
-def test_uk_3m_interbank_monthly_120_days() -> None:
-    """IR3TIB01GBM156N (UK 3M interbank) is the same OECD-MEI monthly
-    family as IRLTLT01GBM156N (UK 10Y) — same 120d cadence, NOT the
-    14d DAILY default. Added round-101 ADR-101 §Implementation(r101)
-    as the GBP Driver-3 (BoE-vs-Fed) ingestion-plumbing unblock ;
-    liveness R53-deferred to a later round (chicken-egg)."""
-    assert _FRED_SERIES_MAX_AGE_DAYS["IR3TIB01GBM156N"] == 120
-    assert _max_age_days_for("IR3TIB01GBM156N") == 120
+def test_uk_3m_interbank_monthly_180_days() -> None:
+    """IR3TIB01GBM156N (UK 3M interbank, OECD-MEI monthly) is the
+    DOCUMENTED SLOW MEMBER of its family — NOT "same 120d as the UK 10Y
+    sibling" (r101's conservative no-data mirror). r102 step-3 R53
+    prod-DB liveness verify + FRED primary-source citation-gate
+    (ADR-101 §Implementation(r102)) found latest obs 2026-01-01,
+    ~137d stale, NO discontinued banner = alive-but-slow (the r94
+    ADR-092 §Round-94 false-DEGRADE class, NOT the China-M1 dead
+    class). Its siblings refresh ~47d ; it lags ~137d. Recalibrated
+    120→180 (r94 design-rule margin-parity ≈1.33× the observed
+    worst-case lag → clean 6-month ceiling ; still catches a genuine
+    >6-month freeze). NOT the 14d DAILY default."""
+    assert _FRED_SERIES_MAX_AGE_DAYS["IR3TIB01GBM156N"] == 180
+    assert _max_age_days_for("IR3TIB01GBM156N") == 180
 
 
 def test_china_m1_dead_series_stays_60d() -> None:
@@ -159,7 +165,7 @@ def test_registry_monthly_series_are_at_least_30_days() -> None:
         "IRLTLT01ITM156N",
         "IRLTLT01JPM156N",
         "IRLTLT01GBM156N",
-        "IR3TIB01GBM156N",  # round-101 ADR-101 §Implementation(r101) GBP Driver-3 ingestion
+        "IR3TIB01GBM156N",  # r101 ADR-101 §Impl(r101) ingestion + r102 §Impl(r102) 120→180 R53 recalibration (still monthly, ≥30 holds)
         "IRLTLT01AUM156N",  # round-46 ADR-092 §T1.AUD-3
         "MYAGM1CNM189N",  # round-46 ADR-092 §T1.AUD-1 (IMF PinkBook)
         "PIORECRUSDM",  # round-46 ADR-092 §T1.AUD-2 (IMF PinkBook)

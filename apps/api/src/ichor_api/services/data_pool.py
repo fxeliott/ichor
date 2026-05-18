@@ -2275,11 +2275,12 @@ async def _section_gbp_specific(session: AsyncSession, asset: str) -> tuple[str,
     DOI:10.1093/rof/rfq007) — surfaced as a one-line caveat, not a
     driver. Driver 3 (BoE-vs-Fed reaction-function divergence, Clarida-
     Gali-Gertler 1998 DOI:10.1016/S0014-2921(98)00016-6) is DEFERRED :
-    it needs `IR3TIB01GBM156N` (UK 3M interbank) which is
-    poller-configured since r101 (ADR-101 §Implementation(r101)) but
-    whose liveness is not yet R53 prod-DB-verified — the Driver-3
-    paragraph stays deferred to a post-cron-cycle round (r88 lesson :
-    SHIPPED≠FUNCTIONAL, no liveness claim until observed).
+    it needs `IR3TIB01GBM156N` (UK 3M interbank), poller-configured
+    since r101 (ADR-101 §Implementation(r101)) and ingested post-r101 ;
+    its max-age was R53-recalibrated 120→180 d in r102 (ADR-101
+    §Implementation(r102)). The Driver-3 paragraph itself stays
+    deferred to r103 (US-side-leg framework resolution pending — see
+    ADR-101 §Impl(r102) "Still explicitly DEFERRED").
     """
     if asset != "GBP_USD":
         return "", []
@@ -2359,12 +2360,13 @@ async def _section_gbp_specific(session: AsyncSession, asset: str) -> tuple[str,
             "trader precedent). Note : sterling is NOT a USD safe-haven "
             "— in acute risk-off USD is the bid leg of GBP/USD (Ranaldo-"
             "Soderlind 2010, DOI:10.1093/rof/rfq007) ; this is a "
-            "qualitative caveat, not a driver. The BoE-vs-Fed reaction-"
-            "function front-end leg (Clarida-Gali-Gertler 1998, "
-            "DOI:10.1016/S0014-2921(98)00016-6) is DEFERRED — it needs "
-            "the IR3TIB01GBM156N UK 3M interbank series, poller-configured "
-            "since r101 but not yet prod-ingested / R53-liveness-verified "
-            "(ADR-101 §Deferred + §Implementation(r101))."
+            "qualitative caveat, not a driver. The BoE-vs-Fed "
+            "reaction-function front-end leg (Clarida-Gali-Gertler "
+            "1998, DOI:10.1016/S0014-2921(98)00016-6) is DEFERRED to "
+            "r103 — the IR3TIB01GBM156N UK 3M interbank series is "
+            "poller-configured (r101) and R53-recalibrated to 180 d "
+            "(r102, ADR-101 §Implementation(r102)) ; the Driver-3 "
+            "paragraph awaits the r103 US-side-leg framework decision."
         )
 
         # Composite (R24 SUBSET-not-SUPERSET via cadence-mismatch BTP r34 precedent)

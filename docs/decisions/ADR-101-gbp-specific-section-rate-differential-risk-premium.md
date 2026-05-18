@@ -298,3 +298,192 @@ plumbing, no signal, no BUY/SELL).
   attribution" as a RED to resolve then (either ingest a true
   `IR3TIB01USM156N` 3M-vs-3M pair, or relabel the framework).
   `IRSTCB01GBM156N` does NOT exist (do not use, per §Deferred).
+
+## Implementation (r102, 2026-05-18) — `IR3TIB01GBM156N` max-age recalibration 120→180 (step 3 R53 of the §Deferred unblock)
+
+This dated note records r102. **No new ADR** (doctrine #9 — the
+ADR-104 §Implementation(r96) / ADR-105 §Implementation(r99,r100) /
+ADR-101 §Implementation(r101) immutable-append precedent) : this ADR's
+**§Deferred section + §Implementation(r101) ARE the spec** for the
+Driver-3 unblock — the recalibration of `IR3TIB01GBM156N`'s own
+max-age is a continuation of the §Deferred step list, not a new
+decision. A redundant child ADR would itself violate doctrine #9.
+
+**The chicken-egg resolved.** §Implementation(r101) shipped steps 1+2
+(poller add + a conservative `120` mirror of the OECD-MEI monthly
+family) and **explicitly deferred step 3** (R53 prod-DB liveness
+verify) as a structural chicken-egg : liveness is only prod-DB-verifiable
+_after_ a scheduled FRED collector cron cycle ingests the series. That
+cron fired post-r101 (`ichor-collector-fred_extended.timer`) and
+ingested `IR3TIB01GBM156N`. r102 executes **step 3** : the R53 prod-DB
+liveness verify + the threshold recalibration that verification
+surfaces. (The Driver-3 _paragraph_ — step 4 — remains deferred to
+r103, see "Still explicitly DEFERRED" below.)
+
+**R53 citation-gate ground-truth (primary-source, the r88 China-M1
+anti-hallucination discipline — NOT web-cache).** Verified against the
+FRED primary source (browser-rendered series page + `fredgraph.csv`
+actual observation rows), every figure URL-cited, observed
+2026-05-18 :
+
+- `IR3TIB01GBM156N` _Interest Rates: 3-Month or 90-Day Rates and
+  Yields: Interbank Rates: Total for the United Kingdom_ — Monthly,
+  Percent NSA, **OECD Main Economic Indicators**. Observation end
+  **2026-01-01 = 3.71**, Last Updated **2026-02-16**, **NO
+  discontinued banner** (https://fred.stlouisfed.org/series/IR3TIB01GBM156N
+  - https://fred.stlouisfed.org/graph/fredgraph.csv?id=IR3TIB01GBM156N).
+    Latest obs ≈ **137 days** old at the verify date.
+- It is **alive-but-slow, NOT discontinued** — categorically the
+  r94 ADR-092 §Round-94 false-DEGRADE class (a healthy slow feed
+  whose threshold was set too tight), **NOT** the China-M1
+  (`MYAGM1CNM189N`, frozen 2019-08-01, intentionally kept at 60d to
+  flag the dead series — ADR-093 §r49) dead-series class. The
+  distinction was made on primary-source evidence, not assumed
+  (R59 / never-act-on-a-guess / the r88 China-M1 lesson).
+- Its OECD-MEI monthly siblings refresh ~47 days
+  (`IRLTLT01GBM156N` UK 10Y obs end 2026-04-01 = 4.8207, Last
+  Updated 2026-05-15 ; `IR3TIB01USM156N` US 3M obs end 2026-04-01
+  = 3.77, same batch). `IR3TIB01GBM156N` is **empirically the slow
+  member of its own family** (~137 d vs the family's ~47 d) — the
+  family's 47-day figure must **not** be applied to it.
+
+**Recalibration 120 → 180.** The r101 `120` was the correct
+conservative mirror _in the absence of liveness data_ (a missing
+entry falls back to the 14-day DAILY default = the r35 always-stale
+bug class ; mirroring the family-120 was the safe no-data default).
+Step-3 liveness data now **refutes 120 for this member specifically** :
+137 d observed staleness > 120 d ⟹ the series would be classified
+STALE/DEGRADED in normal operation — the exact r94 ADR-092 §Round-94
+false-DEGRADE pathology (commit `17e3780`, where IMF PCPS
+`PIORECRUSDM`/`PCOPPUSDM` were recalibrated 60→120 for the same
+"healthy-but-slow tripped a too-tight threshold" reason). Applying the
+**r94 margin discipline** — and being honest that this is NOT a
+verbatim pre-existing "×1.33 rule" : ADR-092 §Round-94 used a **~30 d
+absolute margin over the ~90 d worst-case (→ 120)** plus a qualitative
+"still catches a death within ~4 months". For this member's ~137 d
+worst-case the _proportionalized_ form of that same discipline is
+≈ 1.33× / ~+43 d margin → 182, taken to a **clean 6-month ceiling
+180 d** (the answer is robust under either the proportional or the
++30–45 d additive reading — both land at ~180). The independent FRED
+citation-gate's evidence-floor was 170 d (137 + ~1 monthly bin) ;
+**180** is chosen over 170 for (a) r94 margin-discipline parity (the
+established in-repo precedent, coherence over an ad-hoc thinner
+margin — stated as a proportionalized interpolation of r94's additive
+margin, not a verbatim rule), (b) robustness against this member's
+documented erraticness as the family laggard, (c) a clean auditable
+"6-month ceiling for the OECD-MEI 3M laggard". 180 d still
+catches a genuine China-M1-class discontinuation (a true freeze blows
+past 180 d within ~6 months and correctly DEGRADES) — the safety
+property r94 requires is preserved. This is the sole non-120 OECD-MEI
+monthly entry in the registry **by design and on evidence**, not an
+inconsistency.
+
+**LATENT, not live (calibrated honesty — no over-claim).**
+`_section_data_integrity` (ADR-103 runtime FRED-liveness audit) only
+liveness-checks the curated `_ASSET_CRITICAL_ANCHORS` set ; `GBP_USD`'s
+sole critical anchor is `IRLTLT01GBM156N` (UK 10Y). `IR3TIB01GBM156N`
+is **not yet consumed by any rendered section** (the Driver-3
+paragraph is still deferred ; `_section_gbp_specific` never calls
+`_latest_fred(session, "IR3TIB01GBM156N")` today). Therefore the
+120-d false-DEGRADE was **latent** — r102 removes the **precondition
+that would otherwise have made the r103 Driver-3 paragraph
+false-DEGRADE every GBP card** ; it does **not** change any
+currently-rendered card. r102 claims exactly this and no more
+(lessons #1 forecast≠preuve, #2 SHIPPED≠FUNCTIONAL, #11
+calibrated-honesty).
+
+**What r102 shipped (1 registry value + verbose evidenced comment + 2
+registry-test touch-points + this ADR append ; ZERO migration).**
+
+- **`services/fred_age_registry.py`** — `"IR3TIB01GBM156N"` value
+  `120 → 180` with a verbose r94-style evidenced comment block
+  (observed 137 d, primary-source-cited, NOT the China-M1 dead class,
+  the r94 §Round-94 design-rule derivation, ADR-101 §Impl(r102)).
+  `data_pool.py` re-exports the same object under
+  `_FRED_SERIES_MAX_AGE_DAYS` → `_max_age_days_for` /
+  `_latest_fred` auto-inherit the new ceiling, zero-diff.
+- **`tests/test_fred_frequency_registry.py`** — the dedicated
+  `test_uk_3m_interbank_monthly_120_days` is **renamed**
+  `test_uk_3m_interbank_monthly_180_days` (semantic-honesty +
+  anti-accumulation : the test name encodes the contract ; a
+  120-named test asserting 180 would lie — the same discipline that
+  kept it OUT of the 10Y-only test at r101). Docstring rewritten :
+  no longer "same 120 d cadence as the UK 10Y sibling" (now false) —
+  it is the **documented OECD-MEI family laggard**, R53-prod-verified
+  r102, recalibrated to 180 d. Asserts `== 180` / `_max_age_days_for
+== 180`. The `monthly_series ≥30` sanity-tuple membership is
+  unchanged (still a monthly series).
+- **`tests/test_fred_liveness_check.py`** — the byte-identical-extraction
+  pin `registry["IR3TIB01GBM156N"] == 120 → == 180` (comment updated
+  to cite ADR-101 §Impl(r102)). The generic `_classify_severity`
+  parametrize (`(130, 120, "YELLOW")` etc.) is a pure-function
+  boundary test of the classifier, **not** `IR3TIB01GBM156N`-specific
+  → correctly unchanged. The merged-poller membership pin
+  (`"IR3TIB01GBM156N" in series`) is unchanged.
+
+**ZERO migration (definitive, evidenced — not assumed).** The max-age
+registry is a pure dependency-free config literal ; no schema, no ORM,
+no table. The KEYWORD-MIGRATION hook fired on the _word_ "migration"
+in context, not on a schema change — `git diff` carries zero
+`alembic/versions/*` and zero ORM edit (r101 §Impl precedent — same
+no-schema-guess discipline, lesson #13). No DB backup needed. Revert =
+single-commit `git revert` + `redeploy-api.sh rollback`.
+
+**Deliberate scope boundary (calibrated honesty — what r102 did NOT
+do, and why).** The Driver-3-paragraph preamble prose in
+`data_pool.py` (the `_section_gbp_specific` docstring `:2278-2282`
+and the rendered `lines.append` block `:2362-2367`) + the
+`test_data_pool_gbp_specific.py:325` test docstring say
+`IR3TIB01GBM156N` is "poller-configured since r101 but not yet
+prod-ingested / R53-liveness-verified". r102's step-3 liveness verify
+makes that _sub-clause_ partially obsolete, BUT r102 **intentionally
+does not rewrite that region** : (i) the strings' **operative
+conclusion** — "the Driver-3 paragraph stays DEFERRED" — remains
+accurate post-r102 (the paragraph IS still deferred to r103) ;
+(ii) r103 (the Driver-3-paragraph wiring round) **rewrites that
+entire region** when the paragraph stops being deferred — that is
+the atomic, churn-free place to update the rationale ; (iii) writing
+"R53-prod-verified" into a runtime code string ahead of the
+protocol-ordered post-deploy consolidated-SSH re-confirm would be a
+forecast≠preuve violation (lesson #1) ; (iv) mixing
+Driver-3-paragraph prose into a threshold-config round violates the
+1-atomic-increment / do-not-mix discipline. This boundary was posed
+**explicitly to ichor-trader R28 pre-merge** (the r101 YELLOW-1
+cross-file-drift precedent + the r100 scope-adjudication precedent) ;
+its verdict is recorded in `docs/SESSION_LOG_2026-05-18-r102-EXECUTION.md`.
+
+**Still explicitly DEFERRED to r103 (NOT done — calibrated honesty).**
+
+- **(c) The US-side leg of the BoE-vs-Fed _3-month_ reaction-function
+  differential.** Primary-source-confirmed r102 : `IR3TIB01USM156N`
+  (US 3M interbank) **EXISTS**, same OECD-MEI monthly family,
+  ~47-day lag — the _faithful_ Clarida-Galí-Gertler 3M-vs-3M
+  counterpart — but is **NOT polled** (ingesting it is an r101-class
+  chicken-egg). `DGS3MO` (US 3-Month Treasury constant maturity,
+  daily, ~4-day lag) is **already polled** (`fred_extended.py:26`)
+  but is a T-bill/CMT instrument, not an interbank rate — the
+  differential's economic interpretation and the framework label
+  must change accordingly if it is used. Reusing `DGS10` 10Y under
+  the Clarida-Galí-Gertler label remains the **FORBIDDEN
+  framework-attribution mis-stamp** (ADR-101 §Impl(r101) Axis-5
+  RED). The instrument/label choice (ingest `IR3TIB01USM156N`
+  true-3M-vs-3M with the chicken-egg, vs. already-polled `DGS3MO`
+  with an explicit relabel) is an **r103 ichor-trader-R28-reviewed
+  decision, not pre-committed here** (never-act-on-a-guess).
+- **(d) The Driver-3 paragraph** in `_section_gbp_specific`
+  (post-(c) : sign-convention R44, symmetric language, Tetlock
+  invalidation + VIX cross-confirm, source-stamp, frequency-mismatch
+  - R24 annotations, ADR-017-clean ; adapt
+    `test_data_pool_gbp_specific.py`).
+
+**R53 prod-DB re-confirm.** The r102 consolidated-SSH 3-witness
+re-confirms `SELECT MAX(observation_date), COUNT(*) FROM
+fred_observations WHERE series_id='IR3TIB01GBM156N'` at verify-time
+(anti-cache ; the prompt's post-r101 ground-truth is a failsafe input,
+re-confirmed live per R53) via the **real `fred_observations` schema**
+(`\d` first — lesson #13 no-schema-guess) + the real `_max_age_days_for`
+prod code path + healthz 200 + deployed-file grep. Witnessed result
+recorded in `docs/SESSION_LOG_2026-05-18-r102-EXECUTION.md` (r102
+makes no liveness claim ahead of that witness — forecast≠preuve).
+Voie D untouched (FRED free public API). ADR-017 untouched (pure
+threshold config — no signal, no BUY/SELL).
