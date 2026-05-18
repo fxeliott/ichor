@@ -83,18 +83,18 @@ export function CorrelationsStrip({ snapshot }: { snapshot: unknown }) {
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-      className="overflow-hidden rounded-2xl border border-[--color-border-subtle] bg-[--color-bg-surface]/40 backdrop-blur-xl"
+      className="overflow-hidden rounded-2xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)]/40 backdrop-blur-xl"
     >
-      <header className="border-b border-[--color-border-subtle] px-6 py-4">
-        <h3 className="font-serif text-lg text-[--color-text-primary]">Corrélations</h3>
-        {/* Colour via inline `style` var() — the mechanism EMPIRICALLY
-            PROVEN this round (rect fill / bar backgroundColor resolve to
-            the exact OKLCH live). The Tailwind `text-[--color-*]`
-            bracket-arbitrary form is broken app-wide on this Tailwind v4
-            build (a PRE-EXISTING latent defect the heat-strip surfaced —
-            r106 real-prod witness ; flagged for its own round, NOT
-            scope-crept here ; r104 token-emission lesson, one layer up). */}
-        <p className="mt-1 text-xs text-[--color-text-muted]">
+      <header className="border-b border-[var(--color-border-subtle)] px-6 py-4">
+        <h3 className="font-serif text-lg text-[var(--color-text-primary)]">Corrélations</h3>
+        {/* Colour via inline `style` var() — the natural idiom for the SVG
+            rect `fill` and the decorative glyph overlay (rect fill / bar
+            backgroundColor resolve to the exact OKLCH live, empirically
+            proven r106). The app-wide Tailwind v4 `text-[--color-*]`
+            v3-bracket defect this heat-strip surfaced in r106 was fixed
+            codebase-wide in r107 (ADR-099 §Implementation(r107) — migrated
+            to the explicit `[var(--*)]` form). */}
+        <p className="mt-1 text-xs text-[var(--color-text-muted)]">
           Co-mouvement avec le complexe ·{" "}
           <span style={{ color: "var(--color-chart-div-neg-strong)" }}>−1 inverse</span> ↔{" "}
           <span style={{ color: "var(--color-chart-div-neutral)" }}>neutre</span> ↔{" "}
@@ -136,10 +136,10 @@ export function CorrelationsStrip({ snapshot }: { snapshot: unknown }) {
             {entries.map(([key, rho]) => (
               <span
                 key={key}
-                // Dark ink via inline var() (proven mechanism) — restores
-                // the accessibility-reviewer-verified ≥7.59:1 glyph
-                // contrast on every L0.72 cell (the broken
-                // `text-[--color-bg-base]` would inherit light slate ≈2:1).
+                // Dark ink via inline var() — the natural idiom for this
+                // decorative overlay ; guarantees the
+                // accessibility-reviewer-verified ≥7.59:1 glyph contrast
+                // on every L0.72 cell (a light-slate inherit would be ≈2:1).
                 style={{ color: "var(--color-bg-base)" }}
                 className="flex min-w-0 flex-1 items-center justify-center overflow-hidden text-sm font-bold"
               >
@@ -150,7 +150,7 @@ export function CorrelationsStrip({ snapshot }: { snapshot: unknown }) {
         </div>
       </div>
 
-      <ul className="mt-2 divide-y divide-[--color-border-subtle]/60">
+      <ul className="mt-2 divide-y divide-[var(--color-border-subtle)]/60">
         {entries.map(([key, rho], i) => {
           const pos = rho >= 0;
           const magPct = Math.min(Math.abs(rho) * 100, 100);
@@ -166,7 +166,7 @@ export function CorrelationsStrip({ snapshot }: { snapshot: unknown }) {
             >
               <span
                 title={label}
-                className="w-20 shrink-0 truncate font-mono text-sm text-[--color-text-secondary]"
+                className="w-20 shrink-0 truncate font-mono text-sm text-[var(--color-text-secondary)]"
               >
                 {label}
               </span>
@@ -174,7 +174,7 @@ export function CorrelationsStrip({ snapshot }: { snapshot: unknown }) {
                   (pos), fill = the continuous OKLCH heat stop. Slightly
                   muted so the strip stays the focal gestalt (UD nit). */}
               <div className="relative h-2 flex-1">
-                <div className="absolute left-1/2 top-0 h-full w-px bg-[--color-border-default]" />
+                <div className="absolute left-1/2 top-0 h-full w-px bg-[var(--color-border-default)]" />
                 <m.div
                   initial={{ width: 0 }}
                   animate={{ width: `${magPct / 2}%` }}
@@ -187,11 +187,11 @@ export function CorrelationsStrip({ snapshot }: { snapshot: unknown }) {
               </div>
               <span
                 aria-hidden="true"
-                className="w-3 shrink-0 text-center text-xs text-[--color-text-secondary]"
+                className="w-3 shrink-0 text-center text-xs text-[var(--color-text-secondary)]"
               >
                 {trendGlyph(rho)}
               </span>
-              <span className="w-14 shrink-0 text-right font-mono text-sm font-medium tabular-nums text-[--color-text-primary]">
+              <span className="w-14 shrink-0 text-right font-mono text-sm font-medium tabular-nums text-[var(--color-text-primary)]">
                 {pos ? "+" : "−"}
                 {Math.abs(rho).toFixed(2)}
               </span>
@@ -200,7 +200,7 @@ export function CorrelationsStrip({ snapshot }: { snapshot: unknown }) {
         })}
       </ul>
 
-      <p className="border-t border-[--color-border-subtle] px-6 py-3 text-[10px] uppercase tracking-widest text-[--color-text-muted]">
+      <p className="border-t border-[var(--color-border-subtle)] px-6 py-3 text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
         Contexte pré-trade — corrélations observées, pas un ordre (frontière ADR-017)
       </p>
     </m.section>

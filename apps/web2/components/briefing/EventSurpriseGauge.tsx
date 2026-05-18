@@ -22,9 +22,9 @@ import { m } from "motion/react";
 import type { EventReading, EventSurpriseSummary } from "@/lib/eventSurprise";
 
 const IMPACT_DOT: Record<EventSurpriseSummary["catalyst"]["impact"], string> = {
-  high: "bg-[--color-alert]",
-  medium: "bg-[--color-warn]",
-  low: "bg-[--color-text-muted]",
+  high: "bg-[var(--color-alert)]",
+  medium: "bg-[var(--color-warn)]",
+  low: "bg-[var(--color-text-muted)]",
 };
 
 const IMPACT_LABEL: Record<EventSurpriseSummary["catalyst"]["impact"], string> = {
@@ -46,23 +46,23 @@ const ZONES: Zone[] = [
   {
     key: "priced_in",
     label: "Anticipé",
-    text: "text-[--color-bull]",
-    fill: "bg-[--color-bull]/15",
-    ring: "ring-[--color-bull]/40",
+    text: "text-[var(--color-bull)]",
+    fill: "bg-[var(--color-bull)]/15",
+    ring: "ring-[var(--color-bull)]/40",
   },
   {
     key: "mixed",
     label: "Partiel",
-    text: "text-[--color-text-secondary]",
-    fill: "bg-[--color-text-muted]/10",
-    ring: "ring-[--color-border-default]",
+    text: "text-[var(--color-text-secondary)]",
+    fill: "bg-[var(--color-text-muted)]/10",
+    ring: "ring-[var(--color-border-default)]",
   },
   {
     key: "surprise_risk",
     label: "Surprise",
-    text: "text-[--color-warn]",
-    fill: "bg-[--color-warn]/15",
-    ring: "ring-[--color-warn]/40",
+    text: "text-[var(--color-warn)]",
+    fill: "bg-[var(--color-warn)]/15",
+    ring: "ring-[var(--color-warn)]/40",
   },
 ];
 
@@ -113,11 +113,13 @@ export function EventSurpriseGauge({
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-      className="overflow-hidden rounded-2xl border border-[--color-border-subtle] bg-[--color-bg-surface]/40 backdrop-blur-xl"
+      className="overflow-hidden rounded-2xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)]/40 backdrop-blur-xl"
     >
-      <header className="border-b border-[--color-border-subtle] px-6 py-4">
-        <h3 className="font-serif text-lg text-[--color-text-primary]">Anticipation vs surprise</h3>
-        <p className="mt-1 text-xs text-[--color-text-muted]">
+      <header className="border-b border-[var(--color-border-subtle)] px-6 py-4">
+        <h3 className="font-serif text-lg text-[var(--color-text-primary)]">
+          Anticipation vs surprise
+        </h3>
+        <p className="mt-1 text-xs text-[var(--color-text-muted)]">
           Catalyseur calendrier × backdrop marché de prédiction · potentiel de surprise résiduel
         </p>
       </header>
@@ -133,12 +135,12 @@ export function EventSurpriseGauge({
                 className={`flex-1 rounded-lg px-3 py-2 text-center ring-1 transition-colors ${
                   on
                     ? `${z.fill} ${z.ring}`
-                    : "bg-[--color-bg-base]/30 ring-[--color-border-subtle]/50"
+                    : "bg-[var(--color-bg-base)]/30 ring-[var(--color-border-subtle)]/50"
                 }`}
               >
                 <span
                   className={`font-mono text-[10px] uppercase tracking-widest ${
-                    on ? z.text : "text-[--color-text-muted]"
+                    on ? z.text : "text-[var(--color-text-muted)]"
                   }`}
                 >
                   {z.label}
@@ -148,26 +150,28 @@ export function EventSurpriseGauge({
           })}
         </div>
         <p className={`mt-3 font-serif text-base ${active.text}`}>{data.headline}</p>
-        <p className="mt-1 text-sm leading-relaxed text-[--color-text-secondary]">{data.detail}</p>
+        <p className="mt-1 text-sm leading-relaxed text-[var(--color-text-secondary)]">
+          {data.detail}
+        </p>
       </div>
 
       {/* Catalyst row */}
-      <div className="mt-4 flex items-start gap-3 border-t border-[--color-border-subtle]/60 px-6 py-4">
+      <div className="mt-4 flex items-start gap-3 border-t border-[var(--color-border-subtle)]/60 px-6 py-4">
         <span
           className={`mt-1.5 inline-flex h-2 w-2 shrink-0 rounded-full ${IMPACT_DOT[data.catalyst.impact]}`}
           aria-hidden
         />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-baseline gap-2">
-            <span className="text-sm font-medium text-[--color-text-primary]">
+            <span className="text-sm font-medium text-[var(--color-text-primary)]">
               {data.catalyst.label}
             </span>
-            <span className="font-mono text-[10px] uppercase tracking-wider text-[--color-text-muted]">
+            <span className="font-mono text-[10px] uppercase tracking-wider text-[var(--color-text-muted)]">
               {data.catalyst.region} · {IMPACT_LABEL[data.catalyst.impact]}
               {data.catalyst.forAsset ? "" : " · marché-large"}
             </span>
           </div>
-          <p className="mt-0.5 font-mono text-[11px] tabular-nums text-[--color-text-muted]">
+          <p className="mt-0.5 font-mono text-[11px] tabular-nums text-[var(--color-text-muted)]">
             {fmtWhen(data.catalyst.when, data.catalyst.whenTimeUtc)} ·{" "}
             {data.consensus.forecast
               ? `attendu ${data.consensus.forecast}${
@@ -178,11 +182,11 @@ export function EventSurpriseGauge({
         </div>
       </div>
 
-      <p className="border-t border-[--color-border-subtle]/60 px-6 py-3 text-xs text-[--color-text-secondary]">
+      <p className="border-t border-[var(--color-border-subtle)]/60 px-6 py-3 text-xs text-[var(--color-text-secondary)]">
         {marketLine}
       </p>
 
-      <p className="border-t border-[--color-border-subtle]/60 px-6 py-3 text-[10px] uppercase tracking-widest text-[--color-text-muted]">
+      <p className="border-t border-[var(--color-border-subtle)]/60 px-6 py-3 text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
         Lecture anticipation vs surprise — contexte pré-trade, pas un ordre (ADR-017)
       </p>
     </m.section>

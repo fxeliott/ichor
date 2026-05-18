@@ -92,16 +92,16 @@ function PanelShell({
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, delay }}
-      className="overflow-hidden rounded-2xl border border-[--color-border-subtle] bg-[--color-bg-surface]/40 backdrop-blur-xl"
+      className="overflow-hidden rounded-2xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)]/40 backdrop-blur-xl"
     >
-      <header className="border-b border-[--color-border-subtle] px-6 py-4">
+      <header className="border-b border-[var(--color-border-subtle)] px-6 py-4">
         <div className="flex items-baseline justify-between gap-4">
-          <h3 className="font-serif text-lg text-[--color-text-primary]">{title}</h3>
-          <span className="text-[10px] uppercase tracking-widest text-[--color-text-muted]">
+          <h3 className="font-serif text-lg text-[var(--color-text-primary)]">{title}</h3>
+          <span className="text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
             {count} {count === 1 ? "item" : "items"}
           </span>
         </div>
-        <p className="mt-1 text-xs text-[--color-text-muted]">{blurb}</p>
+        <p className="mt-1 text-xs text-[var(--color-text-muted)]">{blurb}</p>
       </header>
       {children}
     </m.section>
@@ -109,13 +109,13 @@ function PanelShell({
 }
 
 const ACCENT_BORDER = {
-  bull: "border-l-[--color-bull]",
-  warn: "border-l-[--color-warn]",
-  neutral: "border-l-[--color-accent-cobalt]",
+  bull: "border-l-[var(--color-bull)]",
+  warn: "border-l-[var(--color-warn)]",
+  neutral: "border-l-[var(--color-accent-cobalt)]",
 } as const;
 
 function EmptyRow({ label }: { label: string }) {
-  return <div className="px-6 py-6 text-sm italic text-[--color-text-muted]">{label}</div>;
+  return <div className="px-6 py-6 text-sm italic text-[var(--color-text-muted)]">{label}</div>;
 }
 
 interface NarrativeBlocksProps {
@@ -141,13 +141,13 @@ export function NarrativeBlocks({ mechanisms, invalidations, catalysts }: Narrat
         {mechs.length === 0 ? (
           <EmptyRow label="No mechanism extracted from this card." />
         ) : (
-          <ul className="divide-y divide-[--color-border-subtle]/60">
+          <ul className="divide-y divide-[var(--color-border-subtle)]/60">
             {mechs.map((mech, i) => (
               <li
                 key={i}
-                className={`border-l-2 ${ACCENT_BORDER.bull} px-6 py-4 transition-colors hover:bg-[--color-bg-elevated]/40`}
+                className={`border-l-2 ${ACCENT_BORDER.bull} px-6 py-4 transition-colors hover:bg-[var(--color-bg-elevated)]/40`}
               >
-                <p className="text-sm leading-relaxed text-[--color-text-primary]">
+                <p className="text-sm leading-relaxed text-[var(--color-text-primary)]">
                   {mech.claim ?? JSON.stringify(mech)}
                 </p>
                 {mech.sources && mech.sources.length > 0 && (
@@ -155,7 +155,7 @@ export function NarrativeBlocks({ mechanisms, invalidations, catalysts }: Narrat
                     {mech.sources.map((s, si) => (
                       <span
                         key={si}
-                        className="rounded-full border border-[--color-border-default] px-2 py-0.5 font-mono text-[10px] text-[--color-text-muted]"
+                        className="rounded-full border border-[var(--color-border-default)] px-2 py-0.5 font-mono text-[10px] text-[var(--color-text-muted)]"
                         title={s}
                       >
                         {shortSource(s)}
@@ -179,24 +179,24 @@ export function NarrativeBlocks({ mechanisms, invalidations, catalysts }: Narrat
         {invals.length === 0 ? (
           <EmptyRow label="No explicit invalidation (interpret as fully Tetlockable)." />
         ) : (
-          <ul className="divide-y divide-[--color-border-subtle]/60">
+          <ul className="divide-y divide-[var(--color-border-subtle)]/60">
             {invals.map((inv, i) => (
               <li
                 key={i}
-                className={`border-l-2 ${ACCENT_BORDER.warn} px-6 py-4 transition-colors hover:bg-[--color-bg-elevated]/40`}
+                className={`border-l-2 ${ACCENT_BORDER.warn} px-6 py-4 transition-colors hover:bg-[var(--color-bg-elevated)]/40`}
               >
                 <div className="flex items-start justify-between gap-4">
-                  <p className="text-sm leading-relaxed text-[--color-text-primary]">
+                  <p className="text-sm leading-relaxed text-[var(--color-text-primary)]">
                     {inv.condition ?? JSON.stringify(inv)}
                   </p>
                   {inv.threshold && (
-                    <span className="shrink-0 rounded-md bg-[--color-warn]/10 px-2 py-1 font-mono text-sm font-medium tabular-nums text-[--color-warn]">
+                    <span className="shrink-0 rounded-md bg-[var(--color-warn)]/10 px-2 py-1 font-mono text-sm font-medium tabular-nums text-[var(--color-warn)]">
                       {inv.threshold}
                     </span>
                   )}
                 </div>
                 {inv.source && (
-                  <p className="mt-2 font-mono text-[10px] uppercase tracking-wider text-[--color-text-muted]">
+                  <p className="mt-2 font-mono text-[10px] uppercase tracking-wider text-[var(--color-text-muted)]">
                     {shortSource(inv.source)}
                   </p>
                 )}
@@ -216,22 +216,22 @@ export function NarrativeBlocks({ mechanisms, invalidations, catalysts }: Narrat
         {cats.length === 0 ? (
           <EmptyRow label="No catalyst surfaced for this session." />
         ) : (
-          <ul className="divide-y divide-[--color-border-subtle]/60">
+          <ul className="divide-y divide-[var(--color-border-subtle)]/60">
             {cats.map((cat, i) => (
               <li
                 key={i}
-                className={`border-l-2 ${ACCENT_BORDER.neutral} px-6 py-4 transition-colors hover:bg-[--color-bg-elevated]/40`}
+                className={`border-l-2 ${ACCENT_BORDER.neutral} px-6 py-4 transition-colors hover:bg-[var(--color-bg-elevated)]/40`}
               >
                 {cat.time && (
-                  <p className="font-mono text-[10px] uppercase tracking-wider text-[--color-accent-cobalt-bright]">
+                  <p className="font-mono text-[10px] uppercase tracking-wider text-[var(--color-accent-cobalt-bright)]">
                     {fmtTime(cat.time)}
                   </p>
                 )}
-                <p className="mt-1 text-sm font-medium leading-relaxed text-[--color-text-primary]">
+                <p className="mt-1 text-sm font-medium leading-relaxed text-[var(--color-text-primary)]">
                   {cat.event ?? JSON.stringify(cat)}
                 </p>
                 {cat.expected_impact && (
-                  <p className="mt-1.5 text-xs leading-relaxed text-[--color-text-secondary]">
+                  <p className="mt-1.5 text-xs leading-relaxed text-[var(--color-text-secondary)]">
                     {cat.expected_impact}
                   </p>
                 )}

@@ -46,17 +46,17 @@ export function VolumePanel({ asset, bars }: { asset: string; bars: IntradayBarO
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
-        className="overflow-hidden rounded-2xl border border-[--color-border-subtle] bg-[--color-bg-surface]/40 backdrop-blur-xl"
+        className="overflow-hidden rounded-2xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)]/40 backdrop-blur-xl"
       >
-        <header className="border-b border-[--color-border-subtle] px-6 py-4">
-          <h3 className="font-serif text-lg text-[--color-text-primary]">
+        <header className="border-b border-[var(--color-border-subtle)] px-6 py-4">
+          <h3 className="font-serif text-lg text-[var(--color-text-primary)]">
             Activité (volume proxy)
           </h3>
-          <p className="mt-1 text-xs text-[--color-text-muted]">
+          <p className="mt-1 text-xs text-[var(--color-text-muted)]">
             Aucune barre intraday disponible — marché fermé ou source en attente.
           </p>
         </header>
-        <p className="px-6 py-8 text-center text-sm text-[--color-text-muted]">
+        <p className="px-6 py-8 text-center text-sm text-[var(--color-text-muted)]">
           Pas d&apos;activité récente pour {asset.replace("_", "/")}.
         </p>
       </m.section>
@@ -93,24 +93,24 @@ export function VolumePanel({ asset, bars }: { asset: string; bars: IntradayBarO
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-      className="overflow-hidden rounded-2xl border border-[--color-border-subtle] bg-[--color-bg-surface]/40 backdrop-blur-xl"
+      className="overflow-hidden rounded-2xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)]/40 backdrop-blur-xl"
     >
-      <header className="flex flex-wrap items-start justify-between gap-2 border-b border-[--color-border-subtle] px-6 py-4">
+      <header className="flex flex-wrap items-start justify-between gap-2 border-b border-[var(--color-border-subtle)] px-6 py-4">
         <div>
-          <h3 className="font-serif text-lg text-[--color-text-primary]">
+          <h3 className="font-serif text-lg text-[var(--color-text-primary)]">
             Activité (volume proxy)
           </h3>
-          <p className="mt-1 text-xs text-[--color-text-muted]">
+          <p className="mt-1 text-xs text-[var(--color-text-muted)]">
             Agrégat tick Polygon · le volume réel FX n&apos;existe pas (marché décentralisé) · ligne
             = prix de clôture
           </p>
         </div>
         {closed ? (
-          <span className="rounded-full border border-[--color-border-default] px-2.5 py-1 text-[10px] font-medium uppercase tracking-widest text-[--color-text-muted]">
+          <span className="rounded-full border border-[var(--color-border-default)] px-2.5 py-1 text-[10px] font-medium uppercase tracking-widest text-[var(--color-text-muted)]">
             Marché fermé · dernière {parisLabel(last.time, true)}
           </span>
         ) : (
-          <span className="rounded-full border border-[--color-bull]/40 px-2.5 py-1 text-[10px] font-medium uppercase tracking-widest text-[--color-bull]">
+          <span className="rounded-full border border-[var(--color-bull)]/40 px-2.5 py-1 text-[10px] font-medium uppercase tracking-widest text-[var(--color-bull)]">
             Session active
           </span>
         )}
@@ -175,8 +175,10 @@ export function VolumePanel({ asset, bars }: { asset: string; bars: IntradayBarO
           ["Fenêtre", `${parisLabel(usable[0]!.time)}→${parisLabel(last.time)}`],
         ].map(([k, v]) => (
           <div key={k} className="flex flex-col">
-            <dt className="text-[10px] uppercase tracking-widest text-[--color-text-muted]">{k}</dt>
-            <dd className="font-mono tabular-nums text-[--color-text-secondary]">{v}</dd>
+            <dt className="text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
+              {k}
+            </dt>
+            <dd className="font-mono tabular-nums text-[var(--color-text-secondary)]">{v}</dd>
           </div>
         ))}
       </dl>

@@ -43,9 +43,9 @@ function biasGlyph(direction: SessionCard["bias_direction"]): { glyph: string; s
 }
 
 function biasTone(direction: SessionCard["bias_direction"]): string {
-  if (direction === "long") return "text-[--color-bull]";
-  if (direction === "short") return "text-[--color-bear]";
-  return "text-[--color-neutral]";
+  if (direction === "long") return "text-[var(--color-bull)]";
+  if (direction === "short") return "text-[var(--color-bear)]";
+  return "text-[var(--color-neutral)]";
 }
 
 function relativeTime(iso: string): string {
@@ -66,7 +66,7 @@ export function BriefingHeader({ asset, card, isLive }: BriefingHeaderProps) {
       initial={{ opacity: 0, y: -8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
-      className="relative overflow-hidden rounded-3xl border border-[--color-border-default] bg-gradient-to-br from-[--color-bg-surface] via-[--color-bg-elevated] to-[--color-bg-surface] p-8 backdrop-blur-2xl"
+      className="relative overflow-hidden rounded-3xl border border-[var(--color-border-default)] bg-gradient-to-br from-[var(--color-bg-surface)] via-[var(--color-bg-elevated)] to-[var(--color-bg-surface)] p-8 backdrop-blur-2xl"
     >
       <div
         aria-hidden
@@ -75,38 +75,38 @@ export function BriefingHeader({ asset, card, isLive }: BriefingHeaderProps) {
 
       <div className="relative grid gap-6 md:grid-cols-[1fr_auto] md:items-end">
         <div>
-          <div className="flex items-center gap-3 text-[10px] uppercase tracking-[0.2em] text-[--color-text-muted]">
+          <div className="flex items-center gap-3 text-[10px] uppercase tracking-[0.2em] text-[var(--color-text-muted)]">
             <span
               className={`inline-flex h-2 w-2 rounded-full ${
-                isLive ? "bg-[--color-bull] animate-pulse" : "bg-[--color-text-muted]"
+                isLive ? "bg-[var(--color-bull)] animate-pulse" : "bg-[var(--color-text-muted)]"
               }`}
               aria-hidden
             />
             <span>{isLive ? "LIVE" : "OFFLINE"}</span>
             {card?.session_type && (
               <>
-                <span className="text-[--color-text-muted]/50">·</span>
+                <span className="text-[var(--color-text-muted)]">·</span>
                 <span>{SESSION_LABEL[card.session_type]}</span>
               </>
             )}
           </div>
 
-          <h1 className="mt-3 font-serif text-5xl tracking-tight text-[--color-text-primary]">
+          <h1 className="mt-3 font-serif text-5xl tracking-tight text-[var(--color-text-primary)]">
             {asset.replace("_", "/")}
           </h1>
 
           {card?.thesis && (
-            <p className="mt-3 max-w-xl text-base leading-relaxed text-[--color-text-secondary]">
+            <p className="mt-3 max-w-xl text-base leading-relaxed text-[var(--color-text-secondary)]">
               {card.thesis}
             </p>
           )}
 
           {card?.regime_quadrant && (
-            <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-[--color-border-default] bg-[--color-bg-base]/40 px-3 py-1">
-              <span className="text-[10px] uppercase tracking-wider text-[--color-text-muted]">
+            <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-[var(--color-border-default)] bg-[var(--color-bg-base)]/40 px-3 py-1">
+              <span className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)]">
                 Régime
               </span>
-              <span className="text-sm font-medium text-[--color-text-primary]">
+              <span className="text-sm font-medium text-[var(--color-text-primary)]">
                 {REGIME_LABEL[card.regime_quadrant] ?? card.regime_quadrant}
               </span>
             </div>
@@ -132,15 +132,15 @@ export function BriefingHeader({ asset, card, isLive }: BriefingHeaderProps) {
 
             <div className="space-y-2">
               <div className="flex items-baseline justify-between gap-4">
-                <span className="text-[10px] uppercase tracking-widest text-[--color-text-muted]">
+                <span className="text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
                   Conviction
                 </span>
-                <span className="font-mono text-2xl font-medium tabular-nums text-[--color-text-primary]">
+                <span className="font-mono text-2xl font-medium tabular-nums text-[var(--color-text-primary)]">
                   {card.conviction_pct.toFixed(0)}%
                 </span>
               </div>
               <div
-                className="h-1.5 overflow-hidden rounded-full bg-[--color-bg-base]"
+                className="h-1.5 overflow-hidden rounded-full bg-[var(--color-bg-base)]"
                 role="progressbar"
                 aria-valuenow={card.conviction_pct}
                 aria-valuemin={0}
@@ -152,35 +152,37 @@ export function BriefingHeader({ asset, card, isLive }: BriefingHeaderProps) {
                   transition={{ duration: 0.8, ease: "easeOut", delay: 0.3 }}
                   className={`h-full rounded-full ${
                     card.bias_direction === "long"
-                      ? "bg-[--color-bull]"
+                      ? "bg-[var(--color-bull)]"
                       : card.bias_direction === "short"
-                        ? "bg-[--color-bear]"
-                        : "bg-[--color-neutral]"
+                        ? "bg-[var(--color-bear)]"
+                        : "bg-[var(--color-neutral)]"
                   }`}
                 />
               </div>
-              <p className="text-[10px] text-[--color-text-muted]">ADR-022 cap : 95 % maximum</p>
+              <p className="text-[10px] text-[var(--color-text-muted)]">
+                ADR-022 cap : 95 % maximum
+              </p>
             </div>
 
             {card.magnitude_pips_low !== null && card.magnitude_pips_high !== null && (
               <div className="flex items-baseline justify-between gap-4">
-                <span className="text-[10px] uppercase tracking-widest text-[--color-text-muted]">
+                <span className="text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
                   Magnitude (pips)
                 </span>
-                <span className="font-mono text-base tabular-nums text-[--color-text-secondary]">
+                <span className="font-mono text-base tabular-nums text-[var(--color-text-secondary)]">
                   {card.magnitude_pips_low.toFixed(0)} → {card.magnitude_pips_high.toFixed(0)}
                 </span>
               </div>
             )}
 
-            <p className="text-[10px] uppercase tracking-wider text-[--color-text-muted]">
+            <p className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)]">
               Generated {relativeTime(card.generated_at)} · {card.model_id}
             </p>
           </div>
         )}
 
         {!card && (
-          <div className="rounded-xl border border-[--color-border-subtle] bg-[--color-bg-base]/40 p-6 text-sm text-[--color-text-muted]">
+          <div className="rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-base)]/40 p-6 text-sm text-[var(--color-text-muted)]">
             No live session card for {asset.replace("_", "/")} yet. Check back at next pre-session
             cron fire.
           </div>

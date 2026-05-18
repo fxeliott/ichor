@@ -246,10 +246,13 @@ export default async function BriefingPage({ params }: PageParams) {
 
       <section aria-labelledby="key-levels-heading">
         <div className="mb-4 flex items-baseline justify-between gap-4">
-          <h2 id="key-levels-heading" className="font-serif text-2xl text-[--color-text-primary]">
+          <h2
+            id="key-levels-heading"
+            className="font-serif text-2xl text-[var(--color-text-primary)]"
+          >
             Niveaux clés
           </h2>
-          <span className="text-[10px] uppercase tracking-widest text-[--color-text-muted]">
+          <span className="text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
             ADR-083 D3 · Microstructure + macro switches
           </span>
         </div>
@@ -259,10 +262,13 @@ export default async function BriefingPage({ params }: PageParams) {
       {card && (
         <section aria-labelledby="narrative-heading">
           <div className="mb-4 flex items-baseline justify-between gap-4">
-            <h2 id="narrative-heading" className="font-serif text-2xl text-[--color-text-primary]">
+            <h2
+              id="narrative-heading"
+              className="font-serif text-2xl text-[var(--color-text-primary)]"
+            >
               Analyse Pass-2
             </h2>
-            <span className="text-[10px] uppercase tracking-widest text-[--color-text-muted]">
+            <span className="text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
               Claude Opus 4.7 · 4-pass output
             </span>
           </div>
@@ -277,10 +283,13 @@ export default async function BriefingPage({ params }: PageParams) {
       {card && (
         <section aria-labelledby="scenarios-heading">
           <div className="mb-4 flex items-baseline justify-between gap-4">
-            <h2 id="scenarios-heading" className="font-serif text-2xl text-[--color-text-primary]">
+            <h2
+              id="scenarios-heading"
+              className="font-serif text-2xl text-[var(--color-text-primary)]"
+            >
               Scénarios
             </h2>
-            <span className="text-[10px] uppercase tracking-widest text-[--color-text-muted]">
+            <span className="text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
               ADR-085 · Pass-6 · distribution de probabilité
             </span>
           </div>
@@ -290,10 +299,13 @@ export default async function BriefingPage({ params }: PageParams) {
 
       <section aria-labelledby="calendar-heading">
         <div className="mb-4 flex items-baseline justify-between gap-4">
-          <h2 id="calendar-heading" className="font-serif text-2xl text-[--color-text-primary]">
+          <h2
+            id="calendar-heading"
+            className="font-serif text-2xl text-[var(--color-text-primary)]"
+          >
             Calendrier
           </h2>
-          <span className="text-[10px] uppercase tracking-widest text-[--color-text-muted]">
+          <span className="text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
             Événements macro · {calendar?.horizon_days ?? "—"} j horizon
           </span>
         </div>
@@ -304,10 +316,13 @@ export default async function BriefingPage({ params }: PageParams) {
 
       <section aria-labelledby="geopolitics-heading">
         <div className="mb-4 flex items-baseline justify-between gap-4">
-          <h2 id="geopolitics-heading" className="font-serif text-2xl text-[--color-text-primary]">
+          <h2
+            id="geopolitics-heading"
+            className="font-serif text-2xl text-[var(--color-text-primary)]"
+          >
             Géopolitique
           </h2>
-          <span className="text-[10px] uppercase tracking-widest text-[--color-text-muted]">
+          <span className="text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
             AI-GPR · GDELT · risque macro-géopolitique
           </span>
         </div>
@@ -316,10 +331,13 @@ export default async function BriefingPage({ params }: PageParams) {
 
       <section aria-labelledby="sentiment-heading">
         <div className="mb-4 flex items-baseline justify-between gap-4">
-          <h2 id="sentiment-heading" className="font-serif text-2xl text-[--color-text-primary]">
+          <h2
+            id="sentiment-heading"
+            className="font-serif text-2xl text-[var(--color-text-primary)]"
+          >
             Positionnement
           </h2>
-          <span className="text-[10px] uppercase tracking-widest text-[--color-text-muted]">
+          <span className="text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
             MyFXBook retail · contrarian
           </span>
         </div>
@@ -330,11 +348,11 @@ export default async function BriefingPage({ params }: PageParams) {
         <div className="mb-4 flex items-baseline justify-between gap-4">
           <h2
             id="institutional-heading"
-            className="font-serif text-2xl text-[--color-text-primary]"
+            className="font-serif text-2xl text-[var(--color-text-primary)]"
           >
             Acteurs du marché
           </h2>
-          <span className="text-[10px] uppercase tracking-widest text-[--color-text-muted]">
+          <span className="text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
             CFTC TFF + COT · smart money
           </span>
         </div>
@@ -343,10 +361,10 @@ export default async function BriefingPage({ params }: PageParams) {
 
       <section aria-labelledby="news-heading">
         <div className="mb-4 flex items-baseline justify-between gap-4">
-          <h2 id="news-heading" className="font-serif text-2xl text-[--color-text-primary]">
+          <h2 id="news-heading" className="font-serif text-2xl text-[var(--color-text-primary)]">
             Actualités
           </h2>
-          <span className="text-[10px] uppercase tracking-widest text-[--color-text-muted]">
+          <span className="text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
             Flux récent · tonalité
           </span>
         </div>
@@ -355,10 +373,10 @@ export default async function BriefingPage({ params }: PageParams) {
 
       <section aria-labelledby="volume-heading">
         <div className="mb-4 flex items-baseline justify-between gap-4">
-          <h2 id="volume-heading" className="font-serif text-2xl text-[--color-text-primary]">
+          <h2 id="volume-heading" className="font-serif text-2xl text-[var(--color-text-primary)]">
             Volume
           </h2>
-          <span className="text-[10px] uppercase tracking-widest text-[--color-text-muted]">
+          <span className="text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
             Activité intraday · proxy tick Polygon
           </span>
         </div>
@@ -367,24 +385,27 @@ export default async function BriefingPage({ params }: PageParams) {
 
       <section aria-labelledby="correlations-heading">
         <div className="mb-4 flex items-baseline justify-between gap-4">
-          <h2 id="correlations-heading" className="font-serif text-2xl text-[--color-text-primary]">
+          <h2
+            id="correlations-heading"
+            className="font-serif text-2xl text-[var(--color-text-primary)]"
+          >
             Corrélations
           </h2>
-          <span className="text-[10px] uppercase tracking-widest text-[--color-text-muted]">
+          <span className="text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
             {correlationSource}
           </span>
         </div>
         {correlationSnapshot ? (
           <CorrelationsStrip snapshot={correlationSnapshot} />
         ) : (
-          <div className="rounded-2xl border border-[--color-border-subtle] bg-[--color-bg-surface]/40 px-6 py-8 text-center text-sm text-[--color-text-muted] backdrop-blur-xl">
+          <div className="rounded-2xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)]/40 px-6 py-8 text-center text-sm text-[var(--color-text-muted)] backdrop-blur-xl">
             Corrélations indisponibles — ni snapshot carte ni matrice live pour{" "}
             {normalisedAsset.replace("_", "/")}.
           </div>
         )}
       </section>
 
-      <footer className="pt-6 text-[10px] uppercase tracking-widest text-[--color-text-muted]">
+      <footer className="pt-6 text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
         Ichor v2 · Pre-trade context only · No BUY/SELL signals (ADR-017 boundary)
       </footer>
     </main>

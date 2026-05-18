@@ -53,16 +53,16 @@ export function PocketSkillBadge({
   let tone: string;
   if (!conclusive) {
     verdict = `Calibration en cours · n=${pocket.n_observations} — non concluant`;
-    tone = "text-[--color-text-muted]";
+    tone = "text-[var(--color-text-muted)]";
   } else if (sd <= -_SKILL_EPS) {
     verdict = "Anti-skill historique — pondère ce biais à la baisse";
-    tone = "text-[--color-bear]";
+    tone = "text-[var(--color-bear)]";
   } else if (sd >= _SKILL_EPS) {
     verdict = "Skill historique confirmé sur ce pocket";
-    tone = "text-[--color-bull]";
+    tone = "text-[var(--color-bull)]";
   } else {
     verdict = "Skill neutre — pas d'edge historique mesurable";
-    tone = "text-[--color-text-secondary]";
+    tone = "text-[var(--color-text-secondary)]";
   }
 
   const drift = pocket.latest_drift_event_at
@@ -78,20 +78,20 @@ export function PocketSkillBadge({
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-      className="overflow-hidden rounded-2xl border border-[--color-border-subtle] bg-[--color-bg-surface]/40 backdrop-blur-xl"
+      className="overflow-hidden rounded-2xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)]/40 backdrop-blur-xl"
     >
-      <header className="flex flex-wrap items-start justify-between gap-2 border-b border-[--color-border-subtle] px-6 py-4">
+      <header className="flex flex-wrap items-start justify-between gap-2 border-b border-[var(--color-border-subtle)] px-6 py-4">
         <div>
-          <h3 className="font-serif text-lg text-[--color-text-primary]">
+          <h3 className="font-serif text-lg text-[var(--color-text-primary)]">
             Calibration du système · pocket {pocket.regime}
           </h3>
-          <p className="mt-1 text-xs text-[--color-text-muted]">
+          <p className="mt-1 text-xs text-[var(--color-text-muted)]">
             Vovk-AA · skill historique du forecaster vs baseline equal-weight
             {exactRegime ? "" : " · (régime courant non calibré — pocket le plus observé)"}
           </p>
         </div>
         {drift ? (
-          <span className="rounded-full border border-[--color-bear]/40 px-2.5 py-1 text-[10px] font-medium uppercase tracking-widest text-[--color-bear]">
+          <span className="rounded-full border border-[var(--color-bear)]/40 px-2.5 py-1 text-[10px] font-medium uppercase tracking-widest text-[var(--color-bear)]">
             ⚠ drift régime · {drift}
           </span>
         ) : null}
@@ -101,35 +101,37 @@ export function PocketSkillBadge({
         <div className="flex items-end gap-4">
           <span
             className={`font-mono text-3xl font-semibold tabular-nums ${
-              sd >= 0 ? "text-[--color-bull]" : "text-[--color-bear]"
+              sd >= 0 ? "text-[var(--color-bull)]" : "text-[var(--color-bear)]"
             }`}
           >
             {sd >= 0 ? "+" : "−"}
             {Math.abs(sd).toFixed(3)}
           </span>
-          <span className="pb-1 font-mono text-xs tabular-nums text-[--color-text-muted]">
+          <span className="pb-1 font-mono text-xs tabular-nums text-[var(--color-text-muted)]">
             skill_delta · n={pocket.n_observations}
           </span>
         </div>
         <p className={`mt-2 text-sm ${tone}`}>{verdict}</p>
       </div>
 
-      <dl className="grid grid-cols-3 gap-x-6 gap-y-2 border-t border-[--color-border-subtle]/60 px-6 py-4 text-sm">
+      <dl className="grid grid-cols-3 gap-x-6 gap-y-2 border-t border-[var(--color-border-subtle)]/60 px-6 py-4 text-sm">
         {[
           ["Predictor", pocket.prod_predictor_weight],
           ["Climatology", pocket.climatology_weight],
           ["Equal-weight", pocket.equal_weight_weight],
         ].map(([k, v]) => (
           <div key={k as string} className="flex flex-col">
-            <dt className="text-[10px] uppercase tracking-widest text-[--color-text-muted]">{k}</dt>
-            <dd className="font-mono tabular-nums text-[--color-text-secondary]">
+            <dt className="text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
+              {k}
+            </dt>
+            <dd className="font-mono tabular-nums text-[var(--color-text-secondary)]">
               {(v as number).toFixed(3)}
             </dd>
           </div>
         ))}
       </dl>
 
-      <p className="border-t border-[--color-border-subtle]/60 px-6 py-3 text-[10px] uppercase tracking-widest text-[--color-text-muted]">
+      <p className="border-t border-[var(--color-border-subtle)]/60 px-6 py-3 text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
         Auto-évaluation de calibration (Vovk-AA) — contexte d&apos;honnêteté, pas un ordre (ADR-017)
       </p>
     </m.section>

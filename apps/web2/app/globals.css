@@ -172,15 +172,19 @@
  * `--color-bg-deep`/`--color-accent-cobalt-bright` (var-refs WITH consumers)
  * are present in both. So this is **pre-existing, by-design, zero-impact**
  * (nothing reads an unemitted var that nothing consumes; the moment a
- * component references `[--color-bull-deep]` Tailwind emits it) — NOT an
+ * component references `[var(--color-bull-deep)]` Tailwind emits it) — NOT an
  * r104 regression, and explicitly NOT worth forcing via `@theme static`
  * (that would ship dead CSS for 0-consumer tokens = the accumulation we
  * avoid; depth-variants are on-demand by design, ui-designer r104). The
  * source definitions below remain as the documented palette contract.
  * The real-prod witness (green build + HTTP 200 + ΔsRGB=0 all passed, yet
  * the witness still surfaced this) is why we witness — "marche exactement".
- * The arbitrary opacity modifier `bg-[--color-*]/N` resolves to
- * `color-mix(in oklab, var(--color-*) N%, transparent)`, oklch-safe. */
+ * The arbitrary opacity modifier `bg-[var(--color-*)]/N` resolves to
+ * `color-mix(in oklab, var(--color-*) N%, transparent)`, oklch-safe. NB the
+ * bare-bracket `bg-[--color-*]` v3 shorthand emits NO rule in Tailwind v4
+ * (the auto-`var()` wrap was removed — upgrade-guide breaking change); the
+ * entire web2 surface was migrated to the explicit `[var(--*)]` form in
+ * r107 (ADR-099 §Implementation(r107)). */
 @theme {
   /* ── Layer 2 — semantic ───────────────────────────────── */
   /* Names are byte-identical to the pre-r104 contract; only the value

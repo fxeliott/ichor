@@ -35,11 +35,13 @@ export function DataIntegrityBadge({ data }: { data: DataIntegritySummary | null
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-      className="overflow-hidden rounded-2xl border border-[--color-border-subtle] bg-[--color-bg-surface]/40 backdrop-blur-xl"
+      className="overflow-hidden rounded-2xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)]/40 backdrop-blur-xl"
     >
-      <header className="border-b border-[--color-border-subtle] px-6 py-4">
-        <h3 className="font-serif text-lg text-[--color-text-primary]">Intégrité des données</h3>
-        <p className="mt-1 text-xs text-[--color-text-muted]">
+      <header className="border-b border-[var(--color-border-subtle)] px-6 py-4">
+        <h3 className="font-serif text-lg text-[var(--color-text-primary)]">
+          Intégrité des données
+        </h3>
+        <p className="mt-1 text-xs text-[var(--color-text-muted)]">
           Fraîcheur des ancres FRED critiques · figée à la génération de la carte
         </p>
       </header>
@@ -47,8 +49,8 @@ export function DataIntegrityBadge({ data }: { data: DataIntegritySummary | null
       {data.state === "degraded" && (
         <>
           <div className="px-6 pb-1 pt-5">
-            <p className="font-serif text-base text-[--color-warn]">{data.headline}</p>
-            <p className="mt-1 text-sm leading-relaxed text-[--color-text-secondary]">
+            <p className="font-serif text-base text-[var(--color-warn)]">{data.headline}</p>
+            <p className="mt-1 text-sm leading-relaxed text-[var(--color-text-secondary)]">
               {data.detail}
             </p>
           </div>
@@ -56,27 +58,27 @@ export function DataIntegrityBadge({ data }: { data: DataIntegritySummary | null
             {data.rows.map((r) => (
               <li
                 key={r.seriesId}
-                className="flex items-start gap-3 border-t border-[--color-border-subtle]/60 px-6 py-4"
+                className="flex items-start gap-3 border-t border-[var(--color-border-subtle)]/60 px-6 py-4"
               >
                 <span
-                  className="mt-1.5 inline-flex h-2 w-2 shrink-0 rounded-full bg-[--color-warn]"
+                  className="mt-1.5 inline-flex h-2 w-2 shrink-0 rounded-full bg-[var(--color-warn)]"
                   aria-hidden
                 />
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-baseline gap-2">
-                    <span className="font-mono text-sm text-[--color-text-primary]">
+                    <span className="font-mono text-sm text-[var(--color-text-primary)]">
                       {r.seriesId}
                     </span>
-                    <span className="rounded-full border border-[--color-warn]/40 px-2 py-0.5 text-[10px] font-medium uppercase tracking-widest text-[--color-warn]">
+                    <span className="rounded-full border border-[var(--color-warn)]/40 px-2 py-0.5 text-[10px] font-medium uppercase tracking-widest text-[var(--color-warn)]">
                       {r.statusLabel}
                     </span>
                   </div>
-                  <p className="mt-0.5 font-mono text-[11px] tabular-nums text-[--color-text-muted]">
+                  <p className="mt-0.5 font-mono text-[11px] tabular-nums text-[var(--color-text-muted)]">
                     {r.lastObs
                       ? `dernière obs ${r.lastObs} · ${r.ageDays} j (seuil ${r.maxAgeDays} j)`
                       : `aucune observation ingérée (seuil ${r.maxAgeDays} j)`}
                   </p>
-                  <p className="mt-0.5 text-xs text-[--color-text-secondary]">{r.impacted}</p>
+                  <p className="mt-0.5 text-xs text-[var(--color-text-secondary)]">{r.impacted}</p>
                 </div>
               </li>
             ))}
@@ -87,24 +89,28 @@ export function DataIntegrityBadge({ data }: { data: DataIntegritySummary | null
       {data.state === "all_fresh" && (
         <div className="flex items-start gap-3 px-6 py-5">
           <span
-            className="mt-1.5 inline-flex h-2 w-2 shrink-0 rounded-full bg-[--color-bull]"
+            className="mt-1.5 inline-flex h-2 w-2 shrink-0 rounded-full bg-[var(--color-bull)]"
             aria-hidden
           />
           <div className="min-w-0 flex-1">
-            <p className="text-sm text-[--color-bull]">{data.headline}</p>
-            <p className="mt-1 text-sm leading-relaxed text-[--color-text-muted]">{data.detail}</p>
+            <p className="text-sm text-[var(--color-bull)]">{data.headline}</p>
+            <p className="mt-1 text-sm leading-relaxed text-[var(--color-text-muted)]">
+              {data.detail}
+            </p>
           </div>
         </div>
       )}
 
       {data.state === "untracked" && (
         <div className="px-6 py-5">
-          <p className="text-sm text-[--color-text-muted]">{data.headline}</p>
-          <p className="mt-1 text-sm leading-relaxed text-[--color-text-muted]">{data.detail}</p>
+          <p className="text-sm text-[var(--color-text-muted)]">{data.headline}</p>
+          <p className="mt-1 text-sm leading-relaxed text-[var(--color-text-muted)]">
+            {data.detail}
+          </p>
         </div>
       )}
 
-      <p className="border-t border-[--color-border-subtle]/60 px-6 py-3 text-[10px] uppercase tracking-widest text-[--color-text-muted]">
+      <p className="border-t border-[var(--color-border-subtle)]/60 px-6 py-3 text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
         Contexte d&apos;intégrité des données — pas un ordre, pas un conseil personnalisé (ADR-017)
       </p>
     </m.section>

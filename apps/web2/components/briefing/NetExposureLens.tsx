@@ -50,20 +50,20 @@ export function NetExposureLens({
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-      className="overflow-hidden rounded-2xl border border-[--color-border-subtle] bg-[--color-bg-surface]/40 backdrop-blur-xl"
+      className="overflow-hidden rounded-2xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)]/40 backdrop-blur-xl"
     >
-      <header className="border-b border-[--color-border-subtle] px-6 py-4">
-        <h3 className="font-serif text-lg text-[--color-text-primary]">Exposition nette</h3>
-        <p className="mt-1 text-xs text-[--color-text-muted]">
+      <header className="border-b border-[var(--color-border-subtle)] px-6 py-4">
+        <h3 className="font-serif text-lg text-[var(--color-text-primary)]">Exposition nette</h3>
+        <p className="mt-1 text-xs text-[var(--color-text-muted)]">
           Corrélations live · structure réelle des paris (|ρ| ≥ 0,60)
         </p>
       </header>
 
       <div className="flex items-end gap-4 px-6 py-5">
-        <span className="font-mono text-4xl font-semibold tabular-nums text-[--color-text-primary]">
+        <span className="font-mono text-4xl font-semibold tabular-nums text-[var(--color-text-primary)]">
           ≈ {data.independentBets}
         </span>
-        <span className="pb-1 text-sm text-[--color-text-secondary]">
+        <span className="pb-1 text-sm text-[var(--color-text-secondary)]">
           pari{data.independentBets > 1 ? "s" : ""} indépendant
           {data.independentBets > 1 ? "s" : ""} sur {data.nDirectional} lecture
           {data.nDirectional > 1 ? "s" : ""} directionnelle{data.nDirectional > 1 ? "s" : ""}
@@ -71,25 +71,25 @@ export function NetExposureLens({
       </div>
 
       {lessDiversified ? (
-        <p className="px-6 pb-3 text-sm text-[--color-text-secondary]">
+        <p className="px-6 pb-3 text-sm text-[var(--color-text-secondary)]">
           Vos lectures ne sont pas indépendantes — la diversification réelle est moindre que{" "}
           {data.nDirectional} lignes distinctes.
         </p>
       ) : (
-        <p className="px-6 pb-3 text-sm text-[--color-text-secondary]">
+        <p className="px-6 pb-3 text-sm text-[var(--color-text-secondary)]">
           Vos {data.nDirectional} lectures directionnelles sont structurellement indépendantes
           (corrélations faibles).
         </p>
       )}
 
       {redundant.length > 0 ? (
-        <ul className="space-y-1.5 border-t border-[--color-border-subtle]/60 px-6 py-3">
+        <ul className="space-y-1.5 border-t border-[var(--color-border-subtle)]/60 px-6 py-3">
           {redundant.map((p) => (
-            <li key={`r-${p.a}-${p.b}`} className="text-xs text-[--color-text-secondary]">
-              <span className="font-mono text-[--color-text-muted]">{rhoStr(p.rho)}</span>{" "}
-              <strong className="text-[--color-text-primary]">{lab(p.a)}</strong>{" "}
+            <li key={`r-${p.a}-${p.b}`} className="text-xs text-[var(--color-text-secondary)]">
+              <span className="font-mono text-[var(--color-text-muted)]">{rhoStr(p.rho)}</span>{" "}
+              <strong className="text-[var(--color-text-primary)]">{lab(p.a)}</strong>{" "}
               {TONE_WORD[p.aTone]} &amp;{" "}
-              <strong className="text-[--color-text-primary]">{lab(p.b)}</strong>{" "}
+              <strong className="text-[var(--color-text-primary)]">{lab(p.b)}</strong>{" "}
               {TONE_WORD[p.bTone]} → même lecture exprimée 2× (diversification réelle moindre).
             </li>
           ))}
@@ -97,9 +97,9 @@ export function NetExposureLens({
       ) : null}
 
       {conflict.length > 0 ? (
-        <ul className="space-y-1.5 border-t border-[--color-border-subtle]/60 px-6 py-3">
+        <ul className="space-y-1.5 border-t border-[var(--color-border-subtle)]/60 px-6 py-3">
           {conflict.map((p) => (
-            <li key={`c-${p.a}-${p.b}`} className="text-xs text-[--color-bear]">
+            <li key={`c-${p.a}-${p.b}`} className="text-xs text-[var(--color-bear)]">
               <span className="font-mono">{rhoStr(p.rho)}</span> <strong>{lab(p.a)}</strong>{" "}
               {TONE_WORD[p.aTone]} vs <strong>{lab(p.b)}</strong> {TONE_WORD[p.bTone]} → lecture
               cross-asset incohérente, à surveiller.
@@ -108,7 +108,7 @@ export function NetExposureLens({
         </ul>
       ) : null}
 
-      <p className="border-t border-[--color-border-subtle]/60 px-6 py-3 text-[10px] uppercase tracking-widest text-[--color-text-muted]">
+      <p className="border-t border-[var(--color-border-subtle)]/60 px-6 py-3 text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
         Contexte d&apos;exposition agrégée — pas un dimensionnement (ADR-017)
       </p>
     </m.section>

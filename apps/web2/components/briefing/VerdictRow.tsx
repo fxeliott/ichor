@@ -21,24 +21,24 @@ import { m } from "motion/react";
 import type { VerdictSummary, VerdictTone } from "@/lib/verdict";
 
 const TONE_TEXT: Record<VerdictTone, string> = {
-  bull: "text-[--color-bull]",
-  bear: "text-[--color-bear]",
-  neutral: "text-[--color-neutral]",
-  warn: "text-[--color-warn]",
+  bull: "text-[var(--color-bull)]",
+  bear: "text-[var(--color-bear)]",
+  neutral: "text-[var(--color-neutral)]",
+  warn: "text-[var(--color-warn)]",
 };
 
 const TONE_RAIL: Record<VerdictTone, string> = {
-  bull: "bg-[--color-bull]",
-  bear: "bg-[--color-bear]",
-  neutral: "bg-[--color-neutral]",
-  warn: "bg-[--color-warn]",
+  bull: "bg-[var(--color-bull)]",
+  bear: "bg-[var(--color-bear)]",
+  neutral: "bg-[var(--color-neutral)]",
+  warn: "bg-[var(--color-warn)]",
 };
 
 const TONE_CHIP: Record<VerdictTone, string> = {
-  bull: "border-[--color-bull]/40 text-[--color-bull]",
-  bear: "border-[--color-bear]/40 text-[--color-bear]",
-  neutral: "border-[--color-border-default] text-[--color-text-secondary]",
-  warn: "border-[--color-warn]/40 text-[--color-warn]",
+  bull: "border-[var(--color-bull)]/40 text-[var(--color-bull)]",
+  bear: "border-[var(--color-bear)]/40 text-[var(--color-bear)]",
+  neutral: "border-[var(--color-border-default)] text-[var(--color-text-secondary)]",
+  warn: "border-[var(--color-warn)]/40 text-[var(--color-warn)]",
 };
 
 interface VerdictRowProps {
@@ -58,7 +58,7 @@ export function VerdictRow({ asset, pair, summary, index }: VerdictRowProps) {
       <Link
         href={`/briefing/${asset}`}
         prefetch
-        className="group relative block overflow-hidden rounded-2xl border border-[--color-border-subtle] bg-[--color-bg-surface]/40 px-5 py-4 backdrop-blur-md transition-all hover:border-[--color-border-default] hover:bg-[--color-bg-surface]/60"
+        className="group relative block overflow-hidden rounded-2xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)]/40 px-5 py-4 backdrop-blur-md transition-all hover:border-[var(--color-border-default)] hover:bg-[var(--color-bg-surface)]/60"
       >
         {summary && (
           <div
@@ -69,10 +69,10 @@ export function VerdictRow({ asset, pair, summary, index }: VerdictRowProps) {
 
         {!summary ? (
           <div className="flex items-baseline justify-between gap-4">
-            <span className="font-mono text-base font-medium text-[--color-text-secondary]">
+            <span className="font-mono text-base font-medium text-[var(--color-text-secondary)]">
               {pair}
             </span>
-            <span className="text-xs text-[--color-text-muted]">
+            <span className="text-xs text-[var(--color-text-muted)]">
               pas de carte récente — voir détail →
             </span>
           </div>
@@ -80,16 +80,16 @@ export function VerdictRow({ asset, pair, summary, index }: VerdictRowProps) {
           <>
             <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
               <div className="flex items-baseline gap-3">
-                <span className="font-mono text-base font-medium text-[--color-text-primary]">
+                <span className="font-mono text-base font-medium text-[var(--color-text-primary)]">
                   {pair}
                 </span>
                 <span className={`text-sm ${TONE_TEXT[summary.bias.tone]}`}>
                   {summary.bias.glyph} {summary.bias.word.toLowerCase()}
                 </span>
-                <span className="font-mono text-xs tabular-nums text-[--color-text-muted]">
+                <span className="font-mono text-xs tabular-nums text-[var(--color-text-muted)]">
                   {summary.conviction.pct.toFixed(0)}% ({summary.conviction.band})
                 </span>
-                <span className="text-[10px] uppercase tracking-wider text-[--color-text-muted]">
+                <span className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)]">
                   {summary.regimeLabel}
                 </span>
               </div>
@@ -106,8 +106,8 @@ export function VerdictRow({ asset, pair, summary, index }: VerdictRowProps) {
                 </span>
               </div>
             </div>
-            <p className="mt-1.5 truncate text-xs text-[--color-text-secondary]">
-              <span className="text-[--color-text-muted]">À surveiller · </span>
+            <p className="mt-1.5 truncate text-xs text-[var(--color-text-secondary)]">
+              <span className="text-[var(--color-text-muted)]">À surveiller · </span>
               {summary.watch.catalyst ?? "aucun catalyseur fort"} · {summary.confiance.label}
             </p>
           </>

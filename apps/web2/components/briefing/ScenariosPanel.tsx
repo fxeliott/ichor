@@ -45,15 +45,15 @@ const LABEL_TONE: Record<ScenarioLabel, "bear" | "neutral" | "bull"> = {
 };
 
 const TONE_BAR: Record<"bear" | "neutral" | "bull", string> = {
-  bear: "bg-[--color-bear]",
-  neutral: "bg-[--color-neutral]",
-  bull: "bg-[--color-bull]",
+  bear: "bg-[var(--color-bear)]",
+  neutral: "bg-[var(--color-neutral)]",
+  bull: "bg-[var(--color-bull)]",
 };
 
 const TONE_TEXT: Record<"bear" | "neutral" | "bull", string> = {
-  bear: "text-[--color-bear]",
-  neutral: "text-[--color-neutral]",
-  bull: "text-[--color-bull]",
+  bear: "text-[var(--color-bear)]",
+  neutral: "text-[var(--color-neutral)]",
+  bull: "text-[var(--color-bull)]",
 };
 
 const CANONICAL_ORDER: ScenarioLabel[] = [
@@ -75,11 +75,11 @@ function sortCanonical(scenarios: Scenario[]): Scenario[] {
 export function ScenariosPanel({ scenarios }: { scenarios: Scenario[] }) {
   if (!scenarios || scenarios.length === 0) {
     return (
-      <div className="rounded-2xl border border-[--color-border-subtle] bg-[--color-bg-surface]/40 p-8 text-center backdrop-blur-xl">
-        <p className="font-serif text-lg text-[--color-text-secondary]">
+      <div className="rounded-2xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)]/40 p-8 text-center backdrop-blur-xl">
+        <p className="font-serif text-lg text-[var(--color-text-secondary)]">
           Pas de décomposition scénarios pour cette carte.
         </p>
-        <p className="mt-2 text-xs text-[--color-text-muted]">
+        <p className="mt-2 text-xs text-[var(--color-text-muted)]">
           Pass-6 n&apos;a pas produit de distribution (carte pré-Pass-6 ou window non couverte).
         </p>
       </div>
@@ -104,42 +104,42 @@ export function ScenariosPanel({ scenarios }: { scenarios: Scenario[] }) {
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-      className="overflow-hidden rounded-2xl border border-[--color-border-subtle] bg-[--color-bg-surface]/40 backdrop-blur-xl"
+      className="overflow-hidden rounded-2xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)]/40 backdrop-blur-xl"
     >
-      <header className="border-b border-[--color-border-subtle] px-6 py-4">
+      <header className="border-b border-[var(--color-border-subtle)] px-6 py-4">
         <div className="flex flex-wrap items-baseline justify-between gap-4">
           <div>
-            <h3 className="font-serif text-lg text-[--color-text-primary]">
+            <h3 className="font-serif text-lg text-[var(--color-text-primary)]">
               Distribution des scénarios
             </h3>
-            <p className="mt-1 text-xs text-[--color-text-muted]">
+            <p className="mt-1 text-xs text-[var(--color-text-muted)]">
               Pass-6 · 7 buckets · ADR-085 · masse de probabilité sur le spectre des résultats
               réalisés
             </p>
           </div>
           <div className="flex items-baseline gap-4 text-xs">
-            <span className="text-[--color-bear]">
+            <span className="text-[var(--color-bear)]">
               ▼ baisse{" "}
               <span className="font-mono tabular-nums">{(bearMass * 100).toFixed(0)}%</span>
             </span>
-            <span className="text-[--color-neutral]">
+            <span className="text-[var(--color-neutral)]">
               ◆ base <span className="font-mono tabular-nums">{(baseMass * 100).toFixed(0)}%</span>
             </span>
-            <span className="text-[--color-bull]">
+            <span className="text-[var(--color-bull)]">
               ▲ hausse{" "}
               <span className="font-mono tabular-nums">{(bullMass * 100).toFixed(0)}%</span>
             </span>
           </div>
         </div>
-        <p className="mt-3 text-xs text-[--color-text-secondary]">
+        <p className="mt-3 text-xs text-[var(--color-text-secondary)]">
           Asymétrie :{" "}
           <span
             className={
               skew > 0.05
-                ? "text-[--color-bull]"
+                ? "text-[var(--color-bull)]"
                 : skew < -0.05
-                  ? "text-[--color-bear]"
-                  : "text-[--color-neutral]"
+                  ? "text-[var(--color-bear)]"
+                  : "text-[var(--color-neutral)]"
             }
           >
             {skew > 0.05
@@ -152,7 +152,7 @@ export function ScenariosPanel({ scenarios }: { scenarios: Scenario[] }) {
         </p>
       </header>
 
-      <ul className="divide-y divide-[--color-border-subtle]/60">
+      <ul className="divide-y divide-[var(--color-border-subtle)]/60">
         {ordered.map((s, i) => {
           const tone = LABEL_TONE[s.label];
           const widthPct = Math.max((s.p / maxP) * 100, 2);
@@ -163,14 +163,14 @@ export function ScenariosPanel({ scenarios }: { scenarios: Scenario[] }) {
               initial={{ opacity: 0, x: -6 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.25, delay: i * 0.04 }}
-              className="px-6 py-4 transition-colors hover:bg-[--color-bg-elevated]/40"
+              className="px-6 py-4 transition-colors hover:bg-[var(--color-bg-elevated)]/40"
             >
               <div className="flex items-baseline justify-between gap-4">
-                <span className="text-sm font-medium text-[--color-text-primary]">
+                <span className="text-sm font-medium text-[var(--color-text-primary)]">
                   {LABEL_FR[s.label] ?? s.label}
                 </span>
                 <div className="flex items-baseline gap-3">
-                  <span className="font-mono text-xs tabular-nums text-[--color-text-muted]">
+                  <span className="font-mono text-xs tabular-nums text-[var(--color-text-muted)]">
                     {lo.toFixed(0)} → {hi.toFixed(0)} pips
                   </span>
                   <span
@@ -180,7 +180,7 @@ export function ScenariosPanel({ scenarios }: { scenarios: Scenario[] }) {
                   </span>
                 </div>
               </div>
-              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[--color-bg-base]">
+              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[var(--color-bg-base)]">
                 <m.div
                   initial={{ width: 0 }}
                   animate={{ width: `${widthPct}%` }}
@@ -188,7 +188,7 @@ export function ScenariosPanel({ scenarios }: { scenarios: Scenario[] }) {
                   className={`h-full rounded-full ${TONE_BAR[tone]}`}
                 />
               </div>
-              <p className="mt-2 text-xs leading-relaxed text-[--color-text-secondary]">
+              <p className="mt-2 text-xs leading-relaxed text-[var(--color-text-secondary)]">
                 {s.mechanism}
               </p>
             </m.li>

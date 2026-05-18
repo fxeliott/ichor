@@ -41,9 +41,9 @@ function toneTone(label: string | null, score: number | null): "bull" | "bear" |
 }
 
 const TONE_BORDER: Record<"bull" | "bear" | "neutral", string> = {
-  bull: "border-l-[--color-bull]",
-  bear: "border-l-[--color-bear]",
-  neutral: "border-l-[--color-border-default]",
+  bull: "border-l-[var(--color-bull)]",
+  bear: "border-l-[var(--color-bear)]",
+  neutral: "border-l-[var(--color-border-default)]",
 };
 
 function relTime(iso: string): string {
@@ -59,11 +59,13 @@ function relTime(iso: string): string {
 export function NewsPanel({ news }: { news: NewsItem[] }) {
   if (!news || news.length === 0) {
     return (
-      <div className="rounded-2xl border border-[--color-border-subtle] bg-[--color-bg-surface]/40 p-8 text-center backdrop-blur-xl">
-        <p className="font-serif text-lg text-[--color-text-secondary]">
+      <div className="rounded-2xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)]/40 p-8 text-center backdrop-blur-xl">
+        <p className="font-serif text-lg text-[var(--color-text-secondary)]">
           Pas d&apos;actualité récente.
         </p>
-        <p className="mt-2 text-xs text-[--color-text-muted]">Flux vide ou source indisponible.</p>
+        <p className="mt-2 text-xs text-[var(--color-text-muted)]">
+          Flux vide ou source indisponible.
+        </p>
       </div>
     );
   }
@@ -79,16 +81,16 @@ export function NewsPanel({ news }: { news: NewsItem[] }) {
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-      className="overflow-hidden rounded-2xl border border-[--color-border-subtle] bg-[--color-bg-surface]/40 backdrop-blur-xl"
+      className="overflow-hidden rounded-2xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)]/40 backdrop-blur-xl"
     >
-      <header className="border-b border-[--color-border-subtle] px-6 py-4">
-        <h3 className="font-serif text-lg text-[--color-text-primary]">Actualités</h3>
-        <p className="mt-1 text-xs text-[--color-text-muted]">
+      <header className="border-b border-[var(--color-border-subtle)] px-6 py-4">
+        <h3 className="font-serif text-lg text-[var(--color-text-primary)]">Actualités</h3>
+        <p className="mt-1 text-xs text-[var(--color-text-muted)]">
           Flux récent · banques centrales surlignées · accent = tonalité
         </p>
       </header>
 
-      <ul className="divide-y divide-[--color-border-subtle]/60">
+      <ul className="divide-y divide-[var(--color-border-subtle)]/60">
         {sorted.map((n, i) => {
           const tone = toneTone(n.tone_label, n.tone_score);
           const isCB = n.source_kind === "central_bank";
@@ -98,19 +100,21 @@ export function NewsPanel({ news }: { news: NewsItem[] }) {
               initial={{ opacity: 0, x: -6 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.22, delay: Math.min(i * 0.03, 0.4) }}
-              className={`border-l-2 ${TONE_BORDER[tone]} px-6 py-4 transition-colors hover:bg-[--color-bg-elevated]/40 ${
-                isCB ? "bg-[--color-bg-elevated]/20" : ""
+              className={`border-l-2 ${TONE_BORDER[tone]} px-6 py-4 transition-colors hover:bg-[var(--color-bg-elevated)]/40 ${
+                isCB ? "bg-[var(--color-bg-elevated)]/20" : ""
               }`}
             >
               <div className="flex items-baseline gap-2">
                 <span
                   className={`font-mono text-[10px] uppercase tracking-wider ${
-                    isCB ? "text-[--color-accent-cobalt-bright]" : "text-[--color-text-muted]"
+                    isCB
+                      ? "text-[var(--color-accent-cobalt-bright)]"
+                      : "text-[var(--color-text-muted)]"
                   }`}
                 >
                   {KIND_LABEL[n.source_kind] ?? n.source_kind}
                 </span>
-                <span className="font-mono text-[10px] text-[--color-text-muted]">
+                <span className="font-mono text-[10px] text-[var(--color-text-muted)]">
                   {n.source} · {relTime(n.published_at || n.fetched_at)}
                 </span>
               </div>
@@ -118,12 +122,12 @@ export function NewsPanel({ news }: { news: NewsItem[] }) {
                 href={n.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="mt-1 block text-sm font-medium leading-relaxed text-[--color-text-primary] hover:text-[--color-accent-cobalt-bright]"
+                className="mt-1 block text-sm font-medium leading-relaxed text-[var(--color-text-primary)] hover:text-[var(--color-accent-cobalt-bright)]"
               >
                 {n.title}
               </a>
               {n.summary && n.summary !== n.title && (
-                <p className="mt-1 text-xs leading-relaxed text-[--color-text-secondary]">
+                <p className="mt-1 text-xs leading-relaxed text-[var(--color-text-secondary)]">
                   {n.summary.length > 220 ? `${n.summary.slice(0, 220)}…` : n.summary}
                 </p>
               )}

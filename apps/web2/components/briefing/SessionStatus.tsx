@@ -49,56 +49,56 @@ function chipFor(s: SessionStatusOut, minutesLeft: number): ChipConfig {
       return {
         label: "Marchés fermés · week-end",
         detail: `${s.next_open_label} · T-${cd}`,
-        accent: "text-[--color-text-muted]",
-        dot: "bg-[--color-text-muted]",
+        accent: "text-[var(--color-text-muted)]",
+        dot: "bg-[var(--color-text-muted)]",
         pulse: false,
       };
     case "us_holiday":
       return {
         label: `Marchés US fermés${s.holiday_name ? ` · ${s.holiday_name}` : ""}`,
         detail: s.next_open_label,
-        accent: "text-[--color-text-secondary]",
-        dot: "bg-[--color-text-secondary]",
+        accent: "text-[var(--color-text-secondary)]",
+        dot: "bg-[var(--color-text-secondary)]",
         pulse: false,
       };
     case "pre_londres":
       return {
         label: "Pré-session Londres",
         detail: `${s.next_open_label} · T-${cd}`,
-        accent: "text-[--color-accent-cobalt-bright]",
-        dot: "bg-[--color-accent-cobalt-bright]",
+        accent: "text-[var(--color-accent-cobalt-bright)]",
+        dot: "bg-[var(--color-accent-cobalt-bright)]",
         pulse: true,
       };
     case "pre_ny":
       return {
         label: "Pré-session New York",
         detail: `${s.next_open_label} · T-${cd}`,
-        accent: "text-[--color-accent-cobalt-bright]",
-        dot: "bg-[--color-accent-cobalt-bright]",
+        accent: "text-[var(--color-accent-cobalt-bright)]",
+        dot: "bg-[var(--color-accent-cobalt-bright)]",
         pulse: true,
       };
     case "london_active":
       return {
         label: "Session Londres active",
         detail: `${s.next_open_label} · T-${cd}`,
-        accent: "text-[--color-bull]",
-        dot: "bg-[--color-bull]",
+        accent: "text-[var(--color-bull)]",
+        dot: "bg-[var(--color-bull)]",
         pulse: true,
       };
     case "ny_active":
       return {
         label: "Session New York active",
         detail: "Marché américain ouvert",
-        accent: "text-[--color-bull]",
-        dot: "bg-[--color-bull]",
+        accent: "text-[var(--color-bull)]",
+        dot: "bg-[var(--color-bull)]",
         pulse: true,
       };
     case "off_hours":
       return {
         label: "Hors session",
         detail: `${s.next_open_label} · T-${cd}`,
-        accent: "text-[--color-text-secondary]",
-        dot: "bg-[--color-text-secondary]",
+        accent: "text-[var(--color-text-secondary)]",
+        dot: "bg-[var(--color-text-secondary)]",
         pulse: false,
       };
   }
@@ -141,7 +141,7 @@ export function SessionStatus() {
 
   if (status === null) {
     return (
-      <div className="inline-flex h-9 items-center rounded-full border border-[--color-border-subtle] bg-[--color-bg-surface]/40 px-4 text-xs text-[--color-text-muted]">
+      <div className="inline-flex h-9 items-center rounded-full border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)]/40 px-4 text-xs text-[var(--color-text-muted)]">
         Chargement session…
       </div>
     );
@@ -149,8 +149,11 @@ export function SessionStatus() {
 
   if (status === "error") {
     return (
-      <div className="inline-flex items-center gap-3 rounded-full border border-[--color-border-subtle] bg-[--color-bg-surface]/40 px-4 py-2 text-xs text-[--color-text-muted] backdrop-blur-md">
-        <span className="inline-flex h-2 w-2 rounded-full bg-[--color-text-muted]" aria-hidden />
+      <div className="inline-flex items-center gap-3 rounded-full border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)]/40 px-4 py-2 text-xs text-[var(--color-text-muted)] backdrop-blur-md">
+        <span
+          className="inline-flex h-2 w-2 rounded-full bg-[var(--color-text-muted)]"
+          aria-hidden
+        />
         Session — état indisponible
       </div>
     );
@@ -159,7 +162,7 @@ export function SessionStatus() {
   const config = chipFor(status, minutesLeft);
 
   return (
-    <div className="inline-flex items-center gap-3 rounded-full border border-[--color-border-default] bg-[--color-bg-surface]/40 px-4 py-2 backdrop-blur-md">
+    <div className="inline-flex items-center gap-3 rounded-full border border-[var(--color-border-default)] bg-[var(--color-bg-surface)]/40 px-4 py-2 backdrop-blur-md">
       <span
         className={`inline-flex h-2 w-2 rounded-full ${config.dot} ${config.pulse ? "animate-pulse" : ""}`}
         aria-hidden
@@ -167,7 +170,7 @@ export function SessionStatus() {
       <span className={`text-xs font-medium uppercase tracking-wider ${config.accent}`}>
         {config.label}
       </span>
-      <span className="text-[10px] text-[--color-text-muted]">{config.detail}</span>
+      <span className="text-[10px] text-[var(--color-text-muted)]">{config.detail}</span>
     </div>
   );
 }

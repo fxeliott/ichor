@@ -810,3 +810,183 @@ reducedMotion="user"`).
 
 Voie D + ADR-017 held; additive web2-only deploy; zero backend / zero
 migration.
+
+## Implementation (r107, 2026-05-18) — Tier 4 hygiene: app-wide Tailwind v4 `[var(--*)]` token-resolution fix
+
+The r106 heat-strip's real-prod witness _surfaced_ (did not introduce) a
+PRE-EXISTING, codebase-wide defect: web2 was authored Tailwind-v3-style
+using the `prefix-[--token]` arbitrary-CSS-variable shorthand. **Tailwind
+v4 removed the implicit `var()` wrap of bare-bracket custom properties**
+(authoritative — official v4 upgrade guide via context7
+`/tailwindlabs/tailwindcss.com`: _"In v3, CSS variables could be used as
+arbitrary values without the `var()` function … v4 changes the syntax to
+use parentheses … `bg-[--brand-color]` should be updated to
+`bg-(--brand-color)`"_). On this build (`tailwindcss 4.2.4`, CSS-first
+`@import "tailwindcss"` + `@tailwindcss/postcss`, no JS config) every
+`prefix-[--color-*]` class therefore emitted NO rule and the element fell
+back to the cascade — overwhelmingly the inherited `body` colour
+(`--color-text-primary` slate-100), transparent backgrounds, absent
+borders. The whole muted/secondary text hierarchy and every dimmed
+surface/border had been rendering wrong for many rounds (subtle on the
+dark theme → unnoticed). This is the r106-flagged dedicated task, not
+scope-crept into r106 (calibrated honesty #11). ADR-099 §D-3 Tier 4 IS the
+spec — dated append, NO new ADR (doctrine #9 ; the §Impl(r104,r105,r106) /
+ADR-104 §Impl(r96) / ADR-105 §Impl(r99,r100) immutable-append precedent).
+
+**R59 inspect-first (doctrine #3 — real shapes, not memory).** Direct
+grep+read, no hypothesis layer: the broken form spans **494 occurrences,
+10 prefixes** (`text-` 283 · `bg-` 97 · `border-` 84 · `border-l-` 10 ·
+`divide-` 9 · `ring-` 4 · `via-`/`to-`/`from-` 2 each · `shadow-` 1),
+**44 distinct `--color-*` tokens**, **21 `.tsx` files** under
+`app/briefing/` + `components/briefing/`. The `:root` tokens themselves
+were never the problem (r104 OKLCH system intact) — only the v3 class
+_form_. The codebase already proved the working form **in this exact
+deployed build**: the BEFORE Playwright witness found `text-[var(--color-
+text-secondary)]` computing to `oklch(0.7446 0.0213 257.49)` (the exact
+token) on the live page, while the sibling broken `text-[--color-text-
+muted]` computed to `oklch(0.9425 0.0111 243.66)` (slate-100 inherit).
+
+**Decision — `[var(--*)]`, not the v4 `(--*)` paren shorthand.** Both
+compile byte-identically. `[var(--x)]` chosen because (1) it is the form
+**empirically proven in this exact build** (the witnessed element above ;
+the project anti-hallucination doctrine: in-build-proven > docs-theory) ;
+(2) it converges the codebase to ONE form (the paren form had zero
+occurrences ; adopting it would leave a 2nd coexisting form) ; (3)
+mechanically unambiguous, per-file git-reversible, zero new syntax. The
+config-shim alternative was rejected (v4 deliberately removed the
+auto-`var()`; no restore flag exists per the upgrade guide) and the
+base-CSS alternative rejected (defeats the token system; 494-surface).
+
+**What r107 implemented.**
+
+1. **Codemod** `prefix-[--color-X]` → `prefix-[var(--color-X)]` across the
+   21 files (`perl -i -pe 's/-\[(--color-[a-z0-9-]+)\]/-[var($1)]/g'`,
+   `--color-`-anchored so it cannot touch JS, non-`--color-` design tokens,
+   already-correct `[var(…)]`, or the `text-[--color-*]` star-glob in
+   prose). Verified: PRE 494 broken / 0 working → POST **0 broken / 494
+   working / 0 double-`var(`**. The `/NN` opacity modifiers sit OUTSIDE
+   the bracket (no inner-alpha `[--x/40]` form exists) — untouched, and
+   now correctly resolve via `color-mix` (e.g. `bg-[var(--color-bg-
+surface)]/40`). Applies uniformly in `className=`, cva-style string
+   maps, ternaries and helper returns (pure token-shape rewrite).
+2. **`BriefingHeader.tsx:88`** — the one element the restore made
+   genuinely too-faint (ui-designer Important #1): a `·` separator at
+   `text-[var(--color-text-muted)]/50` whose `/50` had been accidentally
+   calibrated against the buggy bright-slate inherit ; muted #7A8492 @50%
+   over the gradient is near-invisible. Minimal fix: drop `/50` (full
+   muted ≈5.3:1, legible, matches its sibling status tokens). No
+   structural/aria change (scope discipline).
+3. **Three prose corrections** (anti-stale doctrine ; lesson #11 — never
+   leave/CREATE a false claim): (a) `globals.css` opacity-modifier comment
+   re-stated TRUE — the bare `bg-[--color-*]/N` v3 shorthand emits NO rule
+   in v4, the working form is `bg-[var(--color-*)]/N`, with an explicit
+   r107 pointer ; (b) `globals.css` tree-shake example `[--color-bull-
+deep]` → `[var(--color-bull-deep)]` (the correct reference form) ; (c)
+   `CorrelationsStrip.tsx` r106 "broken app-wide / flagged for its own
+   round" note → past-tense "fixed codebase-wide in r107", and the one
+   codemod-touched glyph comment de-falsified (`text-[var(--color-bg-
+base)]` is NOT "broken"). An exhaustive repo scan confirms no other
+   stale "the bracket form is broken" prose (the r106 SESSION_LOG + prior
+   ADR-099 sections are intentional historical archaeology, untouched).
+
+**Honest non-atomic scope (lesson #11 ; R59 anti-scope-creep).** r107 =
+the token-resolution fix + the single restore-introduced faintness
+(BriefingHeader:88) ONLY. Three latent issues the restore _surfaced_ but
+did NOT introduce are explicitly DEFERRED, flagged not silently fixed:
+(i) the WCAG 2.2 §1.4.11 border-α (subtle ≈1.84:1, default ≈2.87:1 < 3:1)
+— the **pre-existing** `globals.css` header-§5 recalibration, convergent
+across all 3 reviews, now visually live but **not load-bearing** in any
+changed surface (assessed: `AssetSwitcher` tabs carry 5 redundant cues,
+`EventSurpriseGauge` inactive ring is decorative) ; (ii) the
+`SentimentPanel`↔`ScenariosPanel` empty-state text-tier inconsistency (a
+cross-panel design-convention decision) ; (iii) `NarrativeBlocks` `/10`
+warn-chip faint pill (ui-designer nit, WCAG-OK). Each is its own future
+increment.
+
+**Reviews (3 mandatory, parallel, consolidated single pass —
+doctrine #14, re-verified on the post-prettier committed shape).**
+
+- **ichor-trader R28 — 0 RED / 0 YELLOW-blocker, GREEN clear-to-merge.**
+  ADR-017 boundary intact (pure CSS-class rewrite ; the only `BUY|SELL`
+  hits are sanctioned boundary-disclaimer docstrings) ; Voie D/ADR-023
+  N/A (zero LLM) ; doctrine #9 / anti-doublon / #3 R59 verified ; zero
+  collateral (`\[var\(--(spacing|radius|z-|duration|…)` = 0 — codemod
+  correctly `--color-`-scoped) ; the 3 prose corrections verified TRUE
+  and not over-claiming. Substantive positive finding: the codemod
+  _corrects_ a latent trading-surface degradation — `VerdictBanner`
+  `bull`/`bear`/`warn`/conviction were broken no-ops inheriting bright
+  slate-100 (semantic colour lost) ; post-fix they resolve to
+  emerald/red correctly. One non-blocking YELLOW = deferred-flag the
+  pre-existing border-α §1.4.11 (item (i) above) so it is not lost.
+- **ui-designer — PROCEED.** The fix restores a coherent, intended
+  3-tier hierarchy (primary→titles/values, secondary→prose,
+  muted→labels/stamps) consistently applied ; no primary/value wrongly
+  de-emphasised ; no `text-[var(--color-bg-*)]`-as-text misuse ; layered
+  `bg-[var(--color-bg-base)]/40` insets + same-family gradients restore
+  tasteful depth without fighting content. 1 Important applied
+  (BriefingHeader:88, item 2) ; the other findings = the pre-existing
+  deferred items (i)/(ii)/(iii).
+- **accessibility-reviewer (MANDATORY — contrast hierarchy is the whole
+  point) — PASS, 0 MUST-FIX / 0 SHOULD-FIX.** Full 1.4.3 matrix computed
+  on the ΔsRGB=0 hex equivalents. The contrast _reduction_ vs the buggy
+  status quo is real but every realized (token, surface) pair clears AA.
+  Worst REAL combo = `text-[var(--color-text-muted)]` on the effective
+  `bg-elevated/40` hover surface = **5.01:1** (≥ 4.5:1 normal-text floor,
+  margin). Decisive insight: the translucent `/40` pills composite
+  _toward_ the darker `--color-bg-base`, so they **raise** effective
+  contrast — the "/40 lowers contrast" intuition is false here ; the
+  theoretical opaque-`bg-elevated` floor (4.69:1) is **not realized**
+  (grep: zero opaque `bg-elevated` panels in the 21 files — only `/40`,
+  `/20`, `/30`, `hover:`). `text-secondary` 7.84–8.90:1, `text-tertiary`
+  6.17–7.00:1 (unused in scope), `text-neutral` 6.93–7.87:1. 1.4.11
+  border-α = ADVISORY/pre-existing/not-load-bearing (item (i)). Zero
+  near-invisible token flips. 1.4.1 colour-alone: no regression
+  (glyph+sign+text everywhere ; CorrelationsStrip SPEC §14 quintuple
+  signal intact).
+
+**Verification (real numbers — measured, not forecast ; lesson #1
+forecast≠preuve / #2 SHIPPED≠FUNCTIONAL).**
+
+- **Codemod**: PRE 494 broken `-[--color-*]` / 0 working → POST 0 / 494 /
+  0 double-wrap ; residual broken across web2 `.tsx`/`.ts`/`.css` = **0**.
+- **Build gate** (final post-prettier shape, doctrine #14):
+  `pnpm --filter @ichor/web2` `tsc --noEmit` **0** · `eslint
+--max-warnings 0` **0** · vitest **7 files / 95 tests pass** (r106
+  baseline — zero regression ; the change is class-string-only, no test
+  touches the bracket form) · `next build` **OK** (all routes compiled).
+- **Deploy**: `scripts/hetzner/redeploy-web2.sh` (additive, port 3031,
+  legacy `ichor-web` 3030 untouched, tunnel NOT restarted → public URL
+  stable). RESULT local=200 public=200, `DEPLOY OK`.
+- **Real-prod AFTER witness** — Playwright on the deployed public
+  dashboard (doctrine #7 zero-exposure ; the stable URL, same as the
+  BEFORE witness ; **3 routes**, not forecast):
+  - `/briefing/EUR_USD` — the SAME element as the BEFORE witness, "Marché
+    américain ouvert" span: class `text-[--color-text-muted]` →
+    `text-[var(--color-text-muted)]`, computed colour
+    `oklch(0.9425 0.0111 243.66)` (slate-100, WRONG) →
+    **`oklch(0.6099 0.0243 256.77)` = `--color-text-muted` exact** ;
+    `text-[var(--color-text-secondary)]` → **`oklch(0.7446 0.0213
+257.49)` exact** ; the NY-session pill `bg-[var(--color-bg-surface)]
+/40` background `rgba(0,0,0,0)` (transparent, WRONG) → **`oklab(0.1831
+−0.00356 −0.03069 / 0.4)` = bg-surface @0.4 (resolved)**. Live DOM:
+    broken `text-[--color-` 497 → **0** ; working `text-[var(--color-`
+    34 → **531**.
+  - `/briefing` cockpit (structurally different route): muted
+    `0.6099`, secondary `0.7446`, **`text-[var(--color-bull)]`
+    `oklch(0.7729 0.1535 163.22)` = emerald exact** (the trading-surface
+    semantic ichor-trader flagged, restored) ; 0 broken in DOM.
+  - `/briefing/XAU_USD` (2nd asset): muted/secondary exact, bg-surface
+    `oklab … /0.4`, **0 broken / 759 working**.
+  - **Console**: cold first-load (just-restarted service) showed the
+    pre-existing `404 favicon.ico` + a transient
+    `link-preload-not-used-within-a-few-seconds` CSS warning ; a warm
+    reload = **0 errors / 0 warnings**. The warning was empirically
+    confirmed a cold-server-restart timing artifact (a class-string
+    codemod cannot affect preload timing ; the CSS chunk content-hash
+    change is the EXPECTED recompiled-Tailwind output) — verified, not
+    asserted.
+  - Full-page screenshots captured for all 3 routes confirm the restored
+    premium 3-tier hierarchy gestalt.
+
+Voie D + ADR-017 held ; additive web2-only deploy ; zero backend / zero
+migration (alembic still 0050) ; doctrine #9 dated append, no new ADR.

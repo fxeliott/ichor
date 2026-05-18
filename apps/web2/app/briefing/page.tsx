@@ -43,12 +43,12 @@ export const metadata: Metadata = {
 };
 
 const RISK_BAND_TONE: Record<string, string> = {
-  greed: "text-[--color-bull]",
-  risk_on: "text-[--color-bull]",
-  neutral: "text-[--color-text-secondary]",
-  cautious: "text-[--color-warn]",
-  fear: "text-[--color-bear]",
-  risk_off: "text-[--color-bear]",
+  greed: "text-[var(--color-bull)]",
+  risk_on: "text-[var(--color-bull)]",
+  neutral: "text-[var(--color-text-secondary)]",
+  cautious: "text-[var(--color-warn)]",
+  fear: "text-[var(--color-bear)]",
+  risk_off: "text-[var(--color-bear)]",
 };
 
 const VIX_REGIME_LABEL: Record<string, string> = {
@@ -106,14 +106,14 @@ export default async function BriefingIndexPage() {
       </Suspense>
 
       <section className="space-y-4">
-        <p className="text-[10px] uppercase tracking-[0.3em] text-[--color-text-muted]">
+        <p className="text-[10px] uppercase tracking-[0.3em] text-[var(--color-text-muted)]">
           Ichor · Cockpit pré-session
         </p>
-        <h1 className="font-serif text-5xl tracking-tight text-[--color-text-primary] md:text-6xl">
+        <h1 className="font-serif text-5xl tracking-tight text-[var(--color-text-primary)] md:text-6xl">
           Comprends le marché
-          <span className="block text-[--color-text-secondary]">avant qu&apos;il ouvre.</span>
+          <span className="block text-[var(--color-text-secondary)]">avant qu&apos;il ouvre.</span>
         </h1>
-        <p className="max-w-2xl text-base leading-relaxed text-[--color-text-secondary]">
+        <p className="max-w-2xl text-base leading-relaxed text-[var(--color-text-secondary)]">
           Verdict synthétique des 5 actifs — biais, conviction, caractère, confluence, catalyseur —
           en un coup d&apos;œil. Clique pour le détail complet.
         </p>
@@ -121,10 +121,10 @@ export default async function BriefingIndexPage() {
 
       <section aria-labelledby="cockpit-heading" className="space-y-3">
         <div className="flex items-baseline justify-between gap-4">
-          <h2 id="cockpit-heading" className="font-serif text-2xl text-[--color-text-primary]">
+          <h2 id="cockpit-heading" className="font-serif text-2xl text-[var(--color-text-primary)]">
             Lecture du jour · 5 actifs
           </h2>
-          <span className="text-[10px] uppercase tracking-widest text-[--color-text-muted]">
+          <span className="text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
             synthèse déterministe · zéro LLM
           </span>
         </div>
@@ -139,47 +139,47 @@ export default async function BriefingIndexPage() {
 
       {isLive(today) && (
         <section className="grid gap-4 md:grid-cols-3">
-          <div className="rounded-2xl border border-[--color-border-subtle] bg-[--color-bg-surface]/40 p-6 backdrop-blur-xl">
-            <p className="text-[10px] uppercase tracking-widest text-[--color-text-muted]">
+          <div className="rounded-2xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)]/40 p-6 backdrop-blur-xl">
+            <p className="text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
               Risk appetite
             </p>
             <p
-              className={`mt-2 font-mono text-3xl tabular-nums ${RISK_BAND_TONE[today.macro.risk_band] ?? "text-[--color-text-primary]"}`}
+              className={`mt-2 font-mono text-3xl tabular-nums ${RISK_BAND_TONE[today.macro.risk_band] ?? "text-[var(--color-text-primary)]"}`}
             >
               {today.macro.risk_composite.toFixed(2)}
             </p>
-            <p className="mt-1 text-xs uppercase tracking-wider text-[--color-text-secondary]">
+            <p className="mt-1 text-xs uppercase tracking-wider text-[var(--color-text-secondary)]">
               {today.macro.risk_band}
             </p>
           </div>
 
-          <div className="rounded-2xl border border-[--color-border-subtle] bg-[--color-bg-surface]/40 p-6 backdrop-blur-xl">
-            <p className="text-[10px] uppercase tracking-widest text-[--color-text-muted]">
+          <div className="rounded-2xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)]/40 p-6 backdrop-blur-xl">
+            <p className="text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
               Funding stress
             </p>
-            <p className="mt-2 font-mono text-3xl tabular-nums text-[--color-text-primary]">
+            <p className="mt-2 font-mono text-3xl tabular-nums text-[var(--color-text-primary)]">
               {today.macro.funding_stress.toFixed(2)}
             </p>
-            <p className="mt-1 text-xs uppercase tracking-wider text-[--color-text-secondary]">
+            <p className="mt-1 text-xs uppercase tracking-wider text-[var(--color-text-secondary)]">
               SOFR-IORB · RRP · HY OAS
             </p>
           </div>
 
-          <div className="rounded-2xl border border-[--color-border-subtle] bg-[--color-bg-surface]/40 p-6 backdrop-blur-xl">
-            <p className="text-[10px] uppercase tracking-widest text-[--color-text-muted]">
+          <div className="rounded-2xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)]/40 p-6 backdrop-blur-xl">
+            <p className="text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
               VIX regime
             </p>
-            <p className="mt-2 font-mono text-3xl tabular-nums text-[--color-text-primary]">
+            <p className="mt-2 font-mono text-3xl tabular-nums text-[var(--color-text-primary)]">
               {today.macro.vix_1m?.toFixed(1) ?? "—"}
             </p>
-            <p className="mt-1 text-xs uppercase tracking-wider text-[--color-text-secondary]">
+            <p className="mt-1 text-xs uppercase tracking-wider text-[var(--color-text-secondary)]">
               {VIX_REGIME_LABEL[today.macro.vix_regime] ?? today.macro.vix_regime}
             </p>
           </div>
         </section>
       )}
 
-      <footer className="pt-8 text-[10px] uppercase tracking-widest text-[--color-text-muted]">
+      <footer className="pt-8 text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
         Ichor v2 · Pre-trade context only · No BUY/SELL signals (ADR-017 boundary)
       </footer>
     </main>

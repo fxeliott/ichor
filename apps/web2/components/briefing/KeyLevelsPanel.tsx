@@ -103,11 +103,11 @@ export function KeyLevelsPanel({ items }: { items: KeyLevel[] }) {
 
   if (groups.length === 0) {
     return (
-      <div className="rounded-2xl border border-[--color-border-subtle] bg-[--color-bg-surface]/40 p-8 text-center backdrop-blur-xl">
-        <p className="font-serif text-lg text-[--color-text-secondary]">
+      <div className="rounded-2xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)]/40 p-8 text-center backdrop-blur-xl">
+        <p className="font-serif text-lg text-[var(--color-text-secondary)]">
           All key levels in NORMAL bands.
         </p>
-        <p className="mt-2 text-xs text-[--color-text-muted]">
+        <p className="mt-2 text-xs text-[var(--color-text-muted)]">
           No microstructure or macro thresholds firing right now.
         </p>
       </div>
@@ -122,52 +122,54 @@ export function KeyLevelsPanel({ items }: { items: KeyLevel[] }) {
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3, delay: gi * 0.06 }}
-          className="overflow-hidden rounded-2xl border border-[--color-border-subtle] bg-[--color-bg-surface]/40 backdrop-blur-xl"
+          className="overflow-hidden rounded-2xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)]/40 backdrop-blur-xl"
         >
-          <header className="border-b border-[--color-border-subtle] px-6 py-4">
+          <header className="border-b border-[var(--color-border-subtle)] px-6 py-4">
             <div className="flex items-baseline justify-between gap-4">
-              <h3 className="font-serif text-lg text-[--color-text-primary]">{group.family}</h3>
-              <span className="text-[10px] uppercase tracking-widest text-[--color-text-muted]">
+              <h3 className="font-serif text-lg text-[var(--color-text-primary)]">
+                {group.family}
+              </h3>
+              <span className="text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
                 {group.levels.length} firing
               </span>
             </div>
-            <p className="mt-1 text-xs text-[--color-text-muted]">{group.blurb}</p>
+            <p className="mt-1 text-xs text-[var(--color-text-muted)]">{group.blurb}</p>
           </header>
 
-          <ul className="divide-y divide-[--color-border-subtle]/60">
+          <ul className="divide-y divide-[var(--color-border-subtle)]/60">
             {group.levels.map((kl, i) => {
               const tone = sideToTone(kl.side);
               const accentBorder =
                 tone === "bull"
-                  ? "border-l-[--color-bull]"
+                  ? "border-l-[var(--color-bull)]"
                   : tone === "bear"
-                    ? "border-l-[--color-bear]"
-                    : "border-l-[--color-accent-cobalt]";
+                    ? "border-l-[var(--color-bear)]"
+                    : "border-l-[var(--color-accent-cobalt)]";
               return (
                 <m.li
                   key={`${kl.kind}-${kl.asset}-${i}`}
                   initial={{ opacity: 0, x: -6 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ duration: 0.25, delay: gi * 0.06 + i * 0.04 }}
-                  className={`group relative border-l-2 ${accentBorder} px-6 py-4 transition-colors hover:bg-[--color-bg-elevated]/40`}
+                  className={`group relative border-l-2 ${accentBorder} px-6 py-4 transition-colors hover:bg-[var(--color-bg-elevated)]/40`}
                 >
                   <div className="flex items-baseline justify-between gap-4">
                     <div className="flex items-baseline gap-3">
-                      <span className="rounded-full border border-[--color-border-default] px-2 py-0.5 text-[10px] uppercase tracking-wider text-[--color-text-secondary]">
+                      <span className="rounded-full border border-[var(--color-border-default)] px-2 py-0.5 text-[10px] uppercase tracking-wider text-[var(--color-text-secondary)]">
                         {KIND_LABEL[kl.kind]}
                       </span>
-                      <span className="font-mono text-sm text-[--color-text-secondary]">
+                      <span className="font-mono text-sm text-[var(--color-text-secondary)]">
                         {kl.asset}
                       </span>
                     </div>
-                    <span className="font-mono text-base font-medium text-[--color-text-primary] tabular-nums">
+                    <span className="font-mono text-base font-medium text-[var(--color-text-primary)] tabular-nums">
                       {formatLevel(kl.level, kl.kind)}
                     </span>
                   </div>
-                  <p className="mt-2 text-sm leading-relaxed text-[--color-text-secondary]">
+                  <p className="mt-2 text-sm leading-relaxed text-[var(--color-text-secondary)]">
                     {kl.note}
                   </p>
-                  <p className="mt-2 text-[10px] uppercase tracking-wider text-[--color-text-muted]">
+                  <p className="mt-2 text-[10px] uppercase tracking-wider text-[var(--color-text-muted)]">
                     {kl.source}
                   </p>
                 </m.li>
