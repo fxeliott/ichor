@@ -547,3 +547,266 @@ fixtures — the correct round to absorb that risk with a test gate.
 
 Voie D + ADR-017 held; additive web2-only deploy; zero backend / zero
 migration.
+
+## Implementation (r106, 2026-05-18) — Tier 4 increment 3: the correlation heat-strip
+
+T4.1's "correlation heat strip" microchart primitive, shipped as the
+**first consumer of the r105 SSOT and the first consumer-backed
+`--p-chart-*` ramp** (the r104 tree-shake lesson applied PROACTIVELY: the
+diverging ramp ships _with_ its consumer, never alone). ADR-099 §D-3
+Tier 4 **is** the spec — dated append, no new ADR (doctrine #9 ; the
+§T3.1 / §T3.2 / ADR-104 §Implementation(r96) / ADR-105 §Implementation(r99,
+r100) / §Implementation(r104,r105) immutable-append precedent). The
+r105-close binding default executed verbatim (doctrine #10, no pivot).
+
+**R59 reshaped the plan (doctrine #3 — inspected the real shapes, not the
+memory).** Direct file:line read (no sub-agent hypothesis layer — the
+strongest R59): (1) `CorrelationsStrip.tsx` (r82) is `"use client"`
+(motion), props `{ snapshot: unknown }` → a flat `Record<string,number>`
+(NOT the 8×8 `CorrelationMatrix`; the page derives a compact per-asset row
+via `deriveCorrelationRow`, precedence `card.correlations_snapshot` ?? live
+`/v1/correlations`) → **EXTEND in place, never a new file** (anti-doublon
+#9, the binding default's explicit constraint) ; (2) it already carries
+label + magnitude-as-bar-length + `+`/`−` sign + `.toFixed(2)` value but a
+**binary** `--color-bull`/`--color-bear` fill — and **only `+`/`−`, NO
+`▲`/`▼`**, a pre-existing SPEC §14-row3 non-compliance (the mandatory
+`+/−` _AND_ `▲/▼` redundancy on 100 % of numeric displays) that the new
+colour-encoding round is the correct moment to close (the mandatory
+accessibility-reviewer would flag it regardless — fixed proactively) ;
+(3) `microchart.ts` (r105) header lines 14-15 literally name
+"proportional ladder/**heat-strip** scalars" as `linScale`'s announced
+consumers → consuming `linScale` here **fulfils the r105 SSOT's stated
+purpose**, the cleanest possible doctrine-#9 alignment (not accumulation —
+the announced consumer arriving) ; (4) `app/briefing/page.tsx` (cockpit)
+does NOT mount it — only `app/briefing/[asset]/page.tsx:358-375` (detail),
+so the blast radius is one route's one section.
+
+**What r106 implemented.**
+
+1. **NEW `--p-chartdiv-*` Layer-1 OKLCH diverging primitives + Layer-2
+   `--color-chart-div-*` semantic tokens** in `globals.css` (r104's exact
+   two-layer convention: `:root` ordinal slots re-tune-stable, `@theme`
+   semantic names the component consumes). A 7-stop perceptually-uniform
+   diverging scale: `neg-strong/-mid/-weak` (bear, H 25°) ·
+   `neutral` (near-achromatic slate, H 256.79°) · `pos-weak/-mid/-strong`
+   (bull, H 163.22°). **Constant lightness L = 0.72** across all 7 stops by
+   design — correlation magnitude reads via _chroma + hue_, never
+   lightness, so the heat encoding does not confound the bar-LENGTH
+   signal it sits beside (accessibility-reviewer r106 explicitly upheld
+   this constant-L choice — 0 must-fix). **Symmetric |C| both poles**
+   (ui-designer r106 UD-2 applied): `C_STRONG = 0.155` is the maximum
+   chroma in sRGB gamut common to BOTH H 25° and H 163.22° at L 0.72
+   (emerald cannot hold the bear's 0.168 there) — so a symmetric |ρ|
+   reads EQUAL intensity on either hue; mid/weak keep the 0.115/0.062-
+   over-0.168 proven ratios (→ 0.1061 / 0.0572). Every value is the exact
+   CSS Color 4 OKLCH spec coordinate (pure-Python Ottosson reference
+   transform, the r104 methodology done dependency-free; **self-checked**
+   — the transform round-trips r104's already-ΔsRGB=0-verified `#F87171`
+   to `oklch(0.7106 0.1661 22.22)` exactly, proving the matrices ARE the
+   CSS Color 4 reference, ichor-trader r106 IT-a): all 7 verified **in
+   sRGB gamut** and **round-trip ΔsRGB = 0** at the shipped precision (a
+   _designed_ ramp, not a port). Hues anchored to the established palette
+   poles (`--p-red-400` ≈ #F87171 bear hue, `--p-slate-400` ≈ #94A3B8
+   slate-hue neutral, `--p-emerald-400` ≈ #34D399 bull hue) for
+   cross-palette coherence. Every token is referenced by the heat-strip
+   THIS round (no tree-shaken dead token — r104 verified finding applied
+   proactively).
+2. **`CorrelationsStrip.tsx` extended** (same file, same `<section>`, same
+   data, anti-doublon): (a) a compact **SSR SVG heat-strip row** — one
+   equal-width cell per correlated asset, geometry via the r105 SSOT
+   (`bandLayout` columns + `svgCoord` 1-dp formatting), fill = ρ → discrete
+   `--color-chart-div-*` stop via the r105 SSOT `linScale` in a
+   **signed-offset symmetric** form — `linScale(0, 1, 0, _CENTER)` (where
+   `_CENTER = (N−1)/2`, the token-count-derived centre, NOT a hard-coded
+   literal — ichor-trader r106 IT-b) maps |ρ| onto the half-axis distance
+   from the neutral centre, then the sign is applied (ρ=+x and ρ=−x land
+   equidistant on opposite hues ; a naive `linScale(-1, 1, 0, N−1)` +
+   `Math.round` is asymmetric — half-up sends ρ=+0.50→idx5 vs ρ=−0.50→idx2
+   on the common 2-dp `deriveCorrelationRow` values — caught + fixed
+   before commit). The `▲`/`▼`/`◆` direction glyphs are an **HTML
+   overlay**, NOT SVG `<text>`: the strip SVG is `preserveAspectRatio=
+"none"` (it stretches ~20× horizontally) which would smear `<text>`
+   — the rects tolerate the stretch, glyphs must not (ui-designer r106
+   UD-1) ; the overlay's `flex-1` cells align exactly to the rect column
+   centres ((i+0.5)/n). The whole strip is **`aria-hidden` DECORATIVE**
+   (accessibility-reviewer r106 ADV-1/ADV-2: it has no independent
+   magnitude channel, and an SVG `aria-label` + the `<ul>` would
+   double-announce to screen readers). (b) the labelled `<ul>` is the
+   **single authoritative accessible source** — label + bar length + sign
+   - glyph + value, all non-colour — its bar fill upgraded from the binary
+     bull/bear to the same continuous ramp stop (slightly muted so the strip
+     stays the focal gestalt, UD nit) ; (c) `▲`/`▼`/`◆` glyph added to the
+     value cell (positive / negative / near-zero band) → SPEC §14-row3
+     closed: every row now carries **colour + bar-length + sign + glyph +
+     numeric value** (quintuple redundancy ; WCAG 1.4.1 satisfied by
+     non-colour signals, the colour is decorative-redundant — the correct
+     architecture for a red↔green diverging scale, inherently the CVD
+     worst-case at constant L ; the strip↔list coupling is documented as a
+     load-bearing invariant in the component docstring, ADV-1). ADR-017
+     "contexte pré-trade — pas un ordre" disclaimer added in-component +
+     the legend swatches re-pointed off the binary bull/bear onto the ramp
+     endpoints so the legend matches the body (ichor-trader r106 IT-c).
+3. **NEW `apps/web2/lib/correlationHeat.ts`** — the ρ→encoding brain as a
+   PURE plain module (no `"use client"`, doctrine #5 + the `lib/verdict.ts`
+   r71 / `eventSurprise.ts` r89 / `dataIntegrity.ts` r96 house idiom):
+   `DIV_STOPS` (the 7 Layer-2 tokens, ordinal order), `divergingStop` (ρ →
+   token, composing the r105 SSOT `linScale`, clamp [-1,1] defensive),
+   `trendGlyph` (the §14 non-colour direction signal). It is NOT a
+   speculative SSOT (r104 YAGNI) nor a fake-SSOT (r105) — concrete present
+   consumer (the heat-strip) + concrete test consumer, the blessed r96
+   `deriveDataIntegrity` shape ; the GENERAL primitive it composes
+   (`linScale`) is the r105 microchart SSOT, this is its announced
+   "heat-strip scalars" consumer (not a duplicate). `CorrelationsStrip`
+   becomes the thin view importing it — so the mapping is unit-testable
+   WITHOUT pulling `motion/react` into the node test (the r105 lesson).
+4. **NEW `__tests__/correlationHeat.test.ts`** — pins the ρ → stop pure
+   mapping (the r105 microchart-test pattern: −1 → `neg-strong`, +1 →
+   `pos-strong`, 0 → `neutral`, monotone, symmetric, clamp beyond ±1, the
+   SSOT `linScale` composition) + the glyph/near-zero-band contract,
+   CI-gated since r97.
+
+**Honest non-atomic split (lesson #11).** r106 = the heat-strip + its
+consumer-backed ramp ONLY. The announced subsequent increments — probability
+ladder (extend `ScenariosPanel`), sparkline (extract `VolumePanel`'s
+polyline), regime timeline (NEW), and the `confluence/history` +
+`regime-quadrant` SSOT migrations that complete the doctrine-#9
+de-accumulation (with I3, `bandSeriesPolyline` ≡ `linScale` re-proven
+byte-identical) — are explicitly DEFERRED, each its own verified increment.
+
+**CVD note — adjudicated.** A red↔green diverging hue ramp at constant
+lightness is the deuteranopia/protanopia worst case _for the colour channel
+alone_. The mandatory accessibility-reviewer **upheld the constant-L choice
+(0 must-fix / 0 should-fix, PASS)**: the colour is strictly redundant —
+direction is also sign + `▲`/`▼` glyph, magnitude is also bar length, exact
+is also the tabular numeric ; adding a lightness cue would (a) drop glyph
+contrast asymmetrically toward the 4.5:1 floor and (b) re-confound the
+adjacent bar-length signal. No information is lost on the colour channel for
+a CVD user (the `<ul>` glyph+sign+value path is colour-free).
+
+**Review fixes applied pre-merge (consolidated, single pass).** All three
+mandatory reviews ran in parallel on the worktree shape; every finding was
+applied (or N/A-with-reason) in one consolidated pass, re-verified on the
+committed (post-prettier) shape (doctrine #14).
+
+- **ichor-trader R28 — 0 RED / 3 YELLOW, all applied.**
+  - _IT-a_ (the substantive one — "executed, not reworded"): the
+    "round-trip ΔsRGB=0 / byte-exact hex" wording was asserted-not-verified
+    (a web converter disagreed). Resolved empirically: the pure-Python
+    Ottosson reference was self-checked against r104's already-verified
+    `#F87171 → oklch(0.7106 0.1661 22.22)` = exact MATCH ⇒ the matrices ARE
+    the CSS Color 4 reference, the web converter is the gamut-mapping
+    outlier ; real per-stop numbers now in Verification below ; every
+    `/* sRGB #hex */` provenance comment corrected to the round-tripped
+    value.
+  - _IT-b_ (doc drift): the `linScale(0,1,0,3)` / `(-1,1,0,6)` literals
+    rephrased to track `_CENTER = (N−1)/2` (token-count-derived) in this
+    ADR + `lib/correlationHeat.ts` + the component docstring.
+  - _IT-c_ (cross-file visual drift my change introduced): the header
+    legend still used the binary `--color-bear`/`--color-bull` while the
+    body used the ramp → legend swatches re-pointed to
+    `--color-chart-div-neg-strong` / `-neutral` / `-pos-strong` (the
+    endpoints+centre the user actually sees ; contrast re-verified
+    7.04 / 7.53 / 8.09:1 on the surface, all clear 1.4.3).
+  - GREEN, recorded: ADR-017 boundary, economic soundness (symmetric
+    diverging of Pearson ρ, near-zero band, |ρ| sort), Voie D/ADR-023 N/A
+    (pure frontend), symmetry/monotonicity/clamp test-proven, anti-doublon
+    (extended in place ; the page-wiring precedence fix below is a
+    documented R59-reshape, NOT a silent byte-change), doctrine-#9 dated
+    append.
+
+**Real-prod witness reshaped scope (R59 / doctrine #3 ; lesson #1
+forecast≠preuve / #2 SHIPPED≠FUNCTIONAL).** The Playwright witness on the
+deployed dashboard caught that the heat-strip rendered on **zero** priority
+assets: `/v1/correlations` is LIVE and rich (real 8×8, n=257) but **every
+current prod card carries an EMPTY `{}` `correlations_snapshot`**, and the
+pre-existing r82 page precedence `cardCorr ?? liveCorrRow` pinned that
+truthy-but-empty object so `CorrelationsStrip` returned `null` everywhere.
+This is a **pre-existing r82 data-precedence defect, not an r106
+regression** (the same `entries.filter(typeof number)` existed in r82) —
+but shipping a heat-strip a user never sees is the lesson-#2
+SHIPPED≠FUNCTIONAL failure the mission forbids. The minimal additive fix
+(`app/briefing/[asset]/page.tsx`): a card snapshot counts only if it has
+≥1 numeric ρ entry, else it is treated as absent so the precedence falls
+through to the rich live `deriveCorrelationRow` (the r69 "the live path
+EXISTS but is dead — completing it IS the task, not scope creep" class ;
+the `correlationSource` label then honestly reads "Live …"). ADR-017-neutral
+(data-source precedence only, no signal change), additive, one route's data
+wiring. The witness was re-run post-fix (below) — not forecast.
+
+- **ui-designer — 3 Important + 2 nits, all applied.** _UD-1_ SVG `<text>`
+  smeared by `preserveAspectRatio="none"` → glyphs moved to a non-scaled
+  HTML `flex-1` overlay (rects stay in the SVG). _UD-2_ asymmetric pole
+  chroma (0.168 vs 0.152) → symmetric `C_STRONG=0.155` (max common
+  in-gamut, re-derived + re-verified). _UD-3_ label span → `truncate` +
+  `title`. _Nits_: list bar `opacity-90` (strip is the focal gestalt) ;
+  small-N layout assumption pinned in the docstring. Validated by the
+  reviewer: constant-L correct, token naming r104-correct,
+  `lib/correlationHeat.ts` extraction correct (no duplication), empty/null
+  states clean, reduced-motion globally handled (`MotionConfig
+reducedMotion="user"`).
+- **accessibility-reviewer (MANDATORY, new colour-encoding) — 0 MUST-FIX /
+  0 SHOULD-FIX, PASS, 3 ADVISORY.** _ADV-1_ strip↔list coupling documented
+  as a load-bearing invariant in the docstring. _ADV-2_ SVG made
+  `aria-hidden` decorative (removes the SVG↔`<ul>` double announcement ;
+  the `<ul>` is the single SR source). _ADV-3_ (no `@media
+(forced-colors)`) = pre-existing, out of r106 scope, already a tracked
+  globals.css §6 backlog item — **N/A r106** (glyph+sign+value survive
+  forced-colors regardless). 1.4.1 / CVD / 1.4.11 / 1.4.3 / 1.3.1 / 4.1.2
+  / 2.3.3 all PASS with computed ratios (below).
+
+**Verification (real in-repo numbers, not asserted).**
+
+- **OKLCH self-check** (the IT-a resolution): pure-Python Ottosson
+  reference, `#F87171 → oklch(0.7106 0.1661 22.22)` = exact MATCH vs the
+  r104-shipped value ⇒ CSS Color 4 reference confirmed.
+- **Ramp (final, symmetric)** — all in-gamut, round-trip ΔsRGB = 0 at the
+  shipped 4-dp precision: `neg-strong oklch(0.72 0.155 25)→#F67972` ·
+  `neg-mid 0.1061→#DF8A83` · `neg-weak 0.0572→#C69793` ·
+  `neutral 0.019 256.79→#9DA5B1` · `pos-weak 0.0572 163.22→#84B09B` ·
+  `pos-mid 0.1061→#5FBA92` · `pos-strong 0.155→#01C289`.
+- **WCAG contrast** (sRGB relative luminance): glyph `#04070C` on every
+  ramp stop = **worst 7.59:1** (neg-strong) … 8.72:1 (pos-strong) — clears
+  1.4.3 (4.5:1) on all 7 ; list value `#E6EDF3`/surface = 15.85:1 ;
+  re-pointed legend endpoints on surface = 7.04 / 7.53 / 8.09:1. All PASS.
+- **web2 build gate** re-run on the post-review consolidated + prettier
+  shape (doctrine #14): `tsc --noEmit` 0 · `eslint --max-warnings 0` 0 ·
+  **vitest 7 files / 95 tests** (r105 baseline 6/84 + `correlationHeat`
+  11 ; zero regression) · `next build` OK.
+- **Real-prod witness** — Playwright on the deployed public dashboard URL
+  (doctrine #7 zero-exposure ; the witness, not a forecast — it reshaped
+  scope twice):
+  - R53 `/v1/correlations` re-confirmed LIVE: 200, real 8×8 matrix, 8
+    assets, `n_returns_used=257`, real floats.
+  - **Witness #1 caught the SHIPPED≠FUNCTIONAL gap** (→ the page-wiring
+    precedence fix above): pre-fix the heat-strip rendered on ZERO assets
+    (all 5 priority cards carry an empty `{}` snapshot).
+  - **Witness #2 caught a pre-existing app-wide defect** (the heat-strip
+    _surfaced_ it, did not introduce it): the Tailwind-v4
+    `text-[--color-*]` bracket-arbitrary class produces no working colour
+    rule (verified on UNTOUCHED `page.tsx:242`/`:377` elements too) — the
+    `:root` tokens are correctly defined, the bracket form just doesn't
+    apply. r106's NEW colour-critical elements (overlay glyph, legend)
+    were re-pointed to inline `style` `var()` — the mechanism empirically
+    proven this round (rect `fill` / bar `backgroundColor` resolve to the
+    exact OKLCH). The pre-existing app-wide issue is OUT OF r106 SCOPE
+    (codebase-wide, touches the r104 token system, needs its own R59 +
+    per-route visual-diff round) — flagged as a dedicated task, NOT
+    silently rewritten, NOT claimed fixed (calibrated honesty #11).
+  - **Final witness GREEN** (deployed, real live data, `EUR_USD`):
+    `sourceLabel`="Live · fenêtre 30 j" (precedence fix works) ; 7 SVG
+    rects fill = the live `--color-chart-div-*` resolving to exact OKLCH
+    (`pos-mid oklch(0.72 0.1061 163.22)` etc., constant-L confirmed) ;
+    HTML overlay glyphs `▲▲▲▼▼▲▲` in `--color-bg-base`
+    `oklch(0.1268 0.0141 254.03)` (dark — the a11y-verified ≥7.59:1
+    restored) ; SVG `aria-hidden=true`, `role`/`aria-label`=null (ADV-2) ;
+    legend "−1 inverse"/"neutre"/"+1 ensemble" =
+    `oklch(0.72 0.155 25)`/`(0.72 0.019 256.79)`/`(0.72 0.155 163.22)`
+    (the ramp endpoints — IT-c achieved) ; 7 `<ul>` rows real correlations
+    (GBP/USD +0.77 ▲ … SPX500 +0.28 ▲) sorted by |ρ|, each label +
+    diverging bar (`opacity-90`) + glyph + signed tabular value
+    (quintuple signal) ; ADR-017 disclaimer rendered ; console = only the
+    pre-existing `404 favicon.ico`. Visual screenshot confirms the
+    premium heat gestalt + non-smeared glyphs (UD-1).
+
+Voie D + ADR-017 held; additive web2-only deploy; zero backend / zero
+migration.

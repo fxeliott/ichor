@@ -160,11 +160,21 @@ export default async function BriefingPage({ params }: PageParams) {
     });
     return Object.keys(row).length > 0 ? row : null;
   }
+  // r106 — a card snapshot counts ONLY if it has ≥1 numeric ρ entry.
+  // Every current prod card carries an EMPTY `{}` snapshot (R59 real-prod
+  // witness): truthy-but-useless. The r82 `cardCorr ?? liveCorrRow` pinned
+  // that empty object and `CorrelationsStrip` returned null → the panel
+  // (and now the r106 heat-strip) rendered on ZERO assets. Treating a
+  // no-numeric snapshot as absent lets the precedence fall through to the
+  // rich live `/v1/correlations` row, and `correlationSource` below
+  // correctly reports "Live …" (the r69 dead-live-path completion class).
+  const _cardSnap = card?.correlations_snapshot;
   const cardCorr =
-    card?.correlations_snapshot &&
-    typeof card.correlations_snapshot === "object" &&
-    !Array.isArray(card.correlations_snapshot)
-      ? (card.correlations_snapshot as Record<string, unknown>)
+    _cardSnap &&
+    typeof _cardSnap === "object" &&
+    !Array.isArray(_cardSnap) &&
+    Object.values(_cardSnap as Record<string, unknown>).some((v) => typeof v === "number")
+      ? (_cardSnap as Record<string, unknown>)
       : null;
   const liveCorrRow = correlations ? deriveCorrelationRow(correlations, normalisedAsset) : null;
   const correlationSnapshot: Record<string, unknown> | null = cardCorr ?? liveCorrRow;

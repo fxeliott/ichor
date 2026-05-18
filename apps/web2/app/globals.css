@@ -36,9 +36,13 @@
  * the OKLCH-architecture migration only, deliberately atomic):
  *   1. Perceptual ramp re-tuning (smoother / gamut-aware chroma) — values are
  *      exact ports today, not yet a designed perceptual ramp.
- *   2. SSR SVG microchart primitives (sparkline / ladder / heat-strip /
- *      regime-timeline) = r105 — must add NEW `--p-chart-*` sequential/
- *      diverging ramps, NOT overload the semantic accents (ui-designer r104).
+ *   2. SSR SVG microchart primitives. SSOT foundation = r105 DONE
+ *      (`lib/microchart.ts`). Correlation heat-strip + its consumer-backed
+ *      `--p-chartdiv-*` OKLCH diverging ramp = r106 DONE (the Layer-1
+ *      block + Layer-2 `--color-chart-div-*` below ; ramp shipped WITH its
+ *      consumer per the r104 tree-shake finding, NOT overloading the
+ *      semantic accents — ui-designer r104). Sparkline / probability
+ *      ladder / regime-timeline = subsequent consumer-backed increments.
  *   3. Severity is four unrelated hues (warn amber / alert magenta / critical
  *      red), NOT a coherent info→warn→alert→critical perceptual scale —
  *      rebuild as a real ramp during re-tuning so microchart severity
@@ -112,6 +116,35 @@
 
   /* achromatic — white (alpha-applied by Layer 2 borders) */
   --p-white: oklch(1 0 0);
+
+  /* chartdiv — correlation diverging ramp (r106, ADR-099 §Impl(r106)).
+   * CONSTANT L 0.720 across all 7 stops by design: magnitude reads via
+   * chroma+hue, never lightness, so the heat does not confound the
+   * bar-LENGTH signal beside it (accessibility-reviewer r106 upheld this
+   * — colour is decorative-redundant ; SPEC §14 sign+glyph+length+value
+   * carry the data). Hue fixed per side, anchored to the palette poles
+   * (red 25° ≈ --p-red-400 ; slate 256.79° = --p-slate-400 ; emerald
+   * 163.22° = --p-emerald-400). SYMMETRIC |C| both poles (ui-designer
+   * r106 UD-2): C_STRONG 0.155 is the max chroma in sRGB gamut common to
+   * BOTH H25 and H163.22 at L0.72 (emerald cannot hold 0.168 there), so a
+   * symmetric |ρ| reads EQUAL intensity on either hue ; mid/weak keep the
+   * proven 0.115/0.062-over-0.168 ratios. Step = the ORDINAL diverging
+   * slot (50 strong-negative … 500 neutral … 950 strong-positive),
+   * decoupled from value (r104 re-tune-stable convention). Each value =
+   * the exact CSS Color 4 OKLCH coord (pure-Python Ottosson reference,
+   * self-checked: it round-trips r104's verified #F87171 →
+   * oklch(0.7106 0.1661 22.22) exactly) — all 7 in-gamut + round-trip
+   * ΔsRGB=0 at the shipped precision ; glyph #04070C on every stop ≥
+   * 7.59:1 (WCAG 1.4.3 cleared). */
+  --p-chartdiv-50: oklch(0.72 0.155 25); /* designed · sRGB #F67972 · L0.720 (strong inverse) */
+  --p-chartdiv-200: oklch(0.72 0.1061 25); /* designed · sRGB #DF8A83 · L0.720 */
+  --p-chartdiv-350: oklch(0.72 0.0572 25); /* designed · sRGB #C69793 · L0.720 */
+  --p-chartdiv-500: oklch(0.72 0.019 256.79); /* designed · sRGB #9DA5B1 · L0.720 (≈0 no-signal) */
+  --p-chartdiv-650: oklch(0.72 0.0572 163.22); /* designed · sRGB #84B09B · L0.720 */
+  --p-chartdiv-800: oklch(0.72 0.1061 163.22); /* designed · sRGB #5FBA92 · L0.720 */
+  --p-chartdiv-950: oklch(
+    0.72 0.155 163.22
+  ); /* designed · sRGB #01C289 · L0.720 (strong together) */
 }
 
 /* Fonts stay in `@theme inline` (binds the next/font CSS vars into the
@@ -234,6 +267,18 @@
   --color-accent-cobalt-deep: var(--p-cobalt-800); /* was #1E40AF */
   --color-accent-warm: var(--p-sienna-600); /* was #C15F3C */
   --color-accent-violet: var(--p-violet-600); /* was #785EF0 */
+
+  /* Chart diverging ramp — semantic names the correlation heat-strip
+   * consumes (r106). Layer-2 over the --p-chartdiv-* ordinal slots, the
+   * exact r104 two-layer pattern (--color-bull ← --p-emerald-400). NOT a
+   * semantic accent — a dedicated microchart ramp (ui-designer r104). */
+  --color-chart-div-neg-strong: var(--p-chartdiv-50);
+  --color-chart-div-neg-mid: var(--p-chartdiv-200);
+  --color-chart-div-neg-weak: var(--p-chartdiv-350);
+  --color-chart-div-neutral: var(--p-chartdiv-500);
+  --color-chart-div-pos-weak: var(--p-chartdiv-650);
+  --color-chart-div-pos-mid: var(--p-chartdiv-800);
+  --color-chart-div-pos-strong: var(--p-chartdiv-950);
 }
 
 @theme {
