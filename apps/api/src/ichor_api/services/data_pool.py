@@ -2273,14 +2273,29 @@ async def _section_gbp_specific(session: AsyncSession, asset: str) -> tuple[str,
 
     Sterling is NOT a USD safe-haven (Ranaldo-Soderlind 2010,
     DOI:10.1093/rof/rfq007) — surfaced as a one-line caveat, not a
-    driver. Driver 3 (BoE-vs-Fed reaction-function divergence, Clarida-
-    Gali-Gertler 1998 DOI:10.1016/S0014-2921(98)00016-6) is DEFERRED :
-    it needs `IR3TIB01GBM156N` (UK 3M interbank), poller-configured
-    since r101 (ADR-101 §Implementation(r101)) and ingested post-r101 ;
-    its max-age was R53-recalibrated 120→180 d in r102 (ADR-101
-    §Implementation(r102)). The Driver-3 paragraph itself stays
-    deferred to r103 (US-side-leg framework resolution pending — see
-    ADR-101 §Impl(r102) "Still explicitly DEFERRED").
+    driver.
+
+    FRONT-END TERM-STRUCTURE REFINEMENT (r103, ADR-101
+    §Implementation(r103)) : a third block surfaces the US-UK **3M**
+    front-end differential (`DGS3MO` US 3M Treasury CMT daily, already
+    polled — minus `IR3TIB01GBM156N` UK 3M interbank, OECD-MEI monthly
+    family laggard ~137d / registry-180 r102). It is **NOT a standalone
+    "Driver 3"** : a US-UK 3M differential is the SAME nominal-rate
+    channel as Driver-1's US-UK 10Y, read at the short end — its
+    marginal content is the front-end-vs-long-end decomposition (3M =
+    current relative policy stance ; 10Y = cumulative expected stance +
+    term premium). Clarida-Galí-Gertler-1998-**motivated** (NOT the CGG
+    reaction function itself — a structural policy-rate rule, not a rate
+    spread), with explicit FRAMEWORK-ATTRIBUTION + INSTRUMENT-BASIS +
+    INDEPENDENCE caveats (ichor-trader r103 R28, Option B —
+    lowest-blast-radius, zero new ingestion ; the faithful
+    `IR3TIB01USM156N` interbank counterpart EXISTS but is deliberately
+    NOT ingested). Guarded on BOTH 3M series present so a
+    pre-ingestion GBP_USD silently skips it (Driver-1/2 unaffected).
+    R44 polarity SAME as Driver-1 (`dgs3mo − uk3m`, US minus UK ; wider
+    ⟹ GBP-soft) ; symmetric branches + Tetlock+VIX invalidation ;
+    frequency-mismatch flagged SHARPER than Driver-1 (UK 3M is staler
+    than the already-monthly UK 10Y leg).
     """
     if asset != "GBP_USD":
         return "", []
@@ -2360,14 +2375,117 @@ async def _section_gbp_specific(session: AsyncSession, asset: str) -> tuple[str,
             "trader precedent). Note : sterling is NOT a USD safe-haven "
             "— in acute risk-off USD is the bid leg of GBP/USD (Ranaldo-"
             "Soderlind 2010, DOI:10.1093/rof/rfq007) ; this is a "
-            "qualitative caveat, not a driver. The BoE-vs-Fed "
-            "reaction-function front-end leg (Clarida-Gali-Gertler "
-            "1998, DOI:10.1016/S0014-2921(98)00016-6) is DEFERRED to "
-            "r103 — the IR3TIB01GBM156N UK 3M interbank series is "
-            "poller-configured (r101) and R53-recalibrated to 180 d "
-            "(r102, ADR-101 §Implementation(r102)) ; the Driver-3 "
-            "paragraph awaits the r103 US-side-leg framework decision."
+            "qualitative caveat, not a driver."
         )
+
+        # ─── Front-end term-structure refinement of Driver-1 (US-UK 3M) ──
+        # r103 ADR-101 §Implementation(r103). NOT a standalone "Driver 3"
+        # — a US-UK 3M differential is the SAME nominal-rate channel as
+        # Driver-1's US-UK 10Y, read at the short end ; marginal content
+        # = the front-end-vs-long-end decomposition. DGS3MO (US 3M
+        # Treasury CMT, daily, already polled fred_extended.py:26) minus
+        # IR3TIB01GBM156N (UK 3M interbank, OECD-MEI monthly family
+        # laggard ~137d / registry-180 r102). Clarida-Galí-Gertler-1998-
+        # MOTIVATED (NOT the CGG reaction function itself — a structural
+        # policy-rate rule, not a rate spread). Guarded on BOTH series
+        # present so a pre-ingestion GBP_USD silently skips it (Driver-1/2
+        # unaffected — purely additive, ichor-trader r103 R28 Option B,
+        # zero new ingestion, lowest blast-radius).
+        uk3m_latest = await _latest_fred(session, "IR3TIB01GBM156N")
+        dgs3mo_latest = await _latest_fred(session, "DGS3MO")
+        if uk3m_latest is not None and dgs3mo_latest is not None:
+            uk3m_value, uk3m_date = uk3m_latest
+            dgs3mo_value, dgs3mo_date = dgs3mo_latest
+            sources.append(f"FRED:IR3TIB01GBM156N@{uk3m_date:%Y-%m-%d}")
+            sources.append(f"FRED:DGS3MO@{dgs3mo_date:%Y-%m-%d}")
+            front_diff = dgs3mo_value - uk3m_value
+            lines.append(
+                "### Front-end policy-rate-proxy differential (US-UK 3M) "
+                "— a TERM-STRUCTURE REFINEMENT of Driver-1, "
+                "Clarida-Gali-Gertler-1998-motivated"
+            )
+            lines.append(
+                f"- US 3M = {dgs3mo_value:.2f}% (FRED DGS3MO, "
+                f"{dgs3mo_date:%Y-%m-%d} — US 3-Month Treasury constant "
+                f"maturity, DAILY, ~4d lag) ; UK 3M = {uk3m_value:.2f}% "
+                f"(FRED IR3TIB01GBM156N, {uk3m_date:%Y-%m-%d} — UK "
+                "3-Month interbank, OECD-MEI MONTHLY, documented family "
+                "laggard ~4-6 months stale, max-age 180d per ADR-101 "
+                "§Impl(r102))."
+            )
+            lines.append(
+                f"- US-UK 3M front-end differential = {front_diff:+.2f} pp "
+                "(DGS3MO minus UK 3M interbank)."
+            )
+            lines.append(
+                "- FRAMEWORK ATTRIBUTION (calibrated honesty) : this is "
+                "the front-end (policy-stance) complement to Driver-1's "
+                "US-UK 10Y long-rate differential, MOTIVATED BY Clarida, "
+                "Gali & Gertler 1998 (EER 42(6):1033-1067, "
+                "DOI:10.1016/S0014-2921(98)00016-6 — a forward-looking "
+                "central-bank reaction-function paper). It is NOT a "
+                "structural estimate of either central bank's reaction "
+                "function ; it is a front-end RATE-PROXY differential. "
+                "INSTRUMENT-BASIS CAVEAT : the US leg (DGS3MO) is a "
+                "risk-free Treasury constant-maturity rate, the UK leg "
+                "(IR3TIB01GBM156N) is an interbank rate — a TED-spread-"
+                "class interbank-credit / term-premium wedge separates "
+                "them ; in the current regime the front-end T-bill tracks "
+                "the policy rate closely so the basis is second-order vs "
+                "the policy-stance signal, but the pair is NOT a pure "
+                "same-instrument 3M-vs-3M interbank pair (a faithful "
+                "IR3TIB01USM156N US-3M-interbank counterpart EXISTS at "
+                "FRED but is deliberately NOT ingested — lowest-blast-"
+                "radius per ADR-101 §Reversibility, recorded ADR-101 "
+                "§Implementation(r103))."
+            )
+            lines.append(
+                "- INDEPENDENCE CAVEAT (ichor-trader r90/r103 over-claim "
+                "discipline) : this front-end differential is NOT an "
+                "independent driver co-equal with Driver-1 — it is the "
+                "SAME US-UK nominal-rate-differential channel read at the "
+                "SHORT end of the curve. Its genuine marginal content is "
+                "the relative-curve-shape / front-end-vs-long-end "
+                "decomposition (3M = current relative policy stance ; "
+                "10Y = cumulative expected stance + term premium). It "
+                "REFINES, it does not duplicate-as-new, the Engel-West "
+                "Driver-1 read. (Contrast Driver-2 Della Corte-Sarno-"
+                "Sestieri 2012, which IS independent — a different state "
+                "variable, the NFA / current-account position.)"
+            )
+            lines.append(
+                "- Polarity (R44) : SAME as Driver-1 — USD is the GBP/USD "
+                "QUOTE currency ; a WIDER (more positive) US-UK 3M "
+                "differential ⟹ relative US front-end / policy carry "
+                "advantage ⟹ USD-bid ⟹ GBP/USD DOWNSIDE (GBP-soft) ; a "
+                "NARROWER or NEGATIVE differential ⟹ sterling front-end "
+                "advantage ⟹ GBP-bid. Symmetric : the Pass-2 LLM selects "
+                "the branch matching the Pass-1 regime label."
+            )
+            lines.append(
+                "- Frequency mismatch (SHARPER than Driver-1) : DGS3MO is "
+                "DAILY (~4d) but the UK 3M interbank leg is the documented "
+                "OECD-MEI MONTHLY family laggard (~4-6 months stale, "
+                "ADR-101 §Impl(r102) max-age 180d). Treat this front-end "
+                "differential as a SLOW REGIME indicator — STALER than "
+                "Driver-1's already-monthly UK 10Y leg, NOT a fresher "
+                "front-end read (Pass-2 must not over-weight it as timely "
+                "policy information). BTP r34 cadence-mismatch precedent ; "
+                "R24 SUBSET-not-SUPERSET."
+            )
+            lines.append(
+                "- Tetlock invalidation : the wider-3M-differential "
+                "GBP-soft refinement is invalidated if VIX > 25 AND the "
+                "US-UK 3M differential narrows by > 25 bp within 5 "
+                "sessions (front-end policy-convergence repricing) ; the "
+                "narrow / negative-3M GBP-bid refinement is invalidated "
+                "if VIX falls below 18 AND DGS3MO rises by > 20 bp within "
+                "5 sessions (US front-end re-anchoring ; threshold "
+                "asymmetric vs the 25-bp magnitude per the JPY r45 "
+                "ichor-trader precedent). This REFINES, it does not "
+                "override, the Driver-1 10Y read — it decomposes its "
+                "front-end component."
+            )
 
         # Composite (R24 SUBSET-not-SUPERSET via cadence-mismatch BTP r34 precedent)
         lines.append("### GBP rate-differential triangle (Engel-West + Della Corte-Sarno-Sestieri)")
@@ -2389,11 +2507,17 @@ async def _section_gbp_specific(session: AsyncSession, asset: str) -> tuple[str,
             "ADDITIVE GBP-soft risk premium under UK funding stress (the "
             "2022 LDI/gilt-crisis configuration), layered on — not "
             "derived from — the Engel-West rate-differential read. "
-            "Pass-2 LLM should triangulate "
-            "both regime-conditional branches before committing to a "
-            "directional read. Tetlock invalidation thresholds emit "
-            "asymmetric regime-flip conditions consistent with the JPY "
-            "r45 precedent."
+            "When the UK 3M leg is present, the front-end "
+            "term-structure refinement above (ADR-101 §Impl(r103)) "
+            "DECOMPOSES — it does NOT add a new independent driver — "
+            "Driver-1's rate differential into its front-end "
+            "(policy-stance) vs long-end (cumulative-expectations + "
+            "term-premium) components ; it is a refinement lens on "
+            "Driver-1, NOT a co-equal third driver. Pass-2 LLM should "
+            "triangulate both regime-conditional branches before "
+            "committing to a directional read. Tetlock invalidation "
+            "thresholds emit asymmetric regime-flip conditions "
+            "consistent with the JPY r45 precedent."
         )
 
     return "\n".join(lines), sources
@@ -4686,12 +4810,15 @@ async def build_data_pool(
     # premium (ADR-099 Tier 2 continuation ; ADR-101 extends Accepted
     # ADR-092 to GBP_USD — the only ADR-083 priority asset previously
     # without a per-asset section). Asset-gated to GBP_USD ; silent skip
-    # otherwise OR if IRLTLT01GBM156N absent (primary UK anchor). 2-driver
-    # inline-FRED, ZERO new ingestion (IRLTLT01GBM156N + DGS10 already
-    # polled, GBP already in _RATE_DIFF_PAIRS). GBP/USD polarity is
-    # INVERSE to USD/JPY (USD is the quote currency). Frameworks :
-    # Engel-West 2005 + Della Corte-Sarno-Sestieri 2012 ; BoE-Fed
-    # reaction-function (Clarida-Gali-Gertler 1998) deferred per ADR-101.
+    # otherwise OR if IRLTLT01GBM156N absent (primary UK anchor).
+    # 2-driver + front-end term-structure refinement, inline-FRED, ZERO
+    # new ingestion (IRLTLT01GBM156N + DGS10 + DGS3MO + IR3TIB01GBM156N
+    # all already polled, GBP already in _RATE_DIFF_PAIRS). GBP/USD
+    # polarity is INVERSE to USD/JPY (USD is the quote currency).
+    # Frameworks : Engel-West 2005 + Della Corte-Sarno-Sestieri 2012 ;
+    # the BoE-Fed front-end leg (Clarida-Gali-Gertler-1998-motivated) is
+    # WIRED r103 as a term-structure REFINEMENT of Driver-1 — NOT a
+    # co-equal Driver-3 (ADR-101 §Impl(r103)).
     gbp_md, gbp_src = await _section_gbp_specific(session, asset)
     if gbp_src:
         sections.append(("gbp_specific", gbp_md, gbp_src))

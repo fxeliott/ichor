@@ -487,3 +487,144 @@ recorded in `docs/SESSION_LOG_2026-05-18-r102-EXECUTION.md` (r102
 makes no liveness claim ahead of that witness — forecast≠preuve).
 Voie D untouched (FRED free public API). ADR-017 untouched (pure
 threshold config — no signal, no BUY/SELL).
+
+## Implementation (r103, 2026-05-18) — Driver-3 WIRED as a front-end term-structure REFINEMENT of Driver-1 (closes §Deferred step 4 + the Axis-5 RED + the r102 scope boundary)
+
+This dated note records r103. **No new ADR** (doctrine #9 — the
+§Impl(r101)/(r102) immutable-append precedent ; §Deferred + §Impl(r101)
+Axis-5 ARE the spec). r103 **closes** the three open GBP items in ONE
+atomic verified increment : (i) §Deferred step 4 (the Driver-3
+paragraph) ; (ii) the §Impl(r101) Axis-5 **US-side-leg RED** ;
+(iii) the §Impl(r102) "Deliberate scope boundary" (the 3 deferral-prose
+sites are now rewritten in the same commit — the r101-YELLOW-1
+cross-file-drift class, discharged here not deferred again).
+
+**Framework decision — Option B (`DGS3MO`), adjudicated by a proactive
+ichor-trader R28 framework-attribution review (ranked B ≻ A ≻ C, every
+finding applied pre-merge).** Candidates :
+
+- **C — `DGS10` 10Y under the Clarida-Galí-Gertler label : REJECTED**
+  (the §Impl(r101) Axis-5 RED, independently re-confirmed : a 10Y
+  long-rate is NOT a front-end reaction-function proxy AND it is a
+  literal byte-duplicate of Driver-1's anchor `dgs10` at
+  `data_pool.py:2309`). Resolved by **not using it** — the Axis-5 RED
+  is hereby closed by rejection, not by mis-stamp.
+- **A — ingest `IR3TIB01USM156N`** (US 3M interbank, same OECD-MEI
+  family, EXISTS, ~47 d, primary-source-confirmed r102, **NOT
+  polled**) : the exact same-instrument 3M-vs-3M pair, but an r101-class
+  chicken-egg (poller add → cron cycle → R53 verify) forcing a 3-round
+  split. **Not chosen** : the instrument-symmetry gain is second-order
+  versus the signal's nature (a Driver-1 refinement, see YELLOW-1), and
+  it does not escape the independence concern either ; a 3-round split
+  for a refinement is not justified.
+- **B — reuse already-polled `DGS3MO`** (US 3-Month Treasury constant
+  maturity, daily ~4 d, `fred_extended.py:26`, in prod ; absent from
+  `FRED_SERIES_MAX_AGE_DAYS` → the 14 d DAILY default, correct for a
+  daily series, NOT the r35 bug class) : **CHOSEN**. Zero new
+  ingestion → the lowest-blast-radius pattern this ADR's §Reversibility
+  - §Consequences explicitly prized ; no chicken-egg → **one atomic
+    verified r103 increment, no split** ; the faithfulness gap is fully
+    closeable in prose (the mandated caveats below).
+
+**The five ichor-trader R28 findings, ALL applied pre-merge :**
+
+- **YELLOW-1 (highest stakes — independence/over-claim) :** a US-UK 3M
+  differential is **not analytically independent of Driver-1's US-UK
+  10Y differential** — same nominal-rate channel, different curve
+  point. It is wired as a **front-end term-structure REFINEMENT of
+  Driver-1, NOT a co-equal standalone "Driver 3"** (its genuine
+  marginal content = the front-end-vs-long-end / relative-curve-shape
+  decomposition : 3M = current relative policy stance, 10Y = cumulative
+  expected stance + term premium). An explicit **INDEPENDENCE CAVEAT**
+  is rendered (contrast Driver-2 Della-Corte-Sarno-Sestieri 2012 which
+  IS independent — the NFA/current-account state variable). This
+  resolves the r90-YELLOW-1 "regime-conditional lens over-claim" class.
+- **YELLOW-2 (framework-attribution honesty) :** neither `DGS3MO` nor
+  `IR3TIB01USM156N` IS the CGG reaction function (CGG 1998 is a
+  structural estimated _policy-rate rule_, not a rate spread). The
+  label is **"Clarida-Galí-Gertler-1998-_motivated_ front-end
+  policy-rate-_proxy_ differential"**, never "the CGG
+  reaction-function divergence". An explicit **FRAMEWORK-ATTRIBUTION +
+  INSTRUMENT-BASIS CAVEAT** is rendered (`DGS3MO` is a risk-free
+  Treasury CMT, the UK leg is an interbank rate — a TED-spread-class
+  interbank-credit/term-premium wedge separates them ; in the current
+  regime the front-end T-bill tracks the policy rate closely so the
+  basis is second-order vs the policy-stance signal, but the pair is
+  NOT a pure same-instrument interbank pair ; the faithful
+  `IR3TIB01USM156N` EXISTS but is deliberately NOT ingested —
+  lowest-blast-radius per §Reversibility, recorded here).
+- **YELLOW-3 (frequency-mismatch honesty, sharper than Driver-1) :**
+  the UK 3M leg `IR3TIB01GBM156N` is the documented OECD-MEI **family
+  laggard, ~137 d / max-age 180 d (r102 §Impl(r102))** — materially
+  STALER than Driver-1's ~47 d UK 10Y leg. The block states it is
+  **staler than Driver-1's already-monthly leg**, treats the front-end
+  differential strictly as a SLOW REGIME indicator (BTP r34 precedent),
+  and warns Pass-2 must NOT read it as fresher front-end information
+  than the 10Y differential (a new requirement the JPY/Driver-1
+  precedents do not cover).
+- **YELLOW-4 (source-stamp / Critic-verifiability) :**
+  `_section_gbp_specific` did not call `_latest_fred(session,
+"IR3TIB01GBM156N")`. r103 adds the UK-3M + DGS3MO `_latest_fred`
+  calls and stamps **`FRED:IR3TIB01GBM156N@<date>` +
+  `FRED:DGS3MO@<date>`** (mirroring `data_pool.py:2296`/`:2312`).
+- **YELLOW-5 (deferral-prose cross-file drift — the r101-YELLOW-1
+  class) :** the three sites that asserted "Driver-3 DEFERRED to r103"
+  — the `_section_gbp_specific` docstring, the rendered Tetlock-tail
+  block, and the `test_data_pool_gbp_specific.py` test docstring — are
+  **all rewritten in this same atomic commit** (the operative truth
+  flipped : the refinement is now ACTIVE). Assertions retained where
+  still true ; `"DEFERRED"` removed from the rendered text and the
+  test. **Plus two further cross-file code-comment sites** the r103
+  diff itself rendered inaccurate are **also rewritten in this same
+  commit** so the "all deferral-prose discharged" claim is literally
+  true (no r103-introduced contradiction survives a future
+  `grep deferred`): the `fred_extended.py` `IR3TIB01GBM156N` poller
+  comment ("no Driver-3 paragraph yet" → "WIRED r103 as the front-end
+  refinement, NOT a standalone driver") and the `build_data_pool`
+  `gbp_specific` wiring comment in `data_pool.py` ("Clarida-Gali-Gertler
+  1998 deferred per ADR-101" → "WIRED r103 as a term-structure
+  REFINEMENT of Driver-1, NOT a co-equal Driver-3"), plus the
+  `test_data_pool_gbp_specific.py` section banner. The first of these
+  was caught pre-review by an independent round-2 completeness grep,
+  the wiring comment by the ichor-trader R28 diff re-review — both
+  applied pre-merge (the r101/r102-YELLOW-1 cross-file-drift discipline,
+  now extended to the ADR's own self-description so this enumeration is
+  exhaustive). The ADR-101 immutable §Decision/§Deferred/§Related body
+  - the SESSION_LOGs are dated history / archaeology and are
+    deliberately NOT rewritten (doctrine #9 — the dated §Implementation
+    appends are the living truth, the §Impl(r101):188-217 precedent).
+
+**R44 sign convention (GREEN) :** the front-end differential is
+computed **`dgs3mo − uk3m` (US minus UK**, the `_RATE_DIFF_PAIRS`
+`data_pool.py:153` convention generalized to the 3M point) — SAME
+polarity as Driver-1 : a WIDER US-UK 3M differential ⟹ relative US
+front-end/policy carry advantage ⟹ USD-bid ⟹ GBP/USD DOWNSIDE
+(GBP-soft) ; narrower/negative ⟹ sterling front-end advantage ⟹
+GBP-bid. No sign-flip risk. Symmetric language (both branches) +
+Tetlock invalidation with VIX cross-confirmation (asymmetric
+magnitudes, JPY r45 precedent) are emitted, and the full render is
+`is_adr017_clean` True (Witness 2, §Acceptance #3).
+
+**Atomicity & blast radius.** Option B = **ONE atomic verified r103
+increment** : `DGS3MO` already polled + `IR3TIB01GBM156N` already
+registry-180 (r102) ⇒ ZERO new ingestion, ZERO migration, ZERO
+collector/cron/ORM/schema change ; purely-additive Pass-2 prose inside
+the existing `if dgs10_latest is not None:` branch, additionally
+guarded `if uk3m_latest is not None and dgs3mo_latest is not None:` so
+a pre-ingestion GBP_USD silently skips the refinement (Driver-1/2
+unaffected). `git revert <commit>` + `redeploy-api.sh rollback`
+reverses it. Voie D untouched (FRED free public API ; zero Anthropic).
+ADR-017 untouched (regime-conditional context, no BUY/SELL — Critic
+should still verify the rendered text).
+
+**§Acceptance criteria #3 Witness 3** is satisfied by the r103
+consolidated-SSH 3-witness recorded in
+`docs/SESSION_LOG_2026-05-18-r103-EXECUTION.md` : live
+`build_data_pool(asset="GBP_USD")` renders the front-end refinement
+block from live FRED rows (`DGS3MO` daily + `IR3TIB01GBM156N` the
+~137 d laggard, surfaced with the staleness caveat) + `is_adr017_clean`
+True + the R53 prod-DB re-confirm of both series at verify-time
+(anti-cache, real schema). The GBP arc (Driver-1 Engel-West + Driver-2
+Della-Corte external-imbalance + the front-end term-structure
+refinement + the safe-haven caveat) is now COMPLETE ; ADR-101
+§Deferred has no remaining open step.

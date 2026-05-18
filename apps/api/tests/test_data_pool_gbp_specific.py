@@ -14,7 +14,9 @@ data-pool section (mirror of the JPY r45 2-driver template) :
   9. Frequency mismatch warning emitted inline (BTP r34 precedent).
  10. R44 sign-convention : GBP/USD polarity (USD is the quote currency,
      INVERSE to USD/JPY) stated explicitly — the r40 GBP-bug class guard.
- 11. Driver-3 deferral + safe-haven caveat surfaced with correct DOIs.
+ 11. Driver-3 front-end refinement ACTIVE (r103, ADR-101 §Impl(r103) —
+     a term-structure refinement of Driver-1, NOT a standalone driver,
+     guarded purely-additive) + safe-haven caveat, correct DOIs.
  12. R24 SUBSET-not-SUPERSET documented inline (cadence-mismatch BTP r34).
 
 Uses _latest_fred monkeypatch (2 FRED series in sequence). Zero DB I/O
@@ -31,15 +33,25 @@ from ichor_api.services.adr017_filter import is_adr017_clean
 from ichor_api.services.data_pool import _section_gbp_specific
 
 
-def _make_fred_stub(uk10y=None, dgs10=None):
+def _make_fred_stub(uk10y=None, dgs10=None, uk3m=None, dgs3mo=None):
     """Build a _latest_fred replacement returning canned values per
-    series_id. None means "series not available" (returns None)."""
+    series_id. None means "series not available" (returns None).
+
+    `uk3m` (IR3TIB01GBM156N) + `dgs3mo` (DGS3MO) added r103 for the
+    front-end term-structure refinement of Driver-1 (ADR-101
+    §Impl(r103)). Default None ⇒ the refinement block silently skips,
+    so every pre-r103 test that stubs only uk10y/dgs10 renders the
+    identical Driver-1/2 content (purely-additive guarantee)."""
 
     async def _stub(session, series_id, max_age_days=None):
         if series_id == "IRLTLT01GBM156N":
             return uk10y
         if series_id == "DGS10":
             return dgs10
+        if series_id == "IR3TIB01GBM156N":
+            return uk3m
+        if series_id == "DGS3MO":
+            return dgs3mo
         return None
 
     return _stub
@@ -315,36 +327,55 @@ async def test_polarity_binds_both_sign_directions(monkeypatch) -> None:
     assert "US-UK 10Y differential = -0.35 pp" in md
 
 
-# ──────────────────────────── Deferred Driver-3 + safe-haven caveat ────
+# ─────────────── Driver-3 front-end refinement (ACTIVE r103) + safe-haven caveat ────
 
 
 @pytest.mark.asyncio
-async def test_deferred_driver3_and_safe_haven_caveat(monkeypatch) -> None:
-    """Honest scope discipline (r88 anti-over-claim) : the BoE-vs-Fed
-    Driver 3 (Clarida-Gali-Gertler 1998) is surfaced as DEFERRED (needs
-    IR3TIB01GBM156N — poller-configured r101, R53-recalibrated to 180 d
-    r102 (ADR-101 §Impl(r102)) ; the Driver-3 paragraph itself deferred
-    to r103) and sterling's NON-safe-haven status is a one-line caveat
-    (Ranaldo-Soderlind 2010), each with correct DOIs."""
+async def test_driver3_frontend_refinement_active_and_safe_haven_caveat(monkeypatch) -> None:
+    """r103 ADR-101 §Impl(r103) : the BoE-vs-Fed front-end leg is now
+    ACTIVE as a TERM-STRUCTURE REFINEMENT of Driver-1 (NOT a standalone
+    "Driver 3", NOT "DEFERRED") — Clarida-Gali-Gertler-1998-MOTIVATED,
+    DGS3MO − IR3TIB01GBM156N, carrying the FRAMEWORK-ATTRIBUTION /
+    INSTRUMENT-BASIS / INDEPENDENCE caveats (ichor-trader r103 R28
+    Option B) — and sterling's NON-safe-haven status remains a one-line
+    caveat (Ranaldo-Soderlind 2010), each with correct DOIs."""
     monkeypatch.setattr(
         "ichor_api.services.data_pool._latest_fred",
         _make_fred_stub(
             uk10y=(4.20, date(2026, 4, 1)),
             dgs10=(4.45, date(2026, 5, 13)),
+            uk3m=(4.10, date(2026, 1, 1)),
+            dgs3mo=(4.30, date(2026, 5, 14)),
         ),
     )
     session = AsyncMock()
     md, _ = await _section_gbp_specific(session, "GBP_USD")
-    # Safe-haven caveat (NOT a driver)
+    # Safe-haven caveat (NOT a driver) — retained, no longer trailing a deferral
     assert "Ranaldo-Soderlind 2010" in md
     assert "10.1093/rof/rfq007" in md
     assert "NOT a USD safe-haven" in md
-    # Deferred Driver 3
-    assert "Clarida-Gali-Gertler 1998" in md
+    # Driver-3 is now ACTIVE as a refinement — NOT deferred anywhere in the render
+    assert "DEFERRED" not in md
+    assert "TERM-STRUCTURE REFINEMENT of Driver-1" in md
+    assert "Clarida-Gali-Gertler-1998-motivated" in md
     assert "10.1016/S0014-2921(98)00016-6" in md
     assert "IR3TIB01GBM156N" in md
-    assert "DEFERRED" in md
-    # Shipped framework DOIs
+    assert "DGS3MO" in md
+    # Computed front-end differential (4.30 - 4.10 = +0.20)
+    assert "US-UK 3M front-end differential = +0.20 pp" in md
+    # The three mandated honesty caveats (ichor-trader r103 R28)
+    assert "FRAMEWORK ATTRIBUTION" in md
+    assert "INSTRUMENT-BASIS CAVEAT" in md
+    assert "INDEPENDENCE CAVEAT" in md
+    assert "MOTIVATED BY Clarida" in md
+    assert "NOT a structural estimate" in md
+    assert "NOT an independent driver co-equal with Driver-1" in md
+    # The faithful-but-not-ingested counterpart is disclosed (YELLOW-2)
+    assert "IR3TIB01USM156N" in md
+    # Staler-than-Driver-1 frequency honesty (YELLOW-3)
+    assert "SHARPER than Driver-1" in md
+    assert "STALER than" in md
+    # Shipped framework DOIs (Driver-1/2 retained)
     assert "10.1086/429137" in md  # Engel-West
     assert "10.1162/REST_a_00157" in md  # Della Corte-Sarno-Sestieri
 
@@ -369,3 +400,57 @@ async def test_r24_subset_not_superset_documented_inline(monkeypatch) -> None:
     assert "R24 SUBSET-not-SUPERSET" in md
     assert "cadence-mismatch" in md
     assert "BTP r34 precedent" in md
+
+
+# ───────────── Front-end refinement : purely-additive guard + source-stamps ─────────────
+
+
+@pytest.mark.asyncio
+async def test_frontend_refinement_is_purely_additive_and_source_stamped(monkeypatch) -> None:
+    """r103 ADR-101 §Impl(r103) purely-additive guarantee + YELLOW-4
+    source-stamp pin. (a) 3M legs ABSENT (default stub) → the refinement
+    block silently skips, the Driver-1/2 render is byte-identical to the
+    pre-r103 2-driver path, and NO FRED:DGS3MO / FRED:IR3TIB01GBM156N
+    stamp leaks into `sources` (exactly 2 stamps). (b) BOTH 3M legs
+    present → the refinement renders AND both Critic-verifiable
+    source-stamps are appended (exactly 4 stamps, framework #9)."""
+    # (a) absent → additive no-op
+    monkeypatch.setattr(
+        "ichor_api.services.data_pool._latest_fred",
+        _make_fred_stub(
+            uk10y=(4.20, date(2026, 4, 1)),
+            dgs10=(4.45, date(2026, 5, 13)),
+        ),
+    )
+    session = AsyncMock()
+    md_no, sources_no = await _section_gbp_specific(session, "GBP_USD")
+    assert "Front-end policy-rate-proxy differential" not in md_no
+    assert "FRED:DGS3MO@" not in " ".join(sources_no)
+    assert "FRED:IR3TIB01GBM156N@" not in " ".join(sources_no)
+    assert sources_no == [
+        "FRED:IRLTLT01GBM156N@2026-04-01",
+        "FRED:DGS10@2026-05-13",
+    ]
+    # Driver-1/2 still fully rendered (additive: refinement absence changes nothing)
+    assert "US-UK 10Y differential = +0.25 pp" in md_no
+    assert "rate-differential triangle" in md_no
+
+    # (b) present → refinement renders + both stamps appended (YELLOW-4)
+    monkeypatch.setattr(
+        "ichor_api.services.data_pool._latest_fred",
+        _make_fred_stub(
+            uk10y=(4.20, date(2026, 4, 1)),
+            dgs10=(4.45, date(2026, 5, 13)),
+            uk3m=(4.10, date(2026, 1, 1)),
+            dgs3mo=(4.30, date(2026, 5, 14)),
+        ),
+    )
+    session = AsyncMock()
+    md_yes, sources_yes = await _section_gbp_specific(session, "GBP_USD")
+    assert "Front-end policy-rate-proxy differential (US-UK 3M)" in md_yes
+    assert "FRED:IR3TIB01GBM156N@2026-01-01" in sources_yes
+    assert "FRED:DGS3MO@2026-05-14" in sources_yes
+    assert len(sources_yes) == 4
+    # Driver-1/2 unchanged by the refinement (still present, same differential)
+    assert "US-UK 10Y differential = +0.25 pp" in md_yes
+    assert "rate-differential triangle" in md_yes
