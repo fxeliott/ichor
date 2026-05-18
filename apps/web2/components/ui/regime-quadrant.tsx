@@ -11,8 +11,10 @@
 //   - "hero"    : 320px, légende sous figure, ambient orbs animées
 //   - "compact" : 120px, sans légende ni orbs (drill-down dense)
 //
-// SVG handcrafted (V1). Phase A peut migrer sur d3 si interactivité plus
-// poussée demandée.
+// SVG handcrafted, zero charting dependency (ADR-099 Tier 4 mandate — the
+// d3-migration path once noted here is foreclosed). Coordinate math is
+// being consolidated onto the lib/microchart SSOT (r105+); this component's
+// pathFromHistory is a flagged migration target.
 
 "use client";
 

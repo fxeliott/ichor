@@ -428,3 +428,122 @@ token reproduces the exact pre-r104 hex byte (ΔsRGB=0 at render). The
 witness also surfaced the pre-existing 0-consumer tree-shake (see Deploy-
 witness investigation). Voie D + ADR-017 held; additive web2-only deploy;
 zero backend / zero migration.
+
+## Implementation (r105, 2026-05-18) — Tier 4 increment 2: the microchart SSOT foundation
+
+T4.1's "server-rendered SVG microchart primitives" clause, scoped to the
+**reusable foundation only** — honest non-atomic split (the 4 primitives +
+the `--p-chart-*` ramp are subsequent consumer-backed increments). ADR-099
+§D-3 Tier 4 **is** the spec — dated append, no new ADR (doctrine #9).
+
+**Context-frugal scope (lesson #17).** The r104 close recommended `/clear`;
+Eliot replied `continue` (override — his prerogative). Per the r101
+precedent: honor it context-frugally, scope to the **R53-safe** slice, do
+NOT re-propose `/clear`. The R53-safe slice = a pure-function extraction
+provably byte-identical (zero token/data/visual hallucination surface),
+NOT a multi-primitive build in a deep session.
+
+**R59 reshaped the plan (doctrine #3).** The anti-doublon navigator found:
+(1) **no shared microchart SSOT exists** — the SVG coordinate math is
+hand-rolled and DUPLICATED three times (`VolumePanel` slot/volH,
+`app/confluence/history` xAt/yAt, `components/ui/regime-quadrant`
+pathFromHistory) = the exact doctrine-#9 accumulation; (2) `CorrelationsStrip`
+(r82) already renders a diverging bar strip and `ScenariosPanel` already a
+probability ladder → those primitives must **EXTEND** in place, never
+duplicate; (3) the "RSC-clean" wording is half-true — the existing panels
+are `"use client"` (motion); the correct reading is a **pure plain module**
+(server-safe math) consumed by client panels (doctrine #5 split).
+
+**What r105 implemented.**
+
+1. **NEW `apps/web2/lib/microchart.ts`** — a pure, RSC-safe, zero-dependency
+   SSOT: `svgCoord` (the 1-dp formatting authority), `linScale` /
+   `xLinear` (the canonical linear-scale base — see Review fixes C1),
+   `bandLayout`, `barFromBaseline` (0-baseline, no truncated axis — design
+   invariant, **fail-loud** enforced, see I2), `bandSeriesPolyline` (the
+   band-coupled VolumePanel helper — see N4). Distilled from `VolumePanel`'s
+   proven pattern. No `"use client"`, no React, only `Math`/string (the
+   `lib/verdict.ts` / `eventSurprise.ts` / `dataIntegrity.ts` house idiom).
+2. **`VolumePanel.tsx` refactored** onto the SSOT — render **byte-identical**
+   (the now-unused `pMin/pMax/pSpan` removed; geometry → `bandLayout` /
+   `bandSeriesPolyline`; bar map → `barFromBaseline`).
+3. **NEW `__tests__/microchart.test.ts`** — the byte-identical proof
+   (doctrine #9 / the r71 lib/verdict.ts pattern, sharpened): the test
+   embeds the **verbatim** pre-r105 `VolumePanel` inline expressions and
+   asserts exact string / deep equality over realistic + edge fixtures
+   (equal-closes span-fallback, n=2, large values) + specs pinning the
+   `linScale`/`xLinear` scale primitives and the `barFromBaseline` guard.
+   All green, CI-gated since r97. Proof is exact-string, > DOM-length.
+4. **`components/ui/regime-quadrant.tsx:14-15`** stale "Phase A peut migrer
+   sur d3" tech-debt note retired — r105's zero-dependency mandate
+   forecloses the d3 path; replaced with the SSOT-migration pointer
+   (prompt-decomposer item; navigator flag #3).
+
+**Review fixes applied pre-merge (consolidated, single pass).** ichor-trader
+R28: 4 GREEN (ADR-017/Voie-D N/A, framework axes N/A, over-claim GREEN,
+byte-identical three-way agreement verified) + **YELLOW-1** applied — the
+`lib/microchart.ts` header now past-tense ("the math **was** DUPLICATED in
+three places; r105 migrates `VolumePanel` onto this SSOT, the remaining two
+follow") since r105's own change made VolumePanel no longer a duplicate (2
+still-inline, not 3 ; the ADR R59-finding text below is correctly historic).
+ui-designer: **C1 (Critical) applied** — added `linScale` (canonical
+domain→range) + `xLinear` (point-index x): a VolumePanel-only helper set is
+not a genuine SSOT; the announced r106 consumers (`confluence/history`
+xAt/yAt, sparkline, regime timeline, proportional ladder/heat-strip
+scalars) need a linear scale, so omitting it would force an r106 SSOT
+retrofit = the doctrine-#9 outcome to forbid (non-speculative — 3+ named
+consumers, the correct base). **I2 applied** — `barFromBaseline` now throws
+`RangeError` on `value < 0`/`maxValue <= 0` so a truncated-axis attempt
+fails loud at the SSOT, not silently at pixels (VolumePanel inputs —
+`volume >= 0` filtered, `maxVol = max(...,1)` — never trip it ⇒
+byte-identical preserved). **N4 applied** — `seriesPolyline` →
+`bandSeriesPolyline` (band coupling in the name; frees the generic name for
+the future linear polyline ; impl byte-identical, only the symbol renamed).
+accessibility-reviewer: **N/A-with-reason** — the VolumePanel render is
+proven byte-identical, so DOM/colours/contrast are definitionally
+unchanged ; a11y becomes MANDATORY at the r106 heat-strip's new
+colour-encoding.
+
+**Verification.** web2 build gate GREEN (re-run on the post-review
+consolidated shape — doctrine #14): `tsc --noEmit` 0 + `eslint
+--max-warnings 0` 0 + **vitest 6 files / 84 tests** (r104 baseline 5/68 +
+`microchart.test.ts` 16 = 9 verbatim-embedded byte-identical assertions
+[unchanged-green on the renamed `bandSeriesPolyline` ⇒ the consolidated
+review fixes preserved byte-identity] + 7 `linScale`/`xLinear`/guard specs)
+
+- `next build` OK. Review trio
+  (ichor-trader R28 ADR-017/over-claim/cross-file-drift + ui-designer SSOT
+  design ; accessibility-reviewer N/A-with-reason — the `VolumePanel` render
+  is proven byte-identical, so DOM/colours/contrast are definitionally
+  unchanged ; a11y becomes MANDATORY when the heat-strip ships actual new
+  colour-encoding in r106). Real-prod render witnessed by Playwright on the
+  deployed `/briefing/[asset]`: `VolumePanel` SVG pixel-identical to pre-r105.
+
+**Deliberately deferred — consumer-backed, announced (r104 tree-shake
+lesson applied PROACTIVELY: no token without its consumer).** The
+`--p-chart-*` OKLCH sequential/diverging ramp ships **with** its first
+consumer (the correlation heat-strip), NOT alone (it would be tree-shaken
+dead — the verified r104 finding). Subsequent verified increments:
+correlation heat-strip = **extend** `CorrelationsStrip` + the
+`--p-chart-div-*` ramp it consumes ; probability ladder = **extend**
+`ScenariosPanel` onto the SSOT ; sparkline = extract `VolumePanel`'s
+polyline as a `<Sparkline>` on the SSOT ; regime timeline = NEW (reuse
+`regime-quadrant`'s `RegimeId`/`QUADRANTS` colour map, no redefinition) ;
+`confluence/history` + `regime-quadrant` migrated onto the SSOT (completes
+the doctrine-#9 de-accumulation). Real prod data for all four is R59-
+verified live this round (`/v1/correlations` 8×8 matrix · `/v1/scenarios/{a}`
+3 scenarios · `/v1/market/intraday/{a}` 479 OHLCV bars · `/v1/sessions/{a}`
+20-card regime history) — zero backend work needed.
+
+**I3 (ui-designer, deferred with reason).** `bandSeriesPolyline` should
+eventually _compose_ `linScale` rather than re-implement min..max
+normalization. NOT done in r105: re-expressing the proven byte-identical
+formula atop `linScale` changes float-operation order = a byte-identical
+_risk_ for zero r105 consumer benefit (no caller composes it this round).
+It is done at the `confluence/history` migration (r106+), where the
+linear-polyline path is built and the `bandSeriesPolyline` ≡ `linScale`
+composition is re-proven byte-identical against the embedded verbatim
+fixtures — the correct round to absorb that risk with a test gate.
+
+Voie D + ADR-017 held; additive web2-only deploy; zero backend / zero
+migration.

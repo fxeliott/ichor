@@ -23,6 +23,7 @@
 import { m } from "motion/react";
 
 import type { IntradayBarOut } from "@/lib/api";
+import { bandLayout, barFromBaseline, bandSeriesPolyline } from "@/lib/microchart";
 
 const PARIS = "Europe/Paris";
 
@@ -67,30 +68,23 @@ export function VolumePanel({ asset, bars }: { asset: string; bars: IntradayBarO
   const maxVol = Math.max(...vols, 1);
   const avgVol = vols.reduce((s, v) => s + v, 0) / vols.length;
   const closes = usable.map((b) => b.close);
-  const pMin = Math.min(...closes);
-  const pMax = Math.max(...closes);
-  const pSpan = pMax - pMin || 1;
 
   // Staleness: last bar older than ~2h ⇒ market closed (weekend/holiday).
   const ageMin = (Date.now() - last.time * 1000) / 60000;
   const closed = ageMin > 120;
 
   // SVG geometry — fixed viewBox, no client measurement.
+  // Coordinate math is the lib/microchart SSOT (r105, doctrine #9) ;
+  // this render is provably byte-identical to the pre-r105 inline math
+  // (see __tests__/microchart.test.ts).
   const W = 640;
   const H = 150;
   const PAD_B = 18;
   const volH = H - PAD_B;
   const n = usable.length;
-  const slot = W / n;
-  const barW = Math.max(1, slot * 0.62);
+  const { slot, barW } = bandLayout(n, W);
 
-  const pricePts = usable
-    .map((b, i) => {
-      const x = i * slot + slot / 2;
-      const y = volH - ((b.close - pMin) / pSpan) * (volH * 0.78) - volH * 0.11;
-      return `${x.toFixed(1)},${y.toFixed(1)}`;
-    })
-    .join(" ");
+  const pricePts = bandSeriesPolyline(closes, slot, volH);
 
   const desc = `Activité intraday ${asset.replace("_", "/")} : ${n} barres, volume proxy moyen ${avgVol.toFixed(0)}, max ${maxVol.toFixed(0)}, dernière ${parisLabel(last.time, true)} (heure de Paris).`;
 
@@ -141,9 +135,7 @@ export function VolumePanel({ asset, bars }: { asset: string; bars: IntradayBarO
             strokeWidth="1"
           />
           {usable.map((b, i) => {
-            const v = b.volume as number;
-            const h = (v / maxVol) * (volH * 0.92);
-            const x = i * slot + (slot - barW) / 2;
+            const r = barFromBaseline(i, b.volume as number, maxVol, { slot, barW }, volH);
             const up = b.close >= b.open;
             return (
               <m.rect
@@ -151,10 +143,10 @@ export function VolumePanel({ asset, bars }: { asset: string; bars: IntradayBarO
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 0.85 }}
                 transition={{ duration: 0.25, delay: Math.min(i * 0.003, 0.6) }}
-                x={x.toFixed(1)}
-                y={(volH - h).toFixed(1)}
-                width={barW.toFixed(1)}
-                height={Math.max(0.5, h).toFixed(1)}
+                x={r.x}
+                y={r.y}
+                width={r.width}
+                height={r.height}
                 rx="0.5"
                 fill={up ? "var(--color-bull)" : "var(--color-bear)"}
               />
