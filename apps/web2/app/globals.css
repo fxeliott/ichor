@@ -8,89 +8,240 @@
  *     shadow, motion, z-index)
  *   - SPEC.md §14 OVERRIDES DESIGN §1.4 on bull/bear: vert #34D399 / rouge
  *     #F87171 + mandatory `+/−` AND `▲/▼` redundancy. WCAG 1.4.1 is satisfied
- *     by triple signal (color + sign + glyph), not by CVD-safe palette.
+ *     by triple signal (color + sign + glyph), not by CVD-safe palette
+ *     (enforced by the BiasIndicator component, NOT here — different file).
  *
  * Theme color is unified at #04070C across:
  *   - app/layout.tsx viewport.themeColor
  *   - public/manifest.webmanifest theme_color + background_color
- *   - this CSS var --color-bg-base
+ *   - this CSS var --color-bg-base (Layer 2 semantic → --p-ink-950 primitive)
  *
  * Bull/bear redundancy is enforced by the BiasIndicator component (NOT here)
  * — color alone is forbidden on chiffrés affichages (lint rule planned).
+ *
+ * r104 (ADR-099 Tier 4, T4.1 increment 1) — palette migrated to a 3-layer
+ * OKLCH token system:
+ *   Layer 1 — primitives  (`:root --p-<family>-<step>`, raw, semantic-free
+ *                           OKLCH ramp ; the suffix is an ORDINAL Tailwind-
+ *                           style step 50→950, NOT the literal lightness —
+ *                           see the Layer 1 block note).
+ *   Layer 2 — semantic    (`@theme inline --color-*`, names byte-identical to
+ *                           the pre-r104 contract, value now `var(--p-*)`).
+ *   Layer 3 — compat alias (`--color-ichor-deep` / `-bg-deep` / `-border`).
+ * Every value is the EXACT CSS Color 4 OKLCH equivalent of the former
+ * hex/rgba (round-trip ΔsRGB = 0 on all 22 tokens) — zero visual regression
+ * by construction; the original hex is kept inline as `was #RRGGBB`.
+ *
+ * Deferred — honest residuals (ADR-099 §Implementation r104 ; this round is
+ * the OKLCH-architecture migration only, deliberately atomic):
+ *   1. Perceptual ramp re-tuning (smoother / gamut-aware chroma) — values are
+ *      exact ports today, not yet a designed perceptual ramp.
+ *   2. SSR SVG microchart primitives (sparkline / ladder / heat-strip /
+ *      regime-timeline) = r105 — must add NEW `--p-chart-*` sequential/
+ *      diverging ramps, NOT overload the semantic accents (ui-designer r104).
+ *   3. Severity is four unrelated hues (warn amber / alert magenta / critical
+ *      red), NOT a coherent info→warn→alert→critical perceptual scale —
+ *      rebuild as a real ramp during re-tuning so microchart severity
+ *      encoding isn't arbitrary (ui-designer r104).
+ *   4. SSOT-dedup of base-CSS literal colors that still duplicate the
+ *      Layer-1 palette: `--shadow-glow-bull/-bear/-cobalt` (lines below),
+ *      the `html[data-regime=*]` ambient tints, `::selection`, scrollbar —
+ *      all left byte-identical this round (out of the atomic palette-token
+ *      scope), to be pointed at `--p-*` in the dedup pass.
+ *   5. Border-alpha recalibration: the subtle/default border alphas do NOT
+ *      actually clear the WCAG 2.2 §1.4.11 3:1 floor when composited over the
+ *      surface (accessibility-reviewer r104 — see the Borders block; the
+ *      pre-2026-05-06 raise was computed wrong). r104 carries the values
+ *      byte-identical (ΔsRGB=0, not an r104 regression) and corrects the
+ *      comment to the true ratios; the actual α fix belongs in the dedup/
+ *      recalibration pass (subtle ≈ 0.34, default ≈ 0.46 over #0B1220).
+ *   6. No `@media (forced-colors: active)` / `prefers-contrast` handling
+ *      (Windows High Contrast loses the alpha-border hierarchy) — pre-existing
+ *      gap, backlog (accessibility-reviewer r104 ADVISORY-2).
  */
 
-/* Tailwind v4 @theme inline binds CSS variables (next/font) into utilities
- * like `font-sans`, `font-mono`, `font-serif`. */
+/* ── Layer 1 — primitives ─────────────────────────────────
+ * Raw OKLCH ramp. No semantic meaning, never consumed directly by a
+ * component — only referenced by the Layer 2 semantic tokens below.
+ *
+ * NAMING: `--p-<family>-<step>` where <step> is an ORDINAL Tailwind-style
+ * position (50 = lightest … 950 = darkest within the family), DECOUPLED
+ * from the literal OKLCH lightness. This is deliberate (ui-designer r104):
+ * the named next increment is perceptual ramp re-tuning — a re-tune must
+ * change a primitive's VALUE only, never its NAME, so every Layer-2 ref
+ * stays stable (no rename cascade) and two near-lightness primitives can
+ * never collide on a rounded suffix. The `/* was #RRGGBB *​/` provenance +
+ * the OKLCH L are the audit trail; the step is just a stable slot.
+ *
+ * Kept in a plain :root block (NOT @theme) so Tailwind does not emit
+ * primitive-named utilities. */
+:root {
+  /* ink — cool near-black surfaces (hue ~254–263 ; darkest→lighter) */
+  --p-ink-950: oklch(0.1268 0.0141 254.03); /* was #04070C  L0.127 */
+  --p-ink-925: oklch(0.1443 0.0094 262.99); /* was #080A0E  L0.144 (overlay base) */
+  --p-ink-900: oklch(0.1831 0.0309 263.38); /* was #0B1220  L0.183 */
+  --p-ink-850: oklch(0.2091 0.0347 261.41); /* was #0F1828  L0.209 */
+
+  /* slate — cool greys for text + neutral (hue ~243–257 ; darker→lighter) */
+  --p-slate-500: oklch(0.6099 0.0243 256.77); /* was #7A8492  L0.610 */
+  --p-slate-450: oklch(0.6796 0.0101 242.91); /* was #93999E  L0.680 */
+  --p-slate-400: oklch(0.7107 0.0351 256.79); /* was #94A3B8  L0.711 */
+  --p-slate-350: oklch(0.7446 0.0213 257.49); /* was #A4ADBA  L0.745 */
+  --p-slate-100: oklch(0.9425 0.0111 243.66); /* was #E6EDF3  L0.943 */
+
+  /* emerald — bull (hue ~163–166) */
+  --p-emerald-700: oklch(0.5081 0.1049 165.61); /* was #047857  L0.508 */
+  --p-emerald-400: oklch(0.7729 0.1535 163.22); /* was #34D399  L0.773 */
+
+  /* red — bear / critical (hue ~22–28) */
+  --p-red-700: oklch(0.5054 0.1905 27.52); /* was #B91C1C  L0.505 */
+  --p-red-600: oklch(0.6368 0.2078 25.33); /* was #EF4444  L0.637 */
+  --p-red-400: oklch(0.7106 0.1661 22.22); /* was #F87171  L0.711 */
+
+  /* single-hue accents */
+  --p-amber-500: oklch(0.8124 0.1704 76.39); /* was #FFB000  L0.812 */
+  --p-magenta-600: oklch(0.5954 0.2221 357.68); /* was #DC267F  L0.595 */
+  --p-cyan-500: oklch(0.7148 0.1257 215.22); /* was #06B6D4  L0.715 */
+  --p-sienna-600: oklch(0.5971 0.1352 39.87); /* was #C15F3C  L0.597 */
+  --p-violet-600: oklch(0.5873 0.2096 286.18); /* was #785EF0  L0.587 */
+
+  /* cobalt — blue accents (hue ~255–266 ; darker→lighter) */
+  --p-cobalt-800: oklch(0.4244 0.1809 265.64); /* was #1E40AF  L0.424 */
+  --p-cobalt-600: oklch(0.6231 0.188 259.81); /* was #3B82F6  L0.623 */
+  --p-cobalt-500: oklch(0.7137 0.1434 254.62); /* was #60A5FA  L0.714 */
+
+  /* achromatic — white (alpha-applied by Layer 2 borders) */
+  --p-white: oklch(1 0 0);
+}
+
+/* Fonts stay in `@theme inline` (binds the next/font CSS vars into the
+ * `font-sans` / `font-mono` / `font-serif` utilities — the original
+ * pre-r104 placement, unchanged). */
 @theme inline {
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-jetbrains-mono);
   --font-serif: var(--font-fraunces);
 }
 
+/* Colors are a PLAIN `@theme` block — the exact pre-r104 structural
+ * placement (pre-r104 kept the whole palette in one plain `@theme`).
+ *
+ * Tailwind v4 production-build tree-shaking — VERIFIED behaviour (r104
+ * deploy-witness + decisive `git show HEAD:globals.css` build comparison,
+ * NOT guessed; two earlier hypotheses were empirically falsified before
+ * this): Tailwind v4 emits a `:root` custom property ONLY for theme tokens
+ * that are actually referenced; tokens with ZERO references are dropped
+ * from the compiled CSS. This is IDENTICAL in plain `@theme` and
+ * `@theme inline`, and IDENTICAL pre- and post-r104. The four tokens with
+ * zero web2 consumers — `--color-ichor-deep`, `--color-bull-deep`,
+ * `--color-bear-deep`, `--color-accent-cobalt-deep` — are absent from the
+ * compiled `:root` in the pre-r104 build AND in the r104 build alike;
+ * `--color-bg-deep`/`--color-accent-cobalt-bright` (var-refs WITH consumers)
+ * are present in both. So this is **pre-existing, by-design, zero-impact**
+ * (nothing reads an unemitted var that nothing consumes; the moment a
+ * component references `[--color-bull-deep]` Tailwind emits it) — NOT an
+ * r104 regression, and explicitly NOT worth forcing via `@theme static`
+ * (that would ship dead CSS for 0-consumer tokens = the accumulation we
+ * avoid; depth-variants are on-demand by design, ui-designer r104). The
+ * source definitions below remain as the documented palette contract.
+ * The real-prod witness (green build + HTTP 200 + ΔsRGB=0 all passed, yet
+ * the witness still surfaced this) is why we witness — "marche exactement".
+ * The arbitrary opacity modifier `bg-[--color-*]/N` resolves to
+ * `color-mix(in oklab, var(--color-*) N%, transparent)`, oklch-safe. */
 @theme {
-  /* ── Surfaces ─────────────────────────────────────────── */
-  --color-bg-base: #04070C;
-  --color-bg-surface: #0B1220;
-  --color-bg-elevated: #0F1828;
-  --color-bg-overlay: rgba(8, 10, 14, 0.72);
+  /* ── Layer 2 — semantic ───────────────────────────────── */
+  /* Names are byte-identical to the pre-r104 contract; only the value
+   * changed (hex → primitive var / exact oklch). No component changes. */
 
-  /* Legacy aliases (for components migrating from apps/web/ + shadcn shapes). */
+  /* Surfaces */
+  --color-bg-base: var(--p-ink-950);
+  --color-bg-surface: var(--p-ink-900);
+  --color-bg-elevated: var(--p-ink-850);
+  /* overlay = --p-ink-925 at 0.72 alpha (direct oklch — alpha can't ride a
+   * bare var() reference without relative-color ; lossless, ΔsRGB=0).
+   * Future cleanup (ui-designer r104): Tailwind v4 supports `--alpha()` /
+   * relative-color-from-var ; switching to `oklch(from var(--p-ink-925) l c
+   * h / 0.72)` would make this track the primitive if it is ever re-tuned.
+   * Deferred to the §4 dedup pass — direct value today = zero added risk. */
+  --color-bg-overlay: oklch(0.1443 0.0094 262.99 / 0.72); /* was rgba(8,10,14,0.72) */
+
+  /* ── Layer 3 — compat aliases ─────────────────────────── */
+  /* Components imported from apps/web/ + shadcn shapes refer to these. */
   --color-ichor-deep: var(--color-bg-base);
   --color-bg-deep: var(--color-bg-base);
 
-  /* ── Borders ──────────────────────────────────────────── */
-  /* 2026-05-06 — alpha values raised to satisfy WCAG 2.2 AA §1.4.11
-   * Non-text Contrast (3:1 minimum vs adjacent surface). The previous
-   * values (0.06 / 0.10 / 0.18) gave ~1.05:1 / ~1.10:1 / ~1.30:1 against
-   * --color-bg-surface (#0B1220) — a level-A failure for any UI element
-   * that conveys boundary or interactive state. New values approximate
-   * 3.0:1 (subtle), 4.5:1 (default), 7.0:1 (strong) to keep a usable
-   * three-tier hierarchy while clearing the WCAG floor. Cf. researcher
-   * report 2026-05-06 (Stack 2026 deep technical recipes, §6.4) and
-   * w3.org/TR/WCAG22/#non-text-contrast.
-   * Full OKLCH palette migration deferred — needs a dedicated session
-   * with visual diff review per route, not a code-only flip. */
-  --color-border-subtle: rgba(255, 255, 255, 0.20);
-  --color-border-default: rgba(255, 255, 255, 0.32);
-  --color-border-strong: rgba(255, 255, 255, 0.48);
+  /* Borders — white-alpha (achromatic ; --p-white at α ; same future
+   * relative-color cleanup as overlay applies, deferred §4).
+   *
+   * WCAG 2.2 §1.4.11 Non-text Contrast STATUS (accessibility-reviewer r104,
+   * composited over --color-bg-surface = #0B1220):
+   *   subtle  α0.20 → 1.84:1   |  default α0.32 → 2.87:1   |  strong α0.48 → 4.98:1
+   * Only `strong` clears the 3:1 floor. The 2026-05-06 alpha raise (from
+   * 0.06/0.10/0.18) DID improve the hierarchy but its comment overstated the
+   * result — it computed the white-vs-surface endpoint ratio (~3:1) instead
+   * of the α-composited-over-backdrop ratio. r104 carries the values
+   * byte-identical (ΔsRGB=0 — NOT an r104 regression; the migration is
+   * contrast-neutral by construction) and only corrects this comment to the
+   * true numbers (lesson #11 — do not re-affirm a false WCAG claim). The
+   * real α recalibration (subtle ≈ 0.34, default ≈ 0.46 over #0B1220 to
+   * actually reach 3:1) belongs in the deferred SSOT/recalibration pass
+   * (header §5) — it is a real visual change needing its own per-route
+   * diff, out of this atomic OKLCH-architecture increment. NB §1.4.11
+   * exempts purely decorative/inactive boundaries; the failure bites only
+   * where a border is the SOLE signal of an interactive component's state.
+   * Cf. researcher report 2026-05-06 (§6.4) and
+   * w3.org/TR/WCAG22/#non-text-contrast. */
+  --color-border-subtle: oklch(1 0 0 / 0.2); /* was rgba(255,255,255,0.20) */
+  --color-border-default: oklch(1 0 0 / 0.32); /* was rgba(255,255,255,0.32) */
+  --color-border-strong: oklch(1 0 0 / 0.48); /* was rgba(255,255,255,0.48) */
 
-  /* Defensive alias — components imported from apps/web1 / shadcn refer to
-   * `var(--color-border)` without the `-default` suffix. Keep them rendering
-   * the right border instead of the CSS-fallback transparent. */
+  /* Defensive alias — components from apps/web1 / shadcn refer to
+   * `var(--color-border)` without the `-default` suffix. */
   --color-border: var(--color-border-default);
 
-  /* ── Text ─────────────────────────────────────────────── */
-  --color-text-primary: #E6EDF3;
-  --color-text-secondary: #A4ADBA;
+  /* Text */
+  --color-text-primary: var(--p-slate-100); /* was #E6EDF3 */
+  --color-text-secondary: var(--p-slate-350); /* was #A4ADBA */
   /* 2026-05-06 — was #6E7785 (≈ 4.42:1 vs --color-bg-base = AA fail).
-   * Raised to #7A8492 (≈ 5.0:1) per accessibility-reviewer audit. Used
-   * as default body text color across most pages, hence the AA bar
-   * applies (WCAG 2.2 §1.4.3 Minimum Contrast). */
-  --color-text-muted: #7A8492;
-  /* `text-tertiary` is referenced by loading.tsx / error.tsx / not-found.tsx
-   * as the lightest-weight info color (timestamps, "loading…" labels). Sat
-   * to a value between secondary and muted. */
-  --color-text-tertiary: #93999E;
+   * Raised to #7A8492 per accessibility-reviewer audit ; r104 measured it
+   * at 5.33:1 vs --color-bg-base (accessibility-reviewer r104 — clears the
+   * §1.4.3 4.5:1 floor with margin). --p-slate-500 is its exact OKLCH
+   * equivalent (ΔsRGB=0). Default body text color across most pages. */
+  --color-text-muted: var(--p-slate-500); /* was #7A8492 */
+  /* `text-tertiary` is referenced by loading.tsx / error.tsx /
+   * not-found.tsx as the lightest-weight info color (7.01:1 vs bg-base). */
+  --color-text-tertiary: var(--p-slate-450); /* was #93999E */
 
-  /* ── Bull/Bear (override §14) ─────────────────────────── */
-  --color-bull: #34D399;
-  --color-bull-deep: #047857;
-  --color-bear: #F87171;
-  --color-bear-deep: #B91C1C;
-  --color-neutral: #94A3B8;
+  /* Bull/Bear (override §14). NB depth-variants (`-deep`) and accent
+   * brightness-variants (`-bright`/`-deep`) are added on demand, not
+   * exhaustively — a missing `--color-neutral-deep` / `accent-warm-deep`
+   * is intentional absence, not an oversight (ui-designer r104). */
+  --color-bull: var(--p-emerald-400); /* was #34D399 */
+  --color-bull-deep: var(--p-emerald-700); /* was #047857 */
+  --color-bear: var(--p-red-400); /* was #F87171 */
+  --color-bear-deep: var(--p-red-700); /* was #B91C1C */
+  --color-neutral: var(--p-slate-400); /* was #94A3B8 */
 
-  /* ── Severity ─────────────────────────────────────────── */
-  --color-warn: #FFB000;
-  --color-alert: #DC267F;
-  --color-info: #06B6D4;
-  --color-critical: #EF4444;
+  /* Severity (four independent hues, NOT a coherent ramp — header §3) */
+  --color-warn: var(--p-amber-500); /* was #FFB000 */
+  --color-alert: var(--p-magenta-600); /* was #DC267F */
+  --color-info: var(--p-cyan-500); /* was #06B6D4 */
+  --color-critical: var(--p-red-600); /* was #EF4444 */
 
-  /* ── Accents ──────────────────────────────────────────── */
-  --color-accent-cobalt: #3B82F6;
-  --color-accent-cobalt-bright: #60A5FA;
-  --color-accent-cobalt-deep: #1E40AF;
-  --color-accent-warm: #C15F3C;
-  --color-accent-violet: #785EF0;
+  /* Accents */
+  --color-accent-cobalt: var(--p-cobalt-600); /* was #3B82F6 */
+  --color-accent-cobalt-bright: var(--p-cobalt-500); /* was #60A5FA */
+  --color-accent-cobalt-deep: var(--p-cobalt-800); /* was #1E40AF */
+  --color-accent-warm: var(--p-sienna-600); /* was #C15F3C */
+  --color-accent-violet: var(--p-violet-600); /* was #785EF0 */
+}
+
+@theme {
+  /* ── Spacing / Radius / Shadow / Motion / Z-index ──────────
+   * NOT palette — out of the r104 OKLCH scope; byte-identical to pre-r104.
+   * NB --shadow-glow-* below still hardcode the bull/bear/cobalt rgba,
+   * duplicating --p-emerald-400 / --p-red-400 / --p-cobalt-500 — the
+   * SSOT-dedup orphan tracked in the header §4 (ui-designer r104). */
 
   /* ── Spacing scale (4px base) ────────────────────────── */
   --spacing-0: 0;
@@ -116,13 +267,13 @@
   --radius-full: 9999px;
 
   /* ── Shadow ───────────────────────────────────────────── */
-  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.40);
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.4);
   --shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.45);
-  --shadow-md: 0 6px 16px rgba(0, 0, 0, 0.50);
+  --shadow-md: 0 6px 16px rgba(0, 0, 0, 0.5);
   --shadow-lg: 0 16px 32px rgba(0, 0, 0, 0.55);
   --shadow-glow-bull: 0 0 24px rgba(52, 211, 153, 0.25);
   --shadow-glow-bear: 0 0 24px rgba(248, 113, 113, 0.25);
-  --shadow-glow-cobalt: 0 0 24px rgba(96, 165, 250, 0.30);
+  --shadow-glow-cobalt: 0 0 24px rgba(96, 165, 250, 0.3);
 
   /* ── Motion ───────────────────────────────────────────── */
   --duration-instant: 80ms;
@@ -175,6 +326,11 @@ body {
  * @media (prefers-reduced-motion: reduce) — no ambient transition is used
  * here; the gradient is static and CSS-only, so reduced-motion users see
  * the same surface as everyone else (no animation to disable).
+ *
+ * r104 note: these rgba literals duplicate the Layer-1 accent primitives
+ * (bull / violet / sienna / cobalt-deep). Left byte-identical this round
+ * (documented ≤6% WCAG budget, out of the atomic palette-token scope);
+ * SSOT-dedup against --p-* is the named follow-up increment (header §4).
  */
 html[data-regime] body::before {
   content: "";

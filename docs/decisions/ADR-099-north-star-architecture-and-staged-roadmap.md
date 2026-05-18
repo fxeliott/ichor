@@ -198,6 +198,21 @@ push. Tiers are executed in order; within a tier, highest value/effort first.
   dark-default, motion tokens, server-rendered SVG microchart primitives
   (sparkline / probability ladder / correlation heat strip / regime timeline) —
   zero charting dep, RSC-clean.
+  **[r104 — OKLCH 3-layer token migration DONE. `apps/web2/app/globals.css`
+  palette restructured into Layer 1 primitives (`:root --p-<family>-<step>`,
+  raw semantic-free OKLCH ramp, ordinal value-decoupled steps) → Layer 2
+  semantic (`@theme inline --color-*`, names byte-identical, now
+  `var(--p-*)`) → Layer 3 compat aliases. All 22 hex/rgba palette tokens →
+  exact-equivalent `oklch()` (CSS Color 4 reference conversion ; round-trip
+  ΔsRGB = 0 on every token, 28/28 semantic = zero visual regression by
+  construction, doctrine #9). tabular-nums + dark-default + motion tokens
+  were ALREADY shipped pre-r104 (R59-verified by token, NOT re-claimed,
+  lesson #11). Review trio 0 RED / 0 MUST-FIX, all findings applied. Deferred
+  (full list in §Implementation r104): SSR SVG microchart primitives = r105 ;
+  SSOT-dedup of palette-duplicating literals (glow-shadows / regime tints /
+  selection / scrollbar) ; perceptual re-tuning ; severity-as-ramp ;
+  pre-existing border-α §1.4.11 recalibration. See `## Implementation (r104,
+  2026-05-18)`.]**
 - T4.2 Uncertainty-always (band/range, calibration note), explicit degraded/empty
   states, motion = function only (`reducedMotion="user"`), no theatrics/truncated axes.
 - T4.3 Responsive/mobile pass + entrance-animation choreography refinement.
@@ -254,3 +269,162 @@ is additive); all existing Accepted ADRs remain valid.
   [ADR-098](ADR-098-coverage-gate-triple-drift-reconciliation.md) (Eliot path A/B/C pending).
 - Web research sources (premium dashboard / SSR SVG microcharts / `pandas_market_calendars`
   / free data sources) captured in the r72 SESSION_LOG.
+
+## Implementation (r104, 2026-05-18) — Tier 4 increment 1: OKLCH 3-layer token migration
+
+The first T4.1 increment, scoped to the design-token foundation only (the SSR
+SVG microchart primitives clause of T4.1 is a distinct component-building task,
+deferred to r105 — honest non-atomic split, lesson #11). This dated note closes
+the OKLCH-migration sub-item; ADR-099 §D-3 Tier 4 **is** the specification (no
+new ADR — doctrine #9, the §T3.1 / §T3.2 / ADR-104 §Implementation(r96) /
+ADR-105 §Implementation(r99,r100) immutable-append precedent).
+
+**R59 reshaped the plan (doctrine #3).** The r104 R59 sweep (web2 code-map +
+direct read of `apps/web2/app/globals.css`) found the token _infrastructure_
+already mature and the specific OKLCH work already explicitly self-flagged:
+
+- The pre-r104 `globals.css` palette header carried a verbatim deferral
+  _"Full OKLCH palette migration deferred — needs a dedicated session with
+  visual diff review per route, not a code-only flip."_ (in the Borders
+  comment block of the parent commit's `globals.css`; r104 rewrote that
+  region so the string no longer exists — line-pins intentionally dropped,
+  see `git show <parent>:apps/web2/app/globals.css`). r104 **is** that
+  dedicated session.
+- `tabular-nums` (the `.font-mono,code,[data-numeric]`
+  `font-feature-settings:"tnum","zero"` rule), dark-default (single dark
+  surface system, no light mode), and the motion tokens (`--duration-*` /
+  `--ease-*`) were **already shipped** pre-r104 (verified in the r104 R59
+  read — referenced by token, not line, since the migration shifts line
+  numbers). They are part of the T4.1 wording but were NOT re-implemented
+  and are NOT claimed as r104 work (lesson #11 — name what is already done
+  rather than rounding "T4.1 complete").
+
+**What r104 implemented.** `apps/web2/app/globals.css` palette (the ~22 color
+tokens at the former lines 32-93) restructured into the ADR-099-mandated
+3 layers, all in OKLCH:
+
+1. **Layer 1 — primitives** (`:root`): a raw, semantic-free OKLCH ramp,
+   `--p-<family>-<step>` (e.g. `--p-ink-950`, `--p-emerald-400`,
+   `--p-cobalt-600`). The suffix is an **ordinal Tailwind-style step
+   (50 lightest … 950 darkest within the family), DECOUPLED from the literal
+   OKLCH lightness** — applied per the ui-designer r104 review so that the
+   named next increment (perceptual ramp re-tuning) changes a primitive's
+   _value_ only, never its _name_: no Layer-2 rename cascade, and two
+   near-lightness primitives can never collide on a rounded suffix. One
+   primitive per real color in use — no fabricated unused ramp steps
+   (anti-accumulation #9 / YAGNI).
+2. **Layer 2 — semantic** (plain `@theme` — the exact pre-r104 structural
+   placement): the existing `--color-*` names **unchanged**, value rewritten
+   `hex → var(--p-*)`. Pure-white-alpha borders and the ink-alpha overlay
+   expressed as direct `oklch(L C H / α)` (alpha application of their
+   primitive — no relative-color dependency, lossless ; a future
+   relative-color cleanup so they track the primitive on re-tune is flagged
+   in the file, deferred to the dedup pass). (A first pass used `@theme
+inline` per a context7 reading; the deploy-witness disproved that choice —
+   see "Deploy-witness investigation" below — and it was reverted to plain
+   `@theme`, the pre-r104 structure.)
+3. **Layer 3 — compat aliases** (plain `@theme`): `--color-ichor-deep`,
+   `--color-bg-deep`, `--color-border` — unchanged var-references (already a
+   component-compat layer).
+
+**Zero visual regression by construction.** Each hex/rgba → its exact CSS
+Color 4 OKLCH equivalent (not a re-tuned ramp). A round-trip check
+(sRGB→OKLCH→sRGB at the shipped 4-decimal precision) returned ΔsRGB = 0 byte
+for all 22 tokens. Because every Layer-2 semantic name is byte-identical and
+every consumer uses the arbitrary `[--color-*]` form, no component changes; the
+rendered pixels are provably unchanged. Perceptual _re-tuning_ within OKLCH
+(smoother ramps, gamut-aware chroma) is a separately-verifiable future value-add,
+deliberately NOT bundled here (position-sizing — one atomic, provable increment).
+
+**Deploy-witness investigation (honest record — lesson #11 / #13 / process>outcome).**
+The real-prod browser witness (deployed `/briefing`, `getComputedStyle` +
+canvas sRGB readback) surfaced that **4 semantic tokens with ZERO web2
+consumers — `--color-ichor-deep`, `--color-bull-deep`, `--color-bear-deep`,
+`--color-accent-cobalt-deep` — are absent from the compiled `:root`**, even
+though the green build + HTTP 200 + the file-level ΔsRGB=0 proof had all
+passed (precisely why we witness — "marche exactement ≠ ça marche"). Two
+hypotheses were formed and **empirically falsified, not assumed**: (H1)
+"`@theme inline` tree-shakes them" — falsified: moving Layer 2/3 to plain
+`@theme` and re-deploying left the _same_ 4 absent; (H2) "an r104 regression"
+— **falsified by a decisive control**: building the pre-r104 `globals.css`
+(`git show HEAD:…`) and grepping its compiled CSS shows the _identical_ 4
+tokens absent there too, while consumed var-refs (`--color-bg-deep`,
+`--color-accent-cobalt-bright`) are present in both. **Verified root cause:**
+Tailwind v4's production build tree-shakes theme tokens with zero references
+— identical pre/post-r104 and in both `@theme` modes; the discriminant is
+consumer-count, not the migration. **This is pre-existing, by-design, and
+zero functional impact** (nothing reads an unemitted variable that nothing
+consumes; the first component to reference `[--color-bull-deep]` makes
+Tailwind emit it). **Disposition: ACCEPT** — forcing emission via `@theme
+static` would ship dead CSS for 0-consumer tokens (the accumulation this
+project forbids; depth-variants are on-demand by design, ui-designer r104).
+The source definitions stay as the documented palette contract. Net: the
+r104 migration is **emission-neutral and contrast-neutral** vs pre-r104 — the
+exact same 24 consumed tokens are emitted, now in OKLCH at ΔsRGB=0; the
+correct success criterion is "24/24 consumed tokens render sRGB-exact",
+proven on real prod, NOT "28/28 source tokens in `:root`".
+
+**Deliberately out of scope (honest residuals, lesson #11 — enumerated in the
+`globals.css` header §1–§6, surfaced by the r104 review trio).**
+(a) spacing / radius / shadow / motion / z-index tokens (not palette —
+byte-identical); (b) **SSOT-dedup** of base-CSS literal colors that still
+duplicate the Layer-1 palette: `--shadow-glow-bull/-bear/-cobalt`
+(ui-designer r104 — an unlisted orphan, now tracked), the
+`html[data-regime=*]` ambient tints, `::selection`, scrollbar — all
+byte-identical this round; (c) **SSR SVG microchart primitives = r105** —
+must add NEW `--p-chart-*` sequential/diverging ramps, not overload the
+semantic accents (ui-designer r104); (d) **perceptual ramp re-tuning** —
+values are exact ports today, not yet a designed perceptual ramp; (e)
+**severity is four unrelated hues**, not a coherent info→warn→alert→critical
+scale — rebuild during re-tuning (ui-designer r104); (f) **border-alpha
+recalibration** — accessibility-reviewer r104 measured the subtle/default
+border alphas at **1.84:1 / 2.87:1** composited over `--color-bg-surface`,
+_below_ the WCAG 2.2 §1.4.11 3:1 floor (only `strong` = 4.98:1 clears). This
+is a **pre-existing** miscalibration (the 2026-05-06 raise computed the
+endpoint ratio, not the α-over-backdrop ratio) — r104 carries the values
+**byte-identical (ΔsRGB=0, NOT an r104 regression — the migration is
+contrast-neutral by construction)** and only corrects the now-false
+`globals.css` comment to the true ratios (lesson #11 — do not re-affirm a
+false WCAG claim); the real α fix (subtle ≈ 0.34, default ≈ 0.46 over
+`#0B1220`) is a visual change owed to the dedup/recalibration pass; (g) no
+`@media (forced-colors: active)` / `prefers-contrast` (pre-existing gap,
+backlog — accessibility-reviewer r104 ADVISORY-2).
+
+**Tailwind v4 correctness** verified via context7 (authoritative
+`/tailwindlabs/tailwindcss.com`): `oklch()` in `@theme` is the canonical v4
+pattern (the default Tailwind palette itself is oklch-in-`@theme`); a theme
+color referencing another CSS variable is the documented `var()`-value pattern
+(empirically proven in this file's pre-r104 `--color-border: var(--color-border-default)`
+and `@theme inline` font block, live 30+ rounds); the arbitrary opacity modifier
+`bg-[--color-*]/N` emits `color-mix(in oklab, var(--color-*) N%, transparent)`,
+oklch-safe.
+
+**Verification.** A name-agnostic parser resolved all 28 Layer-2 semantic
+tokens through the Layer-1 primitives back to sRGB(+α): **ΔsRGB = 0, ΔA = 0,
+28/28, name-set identical** (the migration's safety proof, re-run after the
+review fixes — values are byte-unchanged, only primitive names + comments
+changed). web2 build gate (`pnpm --filter @ichor/web2` typecheck +
+`eslint --max-warnings 0` + `vitest run` 68/68 + `next build`) green.
+**Review trio — 0 RED / 0 MUST-FIX, all findings applied pre-merge:**
+ichor-trader R28 (ADR-017 frontend boundary GREEN — a token migration carries
+no signal; framework axes N/A-confirmed; 2 doc-only YELLOW = the stale
+`globals.css` self-citation de-pinned + `ROADMAP_2026-05-06.md:518` annotated
+`[r104 DONE]`); ui-designer (architecture "sound, ship it"; 6 findings — the
+primitive ordinal-step rename + 5 deferred-residual / comment notes — applied);
+accessibility-reviewer (WCAG 2.2 AA — **the crux claim rigorously confirmed:
+exact OKLCH equivalence with ΔsRGB=0 preserves every contrast ratio
+identically, by definition, since WCAG luminance is a pure function of sRGB
+and OKLCH is never an input; spot-checks text-muted 5.33:1 / primary 17.08:1 /
+focus-ring 10.50:1 all PASS**; the one substantive item — sub-3:1 subtle/
+default borders — is **pre-existing, not an r104 regression**, and r104's only
+obligation, met, was to stop the migrated comment re-affirming the false
+ratio). Real-prod render witnessed by Playwright directly against the **deployed**
+`/briefing` (the Tier-0 quick-tunnel URL is public-by-design — this witnesses
+the actual deployed artifact, stronger than a local re-render): the
+`--color-* → var(--p-*) → oklch()` chain resolves in a real browser, body/H1
+render the exact computed OKLCH, page is styled (not the unstyled fallback a
+broken emission would give), and a canvas sRGB readback of every consumed
+token reproduces the exact pre-r104 hex byte (ΔsRGB=0 at render). The
+witness also surfaced the pre-existing 0-consumer tree-shake (see Deploy-
+witness investigation). Voie D + ADR-017 held; additive web2-only deploy;
+zero backend / zero migration.
