@@ -317,6 +317,17 @@ export async function getIntradayBars(
   );
 }
 
+// r120 — hourly-volatility seasonality (24-bar UTC median + p75 |log-rdt|
+// bp). The SINGLE source of the `/v1/hourly-volatility` URL + opts, shared
+// by the standalone `/hourly-volatility/[asset]` page AND the primary
+// `/briefing/[asset]` page (doctrine #9 anti-accumulation — one fetch
+// definition, two callers). Mirrors `getIntradayBars`.
+export async function getHourlyVol(asset: string): Promise<HourlyVolOut | null> {
+  return apiGet<HourlyVolOut>(`/v1/hourly-volatility/${encodeURIComponent(asset)}?window_days=30`, {
+    revalidate: 300,
+  });
+}
+
 // r76 — geopolitics briefing (AI-GPR headline + negative GDELT). Mirror
 // of apps/api routers/geopolitics.py GeopoliticsBriefingOut. `band` is a
 // ratio to the published GPR baseline (100 = 1985-2019 mean), NOT a

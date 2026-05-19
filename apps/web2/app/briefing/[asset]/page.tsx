@@ -42,11 +42,13 @@ import { SentimentPanel } from "@/components/briefing/SentimentPanel";
 import { SessionStatus } from "@/components/briefing/SessionStatus";
 import { VerdictBanner } from "@/components/briefing/VerdictBanner";
 import { VolumePanel } from "@/components/briefing/VolumePanel";
+import { HourlyVolReport } from "@/components/hourly-vol/HourlyVolReport";
 import {
   apiGet,
   getCalendarUpcoming,
   getCorrelations,
   getInstitutionalPositioning,
+  getHourlyVol,
   getIntradayBars,
   getKeyLevels,
   getGeopoliticsBriefing,
@@ -118,6 +120,7 @@ export default async function BriefingPage({ params }: PageParams) {
     correlations,
     pocketSummary,
     polymarketImpact,
+    hourlyVol,
   ] = await Promise.all([
     fetchSessionCardForAsset(normalisedAsset),
     getKeyLevels() as Promise<KeyLevelsResponse | null>,
@@ -131,6 +134,7 @@ export default async function BriefingPage({ params }: PageParams) {
     getCorrelations() as Promise<CorrelationMatrix | null>,
     getPocketSummary(normalisedAsset) as Promise<PocketSummaryList | null>,
     getPolymarketImpact() as Promise<PolymarketImpact | null>,
+    getHourlyVol(normalisedAsset),
   ]);
 
   // r82 Tier 1.5 — Corrélations unconditional. Prefer the card's
@@ -387,6 +391,21 @@ export default async function BriefingPage({ params }: PageParams) {
           </span>
         </div>
         <VolumePanel asset={normalisedAsset} bars={recentBars} />
+      </section>
+
+      <section aria-labelledby="hourly-vol-heading">
+        <div className="mb-4 flex items-baseline justify-between gap-4">
+          <h2
+            id="hourly-vol-heading"
+            className="font-serif text-2xl text-[var(--color-text-primary)]"
+          >
+            Volatilité horaire
+          </h2>
+          <span className="text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
+            Saisonnalité intraday · médian + p75 · 30 j UTC
+          </span>
+        </div>
+        <HourlyVolReport report={hourlyVol} headingLevel={3} />
       </section>
 
       <section aria-labelledby="correlations-heading">
