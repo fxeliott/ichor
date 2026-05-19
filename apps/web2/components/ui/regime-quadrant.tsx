@@ -12,9 +12,14 @@
 //   - "compact" : 120px, sans légende ni orbs (drill-down dense)
 //
 // SVG handcrafted, zero charting dependency (ADR-099 Tier 4 mandate — the
-// d3-migration path once noted here is foreclosed). Coordinate math is
-// being consolidated onto the lib/microchart SSOT (r105+); this component's
-// pathFromHistory is a flagged migration target.
+// d3-migration path once noted here is foreclosed). NB `pathFromHistory`
+// is NOT a lib/microchart SSOT target: r110 R59 inspection (ADR-099
+// §Implementation(r110)) found it does NO scaling and NO formatting — it
+// serializes `{x,y}` points already in viewBox units (`[-1,1]` in the
+// `2.3` viewBox), raw + y-flip, exactly like the unscaled position circle
+// below. Forcing it onto the SSOT would regress (svgCoord quantizes the
+// trail) or over-abstract (linScale for a sign-flip). The earlier
+// "flagged migration target" note was a speculative mis-flag, corrected.
 
 "use client";
 

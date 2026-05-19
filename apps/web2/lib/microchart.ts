@@ -2,13 +2,26 @@
  * microchart — the single source of truth for hand-rolled SSR SVG
  * microchart coordinate math (ADR-099 Tier 4, r105).
  *
- * WHY THIS MODULE EXISTS (doctrine #9 anti-accumulation): before r105 the
- * coordinate math was hand-rolled and DUPLICATED in three places —
- * `VolumePanel` (slot/volH), `app/confluence/history` (xAt/yAt), and
- * `components/ui/regime-quadrant` (pathFromHistory) — each reinventing
- * band/linear scaling with its own conventions. **r105 migrates
- * `VolumePanel` onto this SSOT** (proven byte-identical); the remaining two
- * sites follow in subsequent increments (announced, not accumulated).
+ * WHY THIS MODULE EXISTS (doctrine #9 anti-accumulation): the genuine
+ * accumulation was hand-rolled band/linear *scaling* reinvented in two
+ * places — `VolumePanel` (slot/volH band + min..max-normalized y) and
+ * `app/confluence/history` (xAt/yAt linear scales). BOTH migrated onto
+ * this SSOT: **r105** `VolumePanel` (proven byte-identical), **r109**
+ * `confluence-history` (`xAt`→`xLinear` + path `svgCoord` bit-identical,
+ * `yAt`→`linScale` ≤1-ULP multiply-order). The `ScenariosPanel` ladder
+ * proportional scalar also joined (**r108**, `linScale`, ≤1-ULP). NB
+ * `components/ui/regime-quadrant`'s `pathFromHistory` was originally
+ * listed here too, but **r110 R59 inspection disproved that flag**: it
+ * does NO scaling and NO `.toFixed` formatting — it serializes `{x,y}`
+ * points that are ALREADY in viewBox units (`[-1,1]` in a `2.3`
+ * viewBox), raw + y-flip, exactly like the component's unscaled
+ * position circle. It is NOT a coord-scaling site (forcing `svgCoord`
+ * would visibly quantize ~14 px ; `linScale(0,1,0,-1)` for a sign-flip
+ * would be an absurd over-abstraction). The doctrine-#9 *coord-scaling
+ * consumer-migration* de-accumulation is therefore **COMPLETE at r109**
+ * (cf. ADR-099 §Implementation(r110)) — but doctrine-#9 is NOT fully
+ * closed: the one remaining SSOT-internal item is the r105 **I3**
+ * (`bandSeriesPolyline` composing `linScale`, below).
  *
  * SCALE PRIMITIVES: `linScale` is the canonical linear-scale base (the
  * primitive `confluence/history` xAt/yAt, the sparkline, the regime

@@ -1362,3 +1362,153 @@ history?window_days=30`): ALL 8 assets `n_points = 61` (≥ 2, valid
 
 Voie D + ADR-017 held ; additive web2-only deploy ; zero backend / zero
 migration (alembic still 0050) ; doctrine #9 dated append, no new ADR.
+
+## Implementation (r110, 2026-05-19) — Tier 4: R59 reclassification — the doctrine-#9 coord-scaling _consumer-migration_ de-accumulation is COMPLETE at r109 (`pathFromHistory` mis-flagged, disproved ; the I3 SSOT-internal item still remains — doctrine-#9 is NOT fully closed)
+
+The r109-close binding default was "continue the Tier-4 SSOT-migration
+ledger — `regime-quadrant` `pathFromHistory` → SSOT (the LAST of the 3
+named hand-rolled sites)". **R59 inspect-first disproved the default's
+premise** (doctrine #2 never-act-on-a-guess + #3 R59-reshapes-the-design
+— the r67-class pattern: a prior round's "migration target" flag is a
+HYPOTHESIS, verified against the real code before acting, and here
+falsified — exactly as r67 disproved r66's gamma_flip proxy-scaling
+guess).
+
+**The disproof (real code, `components/ui/regime-quadrant.tsx:56-59`).**
+`pathFromHistory(history: {x,y}[])` is, verbatim:
+`history.map((p, i) => `${i===0?"M":"L"}${p.x},${-p.y}`).join(" ")`.
+This is a trivial point-list→SVG-path serializer with a Y-flip and
+**NO domain→range scaling and NO `.toFixed` formatting**. Its input
+`{x,y}` is ALREADY in viewBox units — `position`/`history` are each in
+`[-1, 1]` (line 26/30) and the SVG is `viewBox="-1.15 -1.15 2.3 2.3"`,
+i.e. data coords ARE SVG coords 1:1 (only the y-axis flipped because
+SVG +y is down vs the macro +inflation-up convention). It is exactly
+consistent with how the rest of the component plots — the current-
+position circle is the unscaled `cx={position.x} cy={-position.y}`
+(line 159-160). Therefore `pathFromHistory` is **NOT a band/linear-
+scaling reinvention** in the class of `VolumePanel` (slot/volH) or
+`confluence-history` (xAt/yAt) — the two genuine coord-scaling
+accumulation sites, migrated r105 and r109. The `microchart.ts:5-11`
+"WHY THIS MODULE EXISTS" paragraph that listed it as one of "three
+places … each reinventing band/linear scaling … the remaining two
+sites follow" and the `regime-quadrant.tsx:14-17` self-comment
+("pathFromHistory is a flagged migration target") were **speculative
+mis-flags** (added r105 without inspecting pathFromHistory's
+triviality), now corrected. R59 breadth: every live consumer
+(`/macro-pulse`, `/`, `/sessions/[asset]`, `/learn/regime-quadrant`)
+mounts `<RegimeQuadrant … />` WITHOUT a `history` prop, so the
+`{history && history.length > 1}` trail path is largely non-rendered —
+"migrating" it would consolidate near-dead code at a regression risk
+for zero observable value.
+
+**Why forcing the migration would be WRONG (not merely unnecessary).**
+(a) `svgCoord` (= `.toFixed(1)`) on these coords would round to 0.1
+viewBox-unit ≈ 14 px on the 320 px hero — a **visible quantization
+regression** of the history trail (not the sub-pixel ≤1-ULP of
+r108/r109). (b) Routing the `-p.y` Y-flip through
+`linScale(0, 1, 0, -1)` (which does evaluate to `-v`) would be an
+**absurd over-abstraction** — a sign flip is not a "linear scale";
+it would reduce clarity, the inverse of the project mandate ("code
+lisible > code clever", YAGNI, the r96 reconcile-not-blindly /
+anti-over-extraction lesson). The honest move is to correct the
+ledger, not to manufacture code motion.
+
+**What r110 implemented (doc/comment-only — no behavioural code).**
+
+1. **`apps/web2/lib/microchart.ts:5-11`** — the "WHY THIS MODULE
+   EXISTS" doctrine-#9 paragraph rewritten to the R59-verified truth:
+   the accumulation was the band/linear-scaling reinventions in
+   `VolumePanel` (slot/volH, migrated r105 byte-identical) and
+   `confluence-history` (xAt/yAt, migrated r109 — `xAt`/`svgCoord`
+   bit-identical, `yAt` ≤1-ULP) ; `regime-quadrant`'s `pathFromHistory`
+   was originally listed but r110's R59 inspection found it does NO
+   scaling/formatting (raw viewBox-unit passthrough + y-flip) — NOT a
+   scaling-accumulation site. The coord-scaling _consumer-migration_
+   de-accumulation is **COMPLETE at r109** (the SSOT-internal I3
+   remains ; doctrine-#9 is NOT fully closed).
+2. **`apps/web2/components/ui/regime-quadrant.tsx:14-17`** — the
+   self-comment de-flagged: `pathFromHistory` is NOT a microchart-SSOT
+   target (R59 r110 — raw viewBox-unit passthrough, no scale/format,
+   consistent with the unscaled position circle ; the d3 foreclosure
+   note retained).
+3. **ADR-099 `## Implementation (r110, 2026-05-19)`** (this) — the
+   reclassification of record, with the disproof.
+
+**Honest non-atomic scope / ledger (carried-forward NOT thinned,
+#11 — re-scoped to the R59 truth).** The doctrine-#9 _coord-scaling
+consumer-migration_ de-accumulation is DONE (r105 VolumePanel + r108
+ScenariosPanel scalar + r109 confluence-history ; pathFromHistory
+reclassified out with proof) — but doctrine-#9 is **NOT fully closed**:
+the SSOT-internal I3 remains. The remaining genuine SSOT items, in
+order: (i) the r105
+**I3** — `bandSeriesPolyline` should compose `linScale` internally
+(currently it hand-rolls `(v-min)/span` min..max normalization ; a
+real SSOT-internal change, float-order-sensitive, r105-deferred-with-
+explicit-reason — the genuine **r111 default**, deserving a fresh
+non-degraded session) ; (ii) additive NEW components — sparkline
+extraction, regime-timeline — "more coverage" not "de-accumulation"
+(doctrine #8 distinction) ; (iii) the non-Tier-4 r107-deferred items
+(`globals.css` §5 border-α, `NarrativeBlocks` `/10` chip) — tracked
+under §Impl(r107)/residuals. Nothing dropped.
+
+**Reviews (consolidated single pass — doctrine #14 ; ui-designer +
+accessibility-reviewer N/A-with-reason: ZERO render / DOM / aria /
+behavioural change — pure source comments + ADR/SESSION_LOG ;
+ichor-trader R28 mandatory — the high-scrutiny risk here is
+OVER-CLAIMING the reclassification / thinning the ledger).**
+
+- **ichor-trader R28 — GREEN, merge, 0 RED.** Adversarial pass
+  ("honest, or work-avoidance?"): the disproof independently
+  re-verified against the real `regime-quadrant.tsx:56-59` /
+  viewBox / unscaled position circle — "a legitimate r67-class
+  disproof, NOT work-avoidance" ; the "svgCoord quantizes ≈13.9 px"
+  arithmetic and the "linScale(0,1,0,-1) over-abstraction" reasoning
+  confirmed correct ; the ledger diffed r109 §Impl(r109) deferred
+  (4 items) vs r110 carry-forward — **all four accounted for,
+  doctrine #11 honoured, nothing evaporated** ; no microchart.ts
+  internal contradiction ; no cross-file drift (only the 2 rewritten
+  sites asserted the stale flag, now mutually consistent) ;
+  doctrine #9 dated-§Impl + #14 deploy-N/A-with-reason judged
+  **honest** (build-inert, vitest 7f/111t-unchanged IS the proof).
+  **YELLOW-1 (doc-only, non-blocking) APPLIED**: sharpened the
+  "COMPLETE at r109" assertions (the §Impl title + the "what
+  implemented" item + the ledger line + the `microchart.ts` comment)
+  to "coord-scaling **consumer-migration** de-accumulation … but
+  doctrine-#9 is NOT fully closed: the SSOT-internal I3 remains" —
+  prevents a skim-reader misreading doctrine-#9 as fully closed,
+  applied at every occurrence (the class, not just the headline).
+- **ui-designer / accessibility-reviewer — N/A-with-reason (NOT
+  dispatched — anti-FOMO subagent discipline, lesson #17).** Zero
+  render / DOM / JSX / aria / behavioural change — pure source block
+  comments + ADR/SESSION_LOG. The byte-identical compiled bundle
+  (comments stripped) + `vitest 7f/111t` unchanged vs r109 prove the
+  render is definitionally untouched ; dispatching a UI/a11y review
+  of a comment diff would be FOMO subagent use, not protocol.
+
+**Verification (doc/comment-only ⇒ build-inert — the build gate IS the
+verification ; deploy + witness N/A-with-reason, honestly stated).**
+
+- **Build gate** (final post-YELLOW committed shape, doctrine #14):
+  `tsc --noEmit` **0** · `eslint --max-warnings 0` (microchart.ts +
+  regime-quadrant.tsx) **0** · vitest **7 files / 111 tests**
+  (IDENTICAL to r109 — zero delta proves the comment-only change is
+  behaviourally inert ; `microchart.test.ts` never referenced
+  `pathFromHistory`) · `next build` inert by the compiler-
+  strips-comments invariant (GREEN on the prior comment-shape ; a
+  further comment-text delta cannot alter the bundle). `git diff
+--stat` = exactly **3 files, 0 lines in `__tests__`/`*.test.*`/
+  `*.py`** (the ichor-trader build-inert probe satisfied).
+- **Deploy / real-prod witness — N/A-with-reason.** A pure
+  source-comment + ADR/SESSION_LOG change produces a byte-identical
+  `next build` bundle ⇒ ZERO prod behaviour change ⇒ nothing new to
+  witness (a witness would render the IDENTICAL r109
+  confluence-history/VolumePanel/regime-quadrant, proving nothing).
+  The r97 doc/infra-hygiene CI-only precedent ; faking a witness for
+  a comment change would violate calibrated-honesty #11. Voie D +
+  ADR-017 N/A (no signal/order/SDK surface ; `microchart.ts:45`
+  self-attests "ADR-017 N/A: pure geometry"). LIVE state unchanged:
+  HEAD will be the r110 commit, alembic 0050, dashboard stable.
+
+Voie D + ADR-017 held ; web2-only doc/comment + ADR ; zero backend /
+zero migration (alembic still 0050) ; doctrine #9 dated append, no new
+ADR.
