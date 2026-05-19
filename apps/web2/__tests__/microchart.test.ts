@@ -619,3 +619,77 @@ describe("microchart SSOT — r116 consumer contract: <BarSeries> (hourly-volati
     }
   });
 });
+
+describe("microchart SSOT — r117 consumer contract: 2nd <BarSeries> (hourly-volatility p75_bp envelope)", () => {
+  // r117 is an additive NEW genuine consumer (doctrine #8 pure "more
+  // coverage" — NOT a #9 migration) of the r116 generic <BarSeries>
+  // for a NEW DISTINCT proven-live series: the per-hour 75th-percentile
+  // |log-return| envelope (`p75_bp`), already fetched by the
+  // /hourly-volatility page but until r117 rendered only as <title>
+  // tooltip text. PINS the *consumer* contract — NOT a
+  // byte-identical-vs-prior proof (a NEW consumer ; the honest
+  // distinction, r112/r113/r116-class). The verbatim BarSeries
+  // composition is test scaffolding (doctrine #9 governs the
+  // production coord-math SSOT, untouched by r117).
+  const barSeriesRects = (
+    values: number[],
+    max: number,
+    width: number,
+    height: number,
+    barFrac = 0.62,
+  ) =>
+    values.map((v, i) =>
+      barFromBaseline(i, v, max, bandLayout(values.length, width, barFrac), height),
+    );
+
+  // Real R53-witnessed-shape (EUR_USD prod, 2026-05-19): p75 ≥ median
+  // pointwise, p75 0.6..1.28, median 0.34..0.77, 0/24 identical.
+  const eurHourly = [
+    { median: 0.43, p75: 0.85 },
+    { median: 0.43, p75: 0.85 },
+    { median: 0.34, p75: 0.68 },
+    { median: 0.34, p75: 0.6 },
+    { median: 0.34, p75: 0.68 },
+    { median: 0.38, p75: 0.69 },
+    { median: 0.51, p75: 0.92 },
+    { median: 0.77, p75: 1.28 },
+  ];
+  const W = 480;
+  const H = 128;
+  const p75 = eurHourly.map((e) => e.p75);
+
+  it("the p75_bp derivation is non-negative AND ≥ median pointwise (the statistical invariant)", () => {
+    for (const e of eurHourly) {
+      expect(e.p75).toBeGreaterThanOrEqual(0);
+      expect(e.p75).toBeGreaterThanOrEqual(e.median);
+    }
+  });
+
+  it("p75 is GENUINELY DISTINCT from median pointwise (empirical not-a-duplicate, the r113 discipline)", () => {
+    // every hour's p75 differs from its median (the r116 chart) — the
+    // per-hour ratio carries the new information ; 0 identical.
+    const identical = eurHourly.filter((e) => e.p75 === e.median).length;
+    expect(identical).toBe(0);
+  });
+
+  it("the p75 series is a well-formed SSOT-composed <BarSeries> input — 1-dp, in-viewBox, TRUE 0-baseline", () => {
+    const max = Math.max(...p75);
+    const rects = barSeriesRects(p75, max, W, H);
+    expect(rects.length).toBe(p75.length);
+    const oneDp = /^-?\d+\.\d$/;
+    for (const r of rects) {
+      for (const s of [r.x, r.y, r.width, r.height]) expect(s).toMatch(oneDp);
+      const x = Number(r.x);
+      const y = Number(r.y);
+      const w = Number(r.width);
+      const h = Number(r.height);
+      expect(x).toBeGreaterThanOrEqual(0);
+      expect(x + w).toBeLessThanOrEqual(W + 1e-9);
+      expect(y).toBeGreaterThanOrEqual(0);
+      expect(y + h).toBeLessThanOrEqual(H + 1e-9);
+      if (h > 0.5) expect(y + h).toBeCloseTo(H, 6); // no truncated axis
+    }
+    const maxIdx = p75.indexOf(max);
+    expect(rects[maxIdx]!.y).toBe(svgCoord(H - H * 0.92)); // max bar tops the 0.92 fill band
+  });
+});

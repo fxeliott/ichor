@@ -1,8 +1,11 @@
-// /hourly-volatility/[asset] — 24-bar UTC heatmap of median |log return| bp.
+// /hourly-volatility/[asset] — 24-bar UTC charts of median + p75
+// |log return| bp.
 //
-// Port from apps/web (D.3 sprint). Reads /v1/hourly-volatility/{asset}?
-// window_days=30, renders an inline 24-bar SVG heatmap + London/NY vs
-// Asian session averages. Best/worst hour highlighted.
+// Reads /v1/hourly-volatility/{asset}?window_days=30, renders two SSOT
+// <BarSeries> sections — the median heatmap (best/worst hour
+// highlighted) and a p75 intraday-volatility envelope — plus the
+// London/NY vs Asian session averages. Best/worst highlight is the
+// median chart only (a median-only backend construct).
 
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -79,6 +82,7 @@ export default async function HourlyVolPage({ params }: PageProps) {
       ) : (
         <>
           <HeatmapBars report={report} />
+          <Percentile75Bars report={report} />
           <SessionAverages report={report} />
         </>
       )}
@@ -177,6 +181,61 @@ function HeatmapBars({ report }: { report: HourlyVolOut }) {
             ({report.entries[report.worst_hour_utc]!.median_bp.toFixed(1)} bp median)
           </p>
         ) : null}
+      </div>
+    </section>
+  );
+}
+
+function Percentile75Bars({ report }: { report: HourlyVolOut }) {
+  const populated = report.entries.filter((e) => e.n_samples > 0);
+  // FAIL-SAFE : when there is no data the `HeatmapBars` section above
+  // already carries the user-facing "insufficient" message — the p75
+  // envelope just renders nothing (no double message).
+  if (populated.length === 0) return null;
+  const maxP75 = Math.max(...populated.map((e) => e.p75_bp));
+  const valuesP75 = report.entries.map((e) => e.p75_bp);
+  const titlesP75 = report.entries.map(
+    (e) =>
+      `UTC ${e.hour_utc.toString().padStart(2, "0")}:00 — p75 ${e.p75_bp.toFixed(1)} bp · median ${e.median_bp.toFixed(1)} bp · n=${e.n_samples}`,
+  );
+
+  return (
+    <section
+      aria-labelledby="p75-heading"
+      className="mb-6 rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-6 shadow-[var(--shadow-sm)]"
+    >
+      <h2
+        id="p75-heading"
+        className="mb-3 font-mono text-xs uppercase tracking-widest text-[var(--color-text-muted)]"
+      >
+        Enveloppe p75 · 24h UTC
+      </h2>
+      <p className="mb-4 text-sm text-[var(--color-text-secondary)]">
+        75ᵉ centile du |log-rendement| par heure — le haut de fourchette intra-horaire, vs le rythme
+        typique de la heatmap médiane ci-dessus.
+      </p>
+      <BarSeries
+        values={valuesP75}
+        max={maxP75}
+        titles={titlesP75}
+        ariaLabel={`Volatilité 75e centile (enveloppe) par heure UTC — ${report.entries.length} heures`}
+        width={480}
+        height={128}
+        className="block w-full"
+      />
+      <div
+        className="mt-1 grid"
+        style={{ gridTemplateColumns: "repeat(24, minmax(0, 1fr))" }}
+        aria-hidden
+      >
+        {report.entries.map((e) => (
+          <span
+            key={e.hour_utc}
+            className="text-center font-mono text-[9px] leading-none tabular-nums text-[var(--color-text-muted)]"
+          >
+            {e.hour_utc.toString().padStart(2, "0")}
+          </span>
+        ))}
       </div>
     </section>
   );
