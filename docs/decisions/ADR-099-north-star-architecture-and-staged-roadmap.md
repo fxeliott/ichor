@@ -2313,3 +2313,79 @@ distinct data dimension), explicitly NOT de-accumulation (closed at
 r111) ; the literal default (A) regime-timeline R59-DISPROVED on the
 briefing page (no projected regime series) → reshaped to (B), the
 honest meta-r110/r112 move.
+
+## Implementation (r114, 2026-05-19) — the r111 spawn-task, part 1/2: client-side API-base leak — `apiGet` is missing the `isBrowser` branch `apiMutate` already has → browser fetches `http://localhost:8001` → prod CSP `connect-src 'self' wss:` blocks it → critical-alerts + macro-pulse silently dead on the public deploy
+
+The r111 deployed witness surfaced (did NOT cause) two PRE-EXISTING
+app-wide client console defects, already named in this ADR's r112/r113
+console-honesty notes and owned by "the r111 spawn-task". r114 is part
+1/2 of that task (part 2/2 = r115, the `motion`-strict root cause).
+INDEPENDENT root causes → one increment per round, ADR-before-code each.
+
+**R59 — reproduced BEFORE any code change, never guessed**, on TWO
+surfaces : (1) the deployed r112 public URL
+(`latino-superintendent-restoration-dealtime.trycloudflare.com`) — a
+Playwright load of `/` emits, repeatedly (the landing pollers tick),
+`Connecting to 'http://localhost:8001/v1/alerts?severity=critical&
+unacknowledged_only=true&limit=20' violates … "connect-src 'self'
+wss:"` + the same for `http://localhost:8001/v1/macro-pulse` + the
+`[api] … → network error: Failed to fetch` warnings ; (2) the
+non-minified dev build (`pnpm next dev`, real backend via a read-only
+SSH tunnel `localhost:8001→hetzner:8000`, mirroring prod's
+`ICHOR_API_URL`) — the SAME errors with **source-mapped** frames
+`webpack-internal:///(app-pages-browser)/./lib/api.ts:41` (the
+`fetch(url)`) and `:48` (the `catch` `console.warn`). The SSR/RSC
+`(rsc)/./lib/api.ts` path is unaffected (server keeps `API_BASE`).
+
+**Root cause (source-confirmed, `apps/web2/lib/api.ts`)** : `API_BASE
+= process.env.ICHOR_API_URL ?? "http://localhost:8001"` (api.ts:9).
+`ICHOR_API_URL` is a **server-only** env (NOT `NEXT_PUBLIC_*`), so in
+the browser it is `undefined` → `API_BASE` resolves to the
+SSH-tunnel DEV port `http://localhost:8001`. `apiMutate` already
+handles this correctly — `const base = opts.baseUrl ?? (isBrowser ? ""
+: API_BASE)` (api.ts:62-63) — so client mutations hit the **same-origin
+`/v1/*` Next rewrite proxy** (`next.config.ts` `rewrites()` →
+`${ICHOR_API_PROXY_TARGET ?? "http://127.0.0.1:8000"}/v1/:path*` ; its
+docstring states verbatim that client fetches must use same-origin
+`/v1/...` paths). **`apiGet` is missing that exact branch** (api.ts:22
+`const base = opts.baseUrl ?? API_BASE`) — the sole asymmetry. The two
+client pollers that bite : `components/ui/crisis-banner.tsx:55`
+(`apiGet("/v1/alerts?severity=critical&unacknowledged_only=true&
+limit=20")`, 30 s) and `components/ui/live-ticker.tsx:58`
+(`apiGet("/v1/macro-pulse")`, 15 s) — both `"use client"` on `/`
+(absent from the `/briefing` shell, which is why briefing never showed
+this). Production CSP `connect-src 'self' wss:` (`next.config.ts`
+`SECURITY_HEADERS`) allows same-origin but blocks cross-origin
+`localhost:8001` → critical-alerts banner + macro-pulse ticker are
+**silently dead on the public deploy** (graceful `null` fallback hides
+it — a silent-failure, not a crash).
+
+**Fix (1 line, house-pattern, minimal, non-speculative)** : api.ts:22
+`const base = opts.baseUrl ?? API_BASE;` → `const base = opts.baseUrl
+?? (typeof window !== "undefined" ? "" : API_BASE);` — a verbatim
+mirror of `apiMutate`'s already-validated branch (api.ts:62-63). Client
+GETs become same-origin `/v1/...` → the Next rewrite proxies them
+server-side to the backend (CSP `'self'`-clean). SSR/Server-Action
+callers keep `isBrowser=false` → `API_BASE` (`ICHOR_API_URL=
+http://127.0.0.1:8000` on Hetzner per the systemd unit) — **strict
+zero-diff for every server caller** (`app/page.tsx`, `app/alerts`,
+`app/macro-pulse`, `app/assets/[code]`, …). NOT weakening CSP, NOT a
+`NEXT_PUBLIC_` env (would re-leak the origin), NOT touching the
+pollers — the single source-of-truth asymmetry is closed where it
+lives.
+
+Build gate : `pnpm --filter @ichor/web2 exec tsc --noEmit` +
+`eslint --max-warnings 0` + `vitest run` + `next build`. Deploy :
+`scripts/hetzner/redeploy-web2.sh` (additive, separate
+`ichor-web2`/-tunnel units, legacy `ichor-web` port 3030 untouched ;
+the quick-tunnel URL rotates per the script's documented caveat —
+recaptured post-deploy). Real-prod Playwright witness : `/` no longer
+emits any `localhost:8001` CSP/`[api]` line (consolidated with the
+r115 witness across `/`, `/briefing/EUR_USD`, `/briefing/XAU_USD`).
+
+Voie D + ADR-017 held — pure frontend fetch-base symmetry, ZERO
+Anthropic API, no signals surface touched, no Couche-2 path ; zero
+backend / zero migration (alembic still 0050) ; doctrine #9 dated
+append, no new ADR ; NOT de-accumulation / NOT a Tier-4 increment — a
+discrete pre-existing-defect fix (the r111 spawn-task), correctly
+scoped to one root cause.

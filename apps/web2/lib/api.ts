@@ -19,7 +19,13 @@ export interface ApiFetchOptions {
 
 /** GET request returning typed JSON or `null` on any failure. */
 export async function apiGet<T>(path: string, opts: ApiFetchOptions = {}): Promise<T | null> {
-  const base = opts.baseUrl ?? API_BASE;
+  // Client-side calls go through the same-origin proxy (next.config
+  // rewrites /v1/*). Server-side (SSR/Server Action) calls use
+  // API_BASE directly. Mirrors `apiMutate` — `ICHOR_API_URL` is a
+  // server-only env, so a browser `API_BASE` would be the unreachable
+  // localhost dev port and get CSP-blocked on the public deploy.
+  const isBrowser = typeof window !== "undefined";
+  const base = opts.baseUrl ?? (isBrowser ? "" : API_BASE);
   const url = path.startsWith("http") ? path : `${base}${path}`;
 
   const fetchInit: RequestInit & { next?: { revalidate?: number } } = {};
