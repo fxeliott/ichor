@@ -1193,3 +1193,172 @@ forecast ; lesson #1 forecast≠preuve / #2 SHIPPED≠FUNCTIONAL).**
 
 Voie D + ADR-017 held ; additive web2-only deploy ; zero backend / zero
 migration (alembic still 0050) ; doctrine #9 dated append, no new ADR.
+
+## Implementation (r109, 2026-05-19) — Tier 4 increment 5: `confluence-history` `xAt`/`yAt` onto the r105 SSOT
+
+The doctrine-#9 anti-accumulation continues. `microchart.ts:5-15` names
+the THREE hand-rolled coord-math sites the r105 SSOT exists to absorb:
+`VolumePanel` (migrated r105), `confluence-history` `xAt/yAt`,
+`regime-quadrant` `pathFromHistory` — plus the r108 ladder scalar. r109
+migrates the **`confluence-history` `xAt/yAt`** site (`app/confluence/
+history/page.tsx` `TimelineSvg`), the explicitly-announced `xLinear` +
+`linScale` consumer (`microchart.ts:14`: _"the primitive `confluence/
+history` xAt/yAt … build on"_). One file, the r108 carried-forward ledger
+honoured one increment at a time (lesson #11, NOT thinned).
+
+**R59 inspect-first (doctrine #3 — real shapes, not memory).** Direct
+read: `TimelineSvg` is rendered inside a **server component** (`page.tsx`
+async, no `"use client"`) — the pure RSC-safe SSOT imports cleanly
+(doctrine #5). The hand-rolled math, verbatim:
+`xAt = (i) => padX + (i / Math.max(1, n - 1)) * innerW` with
+`innerW = w - padX * 2` ; `yAt = (s) => padY + (1 - s / 100) * innerH`
+with `innerH = h - padY * 2` ; the path uses `xAt(i).toFixed(1)` /
+`yAt(p[key]).toFixed(1)`. The `TimelineSvg` is gated behind
+`live && history.n_points >= 2` ⇒ **`n >= 2` is guaranteed** when the
+math runs, so `Math.max(1, n - 1) === n - 1` always.
+
+**Decision — `xAt`→`xLinear` is BIT-IDENTICAL ; `yAt`→`linScale` is
+numerically-equivalent NOT bit-identical (disclosed) ; `.toFixed(1)`→
+`svgCoord` is BIT-IDENTICAL.** (1) `xLinear(i, n, w, padX)` for `n >= 2`
+= `padX + (i/(n-1)) * (w - 2*padX)`. `innerW = w - padX*2` and
+`w - 2*padX` are bit-identical (IEEE754 multiplication is commutative:
+`2*padX === padX*2` exactly), and the gate guarantees
+`Math.max(1, n-1) === n-1` — so `xLinear` reproduces `xAt`'s exact
+expression and operation order: **bit-identical** (provable `toBe`,
+the r105 `VolumePanel` precedent applies cleanly here). (2)
+`linScale(0, 100, padY+innerH, padY)(s)` = `(padY+innerH) +
+s*(-innerH/100)` (the SSOT's fixed `rangeMin + (v-domainMin)*k` form),
+whereas `yAt` = `padY + (1 - s/100)*innerH`. Same real number, different
+IEEE754 multiply order → ≤ 1 ULP (sub-pixel on the 110-px viewBox),
+**NOT bit-identical** — exactly the r108 / r105-flagged float-order, so
+the equivalence is re-proven to full precision and the multiply-order
+delta DISCLOSED, the byte-identical precedent refused (lesson #1 / #11 ;
+the same discipline r108 set, applied consistently). (3)
+`svgCoord(v) === v.toFixed(1)` by definition (`microchart.ts:43-45`,
+the single formatting authority) — the path-string formatting is
+**bit-identical** and de-accumulates the hand-rolled `.toFixed(1)`.
+
+**What r109 implemented.**
+
+1. **`app/confluence/history/page.tsx`** —
+   `import { linScale, svgCoord, xLinear } from "@/lib/microchart"` ;
+   `const xAt = (i: number) => xLinear(i, n, w, padX)` ;
+   `const yAt = linScale(0, 100, padY + innerH, padY)` (the closure IS
+   `yAt` — the r106 `divergingStop` / r108 `pWidth` build-scale-once
+   idiom, signature `(s:number)=>number` matches exactly) ; the path
+   formatter switches `xAt(i).toFixed(1)` / `yAt(p[key]).toFixed(1)` →
+   `svgCoord(xAt(i))` / `svgCoord(yAt(p[key]))` (so the path-string
+   coords are **bit-identical for the `xAt` component** and **≤1 ULP
+   for the `yAt` component**). The gridline / axis-text / end-circle
+   sites pass **raw numeric** `yAt(s)` / `xAt(n-1)` straight to SVG
+   attributes (never `.toFixed(1)`-quantized, pre-r109 or post): there
+   `xAt(n-1)` is bit-identical and `yAt(s)` is a genuine ≤1-ULP numeric
+   shift (sub-pixel on the 110-px viewBox — invisible, but a real
+   numeric shift on those decorative elements, NOT a formatting
+   no-op ; disclosed for full symmetry with the path claim).
+2. **`__tests__/microchart.test.ts`** — a new describe block (the r105/
+   r108 embedded-verbatim idiom): the verbatim pre-r109 `oldXAt`
+   asserted **`toBe`-exactly-equal** to `xLinear` (bit-identical) and
+   the verbatim path formatting `toBe`-equal via `svgCoord`, across the
+   real `w=360,h=110,padX=28,padY=6` geometry + `n` ∈ {2, 7, 30} and
+   `s` ∈ {0,50,60,100, fractional}; the verbatim `oldYAt` asserted
+   `toBeCloseTo(_, 9)` to `linScale` (the ≤1-ULP multiply-order, NOT
+   `toBe` — honest), with the analytic exact pinned `toBe` (`s=0` →
+   `padY+innerH`).
+3. **Docstring** — `page.tsx` `TimelineSvg` records the r109 SSOT
+   migration, the bit-identical (`xAt`,`svgCoord`) vs
+   numerically-equivalent (`yAt`) split, the doctrine-#9 rationale.
+
+**Honest non-atomic scope (lesson #11 ; carried-forward NOT thinned).**
+r109 = the `confluence-history` `xAt/yAt`/format migration ONLY.
+Explicitly DEFERRED (the Tier-4 SSOT-migration ledger, still NOT
+thinned): (i) `regime-quadrant` `pathFromHistory` → SSOT (the LAST of
+the three named hand-rolled sites) ; (ii) the r105 **I3**
+`bandSeriesPolyline`-atop-`linScale` re-expression (a `microchart.ts`
+internal change re-proving `VolumePanel` equivalence at its gate — a
+distinct slice from this consumer migration) ; (iii) the additive NEW
+components (sparkline extraction, regime-timeline) — "more coverage"
+not "de-accumulation" (doctrine #8 distinction), each its own
+increment ; (iv) the non-Tier-4 r107-deferred items (`globals.css` §5
+border-α, `NarrativeBlocks` `/10` chip) remain tracked under
+§Impl(r107)/residuals.
+
+**Reviews (consolidated single pass — doctrine #14, re-verified on the
+post-prettier committed shape ; accessibility-reviewer N/A-with-reason:
+no new colour/encoding, no DOM/aria change, render numerically/visually
+unchanged [`xAt`/format bit-identical, `yAt` ≤1-ULP sub-pixel] — the
+r105/r108 a11y-N/A precedent ; ichor-trader R28 + ui-designer
+mandatory).**
+
+- **ui-designer — merge as-is, 0 Critical / 0 Important / 1
+  non-blocking nit (explicitly NOT applied — doc density, matches the
+  r-annotation precedent).** Confirmed `const yAt = linScale(0, 100,
+padY + innerH, padY)` (closure-as-`yAt`) is the exact r108 `pWidth`
+  build-scale-once idiom, and `const xAt = (i) => xLinear(i, n, w,
+padX)` is the correct thin wrapper (xLinear non-curried ; preserves
+  the 4 `xAt(…)` call-site shapes → minimal blast radius). Visually
+  inert CONFIRMED (xAt + path-format bit-identical ; yAt ≤1 ULP
+  sub-pixel — "no pixel can shift").
+- **ichor-trader R28 — Approve for merge, 0 RED, 0 code-change YELLOW.**
+  ADR-017 GREEN (score timeline, no order/sizing). The split-honesty
+  surface independently re-derived and VERIFIED: (a) `xAt`≡`xLinear`
+  bit-identical (the `n≥2` gate ⇒ `Math.max(1,n-1)===n-1` ;
+  `2*padX===padX*2` IEEE754-commutative) ; (b) `svgCoord(v)===
+v.toFixed(1)` by definition ; (c) `yAt`≡`linScale` ≤1-ULP
+  multiply-order, consistently stated across all four surfaces
+  (page.tsx docstring + inline comment + this §Impl + the test) ;
+  the test uses `toBe` exactly where bit-identical and
+  `toBeCloseTo(_,9)` exactly where ≤1-ULP — "no over/under-claim" ;
+  the combined-string `toBe` is sound for the enumerated realistic
+  inputs (the ".x5-tie" caveat honest, vitest-green empirically). No
+  cross-file drift (dead `innerW` removal verified complete ; no other
+  consumer ; the `microchart.ts:14` citation accurate). Deferred
+  ledger carried forward INTACT vs the r108 append — doctrine #11
+  honoured, not thinned. **YELLOW-1 (doc-only, optional) APPLIED**:
+  sharpened item 1 to state explicitly that the path-string coords are
+  bit-identical-`xAt` + ≤1-ULP-`yAt`, while the gridline/axis-text/
+  end-circle sites pass RAW numeric `yAt(s)` (never `.toFixed(1)`-
+  quantized) where the `yAt` ≤1-ULP delta is a genuine sub-pixel
+  numeric shift on decorative elements, NOT a formatting no-op — full
+  symmetry with the path claim (the witness empirically confirmed
+  this: end-circle `cy` rendered as raw `54.216` / `53.333999…`, the
+  path as 1-dp `svgCoord`).
+- **accessibility-reviewer — N/A-with-reason** (the r105/r108
+  byte-identical a11y-N/A precedent): no new colour/encoding, no
+  DOM/aria change (the `<svg role="img" aria-label>` unchanged), the
+  render is numerically/visually unchanged (xAt/format bit-identical,
+  yAt ≤1-ULP sub-pixel). A11y definitionally unchanged.
+
+**Verification (real numbers — measured on deployed prod, not
+forecast ; the SHIPPED≠FUNCTIONAL gate satisfied).**
+
+- **SHIPPED≠FUNCTIONAL pre-check** (live prod `/v1/confluence/{a}/
+history?window_days=30`): ALL 8 assets `n_points = 61` (≥ 2, valid
+  `{score_long,score_short,captured_at}`, 30-day window) — every
+  `TimelineSvg` renders real data (no r106-class empty-upstream trap).
+- **Build gate** (final post-prettier shape, doctrine #14 — re-GREEN
+  after the dead-`innerW` removal that unblocked eslint, and after the
+  YELLOW-1 markdown-only edit which is build-inert): `tsc --noEmit`
+  **0** · `eslint --max-warnings 0` **0** · vitest **7 files / 111
+  tests pass** (r108 baseline 105 + the new r109 describe block 6 =
+  111 ; zero regression) · `next build` **OK**.
+- **Deploy**: `scripts/hetzner/redeploy-web2.sh` (additive — port
+  3031, legacy `ichor-web` 3030 + tunnel untouched → URL stable).
+  RESULT **local=200 public=200, `DEPLOY OK`** ; ONE consolidated SSH.
+- **Real-prod witness** — Playwright on the deployed public dashboard
+  `/confluence/history` (doctrine #7 zero-exposure ; REAL data, REAL
+  assets, not a forecast), **8/8 asset cards rendered**, the migrated
+  `xLinear`/`linScale`/`svgCoord` coords arithmetically cross-checked
+  on EUR_USD (score_long path): `M28.0 51.1` — `xAt(0)=xLinear(0,61,
+360,28)=28.0` ✓, `xAt(1)=28+(1/60)·304=33.067→"33.1"` ✓,
+  `xAt(60)=332.0` ✓ ; `yAt(54)=linScale(0,100,104,6)(54)=104−52.92=
+51.08→"51.1"` ✓ ; **every path coord exactly 1-dp** (122 coords =
+  61 pts × 2 ; `svgCoord≡.toFixed(1)` proven live), all in-viewBox
+  (x∈[28,332], y∈[50.5,55] within [6,104]). End-circles render RAW
+  numeric `cy=54.216 / 53.333999999999996` (the YELLOW-1 decorative
+  raw-numeric path, empirically confirmed). **Console: warm load
+  0 errors / 0 warnings**. Full-page screenshot captured (8 timelines,
+  premium gestalt unchanged).
+
+Voie D + ADR-017 held ; additive web2-only deploy ; zero backend / zero
+migration (alembic still 0050) ; doctrine #9 dated append, no new ADR.

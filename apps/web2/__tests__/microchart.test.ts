@@ -238,3 +238,60 @@ describe("microchart SSOT — linScale consumer: ScenariosPanel ladder scalar (r
     expect(oldWidthClamped(0.001, m)).toBe(2); // pre-r108 identical clamp
   });
 });
+
+describe("microchart SSOT — confluence-history TimelineSvg migration (r109)", () => {
+  // The VERBATIM pre-r109 `TimelineSvg` geometry + inline math (the r105
+  // `old*` idiom). `TimelineSvg` is gated behind `n_points >= 2`, so the
+  // `Math.max(1, n - 1)` only ever evaluates `n - 1` (n ≥ 2).
+  const W = 360;
+  const H = 110;
+  const PAD_X = 28;
+  const PAD_Y = 6;
+  const innerW = W - PAD_X * 2; // 304
+  const innerH = H - PAD_Y * 2; // 98
+
+  const oldXAt = (i: number, n: number) => PAD_X + (i / Math.max(1, n - 1)) * innerW;
+  const oldYAt = (s: number) => PAD_Y + (1 - s / 100) * innerH;
+  // verbatim pre-r109 path-coord formatting
+  const oldFmt = (i: number, n: number, s: number) =>
+    `${oldXAt(i, n).toFixed(1)} ${oldYAt(s).toFixed(1)}`;
+
+  // r109 SSOT forms (exactly as page.tsx now composes them).
+  const newXAt = (i: number, n: number) => xLinear(i, n, W, PAD_X);
+  const newYAt = linScale(0, 100, PAD_Y + innerH, PAD_Y);
+  const newFmt = (i: number, n: number, s: number) =>
+    `${svgCoord(newXAt(i, n))} ${svgCoord(newYAt(s))}`;
+
+  for (const n of [2, 7, 30] as const) {
+    it(`xAt === xLinear BIT-IDENTICAL (n≥2 ⇒ no Math.max branch) — n=${n}`, () => {
+      for (let i = 0; i < n; i++) {
+        // 2*PAD_X === PAD_X*2 (IEEE754 commutative) ⇒ exact equality
+        expect(newXAt(i, n)).toBe(oldXAt(i, n));
+      }
+    });
+  }
+
+  it("yAt ≈ linScale to ≤1 ULP (multiply-order, NOT bit-identical) — honest", () => {
+    for (const s of [0, 12.5, 37.3, 50, 60, 88.8, 100]) {
+      expect(newYAt(s)).toBeCloseTo(oldYAt(s), 9);
+    }
+  });
+
+  it("yAt analytic exacts pinned toBe (s=0 → bottom, no multiply-order)", () => {
+    expect(newYAt(0)).toBe(PAD_Y + innerH); // (v-0)*k with v=0 ⇒ exact rangeMin
+    expect(oldYAt(0)).toBe(PAD_Y + innerH);
+  });
+
+  it("path-coord formatting via svgCoord === verbatim .toFixed(1)", () => {
+    // svgCoord(v) === v.toFixed(1) by definition ⇒ string-exact for xAt
+    // (bit-identical) ; yAt's ≤1-ULP delta cannot cross a 1-dp boundary
+    // except on an exact .x5 tie — none in this realistic score set.
+    for (const n of [2, 7, 30] as const) {
+      for (const s of [0, 50, 60, 100, 42.7]) {
+        for (const i of [0, Math.floor(n / 2), n - 1]) {
+          expect(newFmt(i, n, s)).toBe(oldFmt(i, n, s));
+        }
+      }
+    }
+  });
+});
