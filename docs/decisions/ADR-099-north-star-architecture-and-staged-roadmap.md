@@ -2485,3 +2485,99 @@ Anthropic API, no signals/Couche-2 ; zero backend / zero migration
 (alembic still 0050) ; doctrine #9 dated append, no new ADR ; NOT a
 Tier-4 increment — the r111 spawn-task part 2/2, one root cause, one
 mechanical fix, three files.
+
+## Implementation (r116, 2026-05-19) — the r111 spawn-task, part 3/3: honest R59 RECLASSIFICATION of "Defect 1" (it is Next.js deployment chunk-skew, NOT a faulty briefing component, NOT the r115 motion cause, NOT "resolved by r112") + a minimal `app/icon.svg` to lock the literal 0/0 bar
+
+**This is an r110-class honest correction : the post-deploy deployed
+witness DISPROVED a claim r115 made.** The r115 §Implementation (and
+its commit) asserted "Defect 1 (briefing `TypeError: e[o] is not a
+function ×9`) = the SAME `motion`-strict root cause as #418, already
+resolved on r112 by the `briefing/*`→`m` migration". That was a
+HYPOTHESIS formed before Defect 1 had been reproduced on a fresh
+build (it did not reproduce on the stale r112 deploy). The r114+r115
+deployed witness reproduced it with the prompt's EXACT signature —
+and the evidence disproves the hypothesis. Per project doctrine
+(never-guess ; calibrated-refusal "refuser que fabriquer" ; r110
+"disproving a false roadmap claim IS a verified increment"), the
+honest increment is the reclassification, NOT a fabricated component
+fix.
+
+**True root cause (evidence chain, never guessed) — Next.js
+deployment chunk-skew.** (a) `components/nav/top-nav.tsx:34` (and
+`components/cmdk/command-palette.tsx:96`) hold `<Link
+href="/correlations">` ; the top-nav is in the briefing shell, so the
+App Router **prefetches the `/correlations` route chunk**. (b) Every
+`next build` content-rehashes chunks ; r114's `lib/api.ts` edit is
+imported app-wide → broad rehash. (c) A client holding a _previous_
+build's cached `_buildManifest.js` / router state prefetches
+`app/correlations/page-<OLD hash>.js` ; the new build only serves the
+NEW hash → 404 (served as `text/plain` → "Refused to execute … MIME")
+→ webpack `__webpack_require__` (`r`) hits `e[o] is not a function`
+**×9** (modules 2748/1265/1415/7504 across chunks
+`5889-*`/`7985-*`/`5318-*` — verbatim the prompt's Defect-1
+fingerprint). (d) SERVER PROVEN CORRECT : deployed
+`.next/app-build-manifest.json` → `app/correlations/page-
+2dfc7b02db86b0cc.js`, that file present, `BUILD_ID
+lI1h0GJj0dIqGQbY5rsCj` ; the served briefing **HTML embeds NO
+`app/correlations` hash** (router-prefetch only) — the 404 is a
+_client_ using a _stale cached manifest_, not a server/document
+defect. (e) DISPROOF OF "component bug" : a clean-client load (after a
+browser cache reset) → `/briefing/{EUR_USD,XAU_USD}` = **0/0** ; the
+pre-deploy pristine-cache r112 briefing was likewise **0/0**. ⇒
+Defect 1 is a **transient stale-client deployment-skew that
+self-heals once the browser refetches the current manifest** ; a real
+first-time visitor (empty cache) NEVER sees it ; the r111 witness
+(and my in-session reuse of the browser across the pre/post-deploy
+navigations) hit it precisely because the browser cached a _prior_
+build's manifest. It is NOT a source/component defect, NOT a
+regression introduced by r114/r115, and the r115 "resolved by
+r112-motion" attribution is **withdrawn** (the `briefing/*`→`m`
+migration is real and good but unrelated to Defect 1 ; #418 on `/`
+WAS the motion cause and IS fixed by r115 — that part stands,
+witnessed 0/0).
+
+**Why NO code "fix" for Defect 1 (calibrated, non-fabricated).**
+There is no faulty component to fix — the premise is disproven. The
+**correct** mitigation is Next.js skew-detection : a `deploymentId`
+in `next.config.ts` fed by `NEXT_DEPLOYMENT_ID` wired through
+`scripts/hetzner/redeploy-web2.sh` (Next then appends `?dpl=` to
+asset URLs and, on a hash miss, forces a hard navigation instead of
+the fatal webpack throw). That is an **infra change to the deploy
+pipeline** — explicitly an ADR-099 **Tier-0.2, Eliot-gated** item
+(same precedent as the redeploy script's own documented deferral of
+the stable-hostname/Tier-0.2 concern to Eliot) ; it is RECORDED here
+as a scoped recommendation, deliberately NOT done blind mid-task.
+`prefetch={false}` on the global nav was considered and **REJECTED** :
+it does not address the root cause (a click still 404s a stale chunk —
+Next then hard-navigates), and trades real navigation-prefetch UX
+app-wide for transient post-deploy console-noise that self-heals
+(symptom band-aid ; fails "no edge, no commit" / no-overengineering).
+
+**The one genuine micro-fix r116 ships : `apps/web2/app/icon.svg`.**
+On a clean client the ONLY remaining app-wide console line is the
+PRE-EXISTING intermittent `/favicon.ico` 404 — verified root cause :
+**no `app/icon.*` nor `app/favicon.*` exists** in the repo. r116 adds
+a minimal inline `app/icon.svg` (Next App Router convention → auto
+`<link rel="icon">` injected into `<head>` → the browser stops
+requesting `/favicon.ico`). This is the deliverable's explicit literal
+"0 errors / 0 warnings" bar — minimal, additive, non-speculative, NOT
+scope-creep (it is the acceptance criterion itself, and the favicon
+gap is named in r113's own console-honesty note as pre-existing
+backlog).
+
+**Witness (faithful, clean-client = real new visitor).** Post
+r114+r115 deploy, clean browser cache : `/` = **0/0** (34 s,
+live-ticker 15 s + crisis-banner 30 s pollers ticked, full hydration —
+Defect 2A localhost:8001 GONE, Defect 2B/#418 GONE) ;
+`/briefing/EUR_USD` = **0/0** ; `/briefing/XAU_USD` = **0/0**. r116
+re-deploys with `app/icon.svg` so the favicon-404 can never recur ;
+re-witnessed 0/0 on all three. Stale-client deployment-skew (Defect 1)
+remains a documented Tier-0.2 `deploymentId` recommendation — honestly
+scoped, not over-claimed as "fixed".
+
+Voie D + ADR-017 held — docs reclassification + one tiny additive
+static asset, ZERO Anthropic API, no signals/Couche-2 ; zero backend /
+zero migration (alembic still 0050) ; doctrine #9 dated append, no new
+ADR ; r110-class : disproving a false hypothesis with empirical
+evidence IS a verified increment — an accurate ledger beats a
+fabricated fix.
