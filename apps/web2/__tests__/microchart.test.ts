@@ -536,3 +536,86 @@ describe("microchart SSOT — r113 consumer contract: BriefingHeader intraday am
     }
   });
 });
+
+describe("microchart SSOT — r116 consumer contract: <BarSeries> (hourly-volatility median_bp)", () => {
+  // r116 is an additive NEW generic SSOT consumer (doctrine #8 "more
+  // coverage") that also lets the hourly-volatility `HeatmapBars`
+  // hand-rolled `(v/max)*100` CSS-div grid compose the SSOT instead
+  // (the r108-class proportional scalar the r110/r111 ledger never
+  // enumerated — meta-r110 ledger refinement, see ADR-099
+  // §Implementation(r116)). This PINS the `<BarSeries>` SSOT
+  // composition CONTRACT — NOT a byte-identical-vs-prior proof : the
+  // prior was a `height:%` CSS-div, a DIFFERENT rendering technology,
+  // so there is no "old SVG" to be identical to (the honest
+  // distinction, r112/r113-class). The `barFromBaseline` 0-baseline
+  // invariant + minH clamp themselves are pinned above
+  // ("barFromBaseline 0-baseline invariant") — NOT re-pinned here
+  // (anti-accumulation #9) ; this block pins the *consumer*
+  // composition + the real-prod `median_bp = 0.0` edge.
+
+  // The verbatim `BarSeries.tsx` per-bar composition (test scaffolding,
+  // NOT production accumulation — doctrine #9 governs the production
+  // coord-math SSOT, which r116 leaves untouched).
+  const barSeriesRects = (
+    values: number[],
+    max: number,
+    width: number,
+    height: number,
+    barFrac = 0.62,
+  ) =>
+    values.map((v, i) =>
+      barFromBaseline(i, v, max, bandLayout(values.length, width, barFrac), height),
+    );
+
+  // Real R53-witnessed-shape hourly median_bp (EUR_USD prod, 2026-05-19,
+  // 0.34..0.77) + an XAU-style array carrying a genuine 0.0 hour.
+  const eurHourly = [0.43, 0.43, 0.34, 0.34, 0.34, 0.38, 0.51, 0.68, 0.77, 0.7, 0.62];
+  const W = 480;
+  const H = 128;
+
+  it("each bar is exactly bandLayout/barFromBaseline/svgCoord-composed, 1-dp, in-viewBox, 0-baseline", () => {
+    const max = Math.max(...eurHourly);
+    const rects = barSeriesRects(eurHourly, max, W, H);
+    expect(rects.length).toBe(eurHourly.length);
+    const oneDp = /^-?\d+\.\d$/;
+    for (const r of rects) {
+      for (const s of [r.x, r.y, r.width, r.height]) expect(s).toMatch(oneDp);
+      const x = Number(r.x);
+      const y = Number(r.y);
+      const w = Number(r.width);
+      const h = Number(r.height);
+      expect(x).toBeGreaterThanOrEqual(0);
+      expect(x + w).toBeLessThanOrEqual(W + 1e-9);
+      expect(y).toBeGreaterThanOrEqual(0);
+      expect(y + h).toBeLessThanOrEqual(H + 1e-9);
+      // 0-baseline (no truncated axis): a non-floor bar's bottom sits
+      // on the true baseline y+h === plotH (= H here).
+      if (h > 0.5) expect(y + h).toBeCloseTo(H, 6);
+    }
+    // the max-value bar reaches the top of the 0.92 fill band:
+    // h = plotH*fillFrac ⇒ y = plotH - plotH*0.92. `svgCoord` 1-dp-
+    // formats it, so pin the FORMATTED string (the r109/r111
+    // split-honesty discipline — assert the emitted contract, not the
+    // raw float at over-tight precision ; the expected reuses the SAME
+    // float expression `barFromBaseline` does ⇒ bit-identical).
+    const maxIdx = eurHourly.indexOf(max);
+    expect(rects[maxIdx]!.y).toBe(svgCoord(H - H * 0.92));
+  });
+
+  it("the real-prod median_bp = 0.0 hour (XAU-witnessed) → a floor bar, NO throw, NO NaN", () => {
+    const xauLike = [0.0, 1.2, 3.8, 2.1, 0.0, 0.9]; // genuine 0.0 hours, max 3.8
+    const max = Math.max(...xauLike);
+    expect(() => barSeriesRects(xauLike, max, W, H)).not.toThrow();
+    const rects = barSeriesRects(xauLike, max, W, H);
+    for (let i = 0; i < xauLike.length; i++) {
+      const r = rects[i]!;
+      for (const s of [r.x, r.y, r.width, r.height]) expect(Number.isNaN(Number(s))).toBe(false);
+      if (xauLike[i] === 0) {
+        // value 0 (0 >= 0 is valid — only NEGATIVE throws) → h = 0,
+        // height clamps to minH (0.5), bar pinned at the baseline.
+        expect(Number(r.height)).toBe(0.5);
+        expect(Number(r.y)).toBeCloseTo(H, 6);
+      }
+    }
+  });
+});

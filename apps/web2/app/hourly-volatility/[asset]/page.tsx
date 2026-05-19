@@ -7,6 +7,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { BarSeries } from "@/components/microchart/BarSeries";
 import { apiGet, isLive, type HourlyVolOut } from "@/lib/api";
 
 const SUPPORTED_ASSETS = new Set([
@@ -95,6 +96,29 @@ function HeatmapBars({ report }: { report: HourlyVolOut }) {
     );
   }
   const maxMed = Math.max(...populated.map((e) => e.median_bp));
+  const values = report.entries.map((e) => e.median_bp);
+  const tones = report.entries.map((e) =>
+    e.hour_utc === report.best_hour_utc
+      ? "var(--color-bull)"
+      : e.hour_utc === report.worst_hour_utc
+        ? "var(--color-bear)"
+        : "var(--color-accent-cobalt)",
+  );
+  const titles = report.entries.map(
+    (e) =>
+      `UTC ${e.hour_utc.toString().padStart(2, "0")}:00 — median ${e.median_bp.toFixed(1)} bp · p75 ${e.p75_bp.toFixed(1)} bp · n=${e.n_samples}`,
+  );
+  // a11y SHOULD-#1 (r106-class colour-rigor) : a NEUTRAL shape outline
+  // on the best/worst extremes — a non-hue cue so the two actionable
+  // bars stay distinct from the 22 normal ones under colour-vision
+  // deficiency (best-vs-worst itself is also carried by the text
+  // legend + aria-label + per-bar <title>). Sparse : undefined → no
+  // stroke on the normal bars.
+  const strokes = report.entries.map((e) =>
+    e.hour_utc === report.best_hour_utc || e.hour_utc === report.worst_hour_utc
+      ? "var(--color-text-primary)"
+      : undefined,
+  );
 
   return (
     <section
@@ -107,41 +131,32 @@ function HeatmapBars({ report }: { report: HourlyVolOut }) {
       >
         Heatmap 24h · UTC
       </h2>
+      <BarSeries
+        values={values}
+        max={maxMed}
+        tones={tones}
+        titles={titles}
+        strokes={strokes}
+        ariaLabel={`Volatilité médiane par heure UTC — ${report.entries.length} heures, pic ${
+          report.best_hour_utc?.toString().padStart(2, "0") ?? "n/a"
+        }:00, creux ${report.worst_hour_utc?.toString().padStart(2, "0") ?? "n/a"}:00`}
+        width={480}
+        height={128}
+        className="block w-full"
+      />
       <div
-        className="mb-3 grid gap-0.5"
+        className="mt-1 grid"
         style={{ gridTemplateColumns: "repeat(24, minmax(0, 1fr))" }}
+        aria-hidden
       >
-        {report.entries.map((e) => {
-          const pct = maxMed > 0 ? (e.median_bp / maxMed) * 100 : 0;
-          const isBest = e.hour_utc === report.best_hour_utc;
-          const isWorst = e.hour_utc === report.worst_hour_utc;
-          const fillColor = isBest
-            ? "var(--color-bull)"
-            : isWorst
-              ? "var(--color-bear)"
-              : "var(--color-accent-cobalt)";
-          return (
-            <div
-              key={e.hour_utc}
-              className="relative flex h-32 flex-col items-stretch"
-              title={`UTC ${e.hour_utc.toString().padStart(2, "0")}:00 — median ${e.median_bp.toFixed(1)} bp · p75 ${e.p75_bp.toFixed(1)} bp · n=${e.n_samples}`}
-            >
-              <div className="flex flex-1 items-end">
-                <div
-                  className="w-full rounded-sm"
-                  style={{
-                    backgroundColor: fillColor,
-                    opacity: isBest ? 1 : isWorst ? 0.6 : 0.5,
-                    height: `${Math.max(2, pct)}%`,
-                  }}
-                />
-              </div>
-              <span className="mt-1 text-center font-mono text-[9px] text-[var(--color-text-muted)]">
-                {e.hour_utc.toString().padStart(2, "0")}
-              </span>
-            </div>
-          );
-        })}
+        {report.entries.map((e) => (
+          <span
+            key={e.hour_utc}
+            className="text-center font-mono text-[9px] leading-none tabular-nums text-[var(--color-text-muted)]"
+          >
+            {e.hour_utc.toString().padStart(2, "0")}
+          </span>
+        ))}
       </div>
       <div className="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-xs text-[var(--color-text-muted)]">
         {report.best_hour_utc !== null && report.entries[report.best_hour_utc] ? (

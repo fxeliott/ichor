@@ -24,11 +24,20 @@
  * of composing `linScale`), is **CLOSED at r111** (it now composes
  * `linScale` internally — raw ≤1-ULP multiply-order, `svgCoord`-
  * formatted string bit-identical ; see its docstring + ADR-099
- * §Implementation(r111)). **doctrine-#9 de-accumulation is now FULLY
- * CLOSED** (coord-scaling consumer-migration r105+r108+r109 +
- * SSOT-internal I3 r111) ; the remaining Tier-4 is additive NEW
- * components (sparkline / regime-timeline) — "more coverage" not
- * "de-accumulation" (doctrine #8).
+ * §Implementation(r111)). doctrine-#9 de-accumulation was FULLY
+ * CLOSED *for the then-enumerated ledger* (coord-scaling
+ * consumer-migration r105+r108+r109 + SSOT-internal I3 r111 — the
+ * sites the r105/r108/r109 sweeps reached). **r116 R59-surfaced a 5th
+ * un-enumerated coord-scalar site** (`HeatmapBars`'s `(v/max)*100`
+ * CSS-div grid on the separate `/hourly-volatility` route, an
+ * r108-`ScenariosPanel`-class proportional scalar) and migrated it
+ * onto `barFromBaseline` via the NEW `<BarSeries>` consumer — the
+ * consumer ledger is refined to {VolumePanel r105 · ScenariosPanel
+ * r108 · confluence-history r109 · I3 r111 · HeatmapBars r116} (the
+ * r110 precedent : a prior ledger is a HYPOTHESIS R59 refines ; see
+ * ADR-099 §Implementation(r116b)). Remaining Tier-4 is additive NEW
+ * components / consumers — "more coverage" (doctrine #8), the
+ * de-accumulation refinement is itself a verified increment.
  *
  * SCALE PRIMITIVES: `linScale` is the canonical linear-scale base (the
  * primitive `confluence/history` xAt/yAt, the sparkline, the regime
