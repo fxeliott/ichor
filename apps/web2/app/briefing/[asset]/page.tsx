@@ -228,7 +228,12 @@ export default async function BriefingPage({ params }: PageParams) {
 
       <AssetSwitcher active={normalisedAsset} previews={previews} />
 
-      <BriefingHeader asset={normalisedAsset} card={card} isLive={card !== null} />
+      <BriefingHeader
+        asset={normalisedAsset}
+        card={card}
+        isLive={card !== null}
+        priceTrend={recentBars.map((b) => b.close)}
+      />
 
       {card && (
         <VerdictBanner

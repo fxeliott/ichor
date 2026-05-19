@@ -1768,3 +1768,257 @@ ADR. **doctrine-#9 de-accumulation FULLY CLOSED at r111** (coord-scaling
 consumer-migration r105+r108+r109 + SSOT-internal I3 r111) ; remaining
 Tier-4 = additive NEW (sparkline / regime-timeline, doctrine #8) →
 T4.2 → T4.3.
+
+## Implementation (r112, 2026-05-19) — Tier 4: additive NEW `<Sparkline>` — a point-to-point intraday price micro-trend on the r105 `xLinear`+`linScale` SSOT (the announced linear consumers ; doctrine #8 "more coverage", NOT de-accumulation ; R59 RESHAPED the literal default)
+
+doctrine-#9 de-accumulation closed at r111. r112 is the first **additive
+NEW** Tier-4 increment (doctrine #8 "more coverage" — a NEW component +
+a NEW genuine consumer of the SSOT's linear primitives, NOT a migration
+of existing math).
+
+**R59 inspect-first RESHAPED the literal default (meta-r110 — the
+default is itself a HYPOTHESIS).** The r111-close binding default was
+"r112 = additive `<Sparkline>` — extract the `VolumePanel` close-price
+polyline as a reusable `<Sparkline>`". A read-only researcher R59 +
+direct orchestrator verification of the real code **disproved the
+literal wording** (the r109-class reshape, not the r110-class full
+disproof): `VolumePanel`'s close-price polyline is
+`bandSeriesPolyline(closes, slot, volH)` (`VolumePanel.tsx:87`) where
+`slot` is the **same categorical band the volume bars use**
+(`bandLayout(n, W)`, `VolumePanel.tsx:85`) — x is the band-column
+centre `i*slot + slot/2` (`microchart.ts:200`) with volume-overlay
+head/foot padding (`headFrac 0.78` / `footFrac 0.11`,
+`microchart.ts:188-205`). The SSOT's OWN docstring
+(`microchart.ts:154-159`) states it explicitly: _"`bandSeriesPolyline`
+— **band**-positioned x … NOT linear … a point-to-point linear
+polyline must compose `xLinear` + `linScale`, NOT this."_ Extracting it
+verbatim would yield a **band-coupled fake** (the r105 fake-SSOT lesson
+one layer up) AND duplicate a series already on screen (the same
+intraday closes `VolumePanel` already renders) — zero value, violating
+the anti-accumulation spirit. R59 therefore RESHAPES: the genuine
+increment is a **NEW point-to-point `<Sparkline>` composing `xLinear`
+(`microchart.ts:87-90`) + `linScale` (`microchart.ts:72-82`) +
+`svgCoord` (`microchart.ts:63-65`)** — precisely the consumers the SSOT
+docstring already names as intended (`microchart.ts:34,69` "the
+sparkline"), validating that r105's ui-designer C1 fix (which added
+`linScale`/`xLinear`) was not speculative.
+
+**R59 verified consumption site + real populated data (the #1
+doctrine — projected AND populated, not type-only).** The only
+per-asset numeric time-series the `/briefing/[asset]` page already
+fetches AND that is empirically populated is the intraday closes:
+`page.tsx:128` `getIntradayBars(...)`, `page.tsx:189`
+`const recentBars: IntradayBarOut[] = intraday ? intraday.slice(-90)
+: []`, `IntradayBarOut.close: number` — the SAME series `VolumePanel`
+renders (`page.tsx:383`), empirically witnessed populated on real
+assets at r111 (90 live bars, EUR_USD). The card enrichment fields
+(`scenarios`/`calibration`/`confluence_drivers`/`thesis`) are
+type-only-often-empty (`api.ts:210-238`, MEMORY r106/r108) and
+confluence-history is real but NOT wired to the briefing page (a
+different increment) — choosing the intraday closes **avoids the
+SHIPPED≠FUNCTIONAL trap by construction** (the data is the proven-live
+one). Host: `BriefingHeader` (`page.tsx:231`,
+`components/briefing/BriefingHeader.tsx`) — its left column (asset
+`<h1>`, ALWAYS rendered, card-independent) is the natural at-a-glance
+host, distinct from `VolumePanel`'s detailed volume+price analytical
+panel lower on the page (header micro-glance vs full panel — different
+scale/purpose, a standard premium-dashboard pairing, NOT redundant).
+`BriefingHeader` is `"use client"` (motion) and the `microchart` SSOT
+is pure/RSC-safe → importing it into the client header is doctrine-#5
+safe (the leak hazard is the reverse direction only).
+
+**Decision — NEW `components/briefing/Sparkline.tsx`, ADR-017-neutral,
+graceful, SSOT-composed.** A new pure presentational component (thin
+`"use client"` for the `motion` draw-in, consistent with
+`VolumePanel`/`ScenariosPanel` house style ; ALL coordinate math
+delegated to the pure SSOT — `xLinear` for point-to-point x, `linScale`
+for value→y with an **inverted range** so higher value sits higher on
+screen, `svgCoord` for the single 1-dp formatting authority ; ZERO new
+coord math — doctrine #9). **ADR-017 (frontend boundary #11) — pure
+descriptive historical context, NO signal**: the sparkline is a neutral
+"where the intraday price has been" micro-trend, styled with the SAME
+neutral `--color-text-secondary` stroke `VolumePanel`'s price overlay
+already uses (`VolumePanel.tsx`, ADR-017-clean per its `:18` header) —
+deliberately **NOT** direction-tinted (a green/red-by-direction line
+could be misread as a bias/signal) ; no verdict text, no imperative, no
+BUY/SELL, no TP/SL. A factual neutral window label only (e.g. the bar
+count) — describing the data, not a trade action. **Graceful empty**:
+`< 2` points → renders nothing (the `VolumePanel` `usable.length < 2`
+discipline). **Wiring**: `BriefingHeader` gains an optional
+`priceTrend?: number[]` prop (decoupled — `number[]` closes, NOT the
+`IntradayBarOut` type) rendered under the asset `<h1>` ; `page.tsx:231`
+threads `priceTrend={recentBars.map((b) => b.close)}` (one line ;
+`recentBars` already derived for `VolumePanel`).
+
+**What r112 implements.**
+
+1. **NEW `apps/web2/components/briefing/Sparkline.tsx`** — pure
+   presentational micro-trend. `points` via
+   `values.map((v,i) => `${svgCoord(xLinear(i, n, W, pad))},${svgCoord(
+   yScale(v))}`)` where `yScale = linScale(min, max, H - pad, pad)`
+   (inverted range : min→bottom, max→top ; degenerate min===max →
+   `linScale` maps to `rangeMin` = bottom, a flat baseline, no NaN —
+   the SSOT's documented zero-width-domain behaviour). Fixed integer
+   viewBox, `preserveAspectRatio="none"`. `< 2` values → `null`.
+   `role="img"` + an `aria-label` text equivalent (the a11y
+   requirement for a graphic — WCAG 2.2 AA). Neutral stroke, thin
+   `motion` draw-in (opacity), `vectorEffect="non-scaling-stroke"`
+   (mirrors `VolumePanel`'s polyline attrs).
+2. **`apps/web2/components/briefing/BriefingHeader.tsx`** — add
+   `priceTrend?: number[]` to the props ; render `<Sparkline>` under
+   the asset `<h1>` in the always-rendered left column (card-
+   independent — shows even with no session card yet, since intraday
+   data is independent of the card) ; graceful when absent/short.
+3. **`apps/web2/app/briefing/[asset]/page.tsx:231`** — one-line:
+   `priceTrend={recentBars.map((b) => b.close)}`.
+4. **`apps/web2/__tests__/microchart.test.ts`** (or a new sibling) —
+   an additive describe block pinning the `<Sparkline>` coordinate
+   CONTRACT (NOT a byte-identical-vs-prior proof — this is a NEW
+   component, nothing pre-existing to be identical to ; the honest
+   distinction from r105/r108/r109/r111): given a fixture series +
+   dims, the produced `points` are exactly `xLinear`/`linScale`/
+   `svgCoord`-composed, every coord 1-dp, in-viewBox, x strictly
+   increasing, and the degenerate flat-series case maps to the
+   baseline (no NaN). Pre-existing tests unchanged (zero regression).
+5. **ADR-099 `## Implementation (r112, 2026-05-19)`** (this) — dated
+   §Impl, NO new ADR (doctrine #9).
+
+**Honest scope / ledger (#11, NOT thinned).** r112 = the NEW
+`<Sparkline>` primitive + ONE genuine consumer (BriefingHeader price
+micro-trend) + the page wiring + the contract test. It is "more
+coverage" (doctrine #8) — a NEW additive component and a NEW genuine
+`xLinear`/`linScale` consumer — explicitly NOT de-accumulation
+(doctrine-#9 is already FULLY CLOSED at r111 ; nothing SSOT-internal
+remains). Explicitly DEFERRED, NOT thinned: further `<Sparkline>`
+consumers (other panels/cards) ; the regime-timeline NEW component
+(reuse `regime-quadrant` `RegimeId`/`QUADRANTS` colour map) ; T4.2
+(uncertainty band / calibration overlay / degraded+empty states /
+`prefers-reduced-motion` / no-truncated-axis audit) ; T4.3
+(responsive/mobile) ; the non-Tier-4 r107-deferred items
+(`globals.css` §5 border-α, `NarrativeBlocks` `/10` chip). The
+r111-flagged PRE-EXISTING app-wide console defects (briefing
+vendor-chunk `TypeError`, `/` `localhost:8001` CSP dev-artifact, React
+#418) remain a SEPARATE spawn-tasked out-of-scope item — NOT re-scoped
+into r112, NOT re-claimed. **NEW r112 a11y flag (pre-existing, NOT
+r112's, flag-not-fix lesson #11 / r106-a)**: the accessibility-reviewer
+measured the `BriefingHeader` `text-[10px] --color-text-muted`
+micro-label pattern (shared by the pre-existing Conviction / Magnitude
+/ Régime labels AND inherited by the new "Prix intraday · N barres"
+label) at ≈ 3.5:1 over `--color-bg-elevated` (< the 4.5:1 floor for
+sub-18px text). It is a header-WIDE pre-existing token-recalibration
+issue, NOT introduced by the Sparkline — routed to the existing
+ADR-099 §T4.2 / `globals.css` §5 contrast-recalibration backlog ; the
+new label deliberately keeps `--color-text-muted` for sibling visual
+consistency (a one-off brighter label would be inconsistent and would
+not fix the app-wide root cause).
+
+**Reviews (consolidated single pass — doctrine #14, finalized on the
+post-prettier committed shape ; ichor-trader R28 + ui-designer +
+accessibility-reviewer ALL dispatched — a NEW visual component
+genuinely changes the trading-boundary, design, AND a11y surface, so
+all three are protocol not FOMO, lesson #17 ; verdicts recorded as
+MEASURED not forecast, lesson #1/r111).**
+
+- **ichor-trader R28 — GREEN, MERGE, 0 RED, 1 YELLOW (doc-only)
+  APPLIED** (the MEASURED verdict, not a forecast — lesson #1). ADR-017
+  frontend boundary held: the neutral `var(--color-text-secondary)`
+  stroke independently cross-checked **identical** to the already-
+  ADR-017-clean `VolumePanel.tsx:161` close-price overlay (`:18`
+  header "pure descriptive activity. No bias, no BUY/SELL") — the
+  neutral-styling parity claim _verified true, not asserted_ ; the
+  Sparkline deliberately avoids the `biasTone()` bull/bear palette ;
+  labels factual-only (no verdict/imperative/BUY-SELL/TP-SL) ;
+  rendering the same `recentBars` closes VolumePanel already plots is
+  no new signal surface. SHIPPED≠FUNCTIONAL avoided by construction
+  (proven-live intraday series, categorically distinct from the
+  `correlations_snapshot`-empty / `card.scenarios`-type-only traps).
+  R59 reshape correctly classified r109-class ("disproved-as-worded",
+  not r110-class) ; doctrine #8 vs #9 accurate (de-accumulation stays
+  FULLY CLOSED at r111, not reopened). Cross-file drift: exactly one
+  `BriefingHeader` call site (`page.tsx:231`), the new prop optional/
+  backward-compat. **YELLOW-1 APPLIED**: `BriefingHeader.tsx:2-10`
+  docstring "Renders :" enumeration was stale (omitted the new
+  Sparkline — a lesson-#5 drift this change introduced) → a clause
+  added pre-merge.
+- **ui-designer — MERGE, 0 Critical ; 2 Important + 2 Nit APPLIED.**
+  Imp-1 (the dimension triple-source-of-truth: `Sparkline` defaults
+  120/32 vs the call's 160/36 vs `className="h-9 w-40"`, silently
+  divergent under `preserveAspectRatio="none"`) → the `<svg>` now
+  OWNS its box (explicit `width`/`height` === viewBox, 1:1 — single
+  source, also eliminating the non-uniform-scale distortion nit) and
+  the caller `className` sizing is dropped. Imp-2 (no `<title>`,
+  inconsistent with `VolumePanel`'s `<title>`/`<desc>` pattern) → a
+  `<title>` mirroring `aria-label` added. Nit-3 (opacity 0.75 vs
+  VolumePanel's price-line 0.7) → aligned to **0.7**. Nit-4
+  (`tracking-widest` vs the header micro-label idiom) → aligned to
+  `tracking-[0.2em]`. Placement/hierarchy/empty-state/contrast all
+  PASS (the `mt-3` rhythm, the conditional-wrapper zero-layout-shift
+  absence, `var(--color-text-secondary)` visibility all confirmed).
+- **accessibility-reviewer — 0 MUST-FIX ; 1 SHOULD-FIX → backlog
+  (NOT a r112 blocker, NOT fixed here — flag-not-fix, lesson #11 /
+  r106-a).** WCAG 2.2 AA: **1.1.1 PASS** (`role="img"`+`aria-label`,
+  the chart is a supplementary glance never the sole carrier — the
+  header conveys asset/bias/conviction/regime textually + the visible
+  label) ; **1.4.11 PASS** (stroke `#A4ADBA` vs worst-case backdrop
+  `--color-bg-elevated` `#0F1828` ≈ **6.1:1**, the 0.7-opacity end-
+  state ≈ 4:1 — clear of the 3:1 graphical floor) ; **1.4.1 PASS**
+  (single neutral monochrome, zero color-only meaning) ; **1.4.3**
+  the visible "Prix intraday · N barres" label uses
+  `--color-text-muted` ≈ **3.5:1 over `--color-bg-elevated`** (< 4.5:1
+  for sub-18px) — BUT this is a **PRE-EXISTING header-wide pattern**
+  (every `text-[10px] text-muted` label in `BriefingHeader` — the
+  Conviction/Magnitude/Régime labels — shares it ; NOT introduced by
+  r112) → kept `--color-text-muted` for sibling visual consistency
+  (both reviewers endorse the header micro-label idiom) and **routed
+  to the existing ADR-099 §T4.2 / `globals.css` §5 contrast-
+  recalibration backlog** (a one-off brighter label would be
+  inconsistent AND would not fix the real app-wide issue) ;
+  **2.3.3 PASS** (opacity-only draw-in, no transform — not a
+  vestibular trigger ; the global `useReducedMotion` pass is the
+  T4.2 home).
+
+**Verification (real numbers — measured on deployed prod, not
+forecast ; the SHIPPED≠FUNCTIONAL gate satisfied).**
+
+- **Build gate** (post-prettier committed shape, doctrine #14 — re-run
+  after the consolidated review-apply): `tsc --noEmit` **0** · `eslint
+--max-warnings 0` (Sparkline.tsx + BriefingHeader.tsx + page.tsx +
+  microchart.test.ts) **0** · vitest **7 files / 124 tests pass**
+  (r111 baseline 119 + the new r112 Sparkline contract block 5 = 124 ;
+  zero regression) · `next build` **OK**.
+- **Deploy**: `scripts/hetzner/redeploy-web2.sh` (additive — port
+  3031, legacy `ichor-web` 3030 + tunnel untouched). RESULT
+  **`local=200 public=200`, `DEPLOY OK`** ; LIVE URL **stable**
+  `https://latino-superintendent-restoration-dealtime.trycloudflare.com`
+  (tunnel NOT restarted) ; no SSH throttle.
+- **Real-prod witness** — Playwright on the deployed public
+  `/briefing/EUR_USD` (doctrine #7 ; REAL data, REAL asset). **r112
+  surface GREEN**: the `BriefingHeader` `<Sparkline>` renders from
+  **90 real intraday closes** (the `recentBars` series), viewBox
+  `0 0 160 36` with matching `width`/`height` attrs (svg-owns-box,
+  1:1 — no distortion), `<title>` === `aria-label` ("Tendance du
+  prix de clôture intrajournalier EUR/USD, 90 dernières barres"),
+  `role="img"`. Geometry cross-checked: 90 points, **every coord
+  1-dp** (`svgCoord` end-to-end through `xLinear`+`linScale`), all
+  in-viewBox, **x strictly increasing** (proving genuine point-to-
+  point `xLinear`, NOT band-coupled — the R59 reshape empirically
+  validated), endpoints exact (`x[0]=2.0`=pad, `x[89]=158.0`=
+  width−pad). Stroke `var(--color-text-secondary)` (ADR-017-neutral).
+  **Distinct from VolumePanel** confirmed (its sibling chart is
+  viewBox `0 0 640 150` — header micro-glance vs full panel, not
+  redundant). Screenshot captured.
+- **Console — honestly scoped (lesson #1 / #11 / r106-a, NO
+  fabricated causation).** This warm post-r112 load of
+  `/briefing/EUR_USD` showed **0 errors / 0 warnings**. The
+  r111-witnessed PRE-EXISTING app-wide defects (a cold-load
+  vendor-chunk `TypeError ×9` + favicon-404) were NOT observed on
+  this load — their reproduction is load/timing-dependent (the r109
+  "warm 0/0" precedent). **r112 is purely additive (Sparkline +
+  wiring) — it neither CAUSED nor FIXED those pre-existing defects** ;
+  the r111 spawn-task remains their owner (NOT re-scoped, NOT
+  re-claimed as a r112 win). The r112 surface itself is clean.
+
+Voie D + ADR-017 held ; additive web2-only deploy ; zero backend /
+zero migration (alembic still 0050) ; doctrine #9 dated append, no new
+ADR ; doctrine #8 "more coverage" (NEW component + NEW SSOT consumer),
+explicitly NOT de-accumulation (closed at r111).

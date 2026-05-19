@@ -354,3 +354,92 @@ describe("microchart SSOT — bandSeriesPolyline composes linScale internally (r
     }
   });
 });
+
+describe("microchart SSOT — xLinear+linScale consumer: Sparkline (r112)", () => {
+  // r112 is an additive NEW component (doctrine #8 "more coverage"), NOT
+  // a refactor of pre-existing math — so this PINS the coordinate
+  // CONTRACT (not a byte-identical-vs-prior proof : there is no "old"
+  // to be identical to, the honest distinction from r105/r108/r109/
+  // r111). The expression below is the VERBATIM `Sparkline.tsx` coord
+  // composition ; the test proves it is purely the SSOT primitives
+  // (`xLinear` point-to-point + `linScale` inverted-range + `svgCoord`
+  // 1-dp), zero new coord math (doctrine #9).
+  const sparkPoints = (values: number[], width: number, height: number, pad: number) => {
+    const n = values.length;
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    const yScale = linScale(min, max, height - pad, pad); // inverted: min→bottom, max→top
+    return values
+      .map((v, i) => `${svgCoord(xLinear(i, n, width, pad))},${svgCoord(yScale(v))}`)
+      .join(" ");
+  };
+
+  // Parse a points string into typed {x,y,raw} (strict-safe: explicit
+  // string defaults eliminate the noUncheckedIndexedAccess `undefined`).
+  const parse = (s: string) =>
+    s.split(" ").map((p) => {
+      const [xs = "", ys = ""] = p.split(",");
+      return { x: Number(xs), y: Number(ys), raw: p };
+    });
+
+  const eurIntraday = [1.16201, 1.1619, 1.16233, 1.16233, 1.1641, 1.1638, 1.16395];
+  const ascending = [10, 20, 30, 40, 50];
+  const flat = [2.0, 2.0, 2.0, 2.0]; // degenerate min === max
+  const minimalTwo = [5, 9];
+
+  for (const [name, vals] of [
+    ["EUR intraday-like n=7", eurIntraday],
+    ["ascending n=5", ascending],
+    ["minimal n=2", minimalTwo],
+  ] as const) {
+    it(`points are SSOT-composed, 1-dp, x strictly increasing, in-viewBox — ${name}`, () => {
+      const W = 160;
+      const H = 36;
+      const PAD = 2;
+      const parsed = parse(sparkPoints(vals, W, H, PAD));
+      expect(parsed.length).toBe(vals.length);
+      const oneDp = /^-?\d+\.\d,-?\d+\.\d$/;
+      let prevX = -Infinity;
+      for (const { x, y, raw } of parsed) {
+        expect(raw).toMatch(oneDp);
+        expect(x).toBeGreaterThan(prevX); // xLinear point-to-point strictly increasing
+        prevX = x;
+        expect(x).toBeGreaterThanOrEqual(PAD);
+        expect(x).toBeLessThanOrEqual(W - PAD);
+        expect(y).toBeGreaterThanOrEqual(PAD);
+        expect(y).toBeLessThanOrEqual(H - PAD);
+      }
+      // xLinear endpoints: i=0 → pad ; i=n-1 → width - pad (svgCoord 1-dp)
+      expect(parsed[0]!.raw.split(",")[0]).toBe(svgCoord(PAD));
+      expect(parsed[parsed.length - 1]!.raw.split(",")[0]).toBe(svgCoord(W - PAD));
+      // linScale inverted range: the max value sits at the top (pad),
+      // the min value at the bottom (height - pad).
+      const maxV = Math.max(...vals);
+      const minV = Math.min(...vals);
+      parsed.forEach((pt, i) => {
+        if (vals[i] === maxV) expect(pt.y).toBeCloseTo(PAD, 5);
+        if (vals[i] === minV) expect(pt.y).toBeCloseTo(H - PAD, 5);
+      });
+    });
+  }
+
+  it("verbatim SSOT composition === hand-derived expected (the r105 embedded-verbatim idiom)", () => {
+    // n=2, W=10, H=10, pad=0 → xLinear: i0=0, i1=10 ; linScale(5,9,10,0):
+    // v=5 → 10 (bottom), v=9 → 0 (top). svgCoord = toFixed(1).
+    expect(sparkPoints([5, 9], 10, 10, 0)).toBe(
+      `${svgCoord(0)},${svgCoord(10)} ${svgCoord(10)},${svgCoord(0)}`,
+    );
+    expect(sparkPoints([5, 9], 10, 10, 0)).toBe("0.0,10.0 10.0,0.0");
+  });
+
+  it("degenerate flat series (min === max) → all points at the baseline, NO NaN", () => {
+    const parsed = parse(sparkPoints(flat, 120, 32, 2));
+    expect(parsed.length).toBe(flat.length);
+    for (const { x, y } of parsed) {
+      expect(Number.isNaN(x)).toBe(false);
+      expect(Number.isNaN(y)).toBe(false);
+      // linScale zero-width domain → rangeMin (height - pad) = the baseline
+      expect(y).toBe(32 - 2);
+    }
+  });
+});

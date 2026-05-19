@@ -1,8 +1,10 @@
 /**
  * BriefingHeader — premium header for /briefing/[asset].
  *
- * Renders : asset code (Fraunces editorial), session badge (pre_londres /
- * pre_ny / event_driven), bias direction with WCAG-mandatory ▲/▼ + sign
+ * Renders : asset code (Fraunces editorial), an optional intraday
+ * price micro-trend Sparkline under it (ADR-017 descriptive context,
+ * neutral — not a signal), session badge (pre_londres / pre_ny /
+ * event_driven), bias direction with WCAG-mandatory ▲/▼ + sign
  * redundancy, conviction gauge (0-95% bar), magnitude pip range, regime
  * quadrant chip, generated_at timestamp with relative format.
  *
@@ -13,12 +15,17 @@
 
 import { m } from "motion/react";
 
+import { Sparkline } from "@/components/briefing/Sparkline";
 import type { SessionCard } from "@/lib/api";
 
 interface BriefingHeaderProps {
   asset: string;
   card: SessionCard | null;
   isLive: boolean;
+  /** Intraday close series (oldest → newest) for the header price
+   * micro-trend. Optional & self-guarding: `< 2` → not rendered. Pure
+   * descriptive context (ADR-017), never a signal. */
+  priceTrend?: number[];
 }
 
 const SESSION_LABEL: Record<SessionCard["session_type"], string> = {
@@ -60,7 +67,7 @@ function relativeTime(iso: string): string {
   return `${d}d ago`;
 }
 
-export function BriefingHeader({ asset, card, isLive }: BriefingHeaderProps) {
+export function BriefingHeader({ asset, card, isLive, priceTrend }: BriefingHeaderProps) {
   return (
     <m.header
       initial={{ opacity: 0, y: -8 }}
@@ -94,6 +101,23 @@ export function BriefingHeader({ asset, card, isLive }: BriefingHeaderProps) {
           <h1 className="mt-3 font-serif text-5xl tracking-tight text-[var(--color-text-primary)]">
             {asset.replace("_", "/")}
           </h1>
+
+          {priceTrend && priceTrend.length >= 2 && (
+            <div className="mt-3 flex items-center gap-3">
+              <Sparkline
+                values={priceTrend}
+                ariaLabel={`Tendance du prix de clôture intrajournalier ${asset.replace(
+                  "_",
+                  "/",
+                )}, ${priceTrend.length} dernières barres`}
+                width={160}
+                height={36}
+              />
+              <span className="text-[10px] uppercase tracking-[0.2em] text-[var(--color-text-muted)]">
+                Prix intraday · {priceTrend.length} barres
+              </span>
+            </div>
+          )}
 
           {card?.thesis && (
             <p className="mt-3 max-w-xl text-base leading-relaxed text-[var(--color-text-secondary)]">
