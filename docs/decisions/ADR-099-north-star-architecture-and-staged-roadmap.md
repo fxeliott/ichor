@@ -2389,3 +2389,99 @@ backend / zero migration (alembic still 0050) ; doctrine #9 dated
 append, no new ADR ; NOT de-accumulation / NOT a Tier-4 increment — a
 discrete pre-existing-defect fix (the r111 spawn-task), correctly
 scoped to one root cause.
+
+## Implementation (r115, 2026-05-19) — the r111 spawn-task, part 2/2: the UNIFIED `motion`-strict root cause — full `motion.*` rendered inside `<LazyMotion strict>` throws the framer-motion invariant → React #418 on `/` (the SAME root cause as the r111-witnessed briefing `TypeError ×9`, which r112 already resolved by migrating `briefing/*` to `m`)
+
+**R59 — root-caused via the mandated non-minified dev build, NEVER
+guessed.** The r111 witness reported two SEPARATE briefing/landing
+symptoms (`TypeError: e[o] is not a function ×9` on `/briefing/[asset]`
+from vendor chunks ; minified `React #418` on `/`). Empirically, on the
+**current r112 deploy**, `/briefing/EUR_USD` + `/briefing/XAU_USD` are
+**console-clean** (fresh load + full scroll + all four tabs
+Live/Analyse/Surveillance/Calibration — 0 errors ; the prompt's cited
+chunks `5889-*`/`7985-*` are not even loaded on the briefing route —
+the build graph differs from the r111 witness build). `/` still emits
+`React #418`. A `pnpm next dev` run with the real backend (read-only
+SSH tunnel, `reactStrictMode` + non-minified) loaded `/` and printed
+the **decisive non-minified error**, handled by `<ErrorBoundaryHandler>`
+inside `<MotionDOMComponent>` :
+
+> `Error: You have rendered a 'motion' component within a 'LazyMotion'
+component. This will break tree shaking. Import and render a 'm'
+component instead.` — `framer-motion@12.38.0`
+> `motion/index.mjs:127 useStrictMode` →
+> `MessagePort.performWorkUntilDeadline` (scheduler).
+
+**Single root cause for BOTH symptoms.**
+`components/motion/motion-provider.tsx:27` mounts
+`<LazyMotion features={domAnimation} strict>` site-wide (the
+intentional ~25 KB→~6 KB tree-shake ; docstring already cites
+motion.dev/docs/react-lazy-motion). framer-motion's `strict` mode
+**throws** an invariant if any full `motion.*` component (vs the
+lightweight `m.*`) renders inside it. Production-minified, that throw
+manifests as the briefing `TypeError: e[o] is not a function` (one per
+animated panel — the r111 "×9") and, on `/`, as `React #418` (the
+throw is caught by the route error boundary mid-hydration → the
+server-rendered text no longer matches the client tree → React's
+minified text-mismatch code, `args[]=text`). Grep proof : **every
+`components/briefing/*` already imports `{ m } from "motion/react"`**
+(VolumePanel, BriefingHeader, ScenariosPanel, … 19 files) and renders
+`<m.*>` — that `motion`→`m` briefing migration is precisely what the
+r111→r112 work landed, and is **why Defect 1 no longer reproduces on
+r112** (an R59 non-reproduction _explained by root cause + git
+history_, NOT a fabricated fix — there is nothing left to fix on
+`briefing/*` ; verified all 19 use `m`, r112 prod briefing pages are
+console-clean). The **only remaining `motion.*` violators** are three
+`components/ui/*` client components on the landing `/` (absent from
+the `/briefing` shell — exactly why `/briefing` is clean and `/` is
+not) :
+
+- `components/ui/crisis-banner.tsx` — `import { motion,
+useReducedMotion }` ; `<motion.div>` (lines 23, 75, 118).
+- `components/ui/live-ticker.tsx` — `import { motion,
+useReducedMotion, useSpring, useTransform }` ; `<motion.span>`
+  (lines 20, 36).
+- `components/ui/bias-opportunities-grid.tsx` — `import { motion,
+useReducedMotion }` ; `<motion.div>` ×2 (lines 22, 78, 130).
+
+**Fix (mechanical, house-pattern, the framer-motion-canonical
+remedy).** In those three files only : `import { motion, … }` →
+`import { m, … }` and every `<motion.X>`/`</motion.X>` →
+`<m.X>`/`</m.X>`. The hooks (`useReducedMotion`, `useSpring`,
+`useTransform`) are NOT the component factory — they stay imported
+from `motion/react`, LazyMotion-safe (verbatim the validated
+`briefing/*` pattern, e.g. `EventSurpriseGauge.tsx`). **NOT**
+weakening the provider by dropping `strict` (that would defeat the
+documented tree-shake the provider exists for and re-hide the next
+regression) — the canonical fix is `m`, applied where the asymmetry
+lives. Animation props/behaviour byte-identical (`m.*` mirrors
+`motion.*` exactly). The `relTime()` `Date.now()` string in
+`bias-opportunities-grid` is a _latent_ SSR/CSR text-skew but the dev
+build showed the `motion`-strict invariant — NOT a text-content
+warning — as the `/` error ; evidence-driven, NOT speculatively
+touched (no scope creep ; if a residual surfaces in the witness it is
+addressed then, on evidence).
+
+Build gate : `tsc --noEmit` + `eslint --max-warnings 0` +
+`vitest run` + a single consolidated `next build` pre-deploy (one
+build, not per-increment — avoids `.next` contention with the
+diagnosis dev server ; both increments touch orthogonal files
+[`lib/api.ts` vs 3 `components/ui/*`] so a combined final build is a
+sound gate). Deploy : `scripts/hetzner/redeploy-web2.sh` additive
+(separate `ichor-web2`/-tunnel units ; legacy `ichor-web` :3030
+untouched ; quick-tunnel URL rotates per the script caveat —
+recaptured). Real-prod Playwright witness (consolidated, both
+increments) : console **0 errors / 0 warnings** on `/`,
+`/briefing/EUR_USD`, `/briefing/XAU_USD` (briefing already clean on
+r112 — the witness proves the Defect-1 resolution _holds_ and `/` is
+now clean for #418 + the r114 `localhost:8001`). The pre-existing
+trivial `favicon.ico` 404 is on the separate hygiene backlog and is
+NOT this root cause — flagged honestly, the "0/0" target additionally
+adds a minimal `app/icon` only if needed to genuinely reach the bar
+(decided on the witnessed evidence, not pre-emptively).
+
+Voie D + ADR-017 held — pure frontend animation-import hygiene, ZERO
+Anthropic API, no signals/Couche-2 ; zero backend / zero migration
+(alembic still 0050) ; doctrine #9 dated append, no new ADR ; NOT a
+Tier-4 increment — the r111 spawn-task part 2/2, one root cause, one
+mechanical fix, three files.

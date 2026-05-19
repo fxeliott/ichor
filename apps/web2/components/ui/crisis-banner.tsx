@@ -20,7 +20,7 @@
  * we add the live ticker (sees fresher data).
  */
 
-import { motion, useReducedMotion } from "motion/react";
+import { m, useReducedMotion } from "motion/react";
 import { useEffect, useState } from "react";
 import { apiGet, type AlertItem } from "@/lib/api";
 
@@ -72,7 +72,7 @@ export function CrisisBanner() {
     (state.alert.description ?? "") || `${state.alert.metric_name} = ${state.alert.metric_value}`;
 
   return (
-    <motion.div
+    <m.div
       role="alert"
       aria-live="assertive"
       tabIndex={0}
@@ -115,6 +115,6 @@ export function CrisisBanner() {
         </a>
       </div>
       <p className="sr-only">{codes}</p>
-    </motion.div>
+    </m.div>
   );
 }

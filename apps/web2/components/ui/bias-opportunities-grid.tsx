@@ -19,7 +19,7 @@
  * smoothly. Respects prefers-reduced-motion.
  */
 
-import { motion, useReducedMotion } from "motion/react";
+import { m, useReducedMotion } from "motion/react";
 import Link from "next/link";
 
 interface TodayTopSession {
@@ -75,14 +75,14 @@ export function BiasOpportunitiesGrid({ data }: { data: TodayOut | null }) {
   return (
     <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
       {data.top_sessions.slice(0, 6).map((s, i) => (
-        <motion.div
+        <m.div
           key={`${s.asset}-${s.generated_at}`}
           initial={reduced ? false : { y: 12, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: reduced ? 0 : i * 0.07, duration: 0.32 }}
         >
           <OpportunityCard session={s} />
-        </motion.div>
+        </m.div>
       ))}
     </div>
   );
@@ -127,7 +127,7 @@ function OpportunityCard({ session: s }: { session: TodayTopSession }) {
           </span>
         </div>
         <div className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--color-bg-elevated)]">
-          <motion.div
+          <m.div
             initial={reduced ? false : { width: 0 }}
             animate={{ width: `${conviction}%` }}
             transition={{ duration: reduced ? 0 : 0.8, ease: "easeOut" }}
