@@ -6,6 +6,7 @@
 
 import { BiasIndicator, MetricTooltip } from "@/components/ui";
 import { apiGet, isLive, type YieldCurveStandalone } from "@/lib/api";
+import { linScale, svgCoord } from "@/lib/microchart";
 
 interface RenderTenor {
   label: string;
@@ -146,15 +147,19 @@ function CurveChart({ points }: { points: RenderTenor[] }) {
   const xMin = Math.min(...xs);
   const yMax = Math.max(...ys) + 0.1;
   const yMin = Math.min(...ys) - 0.1;
-  const sx = (x: number) =>
-    PAD +
-    ((Math.log(x + 0.01) - Math.log(xMin + 0.01)) / (Math.log(xMax) - Math.log(xMin + 0.01))) *
-      (W - 2 * PAD);
-  const sy = (y: number) => H - PAD - ((y - yMin) / (yMax - yMin)) * (H - 2 * PAD);
+  // r118 — coord-math migrated onto the r105 SSOT (doctrine #9). The log-x
+  // is a caller `Math.log` domain-transform ∘ the existing `linScale` (NOT a
+  // new primitive — the r111 bandSeriesPolyline-composes-linScale pattern);
+  // the asymmetric `+0.01` epsilon (xMax term has none) lives entirely in
+  // these three log args, preserved exactly. y keeps its legitimate ±0.1
+  // line-chart zoom via the r108 inverted-range linScale (NOT a bar baseline).
+  const sxLog = linScale(Math.log(xMin + 0.01), Math.log(xMax), PAD, W - PAD);
+  const sx = (x: number) => sxLog(Math.log(x + 0.01));
+  const sy = linScale(yMin, yMax, H - PAD, PAD);
   const path = points
     .map(
       (p, i) =>
-        `${i === 0 ? "M" : "L"} ${sx(p.tenor_years).toFixed(1)} ${sy(p.yield_pct).toFixed(1)}`,
+        `${i === 0 ? "M" : "L"} ${svgCoord(sx(p.tenor_years))} ${svgCoord(sy(p.yield_pct))}`,
     )
     .join(" ");
 

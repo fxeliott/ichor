@@ -31,11 +31,21 @@
  * un-enumerated coord-scalar site** (`HeatmapBars`'s `(v/max)*100`
  * CSS-div grid on the separate `/hourly-volatility` route, an
  * r108-`ScenariosPanel`-class proportional scalar) and migrated it
- * onto `barFromBaseline` via the NEW `<BarSeries>` consumer — the
- * consumer ledger is refined to {VolumePanel r105 · ScenariosPanel
- * r108 · confluence-history r109 · I3 r111 · HeatmapBars r116} (the
- * r110 precedent : a prior ledger is a HYPOTHESIS R59 refines ; see
- * ADR-099 §Implementation(r116b)). Remaining Tier-4 is additive NEW
+ * onto `barFromBaseline` via the NEW `<BarSeries>` consumer. **r118
+ * R59-surfaced a 6th un-enumerated coord-scaling site** on the
+ * never-swept `/yield-curve` route (`CurveChart`'s hand-rolled log-x
+ * + linear-y normalization + `.toFixed(1)`): the log-x is NOT a new
+ * primitive — it decomposes into a caller `Math.log` domain-transform
+ * ∘ this `linScale` (the r111 `bandSeriesPolyline`-composes-`linScale`
+ * pattern), the y its legitimate ±0.1 line-chart zoom via the r108
+ * inverted-range `linScale` (NOT a `barFromBaseline` 0-baseline —
+ * a line chart's zoom is correct, the no-truncated-axis invariant is
+ * bar-scoped). Migrated raw ≤1-ULP / `svgCoord`-formatted bit-
+ * identical. The consumer ledger is refined to {VolumePanel r105 ·
+ * ScenariosPanel r108 · confluence-history r109 · I3 r111 ·
+ * HeatmapBars r116 · CurveChart r118} (the r110 precedent : a prior
+ * ledger is a HYPOTHESIS R59 refines ; see ADR-099
+ * §Implementation(r116b)+(r118)). Remaining Tier-4 is additive NEW
  * components / consumers — "more coverage" (doctrine #8), the
  * de-accumulation refinement is itself a verified increment.
  *

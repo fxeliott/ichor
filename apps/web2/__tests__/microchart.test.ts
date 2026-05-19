@@ -693,3 +693,117 @@ describe("microchart SSOT — r117 consumer contract: 2nd <BarSeries> (hourly-vo
     expect(rects[maxIdx]!.y).toBe(svgCoord(H - H * 0.92)); // max bar tops the 0.92 fill band
   });
 });
+
+describe("microchart SSOT — yield-curve CurveChart migration (r118 de-accumulation, split honesty)", () => {
+  // r118 is a doctrine-#9 consumer-migration of a NEVER-enumerated
+  // coord-scaling site (`app/yield-curve/page.tsx` CurveChart) onto the
+  // EXISTING SSOT — the r108/r109/r111 split-honesty discipline, NOT
+  // byte-identical-flattened. The log-x is a caller `Math.log` domain-
+  // transform ∘ `linScale` (NO new primitive — the r111
+  // bandSeriesPolyline-composes-linScale pattern) ; the asymmetric `+0.01`
+  // epsilon (xMax term has none) lives in the three log args, preserved
+  // exactly. y keeps its legitimate ±0.1 line-chart zoom via the r108
+  // inverted-range `linScale` (NOT a bar 0-baseline — the prompt's
+  // "truncated-axis" framing R59-DISPROVED, the invariant is bar-scoped).
+  // `oldSx`/`oldSy`/`oldPath` are the VERBATIM pre-r118 page.tsx inline.
+  const W = 720;
+  const H = 280;
+  const PAD = 50;
+
+  // R53-witnessed live shape (2026-05-19, obs 2026-05-15: the 8 populated
+  // tenors `1Y=3.82 … 30Y=5.12`), the FALLBACK seed (10 tenors), n=2 edge.
+  const live8 = [
+    { x: 1, y: 3.82 },
+    { x: 2, y: 4.09 },
+    { x: 3, y: 4.14 },
+    { x: 5, y: 4.26 },
+    { x: 7, y: 4.43 },
+    { x: 10, y: 4.59 },
+    { x: 20, y: 5.14 },
+    { x: 30, y: 5.12 },
+  ];
+  const seed10 = [
+    { x: 0.25, y: 4.86 },
+    { x: 0.5, y: 4.78 },
+    { x: 1, y: 4.65 },
+    { x: 2, y: 4.62 },
+    { x: 3, y: 4.4 },
+    { x: 5, y: 4.21 },
+    { x: 7, y: 4.18 },
+    { x: 10, y: 4.18 },
+    { x: 20, y: 4.42 },
+    { x: 30, y: 4.38 },
+  ];
+  const minimalTwo = [
+    { x: 2, y: 4.09 },
+    { x: 10, y: 4.59 },
+  ];
+
+  for (const [name, fx] of [
+    ["live8 (R53 2026-05-15)", live8],
+    ["FALLBACK seed10", seed10],
+    ["minimal n=2", minimalTwo],
+  ] as const) {
+    const xs = fx.map((p) => p.x);
+    const ys = fx.map((p) => p.y);
+    const xMax = Math.max(...xs);
+    const xMin = Math.min(...xs);
+    const yMax = Math.max(...ys) + 0.1;
+    const yMin = Math.min(...ys) - 0.1;
+    // VERBATIM pre-r118 inline (page.tsx pre-migration).
+    const oldSx = (x: number) =>
+      PAD +
+      ((Math.log(x + 0.01) - Math.log(xMin + 0.01)) / (Math.log(xMax) - Math.log(xMin + 0.01))) *
+        (W - 2 * PAD);
+    const oldSy = (y: number) => H - PAD - ((y - yMin) / (yMax - yMin)) * (H - 2 * PAD);
+    const oldPath = fx
+      .map((p, i) => `${i === 0 ? "M" : "L"} ${oldSx(p.x).toFixed(1)} ${oldSy(p.y).toFixed(1)}`)
+      .join(" ");
+    // r118 SSOT form — exactly as page.tsx now composes it.
+    const sxLog = linScale(Math.log(xMin + 0.01), Math.log(xMax), PAD, W - PAD);
+    const newSx = (x: number) => sxLog(Math.log(x + 0.01));
+    const newSy = linScale(yMin, yMax, H - PAD, PAD);
+    const newPath = fx
+      .map((p, i) => `${i === 0 ? "M" : "L"} ${svgCoord(newSx(p.x))} ${svgCoord(newSy(p.y))}`)
+      .join(" ");
+
+    it(`raw sx ≈ inline to ≤1 ULP (multiply-order, NOT bit-identical) — honest split — ${name}`, () => {
+      for (const p of fx) expect(newSx(p.x)).toBeCloseTo(oldSx(p.x), 9);
+    });
+
+    it(`raw sy ≈ inline to ≤1 ULP (multiply-order, NOT bit-identical) — honest split — ${name}`, () => {
+      for (const p of fx) expect(newSy(p.y)).toBeCloseTo(oldSy(p.y), 9);
+    });
+
+    it(`domain-origin maps EXACTLY (no multiply-order: sx(xMin)→PAD, sy(yMin)→H−PAD, bit-identical) — ${name}`, () => {
+      expect(newSx(xMin)).toBe(PAD);
+      expect(oldSx(xMin)).toBe(PAD);
+      expect(newSy(yMin)).toBe(H - PAD);
+      expect(oldSy(yMin)).toBe(H - PAD);
+    });
+
+    it(`svgCoord-formatted path string === verbatim .toFixed(1) — BIT-IDENTICAL despite raw ≤1-ULP (r109/r111 path-format precedent) — ${name}`, () => {
+      expect(newPath).toBe(oldPath);
+    });
+
+    it(`path is SSOT-composed, well-formed: starts M, all coords 1-dp, in-viewBox [0,W]×[0,H] — ${name}`, () => {
+      // viewBox bounds (the r117 idiom), NOT the [PAD,W−PAD] plot inset:
+      // the pre-existing asymmetric epsilon (xMax log term has no `+0.01`)
+      // makes the last x slightly overshoot W−PAD — preserved exactly
+      // (byte-identical-class), flag-not-fixed (#11), still well within [0,W].
+      const cmds = newPath.split(" ");
+      expect(cmds[0]).toBe("M");
+      const coordRe = /^-?\d+\.\d$/;
+      for (let i = 0; i < fx.length; i++) {
+        const xc = Number(cmds[i * 3 + 1]);
+        const yc = Number(cmds[i * 3 + 2]);
+        expect(cmds[i * 3 + 1]).toMatch(coordRe);
+        expect(cmds[i * 3 + 2]).toMatch(coordRe);
+        expect(xc).toBeGreaterThanOrEqual(-1e-9);
+        expect(xc).toBeLessThanOrEqual(W + 1e-9);
+        expect(yc).toBeGreaterThanOrEqual(-1e-9);
+        expect(yc).toBeLessThanOrEqual(H + 1e-9);
+      }
+    });
+  }
+});
