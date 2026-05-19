@@ -16,6 +16,20 @@
  *
  * ADR-017 boundary : this is a probability distribution over realized
  * outcome buckets, NOT a trade recommendation. No BUY/SELL.
+ *
+ * r108 (ADR-099 §Implementation(r108), Tier 4 increment 4) — the
+ * proportional bar-width scalar now consumes the r105 `linScale` SSOT
+ * (`lib/microchart.ts`), the announced "proportional ladder scalar"
+ * consumer (microchart.ts:13-15). doctrine-#9 anti-accumulation : this
+ * was the 3rd hand-rolled coord-math site. NUMERICALLY EQUIVALENT to the
+ * pre-r108 inline `(p/maxP)*100`, NOT bit-identical : `linScale` evaluates
+ * `p*(100/maxP)` (different IEEE754 multiply order, ≤1 ULP, ≤~4e-14 on
+ * [0,100] — sub-pixel ; the r105-flagged float-order, re-proven at full
+ * precision in `__tests__/microchart.test.ts`, NOT over-claimed as
+ * byte-identical). R59 (r108) : `card.scenarios` verified populated
+ * (7-bucket) on ALL 5 priority assets on prod ⇒ NO live fallback ;
+ * `/v1/scenarios/{a}` is the shape-incompatible 3-kind ScenarioRow, not
+ * a fallback for this Pass-6 distribution.
  */
 
 "use client";
@@ -23,6 +37,7 @@
 import { m } from "motion/react";
 
 import type { Scenario, ScenarioLabel } from "@/lib/api";
+import { linScale } from "@/lib/microchart";
 
 const LABEL_FR: Record<ScenarioLabel, string> = {
   crash_flush: "Crash / flush",
@@ -88,6 +103,10 @@ export function ScenariosPanel({ scenarios }: { scenarios: Scenario[] }) {
 
   const ordered = sortCanonical(scenarios);
   const maxP = Math.max(...ordered.map((s) => s.p), 0.01);
+  // r108 — proportional bar-width via the r105 `linScale` SSOT (the
+  // announced consumer, microchart.ts:13-15 ; doctrine-#9). Closure built
+  // once per render (the r106 `divergingStop` compose-linScale idiom).
+  const pWidth = linScale(0, maxP, 0, 100);
   const bearMass = ordered
     .filter((s) => LABEL_TONE[s.label] === "bear")
     .reduce((acc, s) => acc + s.p, 0);
@@ -155,7 +174,7 @@ export function ScenariosPanel({ scenarios }: { scenarios: Scenario[] }) {
       <ul className="divide-y divide-[var(--color-border-subtle)]/60">
         {ordered.map((s, i) => {
           const tone = LABEL_TONE[s.label];
-          const widthPct = Math.max((s.p / maxP) * 100, 2);
+          const widthPct = Math.max(pWidth(s.p), 2);
           const [lo, hi] = s.magnitude_pips;
           return (
             <m.li

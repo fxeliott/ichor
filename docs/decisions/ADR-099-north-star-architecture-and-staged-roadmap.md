@@ -990,3 +990,206 @@ forecast≠preuve / #2 SHIPPED≠FUNCTIONAL).**
 
 Voie D + ADR-017 held ; additive web2-only deploy ; zero backend / zero
 migration (alembic still 0050) ; doctrine #9 dated append, no new ADR.
+
+## Implementation (r108, 2026-05-19) — Tier 4 increment 4: the probability ladder onto the r105 `linScale` SSOT
+
+`ScenariosPanel` already renders the Pass-6 7-bucket outcome distribution
+(ADR-085) as a diverging probability ladder (bear/base/bull-tinted rows,
+`width ∝ p`, skew header, mechanism narrative, ADR-017 boundary docstring).
+Tier 4 increment 4 is therefore **not** a visual rebuild — it is the
+doctrine-#9 anti-accumulation step the r105 SSOT was explicitly built for:
+the ladder's hand-rolled proportional bar-width scalar
+`Math.max((s.p / maxP) * 100, 2)` is the THIRD hand-rolled coordinate-math
+site (after `VolumePanel`, migrated r105, and `confluence-history` /
+`regime-quadrant`, still pending). `lib/microchart.ts:13-15` names
+"proportional ladder/heat-strip scalars" as an announced `linScale`
+consumer — r108 makes the ladder consume it, validating the r105 foundation
+across a SECOND independent consumer (the r105 lesson: a SSOT scoped to one
+consumer is a fake-SSOT — proven not-fake here).
+
+**R59 inspect-first (doctrine #3 — the prompt's anticipated trap did NOT
+materialize; the design was reshaped by the real shapes, not memory).** The
+r106-class SHIPPED≠FUNCTIONAL trap was the prime risk (the resume contract
+anticipated an empty `card.scenarios` like r106's empty `{}`
+`correlations_snapshot`, and instructed a live `/v1/scenarios/{a}`
+fallback). Real-prod Playwright on the deployed dashboard
+(`/v1/sessions/{a}?limit=1`) proved **all 5 priority assets carry a fully
+populated 7-bucket `card.scenarios`** (EUR_USD `1750e73a` ny_mid,
+GBP_USD `c7bdd81c` ny_mid, XAU_USD `96f36fad` pre_londres,
+SPX500_USD `f544725b` ny_mid, NAS100_USD `61ee0bea` ny_mid — each
+`scenarios.length === 7`, full `{label,p,magnitude_pips,mechanism}`
+shape). The ladder is therefore ALREADY functional on every priority
+asset via the existing `card.scenarios` path. Independently,
+`/v1/scenarios/{a}` was confirmed to return the **shape-incompatible**
+`ScenariosResponse.scenarios: ScenarioRow[]` 3-kind
+(`continuation`/`reversal`/`sideways`, `probability`, `triggers[]`)
+representation — NOT the 7-bucket Pass-6 distribution, and `api.ts`
+wires no `getScenarios()` client at all. Bolting it on as a "fallback"
+would be both unnecessary (no empty card to fall back from) AND a
+data-misrepresentation (a different scenario model rendered as the Pass-6
+ladder). **r108 ships NO live fallback** — the calibrated-honesty #11
+call: do not add a shape-wrong, unneeded fallback to satisfy a
+forecast-trap that the real data disproved (R59 reshape > prompt).
+
+**Decision — consume `linScale`, numerically equivalent to full precision,
+NOT bit-identical (disclosed).** `linScale(0, maxP, 0, 100)(p)` evaluates
+(by the r105 SSOT's fixed `rangeMin + (v - domainMin) * k` form, with
+`k = 100 / maxP`) to `p * (100 / maxP)`, whereas the pre-r108 inline was
+`(p / maxP) * 100`. These are the SAME real number but a DIFFERENT IEEE754
+multiply order — they agree to ≤ 1 ULP (≤ ~4e-14 absolute on the [0,100]
+width domain, far below any sub-pixel / CSS-serialized threshold), they do
+NOT agree bit-for-bit. This is precisely the "float-order risk" r105
+flagged when it deferred the `bandSeriesPolyline`-atop-`linScale`
+re-expression (the I3 item) "to avoid a float-order risk for no r105
+consumer" — r108 is the first round with a genuine `linScale`-replaces-an-
+existing-inline consumer, so the equivalence is re-proven HERE, at full
+double precision, with the multiply-order delta explicitly disclosed
+rather than over-claimed as "byte-identical" (lesson #1 forecast≠preuve /
+#11 calibrated honesty ; the r105/r106 "byte-identical" precedent does NOT
+transfer — those were same-order extractions, this is a scale-primitive
+substitution).
+
+**What r108 implemented.**
+
+1. **`ScenariosPanel.tsx`** — `import { linScale } from "@/lib/microchart"`
+   ; the scale closure is built ONCE per render
+   (`const pWidth = linScale(0, maxP, 0, 100)`, the r106 `divergingStop`
+   compose-linScale idiom) ; the per-row scalar becomes
+   `Math.max(pWidth(s.p), 2)`. The `Math.max(_, 2)` min-visible-bar clamp
+   (a presentation-integrity floor — a tiny-p bucket must still show a
+   sliver, the analogue of `bandLayout`'s `Math.max(1, …)` and
+   `barFromBaseline`'s `Math.max(minH, h)`) is kept verbatim at the call
+   site, NOT folded into a new helper (a 1-line clamp is not accumulation
+   — anti-over-extraction, the r96 reconcile-not-blindly lesson ; `pWidth`
+   directly consumes the SSOT primitive, no derived module warranted —
+   unlike r106 `correlationHeat.ts` whose `divergingStop` was a non-trivial
+   signed-offset composition). `maxP = Math.max(…, 0.01)` floor unchanged
+   (guarantees `linScale`'s span ≠ 0, so the degenerate-domain branch is
+   never hit — equivalent guard).
+2. **`__tests__/microchart.test.ts`** — a new describe block proves the
+   substitution at the SSOT (the r105 embedded-verbatim idiom): the
+   verbatim pre-r108 inline `(p / maxP) * 100` and the end-to-end
+   `Math.max(…, 2)` composition are asserted equal to the `linScale`
+   form to 9 decimal places (the ≤1-ULP multiply-order delta encoded
+   honestly as `toBeCloseTo(_, 9)`, NOT `toBe`), with the exact-equality
+   cases (`p = 0`) pinned `===`, across a realistic 7-bucket distribution
+   - edges (`p = maxP`, tiny p triggering the clamp, the `maxP = 0.01`
+     all-near-zero floor).
+3. **Docstring** — the `ScenariosPanel` header records the r108 SSOT
+   migration, the doctrine-#9 de-accumulation rationale, the
+   numerically-equivalent-not-bit-identical disclosure, and the R59
+   finding (card.scenarios populated on all 5 priority assets ⇒ no live
+   fallback ; `/v1/scenarios` is the incompatible 3-kind shape).
+
+**Honest non-atomic scope (lesson #11 ; R59 anti-scope-creep).** r108 =
+the `linScale` SSOT migration of the ladder's proportional scalar ONLY.
+Explicitly DEFERRED, flagged not silently absorbed: (i) **the remaining
+Tier 4 SSOT-migration ledger, carried forward in full from r105 — NOT
+thinned** (doctrine #11, no deferred item evaporates by omission): the
+r105 **I3** `bandSeriesPolyline`-atop-`linScale` re-expression, the
+`confluence-history` `xAt/yAt` site, and the `regime-quadrant`
+`pathFromHistory` site — each its own future SSOT-migration increment
+that MUST re-prove its equivalence at its own gate (the same float-order
+discipline applied here). The non-Tier-4 r107-deferred items
+(`globals.css` §5 border-α §1.4.11, `NarrativeBlocks` `/10` warn-chip)
+are orthogonal to the ladder and remain tracked under §Impl(r107) /
+ADR-099 residuals — out of r108 scope, not dropped ; (ii) any visual/structural ladder
+redesign (the current ladder is a polished, ADR-017-clean presentation —
+a rebuild would be accumulation/regression risk for marginal gain, not an
+atomic increment) ; (iii) the `SentimentPanel`↔`ScenariosPanel`
+empty-state text-tier inconsistency (the r107-deferred cross-panel
+convention decision) — untouched, still its own increment.
+
+**Reviews (consolidated single pass — doctrine #14, re-verified on the
+post-prettier committed shape ; accessibility-reviewer N/A-with-reason:
+the render is numerically/visually unchanged — no new colour encoding,
+no DOM/aria change, the ladder already uses the post-r107 working
+`[var(--color-*)]` form — exactly the r105 "byte-identical ⇒ a11y
+definitionally unchanged" N/A reasoning ; ichor-trader R28 + ui-designer
+mandatory).**
+
+- **ui-designer — APPROVE, 0 Critical / 0 Important / 2 non-blocking
+  nits (explicitly NOT applied — defensible per the not-bit-identical
+  honesty doctrine + repo float-order-archaeology convention).** The
+  once-per-render `pWidth = linScale(0, maxP, 0, 100)` closure + per-row
+  `pWidth(s.p)` is confirmed the correct r106 `divergingStop`
+  compose-linScale idiom (a declared consumer, not opportunistic reuse).
+  Keeping `Math.max(_, 2)` inline confirmed correct: the 2 % min-visible
+  clamp is a presentational concern (not coord math), single-call-site —
+  extracting it would be the r96 anti-over-extraction anti-pattern, and
+  the r105 C1 fake-SSOT lesson cuts the opposite way (`linScale` itself
+  is the general primitive ; the clamp is not). Change confirmed
+  visually inert (no numerically-equivalent path can cross a sub-pixel
+  boundary on a CSS `%` width).
+- **ichor-trader R28 — GREEN to merge, 0 RED, 2 YELLOW (both
+  doc/comment-only, APPLIED pre-merge).** ADR-017 boundary intact (pure
+  presentation refactor, no order/sizing/personalization) ; the
+  numerical-honesty framing verified accurate & consistent across
+  docstring / ADR / test ("the strongest part of this change —
+  correctly refuses the byte-identical precedent and proves the ≤1-ULP
+  delta at full precision") ; the math independently re-derived
+  (`linScale` → `p*(100/maxP)` vs pre-r108 `(p/maxP)*100`, ≤1 ULP /
+  ~1.4e-14 relative at value ≈100, sub-pixel) ; R59 honesty correctly
+  scoped (verified-on-current-prod-cards, not "always populated" ;
+  empty-state handles legacy `[]`) ; no cross-file drift (grep: zero
+  stale production `(p/maxP)*100` outside the deliberately-verbatim
+  test `old*` helpers). **YELLOW-1 APPLIED**: the `microchart.ts:13-17`
+  citation (3×: docstring, inline comment, this ADR) tightened to
+  `microchart.ts:13-15` (the linScale-consumer sentence ends line 15 ;
+  16-17 describe `bandSeriesPolyline`/`barFromBaseline`). **YELLOW-2
+  APPLIED**: the Deferred (i) reworded into an explicit
+  "carried-forward-in-full-from-r105, NOT thinned" Tier 4 SSOT-migration
+  ledger (I3 + `confluence-history` + `regime-quadrant`), with the
+  non-Tier-4 r107-deferred items explicitly noted as orthogonal /
+  still-tracked-under-§Impl(r107) — doctrine #11, no deferred item
+  evaporates by omission.
+- **accessibility-reviewer — N/A-with-reason (the r105 byte-identical
+  precedent for the a11y N/A call).** No new colour encoding, no DOM /
+  aria / role change, no contrast change — the ladder already used the
+  post-r107 working `[var(--color-*)]` form and the render is
+  numerically/visually unchanged (≤1 ULP, sub-pixel). A11y is
+  definitionally unchanged ; a full WCAG pass would have been mandatory
+  had r108 introduced a new colour/visual encoding (it did not — that
+  was r106's heat-strip).
+
+**Verification (real numbers — measured on deployed prod, not
+forecast ; lesson #1 forecast≠preuve / #2 SHIPPED≠FUNCTIONAL).**
+
+- **Build gate** (final post-prettier committed shape, doctrine #14 ;
+  re-run GREEN after the 2 YELLOW doc fixes):
+  `pnpm --filter @ichor/web2` `tsc --noEmit` **0** · `eslint
+--max-warnings 0` (ScenariosPanel + microchart.test) **0** · vitest
+  **7 files / 105 tests pass** (r107 baseline 95 + the new r108
+  `linScale`-consumer describe block 10 = 105 ; zero regression) ·
+  `next build` **OK** (all routes compiled).
+- **Deploy**: `scripts/hetzner/redeploy-web2.sh` (additive — port 3031,
+  legacy `ichor-web` 3030 untouched, tunnel NOT restarted → public URL
+  stable). RESULT **local=200 public=200, `DEPLOY OK`** ; ONE
+  consolidated SSH (no Step-4 throttle).
+- **Real-prod witness** — Playwright on the deployed public dashboard
+  (doctrine #7 zero-exposure ; the SHIPPED≠FUNCTIONAL gate — REAL
+  7-bucket `card.scenarios` data on REAL priority assets, not a
+  forecast), **2 distinct assets / distributions / windows**:
+  - `/briefing/EUR_USD` (card `1750e73a`, ny_mid, maxP=0.30): 7 rows
+    canonical order ; the new `linScale` path renders the EXACT
+    proportional widths — Base `p=0.30` → 100 % (1046/1046 px), Baisse
+    modérée `p=0.22` → 73.33 % (767.06 px), Forte baisse `p=0.18` →
+    60 % (627.6 px), Crash `p=0.02` → 6.67 % (69.72 px) — every bar
+    matches `p·(100/maxP)` to sub-pixel ; tones resolve to exact OKLCH
+    (`bear oklch(0.7106 0.1661 22.22)`, `neutral oklch(0.7107 0.0351
+256.79)`, `bull oklch(0.7729 0.1535 163.22)` — post-r107 working form,
+    r107+r108 together) ; skew header "biais baissier (−14 pts)"
+    arithmetically correct (bear 0.42 − bull 0.28).
+  - `/briefing/XAU_USD` (card `96f36fad`, pre_londres — different
+    window & distribution 2/12/22/34/20/8/2, maxP=0.34): all 7 rendered
+    widths match the expected `max(p/maxP·100, 2)` to sub-pixel
+    (programmatic check: every row `match:true`) ; skew "−6 pts"
+    correct ; exact OKLCH tones.
+  - **Console**: warm reload = **0 errors / 0 warnings** (cleaner than
+    r107's documented cold-load 404-favicon + transient preload — r108
+    introduces nothing ; a class-string-free scalar swap cannot).
+  - Element screenshot of the EUR_USD ladder captured (the restored
+    premium diverging-ladder gestalt, unchanged).
+
+Voie D + ADR-017 held ; additive web2-only deploy ; zero backend / zero
+migration (alembic still 0050) ; doctrine #9 dated append, no new ADR.

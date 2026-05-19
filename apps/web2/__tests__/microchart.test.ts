@@ -172,3 +172,69 @@ describe("microchart SSOT — barFromBaseline 0-baseline invariant (r105 I2)", (
     expect(() => barFromBaseline(3, 8123, 8123, layout, volH)).not.toThrow();
   });
 });
+
+describe("microchart SSOT — linScale consumer: ScenariosPanel ladder scalar (r108)", () => {
+  // The VERBATIM pre-r108 ScenariosPanel inline math (the r105 `old*`
+  // idiom). `maxP` floor + per-row width with the min-visible clamp.
+  const oldMaxP = (ps: number[]) => Math.max(...ps, 0.01);
+  const oldWidthRaw = (p: number, maxP: number) => (p / maxP) * 100;
+  const oldWidthClamped = (p: number, maxP: number) => Math.max((p / maxP) * 100, 2);
+
+  // The r108 SSOT form (exactly as ScenariosPanel now composes it).
+  const newWidthRaw = (p: number, maxP: number) => linScale(0, maxP, 0, 100)(p);
+  const newWidthClamped = (p: number, maxP: number) => Math.max(linScale(0, maxP, 0, 100)(p), 2);
+
+  // Realistic canonical 7-bucket distribution (sum(p) === 1.0) + edges.
+  const sevenBucket = [0.02, 0.07, 0.16, 0.34, 0.22, 0.13, 0.06];
+  const allZero = [0, 0, 0, 0, 0, 0, 0]; // → maxP floor 0.01 path
+  const tinyTails = [0.001, 0.004, 0.02, 0.95, 0.02, 0.004, 0.001]; // clamp+max
+
+  it("maxP floor unchanged (Math.max(...ps, 0.01))", () => {
+    expect(oldMaxP(sevenBucket)).toBe(0.34);
+    expect(oldMaxP(allZero)).toBe(0.01); // degenerate → linScale span ≠ 0
+    expect(oldMaxP(tinyTails)).toBe(0.95);
+  });
+
+  it("p = 0 is EXACTLY 0 (no multiply-order ambiguity at the origin)", () => {
+    for (const ps of [sevenBucket, tinyTails]) {
+      const m = oldMaxP(ps);
+      expect(newWidthRaw(0, m)).toBe(0);
+      expect(newWidthRaw(0, m)).toBe(oldWidthRaw(0, m));
+    }
+  });
+
+  // The substitution is the SAME real number but a DIFFERENT IEEE754
+  // multiply order — `linScale` computes `p*(100/maxP)`, pre-r108 was
+  // `(p/maxP)*100`. ≤1 ULP (≤~4e-14 on [0,100]); proven to 9 decimals,
+  // NOT `toBe` — honest, the r105-flagged float-order (lesson #1/#11).
+  for (const [name, ps] of [
+    ["realistic 7-bucket", sevenBucket],
+    ["tiny tails + dominant base", tinyTails],
+    ["all-zero → maxP=0.01 floor", allZero],
+  ] as const) {
+    it(`raw scalar ≈ pre-r108 (≤1 ULP) — ${name}`, () => {
+      const m = oldMaxP(ps);
+      for (const p of ps) {
+        expect(newWidthRaw(p, m)).toBeCloseTo(oldWidthRaw(p, m), 9);
+      }
+    });
+
+    it(`clamped width ≈ pre-r108 end-to-end (incl. Math.max(_,2)) — ${name}`, () => {
+      const m = oldMaxP(ps);
+      for (const p of ps) {
+        expect(newWidthClamped(p, m)).toBeCloseTo(oldWidthClamped(p, m), 9);
+      }
+    });
+  }
+
+  it("p = maxP maps to ~100 (top bucket spans the track, ≤1 ULP)", () => {
+    const m = oldMaxP(sevenBucket); // 0.34, the base bucket
+    expect(newWidthRaw(0.34, m)).toBeCloseTo(100, 9);
+  });
+
+  it("min-visible clamp still floors a near-zero bucket at 2", () => {
+    const m = oldMaxP(tinyTails); // 0.95
+    expect(newWidthClamped(0.001, m)).toBe(2); // 0.105…% < 2 → clamped
+    expect(oldWidthClamped(0.001, m)).toBe(2); // pre-r108 identical clamp
+  });
+});
