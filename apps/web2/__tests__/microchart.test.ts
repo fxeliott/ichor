@@ -295,3 +295,62 @@ describe("microchart SSOT — confluence-history TimelineSvg migration (r109)", 
     }
   });
 });
+
+describe("microchart SSOT — bandSeriesPolyline composes linScale internally (r111 I3)", () => {
+  // The r105-deferred SSOT-internal close. The VERBATIM pre-r111 inline
+  // normalizer `(v - min) / span` vs the r111 SSOT form `bandSeriesPolyline`
+  // now composes — `linScale(min, min + span, 0, 1)(v)`. Same real number,
+  // DIFFERENT IEEE754 multiply order (`(v-min)*(1/span)` vs `(v-min)/span`,
+  // the second rounding) → raw ≤1 ULP, NOT bit-identical (the r108/r109
+  // discipline: `toBeCloseTo(_,9)` where ≤1-ULP, `toBe` where exact, the
+  // honest split never flattened). The svgCoord-formatted polyline string
+  // stays bit-identical (the ≤1-ULP delta × plotH·headFrac ≈ 3e-15 px
+  // cannot cross a .toFixed(1) 0.1 boundary — the r109 path-format split).
+  const oldNorm = (v: number, min: number, span: number) => (v - min) / span;
+  const newNorm = (v: number, min: number, span: number) => linScale(min, min + span, 0, 1)(v);
+
+  for (const [name, bars] of [
+    ["realistic", realistic],
+    ["minimal n=2 / equal closes", minimalTwo],
+    ["large values", bigValues],
+  ] as const) {
+    it(`raw normalized value ≈ pre-r111 (v-min)/span — ≤1 ULP multiply-order, NOT bit-identical (honest) — ${name}`, () => {
+      const closes = bars.map((b) => b.close);
+      const min = Math.min(...closes);
+      const span = Math.max(...closes) - min || 1;
+      for (const v of closes) {
+        expect(newNorm(v, min, span)).toBeCloseTo(oldNorm(v, min, span), 9);
+      }
+    });
+
+    it(`full bandSeriesPolyline string === verbatim pre-r111 oldPricePts — svgCoord-formatted BIT-IDENTICAL despite raw ≤1-ULP (split honesty, r109 path-format precedent) — ${name}`, () => {
+      const { slot } = bandLayout(bars.length, W);
+      const closes = bars.map((b) => b.close);
+      expect(bandSeriesPolyline(closes, slot, volH)).toBe(oldPricePts(bars));
+    });
+  }
+
+  it("v = min maps to EXACTLY 0 (the domain origin — no multiply-order, bit-identical to pre-r111)", () => {
+    for (const bars of [realistic, minimalTwo, bigValues]) {
+      const closes = bars.map((b) => b.close);
+      const min = Math.min(...closes);
+      const span = Math.max(...closes) - min || 1;
+      expect(newNorm(min, min, span)).toBe(0); // v=domainMin ⇒ exact rangeMin
+      expect(newNorm(min, min, span)).toBe(oldNorm(min, min, span));
+    }
+  });
+
+  it("candidate linScale(0, span, 0, 1)(v - min) is numerically IDENTICAL to the chosen form (sole-consumer (min+span)-min===span — the meta-r110 audit trail, not just its conclusion)", () => {
+    for (const bars of [realistic, minimalTwo, bigValues]) {
+      const closes = bars.map((b) => b.close);
+      const min = Math.min(...closes);
+      const span = Math.max(...closes) - min || 1;
+      expect(min + span - min).toBe(span); // no domain-recompute divergence
+      const a = linScale(min, min + span, 0, 1); // chosen (r105-documented algebra)
+      const b = linScale(0, span, 0, 1); // r108/r109 0-anchored idiom
+      for (const v of closes) {
+        expect(a(v)).toBe(b(v - min)); // A === B exactly for VolumePanel-class data
+      }
+    }
+  });
+});

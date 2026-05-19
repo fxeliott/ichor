@@ -1512,3 +1512,259 @@ verification ; deploy + witness N/A-with-reason, honestly stated).**
 Voie D + ADR-017 held ; web2-only doc/comment + ADR ; zero backend /
 zero migration (alembic still 0050) ; doctrine #9 dated append, no new
 ADR.
+
+## Implementation (r111, 2026-05-19) — Tier 4: the r105 **I3** — `bandSeriesPolyline` composes `linScale` internally (the SOLE remaining SSOT-internal doctrine-#9 item ; raw ≤1-ULP multiply-order, formatted-string bit-identical — disclosed, not flattened)
+
+r110 reclassified the doctrine-#9 ledger to its R59-verified truth: the
+coord-scaling _consumer-migration_ de-accumulation is COMPLETE at r109
+(`VolumePanel` r105 + `ScenariosPanel` scalar r108 + `confluence-history`
+r109 ; `pathFromHistory` reclassified out with proof), **but doctrine-#9
+is NOT fully closed — the SSOT-internal I3 remains**. r111 closes it.
+This is the explicitly-r105-deferred item, not a consumer migration: a
+`microchart.ts`-internal re-expression of `bandSeriesPolyline`'s own
+hand-rolled `(v - min) / span` min..max normalization onto the SSOT's
+`linScale` primitive, re-proving its **sole** consumer (`VolumePanel`)
+at the gate. r105's docstring deferred this verbatim — _"re-expressing
+it atop `linScale` is deferred … to avoid a float-order risk for no
+r105 consumer"_ — r111 is the round that pays that risk down honestly.
+
+**R59 inspect-first (doctrine #2/#3 — real shapes + the meta-r110
+warning that the default itself is R59-subject).** Direct verbatim
+reads: `microchart.ts:162-178` (`bandSeriesPolyline` — `min =
+Math.min(...values) ; span = Math.max(...values) - min || 1 ; y =
+plotH - ((v-min)/span)*(plotH*headFrac) - plotH*footFrac`, headFrac
+0.78 / footFrac 0.11) ; `components/briefing/VolumePanel.tsx:87` (the
+**SOLE** consumer — `bandSeriesPolyline(closes, slot, volH)`,
+`closes = usable.map(b => b.close)`, `volH = 132`, defaults) ;
+`__tests__/microchart.test.ts:43-57` (verbatim pre-r105 `oldPricePts`)
+
+- `:116-120` (the formatted-string `bandSeriesPolyline(...).toBe(
+oldPricePts(...))` across 3 fixtures). R59 result: I3 **is a genuine
+  linear-normalization site** (`(v-min)/span` IS a domain→[0,1] linear
+  scale) — NOT disproved like r110's `pathFromHistory`. The default
+  holds ; the meta-r110 R59-subject check was run and passed (I3 is real,
+  not a forced/over-abstracted migration — `bandSeriesPolyline` already
+  DOES the exact `linScale` arithmetic, just hand-rolled).
+
+**Empirical float-order computed BEFORE coding (deterministic Node, the
+real IEEE754 behaviour — never assumed).** Two candidate compositions
+were evaluated against the verbatim pre-r111 `(v-min)/span`, on the 3
+test fixtures (`realistic` n=7 price-scale, `minimalTwo` n=2 span‖1
+fallback, `bigValues` n=3): **A** = `linScale(min, min+span, 0, 1)(v)`
+(the r105-documented algebra, `microchart.ts:159-161`) ; **B** =
+`linScale(0, span, 0, 1)(v - min)` (the r108/r109 0-anchored idiom).
+Findings: (1) **`(min+span) - min === span` holds for ALL VolumePanel
+fixtures** (price magnitudes ~1…~5000 vs spans ~1e-3…~3e2) ⇒ A and B
+are **numerically identical** for the only consumer — no gratuitous
+domain-recompute divergence ; the choice is principle, not numerics.
+(2) raw normalized value vs `(v-min)/span` = **NOT bit-identical**
+(`realistic` maxΔ = 2.776e-17 ≪ 1 ULP at the [0,1] scale ; `minimalTwo`/
+`bigValues` coincidentally 0Δ) — the **multiply-order ≤1-ULP class,
+exactly r108/r109** (`(v-min)*(1/span)` vs `(v-min)/span`, the second
+rounding). (3) the **`svgCoord`-formatted `bandSeriesPolyline` string
+is BIT-IDENTICAL** to the verbatim pre-r111 `oldPricePts` for all 3
+fixtures (the ≤1-ULP raw delta × `plotH*headFrac` ≈ ×103 ≈ 3e-15 px
+cannot cross a `.toFixed(1)` 0.1 boundary except on an exact `.x5`
+tie — none in the fixtures) — **exactly the r109 path-format situation**:
+the existing `microchart.test.ts:116-120` `toBe` STAYS GREEN, no
+reclassification of that assertion.
+
+**Decision — compose `linScale(min, min + span, 0, 1)` (candidate A,
+the r105-documented algebra), raw ≤1-ULP NOT bit-identical (disclosed),
+formatted-string bit-identical (re-pinned).** A is chosen over B: it is
+the literal r105-documented decomposition (`microchart.ts:159-161` and
+the r110 ledger both state _"the `(v-min)/span` is `linScale(min,
+min+span, 0, 1)`"_), it is self-documenting (the domain IS the value
+range `[min, min+span]`, no pre-centering trick a reader must decode),
+and the empirical computation proved it introduces **no** divergence
+beyond the unavoidable multiply-order (`(min+span)-min===span` for
+every VolumePanel-class input — B's only theoretical advantage does not
+materialize for the sole consumer). This is R59-confirmed by empirical
+measurement, not blind trust of the prompt's literal target ; the
+alternative B was evaluated and recorded for split-honesty completeness
+(not silently dropped). The substitution is the SAME real number in a
+DIFFERENT IEEE754 multiply order → ≤1 ULP ; the byte-identical
+precedent is **refused** (the r108/r109 discipline, lesson #1/#9/#11) ;
+the raw equivalence is proven to full precision (`toBeCloseTo(_, 9)`)
+and the multiply-order DISCLOSED in docstring + test + this §Impl ; the
+formatted-string bit-identity is separately re-pinned `toBe` (the
+honest split — never flattened to one label, the r109 lesson).
+
+**What r111 implements.**
+
+1. **`apps/web2/lib/microchart.ts` `bandSeriesPolyline`** — a single
+   `const norm = linScale(min, min + span, 0, 1)` (the build-scale-once
+   idiom — r106 `divergingStop` / r108 `pWidth` / r109 `yAt`), then
+   `y = plotH - norm(v) * (plotH * headFrac) - plotH * footFrac`. The
+   `min`/`span` (incl. the `|| 1` fallback) computation is unchanged
+   byte-for-byte ; only `(v - min) / span` → `norm(v)`. The function
+   docstring's r105 deferral paragraph (_"r105 keeps this implementation
+   exactly as `VolumePanel` had it inline … re-expressing it atop
+   `linScale` is deferred … to avoid a float-order risk for no r105
+   consumer"_) is rewritten to the r111 truth: it now composes `linScale`
+   internally ; the raw normalized value is **≤1-ULP multiply-order**
+   vs the pre-r111 `(v-min)/span` (NOT bit-identical, disclosed) ; the
+   `svgCoord`-formatted polyline string stays **bit-identical** for
+   VolumePanel-class data (the ≤1-ULP delta cannot cross a 1-dp
+   boundary except on an exact `.x5` tie).
+2. **`apps/web2/lib/microchart.ts:5-24`** — the "WHY THIS MODULE
+   EXISTS" doctrine-#9 paragraph: the r110 line _"the one remaining
+   SSOT-internal item is the r105 **I3** (`bandSeriesPolyline`
+   composing `linScale`, below)"_ → **r111 closed it**. The doctrine-#9
+   de-accumulation (coord-scaling consumer-migration COMPLETE at r109 +
+   the SSOT-internal I3 COMPLETE at r111) is now **FULLY CLOSED**. The
+   remaining Tier-4 is additive NEW components (sparkline / regime-
+   timeline) — "more coverage" not "de-accumulation" (doctrine #8).
+3. **`apps/web2/__tests__/microchart.test.ts`** — a NEW describe block
+   (the r105/r108/r109 embedded-verbatim idiom) "bandSeriesPolyline
+   composes linScale internally (r111 I3)": (a) the verbatim pre-r111
+   `(v-min)/span` normalizer asserted `toBeCloseTo(_, 9)` vs
+   `linScale(min, min+span, 0, 1)` across the 3 fixtures (the ≤1-ULP
+   multiply-order — NOT `toBe`, honest) ; (b) the analytic exact pinned
+   `toBe` (`v = min` → exactly `0` ; no multiply-order at the domain
+   origin — the r109 `s=0` precedent) ; (c) the FULL formatted
+   `bandSeriesPolyline` string re-pinned `toBe`-equal to the verbatim
+   `oldPricePts` for the 3 fixtures (the split-honesty record: raw
+   ≤1-ULP, formatted string bit-identical — the r109 path-format
+   precedent stated explicitly, not implied) ; the pre-existing
+   `:116-120` block is unchanged and stays GREEN (zero regression).
+
+**Honest non-atomic scope (lesson #11 ; carried-forward NOT thinned).**
+r111 = the I3 SSOT-internal re-expression ONLY. With I3 closed, the
+doctrine-#9 de-accumulation is **FULLY CLOSED** (coord-scaling
+consumer-migration r105+r108+r109 ; SSOT-internal I3 r111). Remaining
+Tier-4, explicitly NOT thinned: (i) additive NEW components — sparkline
+extraction (the `VolumePanel` price polyline as a reusable
+`<Sparkline>`), regime-timeline (NEW, reusing `regime-quadrant`
+`RegimeId`/`QUADRANTS` colour map) — "more coverage" not
+"de-accumulation" (doctrine #8 distinction), each its own increment ;
+(ii) T4.2 (uncertainty band / calibration overlay / degraded+empty
+states / `prefers-reduced-motion` / no-truncated-axis audit) ; (iii)
+T4.3 (responsive / mobile) ; (iv) the non-Tier-4 r107-deferred items
+(`globals.css` §5 border-α, `NarrativeBlocks` `/10` chip) — tracked
+under §Impl(r107)/residuals. Nothing dropped.
+
+**Reviews (consolidated single pass — doctrine #14, re-verified on the
+post-prettier committed shape ; ui-designer + accessibility-reviewer
+N/A-with-reason: the `svgCoord`-formatted polyline is bit-identical for
+the fixtures and ≤1-ULP sub-pixel for live data — zero render / DOM /
+aria change, no new encoding, the r105/r108/r109/r110 a11y/ui-N/A
+precedent + anti-FOMO #17 ; ichor-trader R28 mandatory — the
+high-scrutiny risk is OVER-CLAIMING the float-order or a cross-file
+drift in the sole-consumer re-proof).**
+
+- **ichor-trader R28 — GREEN, merge, 0 RED, 0 YELLOW-requiring-
+  application (the actual adversarial verdict, not a forecast — lesson
+  #1).** Adversarial float-order pass, the disclosure surface
+  independently re-derived and VERIFIED — (a) the raw normalized value
+  is ≤1-ULP multiply-order `(v-min)*(1/span)` vs `(v-min)/span`, NOT
+  bit-identical (the `realistic` fixture maxΔ=2.776e-17 reproduced) ;
+  (b) `(min+span)-min===span` confirmed for all VolumePanel-class
+  inputs ⇒ candidate A introduces no divergence beyond multiply-order
+  (B-vs-A recorded, not silently dropped — split-honesty intact) ;
+  (c) the `svgCoord`-formatted string is bit-identical for the 3
+  fixtures (the ≤1-ULP × ~103 px cannot cross a 1-dp boundary, the
+  `.x5`-tie caveat honest, vitest-green empirically) ; the test uses
+  `toBeCloseTo(_,9)` exactly where ≤1-ULP and `toBe` exactly where
+  bit-identical (formatted string + the `v=min` analytic exact) — "no
+  over/under-claim, the r108/r109 discipline applied consistently".
+  No cross-file drift: `VolumePanel` is the SOLE non-test consumer
+  (grep-verified — `VolumePanel.tsx:87`), unchanged ; `min`/`span`/
+  `|| 1` byte-identical ; the `VolumePanel.tsx:77-79` "byte-identical
+  to pre-r105 inline math" comment **remains TRUE** (it scopes the
+  _formatted rendered attributes_, which stay bit-identical — NOT the
+  raw norm ; explicitly judged NOT a lesson-#5 drift) ; the docstring +
+  the `microchart.ts:5-24` paragraph + this §Impl + the test state the
+  SAME ≤1-ULP-raw / bit-identical-formatted split consistently across
+  all four surfaces. Deferred ledger diffed vs r110 carry-forward —
+  all items accounted for, doctrine #11 honoured, "FULLY CLOSED"
+  scoped precisely to doctrine-#9 de-accumulation (NOT all of Tier-4 —
+  additive NEW + T4.2/T4.3 + the r107 residuals explicitly remain).
+  meta-r110 confirmed: the "continue I3" default WAS R59-checked (I3 a
+  genuine `(v-min)/span` linear-normalization site, NOT disproved like
+  r110's `pathFromHistory`). ADR-017 N/A (pure geometry, no
+  bias/order). The candidate-**B** audit trail
+  (`linScale(0, span, 0, 1)(v-min)` empirically identical to A for the
+  sole consumer, with the self-guarding `min+span-min===span`
+  precondition asserted before the `toBe`) was **proactively included**
+  in the docstring + test + this §Impl (NOT a review-driven fix) — the
+  reviewer judged it **"exemplary, exceeds the r108/r109 bar"**, so
+  ZERO YELLOW required application. One minor no-action observation:
+  the ADR "× `plotH*headFrac` ≈ ×103" arithmetic
+  (`132*0.78 = 102.96 ≈ 103`) and the ≈3e-15 px figure independently
+  re-confirmed correct.
+- **ui-designer / accessibility-reviewer — N/A-with-reason (NOT
+  dispatched — anti-FOMO subagent discipline, lesson #17).** The
+  `bandSeriesPolyline` output is the `<polyline points>` string ;
+  bit-identical for the test fixtures and ≤1-ULP (sub-pixel, far below
+  the `svgCoord` 0.1 quantization) for live data ⇒ the rendered SVG
+  is numerically/visually unchanged, no new colour/encoding, no
+  DOM/aria change (`<svg role="img" aria-label>` untouched). The
+  r105 (byte-identical) / r108 / r109 (≤1-ULP sub-pixel) a11y/ui-N/A
+  precedent applies cleanly ; dispatching a UI/a11y review of a
+  visually-inert numeric refactor would be FOMO, not protocol.
+
+**Verification (real numbers — measured on deployed prod, not forecast ;
+the SHIPPED≠FUNCTIONAL gate satisfied).**
+
+- **SHIPPED≠FUNCTIONAL pre-check** (live prod
+  `/v1/market/intraday/EUR_USD`, R53 at R59-time): **479 bars, all
+  479 usable** (numeric `volume >= 0`), `close` field present
+  (~1.164) ⇒ `VolumePanel` renders the `bandSeriesPolyline`
+  close-price polyline from REAL data on a REAL asset (no r106-class
+  empty-upstream trap ; the sole consumer is genuinely functional).
+  At deploy-time the intraday window had rolled to **90 usable bars**
+  (the live feed is time-varying — both ≥2, both functional ; honest,
+  not the same snapshot as the R59-time precheck).
+- **Build gate** (final post-prettier shape, doctrine #14): `tsc
+--noEmit` **0** · `eslint --max-warnings 0` (microchart.ts +
+  microchart.test.ts) **0** · vitest **7 files / 119 tests pass**
+  (r109/r110 baseline 111 + the new r111 describe block 8 = 119 ;
+  zero regression — the pre-existing `:116-120` string `toBe` stays
+  GREEN, the formatted polyline still bit-identical) · `next build`
+  **OK**.
+- **Deploy**: `scripts/hetzner/redeploy-web2.sh` (additive — port
+  3031, legacy `ichor-web` 3030 + tunnel untouched). RESULT
+  **`local=200 public=200`, `DEPLOY OK`** ; LIVE URL **stable**
+  `https://latino-superintendent-restoration-dealtime.trycloudflare.com`
+  (tunnel NOT restarted, unchanged vs r110). No SSH throttle (Step
+  1-5 clean single pass).
+- **Real-prod witness** — Playwright on the deployed public dashboard
+  `/briefing/EUR_USD` (doctrine #7 zero-exposure ; REAL data, REAL
+  asset, not a forecast). **The r111 surface is GREEN**: the
+  `VolumePanel` close-price `<polyline>` renders from the 90 live
+  bars (viewBox `0 0 640 150`, 1 polyline / 90 points / 90 bar rects),
+  **every coordinate well-formed 1-dp via `svgCoord`** (`allOneDp`
+  true — the ≤1-ULP-raw / bit-identical-formatted prediction
+  CONFIRMED on real live data), all in-viewBox, the band-x
+  arithmetic cross-checked EXACT (`x[0]=slot/2=3.6`, `x[1]=10.7`,
+  `x[89]=636.4` — unchanged by r111), the y-values inside the exact
+  head/foot-padded band ([14.5, 117.5] ⊂ the `headFrac`/`footFrac`
+  envelope). Screenshot captured. **Honest console scoping (lesson
+  #11 / r106-a — NOT over-claimed 0/0)**: the page carries
+  **PRE-EXISTING, app-wide console errors that r111 did NOT
+  introduce** and that are OUT OF SCOPE for this pure-geometry
+  increment — proven, not assumed: (a) `/briefing/[asset]` shows
+  9× `TypeError: e[o] is not a function` in **Next vendor chunks
+  `5889`/`7985`** (NOT `microchart`), **asset-agnostic** (EUR_USD 9
+  ≡ XAU_USD 9 — independent of the per-asset close prices the r111
+  math touches), while the r111-changed `VolumePanel` polyline
+  renders perfectly (if `norm` were not a function the `.map()`
+  would throw and the polyline would be absent — it is present and
+  correct) ; (b) the `/` landing (ZERO `VolumePanel`/`microchart`
+  consumer) carries a DIFFERENT pre-existing set (8× CSP
+  `localhost:8001` dev-artifact + 1× minified React #418
+  hydration) ; (c) r111's 3-file diff is pure-geometry +
+  test + ADR, vitest-119-GREEN — it cannot emit a vendor-chunk
+  `TypeError`. These pre-existing defects are **flagged for a
+  dedicated out-of-scope task (flag-not-fix, lesson #11 — NOT fixed
+  here, NOT claimed clean)** ; the r111 witness GREEN is for the
+  r111 surface only (the polyline render correctness on real data),
+  honestly scoped.
+
+Voie D + ADR-017 held ; additive web2-only deploy ; zero backend /
+zero migration (alembic still 0050) ; doctrine #9 dated append, no new
+ADR. **doctrine-#9 de-accumulation FULLY CLOSED at r111** (coord-scaling
+consumer-migration r105+r108+r109 + SSOT-internal I3 r111) ; remaining
+Tier-4 = additive NEW (sparkline / regime-timeline, doctrine #8) →
+T4.2 → T4.3.

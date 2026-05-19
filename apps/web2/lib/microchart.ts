@@ -19,9 +19,16 @@
  * would visibly quantize ~14 px ; `linScale(0,1,0,-1)` for a sign-flip
  * would be an absurd over-abstraction). The doctrine-#9 *coord-scaling
  * consumer-migration* de-accumulation is therefore **COMPLETE at r109**
- * (cf. ADR-099 §Implementation(r110)) — but doctrine-#9 is NOT fully
- * closed: the one remaining SSOT-internal item is the r105 **I3**
- * (`bandSeriesPolyline` composing `linScale`, below).
+ * (cf. ADR-099 §Implementation(r110)). The last SSOT-internal item, the
+ * r105 **I3** (`bandSeriesPolyline` hand-rolling `(v-min)/span` instead
+ * of composing `linScale`), is **CLOSED at r111** (it now composes
+ * `linScale` internally — raw ≤1-ULP multiply-order, `svgCoord`-
+ * formatted string bit-identical ; see its docstring + ADR-099
+ * §Implementation(r111)). **doctrine-#9 de-accumulation is now FULLY
+ * CLOSED** (coord-scaling consumer-migration r105+r108+r109 +
+ * SSOT-internal I3 r111) ; the remaining Tier-4 is additive NEW
+ * components (sparkline / regime-timeline) — "more coverage" not
+ * "de-accumulation" (doctrine #8).
  *
  * SCALE PRIMITIVES: `linScale` is the canonical linear-scale base (the
  * primitive `confluence/history` xAt/yAt, the sparkline, the regime
@@ -149,16 +156,35 @@ export function barFromBaseline(
  * min..max-normalized y with head-room (`headFrac`) / foot-room
  * (`footFrac`) padding. The name carries the band coupling on purpose: a
  * point-to-point linear polyline (`confluence/history`) must compose
- * `xLinear` + `linScale`, NOT this. (r105 keeps this implementation exactly
- * as `VolumePanel` had it inline — byte-identical proof; re-expressing it
- * atop `linScale` is deferred to the confluence-history migration, where
- * the equivalence is re-proven, to avoid a float-order risk for no r105
- * consumer.)
+ * `xLinear` + `linScale`, NOT this.
  *
- * Reproduces `VolumePanel`'s close-price overlay exactly:
+ * **r111 I3 (the r105-deferred SSOT-internal close).** The min..max
+ * normalization now composes `linScale` internally — `(v - min) / span`
+ * is exactly `linScale(min, min + span, 0, 1)(v)`. r105 deferred this
+ * "to avoid a float-order risk for no r105 consumer"; r111 pays it down
+ * honestly. The substitution is the SAME real number in a DIFFERENT
+ * IEEE754 multiply order (`(v-min)*(1/span)` vs `(v-min)/span`, the
+ * second rounding) → the raw normalized value is **≤1 ULP, NOT
+ * bit-identical** vs the pre-r111 form (the r108/r109 multiply-order
+ * class — proven `toBeCloseTo(_,9)` not `toBe`; the byte-identical
+ * precedent refused, lesson #1/#9/#11). But the `svgCoord`-formatted
+ * polyline string stays **bit-identical** for VolumePanel-class data:
+ * the ≤1-ULP raw delta × `plotH*headFrac` (≈3e-15 px) cannot cross a
+ * `.toFixed(1)` 0.1 boundary except on an exact `.x5` tie (the r109
+ * path-format precedent — re-pinned `toBe` in the tests, the honest
+ * split never flattened). Candidate `linScale(0, span, 0, 1)(v - min)`
+ * (the r108/r109 0-anchored idiom) was empirically evaluated and is
+ * **numerically identical** to the chosen form for the sole consumer
+ * (`(min+span)-min===span` holds for every VolumePanel-class magnitude);
+ * the `linScale(min, min+span, 0, 1)` form is chosen as the literal,
+ * self-documenting algebra (domain = the value range). `min`/`span`
+ * (incl. the `|| 1` degenerate fallback) are byte-identical to pre-r111.
+ *
+ * Reproduces `VolumePanel`'s close-price overlay (≤1-ULP raw / formatted
+ * bit-identical, per above):
  *   min = Math.min(...values) ; span = (Math.max(...values) - min) || 1
  *   x = i * slot + slot / 2
- *   y = plotH - ((v - min) / span) * (plotH * headFrac) - plotH * footFrac */
+ *   y = plotH - linScale(min, min+span, 0, 1)(v) * (plotH*headFrac) - plotH*footFrac */
 export function bandSeriesPolyline(
   values: number[],
   slot: number,
@@ -168,10 +194,11 @@ export function bandSeriesPolyline(
 ): string {
   const min = Math.min(...values);
   const span = Math.max(...values) - min || 1;
+  const norm = linScale(min, min + span, 0, 1);
   return values
     .map((v, i) => {
       const x = i * slot + slot / 2;
-      const y = plotH - ((v - min) / span) * (plotH * headFrac) - plotH * footFrac;
+      const y = plotH - norm(v) * (plotH * headFrac) - plotH * footFrac;
       return `${svgCoord(x)},${svgCoord(y)}`;
     })
     .join(" ");
