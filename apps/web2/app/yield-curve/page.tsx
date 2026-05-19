@@ -147,13 +147,16 @@ function CurveChart({ points }: { points: RenderTenor[] }) {
   const xMin = Math.min(...xs);
   const yMax = Math.max(...ys) + 0.1;
   const yMin = Math.min(...ys) - 0.1;
-  // r118 — coord-math migrated onto the r105 SSOT (doctrine #9). The log-x
-  // is a caller `Math.log` domain-transform ∘ the existing `linScale` (NOT a
-  // new primitive — the r111 bandSeriesPolyline-composes-linScale pattern);
-  // the asymmetric `+0.01` epsilon (xMax term has none) lives entirely in
-  // these three log args, preserved exactly. y keeps its legitimate ±0.1
-  // line-chart zoom via the r108 inverted-range linScale (NOT a bar baseline).
-  const sxLog = linScale(Math.log(xMin + 0.01), Math.log(xMax), PAD, W - PAD);
+  // Coord-math composed on the r105 SSOT (doctrine #9): log-x is a caller
+  // `Math.log` domain-transform ∘ the existing `linScale` (NOT a new
+  // primitive — the r111 bandSeriesPolyline-composes-linScale pattern).
+  // `+0.01` is a uniform log(0)-safety epsilon at the API tenor boundary,
+  // applied to the data transform AND both linScale domain anchors —
+  // earlier the xMax anchor used bare log(xMax) while the transform fed
+  // log(xMax+0.01), so the rightmost point fell slightly past W−PAD; now
+  // uniform ⇒ sx(xMin)===PAD, sx(xMax)===W−PAD, every point provably in
+  // [PAD,W−PAD]. y keeps its ±0.1 line-chart zoom via the r108 linScale.
+  const sxLog = linScale(Math.log(xMin + 0.01), Math.log(xMax + 0.01), PAD, W - PAD);
   const sx = (x: number) => sxLog(Math.log(x + 0.01));
   const sy = linScale(yMin, yMax, H - PAD, PAD);
   const path = points

@@ -694,18 +694,21 @@ describe("microchart SSOT — r117 consumer contract: 2nd <BarSeries> (hourly-vo
   });
 });
 
-describe("microchart SSOT — yield-curve CurveChart migration (r118 de-accumulation, split honesty)", () => {
-  // r118 is a doctrine-#9 consumer-migration of a NEVER-enumerated
-  // coord-scaling site (`app/yield-curve/page.tsx` CurveChart) onto the
-  // EXISTING SSOT — the r108/r109/r111 split-honesty discipline, NOT
-  // byte-identical-flattened. The log-x is a caller `Math.log` domain-
-  // transform ∘ `linScale` (NO new primitive — the r111
-  // bandSeriesPolyline-composes-linScale pattern) ; the asymmetric `+0.01`
-  // epsilon (xMax term has none) lives in the three log args, preserved
-  // exactly. y keeps its legitimate ±0.1 line-chart zoom via the r108
-  // inverted-range `linScale` (NOT a bar 0-baseline — the prompt's
-  // "truncated-axis" framing R59-DISPROVED, the invariant is bar-scoped).
-  // `oldSx`/`oldSy`/`oldPath` are the VERBATIM pre-r118 page.tsx inline.
+describe("microchart SSOT — yield-curve CurveChart coord-math (r118 SSOT migration + r119 epsilon-uniformity correction, split honesty)", () => {
+  // r118 migrated the CurveChart coord-math onto the existing SSOT
+  // (doctrine-#9 consumer-migration). r119 is the r118-flagged (D″)
+  // deliberate semantic decision: ε=0.01 is a uniform log(0)-safety
+  // epsilon — r118 left the `Math.log(xMax)` domain-max anchor WITHOUT it
+  // (asymmetric, preserved only for r118 byte-identity) ; r119 applies ε
+  // to BOTH domain anchors (`Math.log(xMax + 0.01)`) so the rightmost
+  // tenor lands exactly on W−PAD and every point is provably in
+  // [PAD,W−PAD]. This DELIBERATELY supersedes r118's "byte-identical to
+  // the pre-r118 inline" pin at the xMax anchor (NOT a refactor — a
+  // recorded convention change) ; the r109/r111 split-honesty discipline
+  // applied to a deliberate change, claimed precisely, never flattened.
+  // `oldSx`/`oldSy`/`oldPath` = the VERBATIM pre-r118 page.tsx inline
+  // (the historical baseline) ; `newSx`/`newSy`/`newPath` mirror the
+  // CURRENT (r119) page.tsx exactly. y (`sy`) is untouched by r119.
   const W = 720;
   const H = 280;
   const PAD = 50;
@@ -759,50 +762,91 @@ describe("microchart SSOT — yield-curve CurveChart migration (r118 de-accumula
     const oldPath = fx
       .map((p, i) => `${i === 0 ? "M" : "L"} ${oldSx(p.x).toFixed(1)} ${oldSy(p.y).toFixed(1)}`)
       .join(" ");
-    // r118 SSOT form — exactly as page.tsx now composes it.
-    const sxLog = linScale(Math.log(xMin + 0.01), Math.log(xMax), PAD, W - PAD);
+    // r119 SSOT form — exactly as page.tsx now composes it (ε on BOTH
+    // domain anchors: the deliberate xMax-anchor uniformity fix).
+    const sxLog = linScale(Math.log(xMin + 0.01), Math.log(xMax + 0.01), PAD, W - PAD);
     const newSx = (x: number) => sxLog(Math.log(x + 0.01));
     const newSy = linScale(yMin, yMax, H - PAD, PAD);
     const newPath = fx
       .map((p, i) => `${i === 0 ? "M" : "L"} ${svgCoord(newSx(p.x))} ${svgCoord(newSy(p.y))}`)
       .join(" ");
 
-    it(`raw sx ≈ inline to ≤1 ULP (multiply-order, NOT bit-identical) — honest split — ${name}`, () => {
-      for (const p of fx) expect(newSx(p.x)).toBeCloseTo(oldSx(p.x), 9);
-    });
-
-    it(`raw sy ≈ inline to ≤1 ULP (multiply-order, NOT bit-identical) — honest split — ${name}`, () => {
+    it(`sy untouched by r119: raw newSy ≈ pre-r118 inline ≤1 ULP + sy(yMin)→H−PAD bit-exact — ${name}`, () => {
       for (const p of fx) expect(newSy(p.y)).toBeCloseTo(oldSy(p.y), 9);
-    });
-
-    it(`domain-origin maps EXACTLY (no multiply-order: sx(xMin)→PAD, sy(yMin)→H−PAD, bit-identical) — ${name}`, () => {
-      expect(newSx(xMin)).toBe(PAD);
-      expect(oldSx(xMin)).toBe(PAD);
       expect(newSy(yMin)).toBe(H - PAD);
       expect(oldSy(yMin)).toBe(H - PAD);
     });
 
-    it(`svgCoord-formatted path string === verbatim .toFixed(1) — BIT-IDENTICAL despite raw ≤1-ULP (r109/r111 path-format precedent) — ${name}`, () => {
-      expect(newPath).toBe(oldPath);
+    it(`r119 endpoints: sx(xMin)→PAD bit-exact (zero case, unchanged) ; sx(xMax)→W−PAD ≤1 ULP (linScale multiply-order — NOT bit-identical, r108/r109/r111) ; rendered svgCoord(sx(xMax))===svgCoord(W−PAD) bit-exact — ${name}`, () => {
+      expect(newSx(xMin)).toBe(PAD); // numerator 0 → exact, unaffected by r119
+      expect(newSx(xMax)).toBeCloseTo(W - PAD, 9); // ≤1 ULP — honest split, not toBe
+      expect(svgCoord(newSx(xMax))).toBe(svgCoord(W - PAD)); // "670.0" rendered-exact
     });
 
-    it(`path is SSOT-composed, well-formed: starts M, all coords 1-dp, in-viewBox [0,W]×[0,H] — ${name}`, () => {
-      // viewBox bounds (the r117 idiom), NOT the [PAD,W−PAD] plot inset:
-      // the pre-existing asymmetric epsilon (xMax log term has no `+0.01`)
-      // makes the last x slightly overshoot W−PAD — preserved exactly
-      // (byte-identical-class), flag-not-fixed (#11), still well within [0,W].
-      const cmds = newPath.split(" ");
-      expect(cmds[0]).toBe("M");
+    it(`r119 removes the pre-r118 asymmetric-ε overshoot: oldSx(xMax) > W−PAD (the defect) ; every newSx(x) ∈ [PAD, W−PAD], strictly increasing, ≤ oldSx(x) (uniform-ε compresses, the tightened invariant the old code violated) — ${name}`, () => {
+      expect(oldSx(xMax)).toBeGreaterThan(W - PAD); // the OLD overshoot, removed by r119
+      let prev = -Infinity;
+      for (const p of fx) {
+        const v = newSx(p.x);
+        expect(v).toBeGreaterThanOrEqual(PAD - 1e-9);
+        expect(v).toBeLessThanOrEqual(W - PAD + 1e-9); // NO overshoot (the fix)
+        expect(v).toBeGreaterThan(prev); // monotone
+        prev = v;
+        expect(v).toBeLessThanOrEqual(oldSx(p.x) + 1e-9); // r119 compresses ≤
+      }
+    });
+
+    it(`path SSOT-composed well-formed: M-start, all coords 1-dp, y-tokens bit-identical to inline (sy untouched by r119), in [PAD,W−PAD]×[PAD,H−PAD] plot inset, rightmost x === svgCoord(W−PAD) — ${name}`, () => {
+      const nt = newPath.split(" ");
+      const ot = oldPath.split(" ");
+      expect(nt[0]).toBe("M");
+      expect(nt.length).toBe(ot.length);
       const coordRe = /^-?\d+\.\d$/;
+      const lastXIdx = (fx.length - 1) * 3 + 1;
       for (let i = 0; i < fx.length; i++) {
-        const xc = Number(cmds[i * 3 + 1]);
-        const yc = Number(cmds[i * 3 + 2]);
-        expect(cmds[i * 3 + 1]).toMatch(coordRe);
-        expect(cmds[i * 3 + 2]).toMatch(coordRe);
-        expect(xc).toBeGreaterThanOrEqual(-1e-9);
-        expect(xc).toBeLessThanOrEqual(W + 1e-9);
-        expect(yc).toBeGreaterThanOrEqual(-1e-9);
-        expect(yc).toBeLessThanOrEqual(H + 1e-9);
+        expect(nt[i * 3 + 1]).toMatch(coordRe); // x
+        expect(nt[i * 3 + 2]).toMatch(coordRe); // y
+        expect(nt[i * 3 + 2]).toBe(ot[i * 3 + 2]); // y bit-identical (r119 does not touch sy)
+        const xc = Number(nt[i * 3 + 1]);
+        const yc = Number(nt[i * 3 + 2]);
+        expect(xc).toBeGreaterThanOrEqual(PAD - 1e-9);
+        expect(xc).toBeLessThanOrEqual(W - PAD + 1e-9); // tightened: NO overshoot
+        expect(yc).toBeGreaterThanOrEqual(PAD - 1e-9);
+        expect(yc).toBeLessThanOrEqual(H - PAD + 1e-9);
+      }
+      expect(nt[lastXIdx]).toBe(svgCoord(W - PAD)); // rightmost lands EXACTLY on the bound
+    });
+
+    it(`per-fixture rendered split honesty (r109/r111, a DELIBERATE r119 change — claimed precisely, never flattened): r119's uniform-ε GENUINELY changes the rendered path on EVERY fixture incl. the deployed seed (y bit-identical, every x ≤ old, rightmost === svgCoord(W−PAD)) ; seed10 pinned to its EXACT post-r119 string (the deployed-surface anchor) — ${name}`, () => {
+      const nt = newPath.split(" ");
+      const ot = oldPath.split(" ");
+      const lastXIdx = (fx.length - 1) * 3 + 1;
+      // r119 is NOT a no-regression on ANY fixture: the uniform-ε
+      // denominator change compresses every x by oldDenom/newDenom<1, and
+      // ≥1 coord flips a 1-dp digit on EVERY fixture incl. the deployed
+      // seed (R59-MEASURED — the pre-write "seed10 byte-identical / no
+      // visible deployed change" forecast was FALSIFIED by this very test
+      // and reconciled here to the measured truth, lesson #1/#3). y is
+      // untouched (bit-identical) ; the rightmost lands EXACTLY on the bound.
+      expect(newPath).not.toBe(oldPath);
+      for (let i = 0; i < fx.length; i++) {
+        expect(nt[i * 3 + 2]).toBe(ot[i * 3 + 2]); // y bit-identical (r119 does not touch sy)
+        expect(Number(nt[i * 3 + 1])).toBeLessThanOrEqual(Number(ot[i * 3 + 1]) + 1e-9); // x compressed ≤
+      }
+      expect(nt[lastXIdx]).toBe(svgCoord(W - PAD)); // → "670.0", the deliberate fix
+      expect(Number(ot[lastXIdx])).toBeGreaterThanOrEqual(Number(nt[lastXIdx])); // old overshot ≥
+      if (name.includes("seed10")) {
+        // The EXACT string the deployed page renders post-r119 — it serves
+        // the static-seed FALLBACK (the PRE-EXISTING web2-SSR condition,
+        // the r111-spawn-task domain, NOT r119's). The r119 measured delta
+        // vs the pre-r118 inline = 3 interior x flips
+        // (317.1→317.0 [2Y], 480.2→480.1 [7Y], 526.7→526.6 [10Y]) ;
+        // rightmost 670.0 ties. The deployed witness confirms this
+        // byte-for-byte (the r118 deployed-anchor discipline) — r119 IS a
+        // genuine measurable deployed delta, NOT "invisible".
+        expect(newPath).toBe(
+          "M 50.0 70.5 L 138.0 86.8 L 227.2 113.4 L 317.0 119.5 L 369.8 164.5 L 436.3 203.4 L 480.1 209.5 L 526.6 209.5 L 617.1 160.5 L 670.0 168.6",
+        );
       }
     });
   }
