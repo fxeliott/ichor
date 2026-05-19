@@ -233,6 +233,7 @@ export default async function BriefingPage({ params }: PageParams) {
         card={card}
         isLive={card !== null}
         priceTrend={recentBars.map((b) => b.close)}
+        rangeTrend={recentBars.map((b) => b.high - b.low)}
       />
 
       {card && (

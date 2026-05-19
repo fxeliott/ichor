@@ -443,3 +443,96 @@ describe("microchart SSOT — xLinear+linScale consumer: Sparkline (r112)", () =
     }
   });
 });
+
+describe("microchart SSOT — r113 consumer contract: BriefingHeader intraday amplitude (high−low) Sparkline", () => {
+  // r113 is an additive NEW genuine consumer (doctrine #8 "more
+  // coverage", NOT de-accumulation — closed r111) of the r112 generic
+  // <Sparkline>, rendering a NEW DISTINCT series : per-bar intraday
+  // true range `high − low`. r113 adds ZERO component and ZERO coord
+  // math (doctrine #9 — the r112 Sparkline coord contract is already
+  // pinned above). This block PINS the genuinely-new r113 surface : the
+  // data-derivation contract (high − low ≥ 0 for real OHLC bars) and
+  // that an amplitude series is a well-formed Sparkline input incl. the
+  // realistic flat-range degenerate edge (a perfectly steady market).
+  // NOT a byte-identical-vs-prior proof (NEW consumer — the honest
+  // distinction from r105/r108/r109/r111, the r112 class).
+
+  // The exact `page.tsx` r113 derivation.
+  const rangeOf = (bars: { high: number; low: number }[]) => bars.map((b) => b.high - b.low);
+
+  // The verbatim `Sparkline.tsx` SSOT composition — re-stated locally
+  // as TEST SCAFFOLDING (doctrine #9 governs the PRODUCTION coord-math
+  // SSOT, which r113 leaves untouched ; this is not production
+  // accumulation).
+  const sparkPoints = (values: number[], width: number, height: number, pad: number) => {
+    const n = values.length;
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    const yScale = linScale(min, max, height - pad, pad);
+    return values
+      .map((v, i) => `${svgCoord(xLinear(i, n, width, pad))},${svgCoord(yScale(v))}`)
+      .join(" ");
+  };
+
+  // Real R53-witnessed-shape OHLC bars (EUR_USD prod, 2026-05-19).
+  const eurOhlc = [
+    { high: 1.16543, low: 1.1652 },
+    { high: 1.1655, low: 1.1652 },
+    { high: 1.1656, low: 1.1653 },
+    { high: 1.16561, low: 1.1653 },
+    { high: 1.16556, low: 1.1654 },
+    { high: 1.1656, low: 1.165 },
+    { high: 1.16522, low: 1.165 },
+  ];
+
+  it("the high−low derivation is non-negative for real OHLC bars (the OHLC high ≥ low invariant)", () => {
+    const r = rangeOf(eurOhlc);
+    expect(r.length).toBe(eurOhlc.length);
+    for (const v of r) {
+      expect(Number.isNaN(v)).toBe(false);
+      expect(v).toBeGreaterThanOrEqual(0);
+    }
+  });
+
+  it("the amplitude series is a well-formed Sparkline input — SSOT-composed, 1-dp, x strictly increasing, in-viewBox", () => {
+    const W = 160;
+    const H = 36;
+    const PAD = 2;
+    const pts = sparkPoints(rangeOf(eurOhlc), W, H, PAD).split(" ");
+    expect(pts.length).toBe(eurOhlc.length);
+    const oneDp = /^-?\d+\.\d,-?\d+\.\d$/;
+    let prevX = -Infinity;
+    for (const p of pts) {
+      expect(p).toMatch(oneDp);
+      const [xs = "", ys = ""] = p.split(",");
+      const x = Number(xs);
+      const y = Number(ys);
+      expect(x).toBeGreaterThan(prevX); // xLinear point-to-point
+      prevX = x;
+      expect(x).toBeGreaterThanOrEqual(PAD);
+      expect(x).toBeLessThanOrEqual(W - PAD);
+      expect(y).toBeGreaterThanOrEqual(PAD);
+      expect(y).toBeLessThanOrEqual(H - PAD);
+    }
+  });
+
+  it("a perfectly steady market (constant high−low) → degenerate flat amplitude maps to the baseline, NO NaN", () => {
+    // every bar the same range → derived series flat → linScale
+    // zero-width domain → rangeMin (height - pad) baseline (no division
+    // by zero, no NaN). Integer ohlc → exact float subtraction.
+    const steady = [
+      { high: 5.0, low: 4.0 },
+      { high: 9.0, low: 8.0 },
+      { high: 2.0, low: 1.0 },
+    ];
+    const r = rangeOf(steady);
+    expect(r).toEqual([1, 1, 1]);
+    const pts = sparkPoints(r, 120, 32, 2).split(" ");
+    expect(pts.length).toBe(steady.length);
+    for (const p of pts) {
+      const [xs = "", ys = ""] = p.split(",");
+      expect(Number.isNaN(Number(xs))).toBe(false);
+      expect(Number(ys)).toBe(32 - 2);
+    }
+  });
+});

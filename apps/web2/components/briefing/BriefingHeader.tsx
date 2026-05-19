@@ -2,8 +2,9 @@
  * BriefingHeader — premium header for /briefing/[asset].
  *
  * Renders : asset code (Fraunces editorial), an optional intraday
- * price micro-trend Sparkline under it (ADR-017 descriptive context,
- * neutral — not a signal), session badge (pre_londres / pre_ny /
+ * price + amplitude (high−low) micro-trend Sparkline pair under it
+ * (ADR-017 descriptive context, neutral — not a signal), session badge
+ * (pre_londres / pre_ny /
  * event_driven), bias direction with WCAG-mandatory ▲/▼ + sign
  * redundancy, conviction gauge (0-95% bar), magnitude pip range, regime
  * quadrant chip, generated_at timestamp with relative format.
@@ -26,6 +27,11 @@ interface BriefingHeaderProps {
    * micro-trend. Optional & self-guarding: `< 2` → not rendered. Pure
    * descriptive context (ADR-017), never a signal. */
   priceTrend?: number[];
+  /** Intraday true-range series (per-bar high − low, oldest → newest)
+   * for the header amplitude micro-trend. Optional & self-guarding:
+   * `< 2` → not rendered. Pure descriptive volatility context
+   * (ADR-017), never a signal. */
+  rangeTrend?: number[];
 }
 
 const SESSION_LABEL: Record<SessionCard["session_type"], string> = {
@@ -67,7 +73,13 @@ function relativeTime(iso: string): string {
   return `${d}d ago`;
 }
 
-export function BriefingHeader({ asset, card, isLive, priceTrend }: BriefingHeaderProps) {
+export function BriefingHeader({
+  asset,
+  card,
+  isLive,
+  priceTrend,
+  rangeTrend,
+}: BriefingHeaderProps) {
   return (
     <m.header
       initial={{ opacity: 0, y: -8 }}
@@ -114,13 +126,32 @@ export function BriefingHeader({ asset, card, isLive, priceTrend }: BriefingHead
                 height={36}
               />
               <span className="text-[10px] uppercase tracking-[0.2em] text-[var(--color-text-muted)]">
-                Prix intraday · {priceTrend.length} barres
+                <span className="font-medium text-[var(--color-text-secondary)]">Prix</span>{" "}
+                intraday · {priceTrend.length} barres
+              </span>
+            </div>
+          )}
+
+          {rangeTrend && rangeTrend.length >= 2 && (
+            <div className="mt-2 flex items-center gap-3">
+              <Sparkline
+                values={rangeTrend}
+                ariaLabel={`Amplitude intrajournalière (haut−bas) ${asset.replace(
+                  "_",
+                  "/",
+                )}, ${rangeTrend.length} dernières barres`}
+                width={160}
+                height={36}
+              />
+              <span className="text-[10px] uppercase tracking-[0.2em] text-[var(--color-text-muted)]">
+                <span className="font-medium text-[var(--color-text-secondary)]">Amplitude</span>{" "}
+                intraday · {rangeTrend.length} barres
               </span>
             </div>
           )}
 
           {card?.thesis && (
-            <p className="mt-3 max-w-xl text-base leading-relaxed text-[var(--color-text-secondary)]">
+            <p className="mt-4 max-w-xl text-base leading-relaxed text-[var(--color-text-secondary)]">
               {card.thesis}
             </p>
           )}

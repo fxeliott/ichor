@@ -2022,3 +2022,294 @@ Voie D + ADR-017 held ; additive web2-only deploy ; zero backend /
 zero migration (alembic still 0050) ; doctrine #9 dated append, no new
 ADR ; doctrine #8 "more coverage" (NEW component + NEW SSOT consumer),
 explicitly NOT de-accumulation (closed at r111).
+
+## Implementation (r113, 2026-05-19) — Tier 4: additive NEW genuine `<Sparkline>` consumer — the intraday true-range (high−low) amplitude micro-trend in `BriefingHeader` (a 2nd, DISTINCT proven-live series ; doctrine #8 "more coverage", NOT de-accumulation ; the literal default (A) regime-timeline R59-DISPROVED → reshaped to (B))
+
+doctrine-#9 de-accumulation closed at r111 ; r112 shipped the first
+additive NEW component (the generic `<Sparkline>`). r113 is the next
+additive Tier-4 increment (doctrine #8 "more coverage") — a NEW genuine
+consumer of the already-generic r112 `<Sparkline>` rendering a NEW,
+DISTINCT data dimension. ZERO new component, ZERO new coord math
+(doctrine #9 — the r112 `<Sparkline>` is reused as-is), ZERO backend,
+ZERO migration (alembic still 0050).
+
+**R59 inspect-first RESHAPED the literal default (meta-r110/r112 — the
+default is itself a HYPOTHESIS, including an ADDITIVE default).** The
+r112-close binding default offered two candidates: (A) a NEW
+regime-timeline component (reusing `regime-quadrant`
+`RegimeId`/`QUADRANTS`) OR (B) further `<Sparkline>` consumers. A
+read-only researcher R59 + direct orchestrator file:line verification
+**disproved (A) as worded** (an r110-class disproof for that candidate,
+not a forced build): repo-wide grep for
+`regime_history|regimeHistory|regime_timeline|regime_series` in
+`apps/web2` → **zero matches** ; `SessionCard` projects exactly ONE
+regime field — `regime_quadrant: string | null` (`lib/api.ts:195`), a
+single scalar, NOT an array ; consumed as a single value only
+(`BriefingHeader.tsx:128-137` one chip, `page.tsx:248`
+`PocketSkillBadge`) ; `RegimeQuadrant.history?` is a `{x,y,ts}[]`
+macro-coordinate trail (NOT a regime-id series) and `RegimeQuadrant` is
+**not rendered on the briefing page at all**. A regime-timeline frieze
+would therefore have **no real series to render** — a fake-SSOT /
+SHIPPED≠FUNCTIONAL by construction (the r106/r108 type-only trap).
+Per meta-r110/r112 the honest move is NOT to force it — it is to
+execute candidate (B) on a series R59-proven projected AND populated.
+
+**R59 verified consumption site + real populated data (#1 — projected
+AND populated, measured on real prod, NOT type-only).** The
+`/briefing/[asset]` page already fetches `recentBars: IntradayBarOut[]`
+(`page.tsx:189` `intraday.slice(-90)`, endpoint
+`/v1/market/intraday/{asset}` `lib/api.ts:304-310`). `IntradayBarOut`
+(`lib/api.ts:1189-1196`) carries `open`/`high`/`low`/`close: number`
+
+- `volume: number | null`. `close` is on screen already (r112
+  Sparkline) and `volume` is on screen already (`VolumePanel`), but
+  `high`/`low` are NOT charted anywhere — and **type-presence ≠
+  runtime-populated (#1)**, so the orchestrator R53-verified the live
+  prod API directly (one consolidated throttle-aware SSH,
+  `curl 127.0.0.1:8000/v1/market/intraday/{EUR_USD,XAU_USD}?hours=24&limit=12`):
+  real OHLC bars with **genuinely distinct, non-degenerate, varying**
+  `high`/`low` — EUR_USD bar 1 `open 1.16526 / high 1.16543 / low 1.1652
+/ close 1.16538` (12 bars, true-range 0.00023→0.0005) ; XAU_USD bar 1
+  `open 4578.28 / high 4580.34 / low 4577.76 / close 4579.39` (12 bars,
+  true-range 2.35→4.58). `high − low` (the per-bar intraday true range)
+  is therefore a series **projected AND empirically populated on real
+  prod across 2 distinct assets** — SHIPPED≠FUNCTIONAL avoided BY
+  CONSTRUCTION, the r112 discipline.
+
+**Decision — a NEW genuine `<Sparkline>` consumer: the intraday
+amplitude (high−low) micro-trend, ADR-017-neutral, SSOT-composed,
+ZERO new code beyond wiring.** The r112 `<Sparkline>`
+(`components/briefing/Sparkline.tsx`) is already a fully generic
+primitive (`values: number[]` + `ariaLabel` ; all coordinate math is
+the r105 SSOT — `xLinear`+`linScale`+`svgCoord`). r113 does NOT add a
+component and does NOT add coord math (doctrine #9) — it adds a NEW
+genuine _consumer_ of a NEW, DISTINCT data dimension: per-bar intraday
+true range `high − low`, which is intraday-volatility/amplitude context
+— categorically distinct from the r112 close-price _level_ trend and
+from the `VolumePanel` _volume_ series (it is neither a duplicate of an
+on-screen series — the very anti-pattern the r112 reshape avoided — nor
+a new colour encoding). **ADR-017 (frontend boundary #11) — pure
+descriptive geometry, NO signal**: `high − low` says nothing about
+direction, no BUY/SELL, no order, no personalized sizing ; it reuses
+the SAME neutral `var(--color-text-secondary)` Sparkline already
+cross-checked ADR-017-clean at r112 (NOT direction-tinted) ; the visible
+label is factual-only ("Amplitude intraday · N barres" — describes the
+data window, not a trade action). Host: the SAME `BriefingHeader` left
+column under the asset `<h1>`, stacked under the r112 price micro-trend
+(price _level_ + price _amplitude_ is a standard premium-dashboard
+pairing, distinct meaning, distinct label — not redundant).
+
+**What r113 implements.**
+
+1. **`apps/web2/components/briefing/BriefingHeader.tsx`** — a new
+   optional `rangeTrend?: number[]` prop (decoupled `number[]`, mirror
+   of the r112 `priceTrend?` pattern) ; a 2nd `<Sparkline>` rendered
+   directly under the r112 price Sparkline, with its own neutral
+   `aria-label` and factual "Amplitude intraday · N barres" label ;
+   self-guarding (`>= 2` → rendered, else absent — the r112
+   graceful-empty discipline) ; the `Renders :` docstring enumeration
+   extended (anti-lesson-#5 drift, the r112 ichor-trader-YELLOW class).
+2. **`apps/web2/app/briefing/[asset]/page.tsx`** — one line:
+   `rangeTrend={recentBars.map((b) => b.high - b.low)}` (the SAME
+   `recentBars` already derived for `VolumePanel`/the r112 Sparkline —
+   ZERO new fetch, ZERO backend).
+3. **`apps/web2/__tests__/microchart.test.ts`** — an additive describe
+   block pinning the r113 _consumer contract_ (NOT a
+   byte-identical-vs-prior proof — there is no "old" ; the honest
+   distinction, r112-class): a fixture OHLC series → the derived
+   `high − low` series is non-negative, the `<Sparkline>` of it is
+   SSOT-composed (every coord 1-dp, x strictly increasing, in-viewBox,
+   `linScale` inverted-range), and a degenerate flat-range series maps
+   to the baseline (no NaN). Pre-existing tests unchanged (zero
+   regression).
+4. **ADR-099 `## Implementation (r113, 2026-05-19)`** (this) — dated
+   §Impl, NO new ADR (doctrine #9). Reviews / Verification written as
+   placeholders then RECONCILED to the MEASURED outcomes (lesson #1 —
+   no forecast).
+
+**Honest scope / ledger (#11, NOT thinned).** r113 = ONE NEW genuine
+`<Sparkline>` consumer (intraday amplitude) + the page wiring + the
+consumer contract test. "More coverage" (doctrine #8), explicitly NOT
+de-accumulation (FULLY CLOSED r111). Explicitly DEFERRED, NOT thinned:
+the regime-timeline NEW component (R59-disproved on the briefing page
+this round — would require a NEW regime time-series projected from the
+backend first, a separate Pydantic-projection increment, the #1 class —
+NOT a frontend-only Tier-4 item) ; further `<Sparkline>` consumers
+beyond price+amplitude ; T4.2 (uncertainty band / calibration overlay /
+degraded+empty states / `prefers-reduced-motion` global / no-truncated-
+axis audit) ; T4.3 (responsive/mobile) ; the non-Tier-4 r107-deferred
+(`globals.css` §5 border-α, `NarrativeBlocks` `/10` chip). The
+r111-flagged PRE-EXISTING app-wide console defects (briefing
+vendor-chunk `TypeError`, `/` `localhost:8001` CSP dev-artifact, React
+#418) AND the r112-flagged PRE-EXISTING header-wide `text-muted`
+≈3.5:1 contrast (ADR-099 §T4.2 / `globals.css` §5 backlog) remain
+SEPARATE owners — NOT re-scoped into r113, NOT re-claimed (lesson #11 /
+r106-a).
+
+**Reviews (consolidated single pass — doctrine #14, finalized on the
+post-prettier committed shape ; ichor-trader R28 + ui-designer +
+accessibility-reviewer ALL dispatched — a NEW visual surface (a 2nd
+header micro-chart) genuinely changes the trading-boundary, design AND
+a11y surface, protocol not FOMO lesson #17 ; verdicts recorded as
+MEASURED not forecast, lesson #1).**
+
+- **ichor-trader R28 — GREEN, MERGE, 0 RED, 1 YELLOW (doc-only)
+  APPLIED** (the MEASURED verdict, not a forecast — lesson #1). ADR-017
+  frontend boundary held: the reviewer read `Sparkline.tsx:91`
+  **directly** and the neutral `stroke="var(--color-text-secondary)"`
+  claim is **VERIFIED-TRUE, not asserted** — NOT direction-tinted, the
+  same neutral stroke reused for both the r112 price and the r113
+  amplitude charts (no per-series tinting) ; `high − low` is a
+  non-negative scalar amplitude that **structurally cannot encode a
+  directional call** ; the label `Amplitude intraday` + ariaLabel
+  `Amplitude intrajournalière (haut−bas)` are factual-only (no
+  BUY/SELL, no imperative, no order, no personalized sizing, no
+  direction word) — descriptive volatility context, equivalent in
+  nature to the existing `VolumePanel` "Activité intraday" overlay.
+  Conviction cap untouched (`BriefingHeader.tsx` `Math.min(...,95)` +
+  "ADR-022 cap : 95 %" preserved) ; the other 7 invariants N/A (a
+  frontend render of an already-fetched OHLC field). SHIPPED≠FUNCTIONAL
+  genuinely avoided (R53 ground-truth — real distinct OHLC high/low on
+  EUR/XAU). Doctrine #8-vs-#9 classification ACCURATE (a NEW _consumer_
+  of the generic r112 `<Sparkline>`, zero new component, zero new coord
+  math — verified `Sparkline.tsx:36,68,71` = the r105 SSOT ; "more
+  coverage" #8, not de-accumulation, closed r111). Backward-compat OK
+  (`rangeTrend?` optional, self-guarding `>= 2`, single call site
+  `page.tsx`). Cross-file drift: NONE — the `Renders :` docstring was
+  correctly updated to "price + amplitude (high−low) micro-trend
+  Sparkline pair" with the ADR-017 disclaimer (no stale price-only
+  wording, the r112 ichor-trader-YELLOW class avoided). **YELLOW-1
+  (doc-only) APPLIED**: this Reviews/Verification subsection was
+  reconciled from the placeholder brackets to the MEASURED verdicts
+  (this edit) — no literal placeholder text left in the Accepted-track
+  §Impl, the build-gate part reconciled to measured below, the
+  Deploy/Witness/Console part honestly retained as "pending the deploy
+  step — observed event ≠ proof, lesson #1" until reconciled
+  post-witness.
+- **ui-designer — MERGE-with-changes, 0 Critical ; 1 Important + 2 Nit
+  APPLIED.** Important (the two charts are visually indistinguishable —
+  identical neutral stroke/dims/wrapper, only a 10px label
+  disambiguates ; exact-mirror was right at r112 sibling-less but with
+  a sibling of a _different physical quantity_ parity now hurts the
+  instant read) → the differentiating first word of each label
+  (`Prix` / `Amplitude`) promoted to a `font-medium
+text-[var(--color-text-secondary)]` eye-lock token (no component
+  change, zero new coord math #9 ; the factual word ichor-trader
+  already cleared — ADR-017-safe ; the visible text content and
+  reading order are unchanged). Nit-1 (4 consecutive `mt-3` collapse
+  the hierarchy) → the amplitude row `mt-3`→`mt-2` (pairs the two
+  sparklines as one intraday-micro-trend unit) and the thesis
+  `mt-3`→`mt-4` (the in-file `mt-4` regime-chip precedent). Nit-3
+  (the label is now the sole semantic differentiator) → subsumed by
+  the Important fix (the promoted lead word is the `text-secondary`
+  carrier). Empty/short-series zero-layout-shift, responsive
+  (1fr column, 160px < mobile width), and parity mechanics confirmed
+  PASS.
+- **accessibility-reviewer — 0 MUST-FIX ; SHOULD-FIX all PRE-EXISTING
+  → existing backlog (flag-not-fix, lesson #11 / r106-a — NOT
+  re-scoped into r113).** WCAG 2.2 AA clean for what r113 introduces.
+  **1.1.1 PASS** (the new `aria-label` is a meaningful, distinct text
+  equivalent — "Amplitude intrajournalière (haut−bas)…" vs the r112
+  "Tendance du prix de clôture…" — and supplementary, the header
+  conveys asset/bias/conviction/magnitude/regime textually ; two
+  adjacent `role="img"` with distinct labels are unambiguous to SR).
+  **1.4.1 PASS** (single neutral monochrome, zero colour-only
+  meaning). **1.4.11 PASS** (stroke ≈ 6.5:1 over `#0F1828`, reused
+  unchanged from r112). **2.3.3 PASS** (opacity-only draw-in, no
+  transform). Structure/reading-order PASS. **1.4.3 — PRE-EXISTING,
+  NOT r113-introduced**: the `text-[10px] --color-text-muted`
+  micro-label tail ≈ 3.4–3.6:1 is the identical header-wide pattern
+  already carried by Conviction/Magnitude/Régime/the r112 "Prix
+  intraday" sibling/the LIVE row, flagged at r112 and on the ADR-099
+  §T4.2 / `globals.css` §5 contrast-recalibration backlog — r113
+  reuses it verbatim for sibling consistency and does **not make it
+  materially worse** ; the ui-designer Important fix incidentally
+  _improves_ the load-bearing differentiator word to ≈6.5:1
+  (`text-secondary`) without re-scoping the header-wide backlog (the
+  muted tail stays the pre-existing pattern — flag-not-fix). A second
+  PRE-EXISTING note surfaced this round (NOT r113's): the UNCHANGED
+  r112 `Sparkline.tsx` `role="img"` + `aria-label` + `<title>`
+  mirroring causes an SR double-announce on some NVDA/JAWS — a
+  component-wide pre-existing item inherited by r113, routed to the
+  same a11y backlog, NOT a r113 regression (lesson #11).
+
+**Verification (real numbers — measured on deployed prod, not
+forecast ; the SHIPPED≠FUNCTIONAL gate satisfied by the R53-verified
+populated series above).**
+
+- **Build gate (MEASURED, re-run post-review-apply on the committed
+  shape, doctrine #14)**: `tsc --noEmit` **0** · `eslint
+--max-warnings 0` (BriefingHeader.tsx + page.tsx + microchart.test.ts)
+  **0** · vitest **7 files / 127 tests pass** (r112 baseline 124 + the
+  3 new r113 consumer-contract tests = 127, zero regression) ·
+  `next build` **OK** — NB the local Windows build's first run hit a
+  transient `Collecting build traces` ENOENT on
+  `_not-found/page.js.nft.json` (a Windows file-lock artifact in a
+  route r113 never touches ; static-gen 38/38 ✓, tsc/eslint/vitest all
+  green) ; a non-destructive re-run on the unchanged tree succeeded
+  (lesson #13 — env artifact, not a r113 defect ; the authoritative
+  build is the Linux `redeploy-web2.sh` anyway). A final
+  post-prettier-committed-shape re-gate is run at commit (#14).
+- **Deploy (MEASURED)**: `scripts/hetzner/redeploy-web2.sh` additive
+  — the Hetzner **Linux** `pnpm --filter @ichor/web2 build` completed
+  clean (full route table, NO `.nft.json` ENOENT — confirming the
+  Windows-local trace-collection ENOENT was an env artifact, lesson
+  #13 ; the Linux build is the authoritative one). `Step 4: local
+/briefing http=200` ; `RESULT: local=200 public=200` ; `DEPLOY OK
+— /briefing is reachable. Legacy ichor-web (3030) untouched.` LIVE
+  URL **stable** `https://latino-superintendent-restoration-dealtime.trycloudflare.com`
+  (tunnel NOT restarted — unchanged from r112), no SSH throttle
+  (~45 s, single script run).
+- **Real-prod witness (MEASURED — Playwright on the deployed public
+  `/briefing/EUR_USD`, REAL data, REAL asset, doctrine #7)**: the
+  `BriefingHeader` left column renders **TWO** `role="img"`
+  `<Sparkline>` SVGs. (1) The r112 price micro-trend UNCHANGED (no
+  regression): aria-label "Tendance du prix de clôture intrajournalier
+  EUR/USD, 90 dernières barres", viewBox `0 0 160 36`, svg-owns-box
+  (`width`/`height` === viewBox), neutral
+  `stroke=var(--color-text-secondary)`, 90 points, `first=2.0,9.1`
+  `last=158.0,21.9`, allOneDp ✓ strictlyIncX ✓ inViewBox ✓
+  title===aria-label ✓. (2) The NEW r113 amplitude micro-trend:
+  aria-label "Amplitude intrajournalière (haut−bas) EUR/USD, 90
+  dernières barres", viewBox `0 0 160 36`, svg-owns-box, **the SAME
+  neutral `stroke=var(--color-text-secondary)` as the price chart —
+  NO per-series tinting (the ichor-trader ADR-017 VERIFIED-TRUE claim
+  confirmed live)**, **90 points from the real `high − low` series**,
+  `first=2.0,31.8` `last=158.0,14.4`, endpoints exact
+  (`x[0]=2.0`=pad, `x[89]=158.0`=width−pad), **allOneDp ✓ strictlyIncX
+  ✓** (proves genuine point-to-point `xLinear`, the SSOT composition,
+  NOT band) **inViewBox ✓** title===aria-label ✓. The two promoted
+  lead words ("Prix" / "Amplitude") render in the
+  `font-medium text-secondary` eye-lock token (the ui-designer
+  Important fix, live-confirmed). **`priceVsAmplitudeIdenticalPoints
+= false`** — the price and amplitude polylines are GENUINELY
+  DISTINCT series (price `2.0,9.1→158.0,21.9` vs amplitude
+  `2.0,31.8→158.0,14.4`) : empirical proof r113 is NOT an on-screen
+  duplicate (the anti-pattern the r112 reshape avoided) but a real,
+  distinct data dimension rendering from real prod data —
+  **SHIPPED≠FUNCTIONAL empirically avoided, not asserted**. Screenshot
+  captured.
+- **Console — honestly scoped (lesson #1 / #11 / r106-a, NO fabricated
+  causation, NOT over-claimed on the up-side)**: this witness load of
+  `/briefing/EUR_USD` showed exactly **1 error: a `favicon.ico` 404**
+  — a PRE-EXISTING trivial app-wide 404 already on the hygiene
+  backlog / the r111 spawn-task, NOT r113's. The r111-witnessed
+  PRE-EXISTING app-wide defects (vendor-chunk `TypeError ×9`, React
+  #418, `/` `localhost:8001` CSP dev-artifact) were NOT observed on
+  this load (load/timing-dependent — the r109/r112 "warm" precedent).
+  **r113 is purely additive (one new `<Sparkline>` consumer + one
+  wiring line + a promoted label word) — it NEITHER caused NOR fixed
+  any console defect** ; the r111 spawn-task + the r112-flagged
+  header-wide `text-muted` §T4.2 backlog remain the owners (NOT
+  re-scoped, NOT re-claimed as a r113 win — a witnessed near-clean
+  console is not the increment that fixes a pre-existing defect it
+  never touched). The r113 surface itself (the two Sparklines) emits
+  zero r113-related console output.
+
+Voie D + ADR-017 held ; additive web2-only deploy ; zero backend /
+zero migration (alembic still 0050) ; doctrine #9 dated append, no new
+ADR ; doctrine #8 "more coverage" (a NEW genuine SSOT consumer + a NEW
+distinct data dimension), explicitly NOT de-accumulation (closed at
+r111) ; the literal default (A) regime-timeline R59-DISPROVED on the
+briefing page (no projected regime series) → reshaped to (B), the
+honest meta-r110/r112 move.
