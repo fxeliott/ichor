@@ -730,6 +730,14 @@ export interface PolymarketMarketHit {
   question: string;
   yes: number;
   weight: number;
+  /** r131 axis-8 Δ-YES — YES from oldest snapshot in 24h-48h-ago window
+   * for this slug. `null` when no history (market <24h or cron gap). */
+  yes_24h_ago?: number | null;
+  /** r131 axis-8 Δ-YES — signed shift in pp over last 24h. `null` when
+   * `yes_24h_ago` is null. Consumed by `<PolymarketImpactPanel>` for
+   * velocity badge with tone escalation `|v|>5pp` shift rapide,
+   * `>10pp` manipulation possible (descriptive, ADR-017). */
+  yes_velocity_pp?: number | null;
 }
 
 export interface PolymarketTheme {

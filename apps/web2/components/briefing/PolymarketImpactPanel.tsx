@@ -56,9 +56,11 @@ import { m } from "motion/react";
 import type { PolymarketImpact } from "@/lib/api";
 import {
   polymarketTone,
+  polymarketVelocityTone,
   topImpactsFor,
   topMarketForTheme,
   type PolymarketTone,
+  type PolymarketVelocityTone,
 } from "@/lib/polymarketImpact";
 
 const NF_PCT = new Intl.NumberFormat("fr-FR", {
@@ -77,6 +79,34 @@ const TONE_LABEL: Record<PolymarketTone, string> = {
   bull: "haussier",
   bear: "baissier",
   neutral: "neutre",
+};
+
+/** r131 axis-8 Δ-YES velocity-tone visual mapping. `subtle` = no
+ * visual emphasis (muted) ; `rapid` = warn-amber tint ; `manip` =
+ * warn-red tint with "manipulation possible" microtext ; `none` = no
+ * badge rendered. ADR-017 boundary : these are MAGNITUDE descriptors
+ * of bettor-opinion change, NEVER directional trading signals. */
+/** Tones share `--color-warn` between `rapid` and `major` post-r131
+ * ui-designer/a11y CONCORDANT — the previous `--color-bear` red on
+ * `major` tier collided with the directional "bear pour XAU" theme
+ * color (visually indistinguishable). Escalation rapid → major is now
+ * conveyed by LABEL alone ("shift rapide" / "shift majeur") not hue. */
+const VELOCITY_COLOR: Record<Exclude<PolymarketVelocityTone, "none">, string> = {
+  subtle: "var(--color-text-muted)",
+  rapid: "var(--color-warn)",
+  major: "var(--color-warn)",
+};
+
+/** Labels post-r131 trader CRITICAL-1 + ui-designer CRITICAL + a11y
+ * SC 1.4.1 CONCORDANT — "manipulation possible" was a CAUSAL claim
+ * (ADR-017 boundary leakage, same class as r130 numeric overclaim).
+ * Renamed to "shift majeur" (descriptive magnitude). The full
+ * manipulation watch surface requires cross-venue Kalshi divergence +
+ * volume-anomaly z-score, deferred to r132+. */
+const VELOCITY_LABEL: Record<Exclude<PolymarketVelocityTone, "none">, string> = {
+  subtle: "",
+  rapid: "shift rapide",
+  major: "shift majeur",
 };
 
 /** Format the staleness of the API generated_at timestamp into a FR
@@ -268,6 +298,50 @@ export function PolymarketImpactPanel({ asset, impact }: PolymarketImpactPanelPr
                   <span className="font-mono tabular-nums" style={{ color: TONE_COLOR[t] }}>
                     YES {NF_PCT.format(topMarket.yes)}
                   </span>
+                  {/* r131 axis-8 Δ-YES velocity badge — signed shift
+                      over last 24h with tone escalation. Renders only
+                      when yes_velocity_pp is non-null (doctrine #11
+                      honest silent absence — market <24h or cron gap
+                      = no history available). ADR-017 : descriptive
+                      magnitude of bettor-opinion change, NEVER
+                      predictive of price. */}
+                  {/* r131 post-review : the badge group is wrapped in
+                      an inline-flex whitespace-nowrap span (ui-designer
+                      Important #3 — keeps number + label atomic on
+                      mobile wrap) ; aria-label dropped (a11y MUST-FIX
+                      concordant r129+r130 doctrine — span aria-label
+                      ignored in browse mode, visible text self-
+                      explanatory) ; suffix size 10px → 11px (a11y
+                      SC 1.4.4 concordant r129) ; uppercase dropped
+                      (ui-designer Important #2 hierarchy inversion —
+                      tracking-widest alone signals "tag"). */}
+                  {(() => {
+                    const v = topMarket.yes_velocity_pp;
+                    const vTone = polymarketVelocityTone(v);
+                    if (vTone === "none" || v === null || v === undefined) return null;
+                    const sign = v >= 0 ? "+" : "−";
+                    const abs = Math.abs(v).toFixed(1).replace(".", ",");
+                    return (
+                      <span className="inline-flex items-baseline whitespace-nowrap">
+                        {" · "}
+                        <span
+                          className="font-mono tabular-nums"
+                          style={{ color: VELOCITY_COLOR[vTone] }}
+                        >
+                          {sign}
+                          {abs} pp / 24 h
+                        </span>
+                        {VELOCITY_LABEL[vTone] ? (
+                          <span
+                            className="ml-1 text-[11px] tracking-widest"
+                            style={{ color: VELOCITY_COLOR[vTone] }}
+                          >
+                            · {VELOCITY_LABEL[vTone]}
+                          </span>
+                        ) : null}
+                      </span>
+                    );
+                  })()}
                 </p>
               ) : null}
             </li>

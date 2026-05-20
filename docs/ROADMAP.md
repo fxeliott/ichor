@@ -10,7 +10,7 @@
 
 ---
 
-## §1 — Current state (r130-close, 2026-05-20)
+## §1 — Current state (r131-close, 2026-05-20)
 
 ### Shipped capabilities (the product TODAY)
 
@@ -68,7 +68,20 @@ See `docs/ROADMAP_2026-05-06.md` for the original 4-layer architecture (DATA FOU
 
 ---
 
-## §3 — Immediate next (r131)
+## §3 — Immediate next (r132)
+
+**r131 EXECUTED & SHIPPED (2026-05-20)** : Polymarket Δ-YES velocity primitive on `<PolymarketImpactPanel>` — closes r130 trader MUST-FIX-2 deferred Δ-YES wire. NEW backend SQL helper (tight 22-26h window post-trader MUST-FIX-1) + MarketHit/Pydantic/TS schema extension with `yes_24h_ago` + `yes_velocity_pp` + `yes_24h_ago_at` (trader MUST-FIX-2 dual-stamp) + frontend badge with tone escalation (subtle / rapid / **major** — renamed from "manipulation possible" per trader CRITICAL-1 + ui-designer + a11y CONCORDANT, causal-claim ADR-017 leakage avoided). 3 parallel reviewers (trader + ui-designer + a11y) — 3 CONCORDANT MUST-FIX + 2 STRONG single-reviewer trader R28 MUST-FIX ALL applied same-commit. Build gate : pytest 20/20 + tsc 0 + eslint 0 + vitest 9f/199 + next build OK. Deploy LIVE backend (scp + restart, /healthz=200, endpoint schema verified) + frontend (redeploy-web2.sh, local=200 public=200). Playwright DUAL witness GREEN : XAU velocity badge "+0,0 pp / 24 h" LIVE on China-Taiwan top market (subtle tone, no label, exactly designed) + Oil/OPEC silent (no 24h history, honest absence) + EUR empty-second-branch with role=status. **Lesson #28 codified** : causal labels ("manipulation", "anomalie", "signal") are opt-IN per round with explicit evidence-stacking, NOT opt-OUT defaults. **Mission axis-8 +1 LEVEL PARTIAL** : velocity primitive ships ; full closure (volume-anomaly + cross-venue Kalshi divergence + order-book depth) deferred r132+. See `docs/SESSION_LOG_2026-05-20-r131-EXECUTION.md` + ADR-099 §Impl(r131).
+
+**r132 binding default candidates** (R59-AUDIT first to pick) :
+
+1. **Axis-8 closure completion** — cross-venue Kalshi divergence wire OR volume-anomaly z-score (closes axis 8 fully ; r131 only velocity primitive). Effort M-L.
+2. **NY 13-16h window UI marker** (deferred r130/r131) — explicit "T-{N}h pré-NY" badge on `<TodaySessionPulse>`. Effort S. CLOSES axis 3.
+3. **Conviction decomposition per-axe** (deferred r130/r131) — `conviction_pct` decomposed into (macro + flux + positioning + sentiment) sub-scores. Effort M-L. CLOSES axis 6.
+4. **Threshold drift detector cron** (deferred r129+r130+r131) — axis-7 ALERT-stage. Effort M.
+5. **Polymarket threshold recalibration cron** — mirror tempo r126 pattern : weekly cron empirically calibrates 5pp/10pp thresholds from per-market-class distribution. Effort M.
+6. **AUD_USD revival** — alternative China money supply LIVE series since MYAGM1CNM189N dead. Effort M-L.
+
+## §3 — Previous immediate next (r131, EXECUTED above)
 
 **r130 EXECUTED & SHIPPED (2026-05-20)** : `<PolymarketImpactPanel>` on `/briefing/[asset]` — closes prompt-cadre clause _"Intégration des données Polymarket, exploitées pleinement"_. NEW lib/polymarketImpact.ts + NEW PolymarketImpactPanel.tsx + page.tsx wire + 12 vitest tests. Reviews 4 parallel : 3 CONCORDANT MUST-FIX (aria-labelledby id collision + generated_at provenance + role="img" over-announce) + 2 STRONG single-reviewer MUST-FIX (trader numeric overclaim → drop visible scalar ; code-reviewer NF_SIGNED near-zero contradiction → POLYMARKET_NEUTRAL_THRESHOLD = 0.005). Build gate : tsc 0 / eslint 0 / vitest 9f/194 pass / next build OK. Deploy LIVE on CF tunnel. Playwright DUAL witness GREEN : EUR_USD empty-second-branch ("Polymarket inactif" — honest, FX rarely Polymarket-priced) ; XAU_USD 2 themes populated (China-Taiwan + Oil/OPEC, both "baissier pour XAU/USD"). **Lesson #27 codified** : 4 rounds on single axis (axis-7 r126→r129) triggers FULL-matrix re-evaluation, user-facing high-leverage axes take priority over infrastructure-completion. axis 4 anticipation par profondeur +1 LEVEL ; axis 8 manipulation watch partial INFRA (Δ-YES wire deferred r131). See `docs/SESSION_LOG_2026-05-20-r130-EXECUTION.md` + ADR-099 §Impl(r130).
 

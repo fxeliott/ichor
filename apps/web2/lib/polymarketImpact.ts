@@ -29,6 +29,56 @@ export function polymarketTone(value: number): PolymarketTone {
   return "neutral";
 }
 
+/** r131 axis-8 Δ-YES manipulation watch primitive — tone escalation tiers
+ * for the velocity badge (signed shift in percentage points over last 24h).
+ *
+ *   - `subtle` : |v| < 5 pp = normal day-to-day churn (muted display, no label)
+ *   - `rapid`  : 5 ≤ |v| < 10 pp = "shift rapide" (warn-amber tint)
+ *   - `major`  : |v| ≥ 10 pp = "shift majeur" (warn-amber tint, label only)
+ *   - `none`   : velocity is null (no 24h history, no badge rendered)
+ *
+ * Post-r131 trader CRITICAL-1 + ui-designer CRITICAL + a11y SC 1.4.1 :
+ * the tier was renamed `manip` → `major` and the label "manipulation
+ * possible" → "shift majeur". The previous wording was a CAUSAL claim
+ * about third-party behavior (same class of ADR-017 leakage as a BUY/
+ * SELL signal) ; r131 ships the velocity PRIMITIVE only. Full axis-8
+ * manipulation watch closure requires cross-venue Kalshi divergence +
+ * volume-anomaly z-score — r132+ work.
+ *
+ * The color is also shared between `rapid` and `major` (both
+ * `--color-warn` amber) to avoid the bear-tone collision flagged by
+ * ui-designer/a11y : the previous red-on-bear-theme was visually
+ * indistinguishable from the directional "bear pour XAU" tone color.
+ * Escalation rapid → major is conveyed by the LABEL alone now, not a
+ * hue shift.
+ *
+ * Thresholds 5pp / 10pp are HEURISTIC desk-experience values (~1σ /
+ * ~2σ typical 24h-shift estimate), NOT empirically calibrated against
+ * per-market-class distributions. r132+ candidate for backend
+ * recalibration job mirroring tempo r126 pattern (config + cron-driven
+ * threshold refresh).
+ *
+ * Returns `none` on null/NaN/Infinity inputs (honest silent absence). */
+export type PolymarketVelocityTone = "none" | "subtle" | "rapid" | "major";
+
+export const POLYMARKET_VELOCITY_RAPID_PP = 5;
+export const POLYMARKET_VELOCITY_MAJOR_PP = 10;
+/** @deprecated Renamed to POLYMARKET_VELOCITY_MAJOR_PP post-r131 trader
+ * CRITICAL-1 ("manipulation possible" causal-claim leakage). Keep this
+ * re-export until any r132+ consumer migrates. */
+export const POLYMARKET_VELOCITY_MANIP_PP = POLYMARKET_VELOCITY_MAJOR_PP;
+
+export function polymarketVelocityTone(
+  velocity_pp: number | null | undefined,
+): PolymarketVelocityTone {
+  if (velocity_pp === null || velocity_pp === undefined) return "none";
+  if (!Number.isFinite(velocity_pp)) return "none";
+  const abs = Math.abs(velocity_pp);
+  if (abs >= POLYMARKET_VELOCITY_MAJOR_PP) return "major";
+  if (abs >= POLYMARKET_VELOCITY_RAPID_PP) return "rapid";
+  return "subtle";
+}
+
 /** Top-N themes by ABSOLUTE impact on the asset (default 3). Returns
  * an empty array if no theme has an above-threshold impact on the
  * asset — caller renders an honest empty-state per doctrine #11. */

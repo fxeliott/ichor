@@ -215,6 +215,33 @@ class MarketHit:
     yes: float
     weight: float
     """YES-derived weight in [-1, +1] : (yes - 0.5) * 2."""
+    yes_24h_ago: float | None = None
+    """YES probability from the oldest snapshot in the tight 22-26h-ago
+    window for this slug (±2h tolerance around true 24h, per r131 trader
+    MUST-FIX-1 — earlier 24h-48h window risked 2x time-scale error in
+    the "/ 24h" UI framing). `None` when no historical snapshot exists
+    (market younger than 24h, or cron gap). r131 Δ-YES manipulation
+    watch primitive — Mission centrale axis 8 PARTIAL completion ; full
+    closure (volume-anomaly + cross-venue Kalshi divergence) deferred r132+."""
+    yes_velocity_pp: float | None = None
+    """Signed shift in percentage points over the last 24h :
+    `(yes - yes_24h_ago) * 100`. `None` when `yes_24h_ago` is None
+    (no comparison possible — honest silent absence per doctrine #11).
+    Used by the frontend `<PolymarketImpactPanel>` to surface a
+    velocity badge with tone escalation : |v| ≥ 5pp = "shift rapide",
+    ≥ 10pp = "shift majeur" (descriptive magnitude descriptors, NEVER
+    causal-claim "manipulation" per r131 trader CRITICAL-1 — reserved
+    until r132+ ships cross-venue divergence evidence). ADR-017 boundary
+    preserved : these are magnitude descriptors of bettor-opinion
+    change, never price predictors. Thresholds 5pp/10pp are HEURISTIC
+    desk-experience values (~1σ / ~2σ typical 24h-shift estimate), NOT
+    empirically calibrated against per-market-class distributions ;
+    r132+ candidate for backend recalibration job."""
+    yes_24h_ago_at: datetime | None = None
+    """ISO timestamp of the snapshot that produced `yes_24h_ago`. Carried
+    through to the frontend so the panel can render honest dual-stamp
+    age ("YES_now stamped X · YES_24h_ago stamped Y") — r131 trader
+    MUST-FIX-2. `None` when `yes_24h_ago` is None."""
 
 
 @dataclass(frozen=True)
@@ -243,6 +270,72 @@ def _matches_phrase(text_lower: str, phrase: list[str]) -> bool:
     return all(token in text_lower for token in phrase)
 
 
+async def _fetch_yes_24h_ago_per_slug(
+    session: AsyncSession, slugs: list[str]
+) -> dict[str, tuple[float, datetime]]:
+    """r131 axis-8 Δ-YES manipulation watch primitive — fetch the YES
+    probability AND the snapshot timestamp from the CLOSEST-TO-24h-AGO
+    snapshot per slug (post-trader MUST-FIX-1 + MUST-FIX-2 fixes).
+
+    Returns `{slug: (yes_24h_ago, fetched_at)}`. Slugs without history
+    in the window are absent from the dict (caller treats absence as
+    `None` → `yes_velocity_pp = None` → frontend renders no badge ;
+    doctrine #11 honest silent absence).
+
+    The 22-26h tight window (±2h tolerance around 24h) honors the
+    "/ 24h" UI framing :
+      - The earlier 24h-48h window risked labeling a 47h-ago shift as
+        "/ 24h" (2x time-scale error, trader MUST-FIX-1).
+      - 22h floor : prevents pulling a near-current snapshot that
+        would understate velocity.
+      - 26h ceiling : tolerates ±2h cron drift while staying close to
+        the canonical 24h reference.
+      - When the Polymarket cron fires every 1-6h, the window will
+        usually contain 1-4 snapshots ; if not, velocity stays None
+        (honest absence rather than fabricated cross-window proxy).
+
+    Carries the snapshot's `fetched_at` through so the frontend can
+    render the honest actual age of the comparison point (r131 trader
+    MUST-FIX-2 — dual-stamp).
+
+    Uses DISTINCT ON (slug) ORDER BY slug, fetched_at ASC to pick the
+    OLDEST snapshot per slug within the window — single index-aided
+    query on the `slug` index + composite-PK `fetched_at` filter.
+    Postgres-portable (DISTINCT ON is widely supported, including on
+    TimescaleDB hypertables).
+    """
+    if not slugs:
+        return {}
+    now = datetime.now(UTC)
+    window_start = now - timedelta(hours=26)  # 26h floor (tight ±2h around 24h)
+    window_end = now - timedelta(hours=22)  # 22h ceiling (tight ±2h around 24h)
+    rows = list(
+        (
+            await session.execute(
+                select(PolymarketSnapshot)
+                .where(PolymarketSnapshot.slug.in_(slugs))
+                .where(PolymarketSnapshot.fetched_at >= window_start)
+                .where(PolymarketSnapshot.fetched_at <= window_end)
+                .order_by(PolymarketSnapshot.slug, PolymarketSnapshot.fetched_at)
+                .distinct(PolymarketSnapshot.slug)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    out: dict[str, tuple[float, datetime]] = {}
+    for r in rows:
+        if not r.last_prices or len(r.last_prices) == 0:
+            continue
+        yes_then = r.last_prices[0]
+        if yes_then is None or not isinstance(yes_then, (int, float)):
+            continue
+        if yes_then < 0 or yes_then > 1:
+            continue  # Defense : malformed snapshot, skip
+        out[r.slug] = (float(yes_then), r.fetched_at)
+    return out
+
+
 async def assess_polymarket_impact(
     session: AsyncSession, *, hours: int = 24, limit: int = 200
 ) -> ImpactReport:
@@ -268,6 +361,11 @@ async def assess_polymarket_impact(
         seen_slugs.add(r.slug)
         rows.append(r)
 
+    # r131 axis-8 Δ-YES — fetch yes_24h_ago for all matched slugs in a
+    # single round-trip (Postgres DISTINCT ON, index-aided). Built BEFORE
+    # the theme loop so we don't N+1 the snapshot table per theme.
+    history_24h = await _fetch_yes_24h_ago_per_slug(session, [r.slug for r in rows])
+
     theme_hits: list[ThemeHit] = []
     asset_aggregate: dict[str, float] = {}
 
@@ -281,12 +379,24 @@ async def assess_polymarket_impact(
             if yes is None:
                 continue
             weight = (yes - 0.5) * 2.0  # in [-1, +1]
+            history_entry = history_24h.get(r.slug)
+            if history_entry is not None:
+                yes_24h_ago_val, yes_24h_ago_at = history_entry
+                yes_velocity_pp = round((yes - yes_24h_ago_val) * 100, 2)
+                yes_24h_ago_rounded = round(yes_24h_ago_val, 3)
+            else:
+                yes_24h_ago_at = None
+                yes_velocity_pp = None
+                yes_24h_ago_rounded = None
             matches.append(
                 MarketHit(
                     slug=r.slug,
                     question=r.question[:140],
                     yes=round(yes, 3),
                     weight=round(weight, 3),
+                    yes_24h_ago=yes_24h_ago_rounded,
+                    yes_velocity_pp=yes_velocity_pp,
+                    yes_24h_ago_at=yes_24h_ago_at,
                 )
             )
         if not matches:

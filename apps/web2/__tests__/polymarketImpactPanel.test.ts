@@ -12,7 +12,10 @@ import { describe, expect, it } from "vitest";
 import type { PolymarketImpact } from "@/lib/api";
 import {
   POLYMARKET_NEUTRAL_THRESHOLD,
+  POLYMARKET_VELOCITY_MAJOR_PP,
+  POLYMARKET_VELOCITY_RAPID_PP,
   polymarketTone,
+  polymarketVelocityTone,
   topImpactsFor,
   topMarketForTheme,
 } from "@/lib/polymarketImpact";
@@ -144,6 +147,43 @@ describe("topImpactsFor — top-N themes by absolute impact on asset", () => {
     expect(t1!.impact_value).toBe(0.5);
     expect(t2!.theme.theme_key).toBe("bull1");
     expect(t2!.impact_value).toBe(0.4);
+  });
+});
+
+describe("polymarketVelocityTone — r131 axis-8 Δ-YES tone escalation", () => {
+  it("returns 'none' on null / undefined / NaN inputs (honest silent absence)", () => {
+    expect(polymarketVelocityTone(null)).toBe("none");
+    expect(polymarketVelocityTone(undefined)).toBe("none");
+    expect(polymarketVelocityTone(NaN)).toBe("none");
+    expect(polymarketVelocityTone(Infinity)).toBe("none");
+    expect(polymarketVelocityTone(-Infinity)).toBe("none");
+  });
+
+  it("classifies sub-5pp magnitude as 'subtle' (day-to-day churn)", () => {
+    expect(polymarketVelocityTone(0)).toBe("subtle");
+    expect(polymarketVelocityTone(1.5)).toBe("subtle");
+    expect(polymarketVelocityTone(-2.7)).toBe("subtle");
+    expect(polymarketVelocityTone(4.999)).toBe("subtle");
+    expect(polymarketVelocityTone(-4.999)).toBe("subtle");
+  });
+
+  it("classifies 5-10pp magnitude as 'rapid' (shift rapide)", () => {
+    expect(polymarketVelocityTone(POLYMARKET_VELOCITY_RAPID_PP)).toBe("rapid");
+    expect(polymarketVelocityTone(-POLYMARKET_VELOCITY_RAPID_PP)).toBe("rapid");
+    expect(polymarketVelocityTone(7.5)).toBe("rapid");
+    expect(polymarketVelocityTone(-9.999)).toBe("rapid");
+  });
+
+  it("classifies ≥10pp magnitude as 'major' (shift majeur, post-r131 trader CRITICAL-1 rename)", () => {
+    expect(polymarketVelocityTone(POLYMARKET_VELOCITY_MAJOR_PP)).toBe("major");
+    expect(polymarketVelocityTone(-POLYMARKET_VELOCITY_MAJOR_PP)).toBe("major");
+    expect(polymarketVelocityTone(15.3)).toBe("major");
+    expect(polymarketVelocityTone(-42.0)).toBe("major");
+  });
+
+  it("threshold constants are aligned with heuristic desk-experience values", () => {
+    expect(POLYMARKET_VELOCITY_RAPID_PP).toBe(5);
+    expect(POLYMARKET_VELOCITY_MAJOR_PP).toBe(10);
   });
 });
 
