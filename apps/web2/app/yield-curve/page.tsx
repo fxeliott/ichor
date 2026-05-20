@@ -8,6 +8,23 @@ import { BiasIndicator, MetricTooltip } from "@/components/ui";
 import { apiGet, isLive, type YieldCurveStandalone } from "@/lib/api";
 import { linScale, svgCoord } from "@/lib/microchart";
 
+// r122 (ADR-099 §Impl(r122) revised): force-dynamic to bypass Next.js static
+// generation. Pre-r122 the page was implicitly Static (○ in `next build`
+// output) because it has no force-dynamic + no headers/cookies/searchParams ;
+// `apiGet` was called at BUILD time where `ICHOR_API_URL` is NOT set (only
+// the systemd runtime env has it) → apiGet returned null → FALLBACK was
+// baked into the static HTML output (visible as the "▼ offline · seed ·
+// shape: inverted_short" pill on the deployed surface across r118-r121,
+// despite the live API serving 8/10 tenors). Forcing dynamic renders the
+// page on EACH request where the systemd Environment line correctly
+// propagates `ICHOR_API_URL=http://127.0.0.1:8000`. Mirrors the
+// `/hourly-volatility/[asset]` house pattern (`dynamic = "force-dynamic"`
+// + `revalidate`). The fetch-level `{ revalidate: 60 }` below stays as a
+// per-fetch ISR cache (60s, aligned with sibling deep-dive pages) so
+// repeated visits within 60s don't hammer the API loopback.
+export const dynamic = "force-dynamic";
+export const revalidate = 60;
+
 interface RenderTenor {
   label: string;
   tenor_years: number;
@@ -39,7 +56,16 @@ const FALLBACK: YieldCurveStandalone = {
 };
 
 export default async function YieldCurvePage() {
-  const live = await apiGet<YieldCurveStandalone>("/v1/yield-curve", { revalidate: 300 });
+  // r122 (ADR-099 §Impl(r122), Tier 4 ISR-cache-TTL-recalibration): revalidate
+  // lowered 300→60 to align with sibling deep-dive house-pattern (calibration /
+  // knowledge-graph / polymarket all 60s ; only this page + hourly-volatility +
+  // confluence/history were the 300s outliers — those have populated APIs so
+  // no transient-pollution issue ; this page's R53 API has 8/10 tenors live but
+  // 2 nullable shorts → transient null windows pollute the ISR cache 5× longer
+  // than house pattern). FALLBACK retained as graceful-degradation safety net
+  // (NOT removed — the FALLBACK is route-local intentional per the v40/v41
+  // discipline). Future transient-null windows now recover in 60s, not 300s.
+  const live = await apiGet<YieldCurveStandalone>("/v1/yield-curve", { revalidate: 60 });
   const data = isLive(live) ? live : FALLBACK;
   const isOffline = !isLive(live);
 
