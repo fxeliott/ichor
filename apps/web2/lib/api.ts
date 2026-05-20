@@ -328,6 +328,18 @@ export async function getHourlyVol(asset: string): Promise<HourlyVolOut | null> 
   });
 }
 
+// r123 — server-side fetch of the DST-correct session-status (the
+// `SessionStatus` client chip fetches it independently with `no-store` and
+// a 5-min self-heal poll ; this server-side wrapper lets the briefing page
+// SSR pass the canonical state to `<TodaySessionPulse>` for the live
+// session-window stats — `<TodaySessionPulse>` is RSC-safe by design and
+// cannot fetch on its own, lesson #5 RSC-leak discipline). 60s ISR is
+// generous enough that the chip's client-side 5-min refresh remains the
+// authoritative live source ; this server slice is the SSR seed.
+export async function getSessionStatus(): Promise<SessionStatusOut | null> {
+  return apiGet<SessionStatusOut>("/v1/calendar/session-status", { revalidate: 60 });
+}
+
 // r76 — geopolitics briefing (AI-GPR headline + negative GDELT). Mirror
 // of apps/api routers/geopolitics.py GeopoliticsBriefingOut. `band` is a
 // ratio to the published GPR baseline (100 = 1985-2019 mean), NOT a

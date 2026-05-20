@@ -40,6 +40,7 @@ import { PocketSkillBadge } from "@/components/briefing/PocketSkillBadge";
 import { ScenariosPanel } from "@/components/briefing/ScenariosPanel";
 import { SentimentPanel } from "@/components/briefing/SentimentPanel";
 import { SessionStatus } from "@/components/briefing/SessionStatus";
+import { TodaySessionPulse } from "@/components/briefing/TodaySessionPulse";
 import { VerdictBanner } from "@/components/briefing/VerdictBanner";
 import { VolumePanel } from "@/components/briefing/VolumePanel";
 import { HourlyVolReport } from "@/components/hourly-vol/HourlyVolReport";
@@ -56,6 +57,7 @@ import {
   getPocketSummary,
   getPolymarketImpact,
   getPositioning,
+  getSessionStatus,
   isLive,
   type CalendarUpcoming,
   type CorrelationMatrix,
@@ -69,8 +71,10 @@ import {
   type PositioningOut,
   type SessionCard,
   type SessionCardList,
+  type SessionStatusOut,
   type TodaySnapshotOut,
 } from "@/lib/api";
+import { derivePulse } from "@/lib/sessionPulse";
 import { deriveDataIntegrity } from "@/lib/dataIntegrity";
 import { deriveEventSurprise } from "@/lib/eventSurprise";
 
@@ -121,6 +125,7 @@ export default async function BriefingPage({ params }: PageParams) {
     pocketSummary,
     polymarketImpact,
     hourlyVol,
+    sessionStatusSsr,
   ] = await Promise.all([
     fetchSessionCardForAsset(normalisedAsset),
     getKeyLevels() as Promise<KeyLevelsResponse | null>,
@@ -135,7 +140,13 @@ export default async function BriefingPage({ params }: PageParams) {
     getPocketSummary(normalisedAsset) as Promise<PocketSummaryList | null>,
     getPolymarketImpact() as Promise<PolymarketImpact | null>,
     getHourlyVol(normalisedAsset),
+    getSessionStatus() as Promise<SessionStatusOut | null>,
   ]);
+
+  // r123 — derive today's session pulse from the FULL intraday array
+  // (NOT the 90-bar slice) so the today-boundary detection sees bars
+  // back to ~today's Paris-midnight. Pure deterministic helper, RSC-safe.
+  const sessionPulse = derivePulse(intraday, hourlyVol, sessionStatusSsr);
 
   // r82 Tier 1.5 — Corrélations unconditional. Prefer the card's
   // per-asset complex co-move snapshot ; else derive THIS asset's row
@@ -239,6 +250,8 @@ export default async function BriefingPage({ params }: PageParams) {
         priceTrend={recentBars.map((b) => b.close)}
         rangeTrend={recentBars.map((b) => b.high - b.low)}
       />
+
+      <TodaySessionPulse asset={normalisedAsset} pulse={sessionPulse} />
 
       {card && (
         <VerdictBanner
