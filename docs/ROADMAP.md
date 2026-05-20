@@ -10,6 +10,17 @@
 
 ---
 
+## §1 — Current state (r133-close, 2026-05-20→21)
+
+### Shipped at r133 (the honest-scope closure for r132's own residual)
+
+- **`<NyWindowBadge>` US holiday awareness LIVE** : `lib/usMarketHolidays.ts` TS-port of canonical Python `apps/api/services/market_session.us_market_holidays(year)` algorithm + drift-guard fixture test (2026 + 2027). Per-asset-class label routing per trader R28 MF-1 honest-scope fix : equity (SPX500/NAS100) → "Marché US fermé · {fête}" (literal closure) ; non-equity + safer-side default → "Férié US · {fête} · liquidité réduite" (honest FX/XAU continue globally). The r132 stopgap micro-text "calendrier US fériés non géré" is OBSOLETED + DROPPED.
+- **Mission centrale axis 3 ✅ HONEST-SCOPE CLOSED** : badge + holiday detection + per-asset routing all LIVE. Memorial Day Mon 2026-05-25 (in 4 days post-deploy) will render correctly without misleading "Fenêtre NY active".
+- **vitest 258 / 11 files** (was 210 r132 + 48 r133 = 258, 0 regression) ; deploy LIVE local=200 public=200 ; Playwright TRIPLE witness GREEN (XAU + EUR + SPX).
+- **Voie D held 48 rounds** (TS-port byte-for-byte mirror of canonical Python, zero LLM involvement in holiday-lookup runtime).
+
+### Pre-r133 state (preserved for archeology)
+
 ## §1 — Current state (r132-close, 2026-05-20)
 
 ### Shipped capabilities (the product TODAY)
@@ -68,19 +79,23 @@ See `docs/ROADMAP_2026-05-06.md` for the original 4-layer architecture (DATA FOU
 
 ---
 
-## §3 — Immediate next (r133)
+## §3 — Immediate next (r134)
+
+**r133 EXECUTED & SHIPPED (2026-05-20→21)** : US holiday awareness for `<NyWindowBadge>` — closes r132 own honest-scope gap "calendrier US fériés non géré". NEW `lib/usMarketHolidays.ts` TS-port of canonical Python `market_session.us_market_holidays(year)` algorithm (Anonymous Gregorian Computus + nth-weekday + observed shifts byte-for-byte mirror) + NEW `parisYMD` export on session-clock SSOT + extended `NyWindowStatus` with `holiday` variant + per-asset-class label routing per trader R28 MF-1 fix (equity SPX/NAS → "Marché US fermé · {fête}" ; non-equity FX/XAU → "Férié US · {fête} · liquidité réduite") + NEW drift-guard fixture test (32 vitest cases pinning 2026 + 2027 against Federal Holidays + NYSE Holiday Calendar) + 16 new nyWindow.test.ts cases including Memorial Day 2026-05-25 + per-asset routing + Labor Day singular. Reviews 4 parallel : 1 CONCORDANT MUST-FIX (SC 1.4.10 reflow ui-designer + a11y) + 1 STRONG single-reviewer MUST-FIX (trader R28 MF-1 FX/equity asymmetry) + 3 cheap APPLY all applied same-commit. Build : tsc 0 + eslint 0 + vitest 11f/258 + next build OK. Deploy LIVE local=200 public=200. Playwright TRIPLE witness GREEN : XAU + EUR + SPX all rendering "Pré-NY · T−12h38 avant 13h Paris" at 00:21-00:23 Thu Paris with microtext-dropped + 0 console errors. **Lesson #30 codified** : honest-scope micro-text disclosure with known time-sensitive trigger date is ONE-ROUND STOPGAP, must be closed-or-refined by next round. **Mission centrale axis 3 ✅ HONEST-SCOPE CLOSED** : the explicit cible marker + US holiday detection + per-asset honest framing all LIVE. See `docs/SESSION_LOG_2026-05-20-r133-EXECUTION.md` + ADR-099 §Impl(r133).
+
+**r134 binding default candidates** (R59-AUDIT first to pick) :
+
+1. **Conviction decomposition per-axe** ⭐ AUTO-RECOMMENDED (axis 6 ⏳→✅, deferred r130+r131+r132+r133 = 4 rounds, MATURE for promotion ; opaque `conviction_pct ∈ [0, 95]` is a Mission centrale concern). Effort M-L.
+2. **Réactivité temps réel events auto-update** (axis 5 ⏳→✅, architectural — WebSocket/SSE + event-fire detection cron + banner OR auto-refresh on NFP/CPI/FOMC fire). Effort M-L.
+3. **Axis-8 closure completion** (deferred r131+r132+r133 — volume-anomaly z-score OR cross-venue Kalshi divergence OR order-book depth thinning). Effort M-L.
+4. **Threshold drift detector cron** (axis 7 ALERT-stage, deferred r129+r130+r131+r132+r133 = 5 rounds). Effort M.
+5. **Polymarket threshold recalibration cron** (deferred r131+r132+r133, mirror tempo r126 pattern). Effort M.
+6. **AUD_USD revival** — alternative China money supply LIVE series. Effort M-L.
+7. **r132 N-1 + N-2 + r133 deferred polish** — early-morning countdown collapse (`pre.h >= 6` → "NY ouvre dans X h" without minutes) + final-15min framing + tone-overload investigation. Effort S.
+
+## §3 — Previous immediate next (r133, EXECUTED above)
 
 **r132 EXECUTED & SHIPPED (2026-05-20)** : NY 13-16h Paris window UI marker on `<TodaySessionPulse>` — **Mission centrale axis 3 ⏳ → ✅ CLOSED**. NEW `lib/nyWindow.ts` pure-fn discriminated-union state (`pre`/`active`/`post`/`weekend`) + `<NyWindowBadge>` sub-component placed directly under H2 (hierarchy fix per ui-designer) + 11 vitest cases covering summer/winter DST + boundaries. Reviews 4 parallel : 4 CONCORDANT MUST-FIX (empty-state branch / amber overload / US holiday gap / role=status) + 1 STRONG single-reviewer hierarchy ALL applied same-commit. Build : tsc 0 + eslint 0 + vitest 10f/210 + next build OK. Deploy LIVE. Playwright DUAL witness GREEN : XAU + EUR both rendering "Post-NY · clos depuis 6h53/6h59" at 22:53-22:59 Paris with "calendrier US fériés non géré" honest disclosure. **Lesson #29 codified** : Mission axis ⏳ partiel ≥ 5 rounds + cited PRIORITÉ ABSOLUE = leapfrogs §3 ordering ahead of same-subaxis inertia ; the discipline of finishing-what's-started is BALANCED against not-camping-on-single-subaxis. See `docs/SESSION_LOG_2026-05-20-r132-EXECUTION.md` + ADR-099 §Impl(r132).
-
-**r133 binding default candidates** (R59-AUDIT first to pick) :
-
-1. **US holiday awareness for NyWindow** ⭐ AUTO-RECOMMENDED — closes the r132 honest-scope gap (Memorial Day / Independence Day / Thanksgiving etc.). Wire `apps/api/services/market_session.py` (574 LOC exchange-calendar logic exists) OR `pandas_market_calendars NYSE`. Effort S-M. **Finish-what's-started doctrine applies — the gap is r132's own residual.**
-2. **Conviction decomposition per-axe** (axis 6 ⏳→✅, deferred r130+r131+r132). Effort M-L.
-3. **Réactivité temps réel events auto-update** (axis 5 ⏳→✅, architectural). Effort M-L.
-4. **Threshold drift detector cron** (axis 7 ALERT-stage, deferred r129+r130+r131+r132). Effort M.
-5. **Polymarket threshold recalibration cron** (deferred r131, mirror tempo r126 pattern). Effort M.
-6. **Axis-8 closure completion** (deferred r131, volume-anomaly OR cross-venue Kalshi). Effort M-L.
-7. **AUD_USD revival** — alternative China money supply LIVE series. Effort M-L.
 
 ## §3 — Previous immediate next (r132, EXECUTED above)
 

@@ -125,28 +125,50 @@ const TONE_COLOR: Record<"bull" | "bear" | "warn" | "primary" | "secondary" | "m
   muted: "var(--color-text-muted)",
 };
 
-/** r132 — NY 13-16h Paris window status badge. Renders the
- * `getNyWindowStatus(new Date())` output. Pure RSC server-component
- * (no `"use client"`, no `useEffect`) — `new Date()` evaluates at SSR
- * request time, the resulting string is baked into the HTML. The
- * briefing route is `ƒ Dynamic` (no SSG bake-in risk, mirror of r129
- * formatCalibrationAge SSR-stamping pattern).
+/** r132 — NY 13-16h Paris window status badge ; r133 — US holiday
+ * awareness wired (closes the r132 honest-scope gap "calendrier US
+ * fériés non géré") + per-asset-class label routing per trader R28
+ * MF-1 honest-scope fix (FX/XAU continue trading globally on US
+ * holidays — "Marché US fermé" overclaims closure for those assets,
+ * so the badge routes to "Férié US · … · liquidité réduite" except
+ * for SPX500/NAS100 which are genuinely closed).
+ *
+ * Renders the `getNyWindowStatus(new Date(), asset)` output. Pure RSC
+ * server-component (no `"use client"`, no `useEffect`) — `new Date()`
+ * evaluates at SSR request time, the resulting string is baked into
+ * the HTML. The briefing route is `ƒ Dynamic` (no SSG bake-in risk,
+ * mirror of r129 formatCalibrationAge SSR-stamping pattern).
  *
  * Tone palette (post-r132 reviews — trader Y-2 + ui-designer CONCORDANT
  * amber-overload fix : `active` uses primary text NOT amber, since
  * amber is already overloaded on tempo `breakout` + r131 velocity
  * `rapid`/`major` ; reserving amber for genuinely anomalous states
  * preserves its semantic weight) :
- *   - `active` → `--color-text-primary` (full-weight neutral, signals
- *                "operational LIVE" via contrast vs muted siblings)
- *   - `pre`    → `--color-text-secondary` (slate-350 countdown)
- *   - `post`   → `--color-text-muted` (slate-500 passive, closed)
- *   - `weekend`→ `--color-text-muted` (no NY today)
+ *   - `active`  → `--color-text-primary` (full-weight neutral, signals
+ *                 "operational LIVE" via contrast vs muted siblings)
+ *   - `pre`     → `--color-text-secondary` (slate-350 countdown)
+ *   - `post`    → `--color-text-muted` (slate-500 passive, closed)
+ *   - `weekend` → `--color-text-muted` (no NY today)
+ *   - `holiday` → `--color-text-muted` (r133 ; same muted tone as
+ *                 weekend — semantically equivalent "no NY today" state,
+ *                 just with the holiday name surfaced. NOT amber : the
+ *                 closed-market is the EXPECTED state on a holiday, not
+ *                 anomalous behavior worth alerting on.)
  *
  * Status role : the `<p>` carries `role="status"` (a11y SF-1
  * concordant r130 empty-state doctrine + r131 — "this is a state
  * readout" not body prose) ; no `aria-live` because RSC-only update
  * cadence makes it dead-code per request.
+ *
+ * Wrap behaviour (r133 SC 1.4.10 fix — CONCORDANT ui-designer
+ * IMPORTANT-2 + a11y SHOULD-FIX-1) : `whitespace-nowrap` is kept ONLY
+ * for the short time-bracket states (pre/active/post = 22-32 chars,
+ * fit on a single line in narrow viewports). For weekend/holiday the
+ * `nowrap` is DROPPED so the longer labels ("Marché US fermé · Martin
+ * Luther King Jr. Day" = 43 chars + "Férié US · … · liquidité réduite"
+ * = up to 65 chars) can wrap to a 2nd line on 320 CSS px viewports
+ * + at 200% browser zoom (SC 1.4.4). `leading-tight` keeps the wrapped
+ * line spacing visually grouped with the single-line states.
  *
  * Mission centrale axis 3 closure : Eliot SEES "T-2h avant NY 13h"
  * on every briefing rendered today, didn't see it pre-r132. Surfaced
@@ -154,29 +176,41 @@ const TONE_COLOR: Record<"bull" | "bear" | "warn" | "primary" | "secondary" | "m
  * (code-reviewer MF-1 + ui-designer CONCORDANT empty-state parity —
  * NY context is INDEPENDENT of intraday pulse availability).
  *
- * KNOWN GAP (r132 trader Y-1 + code-reviewer Y-1, deferred r133+) :
- * US bank holidays where NYSE/CME equity is closed on a weekday not
- * detected today. Footer micro-text "calendrier US fériés non géré"
- * surfaces this honestly per doctrine #11. */
+ * r133 closes the "US holidays not detected" honest-scope gap : the
+ * obsolete "calendrier US fériés non géré" micro-text is DROPPED ; the
+ * badge now reads "Marché US fermé · Memorial Day" (SPX/NAS) or
+ * "Férié US · Memorial Day · liquidité réduite" (EUR/GBP/XAU) on
+ * NYSE/Nasdaq full-day holidays. Drift-guard vitest pins 2026+2027
+ * fixtures against the canonical Python algorithm in
+ * `apps/api/.../services/market_session.us_market_holidays(year)`. */
 const NY_TONE_COLOR: Record<NyWindowKind, string> = {
   active: "var(--color-text-primary)",
   pre: "var(--color-text-secondary)",
   post: "var(--color-text-muted)",
   weekend: "var(--color-text-muted)",
+  holiday: "var(--color-text-muted)",
 };
 
-function NyWindowBadge() {
-  const status = getNyWindowStatus(new Date());
+/** Per-kind wrap policy (r133 SC 1.4.10 + ui-designer IMPORTANT-2
+ * CONCORDANT fix). Short time-bracket states stay single-line ; longer
+ * weekend/holiday labels are allowed to wrap. */
+const NY_WRAP_CLASS: Record<NyWindowKind, string> = {
+  active: "whitespace-nowrap",
+  pre: "whitespace-nowrap",
+  post: "whitespace-nowrap",
+  weekend: "leading-tight",
+  holiday: "leading-tight",
+};
+
+function NyWindowBadge({ asset }: { asset?: string }) {
+  const status = getNyWindowStatus(new Date(), asset);
   return (
     <p
       role="status"
-      className="mt-2 whitespace-nowrap text-[11px] tracking-wide"
+      className={`mt-2 text-[11px] tracking-wide ${NY_WRAP_CLASS[status.kind]}`}
       style={{ color: NY_TONE_COLOR[status.kind] }}
     >
       {status.label}
-      <span className="ml-2 text-[10px] text-[var(--color-text-muted)]">
-        · calendrier US fériés non géré
-      </span>
     </p>
   );
 }
@@ -207,7 +241,7 @@ export function TodaySessionPulse({ asset, pulse }: TodaySessionPulseProps) {
               state parity : NY window context is INDEPENDENT of pulse
               availability (Eliot still needs the cible marker when the
               intraday API is cold). Same NyWindowBadge in BOTH branches. */}
-          <NyWindowBadge />
+          <NyWindowBadge asset={asset} />
           <p className="mt-1 text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
             Lecture en temps réel · recalibrée chaque session · pas de carry-over d&apos;hier
           </p>
@@ -301,8 +335,12 @@ export function TodaySessionPulse({ asset, pulse }: TodaySessionPulseProps) {
             ui-designer hierarchy fix : the time-critical operational
             state ranks higher than the meta-process subtitle). The
             10px uppercase subtitle moves to position 3 since it's
-            descriptive about the panel's lifecycle, not operational. */}
-        <NyWindowBadge />
+            descriptive about the panel's lifecycle, not operational.
+            r133 : `asset` prop threaded through for per-class label
+            routing on US holidays (equity → "Marché US fermé" ;
+            FX/XAU → "Férié US · liquidité réduite") per trader R28
+            MF-1 honest-scope fix. */}
+        <NyWindowBadge asset={asset} />
         <p className="mt-1 text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
           Lecture en temps réel · recalibrée chaque session · pas de carry-over d&apos;hier
         </p>

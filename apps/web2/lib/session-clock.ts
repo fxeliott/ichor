@@ -72,6 +72,34 @@ export function parisHM(d: Date): { h: number; m: number; weekday: number } {
 }
 
 /**
+ * Convert a timestamp to the Paris calendar {year, month, day}.
+ * Month is 1-indexed (1=Jan..12=Dec) to match the human convention used
+ * by `lib/usMarketHolidays.ts`. ICU-backed via `Intl.DateTimeFormat`
+ * so DST + year boundary at midnight Paris are correct year-round.
+ *
+ * EXPORTED post-r133 — consumed by `lib/nyWindow.ts` to detect whether
+ * the Paris-current-date is a NYSE/Nasdaq full-day holiday. The Paris
+ * calendar-day (not the UTC calendar-day) is the correct reference :
+ * US holidays start at midnight ET = 06:00 Paris, so during the 00:00-
+ * 06:00 Paris dead-zone the Paris-date can technically differ from the
+ * NY-date — but the badge surfaces on briefings around 13-16h Paris
+ * which are always inside the same calendar day on both sides.
+ */
+export function parisYMD(d: Date): { year: number; month: number; day: number } {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/Paris",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(d);
+
+  const y = Number(parts.find((p) => p.type === "year")?.value ?? "1970");
+  const mo = Number(parts.find((p) => p.type === "month")?.value ?? "1");
+  const da = Number(parts.find((p) => p.type === "day")?.value ?? "1");
+  return { year: y, month: mo, day: da };
+}
+
+/**
  * Compute the current session window. Defaults to `now()` but accepts
  * an explicit Date for testing or replay scenarios.
  */
