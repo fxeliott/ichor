@@ -6,11 +6,11 @@
 >
 > **Discipline** : every round closes with a 1-line §1 refresh ; deeper §3-§5 refresh only when a round actually changes the plan (e.g., r124 = this initial creation, r125+ = appended §3 promotion of the next default once executed).
 >
-> **Sync** : 2026-05-20 r129-close (HEAD bumps to +1 per this commit ; was `651f478` at r128-close = 94 ahead origin/main `1909ca0` ; r129 commit will land 95 ahead, re-verified at push). Living-document discipline (per r124 lesson #21) — each round-close updates §1 sync + §3 promotion ; deeper §4-§6 refresh only when the plan shifts. **🎯 Mission centrale Axis-7 (auto-amélioration en autonomie) FULLY OBSERVABLE on the user surface : the r126+r127+r128+r129 4-round arc closes the auto-improvement loop with see-and-trust on the user surface — measure (cron percentile fire weekly Sun 04:00 Paris) → store (`tempo_thresholds` historical trail) → consume (briefing tempo label sourced from API-fed thresholds) → SEE (calibration provenance banner "Calibration des seuils · aujourd'hui · n=16 · fenêtre 90 j" in `<TodaySessionPulse>` panel footer) → recalibrate (next Sunday cron). alembic 0051 LIVE ; ichor-tempo-recalibration.timer LIVE ; feature flag LIVE ; Playwright TRIPLE witness EUR + GBP + XAU GREEN.**
+> **Sync** : 2026-05-20 r130-close (HEAD bumps to +1 per this commit ; was `adfb37e` at r129-close = 95 ahead origin/main `1909ca0` ; r130 commit will land 96 ahead, re-verified at push). Living-document discipline (per r124 lesson #21) — each round-close updates §1 sync + §3 promotion ; deeper §4-§6 refresh only when the plan shifts. **🎯 r130 PIVOT post Eliot prompt-cadre re-engagement : after 4 rounds on axis-7 (r126→r129 = MATURE), r130 re-prioritizes onto axis-4 (anticipation par profondeur) with `<PolymarketImpactPanel>` shipped on `/briefing/[asset]`. The Polymarket backend service `polymarket_impact.py` LIVE since r74 (8 themes clusterisés feeding LLM data-pool) is now SURFACED directly to Eliot's eye via per-asset directional tone label + diverging bar (NO numeric overclaim per trader MUST-FIX-1) + provenance staleness banner mirroring r129 doctrine #11. Mission axis 8 (manipulation watch) gets infrastructure precondition ; Δ-YES wire deferred r131+. Lesson #27 codified : 4-rounds-on-single-axis triggers FULL-matrix re-evaluation.**
 
 ---
 
-## §1 — Current state (r129-close, 2026-05-20)
+## §1 — Current state (r130-close, 2026-05-20)
 
 ### Shipped capabilities (the product TODAY)
 
@@ -68,7 +68,19 @@ See `docs/ROADMAP_2026-05-06.md` for the original 4-layer architecture (DATA FOU
 
 ---
 
-## §3 — Immediate next (r130)
+## §3 — Immediate next (r131)
+
+**r130 EXECUTED & SHIPPED (2026-05-20)** : `<PolymarketImpactPanel>` on `/briefing/[asset]` — closes prompt-cadre clause _"Intégration des données Polymarket, exploitées pleinement"_. NEW lib/polymarketImpact.ts + NEW PolymarketImpactPanel.tsx + page.tsx wire + 12 vitest tests. Reviews 4 parallel : 3 CONCORDANT MUST-FIX (aria-labelledby id collision + generated_at provenance + role="img" over-announce) + 2 STRONG single-reviewer MUST-FIX (trader numeric overclaim → drop visible scalar ; code-reviewer NF_SIGNED near-zero contradiction → POLYMARKET_NEUTRAL_THRESHOLD = 0.005). Build gate : tsc 0 / eslint 0 / vitest 9f/194 pass / next build OK. Deploy LIVE on CF tunnel. Playwright DUAL witness GREEN : EUR_USD empty-second-branch ("Polymarket inactif" — honest, FX rarely Polymarket-priced) ; XAU_USD 2 themes populated (China-Taiwan + Oil/OPEC, both "baissier pour XAU/USD"). **Lesson #27 codified** : 4 rounds on single axis (axis-7 r126→r129) triggers FULL-matrix re-evaluation, user-facing high-leverage axes take priority over infrastructure-completion. axis 4 anticipation par profondeur +1 LEVEL ; axis 8 manipulation watch partial INFRA (Δ-YES wire deferred r131). See `docs/SESSION_LOG_2026-05-20-r130-EXECUTION.md` + ADR-099 §Impl(r130).
+
+**r131 binding default candidates** (R59-AUDIT first to pick) :
+
+1. **Polymarket Δ-YES wire + manipulation watch completion** — adds velocity field to `polymarket_impact.py` service + surfaces ΔYES on the r130 panel. Effort M. CLOSES axis 8 fully (currently r130 only partial infra).
+2. **NY 13-16h window UI marker** — explicit "T-2h pré-NY" badge on `<TodaySessionPulse>` + briefing context. Effort S. CLOSES axis 3.
+3. **Conviction decomposition per-axis** — `conviction_pct` decomposed into (macro + flux + positioning + sentiment) sub-scores with visible breakdown. Effort M-L. CLOSES axis 6.
+4. **Threshold drift detector cron** (deferred from r129) — axis-7 ALERT-stage. Effort M.
+5. **AUD_USD revival** — alternative China money supply LIVE series. Effort M-L.
+
+## §3 — Previous immediate next (r130, EXECUTED above)
 
 **r129 EXECUTED & SHIPPED (2026-05-20)** : ADR-104 data-honesty staleness banner on `<TodaySessionPulse>` panel footer — closes r127 trader NIT + adds the 5th stage (SEE) to the Mission centrale Axis-7 auto-improvement loop. ~120 LOC + 5 new vitest cases. `getTempoThresholds()` envelope reshape `{thresholds, metadata}` + `derivePulse(..., thresholdsMetadata?)` 6th param + `tempo_metadata: TempoMetadata | null` on `SessionPulse` + `formatCalibrationAge` helper + banner in panel footer. Reviews 4 parallel : trader GREEN/MERGE + ui-designer NEEDS-FIX→MERGE post-apply (size + placement + prose-mono) + a11y 0 MUST-FIX→MERGE (drop aria-label + size) + code-reviewer 0 MUST-FIX (drop aria-label + extract const). Concordance applied : size text-[10px]→text-[11px], aria-label dropped (override-on-`<p>`-ignored per ARIA 1.2), placement Tempo-tile→panel-footer (provenance-with-provenance STRONG single-reviewer). 2 lessons codified : #25 (UI taxonomy is single-discipline domain — STRONG single-reviewer placement applies even without concordance) ; #26 (post-resume git-state R59 = capture deployed reality, no re-deploy). Build gate : tsc 0 / eslint 0 / vitest 8f/181 pass / next build OK. Deploy LIVE on CF tunnel. Playwright TRIPLE witness GREEN (EUR + GBP + XAU banner LIVE). See `docs/SESSION_LOG_2026-05-20-r129-EXECUTION.md` + ADR-099 §Impl(r129).
 

@@ -33,6 +33,7 @@ import { EconomicCalendarPanel } from "@/components/briefing/EconomicCalendarPan
 import { EventSurpriseGauge } from "@/components/briefing/EventSurpriseGauge";
 import { GeopoliticsPanel } from "@/components/briefing/GeopoliticsPanel";
 import { InstitutionalPositioningPanel } from "@/components/briefing/InstitutionalPositioningPanel";
+import { PolymarketImpactPanel } from "@/components/briefing/PolymarketImpactPanel";
 import { KeyLevelsPanel } from "@/components/briefing/KeyLevelsPanel";
 import { NarrativeBlocks } from "@/components/briefing/NarrativeBlocks";
 import { NewsPanel } from "@/components/briefing/NewsPanel";
@@ -403,6 +404,24 @@ export default async function BriefingPage({ params }: PageParams) {
           </span>
         </div>
         <InstitutionalPositioningPanel data={institutional} />
+      </section>
+
+      <section aria-labelledby="polymarket-impact-section-heading">
+        <div className="mb-4 flex items-baseline justify-between gap-4">
+          <h2
+            id="polymarket-impact-section-heading"
+            className="font-serif text-2xl text-[var(--color-text-primary)]"
+          >
+            Paris agrégés
+          </h2>
+          <span
+            aria-hidden="true"
+            className="text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]"
+          >
+            Polymarket · thèmes · transmission directionnelle
+          </span>
+        </div>
+        <PolymarketImpactPanel asset={normalisedAsset} impact={polymarketImpact} />
       </section>
 
       <section aria-labelledby="news-heading">
