@@ -405,7 +405,7 @@ export default async function BriefingPage({ params }: PageParams) {
             Saisonnalité intraday · médian + p75 · 30 j UTC
           </span>
         </div>
-        <HourlyVolReport report={hourlyVol} headingLevel={3} />
+        <HourlyVolReport report={hourlyVol} headingLevel={3} chrome="glass" />
       </section>
 
       <section aria-labelledby="correlations-heading">

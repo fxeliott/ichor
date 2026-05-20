@@ -8,16 +8,39 @@
 // pages, the lesson-#5 RSC-leak discipline). The 3 sub-components are
 // the VERBATIM pre-r120 page-local bodies (byte-identical logic, the
 // r71/r105 zero-behaviour-change regression discipline) — the ONLY
-// post-extraction delta is the `headingLevel` threading applied for the
-// concordant r120 3-reviewer fix (see the prop comment below): with the
-// default 2 the standalone page renders byte-identical <h2>s.
+// post-extraction deltas are (a) the `headingLevel` threading applied
+// for the concordant r120 3-reviewer fix and (b) the r121 `chrome` prop
+// allowing the briefing host to adopt the glass house tokens while the
+// default `"flat"` keeps the standalone rendered DOM byte-identical
+// cross-round (see prop comments below).
 
 import { BarSeries } from "@/components/microchart/BarSeries";
 import { isLive, type HourlyVolOut } from "@/lib/api";
 
+// r121 (ADR-099 §Implementation(r121), Tier 4 chrome-reconcile) — card
+// chrome variants. The `glass` entry adopts the verbatim 5-token glass
+// prefix (`overflow-hidden rounded-2xl border border-subtle bg-surface/40
+// backdrop-blur-xl`) used by sibling glass panels (VolumePanel.tsx,
+// ScenariosPanel.tsx, +14 other briefing comps — all inlining ; no shared
+// <GlassCard> wrapper exists), plus a `p-6` suffix because HourlyVolReport's
+// sub-cards render the heading as a direct child (vs the sibling pattern
+// of nested <header className="px-6 py-4"> + body) — see §Impl(r121) for
+// the deliberate sub-card-identity rationale (the outer briefing section
+// already carries the bold serif h2 "Volatilité horaire" ; the 3 inner
+// cards' mono-xs-uppercase micro-labels carry "I'm a sub-component"
+// semantics ; ichor-trader YELLOW-1 disclosed honestly). The `flat` entry
+// is the EXACT pre-r121 token set (byte-identical on `chrome="flat"`, the
+// standalone default — the r71/r105/r120 discipline preserved cross-round).
+const CARD_CHROME = {
+  flat: "rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-6 shadow-[var(--shadow-sm)]",
+  glass:
+    "overflow-hidden rounded-2xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)]/40 backdrop-blur-xl p-6",
+} as const;
+
 export function HourlyVolReport({
   report,
   headingLevel = 2,
+  chrome = "flat",
 }: {
   report: HourlyVolOut | null;
   // r120 review (CONCORDANT ichor-trader R28 YELLOW-3 + ui-designer
@@ -28,6 +51,14 @@ export function HourlyVolReport({
   // host nests them under a section <h2 id="hourly-vol-heading"> and
   // passes 3 so the sub-cards are <h3> — no h2-under-h2 outline flatten.
   headingLevel?: 2 | 3;
+  // r121 (ADR-099 §Impl(r121), Tier 4 chrome-reconcile): card chrome
+  // variant. Default "flat" preserves the standalone byte-identical
+  // rendered DOM (the r71/r105/r120 discipline preserved cross-round).
+  // The briefing host passes "glass" to adopt the rounded-2xl
+  // bg-surface/40 backdrop-blur-xl tokens verbatim from the sibling
+  // VolumePanel/ScenariosPanel (sibling visual coherence on the briefing
+  // page where this report sits between glass panels).
+  chrome?: "flat" | "glass";
 }) {
   if (!isLive(report)) {
     return (
@@ -38,14 +69,22 @@ export function HourlyVolReport({
   }
   return (
     <>
-      <HeatmapBars report={report} level={headingLevel} />
-      <Percentile75Bars report={report} level={headingLevel} />
-      <SessionAverages report={report} level={headingLevel} />
+      <HeatmapBars report={report} level={headingLevel} chrome={chrome} />
+      <Percentile75Bars report={report} level={headingLevel} chrome={chrome} />
+      <SessionAverages report={report} level={headingLevel} chrome={chrome} />
     </>
   );
 }
 
-function HeatmapBars({ report, level }: { report: HourlyVolOut; level: 2 | 3 }) {
+function HeatmapBars({
+  report,
+  level,
+  chrome,
+}: {
+  report: HourlyVolOut;
+  level: 2 | 3;
+  chrome: "flat" | "glass";
+}) {
   const H = `h${level}` as "h2" | "h3";
   const populated = report.entries.filter((e) => e.n_samples > 0);
   if (populated.length === 0) {
@@ -81,10 +120,7 @@ function HeatmapBars({ report, level }: { report: HourlyVolOut; level: 2 | 3 }) 
   );
 
   return (
-    <section
-      aria-labelledby="heatmap-heading"
-      className="mb-6 rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-6 shadow-[var(--shadow-sm)]"
-    >
+    <section aria-labelledby="heatmap-heading" className={`mb-6 ${CARD_CHROME[chrome]}`}>
       <H
         id="heatmap-heading"
         className="mb-4 font-mono text-xs uppercase tracking-widest text-[var(--color-text-muted)]"
@@ -142,7 +178,15 @@ function HeatmapBars({ report, level }: { report: HourlyVolOut; level: 2 | 3 }) 
   );
 }
 
-function Percentile75Bars({ report, level }: { report: HourlyVolOut; level: 2 | 3 }) {
+function Percentile75Bars({
+  report,
+  level,
+  chrome,
+}: {
+  report: HourlyVolOut;
+  level: 2 | 3;
+  chrome: "flat" | "glass";
+}) {
   const H = `h${level}` as "h2" | "h3";
   const populated = report.entries.filter((e) => e.n_samples > 0);
   // FAIL-SAFE : when there is no data the `HeatmapBars` section above
@@ -157,10 +201,7 @@ function Percentile75Bars({ report, level }: { report: HourlyVolOut; level: 2 | 
   );
 
   return (
-    <section
-      aria-labelledby="p75-heading"
-      className="mb-6 rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-6 shadow-[var(--shadow-sm)]"
-    >
+    <section aria-labelledby="p75-heading" className={`mb-6 ${CARD_CHROME[chrome]}`}>
       <H
         id="p75-heading"
         className="mb-3 font-mono text-xs uppercase tracking-widest text-[var(--color-text-muted)]"
@@ -198,17 +239,22 @@ function Percentile75Bars({ report, level }: { report: HourlyVolOut; level: 2 | 
   );
 }
 
-function SessionAverages({ report, level }: { report: HourlyVolOut; level: 2 | 3 }) {
+function SessionAverages({
+  report,
+  level,
+  chrome,
+}: {
+  report: HourlyVolOut;
+  level: 2 | 3;
+  chrome: "flat" | "glass";
+}) {
   const H = `h${level}` as "h2" | "h3";
   const stats: Array<[string, number | null, "bull" | "neutral"]> = [
     ["London / NY · 07-15 UTC", report.london_session_avg_bp, "bull"],
     ["Asia · 00-06 UTC", report.asian_session_avg_bp, "neutral"],
   ];
   return (
-    <section
-      aria-labelledby="session-avg-heading"
-      className="rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-6 shadow-[var(--shadow-sm)]"
-    >
+    <section aria-labelledby="session-avg-heading" className={CARD_CHROME[chrome]}>
       <H
         id="session-avg-heading"
         className="mb-3 font-mono text-xs uppercase tracking-widest text-[var(--color-text-muted)]"
