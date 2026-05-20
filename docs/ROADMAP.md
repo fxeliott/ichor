@@ -6,11 +6,11 @@
 >
 > **Discipline** : every round closes with a 1-line §1 refresh ; deeper §3-§5 refresh only when a round actually changes the plan (e.g., r124 = this initial creation, r125+ = appended §3 promotion of the next default once executed).
 >
-> **Sync** : 2026-05-20 r125-close (HEAD bumps to +1 per this commit ; was `1e8e919` at r124-close = 90 ahead origin/main `1909ca0` ; r125 commit will land 91 ahead, re-verified at push). Living-document discipline (per r124 lesson #21) — each round-close updates §1 sync + §3 promotion ; deeper §4-§6 refresh only when the plan shifts.
+> **Sync** : 2026-05-20 r126-close (HEAD bumps to +1 per this commit ; was `3d38cbc` at r125-close = 91 ahead origin/main `1909ca0` ; r126 commit will land 92 ahead, re-verified at push). Living-document discipline (per r124 lesson #21) — each round-close updates §1 sync + §3 promotion ; deeper §4-§6 refresh only when the plan shifts. **r126 alembic head bump 0050 → 0051 (`tempo_thresholds`) — the FIRST migration of the post-r110 stack ; backend deploy DEFERRED to r127 per split-atom doctrine.**
 
 ---
 
-## §1 — Current state (r123-close, 2026-05-20)
+## §1 — Current state (r126-close, 2026-05-20)
 
 ### Shipped capabilities (the product TODAY)
 
@@ -21,7 +21,7 @@
 - **Frontend `/briefing/[asset]`** (Next.js 15.5 + React 19 + Tailwind v4 + motion 12, Fraunces serif + glassmorphism) : 14+ premium panels covering the 8 layers — BriefingHeader Sparklines + **TodaySessionPulse (r123)** + VerdictBanner + KeyLevelsPanel + NarrativeBlocks + ScenariosPanel + EconomicCalendarPanel + EventSurpriseGauge + GeopoliticsPanel + SentimentPanel + InstitutionalPositioningPanel + NewsPanel + VolumePanel + HourlyVolReport + CorrelationsStrip + PocketSkillBadge + DataIntegrityBadge + ADR-104 r96 degraded-data badge.
 - **Phase D auto-improvement loops (W113-W118 + W116c + W117a)** — the LIVING ENTITY layer SHIPPED + AUTONOMOUSLY OPERATING : `auto_improvement_log` immutable trigger / ADWIN concept-drift / Vovk-Zhdanov aggregator (JMLR 2009) / Ahmadian Penalized Brier Score λ=2 / W116c LLM addendum generator (canonical Voie D entry, ADR-017 regex defense-in-depth) / DSPy 3.2 `ClaudeRunnerLM(BaseLM)` Voie D-wrapper. Observable via `/v1/phase-d/*` read-only endpoints. **Eliot's "Ichor doit s'améliorer en autonomie" is INFRASTRUCTURE-COMPLETE — the FRONTEND `/learn` consumer is gel'd per CLAUDE.md rule 4 (Eliot decision pending).**
 - **Voie D** : ZERO Anthropic API spend ; all LLM calls go through local Win11 `claude-runner` subprocess (Max 20x flat). Held **38 rounds** as of r123.
-- **Production deployment** : Hetzner SSH alias `ichor-hetzner`, 30+ ichor-\*.timer systemd units active, FastAPI + Alembic 0050 + SQLAlchemy 2 async + TimescaleDB + Postgres-AGE. Cloudflare quick tunnel LIVE URL stable `https://latino-superintendent-restoration-dealtime.trycloudflare.com`. 1900+ pytest suite green.
+- **Production deployment** : Hetzner SSH alias `ichor-hetzner`, 30+ ichor-\*.timer systemd units active, FastAPI + Alembic **0050 deployed** + **0051 landed code-only, deploy deferred to r127** + SQLAlchemy 2 async + TimescaleDB + Postgres-AGE. Cloudflare quick tunnel LIVE URL stable `https://latino-superintendent-restoration-dealtime.trycloudflare.com`. **2198+ pytest suite green (was 1900+) — 41 r126 tests added, 0 regression**.
 
 ### Doctrine ledger (the operational invariants — pointers, not duplications)
 
@@ -68,17 +68,19 @@ See `docs/ROADMAP_2026-05-06.md` for the original 4-layer architecture (DATA FOU
 
 ---
 
-## §3 — Immediate next (r126)
+## §3 — Immediate next (r127)
 
-**r125 EXECUTED & SHIPPED (2026-05-20)** : per-asset tempo recalibration on `<TodaySessionPulse>` via empirical 60-day SSH `psql` calibration on `polygon_intraday`. NEW `TEMPO_THRESHOLDS_BY_ASSET` const-record + `tempoLabelByAsset` per-asset label derivation + `derivePulse(..., asset)` 4th param. 13 new tempo tests + boundary-equality + decoupling tests = vitest 8f/171 pass. Deployed + Playwright DUAL witness GREEN : EUR @ 27 bp → "Compressé" (post-r125 ; pre-r125 was "active") ; XAU @ 124 bp → "Compressé" (post-r125 ; pre-r125 was false-positive "breakout"). ichor-trader R28 GREEN/MERGE 0 RED/0 Critical/0 MUST-FIX + 2 YELLOW + 1 NIT all applied same-commit. Per the r123 backlog → ROADMAP-binding r125-default → EXECUTED. The Mission centrale Axis-4 (anticipation lucide par profondeur) is enabled but not yet leapt — per-asset calibration is the precondition for Axis-7 auto-recalibration. See `docs/SESSION_LOG_2026-05-20-r125-EXECUTION.md` for atom detail + ADR-099 §Impl(r125) for the empirical data table.
+**r126 EXECUTED & SHIPPED (2026-05-20)** : per-asset tempo threshold AUTO-RECALIBRATION backend infrastructure — migration 0051 `tempo_thresholds` (historical-trace shape, 6 CHECK constraints, compound desc index) + ORM `TempoThreshold` + service `recalibrate_tempo_thresholds(...)` (Paris-day SQL aggregation + stdlib percentile + per-asset flush + all-or-nothing commit) + CLI `run_tempo_recalibration.py` (feature-flag-gated + --dry-run + --window-days + --assets) + Hetzner weekly Sunday 04:00 Paris cron + API `GET /v1/tempo-thresholds` + `GET /v1/tempo-thresholds/{asset}` (with `Cache-Control: public, max-age=300, stale-while-revalidate=900`) + 41 tests (35 base + 6 review-driven : MF-1 clamp regression + MF-2 overflow sanity + Y-2 SQL drift guard + Y-3 percentile drift guard + 2× cache-control header pin). Reviews 3 parallel : ichor-trader GREEN/MERGE 0 RED + code-reviewer MUST-FIX × 2 APPLIED + 5 YELLOW APPLIED + api-designer YELLOW-2 Cache-Control CONCORDANT-APPLIED + YELLOW-1 envelope FLAGGED-NOT-FIX with reason. pytest 2198 passed / 0 regression. Frontend wire SPLIT to r127 (doctrine-#2 strict scope — backend ships, cron runs, data accumulates, then r127 wires the consumer). The Mission centrale Axis-7 (auto-amélioration) is PARTIALLY EXTENDED — calibration is self-recalibrating, consumer view lands r127. See `docs/SESSION_LOG_2026-05-20-r126-EXECUTION.md` for atom detail + ADR-099 §Impl(r126) for the full reviews + verification record.
 
-**r126 top-default candidate** : **auto-recalibration cron** (the r125 honest-scope flag "thresholds HARDCODED from 60-day snapshot" → wire Hetzner-side weekly cron to re-derive + push to a `tempo_thresholds` table consumed via API — Mission centrale Axis-7 auto-amélioration partial extension, ROADMAP §5 hook). Effort M (~half-day), requires backend changes (new migration for `tempo_thresholds` table + new collector cron + new API route) — NOT a pure web2-additive round. R59-AUDIT first to confirm honest scope before commit.
+**r127 top-default candidate** : **frontend wire of `/v1/tempo-thresholds` into `<TodaySessionPulse>`** — add `apps/web2/lib/data/tempoThresholds.ts` fetcher + extend `derivePulse(bars, hv, ss, asset, thresholdsOverride?)` with optional override + wire `apps/web2/app/briefing/[asset]/page.tsx` Promise.all to await the fetcher + fallback to r125 hardcoded `TEMPO_THRESHOLDS_BY_ASSET` on API error. Includes the Hetzner DEPLOY of the r126 backend (alembic upgrade 0050 → 0051 + register-cron-tempo-recalibration.sh + feature flag flip). Effort M (~half-day) — frontend wire + deploy + Playwright DUAL witness. R59-AUDIT first to confirm honest scope before commit.
 
-**r126 alternatives** (R59-pickable IF auto-recalibration scope is too ambitious for one round) :
+**r127 alternatives** (R59-pickable IF frontend-wire+deploy scope is too ambitious for one round) :
 
+- **r126 backend deploy alone** — Hetzner alembic upgrade + cron registration + feature flag flip + smoke verify via `psql` + `journalctl`. XS effort (Eliot manual step, no code change). Lets the cron accumulate 1-2 weeks of data before the frontend wires.
+- **Frontend wire WITHOUT deploy** — code-only landed artifact ; the r127 commit lands but the consumer remains on the r125 fallback until the backend deploys in r128. S effort.
 - **Revalidate cleanup** (r122 carry) — simplify `/yield-curve` dual revalidate to just `force-dynamic`. XS effort (1-line removal + ADR note).
 - **SSG-audit other pages** (r122 lesson #19 backlog) — systematic grep for `await apiGet` without `force-dynamic`.
-- **Tempo cross-asset matrix on `/today`** (ROADMAP §4 r127+) — surface all 5 priority assets' tempo at once. M effort.
+- **Tempo cross-asset matrix on `/today`** (ROADMAP §4 r128+) — surface all 5 priority assets' tempo at once. M effort.
 
 ---
 

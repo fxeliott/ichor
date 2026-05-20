@@ -48,6 +48,7 @@ from .routers import (
     scenarios_router,
     sessions_router,
     sources_router,
+    tempo_thresholds_router,
     today_router,
     tools_router,
     trade_plan_router,
@@ -227,6 +228,7 @@ app.include_router(phase_d_router)
 app.include_router(positioning_router)
 app.include_router(scenarios_router)
 app.include_router(sources_router)
+app.include_router(tempo_thresholds_router)
 app.include_router(today_router)
 app.include_router(push_router)
 app.include_router(admin_router)
