@@ -41,8 +41,9 @@
 //   N-3 — dropped the redundant delta_bp display (delta_pct is sufficient).
 //   N-4 — empty-state mirrors the VolumePanel header+border-b shell.
 
-import type { SessionPulse } from "@/lib/sessionPulse";
 import { linScale, svgCoord, xLinear } from "@/lib/microchart";
+import { getNyWindowStatus, type NyWindowKind } from "@/lib/nyWindow";
+import type { SessionPulse } from "@/lib/sessionPulse";
 
 /** Format a price by asset magnitude — 5 decimals for FX (EUR_USD,
  * GBP_USD), 3 for XAU (around 2000), 2 for indices (SPX/NAS around 5000).
@@ -124,6 +125,62 @@ const TONE_COLOR: Record<"bull" | "bear" | "warn" | "primary" | "secondary" | "m
   muted: "var(--color-text-muted)",
 };
 
+/** r132 — NY 13-16h Paris window status badge. Renders the
+ * `getNyWindowStatus(new Date())` output. Pure RSC server-component
+ * (no `"use client"`, no `useEffect`) — `new Date()` evaluates at SSR
+ * request time, the resulting string is baked into the HTML. The
+ * briefing route is `ƒ Dynamic` (no SSG bake-in risk, mirror of r129
+ * formatCalibrationAge SSR-stamping pattern).
+ *
+ * Tone palette (post-r132 reviews — trader Y-2 + ui-designer CONCORDANT
+ * amber-overload fix : `active` uses primary text NOT amber, since
+ * amber is already overloaded on tempo `breakout` + r131 velocity
+ * `rapid`/`major` ; reserving amber for genuinely anomalous states
+ * preserves its semantic weight) :
+ *   - `active` → `--color-text-primary` (full-weight neutral, signals
+ *                "operational LIVE" via contrast vs muted siblings)
+ *   - `pre`    → `--color-text-secondary` (slate-350 countdown)
+ *   - `post`   → `--color-text-muted` (slate-500 passive, closed)
+ *   - `weekend`→ `--color-text-muted` (no NY today)
+ *
+ * Status role : the `<p>` carries `role="status"` (a11y SF-1
+ * concordant r130 empty-state doctrine + r131 — "this is a state
+ * readout" not body prose) ; no `aria-live` because RSC-only update
+ * cadence makes it dead-code per request.
+ *
+ * Mission centrale axis 3 closure : Eliot SEES "T-2h avant NY 13h"
+ * on every briefing rendered today, didn't see it pre-r132. Surfaced
+ * in BOTH the no-pulse early-return branch AND the main render path
+ * (code-reviewer MF-1 + ui-designer CONCORDANT empty-state parity —
+ * NY context is INDEPENDENT of intraday pulse availability).
+ *
+ * KNOWN GAP (r132 trader Y-1 + code-reviewer Y-1, deferred r133+) :
+ * US bank holidays where NYSE/CME equity is closed on a weekday not
+ * detected today. Footer micro-text "calendrier US fériés non géré"
+ * surfaces this honestly per doctrine #11. */
+const NY_TONE_COLOR: Record<NyWindowKind, string> = {
+  active: "var(--color-text-primary)",
+  pre: "var(--color-text-secondary)",
+  post: "var(--color-text-muted)",
+  weekend: "var(--color-text-muted)",
+};
+
+function NyWindowBadge() {
+  const status = getNyWindowStatus(new Date());
+  return (
+    <p
+      role="status"
+      className="mt-2 whitespace-nowrap text-[11px] tracking-wide"
+      style={{ color: NY_TONE_COLOR[status.kind] }}
+    >
+      {status.label}
+      <span className="ml-2 text-[10px] text-[var(--color-text-muted)]">
+        · calendrier US fériés non géré
+      </span>
+    </p>
+  );
+}
+
 interface TodaySessionPulseProps {
   asset: string;
   pulse: SessionPulse | null;
@@ -146,6 +203,11 @@ export function TodaySessionPulse({ asset, pulse }: TodaySessionPulseProps) {
           >
             Aujourd&apos;hui
           </h2>
+          {/* r132 code-reviewer MF-1 + ui-designer CONCORDANT empty-
+              state parity : NY window context is INDEPENDENT of pulse
+              availability (Eliot still needs the cible marker when the
+              intraday API is cold). Same NyWindowBadge in BOTH branches. */}
+          <NyWindowBadge />
           <p className="mt-1 text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
             Lecture en temps réel · recalibrée chaque session · pas de carry-over d&apos;hier
           </p>
@@ -234,6 +296,13 @@ export function TodaySessionPulse({ asset, pulse }: TodaySessionPulseProps) {
           Aujourd&apos;hui ·{" "}
           <span className="text-[var(--color-text-secondary)]">{pulse.today_paris_label}</span>
         </h2>
+        {/* r132 — NY 13-16h Paris window UI marker placed DIRECTLY
+            under the H2 (operational state next to date anchor, per
+            ui-designer hierarchy fix : the time-critical operational
+            state ranks higher than the meta-process subtitle). The
+            10px uppercase subtitle moves to position 3 since it's
+            descriptive about the panel's lifecycle, not operational. */}
+        <NyWindowBadge />
         <p className="mt-1 text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
           Lecture en temps réel · recalibrée chaque session · pas de carry-over d&apos;hier
         </p>

@@ -10,7 +10,7 @@
 
 ---
 
-## §1 — Current state (r131-close, 2026-05-20)
+## §1 — Current state (r132-close, 2026-05-20)
 
 ### Shipped capabilities (the product TODAY)
 
@@ -68,7 +68,21 @@ See `docs/ROADMAP_2026-05-06.md` for the original 4-layer architecture (DATA FOU
 
 ---
 
-## §3 — Immediate next (r132)
+## §3 — Immediate next (r133)
+
+**r132 EXECUTED & SHIPPED (2026-05-20)** : NY 13-16h Paris window UI marker on `<TodaySessionPulse>` — **Mission centrale axis 3 ⏳ → ✅ CLOSED**. NEW `lib/nyWindow.ts` pure-fn discriminated-union state (`pre`/`active`/`post`/`weekend`) + `<NyWindowBadge>` sub-component placed directly under H2 (hierarchy fix per ui-designer) + 11 vitest cases covering summer/winter DST + boundaries. Reviews 4 parallel : 4 CONCORDANT MUST-FIX (empty-state branch / amber overload / US holiday gap / role=status) + 1 STRONG single-reviewer hierarchy ALL applied same-commit. Build : tsc 0 + eslint 0 + vitest 10f/210 + next build OK. Deploy LIVE. Playwright DUAL witness GREEN : XAU + EUR both rendering "Post-NY · clos depuis 6h53/6h59" at 22:53-22:59 Paris with "calendrier US fériés non géré" honest disclosure. **Lesson #29 codified** : Mission axis ⏳ partiel ≥ 5 rounds + cited PRIORITÉ ABSOLUE = leapfrogs §3 ordering ahead of same-subaxis inertia ; the discipline of finishing-what's-started is BALANCED against not-camping-on-single-subaxis. See `docs/SESSION_LOG_2026-05-20-r132-EXECUTION.md` + ADR-099 §Impl(r132).
+
+**r133 binding default candidates** (R59-AUDIT first to pick) :
+
+1. **US holiday awareness for NyWindow** ⭐ AUTO-RECOMMENDED — closes the r132 honest-scope gap (Memorial Day / Independence Day / Thanksgiving etc.). Wire `apps/api/services/market_session.py` (574 LOC exchange-calendar logic exists) OR `pandas_market_calendars NYSE`. Effort S-M. **Finish-what's-started doctrine applies — the gap is r132's own residual.**
+2. **Conviction decomposition per-axe** (axis 6 ⏳→✅, deferred r130+r131+r132). Effort M-L.
+3. **Réactivité temps réel events auto-update** (axis 5 ⏳→✅, architectural). Effort M-L.
+4. **Threshold drift detector cron** (axis 7 ALERT-stage, deferred r129+r130+r131+r132). Effort M.
+5. **Polymarket threshold recalibration cron** (deferred r131, mirror tempo r126 pattern). Effort M.
+6. **Axis-8 closure completion** (deferred r131, volume-anomaly OR cross-venue Kalshi). Effort M-L.
+7. **AUD_USD revival** — alternative China money supply LIVE series. Effort M-L.
+
+## §3 — Previous immediate next (r132, EXECUTED above)
 
 **r131 EXECUTED & SHIPPED (2026-05-20)** : Polymarket Δ-YES velocity primitive on `<PolymarketImpactPanel>` — closes r130 trader MUST-FIX-2 deferred Δ-YES wire. NEW backend SQL helper (tight 22-26h window post-trader MUST-FIX-1) + MarketHit/Pydantic/TS schema extension with `yes_24h_ago` + `yes_velocity_pp` + `yes_24h_ago_at` (trader MUST-FIX-2 dual-stamp) + frontend badge with tone escalation (subtle / rapid / **major** — renamed from "manipulation possible" per trader CRITICAL-1 + ui-designer + a11y CONCORDANT, causal-claim ADR-017 leakage avoided). 3 parallel reviewers (trader + ui-designer + a11y) — 3 CONCORDANT MUST-FIX + 2 STRONG single-reviewer trader R28 MUST-FIX ALL applied same-commit. Build gate : pytest 20/20 + tsc 0 + eslint 0 + vitest 9f/199 + next build OK. Deploy LIVE backend (scp + restart, /healthz=200, endpoint schema verified) + frontend (redeploy-web2.sh, local=200 public=200). Playwright DUAL witness GREEN : XAU velocity badge "+0,0 pp / 24 h" LIVE on China-Taiwan top market (subtle tone, no label, exactly designed) + Oil/OPEC silent (no 24h history, honest absence) + EUR empty-second-branch with role=status. **Lesson #28 codified** : causal labels ("manipulation", "anomalie", "signal") are opt-IN per round with explicit evidence-stacking, NOT opt-OUT defaults. **Mission axis-8 +1 LEVEL PARTIAL** : velocity primitive ships ; full closure (volume-anomaly + cross-venue Kalshi divergence + order-book depth) deferred r132+. See `docs/SESSION_LOG_2026-05-20-r131-EXECUTION.md` + ADR-099 §Impl(r131).
 

@@ -34,10 +34,17 @@ const WINDOWS: WindowDef[] = [
 ];
 
 /**
- * Convert a timestamp to {h, m} in Europe/Paris using Intl. Returns
- * 0..23 for hours and 0..59 for minutes regardless of DST.
+ * Convert a timestamp to {h, m, weekday} in Europe/Paris using Intl.
+ * Returns 0..23 for hours, 0..59 for minutes, 1..7 for weekday
+ * (Mon=1, Sun=7) — regardless of DST.
+ *
+ * EXPORTED post-r132 — also consumed by `lib/nyWindow.ts` for the
+ * NY 13-16h Paris window status badge on `<TodaySessionPulse>`.
+ * Single source of truth for Paris-time decomposition (avoids
+ * doctrine-#9 accumulation by re-import rather than duplication).
+ * ICU-backed + year-round DST-correct via `Intl.DateTimeFormat`.
  */
-function parisHM(d: Date): { h: number; m: number; weekday: number } {
+export function parisHM(d: Date): { h: number; m: number; weekday: number } {
   // `Intl.DateTimeFormat` with timeZone: "Europe/Paris" gives us the
   // correct local time even on a UTC server.
   const parts = new Intl.DateTimeFormat("en-GB", {
