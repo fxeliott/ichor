@@ -58,6 +58,7 @@ import {
   getPolymarketImpact,
   getPositioning,
   getSessionStatus,
+  getTempoThresholds,
   isLive,
   type CalendarUpcoming,
   type CorrelationMatrix,
@@ -126,6 +127,7 @@ export default async function BriefingPage({ params }: PageParams) {
     polymarketImpact,
     hourlyVol,
     sessionStatusSsr,
+    tempoThresholdsLive,
   ] = await Promise.all([
     fetchSessionCardForAsset(normalisedAsset),
     getKeyLevels() as Promise<KeyLevelsResponse | null>,
@@ -141,6 +143,7 @@ export default async function BriefingPage({ params }: PageParams) {
     getPolymarketImpact() as Promise<PolymarketImpact | null>,
     getHourlyVol(normalisedAsset),
     getSessionStatus() as Promise<SessionStatusOut | null>,
+    getTempoThresholds(),
   ]);
 
   // r123 — derive today's session pulse from the FULL intraday array
@@ -149,7 +152,19 @@ export default async function BriefingPage({ params }: PageParams) {
   // r125 — pass `normalisedAsset` for per-asset tempo thresholds
   // (TEMPO_THRESHOLDS_BY_ASSET in lib/sessionPulse.ts, empirically
   // calibrated from 60-day SSH `psql` query 2026-05-20).
-  const sessionPulse = derivePulse(intraday, hourlyVol, sessionStatusSsr, normalisedAsset);
+  // r127 — pass `tempoThresholdsLive` (the API-fed LIVE recalibrated
+  // per-asset thresholds from `/v1/tempo-thresholds`, Mission centrale
+  // Axis-7 consumer view). `tempoThresholdsLive` is `null` on API error
+  // or cold-start ; `derivePulse` falls back to the r125 hardcoded const
+  // in that case (data-honesty per ADR-104 — worst case is "label is
+  // slightly stale", never "label is missing").
+  const sessionPulse = derivePulse(
+    intraday,
+    hourlyVol,
+    sessionStatusSsr,
+    normalisedAsset,
+    tempoThresholdsLive ?? undefined,
+  );
 
   // r82 Tier 1.5 — Corrélations unconditional. Prefer the card's
   // per-asset complex co-move snapshot ; else derive THIS asset's row

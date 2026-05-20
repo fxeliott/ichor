@@ -340,6 +340,89 @@ export async function getSessionStatus(): Promise<SessionStatusOut | null> {
   return apiGet<SessionStatusOut>("/v1/calendar/session-status", { revalidate: 60 });
 }
 
+// r127 — per-asset tempo threshold map fetched from `/v1/tempo-thresholds`
+// (Mission centrale Axis-7 auto-amélioration consumer view ; backend
+// shipped r126 commit d460b97). Returns a `Record<asset, thresholds>` map
+// the briefing page passes to `derivePulse(..., thresholdsOverride)` as
+// the LIVE recalibrated thresholds ; on API error / empty rows / cold-
+// start the briefing falls back to the r125 hardcoded
+// `TEMPO_THRESHOLDS_BY_ASSET` in `lib/sessionPulse.ts`. The endpoint emits
+// `Cache-Control: public, max-age=300, stale-while-revalidate=900` ; the
+// 300s ISR here matches the server-side hint so Next.js + CDN stay coherent.
+//
+// Shape transform : the API returns `{ items: TempoThresholdItem[] }` ; we
+// flatten to `Record<asset, { breakout, active, trending, range_bound }>`
+// inline so the consumer side never sees the wrapped list shape (smaller
+// surface area for the `derivePulse` signature).
+interface TempoThresholdItem {
+  asset: string;
+  breakout_bp: number;
+  active_bp: number;
+  trending_bp: number;
+  range_bound_bp: number;
+  sample_size: number;
+  window_days: number;
+  computed_at: string;
+}
+
+interface TempoThresholdsListOut {
+  items: TempoThresholdItem[];
+}
+
+/** r127 — flat per-asset shape (matches `lib/sessionPulse.ts TempoThresholds`).
+ * Re-declared here as a structural type — keeping the dependency direction
+ * `sessionPulse → api` would be wrong ; api should not import from sessionPulse.
+ * The two declarations are byte-identical and pinned by a vitest contract
+ * test in `__tests__/sessionPulse.test.ts` (drift-guard). */
+export interface TempoThresholdsForAsset {
+  breakout: number;
+  active: number;
+  trending: number;
+  range_bound: number;
+}
+
+/** Fetches `/v1/tempo-thresholds` and flattens the list into a Record keyed
+ * by asset code. Returns `null` when the API is unreachable OR the cron
+ * hasn't yet populated any rows — the briefing page falls back to the r125
+ * hardcoded `TEMPO_THRESHOLDS_BY_ASSET` in that case (data-honesty : the
+ * worst case is "label is slightly stale", never "label is missing"). */
+export async function getTempoThresholds(): Promise<Record<
+  string,
+  TempoThresholdsForAsset
+> | null> {
+  const list = await apiGet<TempoThresholdsListOut>("/v1/tempo-thresholds", {
+    revalidate: 300,
+  });
+  if (list === null) return null;
+  if (!list.items || list.items.length === 0) {
+    // Y-3 (code-reviewer r127) : distinguish "API down (warned by apiGet)"
+    // from "cron hasn't fired yet (expected cold state)" in dev logs.
+    // Both collapse to `null` for the consumer (fall back to r125
+    // hardcoded), but the dev observability surface stays distinct.
+    // `info` level — this is an expected boot state, not an error.
+    console.info(
+      "[api] /v1/tempo-thresholds returned 0 items — falling back to r125 hardcoded TEMPO_THRESHOLDS_BY_ASSET (cron not fired or sample too small)",
+    );
+    return null;
+  }
+  // r127 NOTE — metadata `sample_size + window_days + computed_at` is
+  // dropped intentionally in this flatten ; `derivePulse` only needs the
+  // 4 percentile bands. If r128+ ships an ADR-104 data-honesty staleness
+  // banner ("recalibré il y a N jours, n=K") on the Pulse panel, this
+  // function will need to surface the metadata via a second return-shape
+  // or a sibling fetcher. Trader r127 NIT flag (Mission Axis-7 observability).
+  const out: Record<string, TempoThresholdsForAsset> = {};
+  for (const item of list.items) {
+    out[item.asset] = {
+      breakout: item.breakout_bp,
+      active: item.active_bp,
+      trending: item.trending_bp,
+      range_bound: item.range_bound_bp,
+    };
+  }
+  return out;
+}
+
 // r76 — geopolitics briefing (AI-GPR headline + negative GDELT). Mirror
 // of apps/api routers/geopolitics.py GeopoliticsBriefingOut. `band` is a
 // ratio to the published GPR baseline (100 = 1985-2019 mean), NOT a

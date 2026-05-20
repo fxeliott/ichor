@@ -394,3 +394,134 @@ describe("derivePulse — ADR-017 vocabulary canary (Voie D pure module)", () =>
     expect(src).not.toMatch(banned);
   });
 });
+
+// ─── 6. r127 — thresholdsOverride (API-fed LIVE recalibrated thresholds) ────
+
+describe("derivePulse — r127 thresholdsOverride (Mission Axis-7 API wire)", () => {
+  // The override path lets the briefing page substitute the r125 hardcoded
+  // `TEMPO_THRESHOLDS_BY_ASSET` with API-fed values from `/v1/tempo-thresholds`.
+  // The lookup chain is `thresholdsOverride?.[asset] ?? r125 hardcoded ??
+  // DEFAULT`. These tests pin the contract :
+  //   - omitting override = r125 behavior byte-identical (backward-compat)
+  //   - override-defined-for-asset = override wins
+  //   - override-defined-but-asset-not-in-map = fallback to hardcoded
+  //   - override-empty-object = fallback chain still works
+
+  function barsLowRange(): IntradayBarOut[] {
+    // N-1 (code-reviewer r127) — function renamed from `bars30bp` ;
+    // the arithmetic gives ~6.5 bp on a 1.085 open, NOT 30 bp. The
+    // test asserts on the BRACKET the range falls in (EUR's p25=31.7
+    // floor → label "compressed"), not the exact value.
+    return [
+      bar([2026, 5, 20, 9, 0], { o: 1.085, h: 1.085, l: 1.085, c: 1.085 }),
+      bar([2026, 5, 20, 10, 0], { o: 1.085, h: 1.0855, l: 1.0848, c: 1.0852 }),
+    ];
+  }
+
+  it("omitting thresholdsOverride is byte-identical to r125 behavior", () => {
+    const b = barsLowRange();
+    const pNoOverride = derivePulse(b, null, null, "EUR_USD");
+    const pUndefinedOverride = derivePulse(b, null, null, "EUR_USD", undefined);
+    expect(pUndefinedOverride!.tempo_label).toBe(pNoOverride!.tempo_label);
+    expect(pUndefinedOverride!.range_bp).toBe(pNoOverride!.range_bp);
+  });
+
+  it("override-defined for asset wins over the r125 hardcoded const", () => {
+    // EUR_USD range ~6.5 bp from barsLowRange() is below r125 p25=31.7 → label
+    // "compressed". With an override that lowers the bands aggressively
+    // (everything > 1 bp is "active"), the same range gets re-labeled.
+    const b = barsLowRange();
+    const pHardcoded = derivePulse(b, null, null, "EUR_USD");
+    expect(pHardcoded!.tempo_label).toBe("compressed");
+
+    const aggressiveOverride: Record<string, import("@/lib/sessionPulse").TempoThresholds> = {
+      EUR_USD: { breakout: 100, active: 5, trending: 3, range_bound: 1 },
+    };
+    const pOverride = derivePulse(b, null, null, "EUR_USD", aggressiveOverride);
+    expect(pOverride!.tempo_label).toBe("active");
+  });
+
+  it("override-empty-object falls back to r125 hardcoded thresholds", () => {
+    const b = barsLowRange();
+    const pHardcoded = derivePulse(b, null, null, "EUR_USD");
+    const pEmptyOverride = derivePulse(b, null, null, "EUR_USD", {});
+    expect(pEmptyOverride!.tempo_label).toBe(pHardcoded!.tempo_label);
+  });
+
+  it("override-defined-but-asset-not-in-map falls back to r125 hardcoded", () => {
+    const b = barsLowRange();
+    const pHardcoded = derivePulse(b, null, null, "EUR_USD");
+    const partialOverride: Record<string, import("@/lib/sessionPulse").TempoThresholds> = {
+      // Only XAU populated — EUR_USD must fall back to its r125 hardcoded.
+      XAU_USD: { breakout: 999, active: 800, trending: 600, range_bound: 400 },
+    };
+    const pPartialOverride = derivePulse(b, null, null, "EUR_USD", partialOverride);
+    expect(pPartialOverride!.tempo_label).toBe(pHardcoded!.tempo_label);
+  });
+
+  it("XAU override-from-api : a 200 bp day labels as 'trending' (in XAU's own bracket)", () => {
+    // Synthetic XAU day at 2050 open with range 200 bp → high 2090.7, low
+    // 2049.7 ≈ 200 bp. XAU r125 hardcoded p50=177.2 / p75=273.7 → 200 falls
+    // in [177.2, 273.7) = "trending". The override below pins this : the
+    // API-fed XAU thresholds match the r125 hardcoded (deployed-and-stable),
+    // and the label is the SAME as the r125 case — confirming the wire is
+    // transparent on a stable calibration.
+    const xauBars: IntradayBarOut[] = [
+      bar([2026, 5, 20, 9, 0], { o: 2050, h: 2050, l: 2050, c: 2050 }),
+      bar([2026, 5, 20, 14, 0], { o: 2050, h: 2090.7, l: 2049.7, c: 2070 }),
+    ];
+    const liveOverride: Record<string, import("@/lib/sessionPulse").TempoThresholds> = {
+      XAU_USD: { breakout: 307.4, active: 273.7, trending: 177.2, range_bound: 140.0 },
+    };
+    const p = derivePulse(xauBars, null, null, "XAU_USD", liveOverride);
+    expect(p).not.toBeNull();
+    expect(p!.range_bp).toBeGreaterThan(177.2);
+    expect(p!.range_bp).toBeLessThan(273.7);
+    expect(p!.tempo_label).toBe("trending");
+  });
+});
+
+// ─── 7. r127 — TempoThresholds type drift-guard ─────────────────────────
+
+describe("TempoThresholds type drift-guard (r127)", () => {
+  // `lib/api.ts TempoThresholdsForAsset` and `lib/sessionPulse.ts
+  // TempoThresholds` are structural mirrors (the same 4 numeric fields).
+  // Keeping the dependency direction `api → sessionPulse` (api would have
+  // to import a derivation module) would invert the natural data-flow —
+  // api produces the values, sessionPulse consumes them. So both types
+  // stay structurally compatible but separately declared.
+  //
+  // **Y-1 (code-reviewer r127) doctrine codification** : this regex
+  // drift-guard is intentional **belt** alongside a missing **braces**
+  // (no compiler-level type identity). The alternative — `import type
+  // { TempoThresholdsForAsset } from "@/lib/api"; export type
+  // TempoThresholds = TempoThresholdsForAsset;` — would couple
+  // sessionPulse to api at the TS-level, which is fine semantically
+  // (types don't have runtime direction). The choice here is doctrine,
+  // not technical : keep sessionPulse a self-contained pure-logic
+  // module + pin the structural equivalence via this regex. If a third
+  // caller surfaces, that's the trigger to extract the type to a
+  // shared module (Rule of Three).
+  it("the two TempoThresholds declarations carry the same 4 fields", async () => {
+    const fs = await import("node:fs");
+    const path = await import("node:path");
+    const url = await import("node:url");
+    // MF-1 (code-reviewer r127) : resolve via `import.meta.url` so this
+    // test passes from monorepo-root + CI containers + workspace runners,
+    // not just when vitest cwd happens to be `apps/web2/`. The previous
+    // `process.cwd()` form silently broke on any non-package-root run.
+    const here = path.dirname(url.fileURLToPath(import.meta.url));
+    const sp = fs.readFileSync(path.join(here, "..", "lib", "sessionPulse.ts"), "utf-8");
+    const api = fs.readFileSync(path.join(here, "..", "lib", "api.ts"), "utf-8");
+
+    // Extract the 4-line block of fields from each declaration. Both must
+    // contain `breakout: number;`, `active: number;`, `trending: number;`,
+    // `range_bound: number;`.
+    const REQUIRED_FIELDS = ["breakout", "active", "trending", "range_bound"];
+    for (const f of REQUIRED_FIELDS) {
+      const re = new RegExp(`\\b${f}: number;`);
+      expect(sp, `sessionPulse.ts TempoThresholds must declare ${f}: number`).toMatch(re);
+      expect(api, `api.ts TempoThresholdsForAsset must declare ${f}: number`).toMatch(re);
+    }
+  });
+});

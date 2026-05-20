@@ -158,7 +158,7 @@ function parisLongDateLabel(epochSec: number): string {
  * "Mission centrale Axis-7 auto-amélioration" partial extension). Labels
  * are STRICTLY DESCRIPTIVE retrospective comparisons against the asset's
  * own 60-day distribution — never predictive (ADR-017). */
-interface TempoThresholds {
+export interface TempoThresholds {
   breakout: number;
   active: number;
   trending: number;
@@ -187,12 +187,19 @@ const TEMPO_THRESHOLDS_BY_ASSET: Record<string, TempoThresholds> = {
 };
 
 /** Per-asset label from today's realized range bp and the asset symbol.
- * Looks up `TEMPO_THRESHOLDS_BY_ASSET[asset]` ; falls back to
- * `DEFAULT_TEMPO_THRESHOLDS` for unknown assets. Returns `null` when
- * range_bp is non-finite or negative (degenerate input). */
-function tempoLabelByAsset(range_bp: number, asset: string): TempoLabel {
+ * Lookup chain (r127) : `thresholdsOverride?.[asset]` (API-fed LIVE
+ * recalibrated values from `/v1/tempo-thresholds` Mission Axis-7) →
+ * `TEMPO_THRESHOLDS_BY_ASSET[asset]` (r125 hardcoded fallback) →
+ * `DEFAULT_TEMPO_THRESHOLDS` (unknown-asset conservative fallback).
+ * Returns `null` when range_bp is non-finite or negative. */
+function tempoLabelByAsset(
+  range_bp: number,
+  asset: string,
+  thresholdsOverride?: Record<string, TempoThresholds>,
+): TempoLabel {
   if (!Number.isFinite(range_bp) || range_bp < 0) return null;
-  const t = TEMPO_THRESHOLDS_BY_ASSET[asset] ?? DEFAULT_TEMPO_THRESHOLDS;
+  const t =
+    thresholdsOverride?.[asset] ?? TEMPO_THRESHOLDS_BY_ASSET[asset] ?? DEFAULT_TEMPO_THRESHOLDS;
   if (range_bp >= t.breakout) return "breakout";
   if (range_bp >= t.active) return "active";
   if (range_bp >= t.trending) return "trending";
@@ -206,12 +213,22 @@ function tempoLabelByAsset(range_bp: number, asset: string): TempoLabel {
  *
  * r125 — `asset` param added : drives the per-asset `TEMPO_THRESHOLDS_BY_ASSET`
  * lookup for the tempo label. Default `""` falls back to EUR_USD's
- * thresholds (FX-major-conservative). */
+ * thresholds (FX-major-conservative).
+ *
+ * r127 — `thresholdsOverride` param added : when present, the per-asset
+ * tempo thresholds are read from the API-fed `tempo_thresholds` table
+ * (Mission centrale Axis-7 auto-amélioration consumer view). The
+ * lookup chain is `thresholdsOverride?.[asset] ?? TEMPO_THRESHOLDS_BY_ASSET[asset]
+ * ?? DEFAULT_TEMPO_THRESHOLDS` — the API thresholds are the LIVE
+ * recalibrated values, the r125 hardcoded const is the FALLBACK on
+ * API error / cron-not-fired-yet / cold-start. Omitting `thresholdsOverride`
+ * is byte-identical to r125 behavior (backward-compat preserved). */
 export function derivePulse(
   bars: IntradayBarOut[] | null,
   hourlyVol: HourlyVolOut | null,
   sessionStatus: SessionStatusOut | null,
   asset: string = "",
+  thresholdsOverride?: Record<string, TempoThresholds>,
 ): SessionPulse | null {
   if (!bars || bars.length === 0) return null;
 
@@ -281,7 +298,7 @@ export function derivePulse(
     london_range_bp,
     expected_range_bp_30d,
     tempo_ratio,
-    tempo_label: tempoLabelByAsset(range_bp, asset),
+    tempo_label: tempoLabelByAsset(range_bp, asset, thresholdsOverride),
     closes_today: todayBars.map((b) => b.close),
     session_state: sessionStatus?.state ?? null,
     today_paris_label: parisLongDateLabel(latestBar.time),
