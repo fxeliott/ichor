@@ -128,32 +128,90 @@ function parisLongDateLabel(epochSec: number): string {
   }).format(new Date(epochSec * 1000));
 }
 
-/** Label the tempo from the ratio of realized to expected range bp.
- * Descriptive only — see ADR-017. Thresholds are **EUR_USD-calibrated**
- * from FX-major intraday empirical observation (typical p75 = 12-20 bp ;
- * 1.5× = clear breakout, 0.4× = very compressed). **Per-asset
- * recalibration deferred to r124+** (XAU_USD typical p75 = 40+ bp,
- * SPX500 VIX-regime-dependent — trader R28 YELLOW-2). On those assets
- * the labels remain DESCRIPTIVE comparisons against the 30-day p75
- * baseline so the relative reading stays honest (above-typical /
- * below-typical) even if the bucket boundaries lean conservative on
- * higher-vol assets. */
-function tempoLabel(ratio: number | null): TempoLabel {
-  if (ratio === null || !Number.isFinite(ratio) || ratio <= 0) return null;
-  if (ratio >= 1.5) return "breakout";
-  if (ratio >= 1.0) return "active";
-  if (ratio >= 0.7) return "trending";
-  if (ratio >= 0.4) return "range-bound";
+/** Per-asset absolute daily-range bp thresholds for the tempo label
+ * (ADR-099 §Implementation(r125) — Tier 4 per-asset recalibration that
+ * closes the r123 trader R28 YELLOW-2 honest disclosure "labels lean
+ * conservative on higher-vol assets" + the r123 explicit backlog top
+ * item). Empirically derived 2026-05-20 from a 60-day SSH `psql` query
+ * on `polygon_intraday` (n=8-16 days per asset) :
+ *
+ *   asset       | n  | p10  | p25   | p50   | p75   | p90   | p95   (bp)
+ *   ------------|----|------|-------|-------|-------|-------|------
+ *   EUR_USD     | 16 | 15.4 | 31.7  | 47.2  | 54.2  | 59.1  | 68.9
+ *   GBP_USD     | 16 | 17.0 | 41.6  | 64.5  | 71.2  | 95.8  | 110.9
+ *   XAU_USD     | 16 |  0.0 | 140.0 | 177.2 | 273.7 | 307.4 | 344.3
+ *   SPX500_USD  |  8 | 31.6 | 77.2  | 102.7 | 112.3 | 126.0 | 139.5
+ *   NAS100_USD  | 12 | 82.6 | 114.1 | 138.7 | 166.4 | 180.7 | 186.8
+ *
+ * Mapping (where today_range_bp falls in the asset's 60-day distribution):
+ *   breakout   = ≥ p90 (top 10% of days, "stretch event")
+ *   active     = ≥ p75 (top 25%, "above-typical day")
+ *   trending   = ≥ p50 (median, "typical day in motion")
+ *   range_bound= ≥ p25 (lower quartile, "quiet day")
+ *   compressed = < p25 ("very quiet")
+ *
+ * **Honest scope flags** : SPX500 n=8 (smaller sample, wider confidence
+ * interval — best-effort with limited data) ; XAU p10=0.0 likely weekend
+ * bar (p25+ are the meaningful bounds) ; 60-day window short, auto-
+ * recalibration deferred to r126+ (could wire a Hetzner-side weekly cron
+ * to re-derive + push to a `tempo_thresholds` table consumed via API —
+ * "Mission centrale Axis-7 auto-amélioration" partial extension). Labels
+ * are STRICTLY DESCRIPTIVE retrospective comparisons against the asset's
+ * own 60-day distribution — never predictive (ADR-017). */
+interface TempoThresholds {
+  breakout: number;
+  active: number;
+  trending: number;
+  range_bound: number;
+}
+
+/** Generic fallback for unknown assets — uses EUR_USD's thresholds (the
+ * tightest FX-major distribution → most-sensitive labeling, so an unknown
+ * higher-vol asset will surface "breakout"/"active" more readily, which
+ * is the conservative err-on-the-side direction for a user looking for
+ * actionable signal context). Declared as a literal so TypeScript can
+ * infer the non-`undefined` shape used by `tempoLabelByAsset`. */
+const DEFAULT_TEMPO_THRESHOLDS: TempoThresholds = {
+  breakout: 59.1,
+  active: 54.2,
+  trending: 47.2,
+  range_bound: 31.7,
+};
+
+const TEMPO_THRESHOLDS_BY_ASSET: Record<string, TempoThresholds> = {
+  EUR_USD: DEFAULT_TEMPO_THRESHOLDS,
+  GBP_USD: { breakout: 95.8, active: 71.2, trending: 64.5, range_bound: 41.6 },
+  XAU_USD: { breakout: 307.4, active: 273.7, trending: 177.2, range_bound: 140.0 },
+  SPX500_USD: { breakout: 126.0, active: 112.3, trending: 102.7, range_bound: 77.2 },
+  NAS100_USD: { breakout: 180.7, active: 166.4, trending: 138.7, range_bound: 114.1 },
+};
+
+/** Per-asset label from today's realized range bp and the asset symbol.
+ * Looks up `TEMPO_THRESHOLDS_BY_ASSET[asset]` ; falls back to
+ * `DEFAULT_TEMPO_THRESHOLDS` for unknown assets. Returns `null` when
+ * range_bp is non-finite or negative (degenerate input). */
+function tempoLabelByAsset(range_bp: number, asset: string): TempoLabel {
+  if (!Number.isFinite(range_bp) || range_bp < 0) return null;
+  const t = TEMPO_THRESHOLDS_BY_ASSET[asset] ?? DEFAULT_TEMPO_THRESHOLDS;
+  if (range_bp >= t.breakout) return "breakout";
+  if (range_bp >= t.active) return "active";
+  if (range_bp >= t.trending) return "trending";
+  if (range_bp >= t.range_bound) return "range-bound";
   return "compressed";
 }
 
-/** Pure deterministic derivation of `SessionPulse | null` from the 3
+/** Pure deterministic derivation of `SessionPulse | null` from the 4
  * server-fetched inputs. Returns `null` when no bars are usable (the
- * consumer renders the empty-state). */
+ * consumer renders the empty-state).
+ *
+ * r125 — `asset` param added : drives the per-asset `TEMPO_THRESHOLDS_BY_ASSET`
+ * lookup for the tempo label. Default `""` falls back to EUR_USD's
+ * thresholds (FX-major-conservative). */
 export function derivePulse(
   bars: IntradayBarOut[] | null,
   hourlyVol: HourlyVolOut | null,
   sessionStatus: SessionStatusOut | null,
+  asset: string = "",
 ): SessionPulse | null {
   if (!bars || bars.length === 0) return null;
 
@@ -223,7 +281,7 @@ export function derivePulse(
     london_range_bp,
     expected_range_bp_30d,
     tempo_ratio,
-    tempo_label: tempoLabel(tempo_ratio),
+    tempo_label: tempoLabelByAsset(range_bp, asset),
     closes_today: todayBars.map((b) => b.close),
     session_state: sessionStatus?.state ?? null,
     today_paris_label: parisLongDateLabel(latestBar.time),

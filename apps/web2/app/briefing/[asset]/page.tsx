@@ -146,7 +146,10 @@ export default async function BriefingPage({ params }: PageParams) {
   // r123 — derive today's session pulse from the FULL intraday array
   // (NOT the 90-bar slice) so the today-boundary detection sees bars
   // back to ~today's Paris-midnight. Pure deterministic helper, RSC-safe.
-  const sessionPulse = derivePulse(intraday, hourlyVol, sessionStatusSsr);
+  // r125 — pass `normalisedAsset` for per-asset tempo thresholds
+  // (TEMPO_THRESHOLDS_BY_ASSET in lib/sessionPulse.ts, empirically
+  // calibrated from 60-day SSH `psql` query 2026-05-20).
+  const sessionPulse = derivePulse(intraday, hourlyVol, sessionStatusSsr, normalisedAsset);
 
   // r82 Tier 1.5 — Corrélations unconditional. Prefer the card's
   // per-asset complex co-move snapshot ; else derive THIS asset's row

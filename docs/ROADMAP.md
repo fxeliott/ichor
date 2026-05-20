@@ -6,7 +6,7 @@
 >
 > **Discipline** : every round closes with a 1-line §1 refresh ; deeper §3-§5 refresh only when a round actually changes the plan (e.g., r124 = this initial creation, r125+ = appended §3 promotion of the next default once executed).
 >
-> **Sync** : 2026-05-20 r123-close (HEAD `cdd7cb9`, 89 ahead origin/main `1909ca0`).
+> **Sync** : 2026-05-20 r125-close (HEAD bumps to +1 per this commit ; was `1e8e919` at r124-close = 90 ahead origin/main `1909ca0` ; r125 commit will land 91 ahead, re-verified at push). Living-document discipline (per r124 lesson #21) — each round-close updates §1 sync + §3 promotion ; deeper §4-§6 refresh only when the plan shifts.
 
 ---
 
@@ -68,9 +68,17 @@ See `docs/ROADMAP_2026-05-06.md` for the original 4-layer architecture (DATA FOU
 
 ---
 
-## §3 — Immediate next (r124)
+## §3 — Immediate next (r126)
 
-**r124 = THIS artifact** (the canonical `docs/ROADMAP.md` creation + dated-archive notices + CLAUDE.md pointer + ADR §Impl(r124)). The reasoning : Eliot's 2026-05-20-afternoon prompt-cadre refresh added "Plan ultra parfait & organisation suprême — IMPÉRATIF CAPITAL" — an explicit forward-looking-plan ask. r124 honors this with a META artifact that enables explicit-plan-driven r125+ execution. No code, no deploy, no Playwright witness (doc-only). ichor-trader R28 single review (content + ADR-017 + cross-doc concordance). Anti-accumulation #9 respected : the dated archives stay archived, this is the single canonical undated doc.
+**r125 EXECUTED & SHIPPED (2026-05-20)** : per-asset tempo recalibration on `<TodaySessionPulse>` via empirical 60-day SSH `psql` calibration on `polygon_intraday`. NEW `TEMPO_THRESHOLDS_BY_ASSET` const-record + `tempoLabelByAsset` per-asset label derivation + `derivePulse(..., asset)` 4th param. 13 new tempo tests + boundary-equality + decoupling tests = vitest 8f/171 pass. Deployed + Playwright DUAL witness GREEN : EUR @ 27 bp → "Compressé" (post-r125 ; pre-r125 was "active") ; XAU @ 124 bp → "Compressé" (post-r125 ; pre-r125 was false-positive "breakout"). ichor-trader R28 GREEN/MERGE 0 RED/0 Critical/0 MUST-FIX + 2 YELLOW + 1 NIT all applied same-commit. Per the r123 backlog → ROADMAP-binding r125-default → EXECUTED. The Mission centrale Axis-4 (anticipation lucide par profondeur) is enabled but not yet leapt — per-asset calibration is the precondition for Axis-7 auto-recalibration. See `docs/SESSION_LOG_2026-05-20-r125-EXECUTION.md` for atom detail + ADR-099 §Impl(r125) for the empirical data table.
+
+**r126 top-default candidate** : **auto-recalibration cron** (the r125 honest-scope flag "thresholds HARDCODED from 60-day snapshot" → wire Hetzner-side weekly cron to re-derive + push to a `tempo_thresholds` table consumed via API — Mission centrale Axis-7 auto-amélioration partial extension, ROADMAP §5 hook). Effort M (~half-day), requires backend changes (new migration for `tempo_thresholds` table + new collector cron + new API route) — NOT a pure web2-additive round. R59-AUDIT first to confirm honest scope before commit.
+
+**r126 alternatives** (R59-pickable IF auto-recalibration scope is too ambitious for one round) :
+
+- **Revalidate cleanup** (r122 carry) — simplify `/yield-curve` dual revalidate to just `force-dynamic`. XS effort (1-line removal + ADR note).
+- **SSG-audit other pages** (r122 lesson #19 backlog) — systematic grep for `await apiGet` without `force-dynamic`.
+- **Tempo cross-asset matrix on `/today`** (ROADMAP §4 r127+) — surface all 5 priority assets' tempo at once. M effort.
 
 ---
 
