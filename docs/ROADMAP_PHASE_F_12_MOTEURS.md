@@ -1,3 +1,7 @@
+# Phase F — 12 trading engines + Bias Aggregator (blueprint W111-W115) (ARCHIVE)
+
+> **ARCHIVED 2026-05-20 r124** — preserved as the 12-engine academic-framework blueprint reference (Bridgewater 4-quadrant, Brunnermeier-Pedersen carry-crash, Engel-West rate-differential, ...). For the **always-current forward-looking plan** see [`docs/ROADMAP.md`](ROADMAP.md). For per-round retrospective records see ADR-099 §Impl entries.
+
 # Phase F — 12 trading engines + Bias Aggregator (blueprint W111-W115)
 
 > Synthèse des 3 subagent researcher round 10 (2026-05-12) consolidée en
