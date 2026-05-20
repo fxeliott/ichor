@@ -127,7 +127,7 @@ export default async function BriefingPage({ params }: PageParams) {
     polymarketImpact,
     hourlyVol,
     sessionStatusSsr,
-    tempoThresholdsLive,
+    tempoBundle,
   ] = await Promise.all([
     fetchSessionCardForAsset(normalisedAsset),
     getKeyLevels() as Promise<KeyLevelsResponse | null>,
@@ -152,18 +152,23 @@ export default async function BriefingPage({ params }: PageParams) {
   // r125 — pass `normalisedAsset` for per-asset tempo thresholds
   // (TEMPO_THRESHOLDS_BY_ASSET in lib/sessionPulse.ts, empirically
   // calibrated from 60-day SSH `psql` query 2026-05-20).
-  // r127 — pass `tempoThresholdsLive` (the API-fed LIVE recalibrated
+  // r127 — pass `tempoBundle.thresholds` (the API-fed LIVE recalibrated
   // per-asset thresholds from `/v1/tempo-thresholds`, Mission centrale
-  // Axis-7 consumer view). `tempoThresholdsLive` is `null` on API error
-  // or cold-start ; `derivePulse` falls back to the r125 hardcoded const
+  // Axis-7 consumer view). `tempoBundle` is `null` on API error or
+  // cold-start ; `derivePulse` falls back to the r125 hardcoded const
   // in that case (data-honesty per ADR-104 — worst case is "label is
   // slightly stale", never "label is missing").
+  // r129 — also pass `tempoBundle.metadata` so the `<TodaySessionPulse>`
+  // staleness banner can surface "Calibration : il y a N jours · n=K ·
+  // fenêtre 90j" under the tempo meter (ADR-104 data-honesty closure of
+  // the r127 trader NIT).
   const sessionPulse = derivePulse(
     intraday,
     hourlyVol,
     sessionStatusSsr,
     normalisedAsset,
-    tempoThresholdsLive ?? undefined,
+    tempoBundle?.thresholds ?? undefined,
+    tempoBundle?.metadata ?? undefined,
   );
 
   // r82 Tier 1.5 — Corrélations unconditional. Prefer the card's

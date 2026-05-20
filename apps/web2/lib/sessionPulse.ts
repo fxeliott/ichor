@@ -69,6 +69,15 @@ export interface SessionPulse {
   closes_today: number[];
   /** Session state passthrough (for the panel chip). */
   session_state: SessionStatusOut["state"] | null;
+  /** r129 — calibration metadata for the asset's tempo thresholds when
+   * the lookup resolved via `thresholdsOverride` (i.e., API-fed live
+   * recalibration via `/v1/tempo-thresholds`). `null` when the lookup
+   * fell back to the r125 hardcoded `TEMPO_THRESHOLDS_BY_ASSET` OR
+   * `DEFAULT_TEMPO_THRESHOLDS` — the data-honesty banner is a progressive
+   * enhancement, only renders when the calibration provenance is known.
+   * Consumed by `<TodaySessionPulse>` to render "Calibration : il y a N
+   * jours · n=K · fenêtre 90j" under the tempo meter (ADR-104). */
+  tempo_metadata: TempoMetadata | null;
   /** French long-form Paris date label of today (e.g., "jeudi 20 mai"),
    * derived from the LATEST bar's epoch. The freshness anchor of the
    * "reset complet quotidien" semantic — Eliot's POINT FONDAMENTAL : the
@@ -165,6 +174,20 @@ export interface TempoThresholds {
   range_bound: number;
 }
 
+/** r129 — per-asset calibration metadata (ADR-104 data-honesty staleness
+ * banner). Re-declared here as a structural mirror of `lib/api.ts
+ * TempoMetadata` (drift-guard test pins byte-identical field declarations
+ * across both files — same doctrine as `TempoThresholds` vs
+ * `TempoThresholdsForAsset`). The natural data-flow direction is `api →
+ * sessionPulse` ; api produces, sessionPulse consumes ; structural-mirror
+ * + regex drift-guard keeps the two declarations honest without coupling
+ * the modules at TS-level. */
+export interface TempoMetadata {
+  computed_at: string;
+  sample_size: number;
+  window_days: number;
+}
+
 /** Generic fallback for unknown assets — uses EUR_USD's thresholds (the
  * tightest FX-major distribution → most-sensitive labeling, so an unknown
  * higher-vol asset will surface "breakout"/"active" more readily, which
@@ -229,6 +252,7 @@ export function derivePulse(
   sessionStatus: SessionStatusOut | null,
   asset: string = "",
   thresholdsOverride?: Record<string, TempoThresholds>,
+  thresholdsMetadata?: Record<string, TempoMetadata>,
 ): SessionPulse | null {
   if (!bars || bars.length === 0) return null;
 
@@ -302,5 +326,10 @@ export function derivePulse(
     closes_today: todayBars.map((b) => b.close),
     session_state: sessionStatus?.state ?? null,
     today_paris_label: parisLongDateLabel(latestBar.time),
+    // r129 — surface the calibration metadata for the asset's API-fed
+    // thresholds when the lookup resolved via the override path. When
+    // `thresholdsMetadata` is omitted OR doesn't contain the asset, the
+    // banner won't render (progressive enhancement, doctrine-#11 honest).
+    tempo_metadata: thresholdsMetadata?.[asset] ?? null,
   };
 }

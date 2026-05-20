@@ -54,6 +54,42 @@ function formatPrice(price: number): string {
   return price.toFixed(5);
 }
 
+/** r129 — format the staleness of a calibration timestamp into a FR phrase
+ * (ADR-104 data-honesty banner). The reference time is `Date.now()` on
+ * the server during the SSR pass. The briefing page is rendered per
+ * request (the page's `apiGet` calls default to `no-store` which marks
+ * the route dynamic per Next.js 15 rules — `next build` shows the route
+ * as `ƒ Dynamic`), so the staleness is fresh-as-of-the-request. Quantize
+ * to the 5-min ISR cache of `/v1/tempo-thresholds` means the banner is
+ * live-ish ±5 min ; not real-time but well within human-readable
+ * staleness resolution. No hydration mismatch risk because the component
+ * is pure SSR (no `"use client"`, the calculation runs ONCE server-side
+ * and the resulting string is baked into the HTML).
+ *
+ * FR phrasing : "à l'instant" (clock-skew negative) / "aujourd'hui" /
+ * "hier" / "il y a N jours" / "il y a 30+ jours" (capped — beyond a
+ * month the cron has likely failed ; the cap is honest ceiling, NOT a
+ * deception). `window_days` from the metadata is the actual rolling
+ * window — the JSDoc avoids the literal "90j" since the cron's
+ * `--window-days` flag is parameterized (trader Y-1 doc drift guard).
+ *
+ * Returns `null` if the input is unparseable — caller renders no banner. */
+function formatCalibrationAge(computedAtIso: string): string | null {
+  const computedMs = Date.parse(computedAtIso);
+  if (!Number.isFinite(computedMs)) return null;
+  const nowMs = Date.now();
+  const deltaMs = nowMs - computedMs;
+  if (deltaMs < 0) {
+    // Clock skew between SSR and DB ; treat as fresh.
+    return "à l'instant";
+  }
+  const days = Math.floor(deltaMs / 86_400_000);
+  if (days === 0) return "aujourd'hui";
+  if (days === 1) return "hier";
+  if (days < 30) return `il y a ${days} jours`;
+  return "il y a 30+ jours";
+}
+
 /** Tempo label → human FR + tone (visual cue mapping). `breakout` → warn
  * (amber, the volatility-alert tone — high vol = caution warranted,
  * NOT directional) ; `active` → neutral text-primary (above-typical
@@ -166,6 +202,14 @@ export function TodaySessionPulse({ asset, pulse }: TodaySessionPulseProps) {
   const meterRatio = pulse.tempo_ratio ?? 0;
   const meterFillPct = Math.min(meterRatio / 2, 1) * 100;
   const meterColor = TONE_COLOR[tempoTone];
+
+  // r129 — calibration age computed ONCE (code-reviewer N-1 extract-to-const).
+  // null when `tempo_metadata` is null OR the ISO is unparseable. The banner
+  // in the footer reads from `calibrationAge` ; on `null` the banner doesn't
+  // render (progressive enhancement, doctrine #11 honest silent absence).
+  const calibrationAge = pulse.tempo_metadata
+    ? formatCalibrationAge(pulse.tempo_metadata.computed_at)
+    : null;
 
   const ariaLabel = `Lecture intraday ${asset.replace("_", "/")} — ouverture ${pulse.open_time_paris} Paris à ${formatPrice(
     pulse.open_price,
@@ -333,9 +377,26 @@ export function TodaySessionPulse({ asset, pulse }: TodaySessionPulseProps) {
         </svg>
       </div>
 
-      <p className="border-t border-[var(--color-border-subtle)] px-6 py-3 text-[10px] text-[var(--color-text-muted)]">
-        Contexte pré-trade — comportement réel du jour vs typique 30 j · pas un signal (ADR-017)
-      </p>
+      <div className="border-t border-[var(--color-border-subtle)] px-6 py-3">
+        <p className="text-[10px] text-[var(--color-text-muted)]">
+          Contexte pré-trade — comportement réel du jour vs typique 30 j · pas un signal (ADR-017)
+        </p>
+        {/* r129 — ADR-104 data-honesty staleness banner (closes the r127
+            trader NIT). Placed in the footer alongside the ADR-017
+            disclaimer because the staleness applies to the THRESHOLDS
+            used by the whole panel (provenance-with-provenance), not the
+            tempo cell alone. Renders only when `calibrationAge` is
+            non-null (progressive enhancement, doctrine #11 honest silent
+            absence — never replaces missing metadata with a fabricated
+            fresh state). Concordant 2-reviewer YELLOW resolution (ui-
+            designer placement + mobile-wrap + a11y SC 1.4.4 size). */}
+        {calibrationAge && pulse.tempo_metadata ? (
+          <p className="mt-1 text-[11px] text-[var(--color-text-muted)]">
+            Calibration des seuils · {calibrationAge} · n={pulse.tempo_metadata.sample_size} ·
+            fenêtre {pulse.tempo_metadata.window_days} j
+          </p>
+        ) : null}
+      </div>
     </section>
   );
 }

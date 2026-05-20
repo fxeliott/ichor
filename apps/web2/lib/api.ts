@@ -381,15 +381,43 @@ export interface TempoThresholdsForAsset {
   range_bound: number;
 }
 
-/** Fetches `/v1/tempo-thresholds` and flattens the list into a Record keyed
- * by asset code. Returns `null` when the API is unreachable OR the cron
- * hasn't yet populated any rows — the briefing page falls back to the r125
- * hardcoded `TEMPO_THRESHOLDS_BY_ASSET` in that case (data-honesty : the
- * worst case is "label is slightly stale", never "label is missing"). */
-export async function getTempoThresholds(): Promise<Record<
-  string,
-  TempoThresholdsForAsset
-> | null> {
+/** r129 — per-asset calibration metadata (ADR-104 data-honesty staleness
+ * banner, the r127 trader NIT closure). Carries the freshness anchor that
+ * the `<TodaySessionPulse>` panel surfaces under the tempo meter so Eliot
+ * can SEE how stale the calibration is + how many samples backed it. */
+export interface TempoMetadata {
+  /** ISO datetime of the recalibration cron fire that produced these
+   * thresholds. Parsed client-side via `new Date(...)` to compute a
+   * staleness-in-days delta. */
+  computed_at: string;
+  /** Number of Paris-day samples in the percentile calibration window. */
+  sample_size: number;
+  /** Rolling window in days (the cron's `--window-days` ; default 90). */
+  window_days: number;
+}
+
+/** r129 — envelope shape for `getTempoThresholds()` carrying BOTH the
+ * thresholds (consumed by derivePulse for label classification) AND the
+ * metadata (surfaced by TodaySessionPulse's data-honesty banner). The
+ * shape is per-asset on both keys so a future cron that fires per-asset
+ * (rather than all-5 in one transaction) can produce divergent metadata
+ * cleanly. r127's flat-Record shape is REPLACED — the briefing page is
+ * the only consumer + has been updated in the same r129 commit. */
+export interface TempoThresholdsBundle {
+  thresholds: Record<string, TempoThresholdsForAsset>;
+  metadata: Record<string, TempoMetadata>;
+}
+
+/** Fetches `/v1/tempo-thresholds` and flattens the list into the r129
+ * envelope shape `{ thresholds, metadata } | null`. Returns `null` when
+ * the API is unreachable OR the cron hasn't yet populated any rows — the
+ * briefing page falls back to the r125 hardcoded `TEMPO_THRESHOLDS_BY_ASSET`
+ * in that case (data-honesty : the worst case is "label is slightly stale",
+ * never "label is missing"). r129 NOTE — both `thresholds` and `metadata`
+ * fall together (same upstream rows from the cron INSERT transaction) ;
+ * a future divergence path (per-asset partial cron success) would extend
+ * the envelope rather than splitting into two fetchers. */
+export async function getTempoThresholds(): Promise<TempoThresholdsBundle | null> {
   const list = await apiGet<TempoThresholdsListOut>("/v1/tempo-thresholds", {
     revalidate: 300,
   });
@@ -405,22 +433,22 @@ export async function getTempoThresholds(): Promise<Record<
     );
     return null;
   }
-  // r127 NOTE — metadata `sample_size + window_days + computed_at` is
-  // dropped intentionally in this flatten ; `derivePulse` only needs the
-  // 4 percentile bands. If r128+ ships an ADR-104 data-honesty staleness
-  // banner ("recalibré il y a N jours, n=K") on the Pulse panel, this
-  // function will need to surface the metadata via a second return-shape
-  // or a sibling fetcher. Trader r127 NIT flag (Mission Axis-7 observability).
-  const out: Record<string, TempoThresholdsForAsset> = {};
+  const thresholds: Record<string, TempoThresholdsForAsset> = {};
+  const metadata: Record<string, TempoMetadata> = {};
   for (const item of list.items) {
-    out[item.asset] = {
+    thresholds[item.asset] = {
       breakout: item.breakout_bp,
       active: item.active_bp,
       trending: item.trending_bp,
       range_bound: item.range_bound_bp,
     };
+    metadata[item.asset] = {
+      computed_at: item.computed_at,
+      sample_size: item.sample_size,
+      window_days: item.window_days,
+    };
   }
-  return out;
+  return { thresholds, metadata };
 }
 
 // r76 — geopolitics briefing (AI-GPR headline + negative GDELT). Mirror

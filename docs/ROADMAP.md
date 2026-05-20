@@ -6,11 +6,11 @@
 >
 > **Discipline** : every round closes with a 1-line §1 refresh ; deeper §3-§5 refresh only when a round actually changes the plan (e.g., r124 = this initial creation, r125+ = appended §3 promotion of the next default once executed).
 >
-> **Sync** : 2026-05-20 r128-close (HEAD bumps to +1 per this commit ; was `cbbbbaa` at r127-close = 93 ahead origin/main `1909ca0` ; r128 commit will land 94 ahead, re-verified at push). Living-document discipline (per r124 lesson #21) — each round-close updates §1 sync + §3 promotion ; deeper §4-§6 refresh only when the plan shifts. **🎯 Mission centrale Axis-7 (auto-amélioration en autonomie) FULLY ACTIVATED on prod : the r126+r127+r128 3-round arc deploys the first end-to-end auto-improvement loop VISIBLE on the user surface — measure (cron percentile fire weekly Sun 04:00 Paris) → store (`tempo_thresholds` historical trail, 5 rows LIVE) → consume (briefing tempo label sourced from API-fed thresholds) → recalibrate (next Sunday). alembic 0050 → 0051 LIVE ; ichor-tempo-recalibration.timer LIVE ; feature flag `tempo_recalibration_collector_enabled=true` ; Playwright DUAL witness EUR + XAU GREEN.**
+> **Sync** : 2026-05-20 r129-close (HEAD bumps to +1 per this commit ; was `651f478` at r128-close = 94 ahead origin/main `1909ca0` ; r129 commit will land 95 ahead, re-verified at push). Living-document discipline (per r124 lesson #21) — each round-close updates §1 sync + §3 promotion ; deeper §4-§6 refresh only when the plan shifts. **🎯 Mission centrale Axis-7 (auto-amélioration en autonomie) FULLY OBSERVABLE on the user surface : the r126+r127+r128+r129 4-round arc closes the auto-improvement loop with see-and-trust on the user surface — measure (cron percentile fire weekly Sun 04:00 Paris) → store (`tempo_thresholds` historical trail) → consume (briefing tempo label sourced from API-fed thresholds) → SEE (calibration provenance banner "Calibration des seuils · aujourd'hui · n=16 · fenêtre 90 j" in `<TodaySessionPulse>` panel footer) → recalibrate (next Sunday cron). alembic 0051 LIVE ; ichor-tempo-recalibration.timer LIVE ; feature flag LIVE ; Playwright TRIPLE witness EUR + GBP + XAU GREEN.**
 
 ---
 
-## §1 — Current state (r128-close, 2026-05-20)
+## §1 — Current state (r129-close, 2026-05-20)
 
 ### Shipped capabilities (the product TODAY)
 
@@ -21,7 +21,7 @@
 - **Frontend `/briefing/[asset]`** (Next.js 15.5 + React 19 + Tailwind v4 + motion 12, Fraunces serif + glassmorphism) : 14+ premium panels covering the 8 layers — BriefingHeader Sparklines + **TodaySessionPulse (r123)** + VerdictBanner + KeyLevelsPanel + NarrativeBlocks + ScenariosPanel + EconomicCalendarPanel + EventSurpriseGauge + GeopoliticsPanel + SentimentPanel + InstitutionalPositioningPanel + NewsPanel + VolumePanel + HourlyVolReport + CorrelationsStrip + PocketSkillBadge + DataIntegrityBadge + ADR-104 r96 degraded-data badge.
 - **Phase D auto-improvement loops (W113-W118 + W116c + W117a)** — the LIVING ENTITY layer SHIPPED + AUTONOMOUSLY OPERATING : `auto_improvement_log` immutable trigger / ADWIN concept-drift / Vovk-Zhdanov aggregator (JMLR 2009) / Ahmadian Penalized Brier Score λ=2 / W116c LLM addendum generator (canonical Voie D entry, ADR-017 regex defense-in-depth) / DSPy 3.2 `ClaudeRunnerLM(BaseLM)` Voie D-wrapper. Observable via `/v1/phase-d/*` read-only endpoints. **Eliot's "Ichor doit s'améliorer en autonomie" is INFRASTRUCTURE-COMPLETE — the FRONTEND `/learn` consumer is gel'd per CLAUDE.md rule 4 (Eliot decision pending).**
 - **Voie D** : ZERO Anthropic API spend ; all LLM calls go through local Win11 `claude-runner` subprocess (Max 20x flat). Held **38 rounds** as of r123.
-- **Production deployment** : Hetzner SSH alias `ichor-hetzner`, **31+ ichor-\*.timer systemd units active** (r128 added `ichor-tempo-recalibration.timer`), FastAPI + **Alembic 0051 LIVE** + SQLAlchemy 2 async + TimescaleDB + Postgres-AGE. Cloudflare quick tunnel LIVE URL stable `https://latino-superintendent-restoration-dealtime.trycloudflare.com`. **2198+ pytest apps/api suite green ; web2 vitest 8 files / 177 tests pass (was 171 r125 + 6 r127, 0 regression)**. **`tempo_thresholds` table LIVE with 5 rows** (EUR/GBP/XAU/SPX/NAS, computed 2026-05-20 16:05 UTC, 90d window) ; **`/v1/tempo-thresholds` endpoint LIVE with `Cache-Control: public, max-age=300, stale-while-revalidate=900`**.
+- **Production deployment** : Hetzner SSH alias `ichor-hetzner`, **31+ ichor-\*.timer systemd units active** (r128 added `ichor-tempo-recalibration.timer`), FastAPI + **Alembic 0051 LIVE** + SQLAlchemy 2 async + TimescaleDB + Postgres-AGE. Cloudflare quick tunnel LIVE URL stable `https://latino-superintendent-restoration-dealtime.trycloudflare.com`. **2198+ pytest apps/api suite green ; web2 vitest 8 files / 181 tests pass (was 177 r127 + 4 r129 new, 0 regression)**. **`tempo_thresholds` table LIVE with 5 rows** (EUR/GBP/XAU/SPX/NAS, computed 2026-05-20 16:05 UTC, 90d window) ; **`/v1/tempo-thresholds` endpoint LIVE with `Cache-Control: public, max-age=300, stale-while-revalidate=900`** ; **r129 staleness banner LIVE in `<TodaySessionPulse>` panel footer** ("Calibration des seuils · aujourd'hui · n=16 · fenêtre 90 j").
 
 ### Doctrine ledger (the operational invariants — pointers, not duplications)
 
@@ -68,7 +68,21 @@ See `docs/ROADMAP_2026-05-06.md` for the original 4-layer architecture (DATA FOU
 
 ---
 
-## §3 — Immediate next (r129)
+## §3 — Immediate next (r130)
+
+**r129 EXECUTED & SHIPPED (2026-05-20)** : ADR-104 data-honesty staleness banner on `<TodaySessionPulse>` panel footer — closes r127 trader NIT + adds the 5th stage (SEE) to the Mission centrale Axis-7 auto-improvement loop. ~120 LOC + 5 new vitest cases. `getTempoThresholds()` envelope reshape `{thresholds, metadata}` + `derivePulse(..., thresholdsMetadata?)` 6th param + `tempo_metadata: TempoMetadata | null` on `SessionPulse` + `formatCalibrationAge` helper + banner in panel footer. Reviews 4 parallel : trader GREEN/MERGE + ui-designer NEEDS-FIX→MERGE post-apply (size + placement + prose-mono) + a11y 0 MUST-FIX→MERGE (drop aria-label + size) + code-reviewer 0 MUST-FIX (drop aria-label + extract const). Concordance applied : size text-[10px]→text-[11px], aria-label dropped (override-on-`<p>`-ignored per ARIA 1.2), placement Tempo-tile→panel-footer (provenance-with-provenance STRONG single-reviewer). 2 lessons codified : #25 (UI taxonomy is single-discipline domain — STRONG single-reviewer placement applies even without concordance) ; #26 (post-resume git-state R59 = capture deployed reality, no re-deploy). Build gate : tsc 0 / eslint 0 / vitest 8f/181 pass / next build OK. Deploy LIVE on CF tunnel. Playwright TRIPLE witness GREEN (EUR + GBP + XAU banner LIVE). See `docs/SESSION_LOG_2026-05-20-r129-EXECUTION.md` + ADR-099 §Impl(r129).
+
+**Mission centrale Axis-7 = FULLY OBSERVABLE** : measure → store → consume → **SEE** → recalibrate. The 5-stage chain is LIVE on the user surface.
+
+**r130 binding default candidates** (R59-AUDIT first to pick) :
+
+1. **Threshold drift detector cron** — weekly cron comparing this-week thresholds against last-week's, structlog alert + `auto_improvement_log` row on >N% drift. New cron + ALTER `auto_improvement_log.loop_kind` CHECK constraint to add `tempo_drift`. Effort M. Closes the Axis-7 loop with the **alert** stage (currently silent if cron stops firing).
+2. **Stale-amber + degraded-sample tone escalation** on r129 banner — `days >= 7` → `--color-warn` amber tint ; `sample_size < window_days * 0.5` → tone shift. Closes the r129 ui-designer deferred missing-states. Effort S.
+3. **Tempo cross-asset matrix on `/today`** — surface all 5 priority assets' current tempo + thresholds at once. Effort M.
+4. **AUD_USD revival** — alternative China money supply LIVE series since MYAGM1CNM189N still dead per FRED. Effort M-L.
+5. **Polymarket × DXY synthesis panel** — Mission Axis-4 deepening from r123 audit. Effort M.
+
+## §3 — Previous immediate next (r129, EXECUTED above)
 
 **r128 EXECUTED & SHIPPED (2026-05-20)** : Hetzner production deploy of the r126+r127 stack + Playwright DUAL witness GREEN. **Mission centrale Axis-7 FULLY ACTIVATED on prod** — auto-recalibration cron LIVE (next Sun 2026-05-24 04:01 CEST), `tempo_thresholds` table has 5 rows after manual first-run (EUR/GBP/XAU/SPX/NAS, 90d window, n=8-16), `/v1/tempo-thresholds` LIVE with Cache-Control header, frontend wire LIVE on CF tunnel showing API-fed labels. Empirical drift from r125 60d to r128 90d : EUR/GBP/XAU +0-22bp on higher percentiles (regime shift across the 30 extra days), SPX/NAS ~0 (stable). **Transparent-on-stable-calibration EMPIRICALLY confirmed** : EUR 54bp + XAU 221bp both render "tendance" label LIVE — same as r125 hardcoded would produce (within-bracket dispersion), proving the wire works invisibly correctly. **Lesson #24 codified** : SSH-unstable mid-tar → pivot to file-by-file scp with `ServerAliveInterval=5`. The r126+r127+r128 3-round arc is the **first end-to-end auto-improvement loop VISIBLE on the user surface** : measure → store → consume → recalibrate. See `docs/SESSION_LOG_2026-05-20-r128-EXECUTION.md` + ADR-099 §Impl(r128).
 

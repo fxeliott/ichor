@@ -459,6 +459,54 @@ describe("derivePulse — r127 thresholdsOverride (Mission Axis-7 API wire)", ()
     expect(pPartialOverride!.tempo_label).toBe(pHardcoded!.tempo_label);
   });
 
+  it("r129 thresholdsMetadata threads through to SessionPulse.tempo_metadata", () => {
+    const b = barsLowRange();
+    const overrideThresholds: Record<string, import("@/lib/sessionPulse").TempoThresholds> = {
+      EUR_USD: { breakout: 59.14, active: 54.96, trending: 48.38, range_bound: 35.12 },
+    };
+    const overrideMetadata: Record<string, import("@/lib/sessionPulse").TempoMetadata> = {
+      EUR_USD: { computed_at: "2026-05-20T16:05:29.796381Z", sample_size: 16, window_days: 90 },
+    };
+    const p = derivePulse(b, null, null, "EUR_USD", overrideThresholds, overrideMetadata);
+    expect(p).not.toBeNull();
+    expect(p!.tempo_metadata).not.toBeNull();
+    expect(p!.tempo_metadata!.computed_at).toBe("2026-05-20T16:05:29.796381Z");
+    expect(p!.tempo_metadata!.sample_size).toBe(16);
+    expect(p!.tempo_metadata!.window_days).toBe(90);
+  });
+
+  it("r129 thresholdsMetadata omitted → tempo_metadata is null (backward-compat)", () => {
+    const b = barsLowRange();
+    const p = derivePulse(b, null, null, "EUR_USD");
+    expect(p).not.toBeNull();
+    expect(p!.tempo_metadata).toBeNull();
+  });
+
+  it("r129 thresholdsMetadata defined but asset absent → tempo_metadata is null", () => {
+    const b = barsLowRange();
+    const onlyXauMetadata: Record<string, import("@/lib/sessionPulse").TempoMetadata> = {
+      XAU_USD: { computed_at: "2026-05-20T16:05:29.796381Z", sample_size: 16, window_days: 90 },
+    };
+    const p = derivePulse(b, null, null, "EUR_USD", undefined, onlyXauMetadata);
+    expect(p).not.toBeNull();
+    expect(p!.tempo_metadata).toBeNull();
+  });
+
+  it("r129 thresholdsMetadata with unparseable computed_at still threads through (caller validates)", () => {
+    // The downstream consumer (`<TodaySessionPulse>:formatCalibrationAge`)
+    // is responsible for parsing computed_at + falling back to no banner
+    // on unparseable input. `derivePulse` itself just threads the raw
+    // metadata through ; this test pins that pass-through contract.
+    const b = barsLowRange();
+    const garbageMetadata: Record<string, import("@/lib/sessionPulse").TempoMetadata> = {
+      EUR_USD: { computed_at: "not-a-date", sample_size: 16, window_days: 90 },
+    };
+    const p = derivePulse(b, null, null, "EUR_USD", undefined, garbageMetadata);
+    expect(p).not.toBeNull();
+    expect(p!.tempo_metadata).not.toBeNull();
+    expect(p!.tempo_metadata!.computed_at).toBe("not-a-date");
+  });
+
   it("XAU override-from-api : a 200 bp day labels as 'trending' (in XAU's own bracket)", () => {
     // Synthetic XAU day at 2050 open with range 200 bp → high 2090.7, low
     // 2049.7 ≈ 200 bp. XAU r125 hardcoded p50=177.2 / p75=273.7 → 200 falls
@@ -523,5 +571,24 @@ describe("TempoThresholds type drift-guard (r127)", () => {
       expect(sp, `sessionPulse.ts TempoThresholds must declare ${f}: number`).toMatch(re);
       expect(api, `api.ts TempoThresholdsForAsset must declare ${f}: number`).toMatch(re);
     }
+  });
+
+  // r129 — same drift-guard discipline for the new TempoMetadata structural
+  // mirror. Both modules declare the 3 fields independently for the same
+  // dependency-direction reason (`api → sessionPulse` natural data-flow).
+  it("the two TempoMetadata declarations carry the same 3 fields", async () => {
+    const fs = await import("node:fs");
+    const path = await import("node:path");
+    const url = await import("node:url");
+    const here = path.dirname(url.fileURLToPath(import.meta.url));
+    const sp = fs.readFileSync(path.join(here, "..", "lib", "sessionPulse.ts"), "utf-8");
+    const api = fs.readFileSync(path.join(here, "..", "lib", "api.ts"), "utf-8");
+
+    expect(sp).toMatch(/\bcomputed_at: string;/);
+    expect(sp).toMatch(/\bsample_size: number;/);
+    expect(sp).toMatch(/\bwindow_days: number;/);
+    expect(api).toMatch(/\bcomputed_at: string;/);
+    expect(api).toMatch(/\bsample_size: number;/);
+    expect(api).toMatch(/\bwindow_days: number;/);
   });
 });
