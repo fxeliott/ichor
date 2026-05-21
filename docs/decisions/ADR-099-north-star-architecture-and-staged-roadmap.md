@@ -3346,3 +3346,65 @@ The r136 `<MacroSurprisePanel>` SHOWS hot inflation (+4.4σ PCE) descriptively, 
 **HONEST SCOPE (lesson #1/#11)** : (a) the equity-leg regime-conditioning is a HEURISTIC dampener (0.7 coefficient, desk-judgment per the trader advisory ; not empirically Brier-fit yet — but now Brier-TUNABLE, which it wasn't until the code-reviewer fix) ; (b) XAU is deliberately zero (honest > a guessed sign) ; (c) inflation→price coefficient 0.3 is a judgment vs growth's 0.5 ; (d) NOT surfaced on the briefing as a directional read this round — it feeds the confluence score + LLM data-pool ; the per-asset directional surface is downstream (the r136 panel still shows inflation descriptively).
 
 Voie D held **52 rounds** (zero `import anthropic` ; pure FRED-statistics + desk-rule mapping) ; ADR-017 boundary clean (signed `contribution` is an internal analytical input to score_long/short + the LLM data-pool, NEVER a user-facing BUY/SELL ; evidence string + render caveat descriptive) ; doctrine #9 dated append, NO new ADR (extends the r135 surprise machinery + the existing confluence-driver architecture) ; doctrine-#9 coord-math ledger UNCHANGED. **Mission centrale axis 5 stays 🎯 +1 LEVEL** — the inflation surprise is now ACTIONABLE in the confluence/bias layer (was descriptive-only after r136), regime-aware ; full real-time auto-update (WebSocket/SSE on event-fire) remains the axis-5 architectural closure (r138+). The r136 ROADMAP §3 candidate #1 "inflation → hawkish/dovish driver" is **EXECUTED**. **Lesson #34 codified** : when adding a NEW confluence driver, register its factor name in BOTH `DEFAULT_FACTOR_NAMES` (brier_optimizer) AND `cli._FACTOR_NAMES` (kept in lockstep by the `set==set` test) — otherwise the Brier optimizer silently drops it from the signal matrix and it stays equal-weight forever (works at cold-start, never tunes). A new driver isn't "done" until it's Brier-tunable.
+
+## Implementation (r138, 2026-05-21) — Tier 1 backend+frontend : asset-conditioned `/v1/news` + `/v1/geopolitics/briefing` filter (Mission centrale axes 3 + 4)
+
+R59-AUDIT-FIRST (lesson #20 + #32) revealed `/v1/news` and `/v1/geopolitics/briefing` both IGNORED the `?asset=` query param — the 5 priority briefings (EUR/GBP/XAU/SPX/NAS) served an IDENTICAL ~41 KB global news feed + IDENTICAL GPR 210.6 / 5 GDELT events for every asset. Meanwhile, the 4-pass LLM data-pool reader (`services/data_pool._section_news`) HAD been filtering by asset since r68 via `_NEWS_KEYWORDS` + `_matches_asset` + a 3-match scarce-fallback. Classic EXISTS-but-BROKEN gap (lesson #32 — the SAME pattern that drove r133→r135 : light up existing dark machinery rather than build net-new). User-perceived consequence pre-r138 : Eliot opens `/briefing/XAU_USD` expecting Iran-tail + gold-flow narrative, gets the SAME news headlines a `/briefing/EUR_USD` visitor sees.
+
+**Files shipped (~1100 net LOC across 11 files, 3-commit stack `cc2e383 + 393faef + 3f98aae`)** :
+
+Backend SSOT extract + asset-conditioned endpoints (doctrine #4 anti-accumulation) :
+
+- NEW `apps/api/.../services/asset_news_affinity.py` (~115 LOC). Re-homed `NEWS_KEYWORDS` (9 assets, byte-identical to the r68 inline dict at `data_pool.py:4519`) + `matches_asset` + a NEW generic `filter_rows_by_asset_affinity[T]` helper (PEP 695, scarce-fallback `min_required=3`) + the new `ASSET_QUERY_REGEX` SSOT shared by the 2 routers. CI-guarded ADR-017 invariant : keyword vocabulary content-neutral (CI test enumerates the dict + asserts no directional verb leaks).
+- MODIFIED `data_pool.py` : back-compat re-imports `NEWS_KEYWORDS as _NEWS_KEYWORDS` (with `# noqa: F401` — ruff F401 stripped this on `cc2e383`, trader RED #1 + code-reviewer R2 caught the failing pin test, fix-commit `393faef` restored it) + `matches_asset as _matches_asset`. `_section_news` MIGRATED to the helper (code-reviewer S4, closes the SSOT loop).
+- MODIFIED `routers/news.py` : `?asset=` opt-in. Envelope response `NewsListEnvelope = {items, filter:NewsFilterMeta|null}`. Back-compat preserved (no asset → `filter=null`). Migrated `regex=`→`pattern=` (scope-limited per doctrine #2).
+- MODIFIED `routers/geopolitics.py` `/briefing` : `?asset=` opt-in, new `filter` field. Affinity match uses title+query_label+domain (collector tags boost precision). AI-GPR always GLOBAL (single-index doctrine, pinned by `test_briefing_gpr_unchanged_by_asset_filter`). S2 fix : deterministic tie-break secondary sort `seendate.desc()` on tied tones. `n_events_window` now uses `func.count()` (replaces row-materialise hack).
+
+Frontend — pass asset + envelope unwrap + 4-state disclosure UI (lesson #11 calibrated honesty) :
+
+- MODIFIED `apps/web2/lib/api.ts` — `getNews(limit, asset?)` returns `NewsListEnvelope | null` (BREAKING from r137 bare list) ; `getGeopoliticsBriefing(hours, top, asset?)` adds optional `.filter`. New exported types `NewsFilterMeta`, `NewsListEnvelope`, `GeopoliticsFilterMeta`.
+- MODIFIED `app/briefing/[asset]/page.tsx` — passes `normalisedAsset` to both fetchers ; unwraps news envelope.
+- MODIFIED `app/news/page.tsx` (PRE-DETECTED breaking consumer, code-reviewer R1) — the standalone /news page consumed `/v1/news` expecting bare `ApiNews[]` and would have silently degraded to MOCK with a green "live" badge post-deploy. Fix : unwrap `.items` (back-compat behaviour preserved since the page sets no `?asset=`).
+- MODIFIED `NewsPanel.tsx` + `GeopoliticsPanel.tsx` — 4 mutually-exclusive disclosure states (no-asset / unknown-asset / applied / scarce-fallback), each rendered with French copy ; the scarce-fallback case carries the anti-emergent-directional anchor "pas un signal" (trader YELLOW #4 fix — same stamp `<MacroSurprisePanel>` r136 footer uses to neutralise absence-as-signal reads).
+
+**Tests (26 new, all green)** : 14 unit + 6 news endpoint + 6 geopolitics endpoint, with the ADR-017 keyword-content-neutrality CI guard + the AI-GPR-unchanged-by-filter single-index invariant pinned.
+
+**Reviews (2 parallel — backend-LLM-data-pool class per doctrine #17 ; NOT a new visible UI delta since panels keep the same structure, only the content shifts)** :
+
+- ichor-trader : 1 RED + 4 YELLOW + 5 NICE + 2 FLAGGED-not-fix. Applied RED #1 (back-compat re-export) + YELLOW #4 (anti-directional copy "pas un signal" anchor). YELLOW #2/#3/#5 (keyword precision SPX/NAS/XAU) + 5 NICE deferred to r139 keyword-precision pass.
+- code-reviewer : 2 RED + 5 SHOULD-FIX + 5 NICE + 9 FLAGGED-not-fix. RED #1 = /news page envelope unwrap. RED #2 = data_pool back-compat test (same as trader RED #1). Both fixed in `393faef`. Applied SHOULD-FIX S2 + S4 + N3 in `3f98aae`. S1/S3/S5/N1/N2/N5 deferred (cosmetic + perf micro-opts).
+
+**Verification (MEASURED, no forecast, lesson #1)** : `ruff check` clean ; pytest scope = **26 new + 279 regression `-k news or geopolitics or data_pool or affinity` = 305 passed, 0 fail** ; `tsc --noEmit` 0 errors ; `vitest run` **13 files / 293 passed in 1.2s** (zero frontend regression).
+
+**Deploy (lesson #24 SSH-instability — host dropped SSH at step 3→4 ; recovered after 30s backoff ; verified the package landed via `grep -c asset_news_affinity` in the prod path → 4/5/3 hits → `sudo systemctl restart ichor-api` → `/healthz=200`)**. `redeploy-web2.sh` clean : local=200 public=200.
+
+**EMPIRICAL PROOF the filter is LIVE + discriminates per asset** :
+
+- `curl /v1/news?asset=EUR_USD` → envelope `{items: [...], filter: {matched: 0, applied: false}}` — scarce-fallback fires honestly on the current 24h news window.
+- `curl /v1/news` (no asset) → envelope `{items: [...], filter: null}` — back-compat preserved.
+- `curl /v1/geopolitics/briefing?asset=XAU_USD` → `{filter: {matched: 7, applied: true}}` — 7 GDELT events match gold/bullion affinity, panel surfaces 5 asset-specific negatives.
+- `curl /v1/geopolitics/briefing?asset=NAS100_USD` → `{filter: {matched: 0, applied: false}}` — scarce-fallback fires.
+- `curl /v1/geopolitics/briefing` (no asset) → `filter: null`, GPR `210.6` unchanged — single-index doctrine empirically preserved.
+
+**TRIPLE Playwright witness GREEN on the public CF tunnel** (`?cb=r138-witness-{xau,eur,spx}-firstrender`, NO cache pollution per lesson #33) :
+
+| Asset          | News disclosure                                                                       | Geo disclosure                                                                     |
+| -------------- | ------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| **XAU_USD**    | `Flux global affiché — aucun item spécifique à XAU_USD ... pas un signal` (scarce)    | `FILTRÉ · 9 ÉVÉNEMENTS LIÉS À XAU_USD` (applied)                                   |
+| **EUR_USD**    | `Filtré · 8 items liés à EUR_USD` (applied)                                           | `RANKING GLOBAL · AUCUN ÉVÉNEMENT SPÉCIFIQUE À EUR_USD ... PAS UN SIGNAL` (scarce) |
+| **SPX500_USD** | `Flux global affiché — aucun item spécifique à SPX500_USD ... pas un signal` (scarce) | `RANKING GLOBAL · 1 ÉVÉNEMENT SPÉCIFIQUE À SPX500_USD ... PAS UN SIGNAL` (scarce)  |
+
+Three different disclosure patterns across three priority assets on the same render = the filter EMPIRICALLY discriminates per asset. The 4 disclosure states are exhaustively covered on the public surface. Zero console errors.
+
+**HONEST SCOPE (lesson #1/#11)** :
+
+- (a) Keyword precision is uneven across the 5 priority assets (trader YELLOW #2/#7) — SPX/XAU keyword tuples are too generic for their actual catalyst surface (SPX misses FOMC/Powell/ISM/NFP/earnings ; XAU misses real-yield/DXY/10Y). Pre-NY uplift is asymmetric : EUR/GBP/NAS get strong filtered news, SPX/XAU often scarce-fallback to global (the disclosure surfaces this honestly — no inflation). Keyword-precision pass = r139 candidate.
+- (b) The keyword map is byte-identical to r68 (the r138 SSOT extract did NOT change semantics, only re-homed the dict + helper). Behavioural identity guaranteed between Pass-2 LLM reasoning and user-visible content MODULO the candidate-pool size asymmetry (data_pool pulls 50, endpoint pulls `limit*4` capped 500 — code-reviewer S1 documented).
+- (c) The standalone `/news` page envelope-unwrap breakage was DETECTED + FIXED in the same round (pre-emptive grep before code-reviewer reported the same). Lesson codified.
+- (d) Filter applied to the GLOBAL `/v1/news` consumers via the envelope unwrap, NOT to the Pass-2 LLM data-pool reader (which had asset filtering since r68 via a different call path). The two surfaces are SEMANTICALLY ALIGNED (same SSOT) but pool sizes differ — small drift documented, not eliminated.
+
+Voie D held **53 rounds** (zero `import anthropic` ; pure deterministic keyword filter ; no LLM call added). ADR-017 boundary clean (CI-guarded). Doctrine #9 dated append, NO new ADR. Doctrine-#9 coord-math ledger UNCHANGED.
+
+**Mission centrale axis impact** : axis-3 (NY window + news per-asset) and axis-4 (anticipation by depth) both lift Dimension 3 (Géopolitique) + Dimension 6 (Sentiment news side) from `LIVE-WEAK` to `LIVE-STRONG` for the 5 priority assets, conditional on news-window density (scarce-fallback IS the honest degradation when the source is thin — never inflates to "filtered" on weak data). Axis-7 (apprentissage autonome) untouched. Axis-5 (réactivité temps réel) remains the next-round architectural candidate.
+
+**Lesson #35 codified (THIS round)** : envelope-the-shape changes ARE breaking even when the new field is optional — any consumer that does `apiGet<OldType>(...)` will silently destructure-and-degrade rather than crash. **Grep ALL `apiGet<>` + every direct HTTP call to the endpoint path BEFORE declaring "back-compat preserved"**. The code-reviewer caught the `/news` page silent MOCK-with-green-badge degradation ; pre-emptive grep would have caught it at design time. The fact that pre-r138 design assumed only `getNews()` consumed the endpoint (one call site detected) was a false-confidence read — `apiGet<...>` direct calls bypass the helper and need separate grepping.

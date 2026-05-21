@@ -10,6 +10,18 @@
 
 ---
 
+## §1 — Current state (r138-close, 2026-05-21)
+
+### Shipped at r138 (asset-conditioned news + geopolitics filter — per-asset context surface lit up)
+
+- **`/v1/news?asset=X` + `/v1/geopolitics/briefing?asset=X` opt-in filter** — R59-AUDIT revealed both endpoints IGNORED the `?asset=` query param, serving an identical global feed to all 5 briefings, while the 4-pass LLM data-pool reader (`data_pool._section_news`) had filtered by asset since r68. Classic EXISTS-but-BROKEN gap (lesson #32).
+- NEW `services/asset_news_affinity.py` SSOT — re-homed `NEWS_KEYWORDS` + `matches_asset` + the new generic `filter_rows_by_asset_affinity[T]` helper (scarce-fallback `min_required=3`) + `ASSET_QUERY_REGEX` shared by both routers. `data_pool._section_news` MIGRATED to the helper (closes the doctrine #4 SSOT loop). Envelope `NewsListEnvelope = {items, filter:NewsFilterMeta|null}` ; `GeopoliticsBriefingOut` adds optional `filter`. AI-GPR always GLOBAL (single-index doctrine, pinned). 4-state UI disclosure on both panels with the **"pas un signal" anti-emergent-directional anchor** for the scarce-fallback case (trader YELLOW #4 fix, lesson #11).
+- **3-commit stack** `cc2e383 + 393faef + 3f98aae` (now 106 ahead origin/main). 26 new tests + 279 regression scope pass + tsc clean + 293 vitest pass. Deploy lesson #24 (SSH dropped step 3→4, recovered with backoff). 2 reviewers parallèles (backend-LLM-data-pool class) : trader 1 RED + 4 YELLOW + 5 NICE / code-reviewer 2 RED + 5 SHOULD-FIX + 5 NICE — 2 RED + 1 YELLOW + 2 SHOULD-FIX + 1 NICE applied, rest deferred to r139 keyword-precision pass (doctrine #2 strict scope).
+- **EMPIRICAL PROOF the filter discriminates per asset** — TRIPLE Playwright witness GREEN on public CF tunnel : XAU news=scarce / geo=`filtré 9 events`, EUR news=`filtré 8 items` / geo=scarce, SPX news=scarce / geo=scarce. 3 different disclosure patterns on the same render. `/v1/geopolitics/briefing` GPR 210.6 unchanged across all paths = single-index doctrine empirically preserved.
+- **Voie D held 53 rounds.** Mission axes 3 + 4 both lift Dim 3 (Géopolitique) + Dim 6 (Sentiment news-side) from LIVE-WEAK to LIVE-STRONG for the 5 priority assets (conditional on news-window density — scarce-fallback IS the honest degradation). **Lesson #35**: envelope-the-shape changes ARE breaking even when the new field is optional ; grep ALL `apiGet<>` + direct HTTP callers BEFORE declaring "back-compat preserved" (pre-detected the `/news` page silent MOCK-with-green-badge degradation before the code-reviewer reported it).
+
+### Pre-r138 state (preserved for archeology)
+
 ## §1 — Current state (r137-close, 2026-05-21)
 
 ### Shipped at r137 (inflation surprise now actionable in the confluence layer)
@@ -123,17 +135,30 @@ See `docs/ROADMAP_2026-05-06.md` for the original 4-layer architecture (DATA FOU
 
 ---
 
-## §3 — Immediate next (r138)
+## §3 — Immediate next (r139)
+
+**r138 EXECUTED & SHIPPED (2026-05-21)** : asset-conditioned `/v1/news` + `/v1/geopolitics/briefing` filter — R59-AUDIT-FIRST 5 parallel streams identified the highest-leverage gap (Dim 3 Géopolitique × Dim 6 Sentiment news-side for SPX/NAS LIVE-WEAK, both endpoints ignoring `?asset=`). SSOT extract to `services/asset_news_affinity.py` (doctrine #4) + envelope responses + 4-state UI disclosure with "pas un signal" anti-emergent-directional anchor (lesson #11). 26 new tests + 279 regression pass. 2 reviewers (trader 1 RED + 4 YELLOW + 5 NICE / code-reviewer 2 RED + 5 SHOULD-FIX + 5 NICE — REDs all applied, SHOULD-FIX S2/S4/N3 applied, rest deferred to r139). Deploy lesson #24 (SSH dropped step 3→4) + TRIPLE Playwright witness GREEN (XAU/EUR/SPX with 3 different disclosure patterns, single-index AI-GPR doctrine empirically preserved). **Lesson #35**: envelope-the-shape changes ARE breaking even when the new field is optional ; grep ALL `apiGet<>` + direct HTTP callers BEFORE declaring back-compat. See `docs/SESSION_LOG_2026-05-21-r138-EXECUTION.md` + ADR-099 §Impl(r138).
+
+**r139 binding default candidates** (R59-AUDIT first to pick) :
+
+1. **Keyword precision pass for SPX/NAS/XAU** ⭐ AUTO-RECOMMENDED (closes the r138 honest-scope gap : trader YELLOW #2/#7 + code-reviewer S1) — SPX scarce-fallback observed on the live r138 witness is partly the keyword set being too generic ("broad market" / "Fed funds" / "tech stocks"). Add FOMC/Powell/ISM/NFP/earnings-season for SPX ; real-yield/DXY/10Y/TIPS for XAU ; semis tickers (TSM/AMD/AVGO) for NAS ; drop "broad market" / "tech stocks" as too noisy. ADR-017 keyword-content-neutrality CI guard remains the safety rail. Effort S-M.
+2. **Réactivité temps réel auto-update axis-5 architectural closure** — WebSocket/SSE on the briefing + event-fire detection cron + banner/auto-refresh on NFP/CPI/FOMC fire. r137 binding default that r138 deferred. Effort M-L (bigger — may need scoping/spec).
+3. **Business-cycle-conditioned news sign** (web-grounded — Boyd-Hu-Jagannathan / ABDV : equity reacts POSITIVELY to bad macro news in EXPANSIONS, NEGATIVELY in recessions). Condition the GROWTH driver's currently-unconditional sign on the cycle regime. Effort M.
+4. **Conviction backend driver-wiring** (r134 follow-on, closes axis 6 — wire SessionCard.drivers incl. the new inflation_surprise). Effort M-L.
+5. **GDPC1 quarterly weighting + periodic re-backfill timer** (r135 hardening). Effort S.
+6. **Dealer-GEX regime state** (Barbon-Buraschi — option-flow regime label, momentum vs mean-reversion). Effort M.
+
+## §3 — Previous immediate next (r138, EXECUTED above)
 
 **r137 EXECUTED & SHIPPED (2026-05-21)** : regime-conditioned `inflation_surprise` confluence driver — completes the growth/inflation pair (r135 split, r136 surfaced descriptively, r137 makes it actionable). ichor-trader pre-design advisory : USD leg unconditional + equity leg dampened under reflation + XAU=0 + ×0.3 coeff + separate Brier-tunable Driver. code-reviewer SHOULD-FIX (register in DEFAULT_FACTOR_NAMES + CLI lockstep) applied. 481 tests pass ; deploy (lesson #24 SSH-instability) + EMPIRICAL `/v1/confluence` verify : SPX −0.73 (reflation-dampened), EUR −1.0 (USD unconditional), XAU 0.0. **Lesson #34**: a new confluence driver isn't done until Brier-tunable. See `docs/SESSION_LOG_2026-05-21-r137-EXECUTION.md` + ADR-099 §Impl(r137).
 
-**r138 binding default candidates** (R59-AUDIT first to pick) :
+**r138 binding default candidates** (R59-AUDIT first to pick) — AUTO-RECOMMENDED #1 (réactivité temps réel) was R59-DISPROVED in favor of asset-conditioned news+geo filter (higher-leverage EXISTS-but-BROKEN gap caught at audit, lesson #32). See r138 EXECUTION log.
 
-1. **Réactivité temps réel auto-update** ⭐ AUTO-RECOMMENDED (axis-5 architectural closure) — WebSocket/SSE on the briefing + event-fire detection cron + banner/auto-refresh on NFP/CPI/FOMC fire. The r135-r137 arc built the surprise signal real→visible→actionable ; this is the LAST piece of Mission axis 5 ("quand un résultat tombe, Ichor doit réagir IMMÉDIATEMENT"). Effort M-L (bigger — may need scoping/spec).
-2. **Business-cycle-conditioned news sign** (web-grounded — expansion→bad-news-bullish ; condition the GROWTH driver's currently-unconditional sign on the cycle regime). Effort M.
-3. **Conviction backend driver-wiring** (r134 follow-on, closes axis 6 — wire SessionCard.drivers incl. the new inflation_surprise). Effort M-L.
-4. **Surface the inflation directional read on the briefing** (light "biais inflation" context line). Effort S.
-5. **GDPC1 quarterly weighting + periodic re-backfill timer** (r135 hardening). Effort S.
+1. **Réactivité temps réel auto-update** (axis-5 architectural closure) — deferred to r139 candidate #2.
+2. **Business-cycle-conditioned news sign** (web-grounded — expansion→bad-news-bullish). Effort M.
+3. **Conviction backend driver-wiring** (r134 follow-on, closes axis 6). Effort M-L.
+4. **Surface the inflation directional read on the briefing**. Effort S.
+5. **GDPC1 quarterly weighting + periodic re-backfill timer**. Effort S.
 6. **Dealer-GEX regime state** (Barbon-Buraschi). Effort M.
 
 ## §3 — Previous immediate next (r137, EXECUTED above)
@@ -308,7 +333,7 @@ For full text, see :
 - `docs/decisions/ADR-099` §D-4 boundary of autonomy (Claude local/reversible/additive vs Eliot irreversible/shared/secrets)
 - `C:\Users\eliot\.claude\projects\D--Ichor\memory\ichor_r51-r71_doctrinal_patterns.md` (operational doctrines)
 
-Cross-round lessons (#1 forecast≠proof, #2 SHIPPED≠FUNCTIONAL, #3 R59 RESHAPE design, #4 anti-accumulation extract-to-SSOT, #5 RSC-leak discipline, #6 commit single-step prettier 2e-passe, #7 SSH throttle ONE-connection, #8 coverage vs de-accumulation vs extract-to-shared vs additive-prop vs render-mode vs additive-consumer, #9 ADR immuable §Impl APPEND, #10 default-per-round=binding contract, #11 calibrated-honesty, #12 "tu es sûr"=concordance audit, #13 1st signal frais=ground-truth, #14 gate sur shape committée, #15 reconcile snippet-reviewer vs convention, #16 FAIL-OPEN component / FAIL-LOUD SSOT, #17 sous-agents protocole pas FOMO, #18 witness prod-code via api.env+cwd, **#19 `next build` flag for SSG bake-in (r122)**, **#20 POINT FONDAMENTAL refresh → R59-AUDIT first (r123)**).
+Cross-round lessons (#1 forecast≠proof, #2 SHIPPED≠FUNCTIONAL, #3 R59 RESHAPE design, #4 anti-accumulation extract-to-SSOT, #5 RSC-leak discipline, #6 commit single-step prettier 2e-passe, #7 SSH throttle ONE-connection, #8 coverage vs de-accumulation vs extract-to-shared vs additive-prop vs render-mode vs additive-consumer, #9 ADR immuable §Impl APPEND, #10 default-per-round=binding contract, #11 calibrated-honesty, #12 "tu es sûr"=concordance audit, #13 1st signal frais=ground-truth, #14 gate sur shape committée, #15 reconcile snippet-reviewer vs convention, #16 FAIL-OPEN component / FAIL-LOUD SSOT, #17 sous-agents protocole pas FOMO, #18 witness prod-code via api.env+cwd, **#19 `next build` flag for SSG bake-in (r122)**, **#20 POINT FONDAMENTAL refresh → R59-AUDIT first (r123)**, **#21 ROADMAP drives default (r124)**, **#22 worktree-mismatch absolute paths + `git -C` (r126)**, **#23 Hetzner deploy chain crosses §D-4 even when SSH authorized (r127)**, **#24 SSH-instability → short retryable calls + backoff (r128)**, **#25 STRONG single-reviewer placement applies sans concordance for single-discipline UI domains (r129)**, **#26 post-resume R59 git-status captures deployed reality, no re-deploy (r129)**, **#27 4-rounds-on-single-axis triggers FULL-matrix re-evaluation (r130)**, **#28 causal labels opt-IN per round avec evidence-stacking, NOT opt-OUT defaults (r131)**, **#29 axis ⏳ ≥5 rounds + cited PRIORITÉ ABSOLUE leapfrogs §3 ordering (r132)**, **#30 honest-scope micro-text with time-trigger = one-round stopgap, close-or-refine next round (r133)**, **#31 feature-HYPOTHESIS must have its honesty premise R59-validated BEFORE design ; pivot fabrication-requiring features (r134)**, **#32 R59 EXISTS-but-BROKEN before net-new — light up dark machinery (r135)**, **#33 witness FIRST render after deploy, not warmed reload ; use `no-store` for dynamic pages (r136)**, **#34 new confluence driver isn't done until Brier-tunable, registered in BOTH factor-name lists with lockstep `set==set` test (r137)**, **#35 envelope-the-shape changes ARE breaking even when the new field is "optional" — grep ALL `apiGet<>` + direct HTTP callers BEFORE declaring back-compat preserved (r138)**).
 
 ---
 
