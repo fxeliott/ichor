@@ -10,6 +10,16 @@
 
 ---
 
+## §1 — Current state (r137-close, 2026-05-21)
+
+### Shipped at r137 (inflation surprise now actionable in the confluence layer)
+
+- **Regime-conditioned `inflation_surprise` confluence driver** — the r136 panel showed hot inflation descriptively ; r137 wires it into a SEPARATE confluence factor (completes the growth/inflation pair the r135 MUST-FIX split). Per the ichor-trader pre-design advisory : USD leg unconditional (hot inflation = USD+), equity leg dampened under reflation (vs full hawkish-negative under stagflation), XAU=0 (ambiguous, honest), ×0.3 coeff, separate Brier-tunable Driver.
+- NEW `inflation_composite` on SurpriseIndexReading + `_factor_inflation_surprise` + registered in `DEFAULT_FACTOR_NAMES`/`_FACTOR_NAMES` (code-reviewer SHOULD-FIX : Brier-tunability). 481 tests pass. Deploy (lesson #24) + EMPIRICAL verify `/v1/confluence` : SPX −0.73 (dampened reflation), EUR −1.0 (USD unconditional), XAU 0.0.
+- **Voie D held 52 rounds.** Mission axis 5 stays 🎯 +1 LEVEL (surprise real r135 → visible r136 → actionable r137 ; real-time auto-update r138+). **Lesson #34**: a new confluence driver isn't done until it's Brier-tunable (registered in both factor-name lists).
+
+### Pre-r137 state (preserved for archeology)
+
 ## §1 — Current state (r136-close, 2026-05-21)
 
 ### Shipped at r136 (surface the lit surprise index on the briefing)
@@ -113,7 +123,20 @@ See `docs/ROADMAP_2026-05-06.md` for the original 4-layer architecture (DATA FOU
 
 ---
 
-## §3 — Immediate next (r137)
+## §3 — Immediate next (r138)
+
+**r137 EXECUTED & SHIPPED (2026-05-21)** : regime-conditioned `inflation_surprise` confluence driver — completes the growth/inflation pair (r135 split, r136 surfaced descriptively, r137 makes it actionable). ichor-trader pre-design advisory : USD leg unconditional + equity leg dampened under reflation + XAU=0 + ×0.3 coeff + separate Brier-tunable Driver. code-reviewer SHOULD-FIX (register in DEFAULT_FACTOR_NAMES + CLI lockstep) applied. 481 tests pass ; deploy (lesson #24 SSH-instability) + EMPIRICAL `/v1/confluence` verify : SPX −0.73 (reflation-dampened), EUR −1.0 (USD unconditional), XAU 0.0. **Lesson #34**: a new confluence driver isn't done until Brier-tunable. See `docs/SESSION_LOG_2026-05-21-r137-EXECUTION.md` + ADR-099 §Impl(r137).
+
+**r138 binding default candidates** (R59-AUDIT first to pick) :
+
+1. **Réactivité temps réel auto-update** ⭐ AUTO-RECOMMENDED (axis-5 architectural closure) — WebSocket/SSE on the briefing + event-fire detection cron + banner/auto-refresh on NFP/CPI/FOMC fire. The r135-r137 arc built the surprise signal real→visible→actionable ; this is the LAST piece of Mission axis 5 ("quand un résultat tombe, Ichor doit réagir IMMÉDIATEMENT"). Effort M-L (bigger — may need scoping/spec).
+2. **Business-cycle-conditioned news sign** (web-grounded — expansion→bad-news-bullish ; condition the GROWTH driver's currently-unconditional sign on the cycle regime). Effort M.
+3. **Conviction backend driver-wiring** (r134 follow-on, closes axis 6 — wire SessionCard.drivers incl. the new inflation_surprise). Effort M-L.
+4. **Surface the inflation directional read on the briefing** (light "biais inflation" context line). Effort S.
+5. **GDPC1 quarterly weighting + periodic re-backfill timer** (r135 hardening). Effort S.
+6. **Dealer-GEX regime state** (Barbon-Buraschi). Effort M.
+
+## §3 — Previous immediate next (r137, EXECUTED above)
 
 **r136 EXECUTED & SHIPPED (2026-05-21)** : `<MacroSurprisePanel>` on `/briefing/[asset]` — surfaced the lit surprise index (r135) on the position-taking surface. Separate panel (backward-looking realized surprises) vs the forward-looking EventSurpriseGauge ; growth composite + per-series, inflation "hors composite", monochrome ADR-017-descriptive, asset-agnostic US backdrop. 4-reviewer (trader MUST-FIX UNRATE polarity convention + ui-designer symmetry/320px + a11y role-drop). The Playwright witness CAUGHT a first-render cache bug (`revalidate:30` empty first-render on the dynamic page) → fixed to `no-store` → panel present on first render (lesson #33). vitest 293 (283+10), 0 regression ; DUAL witness GREEN first-render (composite +0.38σ, CPI +2.4σ / PCE +4.4σ fort). See `docs/SESSION_LOG_2026-05-21-r136-EXECUTION.md` + ADR-099 §Impl(r136).
 

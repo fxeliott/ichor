@@ -201,6 +201,44 @@ def test_render_full_payload() -> None:
     assert "FRED:UNRATE" in sources
 
 
+def test_render_includes_inflation_composite_when_present() -> None:
+    # r137 — the inflation composite is rendered on its OWN line (separate
+    # axis), with the regime-dependence caveat.
+    r = SurpriseIndexReading(
+        region="US",
+        composite=0.4,
+        band="neutral",
+        series=[],
+        n_series_used=2,
+        inflation_composite=2.35,
+    )
+    md, _ = render_surprise_index_block(r)
+    assert "Inflation-surprise composite z = +2.35" in md
+    assert "separate axis" in md
+
+
+def test_render_omits_inflation_line_when_absent() -> None:
+    r = SurpriseIndexReading(
+        region="US",
+        composite=0.4,
+        band="neutral",
+        series=[],
+        n_series_used=2,
+        inflation_composite=None,
+    )
+    md, _ = render_surprise_index_block(r)
+    assert "Inflation-surprise composite" not in md
+
+
+def test_reading_inflation_composite_defaults_none() -> None:
+    # Backward-compat : the field has a default so legacy constructions
+    # (without inflation_composite) still build.
+    r = SurpriseIndexReading(
+        region="US", composite=None, band="neutral", series=[], n_series_used=0
+    )
+    assert r.inflation_composite is None
+
+
 def test_render_handles_n_a_z_score_per_series() -> None:
     r = SurpriseIndexReading(
         region="US",

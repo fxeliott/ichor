@@ -108,10 +108,18 @@ class SeriesSurprise:
 class SurpriseIndexReading:
     region: str
     composite: float | None
-    """Average of polarity-corrected z-scores over series with > 5 history."""
+    """GROWTH-only composite : average of polarity-corrected z-scores over
+    the _GROWTH_SERIES with > 5 history (inflation excluded — see split)."""
     band: str  # "strong_negative" / "negative" / "neutral" / "positive" / "strong_positive"
     series: list[SeriesSurprise]
     n_series_used: int
+    inflation_composite: float | None = None
+    """r137 — SEPARATE inflation-surprise composite : average of the
+    _INFLATION_SERIES change-z (NOT polarity-inverted ; +z = hotter
+    inflation than its own trend). Orthogonal to the growth `composite`
+    (never summed) ; consumed by the regime-conditioned
+    `confluence_engine._factor_inflation_surprise` driver. None when no
+    inflation series has enough history."""
 
 
 def _band(z: float | None) -> str:
@@ -180,6 +188,7 @@ async def assess_surprise_index(
     """Build a US-only Eco Surprise Index proxy from FRED."""
     series_results: list[SeriesSurprise] = []
     z_scores: list[float] = []
+    inflation_z_scores: list[float] = []  # r137 — separate inflation axis
     for sid, label in _SERIES_LABELS.items():
         history = await _series_history(session, sid)
         last_value = history[-1] if history else None
@@ -216,16 +225,24 @@ async def assess_surprise_index(
                 n_history=len(history),
             )
         )
-        # r135 — GROWTH series only feed the composite (see _GROWTH_SERIES
-        # rationale). Inflation series keep their per-series z above but are
-        # excluded here so the composite stays an honest GROWTH-surprise
-        # signal for `confluence_engine._factor_surprise_index`.
+        # r135 — GROWTH series only feed the growth composite (see
+        # _GROWTH_SERIES rationale). r137 — inflation series feed a
+        # SEPARATE inflation composite (orthogonal axis, never summed into
+        # growth). Each series keeps its per-series z above regardless.
         if sid in _GROWTH_SERIES:
             z_scores.append(z)
+        elif sid in _INFLATION_SERIES:
+            inflation_z_scores.append(z)
 
     composite = sum(z_scores) / len(z_scores) if z_scores else None
     if composite is not None:
         composite = round(composite, 3)
+
+    inflation_composite = (
+        sum(inflation_z_scores) / len(inflation_z_scores) if inflation_z_scores else None
+    )
+    if inflation_composite is not None:
+        inflation_composite = round(inflation_composite, 3)
 
     return SurpriseIndexReading(
         region="US",
@@ -233,6 +250,7 @@ async def assess_surprise_index(
         band=_band(composite),
         series=series_results,
         n_series_used=len(z_scores),
+        inflation_composite=inflation_composite,
     )
 
 
@@ -253,7 +271,16 @@ def render_surprise_index_block(
         f"- **Growth-surprise composite z = {r.composite:+.2f}** → band: **{r.band}** "
         f"({r.n_series_used} growth series ; +z = data accelerating vs trend)"
     )
-    lines.append("- Per-series (change-surprise z ; inflation excluded from composite) :")
+    if r.inflation_composite is not None:
+        # r137 — orthogonal inflation axis (NOT summed into growth). +z =
+        # inflation running hotter than its own trend (hawkish-leaning) ;
+        # the directional read is regime-conditioned downstream.
+        lines.append(
+            f"- **Inflation-surprise composite z = {r.inflation_composite:+.2f}** "
+            f"(separate axis ; +z = hotter than trend ; equity impact depends on the "
+            f"growth backdrop — reflation if growth also hot, stagflation if growth soft)"
+        )
+    lines.append("- Per-series (change-surprise z ; inflation kept on its own axis) :")
     sources: list[str] = []
     for s in r.series:
         z_str = "n/a" if s.z_score is None else f"{s.z_score:+.2f}"

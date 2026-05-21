@@ -49,6 +49,7 @@ DEFAULT_FACTOR_NAMES: tuple[str, ...] = (
     "polymarket_overlay",
     "funding_stress",
     "surprise_index",
+    "inflation_surprise",  # r137 — separate inflation axis (Brier-tunable apart from growth)
     "vix_term",
     "risk_appetite",
     "btc_risk_proxy",
