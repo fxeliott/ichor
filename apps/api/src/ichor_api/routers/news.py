@@ -27,6 +27,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..db import get_session
 from ..models import NewsItem
 from ..services.asset_news_affinity import (
+    ASSET_QUERY_REGEX as _ASSET_REGEX,
+)
+from ..services.asset_news_affinity import (
     NEWS_KEYWORDS,
     filter_rows_by_asset_affinity,
 )
@@ -43,9 +46,8 @@ _MIN_ASSET_MATCHES = 3
 # 500 = upstream `limit` ceiling).
 _FILTER_FETCH_MULTIPLIER = 4
 _FILTER_MAX_FETCH = 500
-# r138 — keep regex permissive (alnum + underscore, 3..16) to mirror
-# the asset shape elsewhere in the API (sessions, confluence, etc.).
-_ASSET_REGEX = r"^[A-Z0-9_]{3,16}$"
+# r138 — `_ASSET_REGEX` now re-imported from
+# `services/asset_news_affinity.ASSET_QUERY_REGEX` (code-reviewer N3 SSOT).
 
 
 class NewsItemOut(BaseModel):

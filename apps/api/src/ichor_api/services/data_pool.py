@@ -62,9 +62,6 @@ from .asian_session import (
 from .asset_news_affinity import (  # noqa: F401 — back-compat re-export ; doctrine #4 SSOT pin (test_data_pool_back_compat_reexport_present)
     NEWS_KEYWORDS as _NEWS_KEYWORDS,
 )
-from .asset_news_affinity import (
-    matches_asset as _matches_asset,
-)
 from .confluence_engine import (
     assess_confluence,
     render_confluence_block,
@@ -4552,16 +4549,29 @@ async def _section_news(
     if not rows:
         return "## News (last 12h)\n- (no items ingested)", []
 
-    filtered: list[NewsItem]
+    # r138 code-reviewer S4 — adopt the SSOT helper (the WHOLE POINT of
+    # extracting `asset_news_affinity` in r138 was to deduplicate this
+    # scarce-fallback dance across data_pool + news.py + geopolitics.py).
+    # Behaviour pinned identical to the pre-r138 hand-rolled version
+    # (min_required=3, fallback to global, top-8 cap on applied filter).
     if asset:
-        filtered = [r for r in rows if _matches_asset(r.title or "", r.url or "", asset)]
-        if len(filtered) < 3:
-            # Not enough asset-specific news → fallback to wide.
-            filtered = rows
-            label = f"## News (last 12h, top 8 — wide fallback, {asset} match scarce)"
-        else:
-            filtered = filtered[:8]
+        from .asset_news_affinity import filter_rows_by_asset_affinity as _filter_helper
+
+        filtered_rows, matched, applied = _filter_helper(
+            rows,
+            asset,
+            key=lambda r: (r.title or "", r.url or ""),
+            min_required=3,
+        )
+        if applied:
+            filtered = filtered_rows[:8]
             label = f"## News (last 12h, top {len(filtered)} ticker-linked to {asset})"
+        else:
+            filtered = filtered_rows[:8]
+            label = (
+                f"## News (last 12h, top 8 — wide fallback, "
+                f"{asset} match scarce, matched={matched})"
+            )
     else:
         filtered = rows[:8]
         label = "## News (last 12h, top 8 most recent)"

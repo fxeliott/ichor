@@ -32,6 +32,11 @@ from __future__ import annotations
 
 from collections.abc import Callable, Iterable
 
+# r138 — SSOT for the asset query-param regex shared by `/v1/news` and
+# `/v1/geopolitics/briefing` (code-reviewer N3 r138 — prevents drift
+# between the two routers' duplicate definitions of the same shape).
+ASSET_QUERY_REGEX = r"^[A-Z0-9_]{3,16}$"
+
 # r68 origin (data_pool.py:4519-4542). r138 re-homed here unchanged.
 # 5 priority assets per ADR-099 §D-1 PLUS the historical 4 (USD_JPY /
 # AUD_USD / USD_CAD / US30_USD) kept so the 4-pass autonomous batch

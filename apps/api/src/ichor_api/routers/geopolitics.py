@@ -29,6 +29,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..db import get_session
 from ..models import GdeltEvent, GprObservation
 from ..services.asset_news_affinity import (
+    ASSET_QUERY_REGEX as _ASSET_REGEX,
+)
+from ..services.asset_news_affinity import (
     NEWS_KEYWORDS,
     filter_rows_by_asset_affinity,
 )
@@ -46,7 +49,7 @@ _MIN_ASSET_MATCHES = 3
 # keyword filter has options before we pick the top-N most-negative.
 _FILTER_FETCH_MULTIPLIER = 8
 _FILTER_MAX_FETCH = 500
-_ASSET_REGEX = r"^[A-Z0-9_]{3,16}$"
+# r138 — `_ASSET_REGEX` re-imported from SSOT (code-reviewer N3).
 
 
 def _gpr_band(value: float) -> str:
@@ -207,8 +210,14 @@ async def briefing(
     # The pool is ordered by tone-ascending up to `_FILTER_MAX_FETCH`,
     # filtered, then re-ranked. Without `asset=`, behaviour matches
     # the r137 query (top-N most-negative across the whole window).
+    # r138 code-reviewer S2 — pin a deterministic secondary sort
+    # (seendate DESC on tone-tie) so r137→r138 do NOT diverge when ties
+    # exist in the integer-rounded GDELT tone bucket. Without this, the
+    # top-N subset on tied tones is implementation-defined.
     base_stmt = (
-        select(GdeltEvent).where(GdeltEvent.seendate >= cutoff).order_by(GdeltEvent.tone.asc())
+        select(GdeltEvent)
+        .where(GdeltEvent.seendate >= cutoff)
+        .order_by(GdeltEvent.tone.asc(), GdeltEvent.seendate.desc())
     )
     if asset:
         pool_cap = min(
