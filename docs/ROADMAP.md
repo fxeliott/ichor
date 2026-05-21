@@ -10,6 +10,18 @@
 
 ---
 
+## §1 — Current state (r134-close, 2026-05-21)
+
+### Shipped at r134 (axis-6 +1 LEVEL — the honest conviction grounding, NOT a fabricated split)
+
+- **`<ConvictionGroundingPanel>` "Ancrage de la lecture" LIVE** on `/briefing/[asset]` : confluence depth (mechanism + distinct-source count) + Pass-6 scenario HHI concentration + critic verdict — all from REAL populated fields, ADR-017-descriptive, monochrome (no trade-dial). NEW `lib/convictionGrounding.ts` pure-fn helper + 25-case drift-guarded test.
+- **The decisive move** : R59-AUDIT-first (3 parallel subagents) proved `conviction_pct` is a single opaque LLM scalar → REFUSED the planned numeric decomposition (would be a doctrine-#11 fabrication) → pivoted to the honest qualitative grounding. Lesson #31 codified.
+- **vitest 283 / 12 files** (258 r133 + 25 r134, 0 regression) ; deploy LIVE local=200 public=200 ; Playwright DUAL witness GREEN (EUR "dispersée" 28% vs XAU "modérée" 33% — HHI band differentiates on real data).
+- **Mission axis 6 ⏳ → 🎯 +1 LEVEL** (full closure needs backend `SessionCard.drivers` wiring — r135 candidate #1).
+- **Voie D held 49 rounds.**
+
+### Pre-r134 state (preserved for archeology)
+
 ## §1 — Current state (r133-close, 2026-05-20→21)
 
 ### Shipped at r133 (the honest-scope closure for r132's own residual)
@@ -79,7 +91,20 @@ See `docs/ROADMAP_2026-05-06.md` for the original 4-layer architecture (DATA FOU
 
 ---
 
-## §3 — Immediate next (r134)
+## §3 — Immediate next (r135)
+
+**r134 EXECUTED & SHIPPED (2026-05-21)** : `<ConvictionGroundingPanel>` "Ancrage de la lecture" on `/briefing/[asset]` — **Mission centrale axis 6 ⏳ → 🎯 +1 LEVEL**. The decisive move was R59-AUDIT-first (3 parallel subagents) proving `conviction_pct` is a single opaque LLM scalar → REFUSING the planned "numeric decomposition" (would fabricate sub-weights = doctrine-#11 violation) → pivoting to an honest qualitative grounding surface from REAL populated fields : confluence depth (`mechanisms[]` count + distinct sources) + Pass-6 scenario HHI concentration + critic verdict. NEW `lib/convictionGrounding.ts` + `<ConvictionGroundingPanel>` (monochrome, no trade-dial, ADR-017-descriptive, footer heuristic+scalar caveats) + 25-case test. Reviews 4 parallel : 1 ui-designer IMPORTANT (grid→flex-wrap) + 2 trader YELLOW (HHI partial-bucket guard + heuristic caveat) + 1 a11y SC 1.3.1 (role=group+aria-label) + cheap NIT/N1 ALL applied same-commit ; trader "missing test" was a CWD-artifact false positive. Build : tsc 0 + eslint 0 + vitest 12f/283 + next build OK. Deploy LIVE. Playwright DUAL witness GREEN : EUR "Conviction 29% · Base 28% lecture dispersée" + XAU "Conviction 27% · Base 33% lecture modérée" — HHI band differentiates on real data. **Lesson #31 codified** : a paste-prompt feature HYPOTHESIS must have its honesty premise R59-validated BEFORE design ; pivot a fabrication-requiring feature to what real data honestly supports, even if +1-LEVEL not full-closure. See `docs/SESSION_LOG_2026-05-21-r134-EXECUTION.md` + ADR-099 §Impl(r134).
+
+**r135 binding default candidates** (R59-AUDIT first to pick) :
+
+1. **Conviction backend driver-wiring** ⭐ AUTO-RECOMMENDED (CLOSES axis 6 fully) — wire `SessionCard.drivers` from the existing `confluence_engine` (signed per-driver `contribution ∈ [-1,+1]` with evidence+source) through the orchestrator + migration + API, then surface the TRUE per-driver contributions on the r134 panel. This is the honest "decomposition" the numeric-split aspired to be ; r134 frontend MVP + r135 backend = complete axis 6. "Finish what's started." Effort M-L.
+2. **Réactivité temps réel events auto-update** (axis 5 architectural) — WebSocket/SSE + event-fire cron + banner/auto-refresh. Effort M-L.
+3. **Axis-8 closure completion** (deferred r131+r132+r133+r134) — volume-anomaly z-score OR cross-venue Kalshi. Effort M-L.
+4. **Threshold drift detector cron** (axis-7 ALERT, deferred 5+ rounds). Effort M.
+5. **Polymarket threshold recalibration cron** (deferred r131+). Effort M.
+6. **AUD_USD revival** — alternative China money supply LIVE series. Effort M-L.
+
+## §3 — Previous immediate next (r134, EXECUTED above)
 
 **r133 EXECUTED & SHIPPED (2026-05-20→21)** : US holiday awareness for `<NyWindowBadge>` — closes r132 own honest-scope gap "calendrier US fériés non géré". NEW `lib/usMarketHolidays.ts` TS-port of canonical Python `market_session.us_market_holidays(year)` algorithm (Anonymous Gregorian Computus + nth-weekday + observed shifts byte-for-byte mirror) + NEW `parisYMD` export on session-clock SSOT + extended `NyWindowStatus` with `holiday` variant + per-asset-class label routing per trader R28 MF-1 fix (equity SPX/NAS → "Marché US fermé · {fête}" ; non-equity FX/XAU → "Férié US · {fête} · liquidité réduite") + NEW drift-guard fixture test (32 vitest cases pinning 2026 + 2027 against Federal Holidays + NYSE Holiday Calendar) + 16 new nyWindow.test.ts cases including Memorial Day 2026-05-25 + per-asset routing + Labor Day singular. Reviews 4 parallel : 1 CONCORDANT MUST-FIX (SC 1.4.10 reflow ui-designer + a11y) + 1 STRONG single-reviewer MUST-FIX (trader R28 MF-1 FX/equity asymmetry) + 3 cheap APPLY all applied same-commit. Build : tsc 0 + eslint 0 + vitest 11f/258 + next build OK. Deploy LIVE local=200 public=200. Playwright TRIPLE witness GREEN : XAU + EUR + SPX all rendering "Pré-NY · T−12h38 avant 13h Paris" at 00:21-00:23 Thu Paris with microtext-dropped + 0 console errors. **Lesson #30 codified** : honest-scope micro-text disclosure with known time-sensitive trigger date is ONE-ROUND STOPGAP, must be closed-or-refined by next round. **Mission centrale axis 3 ✅ HONEST-SCOPE CLOSED** : the explicit cible marker + US holiday detection + per-asset honest framing all LIVE. See `docs/SESSION_LOG_2026-05-20-r133-EXECUTION.md` + ADR-099 §Impl(r133).
 

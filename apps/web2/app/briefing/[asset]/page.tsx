@@ -27,6 +27,7 @@ import { Suspense } from "react";
 import { AssetSwitcher } from "@/components/briefing/AssetSwitcher";
 import { PRIORITY_ASSET_CODES } from "@/components/briefing/assets";
 import { BriefingHeader } from "@/components/briefing/BriefingHeader";
+import { ConvictionGroundingPanel } from "@/components/briefing/ConvictionGroundingPanel";
 import { CorrelationsStrip } from "@/components/briefing/CorrelationsStrip";
 import { DataIntegrityBadge } from "@/components/briefing/DataIntegrityBadge";
 import { EconomicCalendarPanel } from "@/components/briefing/EconomicCalendarPanel";
@@ -290,6 +291,15 @@ export default async function BriefingPage({ params }: PageParams) {
       <PocketSkillBadge data={pocketSummary} regime={card?.regime_quadrant ?? null} />
 
       <DataIntegrityBadge data={dataIntegrity} />
+
+      {/* r134 — ConvictionGroundingPanel (Mission centrale axis 6) : the
+          QUALITATIVE grounding behind conviction_pct (confluence depth +
+          scenario clarity + critic verdict), NOT a fabricated numeric
+          split (R59 proved conviction_pct is a single opaque LLM scalar).
+          Placed adjacent to the VerdictBanner conviction gauge, before
+          the granular data panels. Honest silent absence when the card
+          carries no grounding dimensions. */}
+      {card ? <ConvictionGroundingPanel card={card} /> : null}
 
       <section aria-labelledby="key-levels-heading">
         <div className="mb-4 flex items-baseline justify-between gap-4">
