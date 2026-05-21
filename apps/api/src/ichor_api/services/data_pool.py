@@ -59,6 +59,9 @@ from .asian_session import (
 from .asian_session import (
     supported_pairs as asian_supported_pairs,
 )
+from .asset_news_affinity import (  # noqa: F401 — back-compat re-export ; doctrine #4 SSOT pin (test_data_pool_back_compat_reexport_present)
+    NEWS_KEYWORDS as _NEWS_KEYWORDS,
+)
 from .asset_news_affinity import (
     matches_asset as _matches_asset,
 )

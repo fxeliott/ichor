@@ -84,10 +84,16 @@ function filterLabel(
     };
   }
   // applied=false & known_asset=true → scarce fallback fired.
+  // r138 trader YELLOW #4 anti-emergent-directional-read : the prior copy
+  // "Flux global (aucun item spécifique à EUR)" could read under time
+  // pressure as "no news = no catalyst" — a directional leak through
+  // structural-honesty (ADR-017 boundary). Anchor with "pas un signal" the
+  // same way <MacroSurprisePanel> r136 footer neutralises absence reads.
   const matchedTxt =
     filter.matched === 0 ? "aucun item" : `${filter.matched} item${filter.matched > 1 ? "s" : ""}`;
+  const assetLabel = filter.asset ?? fallbackAsset ?? "l'actif";
   return {
-    line: `Flux global (${matchedTxt} spécifique${filter.matched > 1 ? "s" : ""} à ${filter.asset ?? fallbackAsset ?? "l'actif"} sur la fenêtre, seuil ${filter.min_required})`,
+    line: `Flux global affiché — ${matchedTxt} spécifique${filter.matched > 1 ? "s" : ""} à ${assetLabel} sur la fenêtre (seuil ${filter.min_required} — peut refléter un creux d'actualité, pas un signal)`,
     tone: "scarce",
   };
 }

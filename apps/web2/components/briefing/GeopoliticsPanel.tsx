@@ -41,11 +41,12 @@ function gdeltFilterLabel(filter: GeopoliticsFilterMeta | null | undefined): str
   if (filter.applied) {
     return `filtré · ${filter.matched} événement${filter.matched > 1 ? "s" : ""} liés à ${filter.asset}`;
   }
+  // r138 trader YELLOW #4 — same anti-directional-leak anchor as NewsPanel.
   const matchedTxt =
     filter.matched === 0
       ? "aucun événement"
       : `${filter.matched} événement${filter.matched > 1 ? "s" : ""}`;
-  return `ranking global (${matchedTxt} spécifique${filter.matched > 1 ? "s" : ""} à ${filter.asset} sur la fenêtre, seuil ${filter.min_required})`;
+  return `ranking global · ${matchedTxt} spécifique${filter.matched > 1 ? "s" : ""} à ${filter.asset} sur la fenêtre (seuil ${filter.min_required} — pas un signal)`;
 }
 
 export function GeopoliticsPanel({ data }: { data: GeopoliticsBriefing | null }) {
