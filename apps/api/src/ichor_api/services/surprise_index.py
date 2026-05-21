@@ -1,30 +1,50 @@
-"""Citi-style Economic Surprise Index — V1 z-score proxy.
+"""Citi-style Economic Surprise Index — period-CHANGE z-score proxy (r135).
 
 The "true" Citi Eco Surprise is `(actual - consensus) / std_consensus`
 per release, EMA-aggregated. Bloomberg-only consensus data isn't free,
-so we ship a defensible *proxy* :
+so we ship a defensible *proxy*.
 
-    surprise_t = (value_t - mean_24) / std_24
+r135 METHODOLOGY FIX (transcript + web-research grounded). The original
+proxy z-scored the raw LEVEL :
 
-where mean_24 / std_24 are computed over the last 24 prints of the
-same series. If a release prints far from its rolling distribution,
-the index moves. Direction-of-shock is preserved (positive = upside
-surprise vs trend, negative = downside).
+    surprise_t = (level_t - mean_24_levels) / std_24_levels   # OLD — weak
 
-This is NOT identical to Citi but it captures 80% of the signal :
-the moments when the macro data path bends. Particularly useful for
-the brain's Pass 1 régime call (the surprise direction is a clean
-input vs DXY/VIX which are noisy).
+For a TRENDING series (CPI index 332→335→338..., PAYEMS total payrolls,
+real GDP) the latest level is almost always the highest in the window, so
+the level z-score is dominated by the secular trend and pins at ~+1.7
+every month regardless of whether the print actually surprised. That is
+not a "surprise" — it is "the line goes up". The honest standardized-
+surprise proxy z-scores the PERIOD-OVER-PERIOD CHANGE instead :
 
-VISION_2026 delta E (proxy version).
+    Δ_t        = level_t - level_{t-1}                 # the period change
+    surprise_t = (Δ_t - mean(prior Δ)) / std(prior Δ)  # NEW — r135
 
-Stack covered V1 :
+This matches how these series are actually reported + reacted to (NFP =
+jobs ADDED = the change ; CPI MoM = the change ≈ inflation ; ΔUNRATE =
+the move). A print only registers when its CHANGE breaks the series'
+own change-distribution — the macro "data path bends" signal the brain's
+Pass-1 régime call wants. (This is the closest free analogue of the Citi
+"actual vs the distribution of expectations" idea the macro-desk method
+teaches : the analyst-range isn't free, but the series' own realized
+change-distribution is an honest stand-in.) Direction-of-shock preserved
+(positive = upside change-surprise, negative = downside).
+
+NOT identical to Citi (no real consensus feed) — disclosed proxy, not a
+fabricated certainty. Captures the moment the data path bends.
+
+Stack covered :
   - PAYEMS    : nonfarm payrolls
-  - UNRATE    : unemployment rate
+  - UNRATE    : unemployment rate (inverted polarity)
   - CPIAUCSL  : CPI all urban
   - PCEPI     : PCE price index
   - INDPRO    : industrial production
   - GDPC1     : real GDP (quarterly)
+
+Requires deep FRED history (≥6 prints → ≥5 changes ; ideally ≥25 prints
+→ 24 changes) — see `fetch_history` / `cli/run_fred_backfill.py` (r135),
+because the routine `fetch_latest` poll only stores the single latest
+observation (the reason this index was dark — composite=None — before
+r135).
 
 Future : add per-region (EZ HICP, UK CPI, JP CPI) when the BLS/ECB/
 BoE collectors land.
@@ -54,6 +74,22 @@ _SERIES_LABELS: dict[str, str] = {
 # is dovish/bad). Multiply z-score by -1 so positive always = positive
 # economic surprise.
 _INVERTED: frozenset[str] = frozenset({"UNRATE"})
+
+# r135 — GROWTH vs INFLATION split (trader MUST-FIX). The composite must
+# NOT blend growth + inflation surprises : a hot-CPI upside surprise and a
+# strong-NFP upside surprise are OPPOSITE regimes (stagflation vs
+# expansion), yet averaging them nets to a meaningless ~0 OR — worse — the
+# downstream `confluence_engine._factor_surprise_index` reads the composite
+# as a pure GROWTH signal ("data beats → USD strong → bullish equity,
+# bearish gold"). Folding inflation into that composite would mislabel a
+# hot-inflation print as growth-bullish for SPX/NAS when hot CPI is
+# actually equity-NEGATIVE (Fed-repricing channel). So the COMPOSITE is
+# built from GROWTH series only ; inflation series are still z-scored and
+# surfaced per-series, just excluded from the composite. This mirrors the
+# macro cycle taxonomy (growth × inflation = expansion / reflation /
+# deflation / stagflation) — the two axes are orthogonal, never summed.
+_GROWTH_SERIES: frozenset[str] = frozenset({"PAYEMS", "UNRATE", "INDPRO", "GDPC1"})
+_INFLATION_SERIES: frozenset[str] = frozenset({"CPIAUCSL", "PCEPI"})
 
 
 @dataclass(frozen=True)
@@ -92,9 +128,12 @@ def _band(z: float | None) -> str:
     return "neutral"
 
 
-async def _series_history(session: AsyncSession, series_id: str, *, n: int = 24) -> list[float]:
-    """Last `n` non-null observations for `series_id`, oldest-first."""
-    cutoff = datetime.now(UTC).date() - timedelta(days=365 * 5)
+async def _series_history(session: AsyncSession, series_id: str, *, n: int = 25) -> list[float]:
+    """Last `n` non-null observations for `series_id`, oldest-first.
+
+    r135 : default bumped 24→25 levels so the period-CHANGE transform
+    yields 24 changes (matching the Citi 24-window convention)."""
+    cutoff = datetime.now(UTC).date() - timedelta(days=365 * 6)
     stmt = (
         select(FredObservation.value)
         .where(
@@ -110,8 +149,19 @@ async def _series_history(session: AsyncSession, series_id: str, *, n: int = 24)
     return [float(v) for v in rows if v is not None]
 
 
+def _to_period_changes(levels: list[float]) -> list[float]:
+    """First-difference a level series into period-over-period changes
+    (r135). [l0, l1, l2] → [l1-l0, l2-l1]. The macro surprise lives in
+    the CHANGE, not the (trend-dominated) level — see module docstring."""
+    return [levels[i] - levels[i - 1] for i in range(1, len(levels))]
+
+
 def _z_score(series: list[float]) -> tuple[float | None, float | None, float | None]:
-    """(last, mean, std). Returns (None, None, None) if < 5 history."""
+    """(last, mean, std) of the LAST element vs the prior distribution.
+    Returns (None, None, None) if < 5 history or zero variance.
+
+    r135 : callers now pass the CHANGE series (not levels), so `last`
+    is the latest period-change and the z is the standardized surprise."""
     if len(series) < 5:
         return None, None, None
     last = series[-1]
@@ -132,26 +182,17 @@ async def assess_surprise_index(
     z_scores: list[float] = []
     for sid, label in _SERIES_LABELS.items():
         history = await _series_history(session, sid)
-        if len(history) < 5:
-            series_results.append(
-                SeriesSurprise(
-                    series_id=sid,
-                    label=label,
-                    last_value=history[-1] if history else None,
-                    rolling_mean=None,
-                    rolling_std=None,
-                    z_score=None,
-                    n_history=len(history),
-                )
-            )
-            continue
-        last, mean, std = _z_score(history)
+        last_value = history[-1] if history else None
+        # r135 : z-score the period-CHANGE distribution, not the
+        # trend-dominated level. Need ≥6 levels → ≥5 changes.
+        changes = _to_period_changes(history)
+        last, mean, std = _z_score(changes)
         if last is None or mean is None or std in (None, 0.0):
             series_results.append(
                 SeriesSurprise(
                     series_id=sid,
                     label=label,
-                    last_value=history[-1],
+                    last_value=last_value,
                     rolling_mean=mean,
                     rolling_std=std,
                     z_score=None,
@@ -166,14 +207,21 @@ async def assess_surprise_index(
             SeriesSurprise(
                 series_id=sid,
                 label=label,
-                last_value=last,
+                # last_value stays the latest LEVEL (for display) ;
+                # the z is the standardized surprise of the latest CHANGE.
+                last_value=last_value,
                 rolling_mean=mean,
                 rolling_std=std,
                 z_score=round(z, 3),
                 n_history=len(history),
             )
         )
-        z_scores.append(z)
+        # r135 — GROWTH series only feed the composite (see _GROWTH_SERIES
+        # rationale). Inflation series keep their per-series z above but are
+        # excluded here so the composite stays an honest GROWTH-surprise
+        # signal for `confluence_engine._factor_surprise_index`.
+        if sid in _GROWTH_SERIES:
+            z_scores.append(z)
 
     composite = sum(z_scores) / len(z_scores) if z_scores else None
     if composite is not None:
@@ -197,11 +245,15 @@ def render_surprise_index_block(
         lines.append("- (insufficient FRED history to compute z-scores yet)")
         return "\n".join(lines), []
 
+    # r135 — composite is GROWTH-surprise only (inflation series shown
+    # per-series but excluded from the composite to avoid conflating the
+    # growth and inflation regime axes — see _GROWTH_SERIES). The z-score
+    # is the standardized surprise of each series' latest period-CHANGE.
     lines.append(
-        f"- **Composite z-score = {r.composite:+.2f}** → band: **{r.band}** "
-        f"({r.n_series_used} series)"
+        f"- **Growth-surprise composite z = {r.composite:+.2f}** → band: **{r.band}** "
+        f"({r.n_series_used} growth series ; +z = data accelerating vs trend)"
     )
-    lines.append("- Per-series :")
+    lines.append("- Per-series (change-surprise z ; inflation excluded from composite) :")
     sources: list[str] = []
     for s in r.series:
         z_str = "n/a" if s.z_score is None else f"{s.z_score:+.2f}"

@@ -10,6 +10,17 @@
 
 ---
 
+## §1 — Current state (r135-close, 2026-05-21)
+
+### Shipped at r135 (axis-5 +1 LEVEL — lit up the dark Economic Surprise Index)
+
+- **The Economic Surprise Index (Citi-ESI proxy, `services/surprise_index.py`) was DARK** — `composite: None`, all `z_score: None` in prod for the project's entire history. R59 found two root causes: the 6 FRED headline series had only 1-2 rows (`fred.py fetch_latest` stores limit=1) + it z-scored the trend-dominated LEVEL not the change. **FIXED**: z-score the period-CHANGE (honest standardized-surprise) + deep-history backfill (`fetch_history`/`backfill_history`/`fred_backfill` CLI) → backfilled 710 rows → **composite now 0.383 LIVE**, all 6 per-series z populated.
+- **trader MUST-FIX applied**: split growth vs inflation — the composite is now GROWTH-only (PAYEMS/UNRATE/INDPRO/GDPC1), inflation (CPI/PCE) surfaced per-series but excluded (a hot-CPI print no longer mislabels growth-bullish via confluence_engine). Mirrors the transcript's growth×inflation cycle taxonomy.
+- Transcript + web-research driven (2 parallel research streams). 281 backend tests pass, 0 regression. Deployed (lesson #24 SSH-instability, recovered via short retryable calls) + empirically verified live.
+- **Voie D held 50 rounds.** Mission axis 5 ⏳ → 🎯 +1 LEVEL (surprise signal now real; full real-time auto-update r136+).
+
+### Pre-r135 state (preserved for archeology)
+
 ## §1 — Current state (r134-close, 2026-05-21)
 
 ### Shipped at r134 (axis-6 +1 LEVEL — the honest conviction grounding, NOT a fabricated split)
@@ -91,7 +102,20 @@ See `docs/ROADMAP_2026-05-06.md` for the original 4-layer architecture (DATA FOU
 
 ---
 
-## §3 — Immediate next (r135)
+## §3 — Immediate next (r136)
+
+**r135 EXECUTED & SHIPPED (2026-05-21)** : lit up the DARK Economic Surprise Index — **Mission axis 5 ⏳ → 🎯 +1 LEVEL**. Transcript (attached macro-trading video) + web-research driven. R59 found `services/surprise_index.py` (Citi-ESI proxy feeding /macro-pulse + /confluence + LLM Pass-1) returned composite=None / all z=None in prod — because the 6 FRED series had only 1-2 rows (`fetch_latest` limit=1) + it z-scored the trend-dominated LEVEL. FIX: z-score the period-CHANGE + `fetch_history`/`backfill_history`/`fred_backfill` CLI → backfilled 710 rows → composite 0.383 LIVE, all 6 z populated. trader MUST-FIX: growth/inflation split (composite GROWTH-only, inflation per-series excluded — fixes the confluence_engine growth-mislabel; mirrors the transcript's growth×inflation cycle taxonomy). 281 tests pass; deployed (lesson #24 SSH-instability) + empirically verified. **Lesson #32**: R59 whether a capability EXISTS-but-is-BROKEN before building net-new (r133/r134/r135 all lit up existing-but-dark machinery). See `docs/SESSION_LOG_2026-05-21-r135-EXECUTION.md` + ADR-099 §Impl(r135).
+
+**r136 binding default candidates** (R59-AUDIT first to pick) :
+
+1. **Surface the lit surprise index on `/briefing/[asset]`** ⭐ AUTO-RECOMMENDED — now that it's live + meaningful, bring the growth-surprise composite + per-series (incl. inflation) onto the position-taking surface (currently only LLM-data-pool + /macro-pulse + /confluence). Mirrors the r130 pattern. The transcript's "surprise" insight belongs on Eliot's eye. Effort S-M.
+2. **Inflation surprise → hawkish/dovish driver** — `inflation_composite` + a confluence driver (hot inflation = hawkish = equity-negative/USD-positive). Closes the trader's r135 deferred follow-on. Effort M.
+3. **Business-cycle-conditioned news sign** (web-grounded — expansion→bad-news-bullish for equity; Boyd/ABDV). Effort M.
+4. **Conviction backend driver-wiring** (r134 follow-on, closes axis 6 fully). Effort M-L.
+5. **Réactivité temps réel auto-update** (axis 5 architectural — WebSocket/SSE on event-fire). Effort M-L.
+6. **GDPC1 quarterly weighting + periodic re-backfill timer** (r135 hardening). Effort S.
+
+## §3 — Previous immediate next (r135, EXECUTED above)
 
 **r134 EXECUTED & SHIPPED (2026-05-21)** : `<ConvictionGroundingPanel>` "Ancrage de la lecture" on `/briefing/[asset]` — **Mission centrale axis 6 ⏳ → 🎯 +1 LEVEL**. The decisive move was R59-AUDIT-first (3 parallel subagents) proving `conviction_pct` is a single opaque LLM scalar → REFUSING the planned "numeric decomposition" (would fabricate sub-weights = doctrine-#11 violation) → pivoting to an honest qualitative grounding surface from REAL populated fields : confluence depth (`mechanisms[]` count + distinct sources) + Pass-6 scenario HHI concentration + critic verdict. NEW `lib/convictionGrounding.ts` + `<ConvictionGroundingPanel>` (monochrome, no trade-dial, ADR-017-descriptive, footer heuristic+scalar caveats) + 25-case test. Reviews 4 parallel : 1 ui-designer IMPORTANT (grid→flex-wrap) + 2 trader YELLOW (HHI partial-bucket guard + heuristic caveat) + 1 a11y SC 1.3.1 (role=group+aria-label) + cheap NIT/N1 ALL applied same-commit ; trader "missing test" was a CWD-artifact false positive. Build : tsc 0 + eslint 0 + vitest 12f/283 + next build OK. Deploy LIVE. Playwright DUAL witness GREEN : EUR "Conviction 29% · Base 28% lecture dispersée" + XAU "Conviction 27% · Base 33% lecture modérée" — HHI band differentiates on real data. **Lesson #31 codified** : a paste-prompt feature HYPOTHESIS must have its honesty premise R59-validated BEFORE design ; pivot a fabrication-requiring feature to what real data honestly supports, even if +1-LEVEL not full-closure. See `docs/SESSION_LOG_2026-05-21-r134-EXECUTION.md` + ADR-099 §Impl(r134).
 

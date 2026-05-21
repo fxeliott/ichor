@@ -102,3 +102,82 @@ async def poll_all(api_key: str, series: tuple[str, ...] = SERIES_TO_POLL) -> li
         tasks = [fetch_latest(s, api_key, client=client) for s in series]
         results = await asyncio.gather(*tasks)
     return [r for r in results if r is not None]
+
+
+# ── r135 : deep-history backfill ──────────────────────────────────────
+# The routine `fetch_latest` poll stores only the SINGLE most recent
+# observation (limit=1). That is why the Economic Surprise Index was dark
+# (composite=None) : its z-score needs ≥6 prints per series to form ≥5
+# period-changes, but the table only ever held 1-2 rows. `fetch_history`
+# pulls the last `limit` observations so a one-shot backfill gives the
+# index real depth. `persist_fred_observations` dedups read-then-insert
+# (not a SQL ON CONFLICT — idempotent for sequential re-runs, but do NOT
+# run two backfills concurrently), so re-running this is safe + cheap.
+
+# The headline macro series the Economic Surprise Index z-scores. Monthly
+# (PAYEMS/UNRATE/CPIAUCSL/PCEPI/INDPRO) + quarterly (GDPC1) → limit=120
+# gives ~10y monthly (≈119 changes) / ~30y quarterly. More than enough.
+SURPRISE_BACKFILL_SERIES: tuple[str, ...] = (
+    "CPIAUCSL",
+    "PCEPI",
+    "PAYEMS",
+    "UNRATE",
+    "GDPC1",
+    "INDPRO",
+)
+
+
+async def fetch_history(
+    series_id: str, api_key: str, *, client: httpx.AsyncClient, limit: int = 120
+) -> list[FredObservation]:
+    """Last `limit` observations for `series_id` (any order from FRED;
+    persisted by natural key so order is irrelevant). Returns [] on error.
+
+    Used by the r135 backfill path ONLY — routine polling stays on
+    `fetch_latest` (limit=1) to keep per-cron cost minimal."""
+    params = {
+        "series_id": series_id,
+        "api_key": api_key,
+        "file_type": "json",
+        "sort_order": "desc",
+        "limit": limit,
+    }
+    try:
+        r = await client.get(f"{FRED_BASE}/series/observations", params=params, timeout=30)
+        r.raise_for_status()
+        data = r.json()
+        now = datetime.now(UTC)
+        out: list[FredObservation] = []
+        for o in data.get("observations", []):
+            val_str = o.get("value", ".")
+            value = None if val_str == "." else float(val_str)
+            out.append(
+                FredObservation(
+                    series_id=series_id,
+                    observation_date=o["date"],
+                    value=value,
+                    fetched_at=now,
+                )
+            )
+        return out
+    except Exception as e:
+        log.warning("fred.fetch_history_failed", series=series_id, error=str(e))
+        return []
+
+
+async def backfill_history(
+    api_key: str,
+    series: tuple[str, ...] = SURPRISE_BACKFILL_SERIES,
+    *,
+    limit: int = 120,
+) -> list[FredObservation]:
+    """Deep-history backfill for `series`. Sequential with a 0.2s gap to
+    stay well under FRED's ~120 req/min free tier (r135)."""
+    out: list[FredObservation] = []
+    async with httpx.AsyncClient() as client:
+        for s in series:
+            rows = await fetch_history(s, api_key, client=client, limit=limit)
+            log.info("fred.backfill_series", series=s, rows=len(rows))
+            out.extend(rows)
+            await asyncio.sleep(0.2)
+    return out

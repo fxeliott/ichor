@@ -561,7 +561,11 @@ async def _factor_surprise_index(session: AsyncSession, asset: str) -> Driver | 
     if composite is None or not isinstance(composite, (int, float)):
         return None
     z = float(composite)
-    # Positive surprise = US data beats → USD strong
+    # r135 — `composite` is now a GROWTH-surprise signal only (inflation
+    # series are z-scored per-series but excluded from the composite, so
+    # this growth-direction mapping is correct — a hot-CPI print no longer
+    # leaks in mislabelled as growth). Positive growth-surprise = US data
+    # beats → USD strong.
     raw = max(-1.0, min(1.0, z * 0.5))
     if asset in {"NAS100_USD", "SPX500_USD"}:
         contribution = raw  # growth surprises bullish for equity
@@ -574,7 +578,7 @@ async def _factor_surprise_index(session: AsyncSession, asset: str) -> Driver | 
     return Driver(
         factor="surprise_index",
         contribution=contribution,
-        evidence=f"eco-surprise composite z = {z:+.2f}",
+        evidence=f"US growth-surprise composite z = {z:+.2f}",
         source="empirical_model:surprise_index",
     )
 

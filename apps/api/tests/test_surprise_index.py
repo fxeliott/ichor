@@ -4,12 +4,103 @@ from __future__ import annotations
 
 import pytest
 from ichor_api.services.surprise_index import (
+    _GROWTH_SERIES,
+    _INFLATION_SERIES,
     SeriesSurprise,
     SurpriseIndexReading,
     _band,
+    _to_period_changes,
     _z_score,
     render_surprise_index_block,
 )
+
+# ─────────────── growth/inflation composite split (r135) ────────────────
+
+
+def test_growth_and_inflation_series_are_disjoint() -> None:
+    # trader MUST-FIX : the composite must never blend the two regime axes.
+    assert _GROWTH_SERIES.isdisjoint(_INFLATION_SERIES)
+
+
+def test_inflation_series_excluded_from_growth_composite() -> None:
+    # CPI/PCE are inflation → must NOT be in the growth composite set
+    # (they leak a hot-inflation print in as "growth-bullish" otherwise).
+    assert "CPIAUCSL" in _INFLATION_SERIES
+    assert "PCEPI" in _INFLATION_SERIES
+    assert "CPIAUCSL" not in _GROWTH_SERIES
+    assert "PCEPI" not in _GROWTH_SERIES
+    # Growth/labor series ARE in the composite.
+    assert {"PAYEMS", "UNRATE", "INDPRO", "GDPC1"} <= _GROWTH_SERIES
+
+
+def test_change_zscore_boundary_at_min_history() -> None:
+    # 6 levels → 5 changes → _z_score computes (≥5 ok). 5 levels → 4
+    # changes → None. Pins the exact "index lights up" threshold.
+    six_levels = [1.0, 2.0, 4.0, 7.0, 11.0, 20.0]  # 5 changes, varied
+    last6, mean6, std6 = _z_score(_to_period_changes(six_levels))
+    assert last6 is not None and mean6 is not None and std6 is not None and std6 > 0
+    five_levels = [1.0, 2.0, 4.0, 7.0, 11.0]  # 4 changes → < 5 → None
+    last5, mean5, std5 = _z_score(_to_period_changes(five_levels))
+    assert last5 is None and mean5 is None and std5 is None
+
+
+# ──────────────────── _to_period_changes (r135) ────────────────────────
+
+
+def test_to_period_changes_basic() -> None:
+    # [10, 12, 11, 15] → [+2, -1, +4]
+    assert _to_period_changes([10.0, 12.0, 11.0, 15.0]) == [2.0, -1.0, 4.0]
+
+
+def test_to_period_changes_empty_and_singleton() -> None:
+    assert _to_period_changes([]) == []
+    assert _to_period_changes([42.0]) == []  # need ≥2 levels for 1 change
+
+
+def test_to_period_changes_len_is_n_minus_1() -> None:
+    levels = [float(i) for i in range(25)]
+    changes = _to_period_changes(levels)
+    assert len(changes) == 24  # 25 levels → 24 changes (Citi window)
+    assert all(c == 1.0 for c in changes)  # monotone +1 each step
+
+
+def test_change_zscore_neutralises_trend_dominated_level() -> None:
+    """r135 core fix : a steadily-trending series (like a CPI index) must
+    NOT register as a perpetual surprise. Z-scoring the LEVEL would pin
+    the latest (highest) print at a high z every period ; z-scoring the
+    CHANGE of a constant-slope trend yields ~0 (no surprise)."""
+    # CPI-like index rising a steady +0.5 every month for 25 months.
+    levels = [300.0 + 0.5 * i for i in range(25)]
+    # OLD (level) behaviour would flag the last as a positive outlier:
+    last_lvl, _, _ = _z_score(levels)
+    assert last_lvl == levels[-1]  # level path: last is the max → high z
+    # NEW (change) behaviour : every change is +0.5 → zero variance →
+    # honestly "no surprise" (None), not a fake +1.7σ.
+    changes = _to_period_changes(levels)
+    last_chg, mean_chg, std_chg = _z_score(changes)
+    assert last_chg is None  # constant change → std 0 → no surprise
+    assert std_chg == pytest.approx(0.0)
+
+
+def test_change_zscore_flags_genuine_acceleration() -> None:
+    """A real surprise = the latest CHANGE breaks the change-distribution.
+    Noisy ~+0.5 changes (so std > 0) then a sudden +3.0 jump → strong
+    positive z. (Prior changes must vary — a perfectly constant trend has
+    zero variance and is correctly read as 'no surprise', see the test
+    above.)"""
+    levels = [300.0]
+    for i in range(23):  # 23 noisy prior changes around +0.5
+        levels.append(levels[-1] + (0.4 if i % 2 == 0 else 0.6))
+    levels.append(levels[-1] + 3.0)  # the genuine acceleration
+    changes = _to_period_changes(levels)
+    assert len(changes) == 24
+    last, mean, std = _z_score(changes)
+    assert last == pytest.approx(3.0)
+    assert mean is not None and mean == pytest.approx(0.5, abs=0.05)
+    assert std is not None and std > 0
+    z = (last - mean) / std
+    assert z > 1.5  # genuine upside surprise in the change distribution
+
 
 # ─────────────────────────── _z_score ──────────────────────────────────
 
@@ -101,7 +192,7 @@ def test_render_full_payload() -> None:
         n_series_used=2,
     )
     md, sources = render_surprise_index_block(r)
-    assert "Composite z-score" in md
+    assert "Growth-surprise composite" in md  # r135 — was "Composite z-score"
     assert "+0.80" in md
     assert "positive" in md
     assert "PAYEMS" in md
