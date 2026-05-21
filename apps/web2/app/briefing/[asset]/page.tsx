@@ -34,6 +34,7 @@ import { EconomicCalendarPanel } from "@/components/briefing/EconomicCalendarPan
 import { EventSurpriseGauge } from "@/components/briefing/EventSurpriseGauge";
 import { GeopoliticsPanel } from "@/components/briefing/GeopoliticsPanel";
 import { InstitutionalPositioningPanel } from "@/components/briefing/InstitutionalPositioningPanel";
+import { MacroSurprisePanel } from "@/components/briefing/MacroSurprisePanel";
 import { PolymarketImpactPanel } from "@/components/briefing/PolymarketImpactPanel";
 import { KeyLevelsPanel } from "@/components/briefing/KeyLevelsPanel";
 import { NarrativeBlocks } from "@/components/briefing/NarrativeBlocks";
@@ -69,6 +70,7 @@ import {
   type IntradayBarOut,
   type PocketSummaryList,
   type KeyLevelsResponse,
+  type MacroPulse,
   type NewsItem,
   type PolymarketImpact,
   type PositioningOut,
@@ -130,6 +132,7 @@ export default async function BriefingPage({ params }: PageParams) {
     hourlyVol,
     sessionStatusSsr,
     tempoBundle,
+    macroPulse,
   ] = await Promise.all([
     fetchSessionCardForAsset(normalisedAsset),
     getKeyLevels() as Promise<KeyLevelsResponse | null>,
@@ -146,6 +149,14 @@ export default async function BriefingPage({ params }: PageParams) {
     getHourlyVol(normalisedAsset),
     getSessionStatus() as Promise<SessionStatusOut | null>,
     getTempoThresholds(),
+    // r136 — US Economic Surprise Index (lit up r135) for the
+    // <MacroSurprisePanel>. `no-store` (apiGet default) NOT revalidate :
+    // the briefing is a `ƒ Dynamic` page whose other fetches are all
+    // no-store ; a `revalidate` Data-Cache entry served an empty first-
+    // render after each deploy (witnessed r136) before warming. no-store
+    // = always fresh per request, reliable on the first visitor.
+    // apiGet returns null on failure (graceful, never rejects Promise.all).
+    apiGet<MacroPulse>("/v1/macro-pulse"),
   ]);
 
   // r123 — derive today's session pulse from the FULL intraday array
@@ -370,6 +381,12 @@ export default async function BriefingPage({ params }: PageParams) {
       </section>
 
       <EventSurpriseGauge data={eventSurprise} assetPair={normalisedAsset.replace("_", "/")} />
+
+      {/* r136 — US Economic Surprise Index (lit up r135). Backward-looking
+          "how has recent data surprised vs trend" — complements the
+          forward-looking EventSurpriseGauge above (next-catalyst surprise
+          potential). Honest silent absence when the slice is dark. */}
+      <MacroSurprisePanel surpriseIndex={macroPulse?.surprise_index ?? null} />
 
       <section aria-labelledby="geopolitics-heading">
         <div className="mb-4 flex items-baseline justify-between gap-4">

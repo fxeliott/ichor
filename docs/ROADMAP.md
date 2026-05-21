@@ -10,6 +10,17 @@
 
 ---
 
+## §1 — Current state (r136-close, 2026-05-21)
+
+### Shipped at r136 (surface the lit surprise index on the briefing)
+
+- **`<MacroSurprisePanel>` LIVE on `/briefing/[asset]`** — the US Economic Surprise Index r135 lit up was only on the LLM data-pool + /macro-pulse + /confluence ; r136 brings it to the position-taking surface (r130 pattern). Separate panel (backward-looking realized surprises) distinct from the forward-looking EventSurpriseGauge. Growth composite + per-series, inflation kept separate ("hors composite"), monochrome ADR-017-descriptive (never directional), asset-agnostic US backdrop.
+- NEW `lib/macroSurprise.ts` (growth/inflation drift-guard vs backend) + panel + 10 tests. 4-reviewer : trader MUST-FIX (UNRATE polarity convention note) + ui-designer (group symmetry + 320px truncate) + a11y + code-reviewer all applied.
+- **First-render cache bug caught by the witness** : `revalidate:30` served an empty first-render on the dynamic briefing page → switched to `no-store` → panel present on first render (lesson #33). vitest 293 (283+10), deploy ×2, DUAL witness GREEN on first-render (composite +0.38σ, CPI +2.4σ, PCE +4.4σ fort).
+- **Voie D held 51 rounds.** Mission axis 5 stays 🎯 +1 LEVEL (signal now real AND visible; full real-time auto-update r137+).
+
+### Pre-r136 state (preserved for archeology)
+
 ## §1 — Current state (r135-close, 2026-05-21)
 
 ### Shipped at r135 (axis-5 +1 LEVEL — lit up the dark Economic Surprise Index)
@@ -102,7 +113,20 @@ See `docs/ROADMAP_2026-05-06.md` for the original 4-layer architecture (DATA FOU
 
 ---
 
-## §3 — Immediate next (r136)
+## §3 — Immediate next (r137)
+
+**r136 EXECUTED & SHIPPED (2026-05-21)** : `<MacroSurprisePanel>` on `/briefing/[asset]` — surfaced the lit surprise index (r135) on the position-taking surface. Separate panel (backward-looking realized surprises) vs the forward-looking EventSurpriseGauge ; growth composite + per-series, inflation "hors composite", monochrome ADR-017-descriptive, asset-agnostic US backdrop. 4-reviewer (trader MUST-FIX UNRATE polarity convention + ui-designer symmetry/320px + a11y role-drop). The Playwright witness CAUGHT a first-render cache bug (`revalidate:30` empty first-render on the dynamic page) → fixed to `no-store` → panel present on first render (lesson #33). vitest 293 (283+10), 0 regression ; DUAL witness GREEN first-render (composite +0.38σ, CPI +2.4σ / PCE +4.4σ fort). See `docs/SESSION_LOG_2026-05-21-r136-EXECUTION.md` + ADR-099 §Impl(r136).
+
+**r137 binding default candidates** (R59-AUDIT first to pick) :
+
+1. **Inflation surprise → hawkish/dovish confluence driver** ⭐ AUTO-RECOMMENDED — the r136 panel now SHOWS hot inflation (+4.4σ PCE) descriptively, but the trading implication (hawkish → equity-negative/USD-positive/gold-nuanced) isn't wired. Add `inflation_composite` + a confluence driver. Completes the growth/inflation pair + closes the r135 deferred follow-on. Effort M.
+2. **Business-cycle-conditioned news sign** (web-grounded — expansion→bad-news-bullish for equity; Boyd/ABDV). Effort M.
+3. **Conviction backend driver-wiring** (r134 follow-on, closes axis 6 fully). Effort M-L.
+4. **Réactivité temps réel auto-update** (axis 5 architectural — WebSocket/SSE on event-fire). Effort M-L.
+5. **GDPC1 quarterly weighting + periodic re-backfill timer** (r135 hardening). Effort S.
+6. **Dealer-GEX regime state** (web-grounded Barbon-Buraschi — Ichor has gex key levels but no momentum/mean-reversion regime state for SPX/NAS). Effort M.
+
+## §3 — Previous immediate next (r136, EXECUTED above)
 
 **r135 EXECUTED & SHIPPED (2026-05-21)** : lit up the DARK Economic Surprise Index — **Mission axis 5 ⏳ → 🎯 +1 LEVEL**. Transcript (attached macro-trading video) + web-research driven. R59 found `services/surprise_index.py` (Citi-ESI proxy feeding /macro-pulse + /confluence + LLM Pass-1) returned composite=None / all z=None in prod — because the 6 FRED series had only 1-2 rows (`fetch_latest` limit=1) + it z-scored the trend-dominated LEVEL. FIX: z-score the period-CHANGE + `fetch_history`/`backfill_history`/`fred_backfill` CLI → backfilled 710 rows → composite 0.383 LIVE, all 6 z populated. trader MUST-FIX: growth/inflation split (composite GROWTH-only, inflation per-series excluded — fixes the confluence_engine growth-mislabel; mirrors the transcript's growth×inflation cycle taxonomy). 281 tests pass; deployed (lesson #24 SSH-instability) + empirically verified. **Lesson #32**: R59 whether a capability EXISTS-but-is-BROKEN before building net-new (r133/r134/r135 all lit up existing-but-dark machinery). See `docs/SESSION_LOG_2026-05-21-r135-EXECUTION.md` + ADR-099 §Impl(r135).
 
