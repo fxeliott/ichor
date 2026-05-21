@@ -17,7 +17,7 @@
 
 import { m } from "motion/react";
 
-import type { NewsItem } from "@/lib/api";
+import type { NewsFilterMeta, NewsItem } from "@/lib/api";
 
 const KIND_LABEL: Record<string, string> = {
   central_bank: "BANQUE CENTRALE",
@@ -56,16 +56,62 @@ function relTime(iso: string): string {
   return `il y a ${Math.floor(h / 24)} j`;
 }
 
-export function NewsPanel({ news }: { news: NewsItem[] }) {
+/**
+ * r138 — calibrated disclosure of the per-asset news filter state
+ * (lesson #11). Maps the backend `NewsFilterMeta` envelope to a short,
+ * honest French label rendered in the panel header. The four states
+ * are mutually-exclusive and never inflate (e.g. we never claim
+ * "filtré" when the scarce-fallback fired).
+ */
+function filterLabel(
+  filter: NewsFilterMeta | null,
+  fallbackAsset: string | null,
+): { line: string; tone: "ok" | "scarce" | "global" | "none" } {
+  if (!filter) {
+    // No asset was requested (legacy global feed) — honest absence-of-filter.
+    return { line: "Flux global · tous actifs", tone: "global" };
+  }
+  if (!filter.known_asset) {
+    return {
+      line: `Actif "${filter.asset}" hors carte de mots-clés · flux global`,
+      tone: "global",
+    };
+  }
+  if (filter.applied) {
+    return {
+      line: `Filtré · ${filter.matched} item${filter.matched > 1 ? "s" : ""} liés à ${filter.asset}`,
+      tone: "ok",
+    };
+  }
+  // applied=false & known_asset=true → scarce fallback fired.
+  const matchedTxt =
+    filter.matched === 0 ? "aucun item" : `${filter.matched} item${filter.matched > 1 ? "s" : ""}`;
+  return {
+    line: `Flux global (${matchedTxt} spécifique${filter.matched > 1 ? "s" : ""} à ${filter.asset ?? fallbackAsset ?? "l'actif"} sur la fenêtre, seuil ${filter.min_required})`,
+    tone: "scarce",
+  };
+}
+
+export function NewsPanel({
+  news,
+  filter = null,
+  asset = null,
+}: {
+  news: NewsItem[];
+  /** r138 — `null` for back-compat pre-r138 callers (no asset filter). */
+  filter?: NewsFilterMeta | null;
+  /** r138 — informational ; used when filter is null but caller wants
+   *  to label the panel with the asset context anyway. */
+  asset?: string | null;
+}) {
+  const disclosure = filterLabel(filter, asset);
   if (!news || news.length === 0) {
     return (
       <div className="rounded-2xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)]/40 p-8 text-center backdrop-blur-xl">
         <p className="font-serif text-lg text-[var(--color-text-secondary)]">
           Pas d&apos;actualité récente.
         </p>
-        <p className="mt-2 text-xs text-[var(--color-text-muted)]">
-          Flux vide ou source indisponible.
-        </p>
+        <p className="mt-2 text-xs text-[var(--color-text-muted)]">{disclosure.line}.</p>
       </div>
     );
   }
@@ -85,8 +131,16 @@ export function NewsPanel({ news }: { news: NewsItem[] }) {
     >
       <header className="border-b border-[var(--color-border-subtle)] px-6 py-4">
         <h3 className="font-serif text-lg text-[var(--color-text-primary)]">Actualités</h3>
-        <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-          Flux récent · banques centrales surlignées · accent = tonalité
+        <p
+          className={`mt-1 text-xs ${
+            disclosure.tone === "ok"
+              ? "text-[var(--color-text-secondary)]"
+              : disclosure.tone === "scarce"
+                ? "text-[var(--color-text-muted)]"
+                : "text-[var(--color-text-muted)]"
+          }`}
+        >
+          {disclosure.line} · banques centrales surlignées · accent = tonalité
         </p>
       </header>
 

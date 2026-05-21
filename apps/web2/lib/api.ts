@@ -263,9 +263,39 @@ export async function getPolymarketImpact(): Promise<PolymarketImpact | null> {
   return apiGet<PolymarketImpact>("/v1/polymarket-impact");
 }
 
-/** r69 — fetch recent news items from `/v1/news` (bare list, tone-scored). */
-export async function getNews(limit = 12): Promise<NewsItem[] | null> {
-  return apiGet<NewsItem[]>(`/v1/news?limit=${limit}`);
+/**
+ * r69 + r138 — fetch recent news items from `/v1/news`.
+ *
+ * r138 — backend now returns a `NewsListEnvelope` envelope `{ items, filter }`
+ * so the asset-filter status can be surfaced honestly (lesson #11 calibrated).
+ * `asset` (optional, ADR-099 §D-1 5-asset surface or backend legacy 9-asset map)
+ * narrows the feed to items keyword-matching the asset's ticker / institutional
+ * terms with the SAME scarce-fallback discipline as `services/data_pool._section_news`
+ * (re-homed to `services/asset_news_affinity`).
+ *
+ * Returns the full envelope so callers can render the filter disclosure ;
+ * panels that only need the items can read `.items`.
+ */
+export interface NewsFilterMeta {
+  asset: string;
+  matched: number;
+  applied: boolean;
+  min_required: number;
+  known_asset: boolean;
+}
+
+export interface NewsListEnvelope {
+  items: NewsItem[];
+  filter: NewsFilterMeta | null;
+}
+
+export async function getNews(
+  limit = 12,
+  asset: string | null = null,
+): Promise<NewsListEnvelope | null> {
+  const qs = new URLSearchParams({ limit: String(limit) });
+  if (asset) qs.set("asset", asset);
+  return apiGet<NewsListEnvelope>(`/v1/news?${qs.toString()}`);
 }
 
 // r69 — MyFXBook retail positioning (contrarian sentiment). Mirror of
@@ -471,19 +501,41 @@ export interface GdeltNegative {
   url: string | null;
 }
 
+/** r138 — disclosed asset-filter status (lesson #11 calibrated honesty). */
+export interface GeopoliticsFilterMeta {
+  asset: string;
+  matched: number;
+  applied: boolean;
+  min_required: number;
+  known_asset: boolean;
+}
+
 export interface GeopoliticsBriefing {
   gpr: GprReading | null;
   gdelt_window_hours: number;
   n_events_window: number;
   gdelt_negatives: GdeltNegative[];
+  /** r138 — `null` for back-compat when `?asset=` is not supplied. */
+  filter?: GeopoliticsFilterMeta | null;
 }
 
-/** r77 — fetch the geopolitics briefing from `/v1/geopolitics/briefing`. */
+/**
+ * r77 + r138 — fetch the geopolitics briefing from `/v1/geopolitics/briefing`.
+ *
+ * r138 — optional `asset` narrows the GDELT most-negative ranking to events
+ * whose title / query_label / URL match the asset's keyword affinity, with
+ * the same scarce-fallback rule as `/v1/news`. AI-GPR (single global index)
+ * is returned unchanged. Frontend can render the filter disclosure from
+ * `.filter`.
+ */
 export async function getGeopoliticsBriefing(
   hours = 48,
   top = 6,
+  asset: string | null = null,
 ): Promise<GeopoliticsBriefing | null> {
-  return apiGet<GeopoliticsBriefing>(`/v1/geopolitics/briefing?hours=${hours}&top=${top}`);
+  const qs = new URLSearchParams({ hours: String(hours), top: String(top) });
+  if (asset) qs.set("asset", asset);
+  return apiGet<GeopoliticsBriefing>(`/v1/geopolitics/briefing?${qs.toString()}`);
 }
 
 // r80 — CFTC institutional positioning ("acteurs du marché" / smart

@@ -138,10 +138,17 @@ export default async function BriefingPage({ params }: PageParams) {
     getKeyLevels() as Promise<KeyLevelsResponse | null>,
     apiGet<TodaySnapshotOut>("/v1/today"),
     getCalendarUpcoming() as Promise<CalendarUpcoming | null>,
-    getNews(12) as Promise<NewsItem[] | null>,
+    // r138 — pass `normalisedAsset` so /v1/news narrows the feed to the
+    // asset's keyword affinity (cf services/asset_news_affinity.py) with
+    // the silent scarce-fallback rule. The envelope `{items, filter}`
+    // carries the disclosure metadata for honest UI surface (lesson #11).
+    getNews(12, normalisedAsset),
     getPositioning() as Promise<PositioningOut | null>,
     getIntradayBars(normalisedAsset) as Promise<IntradayBarOut[] | null>,
-    getGeopoliticsBriefing() as Promise<GeopoliticsBriefing | null>,
+    // r138 — same asset-conditioning for GDELT negatives (AI-GPR stays
+    // global by construction — single index). `.filter` carries the
+    // disclosure metadata when the asset filter was applied.
+    getGeopoliticsBriefing(48, 6, normalisedAsset),
     getInstitutionalPositioning(normalisedAsset) as Promise<InstitutionalPositioning | null>,
     getCorrelations() as Promise<CorrelationMatrix | null>,
     getPocketSummary(normalisedAsset) as Promise<PocketSummaryList | null>,
@@ -460,7 +467,10 @@ export default async function BriefingPage({ params }: PageParams) {
             Flux récent · tonalité
           </span>
         </div>
-        <NewsPanel news={news ?? []} />
+        {/* r138 — envelope { items, filter } : pass both so the panel can
+            render the per-asset disclosure (matched / scarce-fallback /
+            global) per lesson #11 calibrated honesty. */}
+        <NewsPanel news={news?.items ?? []} filter={news?.filter ?? null} asset={normalisedAsset} />
       </section>
 
       <section aria-labelledby="volume-heading">

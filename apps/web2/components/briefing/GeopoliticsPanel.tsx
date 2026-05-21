@@ -18,7 +18,7 @@
 
 import { m } from "motion/react";
 
-import type { GeopoliticsBriefing } from "@/lib/api";
+import type { GeopoliticsBriefing, GeopoliticsFilterMeta } from "@/lib/api";
 
 const BAND_TONE: Record<string, string> = {
   bas: "text-[var(--color-bull)]",
@@ -26,6 +26,27 @@ const BAND_TONE: Record<string, string> = {
   élevé: "text-[var(--color-bear)]",
   "très élevé": "text-[var(--color-bear)]",
 };
+
+/**
+ * r138 — calibrated disclosure of the per-asset GDELT filter state
+ * (lesson #11). Mirrors the discipline of NewsPanel : never inflates
+ * "filtré" when the scarce-fallback kicked in. AI-GPR is always global
+ * (single index) — the disclosure only describes the negatives ranking.
+ */
+function gdeltFilterLabel(filter: GeopoliticsFilterMeta | null | undefined): string {
+  if (!filter) return "ranking global (24h)";
+  if (!filter.known_asset) {
+    return `actif "${filter.asset}" hors carte de mots-clés · ranking global`;
+  }
+  if (filter.applied) {
+    return `filtré · ${filter.matched} événement${filter.matched > 1 ? "s" : ""} liés à ${filter.asset}`;
+  }
+  const matchedTxt =
+    filter.matched === 0
+      ? "aucun événement"
+      : `${filter.matched} événement${filter.matched > 1 ? "s" : ""}`;
+  return `ranking global (${matchedTxt} spécifique${filter.matched > 1 ? "s" : ""} à ${filter.asset} sur la fenêtre, seuil ${filter.min_required})`;
+}
 
 export function GeopoliticsPanel({ data }: { data: GeopoliticsBriefing | null }) {
   if (!data || (data.gpr === null && data.gdelt_negatives.length === 0)) {
@@ -111,7 +132,8 @@ export function GeopoliticsPanel({ data }: { data: GeopoliticsBriefing | null })
 
       <div className="px-6 py-4">
         <p className="mb-3 text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
-          GDELT · {n_events_window} events / {gdelt_window_hours} h · tonalité la plus basse
+          GDELT · {n_events_window} events / {gdelt_window_hours} h ·{" "}
+          {gdeltFilterLabel(data.filter)}
           {allFlat ? " — tonalité ≈ neutre (pas de cluster fortement négatif)" : ""}
         </p>
         <ul className="space-y-2">

@@ -59,6 +59,9 @@ from .asian_session import (
 from .asian_session import (
     supported_pairs as asian_supported_pairs,
 )
+from .asset_news_affinity import (
+    matches_asset as _matches_asset,
+)
 from .confluence_engine import (
     assess_confluence,
     render_confluence_block,
@@ -4516,40 +4519,12 @@ async def _section_session_scenarios(
 # Asset → keyword set for news ticker filtering.
 # Phase 2 fix for SPEC.md §2.2 #10 (polygon_news non filtré ticker-linked).
 # Heuristic until news_items.tickers ARRAY column lands (follow-up migration).
-_NEWS_KEYWORDS: dict[str, tuple[str, ...]] = {
-    "EUR_USD": ("EUR/USD", "EURUSD", "EUR ", "euro", "ECB", "Lagarde", "eurozone"),
-    "GBP_USD": ("GBP/USD", "GBPUSD", "GBP ", "pound sterling", "BoE", "Bailey", "UK economy"),
-    "USD_JPY": ("USD/JPY", "USDJPY", "JPY ", "yen", "BoJ", "Ueda", "Japan inflation"),
-    "AUD_USD": ("AUD/USD", "AUDUSD", "AUD ", "Aussie", "RBA", "iron ore", "Australia"),
-    "USD_CAD": ("USD/CAD", "USDCAD", "CAD ", "loonie", "BoC", "Macklem", "Canadian"),
-    "XAU_USD": ("XAU/USD", "XAUUSD", "gold", "bullion", "GLD ", "GDX ", "spot metals"),
-    "NAS100_USD": (
-        "NAS100",
-        "Nasdaq",
-        "NASDAQ",
-        "QQQ",
-        "AAPL",
-        "MSFT",
-        "GOOGL",
-        "AMZN",
-        "META",
-        "NVDA",
-        "TSLA",
-        "tech stocks",
-    ),
-    "SPX500_USD": ("S&P 500", "SPX", "SPY", "S&P500", "broad market", "Fed funds"),
-    "US30_USD": ("Dow Jones", "DJIA", "DIA"),
-}
-
-
-def _matches_asset(title: str, url: str, asset: str) -> bool:
-    """Heuristic ticker-link: keyword match in title (case-insensitive)
-    or in URL path. Returns True if no keywords are configured (fallback)."""
-    keys = _NEWS_KEYWORDS.get(asset.upper())
-    if not keys:
-        return True  # unknown asset: keep all
-    blob = f"{title} {url}".lower()
-    return any(k.lower() in blob for k in keys)
+# r138 — `_NEWS_KEYWORDS` + `_matches_asset` extracted to
+# `services/asset_news_affinity.py` (doctrine #4 anti-accumulation
+# SSOT) so `/v1/news` and `/v1/geopolitics/briefing` can share the
+# same affinity logic with this Pass-2 LLM data-pool reader. The
+# private re-import aliases at the top of this file preserve the
+# pre-r138 internal name pattern — zero behaviour change here.
 
 
 async def _section_news(

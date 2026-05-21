@@ -5,6 +5,15 @@ Aggregates the recent GDELT corpus by `sourcecountry` and emits :
   - count       : number of events per country
   - mean_tone   : average GDELT tone (-10..+10, negative = bearish)
   - sample      : 3 most-negative event titles for hover tooltip
+
+r138 — `/v1/geopolitics/briefing` accepts an optional `?asset=` query
+param (5 priority assets + 4 legacy) and narrows the top-N most-
+negative GDELT events to those whose title / query_label / URL match
+the asset's keyword affinity (cf `services/asset_news_affinity.py`).
+The scarce-fallback rule mirrors `/v1/news` : below `_MIN_ASSET_MATCHES`
+asset-matching negatives we fall back to the global ranking and surface
+`filter.applied=False` honestly. AI-GPR is asset-agnostic by nature
+(a single global risk index) and is always returned unchanged.
 """
 
 from __future__ import annotations
@@ -14,11 +23,15 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
-from sqlalchemy import desc, select
+from sqlalchemy import desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..db import get_session
 from ..models import GdeltEvent, GprObservation
+from ..services.asset_news_affinity import (
+    NEWS_KEYWORDS,
+    filter_rows_by_asset_affinity,
+)
 
 router = APIRouter(prefix="/v1/geopolitics", tags=["geopolitics"])
 
@@ -26,6 +39,14 @@ router = APIRouter(prefix="/v1/geopolitics", tags=["geopolitics"])
 # mean. Bands are expressed strictly as a ratio to that PUBLISHED
 # baseline — no fabricated academic thresholds (anti-hallucination).
 _GPR_BASELINE = 100.0
+
+# r138 — same threshold as /v1/news for filter discipline consistency.
+_MIN_ASSET_MATCHES = 3
+# r138 — pull a wider candidate pool for GDELT when filtering so the
+# keyword filter has options before we pick the top-N most-negative.
+_FILTER_FETCH_MULTIPLIER = 8
+_FILTER_MAX_FETCH = 500
+_ASSET_REGEX = r"^[A-Z0-9_]{3,16}$"
 
 
 def _gpr_band(value: float) -> str:
@@ -109,6 +130,7 @@ async def heatmap(
 # Mirrors services/data_pool.py:_section_geopolitics so the /briefing
 # dashboard surfaces the SAME geopolitical read the 4-pass LLM sees
 # (ADR-099 Tier 1.2). Read-only, ADR-017-safe (pure risk description).
+# r138 adds optional `?asset=` filter for per-asset narrative relevance.
 
 
 class GprReading(BaseModel):
@@ -127,11 +149,30 @@ class GdeltNegative(BaseModel):
     url: str | None = None
 
 
+class GeopoliticsFilterMeta(BaseModel):
+    """r138 — asset-filter disclosure for the GDELT negatives ranking.
+
+    AI-GPR is global by construction (single index) and is unaffected
+    by the filter. The `applied=False` case (matched < min_required)
+    means the negatives list is the GLOBAL ranking — the frontend
+    should disclose the fallback honestly.
+    """
+
+    asset: str
+    matched: int
+    applied: bool
+    min_required: int = _MIN_ASSET_MATCHES
+    known_asset: bool = True
+
+
 class GeopoliticsBriefingOut(BaseModel):
     gpr: GprReading | None
     gdelt_window_hours: int
     n_events_window: int
     gdelt_negatives: list[GdeltNegative]
+    # r138 — disclosed asset-filter status. `None` for back-compat when
+    # `?asset=` is not supplied.
+    filter: GeopoliticsFilterMeta | None = None
 
 
 @router.get("/briefing", response_model=GeopoliticsBriefingOut)
@@ -139,6 +180,7 @@ async def briefing(
     session: Annotated[AsyncSession, Depends(get_session)],
     hours: int = Query(24, ge=1, le=168),
     top: int = Query(5, ge=1, le=20),
+    asset: str | None = Query(None, pattern=_ASSET_REGEX),
 ) -> GeopoliticsBriefingOut:
     gpr_row = (
         (
@@ -160,17 +202,70 @@ async def briefing(
         )
 
     cutoff = datetime.now(UTC) - timedelta(hours=hours)
-    rows = list(
-        (await session.execute(select(GdeltEvent).where(GdeltEvent.seendate >= cutoff)))
-        .scalars()
-        .all()
+    # r138 — when filtering by asset, pull a wider candidate pool so the
+    # keyword filter has options before we pick the top-N most-negative.
+    # The pool is ordered by tone-ascending up to `_FILTER_MAX_FETCH`,
+    # filtered, then re-ranked. Without `asset=`, behaviour matches
+    # the r137 query (top-N most-negative across the whole window).
+    base_stmt = (
+        select(GdeltEvent).where(GdeltEvent.seendate >= cutoff).order_by(GdeltEvent.tone.asc())
     )
-    negatives = sorted(rows, key=lambda r: r.tone)[:top]
+    if asset:
+        pool_cap = min(
+            _FILTER_MAX_FETCH, max(top * _FILTER_FETCH_MULTIPLIER, _MIN_ASSET_MATCHES * 8)
+        )
+        rows = list((await session.execute(base_stmt.limit(pool_cap))).scalars().all())
+    else:
+        rows = list((await session.execute(base_stmt.limit(top))).scalars().all())
+
+    # Window total (for context disclosure) — count of ALL events in
+    # window (NOT limited to the candidate pool above — this is what
+    # the panel surfaces as "GDELT · N events / Wh"). r138 preserves
+    # the r137 semantics : the count is the full window cardinality,
+    # independent of the asset filter or the candidate-pool cap.
+    n_events_window = int(
+        (
+            await session.execute(
+                select(func.count()).select_from(GdeltEvent).where(GdeltEvent.seendate >= cutoff)
+            )
+        ).scalar()
+        or 0
+    )
+
+    filter_meta: GeopoliticsFilterMeta | None = None
+    if asset:
+        asset_uc = asset.upper()
+        known = asset_uc in NEWS_KEYWORDS
+
+        def _gd_key(r: GdeltEvent) -> tuple[str, str]:
+            # r138 — match against title PLUS query_label (collector-side
+            # topic tag) PLUS URL ; query_label often carries semantic
+            # tags like "iran-conflict" or "china-tariff" that boost
+            # asset-affinity precision over title-only.
+            blob = " ".join([r.title or "", r.query_label or "", r.domain or ""])
+            return blob, r.url or ""
+
+        filtered_rows, matched, applied = filter_rows_by_asset_affinity(
+            rows,
+            asset_uc,
+            key=_gd_key,
+            min_required=_MIN_ASSET_MATCHES,
+        )
+        negatives_rows = sorted(filtered_rows, key=lambda r: r.tone)[:top]
+        filter_meta = GeopoliticsFilterMeta(
+            asset=asset_uc,
+            matched=matched,
+            applied=applied,
+            min_required=_MIN_ASSET_MATCHES,
+            known_asset=known,
+        )
+    else:
+        negatives_rows = rows[:top]
 
     return GeopoliticsBriefingOut(
         gpr=gpr,
         gdelt_window_hours=hours,
-        n_events_window=len(rows),
+        n_events_window=n_events_window,
         gdelt_negatives=[
             GdeltNegative(
                 tone=round(float(r.tone), 1),
@@ -179,6 +274,7 @@ async def briefing(
                 query_label=r.query_label,
                 url=r.url,
             )
-            for r in negatives
+            for r in negatives_rows
         ],
+        filter=filter_meta,
     )
