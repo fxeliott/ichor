@@ -369,18 +369,18 @@ function ScenarioCard({ scenario }: { scenario: Scenario }) {
           </dt>
           <dd className="font-mono text-[var(--color-bear)]">{scenario.invalidation}</dd>
         </div>
-        {scenario.counterfactual_anchor && (
-          <div className="mt-2 flex items-center gap-1">
-            <span
-              aria-hidden="true"
-              className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--color-accent-cobalt-bright)]"
-            />
-            <span className="font-mono text-[10px] uppercase tracking-widest text-[var(--color-accent-cobalt-bright)]">
-              Pass 5 anchor: {scenario.counterfactual_anchor}
-            </span>
-          </div>
-        )}
       </dl>
+      {scenario.counterfactual_anchor && (
+        <div className="mt-2 flex items-center gap-1">
+          <span
+            aria-hidden="true"
+            className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--color-accent-cobalt-bright)]"
+          />
+          <span className="font-mono text-[10px] uppercase tracking-widest text-[var(--color-accent-cobalt-bright)]">
+            Pass 5 anchor: {scenario.counterfactual_anchor}
+          </span>
+        </div>
+      )}
     </article>
   );
 }

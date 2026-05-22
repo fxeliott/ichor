@@ -40,8 +40,6 @@
  *     freshness anchor, avoids 4h-stale "fresh data" claim.
  *   - ui-designer N5 : font-mono on minutesSinceBriefing.
  *   - ui-designer N6 : m.section motion parity with sibling panels.
- *   - ui-designer N3 : eventKey includes region for FX-calendar collision
- *     safety (US CPI vs DE CPI same label different region).
  *
  * ADR-017 : descriptive only. Banner copy enumerates label/region/impact
  * + scheduled time + diff-from-briefing + collection-cron caveat. NEVER
@@ -66,13 +64,6 @@ const SINCE_MINUTES = 60;
 /** Debounce window for router.refresh() to prevent rapid-fire reloads
  *  (Phase 1B caveat #4 defense-in-depth). */
 const REFRESH_DEBOUNCE_MS = 2_000;
-
-/** Build a stable, monotone key per event for race-safe comparison.
- *  ui-designer N3 fix : include region to disambiguate (e.g. US CPI at
- *  14:30 vs DE CPI at 14:30 with identical English label). */
-function eventKey(e: CalendarEvent): string {
-  return `${e.when}T${e.when_time_utc ?? "all-day"}|${e.region}|${e.label}`;
-}
 
 /** Pick the latest event whose scheduled time has elapsed between
  *  `briefingGeneratedAt` and `now`. Returns null if none.
