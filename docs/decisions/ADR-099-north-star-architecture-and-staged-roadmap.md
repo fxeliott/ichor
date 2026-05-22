@@ -3691,3 +3691,76 @@ Voie D held **58 rounds** (zero `import anthropic` r143 ; pure frontend cross-re
 **Mission centrale axis impact** : **axis 6 ✅ FULLY CLOSED + VISUAL WITNESS EMPIRICAL GREEN r143** (r142's deferred frontend witness now empirically verified end-to-end on public surface). Axes 1-2 ✅ r123 / 3 ✅ r132+r133 / 4 🎯+1 r130 / 5 🎯+1 LEVEL FOUNDATION r141 / **6 ✅ CLOSED r142 + visual witness r143 ⭐** / 7 🎯 LIVE / 8 🎯+1 PARTIAL r131. 3 of 8 mission axes ✅ CLOSED.
 
 **Lessons r143** : **lesson #37 re-confirmed empirically** (FF XML smoke test — DEMOTE framing when upstream lacks actionable field) + NEW pattern observation : trader Y2 + code-reviewer S1 CONCORDANT 2/4 on the source-inspection lockstep CI invariant validates that 2/4-concordance is sufficient for CI-invariant-type findings (lower bar than visible-UI concordance — CI invariants are mechanical, less interpretation-dependent).
+
+## Implementation (r144, 2026-05-22) — Tier 2 axis-5 +1 LEVEL DATA partial closure : FRED ALFRED US-only `economic_events.actual` reconciler LIVE on Hetzner cron + 18 events empirically populated (Mission centrale axis 5 partial closure)
+
+r143 Phase 0 EMPIRICALLY DISPROVED the FF XML `<actual>` path (canonical FF feed schema does NOT carry the field across 6 days of 2026-05-17 → 2026-05-22 events — lesson #37 re-confirmed). r142 R59 audit had identified FRED ALFRED as the only viable free-tier alternative (US-only `actual`, no analyst envelope). r144 ships the FRED ALFRED reconciler as the alternative path to light up r141 dormant `economic_events.actual` column.
+
+**Phase 0 R59 dual-audit (parallel sub-agents)** :
+
+1. **researcher** verified FRED ALFRED API specifics 2026 via WebSearch + primary FRED docs : same `fred_api_key` (env `ICHOR_API_FRED_API_KEY`) as existing FRED collectors, same base URL `api.stlouisfed.org/fred`, only `realtime_start`/`realtime_end` params differ. Vintage retrieval semantic confirmed via GDP Q1 2014 worked example. 12 viable FRED series mapped to tier-1 USD events ; 3 critical gaps : ISM Manufacturing PMI + ISM Services PMI + ADP Employment Change (licensing-blocked/discontinued on FRED). 120 req/min free-tier rate limit confirmed.
+
+2. **feature-dev:code-explorer** mapped established patterns from `collectors/fred.py` (httpx.AsyncClient + structlog graceful-degradation + 0.2s rate-limit sleep) + `cli/run_bundesbank_bund.py` (canonical CLI template with feature flag + dry-run + asyncio.run + `get_engine().dispose()` finally). Confirmed `forex_factory.py:persist_events` UPSERT NEVER touches `actual` column → clean separation for r144 reconciler ownership. Effort estimate S-M (4-6 hours) ; all plumbing exists.
+
+**Files shipped r144** (5 files, ~700 LOC) :
+
+- **`apps/api/src/ichor_api/services/economic_event_actuals_reconciler.py`** (NEW, ~340 LOC) : `TITLE_FRAGMENT_TO_SERIES` 19-entry tuple (canonical FF title fragment → FRED series_id + optional units transform `chg`/`pch`/`pc1`/`None`) ; `TITLE_FRAGMENT_BLOCKED` 8-entry negative-list short-circuit ; `map_title_to_series` pure-fn with negative-list-first dispatch ; `fetch_alfred_actual` async httpx wrapper to `/series/observations` with `realtime_start=realtime_end=release_date` vintage params ; `reconcile_actuals` main with SELECT `currency='USD' AND actual IS NULL AND scheduled_at <= now()-15min AND scheduled_at > now()-14d` + sequential per-event loop with 0.2s sleep + targeted UPDATE (ADDITIVE, never touches forecast_min/max or fetched_at) ; `ReconcilerResult` frozen dataclass with 6 counters (examined / updated / skipped_unmapped / skipped_no_scheduled_at / skipped_fetch_failed / skipped_no_value).
+- **`apps/api/src/ichor_api/cli/run_economic_event_actuals_reconcile.py`** (NEW, ~140 LOC) : Bundesbank canonical pattern. Feature flag `actuals_reconciler_enabled` (default OFF, seeded `true @ 100` at deploy). Exit codes 0 success / 1 feature flag OFF / 2 ICHOR_API_FRED_API_KEY empty. CLI args `--dry-run` / `--lookback-days` / `--settle-minutes` / `--currency`. structlog `alfred.reconcile.complete` event with counters.
+- **`apps/api/tests/test_economic_event_actuals_reconciler.py`** (NEW, ~430 LOC, 35 tests across 5 classes) : exhaustive `map_title_to_series` boundary cases + ORDER discipline (Core CPI before generic CPI) + `TITLE_FRAGMENT_BLOCKED` invariants (≥5 entries + no BUY/SELL tokens + collision class adversarial probes incl. ADP/Trimmed Mean CPI/Core Retail Sales/Productivity stats) + `fetch_alfred_actual` httpx mocking (happy + units passthrough + empty observations + FRED "." missing marker + HTTP 404 + network error + string-form pass-through) + `ReconcilerResult` frozen + module constants pinned (FRED_BASE + 0.2s sleep + 14d lookback + 15min settle).
+- **`scripts/hetzner/register-cron-actuals-reconciler.sh`** (NEW, ~70 LOC, chmod +x) : systemd timer `OnCalendar=*-*-* 01,07,13,19:15:00 Europe/Paris` (4×/day offset 15min from FF collector fires 03/09/15/21h to ensure FF has upserted event row first) + `RandomizedDelaySec=120` + `Persistent=true` + `SuccessExitStatus=0 1 2` (feature flag OFF + missing API key are operational, not failures).
+
+**2-reviewer concordance dispatch** (doctrine #17 backend-LLM-data-pool class : ichor-trader + code-reviewer parallel post-test-green) :
+
+- **code-reviewer S1 + S2 CRITICAL data correctness fix** : `"Core Retail Sales m/m"` falsely matched `"retail sales m/m"` → RSAFS (headline) instead of correct ex-autos series ; `"Trimmed Mean CPI y/y"` falsely matched `"cpi y/y"` → CPIAUCSL instead of TRMMEANCPIM158SFRBCLE. APPLIED via `TITLE_FRAGMENT_BLOCKED` negative-list short-circuit checked BEFORE positive dispatch.
+- **code-reviewer S3 CRITICAL** : `fetched_at = now` on UPDATE silently overwrote FF audit timestamp. APPLIED via REMOVE from `update().values()` — reconciler now strictly ADDITIVE not destructive ; provenance observable via `alfred.reconcile.updated` structured log event.
+- **code-reviewer N6** : added `skipped_no_scheduled_at` separate counter to `ReconcilerResult` for clearer observability (semantic distinct from `skipped_unmapped`).
+- **code-reviewer N8** : reworded service docstring re FRED returning bare numeric "3.2" vs FF "3.2%" suffix — r141 `parse_economic_value` handles both shapes uniformly so consumers see consistent floats.
+- **trader Y1** : promoted `log.debug` → `log.info` on `skipped_unmapped` so ops audit coverage gaps without enabling debug logging (catches BLS rebrand drift early).
+- **trader Y2(c)** : added `Average Hourly Earnings y/y + m/m` → AHETPI mappings (was tier-1 USD high-impact previously unmapped — concordant with code-reviewer N5 additive coverage).
+- **CONCORDANT 2/2 trader Y2 + code-reviewer S1** : applied negative-list lockstep CI invariant pattern (no inline collision-class fragments in mapping).
+
+**ROUND-2 POST-DEPLOY EMPIRICAL-WITNESS AUDIT FIX (r144 NEW pattern observation)** :
+
+The pre-deploy 2-reviewer dispatch caught Core Retail Sales + Trimmed Mean CPI false-positives but MISSED `ADP Non-Farm Employment Change` which substring-matched `non-farm employment change` → falsely mapped to PAYEMS (BLS official) instead of being SKIPPED per researcher R59 (ADP NPPTTL discontinued on FRED). ONLY the empirical dry-run on prod data (108 events / 18 would-update / verbose `alfred.reconcile.updated` log events) revealed the silent collision.
+
+R-WITNESS-EMPIRICAL NEW RULE codified : pre-deploy 2-reviewer/4-reviewer dispatch + **post-deploy empirical dry-run on prod data BEFORE the feature flag stays ON for live cron**. Round-2 fix-cluster applied (added `adp` + `nonfarm productivity` + `unit labor costs` to negative-list ; ADP correctly moved from `updated` to `skipped_unmapped` in re-witness dry-run).
+
+**Verification (MEASURED — doctrine #14)** :
+
+- **pytest 193/193 pass** (35 r144 reconciler + 13 invariants_ichor + 41 session_card_extractors + 47 r141 economic_event_surprise + 64 cross-module regression). Zero regression on r141/r142/r143 base.
+- **tsc N/A** (Python module).
+- **eslint N/A** (Python module).
+- **ADR-017 invariants** all green : no BUY/SELL tokens in `TITLE_FRAGMENT_TO_SERIES` nor `TITLE_FRAGMENT_BLOCKED` ; CI-pinned by `test_no_buy_sell_tokens_in_table` + `test_no_buy_sell_tokens_in_blocked_list` invariants.
+- **pre-commit hooks** : ruff auto-fix 8 errors first pass (sort imports + format) ; re-stage + re-commit cleanly on 2nd pass per doctrine #6.
+
+**Deploy backend** via R-DEPLOY-6 mitigation (lesson #24 SSH-instability — decompose `tar-over-ssh` into 3 short retryable calls : local-tar → scp → ssh-extract+rsync+restart). healthz 200. Feature flag seeded `actuals_reconciler_enabled = true @ 100`.
+
+**Empirical witness (MEASURED, verbatim)** :
+
+```
+$ ssh ichor-hetzner "sudo bash -c '. /etc/ichor/api.env; cd /opt/ichor/api/src && /opt/ichor/api/.venv/bin/python -m ichor_api.cli.run_economic_event_actuals_reconcile --lookback-days 30 --currency USD'"
+2026-05-22 20:12:10 [info] alfred.reconcile.complete examined=108 lookback_days=30 skipped_fetch_failed=0 skipped_no_value=0 skipped_unmapped=90 updated=18
+OK · examined=108 updated=18 unmapped=90 fetch_failed=0 no_value=0
+
+$ ssh ichor-hetzner "sudo -u postgres psql -d ichor -c 'SELECT COUNT(*) FILTER (WHERE actual IS NOT NULL) FROM economic_events WHERE currency=USD AND scheduled_at > now() - interval 30 days;'"
+ non_null
+----------
+       18
+```
+
+**Sample mapped events post-write** : CPI y/y 2026-05-12 → CPIAUCSL value=3.77925 ; Core CPI m/m 2026-05-12 → CPILFESL value=0.37646 ; Non-Farm Employment Change 2026-05-08 → PAYEMS value=115 ; Unemployment Rate 2026-05-08 → UNRATE value=4.3 ; Average Hourly Earnings m/m 2026-05-08 → AHETPI value=0.34247 ; Unemployment Claims 2026-05-07 → ICSA value=200000 ; JOLTS Job Openings 2026-05-05 → JTSJOL value=6866 ; Prelim UoM Consumer Sentiment 2026-05-08 → UMCSENT value=49.8.
+
+**Cron timer LIVE** : `ichor-actuals-reconciler.timer` next fire Sat 2026-05-23 01:15:12 CEST (4×/day cadence). Symlink at `/etc/systemd/system/timers.target.wants/`. Persistent=true so missed fires catch up.
+
+**Honest scope (lesson #37) preserved** :
+
+- `forecast_min` + `forecast_max` columns UNTOUCHED (analyst-range envelope requires consensus poll aggregator, not ALFRED — r145+ scope).
+- First-vintage = release-time value ; T+24h revision overwrite via `actual_revised` column deferred r145+.
+- 90 of 108 events SKIPPED honestly (FOMC speakers, Construction Spending, Crude Oil Inventories, Loan Officer Survey, ISM Services PMI, ADP, etc. — no FRED equivalent OR explicitly negative-listed).
+- EU/UK/JP/AU/CA `actual` providers deferred r145+ (ECB/ONS/BoJ/RBA/StatCan APIs — separate provider research per region).
+
+Voie D held **59 rounds** (zero `import anthropic` r144 ; pure compute service + httpx async to `api.stlouisfed.org` with existing `fred_api_key`). Doctrine #9 dated append, NO new ADR (additive service + cron, established patterns inherited verbatim from `collectors/fred.py` + `cli/run_bundesbank_bund.py`). Doctrine-#9 coord-math ledger UNCHANGED.
+
+**Mission centrale axis impact** : **axis-5 🎯+1 LEVEL FOUNDATION r141 → +1 LEVEL DATA r144** (partial closure US-only ; 12/15 tier-1 events covered ; 3 documented gaps). Axes 1-2 ✅ r123 / 3 ✅ r132+r133 / 4 🎯+1 r130 / **5 🎯+1 LEVEL DATA r144 ⭐** / 6 ✅ CLOSED r142 + visual witness r143 / 7 🎯 LIVE / 8 🎯+1 PARTIAL r131. 3 of 8 axes ✅ CLOSED + axis-5 now has REAL DATA flowing (not just dormant schema).
+
+**Lesson r144 codified (NEW)** : **R-WITNESS-EMPIRICAL** — pre-deploy 2-reviewer/4-reviewer dispatch is INSUFFICIENT to catch all collision-class data-correctness bugs. Reviewers can spot KNOWN patterns (Core Retail Sales, Trimmed Mean CPI) but ADP false-positive was missed by 2 reviewers and revealed ONLY by empirical dry-run on real prod data. Apply as a separate post-deploy review pass : (1) ship to staging/prod with feature flag OFF ; (2) seed flag = true ; (3) run CLI `--dry-run --lookback-days N` ; (4) inspect `alfred.reconcile.updated` log events for unexpected mappings ; (5) IF new collisions found → apply round-2 fix-cluster + commit + re-deploy + re-witness ; (6) only THEN leave flag ON for live cron. Mirror of r142 + r143's empirical witness pattern but extended to "fix-cluster round-2 if witness reveals new issues".
