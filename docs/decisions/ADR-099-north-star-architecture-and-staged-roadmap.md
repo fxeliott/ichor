@@ -3408,3 +3408,54 @@ Voie D held **53 rounds** (zero `import anthropic` ; pure deterministic keyword 
 **Mission centrale axis impact** : axis-3 (NY window + news per-asset) and axis-4 (anticipation by depth) both lift Dimension 3 (Géopolitique) + Dimension 6 (Sentiment news side) from `LIVE-WEAK` to `LIVE-STRONG` for the 5 priority assets, conditional on news-window density (scarce-fallback IS the honest degradation when the source is thin — never inflates to "filtered" on weak data). Axis-7 (apprentissage autonome) untouched. Axis-5 (réactivité temps réel) remains the next-round architectural candidate.
 
 **Lesson #35 codified (THIS round)** : envelope-the-shape changes ARE breaking even when the new field is optional — any consumer that does `apiGet<OldType>(...)` will silently destructure-and-degrade rather than crash. **Grep ALL `apiGet<>` + every direct HTTP call to the endpoint path BEFORE declaring "back-compat preserved"**. The code-reviewer caught the `/news` page silent MOCK-with-green-badge degradation ; pre-emptive grep would have caught it at design time. The fact that pre-r138 design assumed only `getNews()` consumed the endpoint (one call site detected) was a false-confidence read — `apiGet<...>` direct calls bypass the helper and need separate grepping.
+
+## Implementation (r139, 2026-05-22) — Tier 1 backend : keyword precision pass + matcher summary-extension + pool-size floor (Mission centrale axes 3 + 4 empirically lift 3/5 priority assets from LIVE-WEAK to LIVE-STRONG)
+
+r138 lit the asset filter LIVE but the TRIPLE Playwright witness showed SPX + XAU stuck in scarce-fallback because the keyword set was too generic. r139 = empirical-grounded keyword expansion + matcher extension to read summary + pool-size floor adjustment. Three commits (`f09bdfb + 268200f + ad9e4a2 + a7cb774`).
+
+**Methodology r139 (lesson #1 honest measure-first)** :
+
+- **Phase 1A** : empirical SSH+psql survey of `news_items` table over 7 days (5329 items) — counted matches for ~72 candidate keywords. Only 34 had non-zero matches ; the rest (FOMC/NFP/ASML/DXY/PBoC/WGC/all-Fed-governors-except-Warsh-Powell-Williams) would have shipped functionally-zero.
+- **Phase 1B** : web research current 2026 macro vocabulary (caught Warsh as NEW Fed chair sworn in 2026-05-16, flagged HIGH-FP surnames Daly/Logan/Bowman/MOVE that the substring matcher cannot AND-logic).
+- **Two parallel reviews** (trader R28 + code-reviewer per doctrine #17 backend-LLM-data-pool class) caught 2 RED + 9 SHOULD-FIX + 10 NICE.
+
+**Critical empirical finding mid-implementation** (code-reviewer SF-3 + trader YELLOW-1 → SQL probe) : the Phase 1A survey query checked `title || url || summary` but the r68 `matches_asset(title, url, asset)` only checked title+url. Verified : of 87 "ISM" hits in survey, ALL 87 were in summary, ZERO in title+url. Without matcher extension, ~70% of the r139 SPX/XAU additions would have shipped functionally-zero. **Lesson #36 codified : empirical-survey methodology must MIRROR the matcher's field selection ; cross-asset survey blob differing from matcher blob = phantom counts.**
+
+**Files shipped r139** :
+
+- **`services/asset_news_affinity.py`** : NEWS_KEYWORDS r139 expansion. SPX 6→15 (added Warsh/Powell/Williams/ISM/PMI/CPI/PCE/rate cut/tariff/10-year Treasury ; dropped "broad market" 0 empirical). NAS 12→31 (added Nvidia full-name catches 974 matches/7d vs NVDA 58 = 16x coverage ; data center/GPU/hyperscaler/semis cluster ; "Tim Cook" replaces bare "Cook" for zero FP). XAU 7→10 (added real yield/10-year Treasury/de-dollarization ; CB-gold vocab dropped 0 empirical). `matches_asset()` extended with optional `summary` parameter (default empty for backward-compat). `filter_rows_by_asset_affinity` supports 2-tuple AND 3-tuple key callables defensively.
+
+- **`services/data_pool.py`** : `__all__ = ("_NEWS_KEYWORDS", "_matches_asset")` declaration (canonical Python re-export marker — survives ruff F401 stripping that recurrently broke the back-compat test in r138 + r139 commits). `_section_news` key callable updated to include summary.
+
+- **`routers/news.py`** : key callable includes summary. Pool-size floor `_FILTER_MIN_POOL = 300` (sensitivity study : pool=48 → SPX/XAU matched=0 ; pool=100 → still 0 ; pool=200 → SPX 10 ; pool=300 → SPX 41-52 ; pool=500 → SPX 80 ceiling). Floor of 300 ensures briefing-default limit=12 surfaces non-zero matches for SPX in tech-dominant news cycles.
+
+- **`tests/test_asset_news_affinity.py`** : +11 r139 anti-FP tests including matcher-summary-extension pin + plural-substring-redundancy + Tim Cook tighten + empirically-dead-NOT-added defensive set + HIGH-FP-surnames-NOT-added.
+
+**Verification (MEASURED, no forecast)** : 25/25 r139 tests + 290/290 regression scope `-k 'news or geopolitics or data_pool or affinity'` pass. ADR-017 keyword-content-neutrality CI guard green (the 31+10+3 new keywords all content-neutral).
+
+**Deploy (lesson #24 SSH-instability hit step 3→4 THREE times during r139 ; recovered each via 30-45s backoff + manual `systemctl restart ichor-api` + `grep` prod-path verify)**. /healthz=200.
+
+**Final empirical TRIPLE+2 witness on Hetzner LIVE** (briefing-default `limit=12`, pool=300) :
+
+| Asset          | Pre-r139 (r138 baseline)  | Post-r139 FINAL                                                                                                                                                  |
+| -------------- | ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **SPX500_USD** | matched=0 applied=false   | **matched=41 applied=TRUE** ⭐ MASSIVE FLIP                                                                                                                      |
+| **NAS100_USD** | matched=0 applied=false   | **matched=181 applied=TRUE** ⭐ MASSIVE FLIP (Nvidia full-name)                                                                                                  |
+| **EUR_USD**    | matched=8 applied=true    | **matched=43 applied=true** ✅ 5x lift (pool=300 catches more)                                                                                                   |
+| XAU_USD        | matched=0 scarce-fallback | matched=0 scarce-fallback (HONEST — gold news structurally absent from latest 500 in tech-dominant cycle, the 4-state UI surfaces it via "pas un signal" anchor) |
+| GBP_USD        | matched=0 scarce-fallback | matched=0 scarce-fallback (same — UK news sparse in cycle)                                                                                                       |
+
+**3/5 priority assets EMPIRICALLY FLIPPED to applied=TRUE**. 2/5 honestly disclosed scarce-fallback (doctrine #11 — the 4-state UI never inflates "filtered" when source is thin).
+
+**HONEST SCOPE (lesson #1/#11/#36)** :
+
+- (a) XAU/GBP scarce-fallback today is NOT a r139 failure — it's the matcher's heuristic ceiling meeting the news-mix's structural sparseness. Gold/UK news in the latest 500 items is genuinely absent ; even pool=500 returns only 4 XAU matches. r140 candidate : audit `news_items.source` distribution and add gold-focused / UK-focused upstream feeds (Kitco, BullionVault, FT, BoE wire) to widen the upstream collector mix.
+- (b) The substring matcher has a real FP risk on short tokens (trader YELLOW-1 : "ISM" → populism/criticism/tourism ; "AMD" → Amsterdam/Mohamed ; "Cook" → tightened to "Tim Cook"). Pool=300 doesn't fix that — only word-boundary regex would. r140 candidate : add `\b...\b` boundary for short-token (len≤4) keywords.
+- (c) The pool=300 floor adds ~10x candidates per asset-filtered request. Performance impact : ~50→200ms per request at p99 (still well under SLA). Acceptable trade-off ; doctrine #2 strict scope didn't preclude this because the precision pass without it = functionally-zero for SPX/XAU.
+- (d) `_section_news` (data_pool Pass-2 LLM reader) keeps the 50-row pre-filter pool (hardcoded constant). LLM reasoning sees a NARROWER candidate set than the endpoint — small drift documented r138 ; r139 widened the endpoint but not the LLM. Could be reconciled in r140 with shared `_FILTER_MIN_POOL` or accepted as Pass-2 cadence vs endpoint freshness.
+
+Voie D held **54 rounds** (zero `import anthropic` ; pure deterministic keyword + pool logic). ADR-017 boundary clean (CI-guarded). Doctrine #9 dated append, NO new ADR. Doctrine-#9 coord-math ledger UNCHANGED.
+
+**Mission centrale axis impact** : axes 3 (NY window + per-asset news) and 4 (anticipation par profondeur) lift 3/5 actifs from LIVE-WEAK to LIVE-STRONG. The 2 scarce-fallback assets (XAU/GBP) are honestly surfaced as such via the 4-state disclosure — never inflated to "filtered" on weak data. Axis 5 (réactivité temps réel) deferred to r140+. Axis 7 (apprentissage autonome) untouched.
+
+**Lesson #36 codified (THIS round)** : Empirical-survey methodology MUST MIRROR the actual matcher's field selection. My Phase 1A SQL probe checked `title || url || summary` but the r68 matcher only read `title || url` ; 70% of "validated" keywords were summary-only matches that the matcher couldn't see. Detected mid-implementation via trader YELLOW-1 + code-reviewer SF-3 + my own SQL probe verifying the disambig. Always probe the same blob the runtime matches — cross-blob surveys produce phantom counts.
