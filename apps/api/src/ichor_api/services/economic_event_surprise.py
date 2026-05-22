@@ -244,9 +244,49 @@ def classify_surprise(
     # classification couldn't fire. Epsilon guard (code-reviewer r141 S5)
     # parity with W99 `_no_nan` discipline -- rejects sub-normal consensus
     # values that would overflow the division.
+    #
+    # r146 R-WITNESS-EMPIRICAL round-2 fix-cluster (NEW) : defensive unit-
+    # scale mismatch heuristic. The r145 empirical witness on prod data
+    # revealed FRED ALFRED returns bare numeric in series-native units
+    # (e.g. PAYEMS = thousands of persons -> 115 means 115K jobs), while
+    # FF stores forecast with explicit K/M/B suffixes parsed to expanded
+    # ints (e.g. "65K" -> 65000). The r141 classifier divides these as if
+    # same-scale -> magnitude_pct = (115 - 65000) / 65000 * 100 = -99.8%
+    # which is visible nonsense on the briefing.
+    #
+    # Heuristic : if max(|actual|, |consensus|) / min(...) > 100x, the two
+    # values are almost certainly in DIFFERENT unit scales (macro
+    # deviations beyond 100x consensus essentially never happen in
+    # tier-1 macro releases). Suppress magnitude_pct + surface the
+    # `unit_scale_mismatch` sentinel in `parse_failures` so downstream
+    # consumers / observability can track provider unit drift.
+    #
+    # The proper architectural fix is upstream r147+ : r144 reconciler
+    # should normalize FRED native units to FF abbreviated convention
+    # (per-series unit map : PAYEMS *1000, HOUST *1000, PERMIT *1000,
+    # etc.) before storage. r146 ships the defensive UI-safe heuristic
+    # immediately while the data-layer fix lands.
     magnitude_pct: float | None = None
     if actual_f is not None and consensus_f is not None and abs(consensus_f) > 1e-9:
-        magnitude_pct = (actual_f - consensus_f) / abs(consensus_f) * 100.0
+        # Detect unit-scale mismatch BEFORE computing magnitude_pct.
+        # Epsilon guard avoids div-by-zero on `actual_f == 0` edge case
+        # (a published actual of exactly zero is rare but legal -- e.g.
+        # "Construction Spending m/m" can print 0.0). When actual is
+        # zero, the ratio test trivially trips for any non-zero
+        # consensus -- accept as legitimate-zero and let the geometric
+        # math run (magnitude_pct will be -100% which is the honest
+        # geometric framing of "actual was 100% below consensus").
+        if abs(actual_f) > 1e-9:
+            scale_ratio = max(abs(actual_f), abs(consensus_f)) / min(
+                abs(actual_f), abs(consensus_f)
+            )
+            if scale_ratio > 100.0:
+                parse_failures.add("unit_scale_mismatch")
+            else:
+                magnitude_pct = (actual_f - consensus_f) / abs(consensus_f) * 100.0
+        else:
+            # Legitimate-zero actual : compute magnitude_pct honestly.
+            magnitude_pct = (actual_f - consensus_f) / abs(consensus_f) * 100.0
 
     if actual_f is None:
         return SurpriseClassification(

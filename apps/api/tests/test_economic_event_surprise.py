@@ -348,3 +348,151 @@ def test_transcript_verbatim_3pct_inside_3p2_outside() -> None:
     assert material_catalyst.state == "above_range"
     assert material_catalyst.range_breach is not None
     assert math.isclose(material_catalyst.range_breach, 0.2, rel_tol=1e-9)
+
+
+# ── r146 R-WITNESS-EMPIRICAL round-2 fix-cluster : unit-scale mismatch ──
+#
+# The r145 empirical Playwright witness on prod data revealed FRED ALFRED
+# returns bare numeric in series-native units (e.g. PAYEMS=thousands of
+# persons -> 115 means 115K jobs), while FF stores forecast with K/M/B
+# suffixes that parse to expanded ints (65K -> 65000). The r141 classifier
+# divided these as if same-scale -> visible nonsense (-99.8% magnitude on
+# the briefing). The r146 defensive heuristic suppresses magnitude_pct +
+# surfaces `unit_scale_mismatch` sentinel when the ratio of |actual| to
+# |consensus| exceeds 100x (macro deviations beyond 100x essentially never
+# happen in tier-1 macro releases).
+#
+# Tests below pin (a) the canonical buggy cases caught empirically, (b) the
+# legitimate large deviations that must NOT trip the heuristic, and (c) the
+# legitimate-zero edge case where math should still run.
+
+
+def test_unit_scale_mismatch_payems_bare_vs_K() -> None:
+    """NFP empirical case : FRED bare 115 (= 115K jobs) vs FF '65K' (= 65000).
+    Ratio = 65000/115 = 565x -> suppress + surface sentinel."""
+    out = classify_surprise(
+        actual="115",
+        consensus="65K",
+        forecast_min=None,
+        forecast_max=None,
+    )
+    assert out.magnitude_pct is None
+    assert "unit_scale_mismatch" in out.parse_failures
+    # Parsed values still surfaced for debugging.
+    assert out.actual == 115.0
+    assert out.consensus == 65000.0
+
+
+def test_unit_scale_mismatch_building_permits_bare_vs_M() -> None:
+    """Building Permits empirical case : FRED bare 1442.0 vs FF '1.38M' = 1380000.
+    Ratio = 957x -> suppress."""
+    out = classify_surprise(
+        actual="1442.0",
+        consensus="1.38M",
+        forecast_min=None,
+        forecast_max=None,
+    )
+    assert out.magnitude_pct is None
+    assert "unit_scale_mismatch" in out.parse_failures
+
+
+def test_unit_scale_mismatch_housing_starts_bare_vs_M() -> None:
+    """Housing Starts empirical case : 1465.0 vs '1.42M' = 1420000 -> 969x."""
+    out = classify_surprise(
+        actual="1465.0",
+        consensus="1.42M",
+        forecast_min=None,
+        forecast_max=None,
+    )
+    assert out.magnitude_pct is None
+    assert "unit_scale_mismatch" in out.parse_failures
+
+
+def test_no_unit_scale_mismatch_when_both_bare_expanded() -> None:
+    """Unemployment Claims empirical case : actual 209000 (FRED bare, in
+    raw count) vs FF '210K' -> 210000. Ratio = 1.005x -> KEEP, real -0.5%
+    surprise."""
+    out = classify_surprise(
+        actual="209000",
+        consensus="210K",
+        forecast_min=None,
+        forecast_max=None,
+    )
+    assert out.magnitude_pct is not None
+    assert math.isclose(out.magnitude_pct, -0.476, abs_tol=0.01)
+    assert "unit_scale_mismatch" not in out.parse_failures
+
+
+def test_no_unit_scale_mismatch_when_both_in_same_scale() -> None:
+    """UoM Sentiment empirical case : actual 49.8 vs forecast 48.2.
+    Ratio = 1.03x -> KEEP, real +3.3% surprise."""
+    out = classify_surprise(
+        actual="49.8",
+        consensus="48.2",
+        forecast_min=None,
+        forecast_max=None,
+    )
+    assert out.magnitude_pct is not None
+    assert math.isclose(out.magnitude_pct, 3.32, abs_tol=0.01)
+    assert "unit_scale_mismatch" not in out.parse_failures
+
+
+def test_no_unit_scale_mismatch_when_small_consensus_ratio_under_100x() -> None:
+    """Industrial Production small-consensus amplification : actual 0.678
+    vs forecast 0.3. Ratio = 2.26x < 100x -> KEEP. Math is geometrically
+    correct +126% even if UX-confusing (r147+ refinement)."""
+    out = classify_surprise(
+        actual="0.678",
+        consensus="0.3",
+        forecast_min=None,
+        forecast_max=None,
+    )
+    assert out.magnitude_pct is not None
+    assert math.isclose(out.magnitude_pct, 126.0, abs_tol=0.5)
+    assert "unit_scale_mismatch" not in out.parse_failures
+
+
+def test_zero_actual_does_not_trip_unit_scale_heuristic() -> None:
+    """Edge case : a published actual of exactly zero is rare but legal
+    (e.g. Construction Spending m/m can print 0.0). The 100x ratio test
+    would trivially trip via division-by-zero in min(0, X). The classifier
+    handles this branch via `abs(actual_f) > 1e-9` guard -> falls through
+    to honest magnitude_pct computation (returns -100% which is the
+    honest geometric framing of "actual was 100% below consensus")."""
+    out = classify_surprise(
+        actual="0.0",
+        consensus="0.5",
+        forecast_min=None,
+        forecast_max=None,
+    )
+    # No unit-scale sentinel.
+    assert "unit_scale_mismatch" not in out.parse_failures
+    # Magnitude computed honestly : (0 - 0.5) / 0.5 * 100 = -100%.
+    assert out.magnitude_pct is not None
+    assert math.isclose(out.magnitude_pct, -100.0, abs_tol=0.01)
+
+
+def test_unit_scale_threshold_boundary_at_100x_exact() -> None:
+    """Boundary test : exact 100x ratio. Heuristic is STRICT GREATER THAN
+    100x, so exactly 100x must NOT trip (legitimate large surprise)."""
+    out = classify_surprise(
+        actual="1",
+        consensus="100",
+        forecast_min=None,
+        forecast_max=None,
+    )
+    assert out.magnitude_pct is not None
+    assert math.isclose(out.magnitude_pct, -99.0, abs_tol=0.01)
+    assert "unit_scale_mismatch" not in out.parse_failures
+
+
+def test_unit_scale_threshold_just_above_100x_trips() -> None:
+    """Boundary test : ratio = 100.5x trips the heuristic."""
+    out = classify_surprise(
+        actual="1",
+        consensus="100.5",
+        forecast_min=None,
+        forecast_max=None,
+    )
+    assert out.magnitude_pct is None
+    assert "unit_scale_mismatch" in out.parse_failures
