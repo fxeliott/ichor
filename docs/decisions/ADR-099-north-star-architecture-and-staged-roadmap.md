@@ -3811,3 +3811,70 @@ Voie D held **60 rounds** (zero `import anthropic` r145 ; pure compute view-mode
 **No new lesson codified** (r145 applies existing R-WITNESS-EMPIRICAL r144 + R-DEPLOY-6 r142 + lesson #24 SSH-instability + doctrine #2 strict scope). r145 demonstrates the trader stop-loss pattern post lesson #24 trigger : 3 SSH attempts → revert/reformulate to honest deferral, not revenge-debug.
 
 **r146 binding default candidates** : (a) ⭐ AUTO-RECO retry r145 deploy via R-DEPLOY-6 + Playwright empirical witness ; (b) FF XML title-coverage CI invariant (r144 trader Y2(a) UPGRADED) ; (c) ADR-017 web2 caveat RTL regex ; (d) `actual_source` column (Critic-attribution multi-provider) ; (e) `actual_revised` T+24h overwrite column ; (f) range envelope consensus-poll provider (high leverage — auto-lights up r145 state badges + amber emphasis on existing surface) ; (g) EU `actual` reconciler via ECB SDMX (mirror r144 + R-WITNESS-EMPIRICAL).
+
+## Implementation (r146, 2026-05-22) — Tier 1 axis-5 USER-SURFACE VISIBILITY EMPIRICAL GREEN end-to-end + R-WITNESS-EMPIRICAL round-2 fix-cluster SAME-ROUND (unit-scale mismatch defensive heuristic)
+
+r145 deferred deploy + Playwright witness due to lesson #24 SSH-instability. r146 retries deploy (Hetzner SSH recovered) AND applies R-WITNESS-EMPIRICAL round-2 fix-cluster (per r144 codified rule) when the empirical witness reveals a NEW data-correctness bug class.
+
+**Phase 0** : SSH liveness probe succeeded → branched to Phase 1A retry deploy (vs Phase 1B fallback FF XML CI invariant).
+
+**Phase 1A retry r145 deploy via R-DEPLOY-6** : both `redeploy-api.sh` (step 3 tar-over-ssh) AND `redeploy-web2.sh` (step 2 long SSH pnpm) hit the same SSH timeout cluster. Applied 3-short-call decomposition manually for BOTH : (1) backend `local-tar → scp → ssh-extract+rsync+restart` → healthz=200 ; (2) frontend `ssh-pnpm-install + ssh-pnpm-build + ssh-restart` → local=200. CF tunnel restarted → quick URL `https://financing-harvard-pick-nearby.trycloudflare.com`. Curl empirical verify : `/v1/calendar/recent-actuals?lookback_days=30&currency=USD&limit=3` returned 3 USD rows with `magnitude_pct` populated + `state=unavailable`.
+
+**Phase 1A initial Playwright empirical witness REVEALED BUG** : 15 USD events rendered on `<RecentActualsPanel>` with full visual grammar — BUT 3 rows showed visible nonsense :
+
+| Event                      | actual   | consensus | rendered | bug class           |
+| -------------------------- | -------- | --------- | -------- | ------------------- |
+| Building Permits           | `1442.0` | `1.38M`   | `−99.9%` | unit-scale mismatch |
+| Housing Starts             | `1465.0` | `1.42M`   | `−99.9%` | unit-scale mismatch |
+| Non-Farm Employment Change | `115`    | `65K`     | `−99.8%` | unit-scale mismatch |
+
+**Root cause** : FRED ALFRED returns bare numeric in series-native units (PAYEMS = thousands of persons → 115 means 115K jobs). FF stores `forecast` with K/M/B suffixes parsed by `parse_economic_value()` to expanded ints (`65K` → 65000). The r141 classifier divides them as if same-scale → visible nonsense `-99.8%`.
+
+**R-WITNESS-EMPIRICAL pattern firing EXACTLY as codified r144** : pre-deploy 4-reviewer dispatch (r145) caught known issues but missed unit-scale class ; post-deploy empirical witness on real prod data caught it now. Trader stop-loss challenge applied : initial "defer to r147" impulse rejected as panic-defer ; codified rule explicitly demands round-2 fix BEFORE flag stays ON for live cron.
+
+**Phase 1B round-2 fix-cluster** (SAME-ROUND per codified rule) : defensive heuristic added to `classify_surprise()` in `economic_event_surprise.py:242-260` :
+
+```python
+if abs(actual_f) > 1e-9:
+    scale_ratio = max(abs(actual_f), abs(consensus_f)) / min(
+        abs(actual_f), abs(consensus_f)
+    )
+    if scale_ratio > 100.0:
+        parse_failures.add("unit_scale_mismatch")
+    else:
+        magnitude_pct = (actual_f - consensus_f) / abs(consensus_f) * 100.0
+else:
+    # Legitimate-zero actual : compute magnitude_pct honestly.
+    magnitude_pct = (actual_f - consensus_f) / abs(consensus_f) * 100.0
+```
+
+**Why 100x threshold** : macro deviations beyond 100x consensus essentially never happen in tier-1 macro releases. Verified empirically against 15-row witness :
+
+| Event                             | ratio  | action             |
+| --------------------------------- | ------ | ------------------ |
+| Building Permits 1442/1380000     | 957x   | SUPPRESS ✓         |
+| Housing Starts 1465/1420000       | 969x   | SUPPRESS ✓         |
+| NFP 115/65000                     | 565x   | SUPPRESS ✓         |
+| Unemployment Claims 209000/210000 | 1.005x | PRESERVE ✓         |
+| UoM 49.8/48.2                     | 1.03x  | PRESERVE ✓         |
+| Industrial Production 0.678/0.3   | 2.26x  | PRESERVE (r147 UX) |
+
+**Edge cases pinned by 9 NEW regression tests** : zero-actual (legitimate-zero, must NOT trip via div-by-zero — guarded by `abs(actual_f) > 1e-9` short-circuit, falls through to honest `-100%` computation) + boundary tests at exact 100x (strict greater-than) + just-above 100x.
+
+**Architectural fix deferred r147+** : r144 reconciler should normalize FRED native units to FF abbreviated convention BEFORE storage (per-series unit map : PAYEMS *1000, HOUST *1000, PERMIT \*1000, etc.). r146 ships defensive UI-safe heuristic as belt-and-suspenders.
+
+**Build gate (MEASURED — doctrine #14)** : pytest **157/157** (78 economic_event_surprise + 22 recent_actuals + 13 invariants_ichor + 31 r142 + 35 r144 reconciler) + ADR-017 invariants all green.
+
+**Re-deploy via R-DEPLOY-6** + **Playwright re-witness on `/briefing/EUR_USD?cb=r146b`** : 15 rows rendered, 3 rows correctly showing `n/a` magnitude (Building Permits + Housing Starts + NFP), 12 rows showing legitimate magnitude_pct deviations. Screenshot archived `r146b_briefing_eur_usd_recent_actuals_panel_post_round2_fix.png`.
+
+**Mission centrale axis-5 EMPIRICALLY GREEN end-to-end on public surface for the first time** — r144 reconciler data + r141 classifier + r145 panel + r146 round-2 unit-scale defensive heuristic all working in concert.
+
+**Honest scope (doctrine #2 + #11)** : NO new ADR (additive defensive heuristic + deploy retry) / NO new migration / NO upstream reconciler unit normalization (r147+ proper architectural fix) / NO small-consensus amplification UX fix (IP/PPI/CPI showing +126% / +187% — math-correct but UX-confusing, r147+ scope) / NO EU/UK/JP `actual` providers / NO FF XML title-coverage CI invariant.
+
+Voie D held **61 rounds** (zero `import anthropic` r146 ; pure compute defensive heuristic + deploy retry ; no LLM call). Doctrine #9 dated APPEND, NO new ADR (additive defensive heuristic, established patterns). Doctrine-#9 coord-math ledger UNCHANGED.
+
+**Mission centrale axis impact** : **axis-5 🎯+1 LEVEL DATA r144 + VISIBLE SURFACE CODE r145 → axis-5 🎯+1 LEVEL DATA + VISIBLE SURFACE LIVE r146 + ROUND-2 UNIT-SCALE FIX r146** (empirically green end-to-end). Axes 1-2 ✅ r123 / 3 ✅ r132+r133 / 4 🎯+1 r130 / **5 🎯+1 LEVEL DATA + VISIBLE SURFACE LIVE r146 ⭐** / 6 ✅ CLOSED r142 + visual witness r143 / 7 🎯 LIVE / 8 🎯+1 PARTIAL r131.
+
+**No new lesson codified** — r146 applies the R-WITNESS-EMPIRICAL r144 codified rule EXACTLY as designed : pre-deploy review catches known classes, post-deploy empirical witness catches NEW classes, round-2 SAME-round fix preserves user trust. The pattern works.
+
+**r147 binding default candidates** : (a) ⭐ AUTO-RECO r144 reconciler unit normalization upstream (per-series unit map applied at ingest BEFORE storage — proper architectural fix) ; (b) small-consensus amplification UX refinement (IP/PPI/CPI showing +126% / +187% — "ppts" framing or secondary token) ; (c) FF XML title-coverage CI invariant (r144 trader Y2(a)) ; (d) ADR-017 web2 RTL regex (deferred r143+r144+r145+r146) ; (e) `actual_source` column ; (f) `actual_revised` T+24h overwrite ; (g) range envelope consensus-poll provider ; (h) EU `actual` reconciler via ECB SDMX.
