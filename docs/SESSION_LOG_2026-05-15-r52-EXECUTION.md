@@ -210,7 +210,7 @@ Hetzner state changed (deploys, no code changes count) :
 >
 > **Rationale** : trader rule "no edge no commit" extends to ops. A commit that's never deployed = paper trade. The 2-day blackout 2026-05-13 → 2026-05-15 happened because cloudflared dying went unnoticed = same class of "drift between code state and deployed state" that R57 prevents.
 
-R57 honors META_INSIGHT subagent B wave 2 : _"80% des frictions r45-r50 viennent de upstream data quality, pas de l'orchestration"_ + adds the deploy-gap dimension.
+R57 honors META*INSIGHT subagent B wave 2 : *"80% des frictions r45-r50 viennent de upstream data quality, pas de l'orchestration"\_ + adds the deploy-gap dimension.
 
 ---
 

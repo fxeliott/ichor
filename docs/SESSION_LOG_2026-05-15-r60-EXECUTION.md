@@ -30,10 +30,9 @@ r60 ships 2 additional KeyLevel kinds (call_wall + put_wall) réutilisant le pat
 - `compute_put_wall_levels(session) -> list[KeyLevel]` batch (3 zones : approach / breach below / safely above)
 - `WALL_APPROACH_DELTA_PCT = 0.005` (within 0.5% = magnetism likely)
 
-**types.py** : KeyLevelKind enum +2 values (`gex_call_wall`, `gex_put_wall`).
-****init**.py** : 2 new exports.
+**types.py** : KeyLevelKind enum +2 values (`gex_call_wall`, `gex_put_wall`). \***\*init**.py** : 2 new exports.
 **data_pool.py** : 2 new batch loops after gamma_flip (consistent ordering).
-**routers/key_levels.py** : Literal kind +2 + 2 new batch loops in orchestrator.
+**routers/key_levels.py\*\* : Literal kind +2 + 2 new batch loops in orchestrator.
 
 12 tests : constants + None paths + 3 zones per wall (approach/breach/safe) + multi-asset batch + defensive (unknown asset, zero wall).
 

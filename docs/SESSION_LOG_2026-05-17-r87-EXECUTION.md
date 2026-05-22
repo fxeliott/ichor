@@ -75,8 +75,8 @@ end-to-end (real fresh briefing 2026-05-17). "Cause B" was a
 misdiagnosis; the actual session-cards blocker (30-min timeout) is fixed
 & reversible. Generation pipeline restored; full empirical end-to-end
 confirmation arrives automatically at today's ~12:00 CEST scheduled
-pre_ny fires (and subsequent windows). Only Eliot residual = the
-_optional, non-blocking_ `/healthz` CF bypass. Voie D + ADR-017 held;
+pre*ny fires (and subsequent windows). Only Eliot residual = the
+\_optional, non-blocking* `/healthz` CF bypass. Voie D + ADR-017 held;
 zero Anthropic API.
 
 ## Next

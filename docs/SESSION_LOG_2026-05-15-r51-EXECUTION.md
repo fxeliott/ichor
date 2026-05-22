@@ -216,7 +216,7 @@ These items from MASTER_READINESS were explicitly out-of-scope (need Eliot decis
 
 ## R51 doctrinal pattern codified : "Plan-announce → Execute → Self-checklist"
 
-This round explicitly honored META_INSIGHT #1 from subagent P wave 2 : _"tu es sûr loop = request for VISIBILITY OF PLAN BEFORE work, not yes/no"_. The plan was announced 1-phrase + structured 4-block + sprint-by-sprint BEFORE any code touch. Eliot saw the plan, the work executed accordingly, and this ship summary closes the loop.
+This round explicitly honored META*INSIGHT #1 from subagent P wave 2 : *"tu es sûr loop = request for VISIBILITY OF PLAN BEFORE work, not yes/no"\_. The plan was announced 1-phrase + structured 4-block + sprint-by-sprint BEFORE any code touch. Eliot saw the plan, the work executed accordingly, and this ship summary closes the loop.
 
 **R56 (NEW)** : Before exécution, annoncer le plan en 4-block + sprints atomiques + scope explicit (in vs out). After execution, self-checklist explicit fait/pas-applicable. This pattern reduces the "tu es sûr" frustration by giving Eliot the visibility he asks for.
 

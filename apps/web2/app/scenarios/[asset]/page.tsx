@@ -289,7 +289,7 @@ function CounterfactualButton() {
   return (
     <button
       type="button"
-      className="inline-flex items-center gap-2 rounded-md bg-[var(--color-accent-cobalt)] px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-bull)]"
+      className="inline-flex items-center gap-2 rounded-md bg-[var(--color-accent-cobalt-deep)] px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-bull)]"
     >
       <span aria-hidden="true">⟁</span>
       Counterfactual Pass 5
