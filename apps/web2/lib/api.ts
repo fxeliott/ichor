@@ -119,6 +119,13 @@ export interface ConfluenceDriverSchema {
   factor: string;
   /** Signed in [-1, +1] — positive = supports the bias_direction. */
   contribution: number;
+  /** r142 — 1-line explanation citing values + source. Populated by the
+   *  engine layer (`assess_confluence()` Driver dataclass) ; null for
+   *  legacy LLM-narrative entries (pre-r142 cards). */
+  evidence?: string | null;
+  /** r142 — Provenance tag (e.g. `fred:DGS10`, `cot:CFTC_EUR`). Engine
+   *  layer only ; null for LLM-narrative. */
+  source?: string | null;
 }
 
 export interface IdeaSetSchema {

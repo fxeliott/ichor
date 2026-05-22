@@ -13,13 +13,30 @@
 
 import { describe, expect, it } from "vitest";
 
-import type { Scenario } from "@/lib/api";
+import type { ConfluenceDriverSchema, Scenario } from "@/lib/api";
 import {
+  ENGINE_DRIVER_MIN_ABS_CONTRIBUTION,
+  ENGINE_DRIVER_TOP_N,
   SCENARIO_HHI_CONCENTRATED,
   SCENARIO_HHI_MODERATE,
   concentrationBand,
   deriveConvictionGrounding,
 } from "@/lib/convictionGrounding";
+
+/** Build a ConfluenceDriverSchema with engine-layer evidence (so the
+ *  `evidence != null` engine-only filter accepts it). */
+function engineDriver(
+  factor: string,
+  contribution: number,
+  source = `src:${factor}`,
+): ConfluenceDriverSchema {
+  return {
+    factor,
+    contribution,
+    evidence: `engine evidence for ${factor}`,
+    source,
+  };
+}
 
 /** Build a 7-bucket scenario distribution from a probability map. Any
  * omitted bucket is 0. The canonical 7 labels are filled in order. */
@@ -279,6 +296,177 @@ describe("deriveConvictionGrounding — empty detection (honest silent absence)"
     expect(onlyMech.empty).toBe(false);
     expect(onlyScen.empty).toBe(false);
     expect(onlyVerdict.empty).toBe(false);
+  });
+});
+
+describe("deriveConvictionGrounding — engine drivers (r142)", () => {
+  it("counts drivers above |0.2| threshold + returns top-N sorted by |contribution|", () => {
+    const g = deriveConvictionGrounding({
+      mechanisms: [],
+      scenarios: [],
+      critic_verdict: null,
+      confluence_drivers: [
+        engineDriver("rate_diff", 0.45), // meaningful
+        engineDriver("cot", -0.32), // meaningful
+        engineDriver("vix_term", 0.55), // meaningful, largest
+        engineDriver("microstructure_ofi", 0.1), // below threshold
+        engineDriver("daily_levels", -0.05), // below threshold
+        engineDriver("funding_stress", 0.25), // meaningful, smaller
+      ],
+    });
+    expect(g.meaningfulDriverCount).toBe(4);
+    expect(g.topDrivers).toHaveLength(3);
+    expect(g.topDrivers.map((d) => d.factor)).toEqual(["vix_term", "rate_diff", "cot"]);
+    // Largest |contribution| first.
+    expect(g.topDrivers.map((d) => d.contribution)).toEqual([0.55, 0.45, -0.32]);
+  });
+
+  it("respects ENGINE_DRIVER_TOP_N cap (top-3 only even when more meaningful)", () => {
+    const g = deriveConvictionGrounding({
+      mechanisms: [],
+      scenarios: [],
+      critic_verdict: null,
+      confluence_drivers: [
+        engineDriver("a", 0.9),
+        engineDriver("b", 0.8),
+        engineDriver("c", 0.7),
+        engineDriver("d", 0.6),
+        engineDriver("e", 0.5),
+      ],
+    });
+    expect(g.meaningfulDriverCount).toBe(5);
+    expect(g.topDrivers).toHaveLength(ENGINE_DRIVER_TOP_N);
+    expect(g.topDrivers.map((d) => d.factor)).toEqual(["a", "b", "c"]);
+  });
+
+  it("returns 0 / [] for null confluence_drivers", () => {
+    const g = deriveConvictionGrounding({
+      mechanisms: [],
+      scenarios: [],
+      critic_verdict: null,
+      confluence_drivers: null,
+    });
+    expect(g.meaningfulDriverCount).toBe(0);
+    expect(g.topDrivers).toEqual([]);
+  });
+
+  it("returns 0 / [] for missing confluence_drivers (legacy pre-r142 callers)", () => {
+    const g = deriveConvictionGrounding({
+      mechanisms: [],
+      scenarios: [],
+      critic_verdict: null,
+      // confluence_drivers intentionally absent (legacy).
+    });
+    expect(g.meaningfulDriverCount).toBe(0);
+    expect(g.topDrivers).toEqual([]);
+  });
+
+  it("returns 0 / [] for empty list", () => {
+    const g = deriveConvictionGrounding({
+      mechanisms: [],
+      scenarios: [],
+      critic_verdict: null,
+      confluence_drivers: [],
+    });
+    expect(g.meaningfulDriverCount).toBe(0);
+    expect(g.topDrivers).toEqual([]);
+  });
+
+  it("filters LLM-narrative entries (no evidence) so the tile stays engine-only", () => {
+    const g = deriveConvictionGrounding({
+      mechanisms: [],
+      scenarios: [],
+      critic_verdict: null,
+      confluence_drivers: [
+        engineDriver("rate_diff", 0.5), // engine — kept
+        // LLM-narrative (evidence absent / null) — skipped per r142 engine-only filter.
+        { factor: "llm_only", contribution: 0.9 },
+        { factor: "llm_with_null_evidence", contribution: 0.8, evidence: null },
+      ],
+    });
+    expect(g.meaningfulDriverCount).toBe(1);
+    expect(g.topDrivers.map((d) => d.factor)).toEqual(["rate_diff"]);
+  });
+
+  it("treats non-finite contribution defensively (skipped)", () => {
+    const g = deriveConvictionGrounding({
+      mechanisms: [],
+      scenarios: [],
+      critic_verdict: null,
+      confluence_drivers: [
+        engineDriver("ok", 0.5),
+        { factor: "nan", contribution: Number.NaN, evidence: "ev" },
+        { factor: "inf", contribution: Number.POSITIVE_INFINITY, evidence: "ev" },
+      ],
+    });
+    // NaN passes the Number.isFinite guard? POSITIVE_INFINITY also fails Number.isFinite.
+    // Both skipped → only "ok" counted (and it's >0.2 → meaningful).
+    expect(g.meaningfulDriverCount).toBe(1);
+    expect(g.topDrivers.map((d) => d.factor)).toEqual(["ok"]);
+  });
+
+  it("respects exclusive |contribution| > 0.2 threshold (exactly 0.2 is BELOW)", () => {
+    // Boundary contract : the confluence_engine docstring says ">|0.2|".
+    // 0.2 itself is NOT meaningful (matches the engine's exclusive
+    // threshold semantic — if the engine considers 0.2 as not strong,
+    // the panel must mirror that).
+    const g = deriveConvictionGrounding({
+      mechanisms: [],
+      scenarios: [],
+      critic_verdict: null,
+      confluence_drivers: [
+        engineDriver("just_above", 0.21),
+        engineDriver("just_below", 0.2),
+        engineDriver("neg_just_above", -0.201),
+        engineDriver("neg_just_below", -0.2),
+      ],
+    });
+    expect(g.meaningfulDriverCount).toBe(2);
+    // Top sort by |contribution| desc : |0.21| = 0.21 > |0.201| = 0.201
+    // → just_above first, neg_just_above second. just_below (0.2) and
+    // neg_just_below (-0.2) excluded by exclusive `>` threshold.
+    expect(g.topDrivers.map((d) => d.factor)).toEqual(["just_above", "neg_just_above"]);
+  });
+
+  it("ENGINE_DRIVER_MIN_ABS_CONTRIBUTION matches the engine '>|0.2|' rule + TOP_N is 3", () => {
+    expect(ENGINE_DRIVER_MIN_ABS_CONTRIBUTION).toBe(0.2);
+    expect(ENGINE_DRIVER_TOP_N).toBe(3);
+  });
+
+  it("empty:true requires ALL dimensions absent INCLUDING engine drivers (r142)", () => {
+    // Engine drivers ALONE keep the panel visible.
+    const onlyEngine = deriveConvictionGrounding({
+      mechanisms: [],
+      scenarios: [],
+      critic_verdict: null,
+      confluence_drivers: [engineDriver("rate_diff", 0.5)],
+    });
+    expect(onlyEngine.empty).toBe(false);
+
+    // Engine drivers all below threshold + no other dimension → empty:true.
+    const allBelowThreshold = deriveConvictionGrounding({
+      mechanisms: [],
+      scenarios: [],
+      critic_verdict: null,
+      confluence_drivers: [engineDriver("a", 0.1), engineDriver("b", -0.1)],
+    });
+    expect(allBelowThreshold.empty).toBe(true);
+  });
+
+  it("does NOT regress r134 3-tile silent-absence behaviour when confluence_drivers absent", () => {
+    // The r134 contract : a legacy card with no engine drivers still
+    // surfaces the 3 original tiles when their data is present.
+    const g = deriveConvictionGrounding({
+      mechanisms: [{ claim: "x", sources: ["A"] }],
+      scenarios: [],
+      critic_verdict: "approved",
+      // confluence_drivers intentionally absent (legacy).
+    });
+    expect(g.mechanismCount).toBe(1);
+    expect(g.criticVerdict).toBe("approved");
+    expect(g.meaningfulDriverCount).toBe(0);
+    expect(g.topDrivers).toEqual([]);
+    expect(g.empty).toBe(false); // r134 dimensions populated → visible
   });
 });
 

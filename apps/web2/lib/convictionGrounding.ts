@@ -1,7 +1,8 @@
 /**
  * lib/convictionGrounding.ts — Pure-fn derivation of the QUALITATIVE
  * grounding behind a session-card's `conviction_pct` (r134 — Mission
- * centrale axis 6 "Conviction level mesuré + justifié").
+ * centrale axis 6 "Conviction level mesuré + justifié" ; r142 closes
+ * the axis fully by surfacing the engine-computed `confluence_drivers`).
  *
  * ════════════════════════════════════════════════════════════════════
  * WHY THIS IS NOT A NUMERIC DECOMPOSITION (doctrine #11 calibrated honesty)
@@ -12,25 +13,29 @@
  * There is NO honest way to split "72%" into "macro 32% / flux 28% /
  * ..." — those weights were never produced by the model, so fabricating
  * them would present precision that does not exist (a textbook calibrated-
- * honesty violation). The deterministic `confluence_engine` drivers DO
- * exist but `SessionCard.drivers` is never wired by the orchestrator
- * (`confluence_drivers` is `null` in every production card — verified
- * empirically against `/v1/sessions/EUR_USD` on 2026-05-21).
+ * honesty violation).
  *
- * So instead of a fake split, this module surfaces the REAL, populated,
- * sourced fields that HONESTLY ground the read — descriptive context for
- * "how well-founded is today's conviction", NEVER a directional call :
+ * The deterministic `confluence_engine` drivers ARE a legitimate
+ * independent reading (sourced + signed contributions per factor). r134
+ * surfaced 3 alternative dimensions because `SessionCard.drivers` was
+ * never wired by the orchestrator. r142 wires the orchestrator hook
+ * (`cli.run_session_card` calls `assess_confluence()` and persists the
+ * result to `session_card_audit.drivers` JSONB) so the panel can ADD a
+ * 4th dimension : the engine-computed drivers — NOT a decomposition of
+ * `conviction_pct` (that would still violate doctrine #11), but an
+ * INDEPENDENT deterministic confluence read alongside the LLM scalar.
  *
- *   1. CONFLUENCE  — count of independent sourced `mechanisms[]` + the
- *      count of DISTINCT data sources cited across them. More independent
- *      sourced drivers pointing the same way = deeper analytical grounding.
+ *   1. CONFLUENCE     — count of independent sourced `mechanisms[]` + the
+ *      count of DISTINCT data sources cited across them.
  *   2. SCENARIO CLARITY — the Pass-6 7-bucket distribution's concentration
- *      (Herfindahl-Hirschman index Σp²). A peaked distribution (one
- *      dominant scenario) = a clear central read ; a flat one = wide
- *      uncertainty. This is the honest "how concentrated is the
- *      probability mass" measure.
+ *      (Herfindahl-Hirschman index Σp²).
  *   3. CRITIC VERDICT — whether the internal Critic pass approved /
- *      amended / blocked the card. The devil's-advocate stamp.
+ *      amended / blocked the card.
+ *   4. ENGINE DRIVERS (r142) — count of engine factors with |contribution|
+ *      above the confluence_engine 0.2 threshold + top-3 names with their
+ *      signed contributions. Independent second opinion sourced from
+ *      deterministic factor computations, NOT a fabricated split of
+ *      `conviction_pct`.
  *
  * ADR-017 boundary : every dimension is a RETROSPECTIVE descriptor of the
  * inputs that fed the read (confluence depth, probability concentration,
@@ -43,7 +48,24 @@
  * we guard its runtime shape here.
  */
 
-import type { Scenario, ScenarioLabel } from "@/lib/api";
+import type { ConfluenceDriverSchema, Scenario, ScenarioLabel } from "@/lib/api";
+
+/** r142 — engine-driver threshold matching the `confluence_engine`
+ * "5+ rule" convention (lines 26-27 of the engine docstring : "factors
+ * contributing >|0.2| in the dominant direction"). Drivers below this
+ * threshold are statistical noise and excluded from the count + top-3. */
+export const ENGINE_DRIVER_MIN_ABS_CONTRIBUTION = 0.2;
+
+/** r142 — top-N drivers surfaced by the panel tile. Three keeps the tile
+ * readable + matches PolymarketImpactPanel "top theme" precedent. */
+export const ENGINE_DRIVER_TOP_N = 3;
+
+/** r142 — A signed driver lite shape (engine layer only). Subset of
+ * `ConfluenceDriverSchema` keeping only the panel-required fields. */
+export interface ConfluenceDriverLite {
+  factor: string;
+  contribution: number;
+}
 
 /** Safe-parsed mechanism (the card field is `unknown` in the TS API
  * layer — strongly-typed here with a runtime guard). Mirror of the
@@ -108,6 +130,16 @@ export interface ConvictionGrounding {
   scenarioConcentration: ScenarioConcentration | null;
   /** Normalised critic verdict ; null when the card carries none. */
   criticVerdict: CriticVerdictKind | null;
+  /** r142 — count of engine drivers with |contribution| above the
+   *  ENGINE_DRIVER_MIN_ABS_CONTRIBUTION threshold (matches the
+   *  confluence_engine "5+ rule"). 0 when no engine drivers available
+   *  (legacy card OR all drivers below threshold). */
+  meaningfulDriverCount: number;
+  /** r142 — top-N drivers sorted by |contribution| descending (engine
+   *  layer only — drivers with NULL evidence are LLM-narrative and
+   *  skipped to keep the panel sourced). Empty array when no engine
+   *  drivers available. */
+  topDrivers: ConfluenceDriverLite[];
   /** True when NONE of the grounding dimensions are available (caller
    *  renders honest silent absence — never a fabricated grounding). */
   empty: boolean;
@@ -158,6 +190,36 @@ export function concentrationBand(hhi: number): ScenarioConcentration {
  * tile on the canonical bucket count. */
 const SCENARIO_BUCKET_COUNT = 7;
 
+/** r142 — Derive the engine-driver tile content : count of factors above
+ * the |0.2| meaningful threshold + top-3 sorted by absolute contribution.
+ * Engine-only (filters out LLM-narrative entries via `evidence != null`
+ * presence — the engine layer always emits evidence, the LLM rarely
+ * does). Defensive : non-array / non-finite / missing fields → empty. */
+function deriveEngineDrivers(drivers: ConfluenceDriverSchema[] | null | undefined): {
+  meaningfulDriverCount: number;
+  topDrivers: ConfluenceDriverLite[];
+} {
+  if (!Array.isArray(drivers) || drivers.length === 0) {
+    return { meaningfulDriverCount: 0, topDrivers: [] };
+  }
+  // Engine-only filter : entries with non-null `evidence` are sourced
+  // engine drivers ; null-evidence entries are LLM-narrative (which we
+  // skip in r142 because the LLM doesn't emit signed contributions
+  // with sourced citations — surfacing them would muddle the tile).
+  const engineOnly = drivers.filter(
+    (d): d is ConfluenceDriverSchema =>
+      typeof d?.factor === "string" && Number.isFinite(d?.contribution) && d?.evidence != null,
+  );
+  const meaningful = engineOnly.filter(
+    (d) => Math.abs(d.contribution) > ENGINE_DRIVER_MIN_ABS_CONTRIBUTION,
+  );
+  const topDrivers: ConfluenceDriverLite[] = [...meaningful]
+    .sort((a, b) => Math.abs(b.contribution) - Math.abs(a.contribution))
+    .slice(0, ENGINE_DRIVER_TOP_N)
+    .map((d) => ({ factor: d.factor, contribution: d.contribution }));
+  return { meaningfulDriverCount: meaningful.length, topDrivers };
+}
+
 /**
  * Derive the qualitative grounding of a card's conviction. Pure-fn —
  * accepts the minimal card slice for testability. NEVER fabricates :
@@ -168,6 +230,10 @@ export function deriveConvictionGrounding(card: {
   mechanisms: unknown;
   scenarios: Scenario[] | null | undefined;
   critic_verdict: string | null;
+  /** r142 — engine-computed drivers from `session_card_audit.drivers`
+   *  JSONB column, projected by `from_orm_row` with engine-layer
+   *  preference. Optional / null for legacy pre-r142 cards. */
+  confluence_drivers?: ConfluenceDriverSchema[] | null;
 }): ConvictionGrounding {
   // 1. Confluence — count valid mechanisms + distinct sources.
   const rawMechs = Array.isArray(card.mechanisms) ? card.mechanisms : [];
@@ -212,10 +278,18 @@ export function deriveConvictionGrounding(card: {
   // 3. Critic verdict.
   const criticVerdict = normalizeCriticVerdict(card.critic_verdict);
 
+  // 4. r142 — engine drivers (count above |0.2| threshold + top-3).
+  const { meaningfulDriverCount, topDrivers } = deriveEngineDrivers(card.confluence_drivers);
+
   // Honest silent-absence flag : true only when EVERY derived dimension
   // is unavailable (uses the DERIVED `topScenarioLabel`, so a partial
-  // scenario set that was suppressed above counts as absent).
-  const empty = mechanismCount === 0 && topScenarioLabel === null && criticVerdict === null;
+  // scenario set that was suppressed above counts as absent). r142 :
+  // engine drivers dimension also counts as a grounding signal.
+  const empty =
+    mechanismCount === 0 &&
+    topScenarioLabel === null &&
+    criticVerdict === null &&
+    topDrivers.length === 0;
 
   return {
     mechanismCount,
@@ -225,6 +299,8 @@ export function deriveConvictionGrounding(card: {
     scenarioHhi,
     scenarioConcentration,
     criticVerdict,
+    meaningfulDriverCount,
+    topDrivers,
     empty,
   };
 }

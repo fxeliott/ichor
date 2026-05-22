@@ -109,11 +109,34 @@ class TradePlan(BaseModel):
 
 
 class ConfluenceDriver(BaseModel):
-    """One factor contributing to the asset's confluence score."""
+    """One factor contributing to the asset's confluence score.
+
+    Two source layers (r142, Mission centrale axis-6 closure) :
+
+      - Engine layer : `services.confluence_engine.assess_confluence()`
+        emits frozen `Driver(factor, contribution, evidence, source)`.
+        The orchestrator hook in `cli.run_session_card` persists this
+        list verbatim to `session_card_audit.drivers` JSONB (migration
+        0026). `from_orm_row` reads it via `extract_engine_drivers`.
+
+      - LLM-narrative layer (legacy / fallback) : the 4-pass output may
+        also carry a `confluence_drivers[]` array in
+        `claude_raw_response`. `extract_confluence_drivers` projects it
+        when the engine layer is absent (pre-r142 cards).
+
+    `evidence` + `source` default to `None` so LLM-narrative entries
+    (which never carried those fields) still validate.
+    """
 
     factor: str
     contribution: float
     """Signed in [-1, +1] — positive = supports the bias_direction."""
+    evidence: str | None = None
+    """r142 — 1-line explanation citing values + source. Populated by the
+    engine layer ; None for legacy LLM-narrative entries."""
+    source: str | None = None
+    """r142 — Provenance tag (e.g. `fred:DGS10`, `cot:CFTC_EUR`). Same
+    format as DataPool.sources. Engine layer only ; None for LLM."""
 
 
 class IdeaSet(BaseModel):
@@ -251,7 +274,13 @@ def extract_ideas(claude_raw_response: Any | None) -> IdeaSet | None:
 def extract_confluence_drivers(
     claude_raw_response: Any | None,
 ) -> list[ConfluenceDriver] | None:
-    """Project the per-driver confluence breakdown."""
+    """Project the LLM-narrative per-driver confluence breakdown.
+
+    Legacy-fallback path : reads `confluence_drivers[]` from the 4-pass
+    raw response. Most production cards carry this as `null` (the LLM
+    rarely emits it). r142 introduces `extract_engine_drivers` as the
+    preferred source ; this helper stays as a permissive fallback.
+    """
     payload = _candidate_payload(claude_raw_response)
     if payload is None:
         return None
@@ -268,6 +297,49 @@ def extract_confluence_drivers(
             _LOG.debug("extract_confluence_drivers: skipping malformed entry: %s", exc)
             continue
     return out if out else None
+
+
+def extract_engine_drivers(
+    drivers_jsonb: Any | None,
+) -> list[ConfluenceDriver] | None:
+    """r142 — Project the engine-computed drivers from
+    `session_card_audit.drivers` JSONB column (populated by the
+    orchestrator hook in `cli.run_session_card` calling
+    `confluence_engine.assess_confluence()`).
+
+    Shape contract : `list[{factor: str, contribution: float,
+    evidence: str, source: str | None}]`. Permissive — non-list,
+    non-dict items, missing-field items are skipped, never raises.
+
+    Tri-state return (r142 S1+S5 code-reviewer fix) :
+
+    - `None` : column was NULL (legacy pre-r142 card, orchestrator
+      hook never ran). Caller (`from_orm_row`) falls back to the
+      LLM-narrative `claude_raw_response.confluence_drivers`.
+    - `[]` : column is the empty list (post-r142 card, engine ran
+      and produced zero drivers OR all entries malformed). Honest
+      silent absence — caller must NOT fall back to LLM (fabrication
+      would mask the legitimate "no drivers fired" signal).
+    - `[Driver, ...]` : column has at least one valid driver.
+
+    This three-way semantic is what makes the engine-vs-LLM
+    fallback in `from_orm_row` honest : we only mask absence with
+    fabrication for cards generated before the engine was wired.
+    """
+    if drivers_jsonb is None:
+        return None
+    if not isinstance(drivers_jsonb, list):
+        return None
+    out: list[ConfluenceDriver] = []
+    for item in drivers_jsonb:
+        if not isinstance(item, dict):
+            continue
+        try:
+            out.append(ConfluenceDriver.model_validate(item))
+        except Exception as exc:
+            _LOG.debug("extract_engine_drivers: skipping malformed entry: %s", exc)
+            continue
+    return out
 
 
 def extract_calibration_stat(
@@ -418,17 +490,41 @@ class SessionCardOut(BaseModel):
         4 typed sub-objects projected from `claude_raw_response`. All
         extractors are permissive : missing / malformed payloads land
         as None without raising.
+
+        r142 — `confluence_drivers` resolution order :
+
+          1. `row.drivers` IS NOT NULL (post-r142 orchestrator hook
+             populated the column — engine ran). Use it AS-IS — even
+             when it's an empty list ([]), that's an HONEST silent
+             absence ("engine ran, zero drivers above threshold"),
+             NOT a fall-back trigger. Fabricating from LLM raw would
+             mask the legitimate empty signal (r142 code-reviewer
+             S1+S5 fix).
+          2. `row.drivers` IS NULL (legacy pre-r142 card — hook
+             never ran). Fall back to LLM-narrative
+             `claude_raw_response.confluence_drivers` so historic
+             cards stay usable.
         """
         base = cls.model_validate(row)
         raw = getattr(row, "claude_raw_response", None)
+        engine_drivers = extract_engine_drivers(getattr(row, "drivers", None))
+        # engine_drivers tri-state : None = legacy fallback path ;
+        # [] = post-r142 honest absence (no fallback) ; [...] = use.
+        confluence_drivers: list[ConfluenceDriver] | None
+        if engine_drivers is not None:
+            confluence_drivers = engine_drivers
+        elif raw is not None:
+            confluence_drivers = extract_confluence_drivers(raw)
+        else:
+            confluence_drivers = None
         if raw is None:
-            return base
+            return base.model_copy(update={"confluence_drivers": confluence_drivers})
         return base.model_copy(
             update={
                 "thesis": extract_thesis(raw),
                 "trade_plan": extract_trade_plan(raw),
                 "ideas": extract_ideas(raw),
-                "confluence_drivers": extract_confluence_drivers(raw),
+                "confluence_drivers": confluence_drivers,
                 "calibration": extract_calibration_stat(raw),
             }
         )

@@ -61,14 +61,34 @@ Direction = Literal["long", "short", "neutral"]
 
 @dataclass(frozen=True)
 class Driver:
-    """One factor's contribution to the confluence score."""
+    """One factor's contribution to the confluence score.
+
+    ADR-017 boundary (r142 trader RED-1 + code-reviewer hardening) :
+    the `contribution` sign is an INTERNAL engine aggregation artifact
+    (it drives the score_long / score_short summation below). It is
+    NEVER exported to user-facing surfaces as a directional trade
+    instruction — the r142 frontend
+    (`apps/web2/components/briefing/ConvictionGroundingPanel.tsx`)
+    explicitly strips the sign and displays only the absolute magnitude
+    so users see "rate_diff 0.45" rather than "rate_diff +0.45". The
+    internal sign convention is documented at the factor-builder level
+    (lines below) and used only by the score aggregator inside this
+    module + the brier_optimizer.
+    """
 
     factor: str
     """Symbolic name : 'rate_diff' / 'cot' / 'microstructure_ofi' / etc."""
     contribution: float
-    """Signed [-1, +1] : positive = long bias, negative = short."""
+    """Signed [-1, +1] : magnitude = factor strength, sign = INTERNAL
+    aggregation parity with the engine's hypothesized asset-frame
+    direction. Consumed by `assess_confluence()` to build score_long /
+    score_short. NEVER displayed signed on user-facing surfaces per
+    ADR-017 + r142 UI-boundary stripping."""
     evidence: str
-    """1-line explanation citing values + source."""
+    """1-line explanation citing values + source. NON-OPTIONAL — every
+    engine factor MUST emit non-empty evidence so the frontend
+    `evidence != null` filter reliably distinguishes engine entries
+    from any future LLM-narrative entries that share the schema."""
     source: str | None = None
     """Provenance tag for the Critic — same format as DataPool.sources."""
 

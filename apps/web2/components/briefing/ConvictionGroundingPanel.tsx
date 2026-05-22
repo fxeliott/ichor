@@ -1,7 +1,8 @@
 /**
  * ConvictionGroundingPanel — the QUALITATIVE grounding behind a card's
- * `conviction_pct` (ADR-099 §Impl(r134), Mission centrale axis 6
- * "Conviction level mesuré + justifié").
+ * `conviction_pct` (ADR-099 §Impl(r134) + §Impl(r142), Mission centrale
+ * axis 6 "Conviction level mesuré + justifié" — r142 closes the axis
+ * fully by surfacing the engine-computed drivers as a 4th tile).
  *
  * R59-AUDIT (r134) established that `conviction_pct` is a single opaque
  * Pass-2 LLM scalar — there is NO honest numeric decomposition (any
@@ -9,12 +10,15 @@
  * produced = doctrine #11 violation). So this panel surfaces the REAL
  * populated sourced fields that ground the read instead :
  *
- *   - CONFLUENCE      : `mechanisms[]` count + distinct source count
- *   - SCENARIO CLARITY: Pass-6 7-bucket concentration (top-p + HHI band)
- *   - CRITIC VERDICT  : the internal devil's-advocate stamp
+ *   - CONFLUENCE        : `mechanisms[]` count + distinct source count
+ *   - SCENARIO CLARITY  : Pass-6 7-bucket concentration (top-p + HHI band)
+ *   - CRITIC VERDICT    : the internal devil's-advocate stamp
+ *   - DRIVERS EXPLICITES (r142) : engine-computed deterministic confluence
+ *     drivers — count above |0.2| meaningful threshold + top-3 names with
+ *     signed contributions. INDEPENDENT second opinion from a sourced
+ *     factor engine ; NOT a decomposition of `conviction_pct`.
  *
- * (See `lib/convictionGrounding.ts` for the full R59 rationale + the
- * empirical proof that `confluence_drivers` is `null` in every prod card.)
+ * (See `lib/convictionGrounding.ts` for the full R59 rationale.)
  *
  * ADR-017 boundary : pure descriptive grounding context — "how well-
  * founded is today's read", NEVER "high grounding = take the trade".
@@ -22,14 +26,18 @@
  * speedometer / dial visual (those read as prescriptive trade-confidence
  * meters) — it is a plain monochrome descriptive ledger. The values are
  * NOT tinted bull/bear because grounding is direction-agnostic (it is
- * about how grounded, not which way).
+ * about how grounded, not which way). r142 driver contributions display
+ * the ABSOLUTE MAGNITUDE only (no sign) — the engine's internal long/short
+ * sign is stripped at the UI boundary so "rate_diff 0.45" reads as
+ * "rate-differential factor strength 0.45 out of 1.0", not as a long
+ * instruction (r142 trader RED-1 + code-reviewer hardening).
  *
  * Visual : glass-panel chrome mirroring `PolymarketImpactPanel` (r130) /
  * `InstitutionalPositioningPanel` — `PanelShell` 3-state wrapper, header
  * + stat grid + ADR-017 footer. Honest silent absence : when the card
  * carries no grounding dimensions at all (legacy pre-Pass-6 + no
- * mechanisms + no critic verdict), the panel renders nothing rather than
- * a fabricated grounding (doctrine #11).
+ * mechanisms + no critic verdict + no engine drivers), the panel
+ * renders nothing rather than a fabricated grounding (doctrine #11).
  */
 
 "use client";
@@ -138,6 +146,63 @@ export function ConvictionGroundingPanel({ card }: ConvictionGroundingPanelProps
             </p>
             <p className="font-mono text-2xl tabular-nums text-[var(--color-text-primary)]">
               {CRITIC_VERDICT_FR[g.criticVerdict]}
+            </p>
+          </div>
+        ) : null}
+
+        {/* DRIVERS EXPLICITES (r142) — engine-computed deterministic
+            confluence drivers : count above the |0.2| threshold + top-3
+            named with ABSOLUTE-MAGNITUDE (no sign) contributions.
+            r142 trader RED-1 + code-reviewer hardening : the engine's
+            internal `Driver.contribution` is signed (positive = factor
+            supports the assumed long direction in score aggregation,
+            negative = supports short) BUT the sign is an INTERNAL
+            artifact, NEVER displayed on the user surface. Stripping it
+            here eliminates the "+0.45 reads as long instruction" risk
+            even with the panel footer's "pas un signal" stamp. Honest
+            silent absence when `topDrivers` is empty (engine column
+            NULL, OR all drivers below threshold). Factor names
+            ("rate_diff" / "cot" / "polymarket_overlay" / etc.) are the
+            engine's symbolic taxonomy — surfaced verbatim so the user
+            can cross-check against the data-pool sources tab. Each
+            "factor magnitude" tuple is `whitespace-nowrap` so the line
+            wraps between drivers, not mid-token (ui-designer
+            IMPORTANT-1). Factor names are `lang="en"` so a FR screen
+            reader switches voice for the technical token (a11y
+            SC 3.1.2 + 1.3.1). Big number `3 drv.` mirrors the
+            Confluence tile's `3 méc.` count rhythm (ui-designer
+            IMPORTANT-2). */}
+        {g.topDrivers.length > 0 && g.topDrivers[0] ? (
+          <div
+            role="group"
+            aria-label={(() => {
+              const count = g.meaningfulDriverCount;
+              const plural = count > 1 ? "s" : "";
+              const ariaList = g.topDrivers
+                .map(
+                  (d) =>
+                    `${d.factor.replace(/_/g, " ")} magnitude ${Math.abs(d.contribution).toFixed(2)}`,
+                )
+                .join(", ");
+              return `Drivers explicites : ${count} driver${plural} significatif${plural}, ${ariaList}`;
+            })()}
+            className="flex flex-col gap-1"
+          >
+            <p className="text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
+              Drivers explicites
+            </p>
+            <p className="font-mono text-2xl tabular-nums text-[var(--color-text-primary)]">
+              {g.meaningfulDriverCount} drv.
+            </p>
+            <p className="font-mono text-xs tabular-nums text-[var(--color-text-secondary)]">
+              {g.topDrivers.map((d, i) => (
+                <span key={d.factor}>
+                  {i > 0 ? " · " : ""}
+                  <span className="whitespace-nowrap">
+                    <span lang="en">{d.factor}</span> {Math.abs(d.contribution).toFixed(2)}
+                  </span>
+                </span>
+              ))}
             </p>
           </div>
         ) : null}

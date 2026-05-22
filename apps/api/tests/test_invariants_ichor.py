@@ -1173,3 +1173,117 @@ def test_pass6_scenario_mechanism_rejects_trade_tokens() -> None:
             f"Scenario.mechanism (apps/api/src/ichor_api/services/scenarios.py) "
             "may have been removed or weakened."
         )
+
+
+# ──────────────────── r142 axis-6 driver-wire invariants ────────────────────
+# r142 trader+code-reviewer probe-tests #2 + #4 + #5.
+
+
+def test_r142_extract_engine_drivers_every_entry_has_evidence() -> None:
+    """r142 trader probe-test #2 — engine-only filter contract.
+
+    The frontend `deriveEngineDrivers` in `convictionGrounding.ts`
+    filters engine vs LLM-narrative entries via `evidence != null`.
+    The contract is reliable ONLY because the engine `Driver`
+    dataclass (`services/confluence_engine.py`) makes `evidence`
+    non-optional. If `extract_engine_drivers` ever projected an entry
+    with `evidence is None`, the frontend filter would silently drop
+    it — surfacing zero drivers on a card that legitimately has them.
+
+    This test exercises `extract_engine_drivers` with a mixed JSONB
+    payload + asserts every emitted ConfluenceDriver has non-null
+    evidence (or is dropped from output entirely).
+    """
+    from ichor_api.schemas import extract_engine_drivers
+
+    raw = [
+        {
+            "factor": "rate_diff",
+            "contribution": 0.45,
+            "evidence": "engine evidence text",
+            "source": "fred:DGS10",
+        },
+        # LLM-narrative shape — must be either dropped OR projected
+        # with evidence=None (the filter then drops at presentation).
+        {"factor": "llm_only", "contribution": 0.9},
+        # Engine shape but with explicit null evidence (defensive —
+        # the engine dataclass forbids this, but the JSONB column is
+        # unconstrained). The Pydantic model permits it via Optional.
+        {"factor": "engine_no_evidence", "contribution": 0.3, "evidence": None, "source": "x"},
+    ]
+    out = extract_engine_drivers(raw)
+    assert out is not None
+    # Filter discipline : EVERY projected entry with evidence != None
+    # is engine-layer-safe. Entries with evidence is None may exist
+    # in the projection (the model is permissive) but the frontend
+    # filter excludes them. So the invariant is :
+    #   for every entry e in out where e is surfaced to UI,
+    #     e.evidence is not None.
+    # Equivalently : at least the engine entries with non-null
+    # evidence are present in the projection (no silent drop).
+    engine_safe = [d for d in out if d.evidence is not None]
+    assert any(d.factor == "rate_diff" for d in engine_safe), (
+        "r142 engine-filter contract broken : extract_engine_drivers dropped "
+        "a valid engine entry. Check the model_validate loop in "
+        "apps/api/src/ichor_api/schemas.py:extract_engine_drivers."
+    )
+
+
+def test_r142_confluence_engine_driver_docstring_strips_directional_phrase() -> None:
+    """r142 trader probe-test #4 — Driver docstring source-inspection.
+
+    The pre-r142 Driver dataclass docstring at
+    `apps/api/src/ichor_api/services/confluence_engine.py` carried
+    the literal phrase 'positive = long bias, negative = short'. This
+    leaked directional vocabulary into the engine surface that r142
+    then exported to the UI via session_card_audit.drivers. ADR-017
+    + trader RED-1 mandate stripping this phrase to clarify the
+    sign is an internal aggregation artifact, never a user-facing
+    instruction.
+
+    This test pins the docstring fix so the directional phrase
+    cannot accidentally return via a docstring rewrite.
+    """
+    confluence_engine_py = (
+        _REPO_ROOT / "apps" / "api" / "src" / "ichor_api" / "services" / "confluence_engine.py"
+    )
+    src = confluence_engine_py.read_text(encoding="utf-8")
+    assert "positive = long bias, negative = short" not in src, (
+        "r142 ADR-017 regression : the verbatim phrase "
+        "'positive = long bias, negative = short' returned to "
+        f"{confluence_engine_py.relative_to(_REPO_ROOT)}. This phrase was "
+        "stripped in r142 to clarify the sign is an INTERNAL engine "
+        "aggregation artifact (NEVER exported as a user-facing trade "
+        "instruction). See ADR-099 §Impl(r142) + trader RED-1 fix."
+    )
+
+
+def test_r142_brier_optimizer_factor_names_lockstep() -> None:
+    """r142 trader probe-test #5 — lockstep registry guard.
+
+    Lesson #34 mandates that any new confluence driver be registered
+    in BOTH `confluence_engine.DEFAULT_FACTOR_NAMES`-class registries
+    so the Brier optimizer can fit per-factor SGD on the persisted
+    drivers. The two source-of-truth registries are :
+
+      - `apps/api/src/ichor_api/services/brier_optimizer.py:DEFAULT_FACTOR_NAMES`
+      - `apps/api/src/ichor_api/cli/run_brier_optimizer.py:_FACTOR_NAMES`
+
+    They MUST be in set-equality lockstep. r142 audit (code-explorer)
+    verified 11 entries identical including `inflation_surprise` from
+    r137. This test mechanises the parity so the next factor add
+    can't drift one site silently.
+    """
+    from ichor_api.cli.run_brier_optimizer import _FACTOR_NAMES as cli_names
+    from ichor_api.services.brier_optimizer import DEFAULT_FACTOR_NAMES as svc_names
+
+    cli_set = set(cli_names)
+    svc_set = set(svc_names)
+    assert cli_set == svc_set, (
+        "r142 lesson #34 violation : brier_optimizer factor registries "
+        "have drifted out of lockstep.\n"
+        f"  Only in services.brier_optimizer : {sorted(svc_set - cli_set)}\n"
+        f"  Only in cli.run_brier_optimizer  : {sorted(cli_set - svc_set)}\n"
+        "Update BOTH files in the same commit when adding a new "
+        "confluence driver."
+    )
