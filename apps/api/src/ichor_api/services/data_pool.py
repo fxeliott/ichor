@@ -4572,7 +4572,11 @@ async def _section_news(
         filtered_rows, matched, applied = _filter_helper(
             rows,
             asset,
-            key=lambda r: (r.title or "", r.url or ""),
+            # r139 matcher extension — include summary as 3rd field. Mirror
+            # of routers/news.py key (parity LLM-pool reasoning vs endpoint
+            # render). Empirical 2026-05-22 Hetzner survey: ~70% macro-vocab
+            # lives in summary, not title/url.
+            key=lambda r: (r.title or "", r.url or "", r.summary or ""),
             min_required=3,
         )
         if applied:

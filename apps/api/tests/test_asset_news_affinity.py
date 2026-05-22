@@ -230,9 +230,12 @@ def test_r139_nas_semis_cluster_present():
 
 
 def test_r139_nas_cook_tim_cook_disambiguation():
-    """r139 — 'Cook' was empirically verified (9/9 7d hits = Tim Cook /
-    Apple CEO, 0 cooking-noise). Pin presence + Tim Cook match."""
-    assert "Cook" in NEWS_KEYWORDS["NAS100_USD"]
+    """r139 — 'Tim Cook' full-name replaces bare 'Cook' (code-reviewer SF-4
+    + trader YELLOW-1). Empirical 7d title+url: both match same 9 articles
+    BUT 'Tim Cook' has zero false-positive surface (bare 'Cook' could
+    collide with cookies/cooking/Cookson/Cook County etc)."""
+    assert "Tim Cook" in NEWS_KEYWORDS["NAS100_USD"]
+    assert "Cook" not in NEWS_KEYWORDS["NAS100_USD"]  # FP-prone bare keyword removed
     assert matches_asset("Tim Cook visits China for Apple supplier", "", "NAS100_USD")
 
 
@@ -246,13 +249,16 @@ def test_r139_nas_ai_capex_vocab_present():
 
 
 def test_r139_xau_mechanical_drivers_present():
-    """r139 — real yield(s) + 10-year Treasury + de-dollarization are the
+    """r139 — real yield + 10-year Treasury + de-dollarization are the
     mechanical XAU drivers (each non-zero empirical 7d). Pin presence +
     match. The TIPS/DXY/PBoC/CB-gold vocab was DARK (0 matches/7d) and
-    deliberately NOT added — would have shipped functionally-zero."""
+    deliberately NOT added — would have shipped functionally-zero.
+
+    r139 SF-2 — 'real yields' plural dropped (substring of 'real yield')."""
     kws = NEWS_KEYWORDS["XAU_USD"]
-    for kw in ("real yield", "real yields", "10-year Treasury", "de-dollarization"):
+    for kw in ("real yield", "10-year Treasury", "de-dollarization"):
         assert kw in kws, f"missing XAU mechanical-driver: {kw}"
+    assert "real yields" not in kws  # SF-2 plural redundancy removed
     assert matches_asset("Real yields drop as TIPS auction strong", "", "XAU_USD")
     assert matches_asset("10-year Treasury yields ease", "", "XAU_USD")
 
@@ -298,15 +304,39 @@ def test_r139_empirically_dead_NOT_added():
             assert kw not in empirically_dead, f"empirically-dead keyword shipped: {kw}"
 
 
-def test_r139_rate_cut_label_kept_as_event_not_directional():
-    """r139 — 'rate cut' / 'rate cuts' are event LABELS (noun, news vocab),
-    not directional verbs. Stream 1B documented as ADR-017 edge-case
-    KEEP. Pin presence + ensure they don't trip the content-neutrality
-    CI guard."""
+def test_r139_rate_cut_singular_only_substring_redundancy():
+    """r139 — code-reviewer SF-2 : 'rate cut' substring matches both
+    'rate cut' AND 'rate cuts' (plural) via substring matcher. Dropped
+    redundant 'rate cuts' explicitly. Same logic for 'real yield' vs
+    'real yields'. Both singulars kept, both plurals dropped."""
     assert "rate cut" in NEWS_KEYWORDS["SPX500_USD"]
-    assert "rate cuts" in NEWS_KEYWORDS["SPX500_USD"]
-    forbidden = {"buy", "sell", "long", "short", "bullish", "bearish", "trade"}
-    assert "rate cut".lower().strip() not in forbidden  # noun event label
+    assert "rate cuts" not in NEWS_KEYWORDS["SPX500_USD"]  # substring redundancy removed
+    assert "real yield" in NEWS_KEYWORDS["XAU_USD"]
+    assert "real yields" not in NEWS_KEYWORDS["XAU_USD"]  # substring redundancy removed
+    # Verify the substring matcher actually catches the plural via singular
+    assert matches_asset("Fed signals rate cuts in 2026", "", "SPX500_USD")
+    assert matches_asset("Real yields drop on TIPS auction", "", "XAU_USD")
+
+
+def test_r139_matcher_extension_includes_summary():
+    """r139 — code-reviewer SF discovery + empirical Hetzner survey :
+    matches_asset now accepts optional summary parameter. ~70% of macro
+    vocabulary (FOMC/PMI/CPI/real-yields/etc.) lives in news_items.summary
+    NOT title. Pin the matcher reads summary correctly."""
+    # Match in summary only (not title/url)
+    assert matches_asset(
+        title="Generic financial wire",
+        url="https://x/y",
+        asset="SPX500_USD",
+        summary="ISM Manufacturing PMI prints 49 ; Powell speaks at Brookings",
+    )
+    # No match — keyword absent from all 3 fields
+    assert not matches_asset(
+        title="Generic", url="https://x", asset="SPX500_USD", summary="cooking recipe"
+    )
+    # Backward-compat : summary=default empty preserves r68 title+url behaviour
+    assert matches_asset("S&P 500 hits new high", "https://x", "SPX500_USD")
+    assert not matches_asset("totally unrelated", "https://x", "SPX500_USD")
 
 
 if __name__ == "__main__":

@@ -77,8 +77,9 @@ NEWS_KEYWORDS: dict[str, tuple[str, ...]] = {
         "GDX ",  # trailing-space disambiguation vs "XGDP"/etc.
         "spot metals",
         # r139 mechanical drivers — empirical-validated (7d Hetzner survey)
+        # r139 code-reviewer SF-2 — "real yield" substring catches "real yields"
+        # plural redundancy. Dropped "real yields" (same coverage via substring).
         "real yield",  # 11 matches (gold opportunity-cost mechanical channel)
-        "real yields",  # 11 matches (plural form catches Reuters/Bloomberg pattern)
         "10-year Treasury",  # 36 matches (nominal yield input to real-yield calc)
         "de-dollarization",  # 10 matches (structural CB-gold demand driver)
     ),
@@ -112,7 +113,11 @@ NEWS_KEYWORDS: dict[str, tuple[str, ...]] = {
         "foundry",  # 30 matches (TSMC/Intel framing)
         "Applied Materials",  # 27 matches (semi equipment)
         "Palantir",  # 20 matches (NDX growth)
-        "Cook",  # 19 matches — empirically VERIFIED 100% = "Tim Cook" (Apple CEO)
+        # r139 code-reviewer SF-4 + trader YELLOW-1 — full-name "Tim Cook"
+        # has IDENTICAL 9-match title+url coverage to bare "Cook" but ZERO
+        # false-positive surface (bare "Cook" could collide with Cook County /
+        # Cookson surname / cookies / cooking). Empirically verified via SQL.
+        "Tim Cook",  # 9 title+url matches (Apple CEO disambiguated full-name)
         "CHIPS Act",  # 11 matches (tech/policy)
         "AI accelerator",  # 11 matches (chip vocab)
         "LLM",  # 10 matches (AI vocab)
@@ -134,8 +139,10 @@ NEWS_KEYWORDS: dict[str, tuple[str, ...]] = {
         "PMI",  # 11 matches (S&P Global Flash)
         "CPI",  # 10 matches (Fed inflation indicator)
         "PCE",  # 11 matches (Fed's preferred inflation measure)
-        "rate cut",  # 21 matches — event-label, not directional (per ADR-017 edge-case)
-        "rate cuts",  # 21 matches (plural)
+        # r139 code-reviewer SF-2 — "rate cut" substring matches "rate cuts"
+        # plural by the substring matcher's nature. Dropped "rate cuts"
+        # explicitly to remove redundant entry (same 21 matches/7d coverage).
+        "rate cut",  # 21 matches — event-label, not directional (ADR-017 edge-case)
         "tariff",  # 13 matches (2026 stagflation driver, Trump policy)
         "10-year Treasury",  # 36 matches (discount-rate input, shared with XAU)
     ),
@@ -143,21 +150,33 @@ NEWS_KEYWORDS: dict[str, tuple[str, ...]] = {
 }
 
 
-def matches_asset(title: str, url: str, asset: str) -> bool:
+def matches_asset(title: str, url: str, asset: str, summary: str = "") -> bool:
     """Heuristic ticker-link: case-insensitive keyword match in title OR
-    URL path. Returns True if no keywords are configured for the asset
-    (unknown → keep all, honest fallback)."""
+    URL path OR summary. Returns True if no keywords are configured for
+    the asset (unknown → keep all, honest fallback).
+
+    r139 — added optional `summary` parameter. The r68 original matched
+    title+url only ; the r139 empirical Hetzner survey discovered that
+    most macro-vocabulary content (FOMC/PMI/CPI/real-yields/etc.) lives
+    in the news_items.summary field, NOT the title. Title+url-only match
+    rendered ~70% of the r139 keyword precision additions functionally-
+    zero (the keywords were added to NEWS_KEYWORDS but never fired against
+    title+url matching). Adding summary as a 3rd blob field surfaces the
+    keyword precision pass empirically (lesson #2 SHIPPED ≠ FUNCTIONAL).
+
+    Backward-compat : `summary=""` default preserves the pre-r139 behaviour
+    for callers that don't pass a summary."""
     keys = NEWS_KEYWORDS.get(asset.upper())
     if not keys:
         return True
-    blob = f"{title} {url}".lower()
+    blob = f"{title} {url} {summary}".lower()
     return any(k.lower() in blob for k in keys)
 
 
 def filter_rows_by_asset_affinity[T](
     rows: Iterable[T],
     asset: str | None,
-    key: Callable[[T], tuple[str, str]],
+    key: Callable[[T], tuple[str, ...]],
     *,
     min_required: int = 3,
 ) -> tuple[list[T], int, bool]:
@@ -192,7 +211,18 @@ def filter_rows_by_asset_affinity[T](
     if asset_uc not in NEWS_KEYWORDS:
         # Unknown asset: keep all (honest, NO silent drop).
         return rows_list, 0, False
-    matched = [r for r in rows_list if matches_asset(*key(r), asset_uc)]
+    # r139 — support both 2-tuple (title, url) and 3-tuple (title, url, summary)
+    # `key` callables for backward-compat with r138 callers + the new r139
+    # matcher-extension that includes summary. Empirical Hetzner survey 2026-05-22
+    # showed ~70% of macro-vocabulary content lives in summary, not title/url.
+    matched: list[T] = []
+    for r in rows_list:
+        fields = key(r)
+        title = fields[0] if len(fields) > 0 else ""
+        url = fields[1] if len(fields) > 1 else ""
+        summary = fields[2] if len(fields) > 2 else ""
+        if matches_asset(title, url, asset_uc, summary):
+            matched.append(r)
     if len(matched) < min_required:
         # Scarce-fallback: not enough asset-specific items — fall back
         # to global. Caller surfaces this state via `applied=False`.

@@ -145,7 +145,12 @@ async def list_news(
         filtered_rows, matched, applied = filter_rows_by_asset_affinity(
             rows,
             asset_uc,
-            key=lambda r: (r.title or "", r.url or ""),
+            # r139 — pass summary as a 3rd field. Empirical Hetzner survey
+            # 2026-05-22 found ~70% of macro-vocabulary content (FOMC/PMI/CPI/
+            # real-yields/Treasury/etc.) lives in news_items.summary, NOT
+            # title/url. Including summary in the matcher blob makes the
+            # r139 keyword precision pass functionally non-zero for SPX/XAU.
+            key=lambda r: (r.title or "", r.url or "", r.summary or ""),
             min_required=_MIN_ASSET_MATCHES,
         )
         rows = filtered_rows[:limit]
