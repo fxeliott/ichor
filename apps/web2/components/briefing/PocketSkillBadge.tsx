@@ -19,21 +19,14 @@
 "use client";
 
 import { m } from "motion/react";
+import type { ReactElement } from "react";
 
-import type { PocketSummary, PocketSummaryList } from "@/lib/api";
-
-const _MIN_SIGNIFICANT_N = 30; // below this, sign is not conclusive
-const _SKILL_EPS = 0.02; // |skill_delta| below this = neutral
-
-function pickPocket(rows: PocketSummary[], regime: string | null): PocketSummary | null {
-  if (rows.length === 0) return null;
-  if (regime) {
-    const match = rows.find((r) => r.regime === regime);
-    if (match) return match;
-  }
-  // No current-regime pocket → the most-observed pocket for the asset.
-  return rows.reduce((a, b) => (b.n_observations > a.n_observations ? b : a));
-}
+import type { PocketSummaryList } from "@/lib/api";
+// r143 doctrine #4 SSOT — pre-r143 the thresholds + pickPocket were
+// inlined here ; ConvictionGroundingPanel 4th tile (r142+r143 YELLOW-2)
+// also needs them so we extracted to lib/pocketSkill.ts. Drift between
+// consumers is CI-pinned by `test_r143_pocket_skill_constants_pinned`.
+import { classifyPocketSkill, pickPocketForRegime } from "@/lib/pocketSkill";
 
 export function PocketSkillBadge({
   data,
@@ -41,23 +34,23 @@ export function PocketSkillBadge({
 }: {
   data: PocketSummaryList | null;
   regime: string | null;
-}) {
-  const pocket = data ? pickPocket(data.rows, regime) : null;
+}): ReactElement | null {
+  const pocket = pickPocketForRegime(data?.rows ?? null, regime);
   if (!pocket) return null;
 
   const exactRegime = regime !== null && pocket.regime === regime;
-  const conclusive = pocket.n_observations >= _MIN_SIGNIFICANT_N;
   const sd = pocket.skill_delta;
+  const skillVerdict = classifyPocketSkill(sd, pocket.n_observations);
 
   let verdict: string;
   let tone: string;
-  if (!conclusive) {
+  if (skillVerdict === "non_conclusive") {
     verdict = `Calibration en cours · n=${pocket.n_observations} — non concluant`;
     tone = "text-[var(--color-text-muted)]";
-  } else if (sd <= -_SKILL_EPS) {
+  } else if (skillVerdict === "anti_skill") {
     verdict = "Anti-skill historique — pondère ce biais à la baisse";
     tone = "text-[var(--color-bear)]";
-  } else if (sd >= _SKILL_EPS) {
+  } else if (skillVerdict === "high_skill") {
     verdict = "Skill historique confirmé sur ce pocket";
     tone = "text-[var(--color-bull)]";
   } else {

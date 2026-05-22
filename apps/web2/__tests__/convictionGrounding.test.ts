@@ -13,7 +13,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import type { ConfluenceDriverSchema, Scenario } from "@/lib/api";
+import type { ConfluenceDriverSchema, PocketSummary, Scenario } from "@/lib/api";
 import {
   ENGINE_DRIVER_MIN_ABS_CONTRIBUTION,
   ENGINE_DRIVER_TOP_N,
@@ -35,6 +35,25 @@ function engineDriver(
     contribution,
     evidence: `engine evidence for ${factor}`,
     source,
+  };
+}
+
+/** Build a PocketSummary fixture for r143 YELLOW-2 tests. */
+function buildPocketSummary(overrides: Partial<PocketSummary> = {}): PocketSummary {
+  return {
+    asset: "EUR_USD",
+    regime: "usd_complacency",
+    pocket_version: 1,
+    prod_predictor_weight: 0.3,
+    climatology_weight: 0.35,
+    equal_weight_weight: 0.35,
+    n_observations: 13,
+    has_skill_vs_baseline: false,
+    skill_delta: -0.0497,
+    latest_drift_event_at: null,
+    active_addenda_count: 0,
+    pocket_updated_at: "2026-05-22T00:00:00Z",
+    ...overrides,
   };
 }
 
@@ -467,6 +486,119 @@ describe("deriveConvictionGrounding — engine drivers (r142)", () => {
     expect(g.meaningfulDriverCount).toBe(0);
     expect(g.topDrivers).toEqual([]);
     expect(g.empty).toBe(false); // r134 dimensions populated → visible
+  });
+});
+
+describe("deriveConvictionGrounding — pocket-skill caveat (r143 YELLOW-2)", () => {
+  it("triggers 'soft_calibration' caveat on EUR_USD/usd_complacency n=13 sd=-0.0497", () => {
+    const g = deriveConvictionGrounding({
+      mechanisms: [],
+      scenarios: [],
+      critic_verdict: null,
+      confluence_drivers: [engineDriver("rate_diff", 0.45)],
+      pocketSkill: buildPocketSummary({ n_observations: 13, skill_delta: -0.0497 }),
+    });
+    expect(g.pocketSkillCaveat).toBe("soft_calibration");
+    expect(g.pocketSkillNObservations).toBe(13);
+  });
+
+  it("triggers 'anti_skill' caveat on n >= 30 + sd <= -0.02", () => {
+    const g = deriveConvictionGrounding({
+      mechanisms: [],
+      scenarios: [],
+      critic_verdict: null,
+      confluence_drivers: [engineDriver("rate_diff", 0.45)],
+      pocketSkill: buildPocketSummary({ n_observations: 50, skill_delta: -0.1 }),
+    });
+    expect(g.pocketSkillCaveat).toBe("anti_skill");
+    expect(g.pocketSkillNObservations).toBe(50);
+  });
+
+  it("returns null caveat for high_skill pockets (sd >= +0.02 with n >= 30)", () => {
+    const g = deriveConvictionGrounding({
+      mechanisms: [],
+      scenarios: [],
+      critic_verdict: null,
+      confluence_drivers: [engineDriver("rate_diff", 0.45)],
+      pocketSkill: buildPocketSummary({ n_observations: 100, skill_delta: 0.1 }),
+    });
+    expect(g.pocketSkillCaveat).toBeNull();
+    expect(g.pocketSkillNObservations).toBeNull();
+  });
+
+  it("returns null caveat for neutral pockets (|sd| < 0.02 with n >= 30)", () => {
+    const g = deriveConvictionGrounding({
+      mechanisms: [],
+      scenarios: [],
+      critic_verdict: null,
+      confluence_drivers: [engineDriver("rate_diff", 0.45)],
+      pocketSkill: buildPocketSummary({ n_observations: 100, skill_delta: 0.01 }),
+    });
+    expect(g.pocketSkillCaveat).toBeNull();
+  });
+
+  it("returns null caveat for non-conclusive POSITIVE-tilt (n<30, sd>0)", () => {
+    const g = deriveConvictionGrounding({
+      mechanisms: [],
+      scenarios: [],
+      critic_verdict: null,
+      confluence_drivers: [engineDriver("rate_diff", 0.45)],
+      pocketSkill: buildPocketSummary({ n_observations: 13, skill_delta: 0.05 }),
+    });
+    expect(g.pocketSkillCaveat).toBeNull();
+  });
+
+  it("returns null caveat when pocketSkill is null / undefined / missing", () => {
+    const gNull = deriveConvictionGrounding({
+      mechanisms: [],
+      scenarios: [],
+      critic_verdict: null,
+      confluence_drivers: [engineDriver("rate_diff", 0.45)],
+      pocketSkill: null,
+    });
+    const gMissing = deriveConvictionGrounding({
+      mechanisms: [],
+      scenarios: [],
+      critic_verdict: null,
+      confluence_drivers: [engineDriver("rate_diff", 0.45)],
+    });
+    expect(gNull.pocketSkillCaveat).toBeNull();
+    expect(gMissing.pocketSkillCaveat).toBeNull();
+  });
+
+  it("caveat does NOT influence the empty flag (meta-context, not a grounding dimension)", () => {
+    // Empty card EXCEPT pocketSkill — empty should still be true so the
+    // panel renders nothing (honest silent absence). The caveat field
+    // is STILL populated in the derivation (consumer decides render based
+    // on `empty`) — this guarantees a future panel could choose to render
+    // the caveat differently without re-running the classification.
+    const g = deriveConvictionGrounding({
+      mechanisms: [],
+      scenarios: [],
+      critic_verdict: null,
+      pocketSkill: buildPocketSummary({ n_observations: 13, skill_delta: -0.0497 }),
+    });
+    expect(g.empty).toBe(true); // caveat does NOT make panel visible alone
+    expect(g.pocketSkillCaveat).toBe("soft_calibration"); // pure-fn computes regardless
+  });
+
+  it("caveat surfaces ONLY when topDrivers are present (tile-attached meta)", () => {
+    // When topDrivers is empty (no engine drivers), the 4th tile is
+    // hidden ; the caveat is meta-context ON that tile so it MUST also
+    // not surface ; but the derivation still COMPUTES the caveat field
+    // for completeness — the panel component decides not to render it.
+    // This test pins the derivation behaviour : caveat field is computed
+    // independently of whether the tile renders.
+    const g = deriveConvictionGrounding({
+      mechanisms: [{ claim: "x", sources: ["A"] }], // keep panel non-empty
+      scenarios: [],
+      critic_verdict: null,
+      confluence_drivers: [], // no engine drivers — tile hidden
+      pocketSkill: buildPocketSummary({ n_observations: 13, skill_delta: -0.0497 }),
+    });
+    // Derivation still computes the caveat field (consumer decides render).
+    expect(g.pocketSkillCaveat).toBe("soft_calibration");
+    expect(g.topDrivers).toEqual([]);
   });
 });
 

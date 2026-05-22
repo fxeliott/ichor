@@ -43,8 +43,9 @@
 "use client";
 
 import { m } from "motion/react";
+import type { ReactElement } from "react";
 
-import type { SessionCard } from "@/lib/api";
+import type { PocketSummary, SessionCard } from "@/lib/api";
 import {
   CRITIC_VERDICT_FR,
   SCENARIO_LABEL_FR,
@@ -55,10 +56,27 @@ const HEADING_ID = "conviction-grounding-panel-heading";
 
 interface ConvictionGroundingPanelProps {
   card: SessionCard;
+  /** r143 YELLOW-2 — picked pocket-skill summary for this card's
+   *  (asset, regime_quadrant) pocket. Optional / null when the caller
+   *  hasn't fetched `/v1/phase-d/pocket-summary` or when no pocket
+   *  matches. When provided AND classified as anti_skill OR
+   *  soft_calibration, the 4th tile renders a meta-caveat cross-
+   *  referencing the PocketSkillBadge below (doctrine #11 cognitive-
+   *  distance fix). */
+  pocketSkill?: PocketSummary | null;
 }
 
-export function ConvictionGroundingPanel({ card }: ConvictionGroundingPanelProps) {
-  const g = deriveConvictionGrounding(card);
+export function ConvictionGroundingPanel({
+  card,
+  pocketSkill = null,
+}: ConvictionGroundingPanelProps): ReactElement | null {
+  const g = deriveConvictionGrounding({
+    mechanisms: card.mechanisms,
+    scenarios: card.scenarios,
+    critic_verdict: card.critic_verdict,
+    confluence_drivers: card.confluence_drivers,
+    pocketSkill,
+  });
 
   // Honest silent absence — no grounding dimension available (doctrine
   // #11). Never render a fabricated "grounded" state for a legacy card.
@@ -184,7 +202,27 @@ export function ConvictionGroundingPanel({ card }: ConvictionGroundingPanelProps
                     `${d.factor.replace(/_/g, " ")} magnitude ${Math.abs(d.contribution).toFixed(2)}`,
                 )
                 .join(", ");
-              return `Drivers explicites : ${count} driver${plural} significatif${plural}, ${ariaList}`;
+              // r143 a11y IMPORTANT-1 + IMPORTANT-2 — aria-label on a
+              // role="group" overrides descendant text for NVDA/JAWS, so
+              // the caveat <p> below is SILENTLY LOST to screen readers
+              // when entering the group. Fix : front-load the warning
+              // VERBATIM into the aria-label so SR users hear "Drivers
+              // explicites : avertissement : anti-skill historique n=N,
+              // ... 3 drivers significatifs, ..." — warning BEFORE data
+              // (semantic reading order, matches the "discount what
+              // follows" intent). Visual layer keeps the post-data
+              // placement (trader UI convention).
+              const regime = pocketSkill?.regime ?? "";
+              const ref = regime
+                ? `voir bloc Calibration du système pocket ${regime} plus haut`
+                : "voir bloc Calibration du système plus haut";
+              const caveatTxt =
+                g.pocketSkillCaveat === "anti_skill"
+                  ? `Avertissement : anti-skill historique sur ce régime, n=${g.pocketSkillNObservations}, ${ref}. `
+                  : g.pocketSkillCaveat === "soft_calibration"
+                    ? `Calibration insuffisante, n=${g.pocketSkillNObservations}, tendance défavorable, ${ref}. `
+                    : "";
+              return `Drivers explicites : ${caveatTxt}${count} driver${plural} significatif${plural}, ${ariaList}`;
             })()}
             className="flex flex-col gap-1"
           >
@@ -204,6 +242,49 @@ export function ConvictionGroundingPanel({ card }: ConvictionGroundingPanelProps
                 </span>
               ))}
             </p>
+            {/* r143 YELLOW-2 — pocket-skill caveat cross-referencing the
+                PocketSkillBadge rendered ABOVE on the same page. Doctrine
+                #11 cognitive-distance fix : the user reading the
+                deterministic-engine drivers explicitly SEES the meta-
+                calibration warning at the source surface. Vocabulary
+                mirrors PocketSkillBadge verbatim (doctrine #4 SSOT via
+                lib/pocketSkill.ts) ; ADR-017 clean (meta-calibration
+                noun, NEVER BUY/SELL).
+
+                r143 fix-cluster (post 4-reviewer concordance) :
+                  - ui-designer IMPORTANT-1+4 : `mt-2 pt-2 border-t`
+                    structural meta-band so the caveat reads as a
+                    different surface (meta vs data), not a wrapped
+                    continuation of the driver list.
+                  - ui-designer IMPORTANT-2 : DROPPED `--color-bear`
+                    (doctrine breach — panel docstring "NOT tinted
+                    bull/bear because grounding is direction-agnostic").
+                    anti_skill uses `text-secondary` for emphasis vs
+                    soft_calibration `text-muted` — gradient via text
+                    color weight, NOT directional red/green.
+                  - ui-designer IMPORTANT-3 : "ci-dessus" → "bloc
+                    Calibration du système · pocket {regime} plus haut"
+                    (echoes PocketSkillBadge heading verbatim).
+                  - a11y SHOULD-3 : `<span aria-hidden="true">⚠</span>`
+                    (SR pronunciation cross-platform inconsistent, the
+                    "Anti-skill historique" text already conveys urgency).
+                  - code-reviewer N3 : `font-mono tabular-nums` wrap on
+                    `n=N` count for visual alignment under driver list. */}
+            {g.pocketSkillCaveat === "anti_skill" ? (
+              <p className="mt-2 border-t border-[var(--color-border-subtle)]/40 pt-2 text-[10px] text-[var(--color-text-secondary)]">
+                <span aria-hidden="true">⚠ </span>Anti-skill historique sur ce régime (n=
+                <span className="font-mono tabular-nums">{g.pocketSkillNObservations}</span>) — voir
+                bloc Calibration du système
+                {pocketSkill?.regime ? ` · pocket ${pocketSkill.regime}` : ""} plus haut
+              </p>
+            ) : g.pocketSkillCaveat === "soft_calibration" ? (
+              <p className="mt-2 border-t border-[var(--color-border-subtle)]/40 pt-2 text-[10px] text-[var(--color-text-muted)]">
+                Calibration insuffisante (n=
+                <span className="font-mono tabular-nums">{g.pocketSkillNObservations}</span>,
+                tendance défavorable) — voir bloc Calibration du système
+                {pocketSkill?.regime ? ` · pocket ${pocketSkill.regime}` : ""} plus haut
+              </p>
+            ) : null}
           </div>
         ) : null}
       </div>

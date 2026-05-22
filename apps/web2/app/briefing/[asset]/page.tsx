@@ -81,6 +81,7 @@ import {
 import { derivePulse } from "@/lib/sessionPulse";
 import { deriveDataIntegrity } from "@/lib/dataIntegrity";
 import { deriveEventSurprise } from "@/lib/eventSurprise";
+import { pickPocketForRegime } from "@/lib/pocketSkill";
 
 interface PageParams {
   params: Promise<{ asset: string }>;
@@ -323,14 +324,25 @@ export default async function BriefingPage({ params }: PageParams) {
           the "garbage-with-decoration" false-confidence read (trader RED-3). */}
       <FreshDataBanner asset={normalisedAsset} briefingGeneratedAt={card?.generated_at ?? null} />
 
-      {/* r134 — ConvictionGroundingPanel (Mission centrale axis 6) : the
-          QUALITATIVE grounding behind conviction_pct (confluence depth +
-          scenario clarity + critic verdict), NOT a fabricated numeric
-          split (R59 proved conviction_pct is a single opaque LLM scalar).
-          Placed adjacent to the VerdictBanner conviction gauge, before
-          the granular data panels. Honest silent absence when the card
-          carries no grounding dimensions. */}
-      {card ? <ConvictionGroundingPanel card={card} /> : null}
+      {/* r134 + r142 + r143 — ConvictionGroundingPanel (Mission centrale
+          axis 6) : the QUALITATIVE grounding behind conviction_pct
+          (confluence depth + scenario clarity + critic verdict + r142
+          engine drivers + r143 pocket-skill caveat cross-reference).
+          NOT a fabricated numeric split (R59 proved conviction_pct is a
+          single opaque LLM scalar). r143 YELLOW-2 : the picked pocket
+          summary (by current regime, falls back to most-observed)
+          drives the meta-calibration caveat on the 4th tile so the
+          user explicitly sees the PocketSkillBadge state cross-referenced
+          on the drivers tile (doctrine #11 cognitive-distance fix). */}
+      {card ? (
+        <ConvictionGroundingPanel
+          card={card}
+          pocketSkill={pickPocketForRegime(
+            pocketSummary?.rows ?? null,
+            card.regime_quadrant ?? null,
+          )}
+        />
+      ) : null}
 
       <section aria-labelledby="key-levels-heading">
         <div className="mb-4 flex items-baseline justify-between gap-4">

@@ -48,7 +48,12 @@
  * we guard its runtime shape here.
  */
 
-import type { ConfluenceDriverSchema, Scenario, ScenarioLabel } from "@/lib/api";
+import type { ConfluenceDriverSchema, PocketSummary, Scenario, ScenarioLabel } from "@/lib/api";
+import {
+  classifyPocketSkill,
+  shouldShowSoftCalibrationCaveat,
+  type PocketSkillVerdict,
+} from "@/lib/pocketSkill";
 
 /** r142 — engine-driver threshold matching the `confluence_engine`
  * "5+ rule" convention (lines 26-27 of the engine docstring : "factors
@@ -140,8 +145,29 @@ export interface ConvictionGrounding {
    *  skipped to keep the panel sourced). Empty array when no engine
    *  drivers available. */
   topDrivers: ConfluenceDriverLite[];
+  /** r143 YELLOW-2 — pocket-skill caveat note for the Drivers explicites
+   *  tile (cross-references the PocketSkillBadge state ; doctrine #11
+   *  cognitive-distance fix). `null` when no pocket data OR when the
+   *  pocket is high_skill / neutral / non-conclusive-with-positive-tilt
+   *  (no caveat needed). `anti_skill` triggers the strong caveat ;
+   *  `soft_calibration` triggers the softer "calibration insuffisante"
+   *  caveat for non-conclusive pockets with negative tilt below the eps.
+   *
+   *  ASYMMETRIC BY DESIGN (r143 code-reviewer N2 explicit pin) :
+   *  positive-tilt non-conclusive pockets get NO caveat. Trader-correct
+   *  per Mark Douglas — over-trusting a non-conclusive positive-tilt
+   *  pocket is the dangerous direction ; "calibration insuffisante"
+   *  on a positive tilt would be noise that erodes trust in the panel.
+   *  Future contributors : do NOT "fix" the asymmetry to dual-direction
+   *  — the trader review explicitly validated this asymmetry. */
+  pocketSkillCaveat: "anti_skill" | "soft_calibration" | null;
+  /** r143 — n_observations of the picked pocket, surfaced in the caveat
+   *  text so the user sees the empirical sample size driving the verdict. */
+  pocketSkillNObservations: number | null;
   /** True when NONE of the grounding dimensions are available (caller
-   *  renders honest silent absence — never a fabricated grounding). */
+   *  renders honest silent absence — never a fabricated grounding).
+   *  NOT influenced by `pocketSkillCaveat` — the caveat is meta-context
+   *  on the drivers tile, not a grounding dimension itself. */
   empty: boolean;
 }
 
@@ -234,6 +260,11 @@ export function deriveConvictionGrounding(card: {
    *  JSONB column, projected by `from_orm_row` with engine-layer
    *  preference. Optional / null for legacy pre-r142 cards. */
   confluence_drivers?: ConfluenceDriverSchema[] | null;
+  /** r143 YELLOW-2 — picked pocket-skill summary for the card's
+   *  (asset, regime_quadrant) pocket from `/v1/phase-d/pocket-summary`.
+   *  Used to surface the meta-calibration caveat on the Drivers
+   *  explicites tile. Optional / null for callers that don't fetch it. */
+  pocketSkill?: PocketSummary | null;
 }): ConvictionGrounding {
   // 1. Confluence — count valid mechanisms + distinct sources.
   const rawMechs = Array.isArray(card.mechanisms) ? card.mechanisms : [];
@@ -281,10 +312,43 @@ export function deriveConvictionGrounding(card: {
   // 4. r142 — engine drivers (count above |0.2| threshold + top-3).
   const { meaningfulDriverCount, topDrivers } = deriveEngineDrivers(card.confluence_drivers);
 
+  // 5. r143 YELLOW-2 — pocket-skill caveat for the Drivers explicites
+  //    tile. Two-tier caveat semantic :
+  //      (a) `anti_skill` (n >= 30 AND skill_delta <= -0.02) → strong
+  //          caveat "Anti-skill historique" (verbatim PocketSkillBadge
+  //          vocabulary per doctrine #4 SSOT).
+  //      (b) `soft_calibration` (n < 30 AND skill_delta <= -0.02) →
+  //          softer "Calibration insuffisante (tendance défavorable)"
+  //          caveat. Covers the known EUR_USD/usd_complacency n=13
+  //          sd=-0.0497 + XAU_USD/usd_complacency n=19 cases : not
+  //          conclusive yet, but the early signal warrants a flag so
+  //          the user doesn't over-trust the deterministic-engine drivers
+  //          for pockets the aggregator hasn't yet learned to weight well.
+  //    `null` for high_skill / neutral / non-conclusive-without-tilt.
+  //    Caveat is META-CONTEXT on the tile, NOT a separate grounding
+  //    dimension — does NOT contribute to the `empty` flag.
+  let pocketSkillCaveat: "anti_skill" | "soft_calibration" | null = null;
+  let pocketSkillNObservations: number | null = null;
+  if (card.pocketSkill) {
+    const verdict: PocketSkillVerdict = classifyPocketSkill(
+      card.pocketSkill.skill_delta,
+      card.pocketSkill.n_observations,
+    );
+    if (verdict === "anti_skill") {
+      pocketSkillCaveat = "anti_skill";
+      pocketSkillNObservations = card.pocketSkill.n_observations;
+    } else if (shouldShowSoftCalibrationCaveat(card.pocketSkill)) {
+      pocketSkillCaveat = "soft_calibration";
+      pocketSkillNObservations = card.pocketSkill.n_observations;
+    }
+  }
+
   // Honest silent-absence flag : true only when EVERY derived dimension
   // is unavailable (uses the DERIVED `topScenarioLabel`, so a partial
   // scenario set that was suppressed above counts as absent). r142 :
-  // engine drivers dimension also counts as a grounding signal.
+  // engine drivers dimension also counts as a grounding signal. r143 :
+  // pocketSkillCaveat NOT included — it's meta-context on the drivers
+  // tile not a standalone grounding dimension.
   const empty =
     mechanismCount === 0 &&
     topScenarioLabel === null &&
@@ -301,6 +365,8 @@ export function deriveConvictionGrounding(card: {
     criticVerdict,
     meaningfulDriverCount,
     topDrivers,
+    pocketSkillCaveat,
+    pocketSkillNObservations,
     empty,
   };
 }
