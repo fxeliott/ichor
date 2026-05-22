@@ -77,13 +77,14 @@ async def test_snapshot_returns_list_of_plain_dicts() -> None:
     from ichor_api.db import get_sessionmaker
 
     sm = get_sessionmaker()
+    snapshot: list | None = None
     async with sm() as session:
         try:
             snapshot = await compose_key_levels_snapshot(session)
         except Exception:
             pytest.skip("DB unavailable in this test env")
 
-    assert isinstance(snapshot, list)
+    assert snapshot is not None and isinstance(snapshot, list)
     for kl in snapshot:
         assert isinstance(kl, dict), f"expected plain dict, got {type(kl).__name__}"
         # Plain dict means json.dumps would work (no dataclass)
@@ -98,6 +99,7 @@ async def test_snapshot_empty_list_is_canonical_normal_state() -> None:
     from ichor_api.db import get_sessionmaker
 
     sm = get_sessionmaker()
+    snapshot: list | None = None
     async with sm() as session:
         try:
             snapshot = await compose_key_levels_snapshot(session)
@@ -108,4 +110,4 @@ async def test_snapshot_empty_list_is_canonical_normal_state() -> None:
     # The composition therefore returns []. We don't assert == []
     # because the dev DB may have real data — we only assert the
     # type contract (list, not None, not exception).
-    assert isinstance(snapshot, list)
+    assert snapshot is not None and isinstance(snapshot, list)
