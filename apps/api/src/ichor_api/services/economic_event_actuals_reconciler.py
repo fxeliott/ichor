@@ -132,6 +132,14 @@ DEFAULT_SETTLE_MINUTES = 15
 # Sales" might map to RSXFS or RSFSXMV — needs investigation +
 # additional adversarial test fixtures).
 TITLE_FRAGMENT_BLOCKED: tuple[str, ...] = (
+    # ADP Non-Farm Employment Change (private payroll survey, released
+    # Wednesday before BLS NFP). NPPTTL discontinued on FRED per r144
+    # researcher R59 audit ; NOT the same as PAYEMS. Discovered
+    # empirically post-deploy as a false-positive of the "non-farm
+    # employment change" positive-dispatch substring. r144 round-2
+    # post-deploy audit fix — same collision class as S1+S2 but missed
+    # by reviewers, caught only by empirical witness dry-run.
+    "adp",
     # Cleveland Fed inflation measures — TRMMEANCPIM158SFRBCLE +
     # MEDCPIM158SFRBCLE — different series than CPIAUCSL.
     "trimmed mean cpi",
@@ -152,6 +160,11 @@ TITLE_FRAGMENT_BLOCKED: tuple[str, ...] = (
     # Defensive entry here ensures we don't accidentally route headline
     # PCE to PCEPILFE (Core).
     "pce price index ex-",
+    # "Prelim Nonfarm Productivity q/q" + "Prelim Unit Labor Costs q/q"
+    # (BLS productivity stats) — share the "nonfarm" substring with NFP
+    # but reference completely different measures. Block defensively.
+    "nonfarm productivity",
+    "unit labor costs",
 )
 
 

@@ -131,10 +131,22 @@ class TestMapTitleToSeries:
             "Sticky-Price CPI y/y",  # Atlanta Fed
             "Core Retail Sales m/m",  # ex-autos, NOT RSAFS
             "PCE Price Index Ex-Food m/m",  # variant we explicitly block
+            # r144 round-2 post-deploy audit fix — empirical witness
+            # caught ADP false-positive matching "non-farm employment
+            # change". ADP is private survey (NPPTTL discontinued on
+            # FRED) ; NOT the same as BLS PAYEMS.
+            "ADP Non-Farm Employment Change",
+            "adp non-farm payrolls",
+            # BLS productivity stats share "nonfarm" substring with NFP
+            # but reference completely different measures.
+            "Prelim Nonfarm Productivity q/q",
+            "Revised Nonfarm Productivity q/q",
+            "Prelim Unit Labor Costs q/q",
+            "Revised Unit Labor Costs q/q",
         ):
             assert map_title_to_series(title) is None, (
                 f"Blocked title {title!r} must short-circuit to None — "
-                "data correctness regression guard (r144 S1+S2 fix)."
+                "data correctness regression guard (r144 S1+S2+round-2 fix)."
             )
 
     def test_average_hourly_earnings_maps_to_ahetpi(self) -> None:
