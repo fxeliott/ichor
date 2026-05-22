@@ -6,7 +6,7 @@ from datetime import date as DateType
 from datetime import datetime
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Response
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -67,6 +67,7 @@ class CalendarOut(BaseModel):
 
 @router.get("/upcoming", response_model=CalendarOut)
 async def get_upcoming(
+    response: Response,
     session: Annotated[AsyncSession, Depends(get_session)],
     horizon_days: Annotated[int, Query(ge=1, le=60)] = 14,
     asset: Annotated[str | None, Query()] = None,
@@ -83,6 +84,11 @@ async def get_upcoming(
     publish actuals (lesson #11 calibrated honesty — frontend banner
     must stamp "actuals à vérifier à la source").
     """
+    # r140 code-reviewer S1 fix : Cache-Control: no-store when polling-
+    # mode (since_minutes>0). Any browser/CDN cache defeats freshness-
+    # detection. Static forward-only queries stay cacheable (no header set).
+    if since_minutes > 0:
+        response.headers["Cache-Control"] = "no-store"
     report = await assess_calendar(session, horizon_days=horizon_days, since_minutes=since_minutes)
     events = filter_for_asset(report, asset.upper().replace("-", "_")) if asset else report.events
     return CalendarOut(

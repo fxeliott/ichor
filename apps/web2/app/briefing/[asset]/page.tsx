@@ -297,16 +297,6 @@ export default async function BriefingPage({ params }: PageParams) {
 
       <TodaySessionPulse asset={normalisedAsset} pulse={sessionPulse} />
 
-      {/* r140 — Mission centrale axis-5 réactivité temps réel (TIGHT-SCOPE) :
-          polls /v1/calendar/upcoming?since_minutes=240 every 60s + triggers
-          router.refresh() when a catalyst's scheduled_at has elapsed since
-          briefing.generated_at. Silent absence when no fire ; honest copy
-          stamped "pas un signal" + "actuals à vérifier à la source" because
-          ForexFactory feed has no `actual` column. Placed RIGHT under
-          TodaySessionPulse (above VerdictBanner) so a fire alert is the
-          FIRST thing Eliot sees, not buried below 20 panels. */}
-      <FreshDataBanner asset={normalisedAsset} briefingGeneratedAt={card?.generated_at ?? null} />
-
       {card && (
         <VerdictBanner
           asset={normalisedAsset}
@@ -320,6 +310,20 @@ export default async function BriefingPage({ params }: PageParams) {
       <PocketSkillBadge data={pocketSummary} regime={card?.regime_quadrant ?? null} />
 
       <DataIntegrityBadge data={dataIntegrity} />
+
+      {/* r140 — Mission centrale axis-5 réactivité temps réel (TIGHT-SCOPE).
+          Placed RIGHT AFTER DataIntegrityBadge (sibling-class : data-honesty
+          contextual integrity) per ui-designer Y1 + trader RED-2 risk-balance :
+          banner can false-positive on holiday/cancelled events (no `actual`
+          column in economic_events), and `router.refresh()` is contingent on
+          FRED cron tick post-fire (HOURS of lag for PAYEMS/CPI/PCE). Placing
+          above VerdictBanner would amplify a known-false-positive-prone signal
+          into the most premium slot. Sibling-of-DataIntegrity is the honest
+          semantic position. Silent absence (sr-only role=status) when no fire ;
+          neutral-chrome demoted framing ("Catalyst horaire écoulé · données
+          panel inchangées tant que la collecte cron n'a pas tourné") avoids
+          the "garbage-with-decoration" false-confidence read (trader RED-3). */}
+      <FreshDataBanner asset={normalisedAsset} briefingGeneratedAt={card?.generated_at ?? null} />
 
       {/* r134 — ConvictionGroundingPanel (Mission centrale axis 6) : the
           QUALITATIVE grounding behind conviction_pct (confluence depth +

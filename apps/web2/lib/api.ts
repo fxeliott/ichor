@@ -15,6 +15,11 @@ export interface ApiFetchOptions {
   revalidate?: number;
   /** Override base URL (for tests). */
   baseUrl?: string;
+  /** r140 — optional AbortSignal forwarded to fetch() so client-side
+   *  pollers (FreshDataBanner) can actually cancel in-flight requests
+   *  on unmount. Without this, AbortController in callers was a no-op
+   *  (code-reviewer R2 — wired end-to-end, not decorative). */
+  signal?: AbortSignal;
 }
 
 /** GET request returning typed JSON or `null` on any failure. */
@@ -33,6 +38,11 @@ export async function apiGet<T>(path: string, opts: ApiFetchOptions = {}): Promi
     fetchInit.next = { revalidate: opts.revalidate };
   } else {
     fetchInit.cache = opts.cache ?? "no-store";
+  }
+  // r140 — thread the optional AbortSignal so client pollers can cancel
+  // in-flight fetches on unmount (code-reviewer R2 fix).
+  if (opts.signal) {
+    fetchInit.signal = opts.signal;
   }
 
   try {
@@ -259,12 +269,18 @@ export async function getKeyLevels(): Promise<KeyLevelsResponse | null> {
 export async function getCalendarUpcoming(
   asset: string | null = null,
   sinceMinutes: number = 0,
+  opts: { signal?: AbortSignal } = {},
 ): Promise<CalendarUpcoming | null> {
   const qs = new URLSearchParams();
   if (asset) qs.set("asset", asset);
   if (sinceMinutes > 0) qs.set("since_minutes", String(sinceMinutes));
   const path = qs.toString() ? `/v1/calendar/upcoming?${qs.toString()}` : "/v1/calendar/upcoming";
-  return apiGet<CalendarUpcoming>(path);
+  // r140 — pass `signal` so FreshDataBanner's AbortController actually
+  // cancels in-flight polls on unmount (code-reviewer R2 fix).
+  // Conditionally include signal to honour exactOptionalPropertyTypes.
+  const apiOpts: { signal?: AbortSignal } = {};
+  if (opts.signal) apiOpts.signal = opts.signal;
+  return apiGet<CalendarUpcoming>(path, apiOpts);
 }
 
 /** r89 (ADR-099 Tier 2.3) — themed Polymarket prediction-market impact

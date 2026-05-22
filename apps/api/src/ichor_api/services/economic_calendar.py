@@ -265,10 +265,18 @@ async def assess_calendar(
     this honestly (lesson #11) — banner copy includes "actuals à vérifier
     à la source (FRED/Bloomberg)" to prevent false-positive misreads.
     """
+    # r140 code-reviewer R1 fix : sections 1 (CB meetings) and 2 (recurring
+    # FRED projections) intentionally keep the FORWARD-only date-floor
+    # (`today = now.date()`). Only the ForexFactory DB query (section 3)
+    # honours `since_minutes` to expose recent-fire catalysts to the
+    # FreshDataBanner. Without this split, `today = window_start.date()`
+    # truncated to the previous day when since_minutes pushed past
+    # midnight, bloating the response with a full extra day of CB +
+    # recurring events — payload bloat + API contract divergence vs the
+    # minute-precision contract the param name implies.
     now = datetime.now(UTC)
-    window_start = now - timedelta(minutes=since_minutes) if since_minutes > 0 else now
-    today = window_start.date()
-    end = now.date() + timedelta(days=horizon_days)
+    today = now.date()
+    end = today + timedelta(days=horizon_days)
     events: list[CalendarEvent] = []
 
     # 1. Static central-bank meetings
@@ -363,10 +371,11 @@ async def assess_calendar(
     # r140 — `since_minutes>0` shifts the lower bound backward so events
     # whose scheduled_at has just elapsed since the briefing's generated_at
     # surface in the recent-fires window. Backward-compat : default 0 keeps
-    # the r68 forward-only behaviour.
-    cutoff_now = datetime.now(UTC)
-    ff_lower = cutoff_now - timedelta(minutes=since_minutes) if since_minutes > 0 else cutoff_now
-    cutoff_end = cutoff_now + timedelta(days=horizon_days)
+    # the r68 forward-only behaviour. r140 code-reviewer N4 fix — reuse
+    # the outer `now` (single source of truth for the function) instead
+    # of a redundant `datetime.now(UTC)` second call.
+    ff_lower = now - timedelta(minutes=since_minutes) if since_minutes > 0 else now
+    cutoff_end = now + timedelta(days=horizon_days)
     ff_rows = list(
         (
             await session.execute(
