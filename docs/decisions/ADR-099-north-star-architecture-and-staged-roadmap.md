@@ -3764,3 +3764,50 @@ Voie D held **59 rounds** (zero `import anthropic` r144 ; pure compute service +
 **Mission centrale axis impact** : **axis-5 🎯+1 LEVEL FOUNDATION r141 → +1 LEVEL DATA r144** (partial closure US-only ; 12/15 tier-1 events covered ; 3 documented gaps). Axes 1-2 ✅ r123 / 3 ✅ r132+r133 / 4 🎯+1 r130 / **5 🎯+1 LEVEL DATA r144 ⭐** / 6 ✅ CLOSED r142 + visual witness r143 / 7 🎯 LIVE / 8 🎯+1 PARTIAL r131. 3 of 8 axes ✅ CLOSED + axis-5 now has REAL DATA flowing (not just dormant schema).
 
 **Lesson r144 codified (NEW)** : **R-WITNESS-EMPIRICAL** — pre-deploy 2-reviewer/4-reviewer dispatch is INSUFFICIENT to catch all collision-class data-correctness bugs. Reviewers can spot KNOWN patterns (Core Retail Sales, Trimmed Mean CPI) but ADP false-positive was missed by 2 reviewers and revealed ONLY by empirical dry-run on real prod data. Apply as a separate post-deploy review pass : (1) ship to staging/prod with feature flag OFF ; (2) seed flag = true ; (3) run CLI `--dry-run --lookback-days N` ; (4) inspect `alfred.reconcile.updated` log events for unexpected mappings ; (5) IF new collisions found → apply round-2 fix-cluster + commit + re-deploy + re-witness ; (6) only THEN leave flag ON for live cron. Mirror of r142 + r143's empirical witness pattern but extended to "fix-cluster round-2 if witness reveals new issues".
+
+## Implementation (r145, 2026-05-22) — Tier 1 axis-5 USER-SURFACE VISIBILITY CODE : `<RecentActualsPanel>` on `/briefing/[asset]` + r141 `classify_surprise()` wired as single API truth-source (deploy + Playwright witness DEFERRED r146 Phase 0)
+
+r144 lit the `actual` column for 18 US events via FRED ALFRED ; r141 added the 5-state geometric classifier (dormant since r141, zero router consumers per R59 audit). r145 closes Mission centrale axis-5 USER-SURFACE VISIBILITY code-side : surface the 18 actuals + classifier verdict on `/briefing/[asset]` via a new `<RecentActualsPanel>` tile. Deploy + empirical witness deferred r146 Phase 0 due to lesson #24 SSH-instability (3 consecutive Hetzner SSH timeouts during step 4 restart — trader stop-loss discipline applied).
+
+**R59 dual-audit BEFORE code** (2 parallel sub-agents) :
+
+- **code-explorer** : zero `classify_surprise()` consumers in routers (dormant) ; FRED-based `MacroSurprisePanel` is orthogonal axis (z-score backdrop, not per-event actuals) ; r135-r137 work doesn't touch the per-event track ; recommend NEW endpoint + NEW tile (don't shoehorn).
+- **researcher** : FF/Bloomberg patterns collapse geometric+directional, Ichor must NOT replicate ; AMF DOC-2008-23 compliance via descriptive geometric labels ; FR copy locked verbatim (Donnée non publiée / Dans la fourchette des analystes / Au-dessus de la fourchette / En-dessous de la fourchette / Pile sur le consensus) ; counter-intuitive regime guard (arXiv 1410.8427+2212.04525 bad-news-is-good-news late-cycle) — surface raw geometric ONLY, defer directional interpretation to verdict/confluence layers.
+
+**Critical R59 source-verbatim discovery** : reading `economic_event_surprise.py:242-249` revealed `classify_surprise()` computes `magnitude_pct` INDEPENDENTLY of `state`. So wiring the classifier today is the correct future-proof contract — today `state=unavailable` for all rows (no analyst range envelope provider yet) BUT `magnitude_pct` populates from FF consensus point. When r146+ range provider lands, state badges + amber emphasis auto-light up without API/frontend changes (gated by `stateMeaningful` parameter in `magnitudePctTone`).
+
+**Implementation** (8 files, +1492 LOC committed `9abea76`) :
+
+Backend (3 files) :
+
+- `apps/api/src/ichor_api/services/recent_actuals.py` NEW pure compute service (RecentActualRow frozen dataclass + fetch_recent_actuals ORM query past N-day window where actual IS NOT NULL + classify_surprise wired per row).
+- `apps/api/src/ichor_api/routers/calendar.py` : NEW `GET /v1/calendar/recent-actuals` route + 3 Pydantic shapes + `SurpriseStateLiteral = SurpriseState` re-export (code-reviewer SHOULD-FIX #2).
+- `apps/api/tests/test_recent_actuals.py` NEW 22 tests (13 service + 4 router + 5 ADR-017 invariants incl. backend Literal lockstep).
+
+Frontend (5 files) :
+
+- `apps/web2/lib/api.ts` : NEW SurpriseState 5-literal + SurpriseClassificationOut + RecentActualRow + RecentActuals types.
+- `apps/web2/lib/recentActuals.ts` NEW pure-fn view-model (SURPRISE_STATE_FR researcher-locked + NOTABLE_MAGNITUDE_PCT_THRESHOLD=5.0 + fmtMagnitudePct + magnitudePctTone gated on stateMeaningful + shouldRenderStateBadge + fmtScheduledAtParis DST-correct).
+- `apps/web2/components/briefing/RecentActualsPanel.tsx` NEW visual grammar parity with MacroSurprisePanel (header chrome + divide-y `<ul>` + motion-react `m.section` + footer caveat band).
+- `apps/web2/app/briefing/[asset]/page.tsx` Promise.all + JSX placement between MacroSurprisePanel and Géopolitique.
+- `apps/web2/__tests__/recentActuals.test.ts` NEW 26 tests incl. ADR-017 source-inspection widened to 24+ canonical regex.
+
+**4-reviewer concordance applied** (doctrine #17 NEW visible UI = trader + ui-designer + a11y + code-reviewer parallel) ; all SHIP-WITH-FIXES (0 BLOCK + 0 CRITICAL/RED) :
+
+- **CONCORDANT 2/4 fixes** : (a) ui-designer I2 + a11y SHOULD-1 — amber tone gated on stateMeaningful (avoids fabricated emphasis when range data missing + sidesteps contrast risk) ; (b) ui-designer N3 + a11y SHOULD-2 — drop `title="..."` tooltip.
+- **Single-domain authority applied** : a11y IMPORTANT-1 (DROP `<li aria-label>` per ARIA 1.2 — was clobbering visible-text SR reading + dropping currency/impact/date for SR users ; replaced with DOM-reading-order strategy) ; a11y NIT-1 (aria-hidden middot wrapper) ; ui-designer I1 (magnitude token shortened to fit 320px) ; ui-designer I3 (drop noisy currency+impact from row meta) ; trader Y1 (sign-convention anchored in footer) ; trader Y2 (unavailable universal disclosure in subtitle) ; code-reviewer S1 (REMOVE silent impact downcast — Pydantic Literal fail-fasts on bad ORM data, doctrine #11) ; code-reviewer S2 (SurpriseStateLiteral re-export + test_backend_state_literal_lockstep CI invariant) ; code-reviewer S3 (WIDEN ADR-017 frontend regex 4 → 24+ canonical patterns incl. FR/ES/DE imperatives) ; code-reviewer N6+N7 (fix Cache-Control + empty-currency docstring lies).
+- **Deferred r146 NIT batch** : ui-designer N1 + ui-designer N2 + a11y NIT-2 + code-reviewer #4 + code-reviewer #5.
+
+**Build gate (MEASURED — doctrine #14)** : pytest 148/148 + vitest 369/369 + tsc 0 + eslint 0 + next build OK. Pre-commit hooks 2-pass (ruff auto-fixed `timezone.utc` → `UTC` alias + ruff-format + prettier) per doctrine #6.
+
+**Deploy DEFERRED r146 Phase 0 (lesson #24 + Steenbarger stop-loss)** : attempted redeploy-api.sh ; steps 1+2+3 succeeded but step 4 (restart + healthz wait) hit `ssh: Connection timed out` ; retried with ConnectTimeout=15/30/60 — all 3 timed out. Per trader stop-loss discipline (2 failed attempts → revert/reformulate, NOT revenge-debug) + doctrine #2 strict scope, deferred deploy to r146 Phase 0. Parity with r142→r143 deploy deferral pattern. Code is committed (`9abea76`) + pushed + locally validated. r146 Phase 0 plan : SSH liveness probe → retry redeploy-api.sh → curl empirical verify → redeploy-web2.sh → Playwright snapshot.
+
+**Honest scope (doctrine #2 + #11)** : NO new ADR (additive endpoint + tile + classifier wire) / NO new migration (reuses r141 schema 0052) / NO analyst range envelope provider / NO EU/UK/JP `actual` providers / NO `actual_source` or `actual_revised` columns / NO FF XML title-coverage CI invariant (r146 binding default) / NO Playwright empirical witness (deferred r146 per SSH stop-loss).
+
+Voie D held **60 rounds** (zero `import anthropic` r145 ; pure compute view-model + classifier wire ; same `fred_api_key` reused via r144 path ; no LLM call). Doctrine #9 dated APPEND, NO new ADR (additive endpoint + tile + classifier wire — established patterns inherited from MacroSurprisePanel visual grammar + r141 classifier + r144 reconciler). Doctrine-#9 coord-math ledger UNCHANGED.
+
+**Mission centrale axis impact** : **axis-5 🎯+1 LEVEL DATA r144 → axis-5 🎯+1 LEVEL DATA + VISIBLE SURFACE CODE r145** (deploy r146). Axes 1-2 ✅ r123 / 3 ✅ r132+r133 / 4 🎯+1 r130 / **5 🎯+1 LEVEL DATA r144 + VISIBLE SURFACE CODE r145 ⭐ (deploy r146)** / 6 ✅ CLOSED r142 + visual witness r143 / 7 🎯 LIVE / 8 🎯+1 PARTIAL r131.
+
+**No new lesson codified** (r145 applies existing R-WITNESS-EMPIRICAL r144 + R-DEPLOY-6 r142 + lesson #24 SSH-instability + doctrine #2 strict scope). r145 demonstrates the trader stop-loss pattern post lesson #24 trigger : 3 SSH attempts → revert/reformulate to honest deferral, not revenge-debug.
+
+**r146 binding default candidates** : (a) ⭐ AUTO-RECO retry r145 deploy via R-DEPLOY-6 + Playwright empirical witness ; (b) FF XML title-coverage CI invariant (r144 trader Y2(a) UPGRADED) ; (c) ADR-017 web2 caveat RTL regex ; (d) `actual_source` column (Critic-attribution multi-provider) ; (e) `actual_revised` T+24h overwrite column ; (f) range envelope consensus-poll provider (high leverage — auto-lights up r145 state badges + amber emphasis on existing surface) ; (g) EU `actual` reconciler via ECB SDMX (mirror r144 + R-WITNESS-EMPIRICAL).
