@@ -46,6 +46,14 @@ _MIN_ASSET_MATCHES = 3
 # 500 = upstream `limit` ceiling).
 _FILTER_FETCH_MULTIPLIER = 4
 _FILTER_MAX_FETCH = 500
+# r139 — minimum candidate-pool floor when asset filtering. The briefing
+# default limit=12 → pool=48 was empirically too SHALLOW for assets with
+# sparser news density (SPX/XAU). Tech-dominant news cycles push gold/
+# macro keywords beyond the 200-most-recent window. Floor of 100 ensures
+# the keyword precision pass surfaces non-zero matches at default briefing
+# limits even when news mix is unbalanced. Verified empirically 2026-05-22 :
+# pool=48 → matched=0 for SPX/XAU ; pool=200 → matched=10 for SPX, NAS+9.
+_FILTER_MIN_POOL = 100
 # r138 — `_ASSET_REGEX` now re-imported from
 # `services/asset_news_affinity.ASSET_QUERY_REGEX` (code-reviewer N3 SSOT).
 
@@ -132,8 +140,13 @@ async def list_news(
     # at `limit`. Without asset, behaviour is identical to r137.
     fetch_cap = limit
     if asset:
+        # r139 — floor of 100 candidates ensures SPX/XAU keyword precision
+        # pass surfaces non-zero matches at briefing's default limit=12
+        # even when news mix is tech-dominant (NVDA-cluster pushes XAU/SPX
+        # vocab beyond the shallow most-recent window).
         fetch_cap = min(
-            _FILTER_MAX_FETCH, max(limit * _FILTER_FETCH_MULTIPLIER, _MIN_ASSET_MATCHES * 4)
+            _FILTER_MAX_FETCH,
+            max(limit * _FILTER_FETCH_MULTIPLIER, _FILTER_MIN_POOL),
         )
     stmt = stmt.limit(fetch_cap)
     rows = list((await session.execute(stmt)).scalars().all())
