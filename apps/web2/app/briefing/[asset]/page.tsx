@@ -36,6 +36,7 @@ import { GeopoliticsPanel } from "@/components/briefing/GeopoliticsPanel";
 import { InstitutionalPositioningPanel } from "@/components/briefing/InstitutionalPositioningPanel";
 import { MacroSurprisePanel } from "@/components/briefing/MacroSurprisePanel";
 import { PolymarketImpactPanel } from "@/components/briefing/PolymarketImpactPanel";
+import { RecentActualsPanel } from "@/components/briefing/RecentActualsPanel";
 import { KeyLevelsPanel } from "@/components/briefing/KeyLevelsPanel";
 import { NarrativeBlocks } from "@/components/briefing/NarrativeBlocks";
 import { NewsPanel } from "@/components/briefing/NewsPanel";
@@ -73,6 +74,7 @@ import {
   type MacroPulse,
   type PolymarketImpact,
   type PositioningOut,
+  type RecentActuals,
   type SessionCard,
   type SessionCardList,
   type SessionStatusOut,
@@ -133,6 +135,7 @@ export default async function BriefingPage({ params }: PageParams) {
     sessionStatusSsr,
     tempoBundle,
     macroPulse,
+    recentActuals,
   ] = await Promise.all([
     fetchSessionCardForAsset(normalisedAsset),
     getKeyLevels() as Promise<KeyLevelsResponse | null>,
@@ -164,6 +167,11 @@ export default async function BriefingPage({ params }: PageParams) {
     // = always fresh per request, reliable on the first visitor.
     // apiGet returns null on failure (graceful, never rejects Promise.all).
     apiGet<MacroPulse>("/v1/macro-pulse"),
+    // r145 — recent published economic event actuals + r141 surprise
+    // classifier (Mission centrale axis-5 visible surface). 30-day USD
+    // window matches the r144 reconciler cadence ; the panel renders
+    // honest silent absence (returns null) when the slice is dark.
+    apiGet<RecentActuals>("/v1/calendar/recent-actuals?lookback_days=30&currency=USD&limit=15"),
   ]);
 
   // r123 — derive today's session pulse from the FULL intraday array
@@ -419,6 +427,13 @@ export default async function BriefingPage({ params }: PageParams) {
           forward-looking EventSurpriseGauge above (next-catalyst surprise
           potential). Honest silent absence when the slice is dark. */}
       <MacroSurprisePanel surpriseIndex={macroPulse?.surprise_index ?? null} />
+
+      {/* r145 — recent published US economic event actuals + r141 surprise
+          classifier (Mission centrale axis-5 visible surface). Sits AFTER
+          MacroSurprisePanel because it's the event-level backward-looking
+          companion (FRED z-score backdrop above; per-event actuals here).
+          Honest silent absence (returns null) when no events have actual yet. */}
+      <RecentActualsPanel data={recentActuals} />
 
       <section aria-labelledby="geopolitics-heading">
         <div className="mb-4 flex items-baseline justify-between gap-4">

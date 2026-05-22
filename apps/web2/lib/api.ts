@@ -999,6 +999,58 @@ export interface CalendarUpcoming {
   events: CalendarEvent[];
 }
 
+// r145 — recent published economic event actuals + r141 surprise classifier
+// projection. Mission centrale axis-5 user-surface visibility (was infra-
+// only since r141 schema + r144 reconciler).
+//
+// ADR-017 boundary : 5-state geometric vocabulary, signed magnitude in % of
+// |consensus|. NEVER directional. Per-asset transmission left to the
+// verdict/confluence layers (parity with MacroSurprisePanel doctrine).
+//
+// r145 reality : state is `unavailable` for all rows today because the
+// analyst range envelope provider is not yet wired (r146+). `magnitude_pct`
+// IS populated from the FF consensus point. When the range provider lands,
+// state badges auto-light up without UI changes.
+export type SurpriseState =
+  | "unavailable"
+  | "in_range"
+  | "above_range"
+  | "below_range"
+  | "exact_consensus";
+
+export interface SurpriseClassificationOut {
+  state: SurpriseState;
+  actual_value: number | null;
+  consensus_value: number | null;
+  forecast_min_value: number | null;
+  forecast_max_value: number | null;
+  magnitude_pct: number | null;
+  range_breach: number | null;
+  parse_failures: string[];
+}
+
+export interface RecentActualRow {
+  event_id: string;
+  currency: string;
+  scheduled_at_utc: string;
+  title: string;
+  impact: "high" | "medium" | "low";
+  actual: string;
+  forecast: string | null;
+  forecast_min: string | null;
+  forecast_max: string | null;
+  previous: string | null;
+  url: string | null;
+  classification: SurpriseClassificationOut;
+}
+
+export interface RecentActuals {
+  generated_at: string;
+  lookback_days: number;
+  currency: string | null;
+  rows: RecentActualRow[];
+}
+
 export interface AlertItem {
   id: string;
   alert_code: string;
