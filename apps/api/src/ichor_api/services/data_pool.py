@@ -59,9 +59,21 @@ from .asian_session import (
 from .asian_session import (
     supported_pairs as asian_supported_pairs,
 )
-from .asset_news_affinity import (  # noqa: F401 — back-compat re-export ; doctrine #4 SSOT pin (test_data_pool_back_compat_reexport_present)
+from .asset_news_affinity import (
     NEWS_KEYWORDS as _NEWS_KEYWORDS,
 )
+from .asset_news_affinity import (
+    matches_asset as _matches_asset,
+)
+
+# r138 + r139 — back-compat re-exports for doctrine #4 SSOT pin
+# (`test_data_pool_back_compat_reexport_present`). The `__all__`
+# declaration is the canonical Python way to mark intentional re-exports
+# so ruff F401 cannot strip names whose sole consumer migrated away
+# (r139 recurrence after the S4 _section_news → filter_rows_by_asset_affinity
+# migration left _matches_asset un-referenced ; ruff stripped it twice
+# despite per-line noqa).
+__all__ = ("_NEWS_KEYWORDS", "_matches_asset")
 from .confluence_engine import (
     assess_confluence,
     render_confluence_block,

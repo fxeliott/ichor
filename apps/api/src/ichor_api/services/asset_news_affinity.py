@@ -38,6 +38,26 @@ from collections.abc import Callable, Iterable
 ASSET_QUERY_REGEX = r"^[A-Z0-9_]{3,16}$"
 
 # r68 origin (data_pool.py:4519-4542). r138 re-homed here unchanged.
+# r139 keyword precision pass : empirically-grounded SPX/NAS/XAU expansion
+# (7-day Hetzner news_items SQL survey + Phase 1B web research). Every
+# new keyword has a non-zero empirical match count on the prod news_items
+# table over 7 days (see SESSION_LOG_2026-05-21-r139-EXECUTION.md §A
+# for the verbatim count). Candidates with 0 empirical matches and known
+# high false-positive surnames (Daly/Logan/Bowman/MOVE) were dropped
+# from the add-list per Stream 1B FP flag analysis.
+#
+# Trailing-space gotcha (r68 + r139 caveat) : "GLD " and "GDX " carry a
+# trailing space to prevent substring noise (e.g. "OLD"→"GLD" or
+# "XGDP"→"GDX"). Do NOT add new keywords with trailing spaces unless
+# they have the same disambiguation need ; modern additions (Nvidia,
+# Marvell, Broadcom, etc.) use full names that don't collide.
+#
+# ADR-017 keyword-content-neutrality CI guard
+# (`test_news_keywords_carry_no_directional_words`) enforces zero
+# directional verbs (buy/sell/long/short/bullish/bearish/trade). "rate
+# cut" / "rate cuts" are kept as EVENT LABELS (not actions) — Stream 1B
+# documented edge-case acceptance.
+#
 # 5 priority assets per ADR-099 §D-1 PLUS the historical 4 (USD_JPY /
 # AUD_USD / USD_CAD / US30_USD) kept so the 4-pass autonomous batch
 # (which still polls these as ADR-083 D1 universe) keeps its filter.
@@ -47,22 +67,78 @@ NEWS_KEYWORDS: dict[str, tuple[str, ...]] = {
     "USD_JPY": ("USD/JPY", "USDJPY", "JPY ", "yen", "BoJ", "Ueda", "Japan inflation"),
     "AUD_USD": ("AUD/USD", "AUDUSD", "AUD ", "Aussie", "RBA", "iron ore", "Australia"),
     "USD_CAD": ("USD/CAD", "USDCAD", "CAD ", "loonie", "BoC", "Macklem", "Canadian"),
-    "XAU_USD": ("XAU/USD", "XAUUSD", "gold", "bullion", "GLD ", "GDX ", "spot metals"),
+    "XAU_USD": (
+        # r68 existing — kept (gold/bullion/GLD/GDX/XAU ~94 matches/7d on prod)
+        "XAU/USD",
+        "XAUUSD",
+        "gold",
+        "bullion",
+        "GLD ",  # trailing-space disambiguation vs "OLD"/"BUILD"/etc.
+        "GDX ",  # trailing-space disambiguation vs "XGDP"/etc.
+        "spot metals",
+        # r139 mechanical drivers — empirical-validated (7d Hetzner survey)
+        "real yield",  # 11 matches (gold opportunity-cost mechanical channel)
+        "real yields",  # 11 matches (plural form catches Reuters/Bloomberg pattern)
+        "10-year Treasury",  # 36 matches (nominal yield input to real-yield calc)
+        "de-dollarization",  # 10 matches (structural CB-gold demand driver)
+    ),
     "NAS100_USD": (
+        # r68 existing — kept (Nasdaq/NASDAQ/QQQ ~275 + mega-caps ~600 matches/7d)
         "NAS100",
         "Nasdaq",
         "NASDAQ",
         "QQQ",
-        "AAPL",
-        "MSFT",
-        "GOOGL",
-        "AMZN",
-        "META",
-        "NVDA",
-        "TSLA",
-        "tech stocks",
+        "AAPL",  # 0 empirical 7d (news uses "Apple"/Tim Cook) — kept for URL paths
+        "MSFT",  # 10
+        "GOOGL",  # 306
+        "AMZN",  # 20
+        "META",  # 238
+        "NVDA",  # 58 (vs "Nvidia" full-name 974 — see r139 adds)
+        "TSLA",  # 0 empirical (news uses "Tesla") — kept for URL paths
+        "tech stocks",  # 81 empirical (generic but volume justifies)
+        # r139 mega-cap full names + AI capex + semis (empirical 7d Hetzner)
+        "Nvidia",  # 974 matches — FULL-NAME catches what NVDA ticker misses
+        "data center",  # 250 matches (hyperscaler capex narrative)
+        "datacenter",  # 21 matches (one-word variant)
+        "GPU",  # 143 matches (NVDA/AMD direct hardware vocab)
+        "hyperscaler",  # 133 matches (MSFT/AMZN/GOOGL/META AI capex framing)
+        "AMD",  # 82 matches (second-source GPU thesis)
+        "Marvell",  # 50 matches (custom silicon)
+        "Broadcom",  # 49 matches (Google TPU co-designer)
+        "Blackwell",  # 41 matches (NVDA chip codename)
+        "Taiwan Semiconductor",  # 39 matches (foundry dependency)
+        "TSMC",  # 10 matches (short-form, complementary)
+        "Netflix",  # 32 matches (NDX top-10)
+        "foundry",  # 30 matches (TSMC/Intel framing)
+        "Applied Materials",  # 27 matches (semi equipment)
+        "Palantir",  # 20 matches (NDX growth)
+        "Cook",  # 19 matches — empirically VERIFIED 100% = "Tim Cook" (Apple CEO)
+        "CHIPS Act",  # 11 matches (tech/policy)
+        "AI accelerator",  # 11 matches (chip vocab)
+        "LLM",  # 10 matches (AI vocab)
+        "SOXX",  # 10 matches (semis ETF)
     ),
-    "SPX500_USD": ("S&P 500", "SPX", "SPY", "S&P500", "broad market", "Fed funds"),
+    "SPX500_USD": (
+        # r68 existing — kept (S&P 500 = 323 matches/7d on prod, dominant baseline)
+        "S&P 500",
+        "SPX",
+        "SPY",  # 10
+        "S&P500",
+        "Fed funds",  # 0 empirical 7d but well-anchored Fed-policy label — keep
+        # r139 — DROPPED "broad market" (0 empirical matches, generic noise)
+        # r139 Fed people + macro releases (empirical-validated 7d Hetzner)
+        "Warsh",  # 21 matches — NEW Fed chair sworn in 2026-05-16
+        "Powell",  # 11 matches (chair pro tempore, governor through 2028)
+        "Williams",  # 10 matches (NY Fed Vice Chair FOMC permanent voter)
+        "ISM",  # 87 matches (Manufacturing + Services PMI = top SPX catalyst)
+        "PMI",  # 11 matches (S&P Global Flash)
+        "CPI",  # 10 matches (Fed inflation indicator)
+        "PCE",  # 11 matches (Fed's preferred inflation measure)
+        "rate cut",  # 21 matches — event-label, not directional (per ADR-017 edge-case)
+        "rate cuts",  # 21 matches (plural)
+        "tariff",  # 13 matches (2026 stagflation driver, Trump policy)
+        "10-year Treasury",  # 36 matches (discount-rate input, shared with XAU)
+    ),
     "US30_USD": ("Dow Jones", "DJIA", "DIA"),
 }
 

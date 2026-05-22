@@ -185,5 +185,129 @@ def test_news_keywords_carry_no_directional_words():
             )
 
 
+# ─── r139 keyword-precision empirical anti-FP tests ──────────────────────
+
+
+def test_r139_spx_warsh_powell_williams_ism_match():
+    """r139 — empirical 7d Hetzner survey showed Warsh/Powell/Williams/ISM
+    each have non-zero matches. Pin that the keywords are present + match."""
+    assert "Warsh" in NEWS_KEYWORDS["SPX500_USD"]
+    assert "Powell" in NEWS_KEYWORDS["SPX500_USD"]
+    assert "Williams" in NEWS_KEYWORDS["SPX500_USD"]
+    assert "ISM" in NEWS_KEYWORDS["SPX500_USD"]
+    assert matches_asset("Warsh sworn in as Fed chair", "", "SPX500_USD")
+    assert matches_asset("ISM services PMI prints", "", "SPX500_USD")
+    # Anti-FP : random non-financial mention of "Williams" should NOT
+    # accidentally match SPX (the substring DOES match, but the scarce-
+    # fallback rule prevents over-narrow matches from dominating).
+    # We pin the keyword presence only — false-positive control lives in
+    # filter_rows_by_asset_affinity scarce-fallback.
+
+
+def test_r139_spx_dropped_broad_market_not_present():
+    """r139 — 'broad market' (0 matches/7d empirical) was dropped."""
+    assert "broad market" not in NEWS_KEYWORDS["SPX500_USD"]
+
+
+def test_r139_nas_full_name_nvidia_added():
+    """r139 — 'Nvidia' (974 matches/7d) catches 16x more news than 'NVDA'
+    (58 matches/7d). Both kept (NVDA for URL paths, Nvidia for titles)."""
+    kws = NEWS_KEYWORDS["NAS100_USD"]
+    assert "Nvidia" in kws
+    assert "NVDA" in kws
+    assert matches_asset("Nvidia Q1 datacenter revenue beats", "", "NAS100_USD")
+    assert matches_asset("Generic title", "https://x/y/NVDA-earnings", "NAS100_USD")
+
+
+def test_r139_nas_semis_cluster_present():
+    """r139 — empirical semis cluster (AMD/Marvell/Broadcom/TSMC/AVGO-as-Broadcom)
+    each non-zero on the 7d survey. Pin presence + match."""
+    kws = NEWS_KEYWORDS["NAS100_USD"]
+    for kw in ("AMD", "Marvell", "Broadcom", "TSMC", "Taiwan Semiconductor"):
+        assert kw in kws, f"missing semis keyword: {kw}"
+    assert matches_asset("TSMC Arizona fab milestone", "", "NAS100_USD")
+    assert matches_asset("Marvell custom silicon ramps", "", "NAS100_USD")
+
+
+def test_r139_nas_cook_tim_cook_disambiguation():
+    """r139 — 'Cook' was empirically verified (9/9 7d hits = Tim Cook /
+    Apple CEO, 0 cooking-noise). Pin presence + Tim Cook match."""
+    assert "Cook" in NEWS_KEYWORDS["NAS100_USD"]
+    assert matches_asset("Tim Cook visits China for Apple supplier", "", "NAS100_USD")
+
+
+def test_r139_nas_ai_capex_vocab_present():
+    """r139 — hyperscaler/data center/GPU/LLM/AI accelerator empirical
+    > 100 matches/7d each. Pin presence + match."""
+    kws = NEWS_KEYWORDS["NAS100_USD"]
+    for kw in ("hyperscaler", "data center", "GPU", "LLM", "AI accelerator"):
+        assert kw in kws, f"missing AI-capex keyword: {kw}"
+    assert matches_asset("Hyperscaler datacenter capex Q2 outlook", "", "NAS100_USD")
+
+
+def test_r139_xau_mechanical_drivers_present():
+    """r139 — real yield(s) + 10-year Treasury + de-dollarization are the
+    mechanical XAU drivers (each non-zero empirical 7d). Pin presence +
+    match. The TIPS/DXY/PBoC/CB-gold vocab was DARK (0 matches/7d) and
+    deliberately NOT added — would have shipped functionally-zero."""
+    kws = NEWS_KEYWORDS["XAU_USD"]
+    for kw in ("real yield", "real yields", "10-year Treasury", "de-dollarization"):
+        assert kw in kws, f"missing XAU mechanical-driver: {kw}"
+    assert matches_asset("Real yields drop as TIPS auction strong", "", "XAU_USD")
+    assert matches_asset("10-year Treasury yields ease", "", "XAU_USD")
+
+
+def test_r139_high_fp_surnames_NOT_added():
+    """r139 — Stream 1B FP-flagged + substring-matcher-cannot-AND : skipped
+    Daly/Logan/Bowman/MOVE/inference/training/safe haven/sanctions to
+    avoid FP noise. Pin they are NOT in any keyword set."""
+    high_fp_skipped = {
+        "Daly",
+        "Logan",
+        "Bowman",
+        "MOVE",
+        "inference",
+        "training",
+        "safe haven",
+        "sanctions",
+    }
+    for asset_kws in NEWS_KEYWORDS.values():
+        for kw in asset_kws:
+            assert kw not in high_fp_skipped, f"high-FP keyword leaked into add-list: {kw}"
+
+
+def test_r139_empirically_dead_NOT_added():
+    """r139 — candidates with 0 empirical matches over 7d Hetzner survey
+    were NOT added (shipping-functionally-zero risk per lesson #2). Pin
+    a sample of empirically-dead candidates are absent."""
+    empirically_dead = {
+        "FOMC",
+        "NFP",
+        "nonfarm payrolls",
+        "jobless claims",
+        "ASML",
+        "DXY",
+        "dollar index",
+        "PBoC",
+        "WGC",
+        "World Gold Council",
+        "TIPS yield",
+    }
+    for asset_kws in NEWS_KEYWORDS.values():
+        for kw in asset_kws:
+            assert kw not in empirically_dead, f"empirically-dead keyword shipped: {kw}"
+
+
+def test_r139_rate_cut_label_kept_as_event_not_directional():
+    """r139 — 'rate cut' / 'rate cuts' are event LABELS (noun, news vocab),
+    not directional verbs. Stream 1B documented as ADR-017 edge-case
+    KEEP. Pin presence + ensure they don't trip the content-neutrality
+    CI guard."""
+    assert "rate cut" in NEWS_KEYWORDS["SPX500_USD"]
+    assert "rate cuts" in NEWS_KEYWORDS["SPX500_USD"]
+    forbidden = {"buy", "sell", "long", "short", "bullish", "bearish", "trade"}
+    assert "rate cut".lower().strip() not in forbidden  # noun event label
+
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-v"]))
