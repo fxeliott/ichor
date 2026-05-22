@@ -249,9 +249,22 @@ export async function getKeyLevels(): Promise<KeyLevelsResponse | null> {
   return apiGet<KeyLevelsResponse>("/v1/key-levels");
 }
 
-/** r68 — fetch the upcoming economic calendar from `/v1/calendar/upcoming`. */
-export async function getCalendarUpcoming(): Promise<CalendarUpcoming | null> {
-  return apiGet<CalendarUpcoming>("/v1/calendar/upcoming");
+/** r68 — fetch the upcoming economic calendar from `/v1/calendar/upcoming`.
+ *  r140 — optional `since_minutes` extends the window backward so the
+ *  `<FreshDataBanner>` can detect catalysts whose `scheduled_at` elapsed
+ *  since the briefing's `generated_at` (lesson #11 honest scope : surfaces
+ *  scheduled-time-elapsed, NOT actual-value-published).
+ *  Optional `asset` filter narrows via affected_assets[] mapping.
+ */
+export async function getCalendarUpcoming(
+  asset: string | null = null,
+  sinceMinutes: number = 0,
+): Promise<CalendarUpcoming | null> {
+  const qs = new URLSearchParams();
+  if (asset) qs.set("asset", asset);
+  if (sinceMinutes > 0) qs.set("since_minutes", String(sinceMinutes));
+  const path = qs.toString() ? `/v1/calendar/upcoming?${qs.toString()}` : "/v1/calendar/upcoming";
+  return apiGet<CalendarUpcoming>(path);
 }
 
 /** r89 (ADR-099 Tier 2.3) — themed Polymarket prediction-market impact

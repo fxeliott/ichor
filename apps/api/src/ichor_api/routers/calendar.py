@@ -70,8 +70,20 @@ async def get_upcoming(
     session: Annotated[AsyncSession, Depends(get_session)],
     horizon_days: Annotated[int, Query(ge=1, le=60)] = 14,
     asset: Annotated[str | None, Query()] = None,
+    since_minutes: Annotated[int, Query(ge=0, le=1440)] = 0,
 ) -> CalendarOut:
-    report = await assess_calendar(session, horizon_days=horizon_days)
+    """r140 — `since_minutes` (default 0, max 24h) extends the window
+    backward so the `<FreshDataBanner>` polling endpoint can detect
+    catalysts whose `scheduled_at` has just elapsed. Backward-compat :
+    no `since_minutes` parameter keeps the r68 forward-only behaviour
+    (current `<EconomicCalendarPanel>` consumers unaffected).
+
+    HONEST SCOPE : recent-window events indicate "scheduled time elapsed",
+    NOT "actual value published". The ForexFactory XML feed does not
+    publish actuals (lesson #11 calibrated honesty — frontend banner
+    must stamp "actuals à vérifier à la source").
+    """
+    report = await assess_calendar(session, horizon_days=horizon_days, since_minutes=since_minutes)
     events = filter_for_asset(report, asset.upper().replace("-", "_")) if asset else report.events
     return CalendarOut(
         generated_at=report.generated_at,

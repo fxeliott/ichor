@@ -44,6 +44,7 @@ import { ScenariosPanel } from "@/components/briefing/ScenariosPanel";
 import { SentimentPanel } from "@/components/briefing/SentimentPanel";
 import { SessionStatus } from "@/components/briefing/SessionStatus";
 import { TodaySessionPulse } from "@/components/briefing/TodaySessionPulse";
+import { FreshDataBanner } from "@/components/briefing/FreshDataBanner";
 import { VerdictBanner } from "@/components/briefing/VerdictBanner";
 import { VolumePanel } from "@/components/briefing/VolumePanel";
 import { HourlyVolReport } from "@/components/hourly-vol/HourlyVolReport";
@@ -295,6 +296,16 @@ export default async function BriefingPage({ params }: PageParams) {
       />
 
       <TodaySessionPulse asset={normalisedAsset} pulse={sessionPulse} />
+
+      {/* r140 — Mission centrale axis-5 réactivité temps réel (TIGHT-SCOPE) :
+          polls /v1/calendar/upcoming?since_minutes=240 every 60s + triggers
+          router.refresh() when a catalyst's scheduled_at has elapsed since
+          briefing.generated_at. Silent absence when no fire ; honest copy
+          stamped "pas un signal" + "actuals à vérifier à la source" because
+          ForexFactory feed has no `actual` column. Placed RIGHT under
+          TodaySessionPulse (above VerdictBanner) so a fire alert is the
+          FIRST thing Eliot sees, not buried below 20 panels. */}
+      <FreshDataBanner asset={normalisedAsset} briefingGeneratedAt={card?.generated_at ?? null} />
 
       {card && (
         <VerdictBanner
