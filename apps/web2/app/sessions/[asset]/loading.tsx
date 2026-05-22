@@ -5,7 +5,10 @@
  * counter-claims + scenarios link). Keeps the TopNav visible.
  */
 
-export default function SessionAssetLoading() {
+import type { ReactElement } from "react";
+
+// r143 — explicit ReactElement annotation (TS2742 portability fix).
+export default function SessionAssetLoading(): ReactElement {
   return (
     <main
       aria-busy="true"

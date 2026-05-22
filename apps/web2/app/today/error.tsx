@@ -10,13 +10,15 @@
  */
 
 import { useEffect } from "react";
+import type { ReactElement } from "react";
 
 interface Props {
   error: Error & { digest?: string };
   reset: () => void;
 }
 
-export default function TodayError({ error, reset }: Props) {
+// r143 — explicit ReactElement annotation (TS2742 portability fix).
+export default function TodayError({ error, reset }: Props): ReactElement {
   useEffect(() => {
     if (typeof window !== "undefined") {
       console.error("ichor.web2.today.error", {

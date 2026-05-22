@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { ReactElement } from "react";
 
 /**
  * Root 404 boundary — App Router triggers this when a route segment
@@ -6,8 +7,10 @@ import Link from "next/link";
  * and used by /sessions/[asset] when the asset slug isn't in the
  * Phase 1 watchlist (currently only EUR_USD/GBP_USD/USD_JPY/AUD_USD/
  * USD_CAD/XAU_USD/NAS100_USD/SPX500_USD).
+ *
+ * r143 — explicit ReactElement annotation (TS2742 portability fix).
  */
-export default function NotFound() {
+export default function NotFound(): ReactElement {
   return (
     <main className="mx-auto flex min-h-[70vh] max-w-2xl flex-col items-start justify-center gap-6 px-6 py-12">
       <span

@@ -6,7 +6,12 @@
  * surface so the skeleton must convey "data fetching, system OK".
  */
 
-export default function AdminLoading() {
+import type { ReactElement } from "react";
+
+// r143 — explicit ReactElement annotation (TS2742 portability fix,
+// canonical pattern for Next.js boundary components ; @types/react
+// pnpm path non-portable for inferred .d.ts emit).
+export default function AdminLoading(): ReactElement {
   return (
     <main
       aria-busy="true"

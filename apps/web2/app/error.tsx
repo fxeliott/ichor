@@ -17,6 +17,7 @@
  */
 
 import Link from "next/link";
+import type { ReactElement } from "react";
 import { useEffect } from "react";
 
 interface Props {
@@ -24,7 +25,8 @@ interface Props {
   reset: () => void;
 }
 
-export default function RootError({ error, reset }: Props) {
+// r143 — explicit ReactElement annotation (TS2742 portability fix).
+export default function RootError({ error, reset }: Props): ReactElement {
   useEffect(() => {
     // Surface the digest in the browser console + Sentry if/when wired.
     // Don't dump the full stack here — Next.js already does it in dev.
