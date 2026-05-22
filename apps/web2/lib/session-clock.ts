@@ -34,10 +34,17 @@ const WINDOWS: WindowDef[] = [
 ];
 
 /**
- * Convert a timestamp to {h, m} in Europe/Paris using Intl. Returns
- * 0..23 for hours and 0..59 for minutes regardless of DST.
+ * Convert a timestamp to {h, m, weekday} in Europe/Paris using Intl.
+ * Returns 0..23 for hours, 0..59 for minutes, 1..7 for weekday
+ * (Mon=1, Sun=7) — regardless of DST.
+ *
+ * EXPORTED post-r132 — also consumed by `lib/nyWindow.ts` for the
+ * NY 13-16h Paris window status badge on `<TodaySessionPulse>`.
+ * Single source of truth for Paris-time decomposition (avoids
+ * doctrine-#9 accumulation by re-import rather than duplication).
+ * ICU-backed + year-round DST-correct via `Intl.DateTimeFormat`.
  */
-function parisHM(d: Date): { h: number; m: number; weekday: number } {
+export function parisHM(d: Date): { h: number; m: number; weekday: number } {
   // `Intl.DateTimeFormat` with timeZone: "Europe/Paris" gives us the
   // correct local time even on a UTC server.
   const parts = new Intl.DateTimeFormat("en-GB", {
@@ -62,6 +69,34 @@ function parisHM(d: Date): { h: number; m: number; weekday: number } {
     Sun: 7,
   };
   return { h: hh, m: mm, weekday: weekdayMap[wd] ?? 1 };
+}
+
+/**
+ * Convert a timestamp to the Paris calendar {year, month, day}.
+ * Month is 1-indexed (1=Jan..12=Dec) to match the human convention used
+ * by `lib/usMarketHolidays.ts`. ICU-backed via `Intl.DateTimeFormat`
+ * so DST + year boundary at midnight Paris are correct year-round.
+ *
+ * EXPORTED post-r133 — consumed by `lib/nyWindow.ts` to detect whether
+ * the Paris-current-date is a NYSE/Nasdaq full-day holiday. The Paris
+ * calendar-day (not the UTC calendar-day) is the correct reference :
+ * US holidays start at midnight ET = 06:00 Paris, so during the 00:00-
+ * 06:00 Paris dead-zone the Paris-date can technically differ from the
+ * NY-date — but the badge surfaces on briefings around 13-16h Paris
+ * which are always inside the same calendar day on both sides.
+ */
+export function parisYMD(d: Date): { year: number; month: number; day: number } {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/Paris",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(d);
+
+  const y = Number(parts.find((p) => p.type === "year")?.value ?? "1970");
+  const mo = Number(parts.find((p) => p.type === "month")?.value ?? "1");
+  const da = Number(parts.find((p) => p.type === "day")?.value ?? "1");
+  return { year: y, month: mo, day: da };
 }
 
 /**

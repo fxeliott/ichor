@@ -57,6 +57,7 @@ _FACTOR_NAMES: tuple[str, ...] = (
     "polymarket_overlay",
     "funding_stress",
     "surprise_index",
+    "inflation_surprise",  # r137 — keep in lockstep with DEFAULT_FACTOR_NAMES
     "vix_term",
     "risk_appetite",
     "btc_risk_proxy",

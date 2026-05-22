@@ -13,13 +13,14 @@ and must remain idempotent on rows that have no claude_raw_response.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from types import SimpleNamespace
 from uuid import uuid4
 
 from ichor_api.schemas import (
     CalibrationStat,
     ConfluenceDriver,
+    DegradedInputOut,
     IdeaSet,
     SessionCardOut,
     TradePlan,
@@ -276,3 +277,52 @@ def test_from_orm_row_silently_skips_corrupt_payload() -> None:
     out = SessionCardOut.from_orm_row(_row(claude_raw_response={"random_unrelated_key": [1, 2, 3]}))
     assert out.thesis is None
     assert out.trade_plan is None
+
+
+# ───────── SessionCardOut.degraded_inputs tri-state (ADR-104) ─────────
+# r95 : the ADR-103 FRED-liveness manifest persisted by migration 0050
+# projects with deliberate tri-state semantics — None (legacy / not
+# tracked) vs [] (tracked, all fresh) vs [...] (degraded). The end-user
+# surface leg of the r93→r94 data-honesty arc.
+
+
+def test_degraded_inputs_projects_none_for_legacy_row() -> None:
+    """Back-compat + honesty : a pre-0050 row has no degraded_inputs
+    attribute → projects None ("liveness not tracked at generation"),
+    NOT [] ("all fresh"). Protects every r72-r84 /v1/sessions consumer
+    (no crash, no shape break on legacy rows)."""
+    out = SessionCardOut.from_orm_row(_row())
+    assert out.degraded_inputs is None
+
+
+def test_degraded_inputs_projects_empty_as_tracked_fresh() -> None:
+    """[] is semantically distinct from None : "tracked at generation,
+    all critical anchors fresh" — must round-trip as [] not None."""
+    out = SessionCardOut.from_orm_row(_row(degraded_inputs=[]))
+    assert out.degraded_inputs == []
+
+
+def test_degraded_inputs_projects_degraded_manifest_typed() -> None:
+    """A degraded row (the real China-M1 ADR-093 §r49 scenario, exactly
+    as run_session_card serialises it via the schemas SSOT model
+    model_dump(mode="json")) round-trips to a typed DegradedInputOut
+    with latest_date coerced back from the ISO string."""
+    serialised = {
+        "series_id": "MYAGM1CNM189N",
+        "status": "stale",
+        "latest_date": "2019-08-01",
+        "age_days": 2481,
+        "max_age_days": 60,
+        "impacted": "AUD composite — China M1 credit-impulse driver",
+    }
+    out = SessionCardOut.from_orm_row(_row(degraded_inputs=[serialised]))
+    assert out.degraded_inputs is not None
+    assert len(out.degraded_inputs) == 1
+    di = out.degraded_inputs[0]
+    assert isinstance(di, DegradedInputOut)
+    assert di.series_id == "MYAGM1CNM189N"
+    assert di.status == "stale"
+    assert di.latest_date == date(2019, 8, 1)  # ISO str coerced back to date
+    assert di.age_days == 2481
+    assert di.max_age_days == 60
+    assert "China" in di.impacted

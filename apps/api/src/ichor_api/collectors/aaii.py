@@ -23,6 +23,9 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 
 import httpx
+import structlog
+
+log = structlog.get_logger(__name__)
 
 AAII_CSV_URL = "https://www.aaii.com/files/surveys/sentiment.xls"
 
@@ -66,9 +69,28 @@ def _parse_date(s: str) -> datetime | None:
 
 
 def parse_aaii_csv(text: str) -> list[AaiiWeeklyReading]:
-    """Parse AAII CSV body. Tolerant of header row variations."""
+    """Parse AAII CSV body. Tolerant of header row variations.
+
+    r51 hardening (subagent M wave 2 finding) : the AAII source
+    occasionally embeds raw newlines inside unquoted fields (footer
+    rows with multi-line annotations), which raised
+    `_csv.Error: new-line character seen in unquoted field` and
+    crashed the entire parse — observed in journalctl 2026-05-08.
+    Mitigation : strip CR + collapse stray LF inside `"..."` is
+    intractable here, so we read row-by-row inside a try/except
+    that skips malformed rows (still emits warning on each skip)
+    instead of aborting the whole parse.
+    """
     reader = csv.reader(io.StringIO(text))
-    rows = list(reader)
+    rows: list[list[str]] = []
+    while True:
+        try:
+            rows.append(next(reader))
+        except StopIteration:
+            break
+        except csv.Error as exc:
+            log.warning("aaii.csv_row_skipped", error=str(exc))
+            continue
     if not rows:
         return []
 

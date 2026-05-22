@@ -136,6 +136,55 @@ def test_aggregate_call_wall_is_max_abs_call_gex() -> None:
     assert cw == 110.0
 
 
+# ── r67 : gamma_flip plausibility band ───────────────────────────────
+
+
+def test_aggregate_far_otm_only_crossing_yields_none_flip() -> None:
+    """r67 regression : a cumulative zero-crossing that exists ONLY at a
+    deep-OTM strike (far from spot) must NOT be returned as the flip —
+    it is numerical noise from tiny low-OI gamma, not a real dealer
+    flip. This is the exact garbage class observed in prod
+    (gex_snapshots QQQ spot 710.74 / flip 310.43 = -56%). Expect None.
+    """
+    # spot=100. A big put-gamma at strike 30 (+gex) then a bigger
+    # call-gamma at strike 35 (−gex) makes the cumulative-from-low sum
+    # cross zero around strike ~32 (≈68 % below spot). Strikes near
+    # spot are perfectly balanced → no near-spot crossing.
+    options = {
+        30.0: {"call_gamma_oi": 0.0, "put_gamma_oi": 1000.0},
+        35.0: {"call_gamma_oi": 3000.0, "put_gamma_oi": 0.0},
+        100.0: {"call_gamma_oi": 10.0, "put_gamma_oi": 10.0},
+        105.0: {"call_gamma_oi": 10.0, "put_gamma_oi": 10.0},
+    }
+    _, flip, _, _ = aggregate_dealer_gex(100.0, options)
+    assert flip is None, f"far-OTM crossing must be rejected, got {flip}"
+
+
+def test_aggregate_single_crossing_just_in_band_is_kept() -> None:
+    """A clean single crossing ~10 % below spot (inside the ±15 % band)
+    is a valid flip. Single-crossing chain : puts below (+gex) → calls
+    above (−gex), boundary placed at ~90 for spot 100."""
+    options = {
+        88.0: {"call_gamma_oi": 0.0, "put_gamma_oi": 1000.0},  # +gex
+        92.0: {"call_gamma_oi": 1000.0, "put_gamma_oi": 0.0},  # −gex
+    }
+    _, flip, _, _ = aggregate_dealer_gex(100.0, options)
+    assert flip is not None
+    assert 88.0 <= flip <= 92.0, f"in-band crossing must be kept, got {flip}"
+
+
+def test_aggregate_single_crossing_just_out_of_band_is_rejected() -> None:
+    """The same clean single crossing but ~30 % below spot (outside the
+    ±15 % band) is rejected → None. Proves the band gate, not just the
+    multi-crossing 'closest-to-spot' heuristic."""
+    options = {
+        68.0: {"call_gamma_oi": 0.0, "put_gamma_oi": 1000.0},  # +gex
+        72.0: {"call_gamma_oi": 1000.0, "put_gamma_oi": 0.0},  # −gex
+    }
+    _, flip, _, _ = aggregate_dealer_gex(100.0, options)
+    assert flip is None, f"out-of-band crossing must be rejected, got {flip}"
+
+
 # ── _compute_for_chains ──────────────────────────────────────────────
 
 

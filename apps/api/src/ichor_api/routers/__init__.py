@@ -22,6 +22,7 @@ from .geopolitics import router as geopolitics_router
 from .graph import router as graph_router
 from .hourly_volatility import router as hourly_volatility_router
 from .journal import router as journal_router
+from .key_levels import router as key_levels_router
 from .macro_pulse import router as macro_pulse_router
 from .market import router as market_router
 from .narratives import router as narratives_router
@@ -29,12 +30,14 @@ from .news import router as news_router
 from .phase_d import router as phase_d_router
 from .polymarket_impact import router as polymarket_impact_router
 from .portfolio_exposure import router as portfolio_exposure_router
+from .positioning import router as positioning_router
 from .post_mortems import router as post_mortems_router
 from .predictions import router as predictions_router
 from .push import router as push_router
 from .scenarios import router as scenarios_router
 from .sessions import router as sessions_router
 from .sources import router as sources_router
+from .tempo_thresholds import router as tempo_thresholds_router
 from .today import router as today_router
 from .tools import router as tools_router
 from .trade_plan import router as trade_plan_router
@@ -61,6 +64,7 @@ __all__ = [
     "graph_router",
     "hourly_volatility_router",
     "journal_router",
+    "key_levels_router",
     "macro_pulse_router",
     "market_router",
     "narratives_router",
@@ -68,12 +72,14 @@ __all__ = [
     "phase_d_router",
     "polymarket_impact_router",
     "portfolio_exposure_router",
+    "positioning_router",
     "post_mortems_router",
     "predictions_router",
     "push_router",
     "scenarios_router",
     "sessions_router",
     "sources_router",
+    "tempo_thresholds_router",
     "today_router",
     "tools_router",
     "trade_plan_router",

@@ -84,6 +84,10 @@ from .scenario_calibration_bins import ScenarioCalibrationBins
 from .session_card_audit import SessionCardAudit
 from .session_card_counterfactual import SessionCardCounterfactual
 
+# r126 ADR-099 §Impl — per-asset tempo threshold recalibration sink (Mission
+# centrale Axis-7 partial extension ; consumed by future r127 frontend wire).
+from .tempo_threshold import TempoThreshold
+
 # Capability 5 PRE-2 — append-only tool-call audit (ADR-071, W73+)
 from .tool_call_audit import ToolCallAudit
 
@@ -143,6 +147,8 @@ __all__ = [
     "ScenarioCalibrationBins",
     "SessionCardAudit",
     "SessionCardCounterfactual",
+    # r126 ADR-099 §Impl — per-asset tempo threshold recalibration sink
+    "TempoThreshold",
     "ToolCallAudit",
     "TraderNote",
     "TreasuryTicHolding",

@@ -20,6 +20,23 @@ class MarketHitOut(BaseModel):
     question: str
     yes: float
     weight: float
+    yes_24h_ago: float | None = None
+    """r131 axis-8 Δ-YES manipulation watch — YES from oldest snapshot in
+    24h-48h-ago window for this slug. `None` if no history (market <24h
+    or cron gap). Frontend uses this + yes_velocity_pp for velocity badge."""
+    yes_velocity_pp: float | None = None
+    """r131 axis-8 Δ-YES manipulation watch primitive — signed shift in
+    percentage points over the last 24h : `(yes - yes_24h_ago) * 100`.
+    `None` if yes_24h_ago is None (honest silent absence per doctrine
+    #11). Tone escalation : `|v| ≥ 5pp` = "shift rapide", `≥ 10pp` =
+    "shift majeur" (descriptive magnitude, NEVER causal "manipulation"
+    label per trader CRITICAL-1 — reserved until r132+ ships cross-
+    venue divergence). ADR-017 boundary preserved."""
+    yes_24h_ago_at: datetime | None = None
+    """r131 trader MUST-FIX-2 — ISO timestamp of the snapshot used as
+    the 24h-ago reference for velocity computation. Honest dual-stamp :
+    `generated_at` stamps the YES_now batch, `yes_24h_ago_at` stamps
+    the comparison point. `None` if `yes_24h_ago` is None."""
 
 
 class ThemeHitOut(BaseModel):
@@ -60,6 +77,9 @@ async def get_impact(
                         question=m.question,
                         yes=m.yes,
                         weight=m.weight,
+                        yes_24h_ago=m.yes_24h_ago,
+                        yes_velocity_pp=m.yes_velocity_pp,
+                        yes_24h_ago_at=m.yes_24h_ago_at,
                     )
                     for m in t.markets
                 ],

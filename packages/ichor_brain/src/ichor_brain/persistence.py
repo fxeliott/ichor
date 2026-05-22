@@ -60,6 +60,10 @@ def to_audit_row(card: SessionCard) -> SessionCardAudit:
         # `'[]'::jsonb` — we pass an empty list rather than None so the
         # server default isn't shadowed by an explicit NULL.
         scenarios=_dump_list(card.scenarios) or [],
+        # r62 (ADR-083 D3) : KeyLevel snapshot at finalization. Same
+        # NOT NULL + DEFAULT `'[]'::jsonb` semantics as `scenarios` —
+        # pass `[]` not `None` when the snapshot wasn't composed.
+        key_levels=_dump_list(card.key_levels) or [],
         # realized_scenario_bucket left None — populated by the W105g
         # reconciler after the session window closes.
     )

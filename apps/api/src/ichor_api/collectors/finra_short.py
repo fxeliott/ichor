@@ -4,9 +4,23 @@ Two distinct datasets per https://developer.finra.org/catalog:
   - Equity Short Interest (semi-monthly, settlement-date)
   - Daily Short Sale Volume (off-exchange ATS/non-ATS aggregated by symbol)
 
-Free for unauthenticated usage on the lower-throughput public endpoints.
-Some advanced filters require an OAuth token (paid). We use the public
-unauthenticated path — sufficient for daily polling of Ichor's universe.
+r53 update : the FINRA Data API at `api.finra.org/data/group/.../regShoDaily`
+requires an OAuth token for `compareFilters` queries (developer.finra.org
+catalog) ; without `finra_api_token` set, every fetch returns 401 silently
+swallowed -> 0 rows -> ExitStatus=1. This was the root cause of
+`finra_short` being silent-dead since collector inception (per r52
+wave-2 subagent M finding).
+
+The FREE public alternative is the FINRA CDN flat-file at
+`https://cdn.finra.org/equity/regsho/daily/CNMSshvol{YYYYMMDD}.txt` —
+pipe-delimited daily file, ALL US equity symbols (~10 000 rows, ~500 KB).
+Verified r53 2026-05-15 from Hetzner : returns HTTP 200 on business
+days, HTTP 403 on weekends/holidays (no file published).
+Format header :
+  Date|Symbol|ShortVolume|ShortExemptVolume|TotalVolume|Market
+
+We filter to Ichor's tracked universe client-side. No token, no rate
+limit (CDN-cached). Voie D respect : no paid API.
 
 Cf https://quant-trading.co/how-to-download-data-from-the-finra-api/
 """
@@ -14,12 +28,33 @@ Cf https://quant-trading.co/how-to-download-data-from-the-finra-api/
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
 import httpx
+import structlog
+
+log = structlog.get_logger(__name__)
 
 FINRA_BASE = "https://api.finra.org/data/group"
+
+# r53 : Public CDN flat-file alternative (no OAuth). Akamai-fronted, large
+# (~500 KB/day, all US equity symbols). Filtered client-side to Ichor's
+# tracked universe. URL date format : YYYYMMDD.
+FINRA_FLATFILE_BASE = "https://cdn.finra.org/equity/regsho/daily/CNMSshvol{date}.txt"
+# How many days back to walk if the most recent date is 403/404 (weekend
+# or holiday). Covers max 4-day Easter weekend + buffer.
+FINRA_FLATFILE_MAX_LOOKBACK_DAYS = 7
+# Realistic browser UA — even though the CDN doesn't typically gate, we
+# follow the pattern from r52 nyfed_mct fix (anti-WAF defense in depth).
+_FLATFILE_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+    ),
+    "Accept": "text/plain,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9",
+}
 
 
 @dataclass(frozen=True)
@@ -201,3 +236,112 @@ async def fetch_daily_short_volume(
             )
         )
     return out
+
+
+# ─── r53 : public flat-file path (no OAuth, free) ────────────────────────
+
+
+def _parse_flatfile(text: str, symbols_filter: frozenset[str]) -> list[DailyShortVolumeRecord]:
+    """Parse a FINRA Reg SHO daily flat-file body. Filter to symbols.
+
+    Format is pipe-delimited ;  header row :
+        Date|Symbol|ShortVolume|ShortExemptVolume|TotalVolume|Market
+    Data rows :
+        20260514|SPY|319623.012649|406|610811.274367|B,Q,N
+
+    Trailing footer row may exist (e.g. "FileFormat=..." or empty line) ;
+    we skip rows with non-numeric date or not in symbols_filter.
+    Volumes from FINRA are floats (typically ".0" but sometimes fractional
+    when ATS reports partial shares) — `_safe_int` handles via float()
+    intermediate.
+    """
+    fetched = datetime.now(UTC)
+    out: list[DailyShortVolumeRecord] = []
+    lines = text.splitlines()
+    if not lines:
+        return out
+
+    # Skip header line, parse rest. Tolerant of footer rows.
+    for raw in lines[1:]:
+        cells = raw.split("|")
+        if len(cells) < 5:
+            continue
+        sym = (cells[1] or "").strip().upper()
+        if sym not in symbols_filter:
+            continue
+        td = _parse_date(cells[0])
+        if td is None:
+            continue
+        short_vol = _safe_int(cells[2])
+        short_exempt = _safe_int(cells[3])
+        total_vol = _safe_int(cells[4])
+        out.append(
+            DailyShortVolumeRecord(
+                symbol=sym,
+                trade_date=td,
+                short_volume=short_vol,
+                short_exempt_volume=short_exempt,
+                total_volume=total_vol,
+                short_pct=(
+                    short_vol / total_vol
+                    if (short_vol is not None and total_vol not in (None, 0))
+                    else None
+                ),
+                fetched_at=fetched,
+            )
+        )
+    return out
+
+
+async def fetch_daily_short_volume_flatfile(
+    symbols: tuple[str, ...],
+    *,
+    trade_date: date | None = None,
+    timeout_s: float = 30.0,
+    max_lookback_days: int = FINRA_FLATFILE_MAX_LOOKBACK_DAYS,
+) -> list[DailyShortVolumeRecord]:
+    """Fetch the FINRA Reg SHO daily public flat-file for the most recent
+    business day not exceeding `trade_date` (default = yesterday).
+
+    Walks back up to `max_lookback_days` days if 403/404 (weekend/holiday).
+    Returns empty list if no business-day file found in the window — caller
+    treats this as soft-skip (e.g. long holiday weekend), NOT as failure.
+
+    Voie D respect : no API token, no auth. Free CDN-cached endpoint.
+    """
+    if trade_date is None:
+        # Yesterday by default — today's file isn't published until
+        # FINRA processes overnight (T+1).
+        trade_date = date.today() - timedelta(days=1)
+
+    symbols_filter = frozenset(s.upper() for s in symbols)
+    candidate = trade_date
+
+    async with httpx.AsyncClient(timeout=timeout_s, headers=_FLATFILE_HEADERS) as client:
+        for _ in range(max_lookback_days + 1):
+            url = FINRA_FLATFILE_BASE.format(date=candidate.strftime("%Y%m%d"))
+            try:
+                r = await client.get(url)
+                if r.status_code == 200 and r.text:
+                    return _parse_flatfile(r.text, symbols_filter)
+                if r.status_code in (403, 404):
+                    # Weekend / holiday — file not published.
+                    candidate = candidate - timedelta(days=1)
+                    continue
+                # Other status (5xx, 429) — log and walk back too.
+                log.warning(
+                    "finra_short.flatfile_unexpected_status",
+                    url=url,
+                    status=r.status_code,
+                )
+                candidate = candidate - timedelta(days=1)
+            except httpx.HTTPError as exc:
+                log.warning("finra_short.flatfile_fetch_error", url=url, error=str(exc))
+                candidate = candidate - timedelta(days=1)
+
+    log.warning(
+        "finra_short.flatfile_no_business_day_found",
+        trade_date=trade_date.isoformat(),
+        max_lookback_days=max_lookback_days,
+    )
+    return []

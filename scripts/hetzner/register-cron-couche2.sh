@@ -22,11 +22,18 @@
 set -euo pipefail
 
 # Service template (systemd unit instance — %i = agent kind)
+# r51 hardening (subagent F + M wave 2 finding) : OnFailure inline at
+# template level. Same root cause as register-cron-briefings.sh : the
+# install-onfailure-dropins.sh post-hoc script excludes `@.service`
+# templates by regex, so couche2 instance failures (3/5 during the
+# 2026-05-13 -> 2026-05-15 530-storm) went silently to journalctl
+# without notify. Inline OnFailure here so every instance inherits.
 cat > /etc/systemd/system/ichor-couche2@.service <<'EOF'
 [Unit]
 Description=Ichor Couche-2 agent runner (%i)
 After=network-online.target postgresql.service redis.service
 Wants=network-online.target
+OnFailure=ichor-notify@%n.service
 
 [Service]
 Type=oneshot

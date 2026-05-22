@@ -165,6 +165,15 @@ async def test_renders_full_triangle_when_all_drivers_present(monkeypatch) -> No
     # Commodity block
     assert "Iron Ore (PIORECRUSDM)" in md
     assert "Copper (PCOPPUSDM)" in md
+    # r94 YELLOW-1 (ichor-trader R28) : the iron/copper composite MUST
+    # carry the staleness/no-extrapolate caveat — material now that the
+    # registry tolerance doubled 60→120d (ADR-092 §Round-94). Mirrors the
+    # China-M1 single-print constraint precedent. Regression-pinned.
+    assert "Staleness caveat (r94, ADR-092 §Round-94)" in md
+    assert "IMF-PCPS MONTHLY" in md
+    assert "SHOULD NOT extrapolate near-term direction" in md
+    assert "SLOW terms-of-trade REGIME marker" in md
+    assert "60→120 d" in md
     # Composite triangle
     assert "commodity-currency triangle composite" in md
     # 5 source-stamps

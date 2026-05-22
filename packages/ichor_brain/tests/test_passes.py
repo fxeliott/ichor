@@ -134,7 +134,7 @@ def test_asset_build_prompt_uses_dedicated_framework_for_eur_usd() -> None:
         ("NAS100_USD", "Mega-cap 7 earnings"),
         ("SPX500_USD", "VIX term slope"),
         ("GBP_USD", "BoE NLP hawk/dove"),
-        ("AUD_USD", "Iron ore"),
+        ("AUD_USD", "iron-ore"),
         ("USD_CAD", "WTI crude"),
         ("US30", "Cyclical earnings"),
     ],

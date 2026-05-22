@@ -104,6 +104,13 @@ EXTENDED_SERIES_TO_POLL: tuple[str, ...] = (
     #                   per r33 subagent #2, FRED OECD monthly fallback)
     "IRLTLT01JPM156N",  # Japan 10y (for USD-JPY)
     "IRLTLT01GBM156N",  # UK 10y (for GBP-USD)
+    "IR3TIB01GBM156N",  # UK 3M interbank monthly (r101 ADR-101
+    #                   §Impl(r101) ingestion plumbing ; r102 §Impl(r102)
+    #                   max-age R53-recalibrated 120→180d ; r103
+    #                   §Impl(r103) WIRED as the front-end term-structure
+    #                   refinement of GBP Driver-1 — Clarida-Gali-Gertler
+    #                   1998 DOI:10.1016/S0014-2921(98)00016-6-motivated,
+    #                   NOT a standalone driver, see _section_gbp_specific)
     "IRLTLT01AUM156N",  # Australia 10y (for AUD-USD, round-46 ADR-092 §T1.AUD-3
     #                   Engel-West rate-differential channel with DGS10)
     # ─── China credit-impulse proxy + commodity terms-of-trade (round-46 ADR-092 §T1.AUD) ───
@@ -155,6 +162,9 @@ EXTENDED_SERIES_TO_POLL: tuple[str, ...] = (
     "DEXSZUS",  # CHF per USD
     "DEXUSAL",  # USD per AUD
     "DEXUSNZ",  # USD per NZD
+    "DEXHKUS",  # HKD per USD — r55 ADR-083 D3 phase 2 peg_break_hkma input.
+    #              HKMA convertibility band is [7.75, 7.85] around 7.80 hard
+    #              peg. Watch for approach to either intervention threshold.
     # Fed monetary stance
     "FEDFUNDS",  # Fed Funds effective monthly
     "EFFR",  # Effective Fed Funds Rate daily

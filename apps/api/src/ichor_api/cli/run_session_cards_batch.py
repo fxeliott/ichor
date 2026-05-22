@@ -36,10 +36,17 @@ import time
 
 import structlog
 
-from ..db import get_engine
+from ..db import get_engine, get_sessionmaker
+from ..services.feature_flags import is_enabled
+from ..services.market_session import compute_session_status, market_closed_for_asset
 from .run_session_card import _run as run_one_card
 
 log = structlog.get_logger(__name__)
+
+# ADR-105 — market-closed gate (ADR-099 §Tier-3). Ships OFF : with no
+# `feature_flags` row, is_enabled() → False ⇒ the gate is fully inert
+# (zero behaviour change) until Eliot inserts the flag row.
+_MARKET_CLOSED_GATE_FLAG = "session_cards_market_closed_gate_enabled"
 
 
 # ADR-083 D1 — the 6 assets Eliot actually trades. USDJPY + AUDUSD are
@@ -74,6 +81,67 @@ async def _run_batch(
             file=sys.stderr,
         )
         return 2
+
+    # ADR-105 market-closed gate (ADR-099 §Tier-3). FAIL-OPEN : the gate
+    # may suppress a card ONLY on a positive, error-free "market closed"
+    # determination ; any exception ⇒ proceed (a missed real pre-session
+    # is unrecoverable — the timer does not re-fire — and is categorically
+    # worse than a redundant closed-day card). Inert unless the flag row
+    # exists (ships OFF).
+    try:
+        sm = get_sessionmaker()
+        async with sm() as _flag_session:
+            gate_on = await is_enabled(_flag_session, _MARKET_CLOSED_GATE_FLAG)
+        if gate_on:
+            status = compute_session_status()
+            market_closed = status.market_closed_fx or status.market_closed_us_equity
+            kept = tuple(a for a in assets if not market_closed_for_asset(a, status))
+            skipped = [a for a in assets if a not in kept]
+            if not kept and not market_closed:
+                # SAFETY (ADR-105 §3 — fail-open made STRUCTURAL, not
+                # emergent ; ichor-trader R28 YELLOW-1) : an empty keep-set
+                # while the market is NOT positively closed means the gate
+                # SSOT is internally inconsistent (a future
+                # _US_EQUITY_ASSETS / market_closed_for_asset regression).
+                # NEVER suppress a real session on ambiguity — log loud and
+                # generate the FULL original set.
+                log.warning(
+                    "batch.market_closed_gate_anomaly_failed_open",
+                    session_type=session_type,
+                    state=status.state,
+                    assets=list(assets),
+                )
+                print(
+                    "   market-closed gate: empty keep-set on a NON-closed "
+                    f"market ({status.state}) — anomaly, generating all "
+                    "(fail-open)",
+                    file=sys.stderr,
+                )
+            else:
+                if skipped:
+                    hol = f" · {status.holiday_name}" if status.holiday_name else ""
+                    log.info(
+                        "batch.market_closed_gate",
+                        session_type=session_type,
+                        state=status.state,
+                        holiday=status.holiday_name,
+                        skipped=skipped,
+                        kept=list(kept),
+                    )
+                    print(
+                        f"== market-closed gate ({status.state}{hol}) : "
+                        f"skipping {len(skipped)} closed-market asset(s) {skipped} =="
+                    )
+                assets = kept
+                if not assets:
+                    print(f"== all assets closed ({status.state}) — no cards this tick ==")
+                    return 0
+    except Exception as e:  # noqa: BLE001 — FAIL-OPEN : never turn an error into a skip
+        log.warning("batch.market_closed_gate_failed_open", error=str(e))
+        print(
+            f"   market-closed gate errored ({e}) — proceeding (fail-open)",
+            file=sys.stderr,
+        )
 
     flags = []
     if enable_rag:

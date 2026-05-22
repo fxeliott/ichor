@@ -242,8 +242,38 @@ def _next_recurring_date(today: date, day_of_month: int) -> date:
         return last
 
 
-async def assess_calendar(session: AsyncSession, *, horizon_days: int = 14) -> CalendarReport:
-    """Build the next-`horizon_days` window of high+medium events."""
+async def assess_calendar(
+    session: AsyncSession,
+    *,
+    horizon_days: int = 14,
+    since_minutes: int = 0,
+) -> CalendarReport:
+    """Build the `[now - since_minutes, now + horizon_days]` window of
+    high+medium events.
+
+    r140 — `since_minutes` (default 0 = backward-compat r68 forward-only)
+    extends the window backward so the `<FreshDataBanner>` polling
+    endpoint can detect catalysts whose `scheduled_at` has elapsed
+    since the briefing's `generated_at`. The same `affected_assets[]`
+    mapping is reused — caller filters via `filter_for_asset(report, X)`.
+
+    HONEST SCOPE : the ForexFactory feed does NOT publish actuals (no
+    `actual` column, no `released_at`). The recent-window events surfaced
+    here ONLY indicate "scheduled_at has elapsed" — they do NOT guarantee
+    the data was actually published at that moment (a holiday/cancelled/
+    tentative event would also pass scheduled_at). Callers must surface
+    this honestly (lesson #11) — banner copy includes "actuals à vérifier
+    à la source (FRED/Bloomberg)" to prevent false-positive misreads.
+    """
+    # r140 code-reviewer R1 fix : sections 1 (CB meetings) and 2 (recurring
+    # FRED projections) intentionally keep the FORWARD-only date-floor
+    # (`today = now.date()`). Only the ForexFactory DB query (section 3)
+    # honours `since_minutes` to expose recent-fire catalysts to the
+    # FreshDataBanner. Without this split, `today = window_start.date()`
+    # truncated to the previous day when since_minutes pushed past
+    # midnight, bloating the response with a full extra day of CB +
+    # recurring events — payload bloat + API contract divergence vs the
+    # minute-precision contract the param name implies.
     now = datetime.now(UTC)
     today = now.date()
     end = today + timedelta(days=horizon_days)
@@ -338,15 +368,21 @@ async def assess_calendar(session: AsyncSession, *, horizon_days: int = 14) -> C
 
     # 3. ForexFactory persisted events (economic_events table). Falls back
     # to no-op silently if the table is empty (collector not yet running).
-    cutoff_now = datetime.now(UTC)
-    cutoff_end = cutoff_now + timedelta(days=horizon_days)
+    # r140 — `since_minutes>0` shifts the lower bound backward so events
+    # whose scheduled_at has just elapsed since the briefing's generated_at
+    # surface in the recent-fires window. Backward-compat : default 0 keeps
+    # the r68 forward-only behaviour. r140 code-reviewer N4 fix — reuse
+    # the outer `now` (single source of truth for the function) instead
+    # of a redundant `datetime.now(UTC)` second call.
+    ff_lower = now - timedelta(minutes=since_minutes) if since_minutes > 0 else now
+    cutoff_end = now + timedelta(days=horizon_days)
     ff_rows = list(
         (
             await session.execute(
                 select(EconomicEvent)
                 .where(
                     EconomicEvent.scheduled_at.is_not(None),
-                    EconomicEvent.scheduled_at >= cutoff_now,
+                    EconomicEvent.scheduled_at >= ff_lower,
                     EconomicEvent.scheduled_at <= cutoff_end,
                     EconomicEvent.impact.in_(("medium", "high")),
                 )

@@ -17,7 +17,7 @@
  * Respects prefers-reduced-motion ; in that mode values snap.
  */
 
-import { motion, useReducedMotion, useSpring, useTransform } from "motion/react";
+import { m, useReducedMotion, useSpring, useTransform } from "motion/react";
 import { useEffect, useState } from "react";
 import { apiGet, type MacroPulse } from "@/lib/api";
 
@@ -33,7 +33,7 @@ function AnimatedNumber({ value, format }: { value: number; format: (v: number) 
     spring.set(value);
   }, [value, spring]);
 
-  return <motion.span>{formatted}</motion.span>;
+  return <m.span>{formatted}</m.span>;
 }
 
 function biasFromRisk(composite: number): "bull" | "bear" | "neutral" {

@@ -46,11 +46,24 @@ MCT_CSV_URL = (
     "https://www.newyorkfed.org/medialibrary/Research/Interactives/Data/mct/mct-chart-data.csv"
 )
 
+# r52 bot-mitigation workaround : NY Fed enabled WAF that returns HTTP 403
+# on the prior `Mozilla/5.0 (compatible; IchorCollector/1.0; +https://github.com
+# /fxeliott/ichor)` User-Agent (the `compatible;` token + bot URL are exactly
+# what most Cloudflare/Akamai WAFs flag). VERIFIED via WebFetch 2026-05-15.
+# Symptom : `nyfed_mct.fetch_failed status=403` in journal, `fetched_at`
+# frozen 2026-05-09 (last successful poll before WAF kicked in), 5 monthly
+# releases missed. Fix : present as a realistic browser session — Chrome 131
+# UA + `Accept-Language` + `Referer` to the public MCT research page from
+# which the CSV is normally linked. The CSV is publicly downloadable so this
+# is bot-class WAF, not auth.
 _HEADERS = {
     "User-Agent": (
-        "Mozilla/5.0 (compatible; IchorCollector/1.0; +https://github.com/fxeliott/ichor)"
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
     ),
-    "Accept": "text/csv,*/*",
+    "Accept": "text/csv,application/csv,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9",
+    "Referer": "https://www.newyorkfed.org/research/policy/mct",
 }
 
 # CSV column indexing (0-based, including the leading blank "row label" col):

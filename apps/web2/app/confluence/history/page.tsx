@@ -4,10 +4,25 @@
 // fetches /v1/confluence/{asset}/history?window_days=30 and renders an
 // inline SVG line chart with score_long (bull color) + score_short
 // (bear color) overlaid + the 60-line "qualifies-as-setup" threshold.
+//
+// r109 (ADR-099 §Implementation(r109), Tier 4 increment 5) —
+// `TimelineSvg` consumes the r105 microchart SSOT (`lib/microchart.ts`),
+// the announced `xLinear`/`linScale` consumer (microchart.ts:14 ;
+// doctrine-#9 anti-accumulation — the 2nd of 3 named hand-rolled
+// coord-math sites). `xAt`→`xLinear` and the path `.toFixed(1)`→
+// `svgCoord` are BIT-IDENTICAL (n≥2 gated ⇒ `Math.max(1,n-1)===n-1` ;
+// `w-2*padX === w-padX*2` ; `svgCoord(v)===v.toFixed(1)` by definition).
+// `yAt`→`linScale` is NUMERICALLY EQUIVALENT, NOT bit-identical :
+// `linScale` evaluates `(padY+innerH)+s*(-innerH/100)` vs the inline
+// `padY+(1-s/100)*innerH` — different IEEE754 multiply order, ≤1 ULP
+// (sub-pixel on the 110px viewBox ; the r105/r108-flagged float-order,
+// re-proven 9dp in `__tests__/microchart.test.ts`, the byte-identical
+// precedent deliberately refused).
 
 import Link from "next/link";
 
 import { apiGet, isLive, type ConfluenceHistoryOut } from "@/lib/api";
+import { linScale, svgCoord, xLinear } from "@/lib/microchart";
 
 export const metadata = { title: "Confluence · historique 30j · Ichor" };
 
@@ -178,16 +193,18 @@ function TimelineSvg({ history }: { history: ConfluenceHistoryOut }) {
   const h = 110;
   const padX = 28;
   const padY = 6;
-  const innerW = w - padX * 2;
   const innerH = h - padY * 2;
   const n = history.points.length;
 
-  const xAt = (i: number) => padX + (i / Math.max(1, n - 1)) * innerW;
-  const yAt = (s: number) => padY + (1 - s / 100) * innerH;
+  // r109 — the r105 SSOT (microchart.ts:14 announced consumer). `xAt`
+  // bit-identical (n≥2 gated, `w-2*padX===w-padX*2`); `yAt` numerically
+  // equivalent ≤1 ULP (multiply-order, disclosed); `svgCoord===.toFixed(1)`.
+  const xAt = (i: number) => xLinear(i, n, w, padX);
+  const yAt = linScale(0, 100, padY + innerH, padY);
 
   const path = (key: "score_long" | "score_short") =>
     history.points
-      .map((p, i) => `${i === 0 ? "M" : "L"}${xAt(i).toFixed(1)} ${yAt(p[key]).toFixed(1)}`)
+      .map((p, i) => `${i === 0 ? "M" : "L"}${svgCoord(xAt(i))} ${svgCoord(yAt(p[key]))}`)
       .join(" ");
 
   const last = history.points[n - 1]!;

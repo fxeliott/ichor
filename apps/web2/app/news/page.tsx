@@ -84,9 +84,16 @@ function toneColor(tone: number): string {
 }
 
 export default async function NewsPage() {
-  const data = await apiGet<ApiNews[]>("/v1/news?since_minutes=720&limit=80", {
-    revalidate: 30,
-  });
+  // r138 — /v1/news now returns an envelope `{items, filter:null}` when
+  // no asset is requested (back-compat preserves item shape, only wraps).
+  // Unwrap `.items` here so the standalone /news page renders identically
+  // to the r137 contract. The asset-filter is opt-in ; this page surfaces
+  // the GLOBAL feed (intentional — it's the cross-asset news surface).
+  const env = await apiGet<{ items: ApiNews[]; filter: null }>(
+    "/v1/news?since_minutes=720&limit=80",
+    { revalidate: 30 },
+  );
+  const data = env?.items ?? null;
   const apiOnline = isLive(data);
   const news: NewsItem[] = apiOnline && data.length > 0 ? data.map(adapt) : MOCK_NEWS;
 

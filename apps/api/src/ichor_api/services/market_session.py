@@ -1,0 +1,331 @@
+"""Market session + holiday awareness (ADR-099 Tier 1.3).
+
+Pure-compute, ZERO new dependency (Python 3.12 stdlib `zoneinfo` is
+DST-correct). Eliot's explicit requirement : "savoir quand il y a jour
+ferié mais aussi le weekend pour adapter". The 4-pass timers fire 365
+d/yr ; this module is the honest signal the dashboard surfaces instead
+of the crude DST-naive UTC heuristic that was in SessionStatus.tsx.
+
+Scope (YAGNI — exactly the 5-asset briefing universe) :
+  - FX / XAU trade 24/5 → closed weekends only.
+  - SPX500 / NAS100 are US equities → closed weekends AND US market
+    (NYSE/Nasdaq) holidays.
+  US holidays are computed by the STANDARD rules (fixed dates + nth-
+  weekday + Good Friday via the Anonymous Gregorian Easter computus +
+  the NYSE Sat→Fri / Sun→Mon observed shift, incl. the New-Year-Saturday
+  no-Friday-observance exception). Nothing is hand-fabricated.
+
+ADR-017 : pure calendar facts. No bias, no BUY/SELL.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from datetime import date, datetime, timedelta
+from zoneinfo import ZoneInfo
+
+PARIS = ZoneInfo("Europe/Paris")
+NY = ZoneInfo("America/New_York")
+
+# London cash open is 08:00 London == 09:00 Paris all year (London is
+# always Paris−1h). NY open 09:30 ET is converted via zoneinfo (the
+# ET↔Paris offset is NOT a constant — brief DST-mismatch windows exist).
+_LONDON_OPEN_PARIS_H = 9
+_NY_OPEN_ET = (9, 30)
+
+
+def _easter(year: int) -> date:
+    """Anonymous Gregorian algorithm (exact, standard)."""
+    a = year % 19
+    b, c = divmod(year, 100)
+    d, e = divmod(b, 4)
+    f = (b + 8) // 25
+    g = (b - f + 1) // 3
+    h = (19 * a + b - d - g + 15) % 30
+    i, k = divmod(c, 4)
+    ell = (32 + 2 * e + 2 * i - h - k) % 7
+    m = (a + 11 * h + 22 * ell) // 451
+    month = (h + ell - 7 * m + 114) // 31
+    day = ((h + ell - 7 * m + 114) % 31) + 1
+    return date(year, month, day)
+
+
+def _nth_weekday(year: int, month: int, weekday: int, n: int) -> date:
+    """n-th `weekday` (Mon=0) of month. n=-1 → last."""
+    if n > 0:
+        d = date(year, month, 1)
+        offset = (weekday - d.weekday()) % 7
+        return d + timedelta(days=offset + 7 * (n - 1))
+    # last
+    if month == 12:
+        nxt = date(year + 1, 1, 1)
+    else:
+        nxt = date(year, month + 1, 1)
+    d = nxt - timedelta(days=1)
+    return d - timedelta(days=(d.weekday() - weekday) % 7)
+
+
+def _observed(d: date, *, is_new_year: bool = False) -> date:
+    """NYSE observed shift: Sat→Fri, Sun→Mon. Exception: New Year's Day
+    on a Saturday is NOT observed the preceding Friday."""
+    if d.weekday() == 5:  # Saturday
+        return d if is_new_year else d - timedelta(days=1)
+    if d.weekday() == 6:  # Sunday
+        return d + timedelta(days=1)
+    return d
+
+
+def us_market_holidays(year: int) -> dict[date, str]:
+    """NYSE/Nasdaq full-day holidays for `year` (observed dates)."""
+    gf = _easter(year) - timedelta(days=2)
+    raw: list[tuple[date, str, bool]] = [
+        (_observed(date(year, 1, 1), is_new_year=True), "New Year's Day", False),
+        (_nth_weekday(year, 1, 0, 3), "Martin Luther King Jr. Day", True),
+        (_nth_weekday(year, 2, 0, 3), "Washington's Birthday", True),
+        (gf, "Good Friday", True),
+        (_nth_weekday(year, 5, 0, -1), "Memorial Day", True),
+        (_observed(date(year, 6, 19)), "Juneteenth", False),
+        (_observed(date(year, 7, 4)), "Independence Day", False),
+        (_nth_weekday(year, 9, 0, 1), "Labor Day", True),
+        (_nth_weekday(year, 11, 3, 4), "Thanksgiving", True),
+        (_observed(date(year, 12, 25)), "Christmas Day", False),
+    ]
+    return {d: name for d, name, _exact in raw}
+
+
+@dataclass(frozen=True)
+class SessionStatus:
+    now_paris: datetime
+    weekday: str
+    state: str  # weekend|us_holiday|pre_londres|london_active|pre_ny|ny_active|off_hours
+    market_closed_fx: bool
+    market_closed_us_equity: bool
+    holiday_name: str | None
+    next_open_label: str
+    next_open_paris: datetime
+    minutes_until_next_open: int
+
+    def to_dict(self) -> dict:
+        return {
+            "now_paris": self.now_paris.isoformat(),
+            "weekday": self.weekday,
+            "state": self.state,
+            "market_closed_fx": self.market_closed_fx,
+            "market_closed_us_equity": self.market_closed_us_equity,
+            "holiday_name": self.holiday_name,
+            "next_open_label": self.next_open_label,
+            "next_open_paris": self.next_open_paris.isoformat(),
+            "minutes_until_next_open": self.minutes_until_next_open,
+        }
+
+
+def _ny_open_paris(d: date) -> datetime:
+    """09:30 ET on day `d`, expressed in Paris tz (DST-correct)."""
+    et = datetime(d.year, d.month, d.day, _NY_OPEN_ET[0], _NY_OPEN_ET[1], tzinfo=NY)
+    return et.astimezone(PARIS)
+
+
+def _next_fx_reopen(now: datetime) -> datetime:
+    """FX reopens Sunday ~22:00 Paris (Sydney open). Approximation —
+    FX has no single canonical reopen instant (22:00-23:00 Paris)."""
+    d = now.date()
+    while d.weekday() != 6:  # Sunday
+        d += timedelta(days=1)
+    return datetime(d.year, d.month, d.day, 22, 0, tzinfo=PARIS)
+
+
+def _next_business_day(d: date, holidays: dict[date, str]) -> date:
+    nd = d + timedelta(days=1)
+    while nd.weekday() >= 5 or nd in holidays:
+        nd += timedelta(days=1)
+    return nd
+
+
+def compute_session_status(now: datetime | None = None) -> SessionStatus:
+    now = (now or datetime.now(PARIS)).astimezone(PARIS)
+    today = now.date()
+    wd = now.weekday()  # Mon=0 .. Sun=6
+    weekday_name = now.strftime("%A")
+
+    hols = us_market_holidays(today.year)
+    us_hol_name = hols.get(today)
+
+    # Weekend (FX) : Sat all day + Sun before 22:00 Paris (Sydney reopen).
+    is_fx_weekend = wd == 5 or (wd == 6 and now.hour < 22)
+
+    if is_fx_weekend:
+        reopen = _next_fx_reopen(now)
+        return SessionStatus(
+            now_paris=now,
+            weekday=weekday_name,
+            state="weekend",
+            market_closed_fx=True,
+            market_closed_us_equity=True,
+            holiday_name=None,
+            next_open_label="Réouverture FX (Sydney, dim. ~22:00 Paris)",
+            next_open_paris=reopen,
+            minutes_until_next_open=max(0, int((reopen - now).total_seconds() // 60)),
+        )
+
+    if us_hol_name is not None:
+        # FX/XAU still trade ; only US equities (SPX/NAS) are closed.
+        nbd = _next_business_day(today, hols)
+        nopen = _ny_open_paris(nbd)
+        return SessionStatus(
+            now_paris=now,
+            weekday=weekday_name,
+            state="us_holiday",
+            market_closed_fx=False,
+            market_closed_us_equity=True,
+            holiday_name=us_hol_name,
+            next_open_label=f"Marchés US fermés ({us_hol_name}) · FX/XAU ouverts",
+            next_open_paris=nopen,
+            minutes_until_next_open=max(0, int((nopen - now).total_seconds() // 60)),
+        )
+
+    london_open = now.replace(hour=_LONDON_OPEN_PARIS_H, minute=0, second=0, microsecond=0)
+    ny_open = _ny_open_paris(today)
+    hm = now.hour * 60 + now.minute
+
+    def mins_to(target: datetime) -> int:
+        return max(0, int((target - now).total_seconds() // 60))
+
+    if hm < _LONDON_OPEN_PARIS_H * 60:
+        if now.hour >= 6:
+            state, label, target = "pre_londres", "Ouverture Londres (09:00 Paris)", london_open
+        else:
+            state, label, target = (
+                "off_hours",
+                "Pré-Londres (06:00 Paris)",
+                now.replace(hour=6, minute=0, second=0, microsecond=0),
+            )
+    elif now < ny_open and (ny_open - now).total_seconds() <= 3.5 * 3600:
+        state, label, target = "pre_ny", "Ouverture New York", ny_open
+    elif now < ny_open:
+        state, label, target = "london_active", "Ouverture New York", ny_open
+    elif now.hour < 22:
+        state, label, target = "ny_active", "Réouverture FX (dim.)", _next_fx_reopen(now)
+    else:
+        nxt = _next_business_day(today, hols)
+        state, label, target = (
+            "off_hours",
+            "Pré-Londres (06:00 Paris)",
+            datetime(nxt.year, nxt.month, nxt.day, 6, 0, tzinfo=PARIS),
+        )
+
+    return SessionStatus(
+        now_paris=now,
+        weekday=weekday_name,
+        state=state,
+        market_closed_fx=False,
+        market_closed_us_equity=False,
+        holiday_name=None,
+        next_open_label=label,
+        next_open_paris=target,
+        minutes_until_next_open=mins_to(target),
+    )
+
+
+# US-equity assets in the ADR-083 D1 batch universe : closed on weekends
+# AND US market (NYSE/Nasdaq) holidays. The FX/XAU assets
+# (EUR_USD / GBP_USD / USD_CAD / XAU_USD) trade through US holidays —
+# closed weekends only.
+_US_EQUITY_ASSETS: frozenset[str] = frozenset({"SPX500_USD", "NAS100_USD"})
+
+
+def market_closed_for_asset(asset: str, status: SessionStatus) -> bool:
+    """True iff `asset`'s market is closed in `status` (ADR-105 gate SSOT).
+
+    Weekend (`status.market_closed_fx`) closes every asset ; a US market
+    holiday (`status.market_closed_us_equity` with FX still open) closes
+    only the US-equity assets — FX/XAU keep trading. Pure calendar truth :
+    the caller (the ADR-105 fail-open gate) owns all error handling ;
+    this function never raises on a well-formed `SessionStatus`.
+    """
+    if status.market_closed_fx:
+        return True
+    if asset in _US_EQUITY_ASSETS and status.market_closed_us_equity:
+        return True
+    return False
+
+
+# The 4 DAILY intraday briefing windows — the ones that ARE "live
+# pre-session" reads, where a closed-market briefing served as if live is
+# the r98/r99 data-honesty defect. `weekly` (deliberately scheduled
+# Sunday 18:00 to prepare the week ahead WHILE markets are closed) and
+# `crisis` (event-driven — a weekend shock is precisely when it matters
+# most) are INTENTIONALLY market-closed-time artefacts and are EXEMPT
+# from the gate (ADR-105 §Implementation r99).
+_DAILY_BRIEFING_TYPES: frozenset[str] = frozenset({"pre_londres", "pre_ny", "ny_mid", "ny_close"})
+
+
+def should_skip_briefing(briefing_type: str, status: SessionStatus) -> bool:
+    """True iff a DAILY intraday briefing should be suppressed because the
+    FX market is closed (weekend) — ADR-105 §Implementation(r99) gate SSOT.
+
+    Only the 4 daily windows are gated ; `weekly` / `crisis` (and any
+    unrecognised type) are NEVER skipped (`weekly` is the intentional
+    Sunday-18:00 week-ahead prep ; `crisis` is event-driven). A US market
+    holiday does NOT skip either — `market_closed_fx` is False there, FX/XAU
+    keep trading (4/6 assets live), and the market-wide briefing keeps its
+    forward-looking value (under-suppression is the fail-safe direction,
+    ADR-105 §Negative). Pure : the caller (the fail-open gate) owns all
+    error handling ; this never raises on a well-formed `SessionStatus`.
+    """
+    if briefing_type not in _DAILY_BRIEFING_TYPES:
+        return False
+    return status.market_closed_fx
+
+
+def briefing_market_caveat(briefing_type: str, status: SessionStatus) -> str | None:
+    """One-line market-closed honesty banner for the fused DAILY briefing
+    preamble — ADR-105 §Implementation(r100) SSOT, sibling of
+    `should_skip_briefing`.
+
+    `should_skip_briefing` SKIPS a daily briefing on a weekend only when
+    the r99 gate flag is enabled ; it ships OFF, so (a) on a weekend
+    (flag-OFF) a daily briefing is still generated, and (b) on a US-equity
+    holiday it is ALWAYS generated (`market_closed_fx` is False there —
+    FX/XAU 4/6 trade, `should_skip_briefing` returns False). Either way the
+    fused market-wide artefact carries SPX500/NAS100 content a reader (or
+    the consuming LLM) could mistake for a live US-equity pre-session read
+    (ichor-trader R28 r99 YELLOW-1). This returns the explicit caveat line
+    to thread into `_assemble_context`'s preamble, or None when none is
+    warranted.
+
+    Scope mirrors `should_skip_briefing` EXACTLY (same `_DAILY_BRIEFING_TYPES`
+    gate) : only the 4 DAILY windows are caveated ; `weekly` (the
+    intentional Sunday-18:00 week-ahead prep) / `crisis` (event-driven) /
+    any unrecognised type ⇒ None — they are deliberately
+    market-closed-time forward-looking artefacts, a "markets closed" line
+    there is noise, not honesty. Weekend takes precedence over US holiday
+    (matches `compute_session_status` branch order : a weekend that is also
+    a holiday is classified `weekend`, `holiday_name=None`). Pure : never
+    raises on a well-formed `SessionStatus` (the caller — the fail-open
+    gate context — owns all error handling ; `compute_session_status` is
+    itself zero-DB / non-raising).
+    """
+    if briefing_type not in _DAILY_BRIEFING_TYPES:
+        return None
+    if status.market_closed_fx:
+        # Weekend : FX, equities and gold are ALL closed (the whole fused
+        # briefing is a closed-market read, not a live pre-session one).
+        return (
+            "> **MARKET CLOSED — weekend.** FX, equities and gold are all "
+            "closed (FX reopens Sunday ~22:00 Paris). Treat every section "
+            "below as forward-looking preparation, NOT a live pre-session "
+            "read — do not describe any asset as showing live or intraday "
+            "session behaviour. (ADR-105 market-closed honesty gate.)"
+        )
+    if status.market_closed_us_equity and status.holiday_name:
+        # US-equity holiday (weekday) : SPX 500 / Nasdaq closed ; FX & gold
+        # trade normally. Their sections reflect the prior close.
+        return (
+            f"> **US EQUITIES CLOSED — {status.holiday_name}.** S&P 500 "
+            "(SPX500) and Nasdaq (NAS100) are NOT in a live session today; "
+            "their signals reflect the prior close, not a live pre-session "
+            "read. FX and gold (EUR/USD, GBP/USD, XAU/USD) trade normally. "
+            "Do not describe SPX500/NAS100 as showing live pre-session "
+            "momentum. (ADR-105 market-closed honesty gate.)"
+        )
+    return None

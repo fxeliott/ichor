@@ -18,10 +18,11 @@ permissions:
 
 jobs:
   # -------------------------------------------------------------------------
-  # JS/TS workspaces (apps/web, packages/ui)
+  # JS/TS workspaces (apps/web2, packages/ui — apps/web retired from
+  # pnpm-workspace.yaml 2026-05-06, cf ADR-018/D.3 sprint)
   # -------------------------------------------------------------------------
   node:
-    name: Node • lint + typecheck + build
+    name: Node • lint + typecheck + build + test
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
@@ -68,6 +69,16 @@ jobs:
 
       - name: Typecheck (post-build, on packages without their own build)
         run: pnpm typecheck
+
+      # r97 (ADR-099 §Tier-3 autonomy hardening) — gate the @ichor/web2
+      # vitest suite. Until r97 NO workflow ran web2 tests at all, so the
+      # r91 deriveVerdict SSOT regression harness + the r96 deriveDataIntegrity
+      # data-honesty SSOT were CI-invisible (the r91→r96 arc could silently
+      # drift). vitest was repo-wide broken by a vite/vitest peer-major
+      # skew (vitest 4 needs vite ≥6 ; pnpm had silently linked vite 5) —
+      # fixed this round by pinning `vite ^7` in apps/web2 devDependencies.
+      - name: Test (web2 vitest — SSOT regression harnesses)
+        run: pnpm --filter @ichor/web2 test
 
   # -------------------------------------------------------------------------
   # Python workspaces (apps/api, apps/claude-runner, packages/agents,

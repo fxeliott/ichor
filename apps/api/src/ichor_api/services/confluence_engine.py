@@ -561,7 +561,11 @@ async def _factor_surprise_index(session: AsyncSession, asset: str) -> Driver | 
     if composite is None or not isinstance(composite, (int, float)):
         return None
     z = float(composite)
-    # Positive surprise = US data beats → USD strong
+    # r135 — `composite` is now a GROWTH-surprise signal only (inflation
+    # series are z-scored per-series but excluded from the composite, so
+    # this growth-direction mapping is correct — a hot-CPI print no longer
+    # leaks in mislabelled as growth). Positive growth-surprise = US data
+    # beats → USD strong.
     raw = max(-1.0, min(1.0, z * 0.5))
     if asset in {"NAS100_USD", "SPX500_USD"}:
         contribution = raw  # growth surprises bullish for equity
@@ -574,7 +578,69 @@ async def _factor_surprise_index(session: AsyncSession, asset: str) -> Driver | 
     return Driver(
         factor="surprise_index",
         contribution=contribution,
-        evidence=f"eco-surprise composite z = {z:+.2f}",
+        evidence=f"US growth-surprise composite z = {z:+.2f}",
+        source="empirical_model:surprise_index",
+    )
+
+
+async def _factor_inflation_surprise(session: AsyncSession, asset: str) -> Driver | None:
+    """r137 — inflation-surprise factor, SEPARATE from the growth
+    `surprise_index` factor (orthogonal regime axes — never merged ; the
+    Critic + Brier optimizer audit/weight them apart). Built on the
+    ichor-trader r137 advisory :
+
+    - **USD leg is regime-ROBUST** : a hot inflation surprise (+z) is
+      USD-positive across BOTH reflation and stagflation (hawkish Fed
+      repricing), so the USD-base / X-USD sign is UNCONDITIONAL.
+    - **Equity leg is regime-CONDITIONED** : hot inflation is equity-
+      negative (discount-rate channel) ONLY when growth is soft
+      (stagflation) ; when growth is ALSO hot (reflation), nominal-earnings
+      growth offsets it, so the equity-negative contribution is dampened
+      toward ~0. Conditioned on the growth composite (same reading, no
+      extra query).
+    - **XAU = 0** : gold's inflation reaction is a genuine 3-way tug
+      (nominal yields ↑ bearish / real-yield path ambiguous / inflation-
+      hedge bid bullish / USD-strength bearish). A guessed sign would be
+      fabricated certainty (doctrine #11) — surfaced as context, zero
+      contribution.
+    - **Smaller coefficient (×0.3 vs growth ×0.5)** : inflation→price runs
+      through a noisier, lagged Fed-reaction-function channel.
+    """
+    reading = await assess_surprise_index(session)
+    infl = getattr(reading, "inflation_composite", None)
+    if infl is None or not isinstance(infl, (int, float)):
+        return None
+    z = float(infl)
+    raw = max(-1.0, min(1.0, z * 0.3))  # smaller coeff than growth (lagged)
+
+    # Reflation dampener for the equity leg : how "hot" is growth (0..1).
+    growth_z = reading.composite if isinstance(reading.composite, (int, float)) else 0.0
+    reflation = max(0.0, min(1.0, float(growth_z)))
+    equity_damp = 1.0 - 0.7 * reflation  # 1.0 (stagflation) .. 0.3 (reflation)
+
+    if asset in {"NAS100_USD", "SPX500_USD"}:
+        # Hot inflation = hawkish = equity-negative, dampened under reflation.
+        contribution = -raw * equity_damp
+    elif asset == "XAU_USD":
+        contribution = 0.0  # honest zero — sign genuinely ambiguous
+    elif asset in _USD_IS_BASE:
+        contribution = raw  # USD-base : hot inflation → USD strong (robust)
+    else:
+        contribution = -raw  # X/USD : USD strong → short the pair (robust)
+
+    # Label aligned with the damp engagement (any positive growth dampens
+    # the equity leg → "reflation" ; growth ≤ 0 → full hawkish hit →
+    # "stagflation-leaning"). r137 trader YELLOW : threshold was 0.1 while
+    # equity_damp engages from >0 — aligned to 0 for consistency.
+    regime = "reflation" if reflation > 0.0 else "stagflation-leaning"
+    return Driver(
+        factor="inflation_surprise",
+        contribution=contribution,
+        evidence=(
+            f"US inflation-surprise composite z = {z:+.2f} "
+            f"(growth backdrop {regime} ; equity impact regime-conditioned, "
+            f"XAU neutral by design)"
+        ),
         source="empirical_model:surprise_index",
     )
 
@@ -611,6 +677,7 @@ async def assess_confluence(
         await _factor_polymarket(session, asset),
         await _factor_funding_stress(session, asset),
         await _factor_surprise_index(session, asset),
+        await _factor_inflation_surprise(session, asset),
         await _factor_vix_term(session, asset),
         await _factor_risk_appetite(session, asset),
         await _factor_btc_risk_proxy(session, asset),

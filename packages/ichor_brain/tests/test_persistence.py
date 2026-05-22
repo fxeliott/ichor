@@ -84,3 +84,47 @@ def test_to_audit_row_realized_columns_blank() -> None:
     assert row.realized_close_session is None
     assert row.realized_at is None
     assert row.brier_contribution is None
+
+
+def test_to_audit_row_key_levels_default_empty_list() -> None:
+    """r62 (ADR-083 D3) : when SessionCard.key_levels is None (legacy
+    pipeline that doesn't compose the snapshot), the row must persist
+    `[]` not None — the migration 0049 column is NOT NULL DEFAULT
+    `'[]'::jsonb`, so passing None would shadow the server default.
+    """
+    card = _make_card()
+    assert card.key_levels is None  # legacy default
+    row = to_audit_row(card)
+    assert row.key_levels == []
+    assert isinstance(row.key_levels, list)
+
+
+def test_to_audit_row_key_levels_carries_snapshot() -> None:
+    """When the orchestrator composes a snapshot via
+    `compose_key_levels_snapshot`, the items are persisted verbatim
+    (defensive copy)."""
+    snapshot = [
+        {
+            "asset": "USD",
+            "level": 838.584,
+            "kind": "tga_liquidity_gate",
+            "side": "above_liquidity_drain_below_inject",
+            "source": "FRED:WTREGEN 2026-05-13",
+            "note": "TGA $839B above $700B threshold",
+        },
+        {
+            "asset": "NAS100_USD",
+            "level": 720.0,
+            "kind": "gex_call_wall",
+            "side": "approaching",
+            "source": "flashalpha:gex_snapshots 2026-05-15",
+            "note": "spot 719.79 within 0.03% of call wall",
+        },
+    ]
+    card = _make_card().model_copy(update={"key_levels": snapshot})
+    row = to_audit_row(card)
+    assert row.key_levels == snapshot
+    # Defensive copy : mutating the row must not affect the card
+    row.key_levels.append({"injected": True})
+    assert card.key_levels is not None
+    assert all("injected" not in kl for kl in card.key_levels)

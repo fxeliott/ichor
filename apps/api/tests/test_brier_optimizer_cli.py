@@ -21,6 +21,7 @@ def test_factor_names_match_confluence_engine() -> None:
         "polymarket_overlay",
         "funding_stress",
         "surprise_index",
+        "inflation_surprise",  # r137 — separate inflation-surprise driver
         "vix_term",
         "risk_appetite",
         "btc_risk_proxy",

@@ -15,11 +15,22 @@ export interface ApiFetchOptions {
   revalidate?: number;
   /** Override base URL (for tests). */
   baseUrl?: string;
+  /** r140 — optional AbortSignal forwarded to fetch() so client-side
+   *  pollers (FreshDataBanner) can actually cancel in-flight requests
+   *  on unmount. Without this, AbortController in callers was a no-op
+   *  (code-reviewer R2 — wired end-to-end, not decorative). */
+  signal?: AbortSignal;
 }
 
 /** GET request returning typed JSON or `null` on any failure. */
 export async function apiGet<T>(path: string, opts: ApiFetchOptions = {}): Promise<T | null> {
-  const base = opts.baseUrl ?? API_BASE;
+  // Client-side calls go through the same-origin proxy (next.config
+  // rewrites /v1/*). Server-side (SSR/Server Action) calls use
+  // API_BASE directly. Mirrors `apiMutate` — `ICHOR_API_URL` is a
+  // server-only env, so a browser `API_BASE` would be the unreachable
+  // localhost dev port and get CSP-blocked on the public deploy.
+  const isBrowser = typeof window !== "undefined";
+  const base = opts.baseUrl ?? (isBrowser ? "" : API_BASE);
   const url = path.startsWith("http") ? path : `${base}${path}`;
 
   const fetchInit: RequestInit & { next?: { revalidate?: number } } = {};
@@ -27,6 +38,11 @@ export async function apiGet<T>(path: string, opts: ApiFetchOptions = {}): Promi
     fetchInit.next = { revalidate: opts.revalidate };
   } else {
     fetchInit.cache = opts.cache ?? "no-store";
+  }
+  // r140 — thread the optional AbortSignal so client pollers can cancel
+  // in-flight fetches on unmount (code-reviewer R2 fix).
+  if (opts.signal) {
+    fetchInit.signal = opts.signal;
   }
 
   try {
@@ -117,10 +133,79 @@ export interface CalibrationStatSchema {
   trend: "bull" | "bear" | "neutral";
 }
 
+// r62 (ADR-083 D3) — KeyLevel snapshot persisted into session_card_audit.
+// Mirror of `apps/api/src/ichor_api/routers/key_levels.py:KeyLevelOut`.
+export type KeyLevelKind =
+  | "tga_liquidity_gate"
+  | "rrp_liquidity_gate"
+  | "gamma_flip"
+  | "gex_call_wall"
+  | "gex_put_wall"
+  | "peg_break_hkma"
+  | "peg_break_pboc_fix"
+  | "vix_regime_switch"
+  | "skew_regime_switch"
+  | "hy_oas_percentile"
+  | "polymarket_decision";
+
+export interface KeyLevel {
+  asset: string;
+  level: number;
+  kind: KeyLevelKind;
+  side: string;
+  source: string;
+  note: string;
+}
+
+export interface KeyLevelsResponse {
+  count: number;
+  items: KeyLevel[];
+}
+
+// r68 — Pass-6 7-bucket scenario decomposition (ADR-085). Mirror of
+// session_card_audit.scenarios JSONB. 7 canonical-ordered entries
+// (crash_flush..melt_up), sum(p) == 1.0. The outcome-probability
+// distribution = the "prendre plus ou moins de risque" answer.
+export type ScenarioLabel =
+  | "crash_flush"
+  | "strong_bear"
+  | "mild_bear"
+  | "base"
+  | "mild_bull"
+  | "strong_bull"
+  | "melt_up";
+
+export interface Scenario {
+  label: ScenarioLabel;
+  /** Probability in [0, 0.95] ; the 7 entries sum to 1.0. */
+  p: number;
+  /** [low, high] pip move for this bucket (signed : negative = down). */
+  magnitude_pips: [number, number];
+  mechanism: string;
+}
+
+/** r95 (ADR-104, migration 0050) — one stale/absent critical FRED anchor
+ *  that silently degraded a section/sub-driver, frozen at card generation.
+ *  Mirror of the backend `DegradedInputOut` (schemas.py SSOT). */
+export interface DegradedInput {
+  series_id: string;
+  status: "stale" | "absent";
+  /** ISO date (YYYY-MM-DD) of the last ingested observation ; null when
+   *  the series was never ingested (status === "absent"). */
+  latest_date: string | null;
+  age_days: number | null;
+  max_age_days: number;
+  /** which section / sub-driver this anchor reduces reliability on. */
+  impacted: string;
+}
+
 export interface SessionCard {
   id: string;
   generated_at: string;
-  session_type: "pre_londres" | "pre_ny" | "event_driven";
+  // Canonical 5-window contract — mirror of ichor_brain.types.SessionType
+  // + apps/api schemas.py SessionCardOut (r66 fix : was 3-value, drifted
+  // from the 4-windows/day backend design, 500'd /v1/sessions).
+  session_type: "pre_londres" | "pre_ny" | "ny_mid" | "ny_close" | "event_driven";
   asset: string;
   model_id: string;
   regime_quadrant: string | null;
@@ -135,6 +220,12 @@ export interface SessionCard {
   catalysts: unknown;
   correlations_snapshot: unknown;
   polymarket_overlay: unknown;
+  /** r62 (ADR-083 D3) — KeyLevel snapshot persisted at orchestrator
+   *  finalization. Empty array `[]` is the canonical "all NORMAL" state. */
+  key_levels: KeyLevel[];
+  /** r68 — Pass-6 7-bucket scenario decomposition (ADR-085). `[]` for
+   *  legacy / pre-Pass-6 cards. 7 entries sum(p)==1.0 when present. */
+  scenarios: Scenario[];
   source_pool_hash: string;
   critic_verdict: string | null;
   critic_findings: unknown;
@@ -144,6 +235,16 @@ export interface SessionCard {
   brier_contribution: number | null;
   created_at: string;
 
+  // r95 (ADR-104, migration 0050) — FRED-liveness degraded-input
+  // manifest frozen at card generation. DELIBERATE TRI-STATE (mirrors
+  // the backend nullable-no-default column) : `null` = liveness not
+  // tracked at this card's generation (legacy/pre-0050 card — honest
+  // "unknown", NOT "all fresh") ; `[]` = tracked, all critical anchors
+  // fresh ; non-empty = generated on degraded inputs. The r96
+  // DataIntegrityBadge consumes ONLY this card field (ADR-104
+  // §Cross-endpoint — never the live /v1/data-pool recompute).
+  degraded_inputs: DegradedInput[] | null;
+
   // Phase 2 typed enrichment — populated when claude_raw_response exposes
   // the structured sub-objects ; null otherwise.
   thesis: string | null;
@@ -151,6 +252,433 @@ export interface SessionCard {
   ideas: IdeaSetSchema | null;
   confluence_drivers: ConfluenceDriverSchema[] | null;
   calibration: CalibrationStatSchema | null;
+}
+
+/** r65 — fetch the live KeyLevels snapshot from `/v1/key-levels`. */
+export async function getKeyLevels(): Promise<KeyLevelsResponse | null> {
+  return apiGet<KeyLevelsResponse>("/v1/key-levels");
+}
+
+/** r68 — fetch the upcoming economic calendar from `/v1/calendar/upcoming`.
+ *  r140 — optional `since_minutes` extends the window backward so the
+ *  `<FreshDataBanner>` can detect catalysts whose `scheduled_at` elapsed
+ *  since the briefing's `generated_at` (lesson #11 honest scope : surfaces
+ *  scheduled-time-elapsed, NOT actual-value-published).
+ *  Optional `asset` filter narrows via affected_assets[] mapping.
+ */
+export async function getCalendarUpcoming(
+  asset: string | null = null,
+  sinceMinutes: number = 0,
+  opts: { signal?: AbortSignal } = {},
+): Promise<CalendarUpcoming | null> {
+  const qs = new URLSearchParams();
+  if (asset) qs.set("asset", asset);
+  if (sinceMinutes > 0) qs.set("since_minutes", String(sinceMinutes));
+  const path = qs.toString() ? `/v1/calendar/upcoming?${qs.toString()}` : "/v1/calendar/upcoming";
+  // r140 — pass `signal` so FreshDataBanner's AbortController actually
+  // cancels in-flight polls on unmount (code-reviewer R2 fix).
+  // Conditionally include signal to honour exactOptionalPropertyTypes.
+  const apiOpts: { signal?: AbortSignal } = {};
+  if (opts.signal) apiOpts.signal = opts.signal;
+  return apiGet<CalendarUpcoming>(path, apiOpts);
+}
+
+/** r89 (ADR-099 Tier 2.3) — themed Polymarket prediction-market impact
+ *  from `/v1/polymarket-impact` (themes + per-asset transmission).
+ *  Reuses the existing `PolymarketImpact` type (declared below). The
+ *  standalone `/polymarket` route calls this endpoint inline with
+ *  query params ; the briefing wants the default themed view. */
+export async function getPolymarketImpact(): Promise<PolymarketImpact | null> {
+  return apiGet<PolymarketImpact>("/v1/polymarket-impact");
+}
+
+/**
+ * r69 + r138 — fetch recent news items from `/v1/news`.
+ *
+ * r138 — backend now returns a `NewsListEnvelope` envelope `{ items, filter }`
+ * so the asset-filter status can be surfaced honestly (lesson #11 calibrated).
+ * `asset` (optional, ADR-099 §D-1 5-asset surface or backend legacy 9-asset map)
+ * narrows the feed to items keyword-matching the asset's ticker / institutional
+ * terms with the SAME scarce-fallback discipline as `services/data_pool._section_news`
+ * (re-homed to `services/asset_news_affinity`).
+ *
+ * Returns the full envelope so callers can render the filter disclosure ;
+ * panels that only need the items can read `.items`.
+ */
+export interface NewsFilterMeta {
+  asset: string;
+  matched: number;
+  applied: boolean;
+  min_required: number;
+  known_asset: boolean;
+}
+
+export interface NewsListEnvelope {
+  items: NewsItem[];
+  filter: NewsFilterMeta | null;
+}
+
+export async function getNews(
+  limit = 12,
+  asset: string | null = null,
+): Promise<NewsListEnvelope | null> {
+  const qs = new URLSearchParams({ limit: String(limit) });
+  if (asset) qs.set("asset", asset);
+  return apiGet<NewsListEnvelope>(`/v1/news?${qs.toString()}`);
+}
+
+// r69 — MyFXBook retail positioning (contrarian sentiment). Mirror of
+// apps/api routers/positioning.py PositioningOut. The W77 collector was
+// LIVE since 2026-05-09 but had no read endpoint until r69.
+export interface PositioningEntry {
+  pair: string;
+  long_pct: number;
+  short_pct: number;
+  long_volume: number | null;
+  short_volume: number | null;
+  long_positions: number | null;
+  short_positions: number | null;
+  fetched_at: string;
+  dominant_side: "long" | "short" | "balanced";
+  intensity: "balanced" | "crowded" | "extreme";
+  contrarian_tilt: "bullish" | "bearish" | "neutral";
+  note: string;
+}
+
+export interface PositioningOut {
+  generated_at: string;
+  n_pairs: number;
+  entries: PositioningEntry[];
+}
+
+/** r69 — fetch MyFXBook retail positioning from `/v1/positioning`. */
+export async function getPositioning(): Promise<PositioningOut | null> {
+  return apiGet<PositioningOut>("/v1/positioning");
+}
+
+/**
+ * r75 (ADR-099 Tier 1.1) — intraday OHLCV bars from
+ * `/v1/market/intraday/{asset}` (reuses `IntradayBarOut`). The endpoint
+ * caps `hours` at 72 and returns the whole window ASCENDING; `limit`
+ * truncates from the OLDEST end (verified R59). So to reach the most
+ * recent bar even on a weekend/holiday (markets closed → last data is
+ * Friday) we request the full window and the caller slices the tail
+ * server-side. `volume` is a Polygon tick/aggregate ACTIVITY proxy, not
+ * real exchange volume (FX is decentralised — true volume does not exist).
+ */
+export async function getIntradayBars(
+  asset: string,
+  hours = 72,
+  limit = 10000,
+): Promise<IntradayBarOut[] | null> {
+  return apiGet<IntradayBarOut[]>(
+    `/v1/market/intraday/${encodeURIComponent(asset)}?hours=${hours}&limit=${limit}`,
+  );
+}
+
+// r120 — hourly-volatility seasonality (24-bar UTC median + p75 |log-rdt|
+// bp). The SINGLE source of the `/v1/hourly-volatility` URL + opts, shared
+// by the standalone `/hourly-volatility/[asset]` page AND the primary
+// `/briefing/[asset]` page (doctrine #9 anti-accumulation — one fetch
+// definition, two callers). Mirrors `getIntradayBars`.
+export async function getHourlyVol(asset: string): Promise<HourlyVolOut | null> {
+  return apiGet<HourlyVolOut>(`/v1/hourly-volatility/${encodeURIComponent(asset)}?window_days=30`, {
+    revalidate: 300,
+  });
+}
+
+// r123 — server-side fetch of the DST-correct session-status (the
+// `SessionStatus` client chip fetches it independently with `no-store` and
+// a 5-min self-heal poll ; this server-side wrapper lets the briefing page
+// SSR pass the canonical state to `<TodaySessionPulse>` for the live
+// session-window stats — `<TodaySessionPulse>` is RSC-safe by design and
+// cannot fetch on its own, lesson #5 RSC-leak discipline). 60s ISR is
+// generous enough that the chip's client-side 5-min refresh remains the
+// authoritative live source ; this server slice is the SSR seed.
+export async function getSessionStatus(): Promise<SessionStatusOut | null> {
+  return apiGet<SessionStatusOut>("/v1/calendar/session-status", { revalidate: 60 });
+}
+
+// r127 — per-asset tempo threshold map fetched from `/v1/tempo-thresholds`
+// (Mission centrale Axis-7 auto-amélioration consumer view ; backend
+// shipped r126 commit d460b97). Returns a `Record<asset, thresholds>` map
+// the briefing page passes to `derivePulse(..., thresholdsOverride)` as
+// the LIVE recalibrated thresholds ; on API error / empty rows / cold-
+// start the briefing falls back to the r125 hardcoded
+// `TEMPO_THRESHOLDS_BY_ASSET` in `lib/sessionPulse.ts`. The endpoint emits
+// `Cache-Control: public, max-age=300, stale-while-revalidate=900` ; the
+// 300s ISR here matches the server-side hint so Next.js + CDN stay coherent.
+//
+// Shape transform : the API returns `{ items: TempoThresholdItem[] }` ; we
+// flatten to `Record<asset, { breakout, active, trending, range_bound }>`
+// inline so the consumer side never sees the wrapped list shape (smaller
+// surface area for the `derivePulse` signature).
+interface TempoThresholdItem {
+  asset: string;
+  breakout_bp: number;
+  active_bp: number;
+  trending_bp: number;
+  range_bound_bp: number;
+  sample_size: number;
+  window_days: number;
+  computed_at: string;
+}
+
+interface TempoThresholdsListOut {
+  items: TempoThresholdItem[];
+}
+
+/** r127 — flat per-asset shape (matches `lib/sessionPulse.ts TempoThresholds`).
+ * Re-declared here as a structural type — keeping the dependency direction
+ * `sessionPulse → api` would be wrong ; api should not import from sessionPulse.
+ * The two declarations are byte-identical and pinned by a vitest contract
+ * test in `__tests__/sessionPulse.test.ts` (drift-guard). */
+export interface TempoThresholdsForAsset {
+  breakout: number;
+  active: number;
+  trending: number;
+  range_bound: number;
+}
+
+/** r129 — per-asset calibration metadata (ADR-104 data-honesty staleness
+ * banner, the r127 trader NIT closure). Carries the freshness anchor that
+ * the `<TodaySessionPulse>` panel surfaces under the tempo meter so Eliot
+ * can SEE how stale the calibration is + how many samples backed it. */
+export interface TempoMetadata {
+  /** ISO datetime of the recalibration cron fire that produced these
+   * thresholds. Parsed client-side via `new Date(...)` to compute a
+   * staleness-in-days delta. */
+  computed_at: string;
+  /** Number of Paris-day samples in the percentile calibration window. */
+  sample_size: number;
+  /** Rolling window in days (the cron's `--window-days` ; default 90). */
+  window_days: number;
+}
+
+/** r129 — envelope shape for `getTempoThresholds()` carrying BOTH the
+ * thresholds (consumed by derivePulse for label classification) AND the
+ * metadata (surfaced by TodaySessionPulse's data-honesty banner). The
+ * shape is per-asset on both keys so a future cron that fires per-asset
+ * (rather than all-5 in one transaction) can produce divergent metadata
+ * cleanly. r127's flat-Record shape is REPLACED — the briefing page is
+ * the only consumer + has been updated in the same r129 commit. */
+export interface TempoThresholdsBundle {
+  thresholds: Record<string, TempoThresholdsForAsset>;
+  metadata: Record<string, TempoMetadata>;
+}
+
+/** Fetches `/v1/tempo-thresholds` and flattens the list into the r129
+ * envelope shape `{ thresholds, metadata } | null`. Returns `null` when
+ * the API is unreachable OR the cron hasn't yet populated any rows — the
+ * briefing page falls back to the r125 hardcoded `TEMPO_THRESHOLDS_BY_ASSET`
+ * in that case (data-honesty : the worst case is "label is slightly stale",
+ * never "label is missing"). r129 NOTE — both `thresholds` and `metadata`
+ * fall together (same upstream rows from the cron INSERT transaction) ;
+ * a future divergence path (per-asset partial cron success) would extend
+ * the envelope rather than splitting into two fetchers. */
+export async function getTempoThresholds(): Promise<TempoThresholdsBundle | null> {
+  const list = await apiGet<TempoThresholdsListOut>("/v1/tempo-thresholds", {
+    revalidate: 300,
+  });
+  if (list === null) return null;
+  if (!list.items || list.items.length === 0) {
+    // Y-3 (code-reviewer r127) : distinguish "API down (warned by apiGet)"
+    // from "cron hasn't fired yet (expected cold state)" in dev logs.
+    // Both collapse to `null` for the consumer (fall back to r125
+    // hardcoded), but the dev observability surface stays distinct.
+    // `info` level — this is an expected boot state, not an error.
+    console.info(
+      "[api] /v1/tempo-thresholds returned 0 items — falling back to r125 hardcoded TEMPO_THRESHOLDS_BY_ASSET (cron not fired or sample too small)",
+    );
+    return null;
+  }
+  const thresholds: Record<string, TempoThresholdsForAsset> = {};
+  const metadata: Record<string, TempoMetadata> = {};
+  for (const item of list.items) {
+    thresholds[item.asset] = {
+      breakout: item.breakout_bp,
+      active: item.active_bp,
+      trending: item.trending_bp,
+      range_bound: item.range_bound_bp,
+    };
+    metadata[item.asset] = {
+      computed_at: item.computed_at,
+      sample_size: item.sample_size,
+      window_days: item.window_days,
+    };
+  }
+  return { thresholds, metadata };
+}
+
+// r76 — geopolitics briefing (AI-GPR headline + negative GDELT). Mirror
+// of apps/api routers/geopolitics.py GeopoliticsBriefingOut. `band` is a
+// ratio to the published GPR baseline (100 = 1985-2019 mean), NOT a
+// fabricated threshold ; `as_of_days` surfaces GPR source lag honestly.
+export interface GprReading {
+  value: number;
+  observation_date: string;
+  as_of_days: number;
+  band: "bas" | "normal" | "élevé" | "très élevé";
+  baseline: number;
+}
+
+export interface GdeltNegative {
+  tone: number;
+  title: string;
+  domain: string | null;
+  query_label: string | null;
+  url: string | null;
+}
+
+/** r138 — disclosed asset-filter status (lesson #11 calibrated honesty). */
+export interface GeopoliticsFilterMeta {
+  asset: string;
+  matched: number;
+  applied: boolean;
+  min_required: number;
+  known_asset: boolean;
+}
+
+export interface GeopoliticsBriefing {
+  gpr: GprReading | null;
+  gdelt_window_hours: number;
+  n_events_window: number;
+  gdelt_negatives: GdeltNegative[];
+  /** r138 — `null` for back-compat when `?asset=` is not supplied. */
+  filter?: GeopoliticsFilterMeta | null;
+}
+
+/**
+ * r77 + r138 — fetch the geopolitics briefing from `/v1/geopolitics/briefing`.
+ *
+ * r138 — optional `asset` narrows the GDELT most-negative ranking to events
+ * whose title / query_label / URL match the asset's keyword affinity, with
+ * the same scarce-fallback rule as `/v1/news`. AI-GPR (single global index)
+ * is returned unchanged. Frontend can render the filter disclosure from
+ * `.filter`.
+ */
+export async function getGeopoliticsBriefing(
+  hours = 48,
+  top = 6,
+  asset: string | null = null,
+): Promise<GeopoliticsBriefing | null> {
+  const qs = new URLSearchParams({ hours: String(hours), top: String(top) });
+  if (asset) qs.set("asset", asset);
+  return apiGet<GeopoliticsBriefing>(`/v1/geopolitics/briefing?${qs.toString()}`);
+}
+
+// r80 — CFTC institutional positioning ("acteurs du marché" / smart
+// money, distinct from MyFXBook retail). Mirror of apps/api
+// routers/positioning.py InstitutionalPositioningOut. Weekly cadence ;
+// `report_date` makes the CFTC lag explicit. tff covers all 5 assets
+// (incl. SPX500) ; cot covers 4 (null otherwise — honest, ADR-093).
+export interface TffPositioning {
+  market_code: string;
+  report_date: string;
+  open_interest: number;
+  dealer_net: number;
+  asset_mgr_net: number;
+  lev_money_net: number;
+  other_net: number;
+  dealer_dw: number | null;
+  asset_mgr_dw: number | null;
+  lev_money_dw: number | null;
+  smart_money_divergence: boolean;
+}
+
+export interface CotPositioning {
+  market_code: string;
+  report_date: string;
+  open_interest: number;
+  managed_money_net: number;
+  swap_dealer_net: number;
+  producer_net: number;
+  delta_1w: number | null;
+  delta_4w: number | null;
+  delta_12w: number | null;
+  pattern: "accelerating" | "reversal" | "stable";
+}
+
+export interface InstitutionalPositioning {
+  asset: string;
+  cadence: string;
+  tff: TffPositioning | null;
+  cot: CotPositioning | null;
+}
+
+/** r81 — fetch CFTC institutional positioning from `/v1/positioning/institutional`. */
+export async function getInstitutionalPositioning(
+  asset: string,
+): Promise<InstitutionalPositioning | null> {
+  return apiGet<InstitutionalPositioning>(
+    `/v1/positioning/institutional?asset=${encodeURIComponent(asset)}`,
+  );
+}
+
+/** r82 — live cross-asset correlation matrix from `/v1/correlations`
+ *  (reuses CorrelationMatrix). Fallback source for the briefing
+ *  Corrélations panel when `card.correlations_snapshot` is absent. */
+export async function getCorrelations(windowDays = 30): Promise<CorrelationMatrix | null> {
+  return apiGet<CorrelationMatrix>(`/v1/correlations?window_days=${windowDays}`);
+}
+
+// r84 — Phase-D pocket skill (Vovk-AA aggregator self-assessment).
+// Mirror of apps/api routers/phase_d.py PocketSummaryOut. The system's
+// HONEST historical discrimination skill per (asset,regime) pocket :
+// skill_delta = prod_predictor_weight − equal_weight_weight. Negative
+// = the LLM forecaster has historically done WORSE than a no-info
+// baseline on this pocket (anti-skill → weight its read down). LIVE at
+// /v1/phase-d/* but never surfaced to the trader until now.
+export interface PocketSummary {
+  asset: string;
+  regime: string;
+  pocket_version: number;
+  prod_predictor_weight: number;
+  climatology_weight: number;
+  equal_weight_weight: number;
+  n_observations: number;
+  has_skill_vs_baseline: boolean;
+  skill_delta: number;
+  latest_drift_event_at: string | null;
+  active_addenda_count: number;
+  pocket_updated_at: string;
+}
+
+export interface PocketSummaryList {
+  rows: PocketSummary[];
+  count: number;
+  asset_filter: string | null;
+  regime_filter: string | null;
+  pocket_version: number;
+}
+
+/** r84 — per-asset Phase-D pocket skill from `/v1/phase-d/pocket-summary`. */
+export async function getPocketSummary(asset: string): Promise<PocketSummaryList | null> {
+  return apiGet<PocketSummaryList>(`/v1/phase-d/pocket-summary?asset=${encodeURIComponent(asset)}`);
+}
+
+// r78 — DST-correct market session + US-holiday signal. Mirror of
+// apps/api routers/calendar.py SessionStatusOut. Consumed CLIENT-side by
+// SessionStatus.tsx via the same-origin /v1 proxy (next.config rewrite) —
+// it replaces the old DST-naive browser UTC heuristic. `next_open_paris`
+// is an absolute ISO instant so the live countdown needs no local tz math.
+export interface SessionStatusOut {
+  now_paris: string;
+  weekday: string;
+  state:
+    | "weekend"
+    | "us_holiday"
+    | "pre_londres"
+    | "london_active"
+    | "pre_ny"
+    | "ny_active"
+    | "off_hours";
+  market_closed_fx: boolean;
+  market_closed_us_equity: boolean;
+  holiday_name: string | null;
+  next_open_label: string;
+  next_open_paris: string;
+  minutes_until_next_open: number;
 }
 
 export interface SessionCardList {
@@ -283,6 +811,14 @@ export interface PolymarketMarketHit {
   question: string;
   yes: number;
   weight: number;
+  /** r131 axis-8 Δ-YES — YES from oldest snapshot in 24h-48h-ago window
+   * for this slug. `null` when no history (market <24h or cron gap). */
+  yes_24h_ago?: number | null;
+  /** r131 axis-8 Δ-YES — signed shift in pp over last 24h. `null` when
+   * `yes_24h_ago` is null. Consumed by `<PolymarketImpactPanel>` for
+   * velocity badge with tone escalation `|v|>5pp` shift rapide,
+   * `>10pp` manipulation possible (descriptive, ADR-017). */
+  yes_velocity_pp?: number | null;
 }
 
 export interface PolymarketTheme {

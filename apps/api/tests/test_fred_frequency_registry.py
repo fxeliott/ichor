@@ -65,19 +65,47 @@ def test_germany_japan_uk_australia_10y_monthly_all_120_days() -> None:
         assert _max_age_days_for(series_id) == 120
 
 
-def test_imf_pinkbook_composite_monthly_series_60_days() -> None:
-    """Round-46 ADR-092 §T1.AUD-1 + §T1.AUD-2 ship : 3 IMF World Bank
-    PinkBook composite series at 60d max-age (acceptable since PinkBook
-    publishes early-month, vs OECD MEI mid-month at 120d). Empirical
-    cadence validated post-deploy ; if silent-skip emerges, bump to 90d
-    or 120d in a follow-up hygiene round (code-reviewer r46 M2 caveat)."""
-    for series_id in (
-        "MYAGM1CNM189N",  # China M2 broad-money
-        "PIORECRUSDM",  # Global Iron Ore Price Index
-        "PCOPPUSDM",  # Global Copper Price Index
-    ):
-        assert _FRED_SERIES_MAX_AGE_DAYS[series_id] == 60
-        assert _max_age_days_for(series_id) == 60
+def test_uk_3m_interbank_monthly_180_days() -> None:
+    """IR3TIB01GBM156N (UK 3M interbank, OECD-MEI monthly) is the
+    DOCUMENTED SLOW MEMBER of its family — NOT "same 120d as the UK 10Y
+    sibling" (r101's conservative no-data mirror). r102 step-3 R53
+    prod-DB liveness verify + FRED primary-source citation-gate
+    (ADR-101 §Implementation(r102)) found latest obs 2026-01-01,
+    ~137d stale, NO discontinued banner = alive-but-slow (the r94
+    ADR-092 §Round-94 false-DEGRADE class, NOT the China-M1 dead
+    class). Its siblings refresh ~47d ; it lags ~137d. Recalibrated
+    120→180 (r94 design-rule margin-parity ≈1.33× the observed
+    worst-case lag → clean 6-month ceiling ; still catches a genuine
+    >6-month freeze). NOT the 14d DAILY default."""
+    assert _FRED_SERIES_MAX_AGE_DAYS["IR3TIB01GBM156N"] == 180
+    assert _max_age_days_for("IR3TIB01GBM156N") == 180
+
+
+def test_china_m1_dead_series_stays_60d() -> None:
+    """`MYAGM1CNM189N` (China M1, NOT M2 — the r46-round-2 swap target)
+    is GENUINELY DISCONTINUED since 2019-08-01 (latest obs frozen 2019,
+    age ~2481d ; ADR-093 §r49). Left at 60d INTENTIONALLY : any threshold
+    flags a 6-year-dead series, so the ADR-103 surface correctly reports
+    it DEGRADED. Widening it would mask a real dead series — do NOT."""
+    assert _FRED_SERIES_MAX_AGE_DAYS["MYAGM1CNM189N"] == 60
+    assert _max_age_days_for("MYAGM1CNM189N") == 60
+
+
+def test_iron_copper_imf_pcps_monthly_120d_r94_recalibration() -> None:
+    """r94 R53 recalibration (ADR-092 §Round-94 amendment) : the r46
+    `= 60` "IMF PinkBook publishes early-month" assumption was
+    empirically REFUTED (prod-DB + live fred.stlouisfed.org primary
+    source : IMF PCPS publishes month-M ~mid-month-M+1, so the freshest
+    obs is inherently ~75-90d old → 60d false-DEGRADED the AUD composite
+    every card, surfaced by the r93 ADR-103 liveness audit). Recalibrated
+    60→120d to match the monthly-OECD precedent (ADR-092:63 AU-10Y=120 ;
+    every other monthly series in this registry is 120). NOT discontinued
+    (unlike China-M1) — live monthly IMF series, latest Mar 2026."""
+    for series_id in ("PIORECRUSDM", "PCOPPUSDM"):
+        assert _FRED_SERIES_MAX_AGE_DAYS[series_id] == 120
+        assert _max_age_days_for(series_id) == 120
+        # consistency with the monthly-OECD class it now matches
+        assert _max_age_days_for(series_id) == _max_age_days_for("IRLTLT01AUM156N")
 
 
 def test_oecd_cli_series_all_120_days() -> None:
@@ -137,6 +165,7 @@ def test_registry_monthly_series_are_at_least_30_days() -> None:
         "IRLTLT01ITM156N",
         "IRLTLT01JPM156N",
         "IRLTLT01GBM156N",
+        "IR3TIB01GBM156N",  # r101 ADR-101 §Impl(r101) ingestion + r102 §Impl(r102) 120→180 R53 recalibration (still monthly, ≥30 holds)
         "IRLTLT01AUM156N",  # round-46 ADR-092 §T1.AUD-3
         "MYAGM1CNM189N",  # round-46 ADR-092 §T1.AUD-1 (IMF PinkBook)
         "PIORECRUSDM",  # round-46 ADR-092 §T1.AUD-2 (IMF PinkBook)

@@ -38,7 +38,10 @@ from ..collectors.dts_treasury import fetch_operating_cash, latest_tga_close
 from ..collectors.ecb_sdmx import SERIES_TO_POLL as _ECB_SERIES
 from ..collectors.ecb_sdmx import fetch_series as fetch_ecb_series
 from ..collectors.eia_petroleum import fetch_steo, fetch_weekly_petroleum_stocks
-from ..collectors.finra_short import fetch_daily_short_volume
+from ..collectors.finra_short import (
+    fetch_daily_short_volume,
+    fetch_daily_short_volume_flatfile,
+)
 from ..collectors.flashalpha import poll_all as poll_flashalpha
 from ..collectors.forex_factory import (
     fetch_ff_calendar,
@@ -253,6 +256,41 @@ async def _run_fred(*, persist: bool, extended: bool = True) -> int:
             f"FRED · persisted {inserted} new rows ({len(obs) - inserted} dedup), "
             f"{n_alerts} alerts triggered"
         )
+    return 0 if obs else 1
+
+
+async def _run_fred_backfill(*, persist: bool) -> int:
+    """r135 — deep-history backfill for the Economic Surprise Index series.
+
+    The routine `fred` poll stores only the latest observation per series
+    (limit=1), so the surprise-index z-score (which needs ≥6 prints per
+    series to form ≥5 period-changes) was dark (composite=None). This
+    one-shot pulls ~120 observations per headline macro series so the
+    index lights up. Idempotent for sequential re-runs (persistence dedups
+    read-then-insert ; do not run two backfills concurrently).
+    """
+    from ..collectors.fred import SURPRISE_BACKFILL_SERIES, backfill_history
+
+    settings = get_settings()
+    if not settings.fred_api_key:
+        print("FRED backfill · ICHOR_API_FRED_API_KEY empty — skipping.", file=sys.stderr)
+        return 0
+
+    obs = await backfill_history(settings.fred_api_key, SURPRISE_BACKFILL_SERIES, limit=120)
+    n_by_sid: dict[str, int] = {}
+    for o in obs:
+        n_by_sid[o.series_id] = n_by_sid.get(o.series_id, 0) + 1
+    print(f"FRED backfill · {len(obs)} observations across {len(n_by_sid)} series")
+    for sid in sorted(n_by_sid):
+        print(f"  [{sid:12s}] {n_by_sid[sid]:>4d} obs")
+
+    if persist:
+        from ..collectors.persistence import persist_fred_observations
+
+        sm = get_sessionmaker()
+        async with sm() as session:
+            inserted = await persist_fred_observations(session, obs)
+        print(f"FRED backfill · persisted {inserted} new rows ({len(obs) - inserted} dedup)")
     return 0 if obs else 1
 
 
@@ -999,8 +1037,19 @@ async def _run_finra_short(*, persist: bool) -> int:
         "AMZN",
         "META",
     )
+    # r53 : prefer free CDN flat-file path. The OAuth-gated API path
+    # (`fetch_daily_short_volume`) was the silent-dead root cause per
+    # r52 wave-2 subagent M finding — without `finra_api_token`, every
+    # `compareFilters` query returned 401 silently swallowed.
+    # Flat-file path is no-auth, no rate-limit, free per Voie D. If
+    # `finra_api_token` IS provisioned later (Eliot manual), API path
+    # remains available as alternate (richer fields).
     try:
-        rows = await fetch_daily_short_volume(sample_symbols, api_token=token)
+        rows = await fetch_daily_short_volume_flatfile(sample_symbols)
+        if not rows and token:
+            # Empty flat-file (long weekend/holiday) → try API as fallback.
+            print("FINRA short · flatfile empty, trying API fallback")
+            rows = await fetch_daily_short_volume(sample_symbols, api_token=token)
     except Exception as e:
         print(f"FINRA short · fetch error: {e}")
         return 1
@@ -1917,6 +1966,7 @@ async def _main(target: str, *, persist: bool) -> int:
         "market_data": _run_market_data,
         "polygon": _run_polygon,
         "fred": _run_fred,
+        "fred_backfill": _run_fred_backfill,
         "gdelt": _run_gdelt,
         "ai_gpr": _run_ai_gpr,
         "cboe_skew": _run_cboe_skew,

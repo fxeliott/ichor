@@ -20,7 +20,8 @@ gap surfaced by the first --live run on 2026-05-04 (id 93903a14).
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
+from typing import Literal
 
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -58,6 +59,21 @@ from .asian_session import (
 from .asian_session import (
     supported_pairs as asian_supported_pairs,
 )
+from .asset_news_affinity import (
+    NEWS_KEYWORDS as _NEWS_KEYWORDS,
+)
+from .asset_news_affinity import (
+    matches_asset as _matches_asset,
+)
+
+# r138 + r139 — back-compat re-exports for doctrine #4 SSOT pin
+# (`test_data_pool_back_compat_reexport_present`). The `__all__`
+# declaration is the canonical Python way to mark intentional re-exports
+# so ruff F401 cannot strip names whose sole consumer migrated away
+# (r139 recurrence after the S4 _section_news → filter_rows_by_asset_affinity
+# migration left _matches_asset un-referenced ; ruff stripped it twice
+# despite per-line noqa).
+__all__ = ("_NEWS_KEYWORDS", "_matches_asset")
 from .confluence_engine import (
     assess_confluence,
     render_confluence_block,
@@ -81,6 +97,7 @@ from .economic_calendar import (
     assess_calendar,
     render_calendar_block,
 )
+from .fred_age_registry import FRED_DEFAULT_MAX_AGE_DAYS, FRED_SERIES_MAX_AGE_DAYS
 from .funding_stress import (
     assess_funding_stress,
     render_funding_stress_block,
@@ -221,77 +238,67 @@ class DataPool:
     markdown: str
     sources: list[str] = field(default_factory=list)
     sections_emitted: list[str] = field(default_factory=list)
+    # ADR-103 (ADR-099 §T3.2) — runtime FRED-liveness degraded-input
+    # manifest. Default `[]` so every existing constructor stays valid
+    # (additive, frozen-dataclass-safe). Projected into `DataPoolOut`
+    # for the operator surface + the r94 end-user badge foundation.
+    degraded_inputs: list[DegradedInput] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class FredLiveness:
+    """Liveness verdict for one FRED series — ADR-103.
+
+    `_latest_fred` folds `observation_date >= cutoff` into SQL so a
+    series that is *stale* beyond its registry max-age returns the same
+    `None` as one that was *never ingested* (`data_pool.py:285-286`) —
+    the stale-vs-absent distinction is destroyed at the query layer.
+    This carries it explicitly. `status` semantics:
+      - `fresh`  : a non-null obs exists within the registry max-age
+                   (⟺ `_latest_fred` would return a row — byte-consistent)
+      - `stale`  : a non-null obs exists but is OLDER than max-age
+                   (the China-M1-class dead series ; ADR-093 §r49)
+      - `absent` : no non-null obs ever ingested for this series
+    """
+
+    series_id: str
+    status: Literal["fresh", "stale", "absent"]
+    latest_date: date | None
+    age_days: int | None
+    max_age_days: int
+
+
+@dataclass(frozen=True)
+class DegradedInput:
+    """A critical FRED anchor that is stale/absent → its dependent
+    section or sub-driver silently degrades. Projected onto `DataPool`
+    + `DataPoolOut` (ADR-103, ADR-099 §D-2 "never silently absent").
+    Never carries `status == "fresh"` (a fresh input is not degraded).
+    """
+
+    series_id: str
+    status: Literal["stale", "absent"]
+    latest_date: date | None
+    age_days: int | None
+    max_age_days: int
+    impacted: str
 
 
 # ────────────────────────── Section builders ──────────────────────────
 
 
-# Per-series max-age-days registry — round-37 r35-audit-gap closure.
-# FRED series have different publication cadences (daily / weekly /
-# monthly / quarterly). The default 14-day max-age was calibrated for
-# DAILY series and silently rejected MONTHLY OECD observations (e.g.
-# IRLTLT01ITM156N which is ~100 days old at read time per r35
-# empirical discovery). The registry below maps each series_id to its
-# appropriate max-age ceiling. Adding a new monthly/quarterly series
-# WITHOUT a registry entry will fall back to the conservative default
-# AND log a structlog warning so the operator notices.
-_FRED_SERIES_MAX_AGE_DAYS: dict[str, int] = {
-    # ─── MONTHLY OECD / FRED series (1-month publication lag standard) ───
-    "IRLTLT01DEM156N": 120,  # Germany 10y monthly (legacy, replaced by Bund daily r29 but kept for fallback)
-    "IRLTLT01ITM156N": 120,  # Italy 10y monthly (BTP-Bund spread, ADR-090 step-4 r34+r35)
-    "IRLTLT01JPM156N": 120,  # Japan 10y monthly
-    "IRLTLT01GBM156N": 120,  # UK 10y monthly
-    "IRLTLT01AUM156N": 120,  # Australia 10y monthly (round-46 ADR-092 §T1.AUD-3)
-    # ─── IMF World Bank PinkBook composite monthly series (round-46 ADR-092) ───
-    # 60d max-age acceptable because IMF PinkBook publishes early-month
-    # (vs OECD MEI mid-month with 1-month publication lag → OECD entries
-    # need 120d). r46 ship validates empirically post-deploy ; if FRED
-    # silent-skip emerges (60-65d delay scenarios), bump to 90d or 120d
-    # in a follow-up hygiene round (code-reviewer M2 review caveat).
-    "MYAGM1CNM189N": 60,  # China M1 monthly (round-46 r46-round-2 audit swap from
-    #                       MYAGM2CNM189N which was DISCONTINUED Aug 2019 per IMF
-    #                       IFS / FRED) ; credit-impulse proxy preserved per
-    #                       Barcelona et al. 2022 Fed IFDP 1360 ; TSF direct
-    #                       deferred per ADR-092 §DEFER firmly
-    "PIORECRUSDM": 60,  # Global Iron Ore Price Index monthly (round-46 ADR-092 §T1.AUD-2)
-    "PCOPPUSDM": 60,  # Global Copper Price Index monthly (round-46 ADR-092 §T1.AUD-2)
-    "USALOLITOAASTSAM": 120,  # US CLI monthly
-    "G7LOLITOAASTSAM": 120,  # G7 aggregate CLI
-    "JPNLOLITOAASTSAM": 120,
-    "DEULOLITOAASTSAM": 120,
-    "GBRLOLITOAASTSAM": 120,
-    "CHNLOLITOAASTSAM": 120,
-    "EA19LOLITOAASTSAM": 120,
-    "UMCSENT": 60,  # U Michigan Consumer Sentiment monthly (preliminary mid-month + final end-of-month)
-    "CSCICP03USM665S": 90,  # OECD Consumer Confidence monthly
-    "DRTSCILM": 120,  # Senior Loan Officer Survey quarterly
-    "USREC": 365,  # NBER Recession Indicator (typically updated at recession turning points only)
-    "CIVPART": 45,  # Labor Force Participation monthly
-    "AHETPI": 45,  # Average Hourly Earnings monthly
-    "ATLSBUSRGEP": 60,  # Atlanta Fed Business Inflation Expectations
-    "PSAVERT": 45,  # Personal Saving Rate monthly
-    "FEDFUNDS": 45,  # Fed Funds monthly average
-    "EXPINF1YR": 60,  # Cleveland Fed expected inflation monthly
-    "M2SL": 45,  # M2 monthly
-    "WSHOSHO": 30,  # Fed H.4.1 Treasuries weekly
-    "WSHOMCB": 30,  # Fed H.4.1 MBS weekly
-    "WRESBAL": 30,  # Fed reserve balances weekly
-    "GDPC1": 120,  # Real GDP quarterly
-    "INDPRO": 45,  # Industrial Production monthly
-    "MCUMFN": 45,  # Manufacturing Capacity Utilization monthly
-    "CFNAI": 45,  # Chicago Fed National Activity Index monthly
-    "CFNAIDIFF": 45,
-    "DFEDTARU": 45,  # Fed Funds Target Range Upper (announcement-driven)
-    "DFEDTARL": 45,
-    "GDPNOW": 14,  # Atlanta Fed GDP nowcast (updated 6-7x/month, but 14d is conservative)
-    "PCENOW": 14,
-}
-
-# Conservative default for any FRED series NOT in the registry above.
-# Suits DAILY series (DGS10, DXY, VIXCLS, etc.). Monthly/quarterly
-# series MUST be added to the registry — falling back to 14 silently
-# would reintroduce the r35 bug class.
-_FRED_DEFAULT_MAX_AGE_DAYS: int = 14
+# Per-series max-age-days registry + conservative default — EXTRACTED
+# r92 to the dependency-free SSOT `services/fred_age_registry.py` so the
+# ADR-097 CI guard can import it WITHOUT data_pool's SQLAlchemy + 33-ORM
+# graph (latent Defect A — the shipped guard imported it from here and
+# the workflow installed only httpx → exit-4 on every run since r61).
+# Re-exported below under the historic private names so every runtime
+# caller (`_max_age_days_for`, `_latest_fred`) is byte-identical
+# (r71/r91 anti-accumulation extract-to-SSOT pattern). The full r35/r37
+# rationale + the per-series table now live in `fred_age_registry.py`
+# (single source of truth — no duplicate dict here).
+_FRED_SERIES_MAX_AGE_DAYS: dict[str, int] = FRED_SERIES_MAX_AGE_DAYS
+_FRED_DEFAULT_MAX_AGE_DAYS: int = FRED_DEFAULT_MAX_AGE_DAYS
 
 
 def _max_age_days_for(series_id: str, override: int | None = None) -> int:
@@ -341,6 +348,202 @@ async def _latest_fred(
         float(row.value),
         datetime.combine(row.observation_date, datetime.min.time(), tzinfo=UTC),
     )
+
+
+# ─────────────── ADR-103 — runtime FRED-liveness audit ────────────────
+# ADR-099 §T3.2 "human-visible degraded-data alert — break the
+# silent-skip chain". `_latest_fred` collapses absent vs stale → None ;
+# `_fred_liveness` runs the cutoff-FREE latest query (the info that
+# collapse destroys) and classifies against the r92 fred_age_registry
+# SSOT. `_latest_fred` itself is byte-identical (no contract change).
+
+
+async def _fred_liveness(
+    session: AsyncSession, series_id: str, *, override: int | None = None
+) -> FredLiveness:
+    """Liveness of `series_id` WITHOUT `_latest_fred`'s absent/stale fold.
+
+    One extra cheap indexed `LIMIT 1` (PK-ordered, value-not-null) with
+    NO `>= cutoff` predicate, so the *actual* latest observation_date
+    survives. `fresh` ⟺ `age <= max_age` ⟺ `observation_date >=
+    today - max_age` ⟺ `_latest_fred` returns a row — provably the same
+    boundary (byte-consistency invariant, unit-pinned). Invoked only by
+    the always-on integrity audit (≤ a dozen series / card).
+    """
+    max_age = _max_age_days_for(series_id, override=override)
+    stmt = (
+        select(FredObservation.observation_date)
+        .where(
+            FredObservation.series_id == series_id,
+            FredObservation.value.is_not(None),
+        )
+        .order_by(desc(FredObservation.observation_date))
+        .limit(1)
+    )
+    latest = (await session.execute(stmt)).scalars().first()
+    if latest is None:
+        return FredLiveness(series_id, "absent", None, None, max_age)
+    age = (datetime.now(UTC).date() - latest).days
+    status: Literal["fresh", "stale", "absent"] = "fresh" if age <= max_age else "stale"
+    return FredLiveness(series_id, status, latest, age, max_age)
+
+
+@dataclass(frozen=True)
+class _CriticalAnchor:
+    """A FRED series whose `None` causes a SILENT section-skip or
+    sub-driver drop. `max_age_override` mirrors the exact override the
+    consuming section passes to `_latest_fred` (so the audit's `fresh`
+    means precisely "the consumer got its data") ; None ⟹ registry SSOT.
+    Derived from VERIFIED `_section_*` reads (r93 R59), not guessed.
+    """
+
+    series_id: str
+    max_age_override: int | None
+    impacted: str
+
+
+# Pass-1 régime classifier inputs — audited for EVERY asset (régime is
+# universal). Overrides verbatim from `_section_executive_summary`
+# (`data_pool.py:324-329`, r93-verified).
+_MACRO_CORE_ANCHORS: tuple[_CriticalAnchor, ...] = (
+    _CriticalAnchor("VIXCLS", 7, "Pass-1 régime classifier (VIX panic input)"),
+    _CriticalAnchor("BAMLH0A0HYM2", 14, "Pass-1 régime classifier (HY-OAS credit input)"),
+    _CriticalAnchor("NFCI", 14, "Pass-1 régime classifier (financial-conditions input)"),
+    _CriticalAnchor("USALOLITOAASTSAM", 90, "Pass-1 régime classifier (US CLI cycle input)"),
+    _CriticalAnchor("EXPINF1YR", 45, "Pass-1 régime classifier (1y inflation-expectations input)"),
+    _CriticalAnchor("THREEFYTP10", 30, "Pass-1 régime classifier (term-premium input)"),
+)
+
+# Per-asset primary anchors whose absence silently kills the per-asset
+# section, + the ADR-093 AUD composite sub-drivers that silently drop.
+# series_ids verified from the `_section_*` reads (r93 R59) ; max-age
+# judged against the registry SSOT (override only where the consuming
+# section passes one — VIXCLS@7). EUR_USD's Bund anchor is NON-FRED
+# (`BundYieldObservation`, no cutoff) → out of FRED-liveness scope this
+# round (documented in ADR-103 §Negative).
+_ASSET_CRITICAL_ANCHORS: dict[str, tuple[_CriticalAnchor, ...]] = {
+    "XAU_USD": (
+        _CriticalAnchor("DFII10", None, "xau_specific section (primary real-yield driver)"),
+    ),
+    "NAS100_USD": (
+        _CriticalAnchor("DGS10", None, "nas_specific section (primary duration driver)"),
+    ),
+    "SPX500_USD": (
+        _CriticalAnchor("VIXCLS", 7, "spx_specific section (primary tail-regime driver)"),
+    ),
+    "USD_JPY": (
+        _CriticalAnchor("IRLTLT01JPM156N", None, "jpy_specific section (primary JP anchor)"),
+    ),
+    "AUD_USD": (
+        _CriticalAnchor(
+            "IRLTLT01AUM156N", None, "aud_specific section (primary AU anchor — section skips)"
+        ),
+        _CriticalAnchor(
+            "MYAGM1CNM189N", None, "aud_specific China-credit driver (ADR-093 composite)"
+        ),
+        _CriticalAnchor("PIORECRUSDM", None, "aud_specific iron-ore driver (ADR-093 composite)"),
+        _CriticalAnchor("PCOPPUSDM", None, "aud_specific copper driver (ADR-093 composite)"),
+    ),
+    "GBP_USD": (
+        _CriticalAnchor("IRLTLT01GBM156N", None, "gbp_specific section (primary UK anchor)"),
+    ),
+}
+
+
+async def _section_data_integrity(
+    session: AsyncSession, asset: str
+) -> tuple[str, list[str], list[DegradedInput]]:
+    """## Data integrity — runtime FRED critical-anchor liveness (ADR-103).
+
+    ALWAYS rendered (never the `("", [])` sentinel ; appended
+    unconditionally near the top of `build_data_pool`, mirroring the
+    `_section_key_levels` "explicit state instead of missing data"
+    doctrine, `data_pool.py:4260-4261`) so Pass-1 régime + Pass-2 are
+    primed with data-health context BEFORE they read the macro blocks.
+
+    Breaks the silent-skip chain (ADR-099 §D-2 "never silently absent"):
+    a dead/stale critical anchor (the China-M1 class, ADR-093 §r49) is
+    now deterministically + explicitly surfaced every card instead of a
+    section vanishing with zero trace. ADR-017-clean — data-provenance
+    vocabulary only, explicit boundary note, no directional/signal
+    language.
+
+    Returns `(markdown, sources, degraded_inputs)` (3-tuple like
+    `_section_daily_levels`). `sources` stamps only the FRESH series
+    (legit provenance) ; the section still renders when all degraded
+    (unconditional append).
+    """
+    asset = asset.upper()
+    # macro-core (universal) + this asset's per-asset anchors, deduped by
+    # series_id (macro-core wins ; VIXCLS appears in both for SPX with the
+    # same @7 override → no conflict).
+    seen: set[str] = set()
+    anchors: list[_CriticalAnchor] = []
+    for a in (*_MACRO_CORE_ANCHORS, *_ASSET_CRITICAL_ANCHORS.get(asset, ())):
+        if a.series_id in seen:
+            continue
+        seen.add(a.series_id)
+        anchors.append(a)
+
+    livenesses: list[tuple[_CriticalAnchor, FredLiveness]] = []
+    for a in anchors:
+        lv = await _fred_liveness(session, a.series_id, override=a.max_age_override)
+        livenesses.append((a, lv))
+
+    degraded: list[DegradedInput] = [
+        DegradedInput(
+            series_id=lv.series_id,
+            status=lv.status,  # type: ignore[arg-type]  # never "fresh" in this branch
+            latest_date=lv.latest_date,
+            age_days=lv.age_days,
+            max_age_days=lv.max_age_days,
+            impacted=a.impacted,
+        )
+        for a, lv in livenesses
+        if lv.status != "fresh"
+    ]
+    fresh = [(a, lv) for a, lv in livenesses if lv.status == "fresh"]
+    sources = [f"FRED:{lv.series_id}@{lv.latest_date:%Y-%m-%d}" for _, lv in fresh]
+
+    n = len(livenesses)
+    lines: list[str] = ["## Data integrity — FRED critical-anchor liveness (ADR-103)"]
+    if not degraded:
+        lines.append(
+            f"**Status : ALL FRESH** — {n} critical FRED anchor(s) verified live against "
+            "the r92 `fred_age_registry` thresholds (Pass-1 régime core + this asset's "
+            "per-asset anchors). No silent degradation this card (ADR-099 §D-2 honored)."
+        )
+    else:
+        k = len(degraded)
+        lines.append(
+            f"**Status : ⚠️ DEGRADED** — {k} of {n} critical FRED anchor(s) stale or "
+            "absent (ADR-103 · ADR-099 §D-2 'never silently absent' · the ADR-093 "
+            "'degraded explicit' primitive generalized to a dynamic runtime audit)."
+        )
+        for d in degraded:
+            if d.status == "absent":
+                detail = "ABSENT (no observation ever ingested)"
+            else:
+                detail = (
+                    f"STALE (latest obs {d.latest_date:%Y-%m-%d}, "
+                    f"age {d.age_days} d > registry threshold {d.max_age_days} d)"
+                )
+            lines.append(f"- **{d.series_id}** — {detail} → impacted: {d.impacted}.")
+        lines.append(
+            "- Data-integrity context — the analysis on the impacted axes reads at "
+            "reduced reliability where an anchor is stale/absent; this is data-provenance "
+            "context, not a signal (ADR-017 boundary)."
+        )
+    if fresh:
+        lines.append(
+            "- Fresh anchors: "
+            + ", ".join(
+                f"{lv.series_id}@{lv.latest_date:%Y-%m-%d} ({lv.age_days} d ≤ {lv.max_age_days} d)"
+                for _, lv in fresh
+            )
+            + "."
+        )
+    return "\n".join(lines), sources, degraded
 
 
 async def _section_executive_summary(session: AsyncSession) -> tuple[str, list[str]]:
@@ -592,6 +795,103 @@ async def _section_dollar_smile(session: AsyncSession) -> tuple[str, list[str]]:
         val, when = v
         lines.append(f"- {label} = {fmt.format(val)} (FRED:{series_id}, {when:%Y-%m-%d})")
         sources.append(f"FRED:{series_id}")
+    return "\n".join(lines), sources
+
+
+async def _section_key_levels(session: AsyncSession) -> tuple[str, list[str]]:
+    """## Key levels (non-technical / fundamental switches) — ADR-083 D3.
+
+    Cross-asset section listing fundamental price thresholds that act as
+    macro/microstructure switches. Per ADR-083 D3, these are NOT technical
+    analysis levels (Eliot does TA on TradingView himself) — they are
+    DATA-DERIVED triggers : TGA balance bands, peg break thresholds,
+    gamma flip prices, VIX/SKEW regime switches, HY OAS percentiles,
+    Polymarket binary contract resolutions.
+
+    r54 phase 1 ships TGA only as proof of pattern. r55+ extends to
+    peg break, gamma flip, VIX threshold, Polymarket per the roadmap.
+
+    Returns ("...md...", []) (no source-stamps if no level fired) instead
+    of skipping the section entirely — Pass 2 LLM benefits from the
+    explicit "no key level fired this session" signal vs missing section.
+    """
+    from .key_levels import (
+        compute_call_wall_levels,
+        compute_gamma_flip_levels,
+        compute_hkma_peg_break,
+        compute_hy_oas_percentile,
+        compute_polymarket_decision_levels,
+        compute_put_wall_levels,
+        compute_skew_regime_switch,
+        compute_tga_key_level,
+        compute_vix_regime_switch,
+    )
+
+    levels: list = []
+    sources: list[str] = []
+
+    tga = await compute_tga_key_level(session)
+    if tga is not None:
+        levels.append(tga)
+        sources.append(tga.source)
+
+    # r55 : HKMA USD/HKD peg break (band [7.75, 7.85] convertibility).
+    hkma = await compute_hkma_peg_break(session)
+    if hkma is not None:
+        levels.append(hkma)
+        sources.append(hkma.source)
+
+    # r56 : gamma_flip for SPX500 (SPY proxy) + NAS100 (QQQ proxy)
+    # per ADR-089. Returns 0-2 KeyLevels (one per asset with data).
+    for kl in await compute_gamma_flip_levels(session):
+        levels.append(kl)
+        sources.append(kl.source)
+
+    # r60 : gex call_wall + put_wall (gex_snapshots extras), same proxy.
+    # Each computer returns 0-2 KeyLevels (only fires in actionable zone).
+    for kl in await compute_call_wall_levels(session):
+        levels.append(kl)
+        sources.append(kl.source)
+    for kl in await compute_put_wall_levels(session):
+        levels.append(kl)
+        sources.append(kl.source)
+
+    # r57 : vol/credit regime switches (VIX + SKEW + HY OAS).
+    # Each returns KeyLevel | None ; only fires outside normal bands.
+    for computer in (
+        compute_vix_regime_switch,
+        compute_skew_regime_switch,
+        compute_hy_oas_percentile,
+    ):
+        kl = await computer(session)
+        if kl is not None:
+            levels.append(kl)
+            sources.append(kl.source)
+
+    # r58 : polymarket_decision (top-N macro markets in extreme zones).
+    for kl in await compute_polymarket_decision_levels(session):
+        levels.append(kl)
+        sources.append(kl.source)
+
+    # Future : peg_break_pboc_fix when DEXCHUS history >100 rows + CFETS
+    # source ADR. call_wall + put_wall optional from gex_snapshots extras.
+
+    if not levels:
+        body = (
+            "## Key levels (non-technical, ADR-083 D3)\n"
+            "_(no fundamental threshold fired this session — TGA in mid-band, "
+            "no peg/gamma/regime switch active. Phase 1 covers TGA only ; "
+            "r55+ will add peg_break + gamma_flip + vix_regime + polymarket.)_"
+        )
+        return body, sources
+
+    lines = ["## Key levels (non-technical, ADR-083 D3)"]
+    lines.extend(kl.to_markdown_line() for kl in levels)
+    lines.append(
+        "_(threshold-driven macro switches ; not technical analysis. "
+        "Pass 2 should weigh these as cross-asset modulators, not as "
+        "primary entry triggers.)_"
+    )
     return "\n".join(lines), sources
 
 
@@ -1803,6 +2103,19 @@ async def _section_aud_specific(session: AsyncSession, asset: str) -> tuple[str,
                 "cross-confirmation via base-metals complex co-move)"
             )
         lines.append(
+            "- Staleness caveat (r94, ADR-092 §Round-94) : PIORECRUSDM + "
+            "PCOPPUSDM are IMF-PCPS MONTHLY series with a ~2-week-after-"
+            "month-end publication lag, so the as-of dates above are "
+            "inherently ~2.5-4 months behind spot (registry tolerance "
+            "widened 60→120 d after the r93 false-DEGRADED triage). Treat "
+            "this composite as a SLOW terms-of-trade REGIME marker only ; "
+            "the Pass-2 LLM SHOULD NOT extrapolate near-term direction "
+            "from a single stale monthly print, and SHOULD cross-check "
+            "the iron/copper as-of dates against the AU-10Y and DGS10 "
+            "as-of dates above before triangulating the 3-driver "
+            "composite (mirrors the China-M1 single-print constraint)."
+        )
+        lines.append(
             "- Interpretation : iron-ore rising in a China-expansion "
             "regime is the canonical AUD-bid configuration (Chen-Rogoff "
             "2003 + Ready-Roussanov-Ward 2017 commodity-final-goods "
@@ -1907,6 +2220,319 @@ async def _section_aud_specific(session: AsyncSession, asset: str) -> tuple[str,
             "LME re-vetting would shift to 2-of-3 (currently DEFER "
             "firmly per Voie D cost-benefit until AUD anti-skill "
             "emerges in Vovk Sunday aggregator)."
+        )
+
+    return "\n".join(lines), sources
+
+
+async def _section_gbp_specific(session: AsyncSession, asset: str) -> tuple[str, list[str]]:
+    """## GBP-specific signals — UK-US rate-differential + sterling risk-premium (r90, ADR-101).
+
+    Renders GBP/USD-specific macro signals for GBP_USD Pass-2 via a
+    2-driver framework, mirroring the proven JPY r45 inline-FRED pattern.
+    Tier 1 inline-FRED ship per ADR-101 (extends Accepted ADR-092 to
+    GBP_USD — the only ADR-083 priority asset previously without a
+    per-asset section ; r40 only fixed a generic GBP path bug). ZERO new
+    FRED ingestion : both series already polled, GBP already in
+    `_RATE_DIFF_PAIRS` :
+
+      1. **UK 10Y monthly via FRED `IRLTLT01GBM156N`** — primary
+         GBP-specific anchor. Source : OECD MEI monthly, 1-month
+         publication lag. Registry max-age 120d (r37 frequency-aware).
+         Framework : Engel-West 2005 "Exchange Rates and Fundamentals",
+         J.Political Economy 113(3):485-517, DOI:10.1086/429137 — under
+         a near-unity discount factor the spot rate is quasi-martingale
+         yet the rate-differential still determines its level (currency-
+         agnostic ; applies to GBP exactly as to JPY r45).
+      2. **US 10Y daily via FRED `DGS10`** — the Engel-West differential
+         anchor : `dgs10 - uk10y` (US minus UK, the `_RATE_DIFF_PAIRS`
+         sign convention). Layered ON this — an INDEPENDENT structural
+         lens, NOT a reinterpretation of the differential — is Della
+         Corte-Sarno-Sestieri 2012 "The Predictive Information Content
+         of External Imbalances for Exchange Rate Returns",
+         Rev.Econ.Stat. 94(1):100-115, DOI:10.1162/REST_a_00157 : a
+         country's net-foreign-asset / current-account position carries
+         a time-varying currency risk premium. For sterling (a
+         structural current-account-deficit currency) this is an
+         ADDITIVE GBP-soft risk premium under UK funding stress (the
+         2022 LDI/gilt-crisis configuration), separate from the rate
+         differential.
+
+    SIGN-CONVENTION DISCIPLINE (R44 ; the r40 GBP bug class) : GBP/USD
+    quotes USD per GBP, so USD is the QUOTE currency — same polarity as
+    EUR/USD (`IRLTLT01DEM156N`), OPPOSITE to USD/JPY & USD/CAD where USD
+    is the base. A WIDER (more positive) US-UK differential ⟹ US carry
+    advantage ⟹ USD-bid ⟹ GBP/USD DOWNSIDE (GBP-soft). This is the
+    inverse of the JPY r45 template's "wider differential → USD/JPY
+    upside" ; the section states the polarity explicitly so the Pass-2
+    LLM cannot mis-apply the JPY-class reading to GBP.
+
+    Gated on `asset == "GBP_USD"` — early-return ("", []) otherwise.
+    `build_data_pool` appends only when `sources` is non-empty so a
+    pre-FRED-ingestion GBP_USD silently skips.
+
+    SYMMETRIC LANGUAGE discipline (ichor-trader r32/r41/r42/r43 carry-
+    forward) : the rate-differential interpretation emits BOTH GBP-soft
+    (USD-bid carry regime) AND GBP-bid (sterling rate-advantage regime)
+    branches so the Pass-2 LLM picks consistent with the Pass-1 regime.
+
+    TETLOCK INVALIDATION discipline (r42 R28 + r43 carry-forward) : both
+    regime-conditional branches emit explicit invalidation thresholds
+    with VIX cross-confirmation, asymmetric magnitudes per the JPY r45
+    ichor-trader precedent.
+
+    R24 SUBSET-not-SUPERSET cleared via cadence-mismatch BTP r34
+    precedent : DGS10 daily + IRLTLT01GBM156N monthly. Frequency
+    mismatch warning emitted inline ; the differential surfaces as a
+    REGIME indicator, NOT an intraday signal.
+
+    Sterling is NOT a USD safe-haven (Ranaldo-Soderlind 2010,
+    DOI:10.1093/rof/rfq007) — surfaced as a one-line caveat, not a
+    driver.
+
+    FRONT-END TERM-STRUCTURE REFINEMENT (r103, ADR-101
+    §Implementation(r103)) : a third block surfaces the US-UK **3M**
+    front-end differential (`DGS3MO` US 3M Treasury CMT daily, already
+    polled — minus `IR3TIB01GBM156N` UK 3M interbank, OECD-MEI monthly
+    family laggard ~137d / registry-180 r102). It is **NOT a standalone
+    "Driver 3"** : a US-UK 3M differential is the SAME nominal-rate
+    channel as Driver-1's US-UK 10Y, read at the short end — its
+    marginal content is the front-end-vs-long-end decomposition (3M =
+    current relative policy stance ; 10Y = cumulative expected stance +
+    term premium). Clarida-Galí-Gertler-1998-**motivated** (NOT the CGG
+    reaction function itself — a structural policy-rate rule, not a rate
+    spread), with explicit FRAMEWORK-ATTRIBUTION + INSTRUMENT-BASIS +
+    INDEPENDENCE caveats (ichor-trader r103 R28, Option B —
+    lowest-blast-radius, zero new ingestion ; the faithful
+    `IR3TIB01USM156N` interbank counterpart EXISTS but is deliberately
+    NOT ingested). Guarded on BOTH 3M series present so a
+    pre-ingestion GBP_USD silently skips it (Driver-1/2 unaffected).
+    R44 polarity SAME as Driver-1 (`dgs3mo − uk3m`, US minus UK ; wider
+    ⟹ GBP-soft) ; symmetric branches + Tetlock+VIX invalidation ;
+    frequency-mismatch flagged SHARPER than Driver-1 (UK 3M is staler
+    than the already-monthly UK 10Y leg).
+    """
+    if asset != "GBP_USD":
+        return "", []
+
+    # ─── UK 10Y monthly via FRED IRLTLT01GBM156N (UK-specific anchor) ──
+    # Primary GBP driver. If absent → silent skip (no GBP-specific value
+    # without the UK anchor). Registry max-age 120d auto-resolves per
+    # r37 frequency-aware lookup (OECD MEI 1-month publication lag).
+    uk10y_latest = await _latest_fred(session, "IRLTLT01GBM156N")
+    if uk10y_latest is None:
+        return "", []  # UK 10Y missing → silent skip (primary anchor)
+    uk10y_value, uk10y_date = uk10y_latest
+    sources = [f"FRED:IRLTLT01GBM156N@{uk10y_date:%Y-%m-%d}"]
+
+    lines = [
+        "## GBP-specific signals (Engel-West rate-differential + sterling risk-premium, ADR-101)",
+        "### UK 10Y yield (IRLTLT01GBM156N) — OECD MEI monthly, UK-specific anchor",
+        f"- UK 10Y = {uk10y_value:.2f}% (FRED IRLTLT01GBM156N, {uk10y_date:%Y-%m-%d} "
+        "— OECD monthly, 1-month publication lag)",
+    ]
+
+    # ─── US 10Y daily via FRED DGS10 (differential anchor) ──
+    # Secondary driver — computes the US-UK 10Y differential. NOTE the
+    # GBP/USD polarity is INVERSE to USD/JPY : USD is the QUOTE currency
+    # here (as in EUR/USD), so a wider US-UK differential is GBP-soft.
+    dgs10_latest = await _latest_fred(session, "DGS10")
+    if dgs10_latest is not None:
+        dgs10_value, dgs10_date = dgs10_latest
+        sources.append(f"FRED:DGS10@{dgs10_date:%Y-%m-%d}")
+        rate_diff = dgs10_value - uk10y_value
+        lines.append("### US 10Y nominal yield (DGS10) — daily differential anchor")
+        lines.append(f"- DGS10 = {dgs10_value:.2f}% (FRED, {dgs10_date:%Y-%m-%d})")
+        lines.append(f"- US-UK 10Y differential = {rate_diff:+.2f} pp (DGS10 minus UK 10Y)")
+        lines.append(
+            "- Polarity (R44 sign-convention) : GBP/USD quotes USD per "
+            "GBP — USD is the QUOTE currency (same as EUR/USD, OPPOSITE "
+            "to USD/JPY). A WIDER (more positive) US-UK differential is "
+            "USD-bid → GBP/USD DOWNSIDE (GBP-soft) ; a NARROWER or "
+            "NEGATIVE differential (UK yield ≥ US) is a sterling rate "
+            "advantage → GBP-bid."
+        )
+        lines.append(
+            "- Frequency mismatch : DGS10 is DAILY, UK 10Y is MONTHLY "
+            "(OECD MEI). Treat the differential as a REGIME indicator, "
+            "NOT an intraday signal (BTP r34 precedent for cadence-"
+            "mismatch handling)."
+        )
+        lines.append(
+            "- Interpretation depends on the Pass-1 regime label : in a "
+            "calm / carry-bid regime, a wider US-UK 10Y differential "
+            "supports GBP/USD downside (GBP-soft) via USD-funded carry "
+            "advantage (Engel-West 2005 present-value channel — rate "
+            "fundamentals determine the level under a near-unity discount "
+            "factor). SEPARATELY — an INDEPENDENT additive lens, NOT a "
+            "reinterpretation of the differential — the sterling "
+            "external-imbalance risk premium (Della Corte-Sarno-Sestieri "
+            "2012 : a net-foreign-asset / current-account position "
+            "carries a time-varying currency risk premium) adds its own "
+            "GBP-soft pressure under UK funding stress (the 2022 LDI/"
+            "gilt-crisis configuration), layered on the Engel-West read. "
+            "A narrower or negative "
+            "differential is the symmetric reverse : GBP-bid in a calm "
+            "regime via gilt carry inflows, but it can still be GBP-soft "
+            "if it is UK-inflation-surprise-driven and the risk premium "
+            "dominates the carry. The Pass-2 LLM should select the "
+            "branch matching the regime context above."
+        )
+        lines.append(
+            "- Tetlock invalidation : the wider-differential GBP-soft "
+            "thesis is invalidated if VIX > 25 AND US-UK 10Y narrows by "
+            "> 20 bp within 5 sessions concurrent (sterling-funding-"
+            "stress regime onset, risk premium repricing) ; the narrow/"
+            "negative-differential GBP-bid thesis is invalidated if VIX "
+            "falls below 18 AND DGS10 rises by > 15 bp within 5 sessions "
+            "(US-rate re-anchoring, USD carry reasserts ; threshold "
+            "asymmetric vs the 20-bp magnitude per the JPY r45 ichor-"
+            "trader precedent). Note : sterling is NOT a USD safe-haven "
+            "— in acute risk-off USD is the bid leg of GBP/USD (Ranaldo-"
+            "Soderlind 2010, DOI:10.1093/rof/rfq007) ; this is a "
+            "qualitative caveat, not a driver."
+        )
+
+        # ─── Front-end term-structure refinement of Driver-1 (US-UK 3M) ──
+        # r103 ADR-101 §Implementation(r103). NOT a standalone "Driver 3"
+        # — a US-UK 3M differential is the SAME nominal-rate channel as
+        # Driver-1's US-UK 10Y, read at the short end ; marginal content
+        # = the front-end-vs-long-end decomposition. DGS3MO (US 3M
+        # Treasury CMT, daily, already polled fred_extended.py:26) minus
+        # IR3TIB01GBM156N (UK 3M interbank, OECD-MEI monthly family
+        # laggard ~137d / registry-180 r102). Clarida-Galí-Gertler-1998-
+        # MOTIVATED (NOT the CGG reaction function itself — a structural
+        # policy-rate rule, not a rate spread). Guarded on BOTH series
+        # present so a pre-ingestion GBP_USD silently skips it (Driver-1/2
+        # unaffected — purely additive, ichor-trader r103 R28 Option B,
+        # zero new ingestion, lowest blast-radius).
+        uk3m_latest = await _latest_fred(session, "IR3TIB01GBM156N")
+        dgs3mo_latest = await _latest_fred(session, "DGS3MO")
+        if uk3m_latest is not None and dgs3mo_latest is not None:
+            uk3m_value, uk3m_date = uk3m_latest
+            dgs3mo_value, dgs3mo_date = dgs3mo_latest
+            sources.append(f"FRED:IR3TIB01GBM156N@{uk3m_date:%Y-%m-%d}")
+            sources.append(f"FRED:DGS3MO@{dgs3mo_date:%Y-%m-%d}")
+            front_diff = dgs3mo_value - uk3m_value
+            lines.append(
+                "### Front-end policy-rate-proxy differential (US-UK 3M) "
+                "— a TERM-STRUCTURE REFINEMENT of Driver-1, "
+                "Clarida-Gali-Gertler-1998-motivated"
+            )
+            lines.append(
+                f"- US 3M = {dgs3mo_value:.2f}% (FRED DGS3MO, "
+                f"{dgs3mo_date:%Y-%m-%d} — US 3-Month Treasury constant "
+                f"maturity, DAILY, ~4d lag) ; UK 3M = {uk3m_value:.2f}% "
+                f"(FRED IR3TIB01GBM156N, {uk3m_date:%Y-%m-%d} — UK "
+                "3-Month interbank, OECD-MEI MONTHLY, documented family "
+                "laggard ~4-6 months stale, max-age 180d per ADR-101 "
+                "§Impl(r102))."
+            )
+            lines.append(
+                f"- US-UK 3M front-end differential = {front_diff:+.2f} pp "
+                "(DGS3MO minus UK 3M interbank)."
+            )
+            lines.append(
+                "- FRAMEWORK ATTRIBUTION (calibrated honesty) : this is "
+                "the front-end (policy-stance) complement to Driver-1's "
+                "US-UK 10Y long-rate differential, MOTIVATED BY Clarida, "
+                "Gali & Gertler 1998 (EER 42(6):1033-1067, "
+                "DOI:10.1016/S0014-2921(98)00016-6 — a forward-looking "
+                "central-bank reaction-function paper). It is NOT a "
+                "structural estimate of either central bank's reaction "
+                "function ; it is a front-end RATE-PROXY differential. "
+                "INSTRUMENT-BASIS CAVEAT : the US leg (DGS3MO) is a "
+                "risk-free Treasury constant-maturity rate, the UK leg "
+                "(IR3TIB01GBM156N) is an interbank rate — a TED-spread-"
+                "class interbank-credit / term-premium wedge separates "
+                "them ; in the current regime the front-end T-bill tracks "
+                "the policy rate closely so the basis is second-order vs "
+                "the policy-stance signal, but the pair is NOT a pure "
+                "same-instrument 3M-vs-3M interbank pair (a faithful "
+                "IR3TIB01USM156N US-3M-interbank counterpart EXISTS at "
+                "FRED but is deliberately NOT ingested — lowest-blast-"
+                "radius per ADR-101 §Reversibility, recorded ADR-101 "
+                "§Implementation(r103))."
+            )
+            lines.append(
+                "- INDEPENDENCE CAVEAT (ichor-trader r90/r103 over-claim "
+                "discipline) : this front-end differential is NOT an "
+                "independent driver co-equal with Driver-1 — it is the "
+                "SAME US-UK nominal-rate-differential channel read at the "
+                "SHORT end of the curve. Its genuine marginal content is "
+                "the relative-curve-shape / front-end-vs-long-end "
+                "decomposition (3M = current relative policy stance ; "
+                "10Y = cumulative expected stance + term premium). It "
+                "REFINES, it does not duplicate-as-new, the Engel-West "
+                "Driver-1 read. (Contrast Driver-2 Della Corte-Sarno-"
+                "Sestieri 2012, which IS independent — a different state "
+                "variable, the NFA / current-account position.)"
+            )
+            lines.append(
+                "- Polarity (R44) : SAME as Driver-1 — USD is the GBP/USD "
+                "QUOTE currency ; a WIDER (more positive) US-UK 3M "
+                "differential ⟹ relative US front-end / policy carry "
+                "advantage ⟹ USD-bid ⟹ GBP/USD DOWNSIDE (GBP-soft) ; a "
+                "NARROWER or NEGATIVE differential ⟹ sterling front-end "
+                "advantage ⟹ GBP-bid. Symmetric : the Pass-2 LLM selects "
+                "the branch matching the Pass-1 regime label."
+            )
+            lines.append(
+                "- Frequency mismatch (SHARPER than Driver-1) : DGS3MO is "
+                "DAILY (~4d) but the UK 3M interbank leg is the documented "
+                "OECD-MEI MONTHLY family laggard (~4-6 months stale, "
+                "ADR-101 §Impl(r102) max-age 180d). Treat this front-end "
+                "differential as a SLOW REGIME indicator — STALER than "
+                "Driver-1's already-monthly UK 10Y leg, NOT a fresher "
+                "front-end read (Pass-2 must not over-weight it as timely "
+                "policy information). BTP r34 cadence-mismatch precedent ; "
+                "R24 SUBSET-not-SUPERSET."
+            )
+            lines.append(
+                "- Tetlock invalidation : the wider-3M-differential "
+                "GBP-soft refinement is invalidated if VIX > 25 AND the "
+                "US-UK 3M differential narrows by > 25 bp within 5 "
+                "sessions (front-end policy-convergence repricing) ; the "
+                "narrow / negative-3M GBP-bid refinement is invalidated "
+                "if VIX falls below 18 AND DGS3MO rises by > 20 bp within "
+                "5 sessions (US front-end re-anchoring ; threshold "
+                "asymmetric vs the 25-bp magnitude per the JPY r45 "
+                "ichor-trader precedent). This REFINES, it does not "
+                "override, the Driver-1 10Y read — it decomposes its "
+                "front-end component."
+            )
+
+        # Composite (R24 SUBSET-not-SUPERSET via cadence-mismatch BTP r34 precedent)
+        lines.append("### GBP rate-differential triangle (Engel-West + Della Corte-Sarno-Sestieri)")
+        lines.append(
+            "- The 2-driver GBP pricing framework is AVAILABLE for this "
+            "asset (R24 SUBSET-not-SUPERSET cleared via cadence-mismatch "
+            "BTP r34 precedent : DGS10 daily + UK 10Y monthly). The "
+            "Engel-West 2005 fundamentals channel (DOI:10.1086/429137) "
+            "transmits the rate-differential to GBP/USD directional bias "
+            "under a near-unity discount factor — the spot rate is "
+            "quasi-martingale yet the differential still determines its "
+            "level (GBP/USD polarity : wider US-UK = GBP-soft, USD being "
+            "the quote currency). Della Corte-Sarno-Sestieri 2012 "
+            "(DOI:10.1162/REST_a_00157) is an INDEPENDENT external-"
+            "imbalance predictor — a net-foreign-asset / current-account "
+            "position carries a time-varying currency risk premium ; it "
+            "does NOT reinterpret the rate differential. For sterling (a "
+            "structural current-account-deficit currency) it implies an "
+            "ADDITIVE GBP-soft risk premium under UK funding stress (the "
+            "2022 LDI/gilt-crisis configuration), layered on — not "
+            "derived from — the Engel-West rate-differential read. "
+            "When the UK 3M leg is present, the front-end "
+            "term-structure refinement above (ADR-101 §Impl(r103)) "
+            "DECOMPOSES — it does NOT add a new independent driver — "
+            "Driver-1's rate differential into its front-end "
+            "(policy-stance) vs long-end (cumulative-expectations + "
+            "term-premium) components ; it is a refinement lens on "
+            "Driver-1, NOT a co-equal third driver. Pass-2 LLM should "
+            "triangulate both regime-conditional branches before "
+            "committing to a directional read. Tetlock invalidation "
+            "thresholds emit asymmetric regime-flip conditions "
+            "consistent with the JPY r45 precedent."
         )
 
     return "\n".join(lines), sources
@@ -3905,40 +4531,12 @@ async def _section_session_scenarios(
 # Asset → keyword set for news ticker filtering.
 # Phase 2 fix for SPEC.md §2.2 #10 (polygon_news non filtré ticker-linked).
 # Heuristic until news_items.tickers ARRAY column lands (follow-up migration).
-_NEWS_KEYWORDS: dict[str, tuple[str, ...]] = {
-    "EUR_USD": ("EUR/USD", "EURUSD", "EUR ", "euro", "ECB", "Lagarde", "eurozone"),
-    "GBP_USD": ("GBP/USD", "GBPUSD", "GBP ", "pound sterling", "BoE", "Bailey", "UK economy"),
-    "USD_JPY": ("USD/JPY", "USDJPY", "JPY ", "yen", "BoJ", "Ueda", "Japan inflation"),
-    "AUD_USD": ("AUD/USD", "AUDUSD", "AUD ", "Aussie", "RBA", "iron ore", "Australia"),
-    "USD_CAD": ("USD/CAD", "USDCAD", "CAD ", "loonie", "BoC", "Macklem", "Canadian"),
-    "XAU_USD": ("XAU/USD", "XAUUSD", "gold", "bullion", "GLD ", "GDX ", "spot metals"),
-    "NAS100_USD": (
-        "NAS100",
-        "Nasdaq",
-        "NASDAQ",
-        "QQQ",
-        "AAPL",
-        "MSFT",
-        "GOOGL",
-        "AMZN",
-        "META",
-        "NVDA",
-        "TSLA",
-        "tech stocks",
-    ),
-    "SPX500_USD": ("S&P 500", "SPX", "SPY", "S&P500", "broad market", "Fed funds"),
-    "US30_USD": ("Dow Jones", "DJIA", "DIA"),
-}
-
-
-def _matches_asset(title: str, url: str, asset: str) -> bool:
-    """Heuristic ticker-link: keyword match in title (case-insensitive)
-    or in URL path. Returns True if no keywords are configured (fallback)."""
-    keys = _NEWS_KEYWORDS.get(asset.upper())
-    if not keys:
-        return True  # unknown asset: keep all
-    blob = f"{title} {url}".lower()
-    return any(k.lower() in blob for k in keys)
+# r138 — `_NEWS_KEYWORDS` + `_matches_asset` extracted to
+# `services/asset_news_affinity.py` (doctrine #4 anti-accumulation
+# SSOT) so `/v1/news` and `/v1/geopolitics/briefing` can share the
+# same affinity logic with this Pass-2 LLM data-pool reader. The
+# private re-import aliases at the top of this file preserve the
+# pre-r138 internal name pattern — zero behaviour change here.
 
 
 async def _section_news(
@@ -3963,16 +4561,33 @@ async def _section_news(
     if not rows:
         return "## News (last 12h)\n- (no items ingested)", []
 
-    filtered: list[NewsItem]
+    # r138 code-reviewer S4 — adopt the SSOT helper (the WHOLE POINT of
+    # extracting `asset_news_affinity` in r138 was to deduplicate this
+    # scarce-fallback dance across data_pool + news.py + geopolitics.py).
+    # Behaviour pinned identical to the pre-r138 hand-rolled version
+    # (min_required=3, fallback to global, top-8 cap on applied filter).
     if asset:
-        filtered = [r for r in rows if _matches_asset(r.title or "", r.url or "", asset)]
-        if len(filtered) < 3:
-            # Not enough asset-specific news → fallback to wide.
-            filtered = rows
-            label = f"## News (last 12h, top 8 — wide fallback, {asset} match scarce)"
-        else:
-            filtered = filtered[:8]
+        from .asset_news_affinity import filter_rows_by_asset_affinity as _filter_helper
+
+        filtered_rows, matched, applied = _filter_helper(
+            rows,
+            asset,
+            # r139 matcher extension — include summary as 3rd field. Mirror
+            # of routers/news.py key (parity LLM-pool reasoning vs endpoint
+            # render). Empirical 2026-05-22 Hetzner survey: ~70% macro-vocab
+            # lives in summary, not title/url.
+            key=lambda r: (r.title or "", r.url or "", r.summary or ""),
+            min_required=3,
+        )
+        if applied:
+            filtered = filtered_rows[:8]
             label = f"## News (last 12h, top {len(filtered)} ticker-linked to {asset})"
+        else:
+            filtered = filtered_rows[:8]
+            label = (
+                f"## News (last 12h, top 8 — wide fallback, "
+                f"{asset} match scarce, matched={matched})"
+            )
     else:
         filtered = rows[:8]
         label = "## News (last 12h, top 8 most recent)"
@@ -4022,8 +4637,27 @@ async def build_data_pool(
     exec_md, exec_src = await _section_executive_summary(session)
     sections.insert(0, ("executive_summary", exec_md, exec_src))
 
+    # ADR-103 (ADR-099 §T3.2) — runtime FRED-liveness audit, ALWAYS
+    # rendered, inserted at index 1 (right after executive_summary,
+    # before macro_trinity) so Pass-1 régime + Pass-2 are primed with
+    # data-health context first. Breaks the silent-skip chain — a
+    # dead/stale critical anchor (China-M1 class, ADR-093 §r49) is now
+    # explicit every card instead of a section vanishing with zero
+    # trace. `degraded_inputs` is carried to the deterministic header +
+    # the DataPool projection (operator surface / r94 badge foundation).
+    integ_md, integ_src, degraded_inputs = await _section_data_integrity(session, asset)
+    sections.insert(1, ("data_integrity", integ_md, integ_src))
+
     smile_md, smile_src = await _section_dollar_smile(session)
     sections.append(("dollar_smile", smile_md, smile_src))
+
+    # Round-54 — Key levels (non-technical, ADR-083 D3 phase 1).
+    # Cross-asset section : TGA threshold for liquidity-gate switch.
+    # r55+ extends with peg_break, gamma_flip, vix_regime, polymarket.
+    # Always-rendered (even when no level fires) so Pass 2 sees the
+    # explicit "no switch active" state instead of missing data.
+    kl_md, kl_src = await _section_key_levels(session)
+    sections.append(("key_levels", kl_md, kl_src))
 
     vix_md, vix_src = await _section_vix_term(session)
     sections.append(("vix_term", vix_md, vix_src))
@@ -4176,6 +4810,23 @@ async def build_data_pool(
     if aud_src:
         sections.append(("aud_specific", aud_md, aud_src))
 
+    # Round-90 — GBP-specific UK-US rate-differential + sterling risk-
+    # premium (ADR-099 Tier 2 continuation ; ADR-101 extends Accepted
+    # ADR-092 to GBP_USD — the only ADR-083 priority asset previously
+    # without a per-asset section). Asset-gated to GBP_USD ; silent skip
+    # otherwise OR if IRLTLT01GBM156N absent (primary UK anchor).
+    # 2-driver + front-end term-structure refinement, inline-FRED, ZERO
+    # new ingestion (IRLTLT01GBM156N + DGS10 + DGS3MO + IR3TIB01GBM156N
+    # all already polled, GBP already in _RATE_DIFF_PAIRS). GBP/USD
+    # polarity is INVERSE to USD/JPY (USD is the quote currency).
+    # Frameworks : Engel-West 2005 + Della Corte-Sarno-Sestieri 2012 ;
+    # the BoE-Fed front-end leg (Clarida-Gali-Gertler-1998-motivated) is
+    # WIRED r103 as a term-structure REFINEMENT of Driver-1 — NOT a
+    # co-equal Driver-3 (ADR-101 §Impl(r103)).
+    gbp_md, gbp_src = await _section_gbp_specific(session, asset)
+    if gbp_src:
+        sections.append(("gbp_specific", gbp_md, gbp_src))
+
     poly_md, poly_src = await _section_polygon_intraday(session, asset)
     sections.append(("polygon_intraday", poly_md, poly_src))
 
@@ -4278,9 +4929,17 @@ async def build_data_pool(
     sections_emitted = [name for name, _, _ in sections]
 
     now = datetime.now(UTC)
+    # ADR-103 — deterministic, LLM-independent integrity line in the
+    # header machine-truth (separate from the LLM-primed section body).
+    integrity_line = f"Data integrity : {len(degraded_inputs)} critical FRED anchor(s) degraded" + (
+        " — " + ", ".join(f"{d.series_id}({d.status})" for d in degraded_inputs)
+        if degraded_inputs
+        else " (all fresh)"
+    )
     header = (
         f"# Ichor data pool — {asset} — generated {now:%Y-%m-%d %H:%M UTC}\n\n"
         f"Sections : {', '.join(sections_emitted)}\n"
+        f"{integrity_line}\n"
         f"Total sources cited : {len(all_sources)}\n\n---"
     )
     markdown = f"{header}\n\n{body}\n"
@@ -4290,6 +4949,7 @@ async def build_data_pool(
         markdown=markdown,
         sources=all_sources,
         sections_emitted=sections_emitted,
+        degraded_inputs=degraded_inputs,
     )
 
 

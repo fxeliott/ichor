@@ -1,0 +1,574 @@
+"""ADR-099 Tier 1.3 — market session + US holiday engine tests.
+
+Pins exact, independently-checkable 2026 dates (no self-referential
+asserts) : Western Easter 2026 = Sun 5 Apr → Good Friday Fri 3 Apr ;
+MLK = 3rd Mon Jan = 19 Jan ; Thanksgiving = 4th Thu Nov = 26 Nov ;
+Christmas 25 Dec 2026 = Friday ; 2026-05-16 = Saturday.
+"""
+
+from __future__ import annotations
+
+from datetime import date, datetime
+from unittest.mock import AsyncMock, MagicMock
+from zoneinfo import ZoneInfo
+
+import pytest
+from ichor_api.cli.run_briefing import _assemble_context
+from ichor_api.cli.run_briefing import main as _briefing_main
+from ichor_api.cli.run_session_cards_batch import _DEFAULT_ASSETS, _run_batch
+from ichor_api.services.market_session import (
+    _DAILY_BRIEFING_TYPES,
+    _US_EQUITY_ASSETS,
+    _easter,
+    briefing_market_caveat,
+    compute_session_status,
+    market_closed_for_asset,
+    should_skip_briefing,
+    us_market_holidays,
+)
+
+PARIS = ZoneInfo("Europe/Paris")
+
+
+def test_easter_2026_is_april_5():
+    assert _easter(2026) == date(2026, 4, 5)
+
+
+def test_us_holidays_2026_known_dates():
+    h = us_market_holidays(2026)
+    assert h[date(2026, 1, 1)] == "New Year's Day"
+    assert h[date(2026, 1, 19)] == "Martin Luther King Jr. Day"
+    assert h[date(2026, 4, 3)] == "Good Friday"  # Easter 5 Apr − 2
+    assert h[date(2026, 11, 26)] == "Thanksgiving"
+    assert h[date(2026, 12, 25)] == "Christmas Day"
+    # A plain Wednesday is NOT a holiday
+    assert date(2026, 3, 4) not in h
+
+
+def test_observed_shift_sat_to_fri_and_sun_to_mon():
+    # 2027: Jul 4 = Sunday → observed Mon Jul 5 ; Dec 25 = Saturday →
+    # observed Fri Dec 24 ; New Year Jan 1 2027 = Friday (no shift).
+    h = us_market_holidays(2027)
+    assert date(2027, 7, 5) in h and date(2027, 7, 4) not in h
+    assert date(2027, 12, 24) in h and date(2027, 12, 25) not in h
+
+
+def test_saturday_is_weekend_fx_closed():
+    s = compute_session_status(datetime(2026, 5, 16, 12, 0, tzinfo=PARIS))  # Saturday
+    assert s.state == "weekend"
+    assert s.market_closed_fx is True
+    assert s.market_closed_us_equity is True
+    assert s.holiday_name is None
+    assert s.minutes_until_next_open >= 0
+
+
+def test_us_holiday_weekday_fx_open_equity_closed():
+    # 2026-12-25 = Friday (a weekday) → US equities closed, FX open.
+    s = compute_session_status(datetime(2026, 12, 25, 10, 0, tzinfo=PARIS))
+    assert s.state == "us_holiday"
+    assert s.market_closed_us_equity is True
+    assert s.market_closed_fx is False
+    assert s.holiday_name == "Christmas Day"
+
+
+def test_normal_weekday_pre_londres_window():
+    # 2026-05-13 = Wednesday, 07:00 Paris → pre-Londres.
+    s = compute_session_status(datetime(2026, 5, 13, 7, 0, tzinfo=PARIS))
+    assert s.state == "pre_londres"
+    assert s.market_closed_fx is False
+
+
+def test_normal_weekday_ny_active_afternoon():
+    # 2026-05-13 Wed 17:00 Paris → NY session active (NY opens ~15:30).
+    s = compute_session_status(datetime(2026, 5, 13, 17, 0, tzinfo=PARIS))
+    assert s.state == "ny_active"
+
+
+# ─── ADR-105 — market_closed_for_asset pure SSOT (gate decision) ─────────
+
+_ALL6 = ("EUR_USD", "GBP_USD", "USD_CAD", "XAU_USD", "NAS100_USD", "SPX500_USD")
+
+
+def test_us_equity_asset_set_is_exactly_spx_and_nas():
+    # Pin the asset-class set so adding a US-equity asset is a conscious
+    # change (the gate's correctness depends on this membership).
+    assert _US_EQUITY_ASSETS == frozenset({"SPX500_USD", "NAS100_USD"})
+
+
+def test_market_closed_for_asset_weekend_closes_every_asset():
+    s = compute_session_status(datetime(2026, 5, 16, 12, 0, tzinfo=PARIS))  # Saturday
+    assert s.state == "weekend"
+    for a in _ALL6:
+        assert market_closed_for_asset(a, s) is True, a
+
+
+def test_market_closed_for_asset_us_holiday_closes_only_us_equities():
+    # 2026-12-25 Christmas (Friday weekday) → US equities closed, FX/XAU open.
+    s = compute_session_status(datetime(2026, 12, 25, 10, 0, tzinfo=PARIS))
+    assert s.state == "us_holiday"
+    assert market_closed_for_asset("SPX500_USD", s) is True
+    assert market_closed_for_asset("NAS100_USD", s) is True
+    for a in ("EUR_USD", "GBP_USD", "USD_CAD", "XAU_USD"):
+        assert market_closed_for_asset(a, s) is False, a
+
+
+def test_market_closed_for_asset_normal_weekday_closes_nothing():
+    s = compute_session_status(datetime(2026, 5, 13, 7, 0, tzinfo=PARIS))  # Wed pre_londres
+    assert s.state == "pre_londres"
+    for a in _ALL6:
+        assert market_closed_for_asset(a, s) is False, a
+
+
+# ─── ADR-105 — the _run_batch gate (flag-OFF inert / skip / FAIL-OPEN) ───
+
+
+def _async_ctx(session):
+    """Build a fake `async with sm() as session:` context (repo idiom,
+    mirrors test_run_bundesbank_bund_cli.py)."""
+    ctx = MagicMock()
+    ctx.__aenter__ = AsyncMock(return_value=session)
+    ctx.__aexit__ = AsyncMock(return_value=None)
+    return ctx
+
+
+def _patch_session(monkeypatch):
+    fake_sm = MagicMock(return_value=_async_ctx(AsyncMock()))
+    monkeypatch.setattr(
+        "ichor_api.cli.run_session_cards_batch.get_sessionmaker",
+        lambda: fake_sm,
+    )
+
+
+@pytest.mark.asyncio
+async def test_gate_flag_off_is_inert_all_assets_run(monkeypatch):
+    """No flag row ⇒ is_enabled→False ⇒ gate inert ⇒ every asset runs
+    (zero behaviour change — the ship-OFF contract)."""
+    _patch_session(monkeypatch)
+    monkeypatch.setattr(
+        "ichor_api.cli.run_session_cards_batch.is_enabled",
+        AsyncMock(return_value=False),
+    )
+    one = AsyncMock(return_value=0)
+    monkeypatch.setattr("ichor_api.cli.run_session_cards_batch.run_one_card", one)
+
+    rc = await _run_batch(
+        session_type="pre_ny",
+        assets=_DEFAULT_ASSETS,
+        live=False,
+        inter_card_sleep_s=0.0,
+        push_on_complete=False,
+    )
+    assert rc == 0
+    assert one.call_count == len(_DEFAULT_ASSETS)  # all 6 ran — gate inert
+
+
+@pytest.mark.asyncio
+async def test_gate_on_weekend_skips_all_no_cards(monkeypatch, capsys):
+    """Flag ON + weekend ⇒ every asset skipped, run_one_card NEVER
+    called, batch returns 0 (no failed state)."""
+    _patch_session(monkeypatch)
+    monkeypatch.setattr(
+        "ichor_api.cli.run_session_cards_batch.is_enabled",
+        AsyncMock(return_value=True),
+    )
+    weekend = compute_session_status(datetime(2026, 5, 16, 12, 0, tzinfo=PARIS))
+    monkeypatch.setattr(
+        "ichor_api.cli.run_session_cards_batch.compute_session_status",
+        lambda *a, **k: weekend,
+    )
+    one = AsyncMock(return_value=0)
+    monkeypatch.setattr("ichor_api.cli.run_session_cards_batch.run_one_card", one)
+
+    rc = await _run_batch(
+        session_type="pre_ny",
+        assets=_DEFAULT_ASSETS,
+        live=False,
+        inter_card_sleep_s=0.0,
+        push_on_complete=False,
+    )
+    assert rc == 0
+    one.assert_not_called()  # weekend → zero card-gen, zero claude-runner
+    assert "no cards this tick" in capsys.readouterr().out
+
+
+@pytest.mark.asyncio
+async def test_gate_on_us_holiday_skips_only_us_equities(monkeypatch):
+    """Flag ON + US holiday ⇒ SPX500/NAS100 skipped, FX/XAU still run
+    (they trade through US holidays — no over-suppression)."""
+    _patch_session(monkeypatch)
+    monkeypatch.setattr(
+        "ichor_api.cli.run_session_cards_batch.is_enabled",
+        AsyncMock(return_value=True),
+    )
+    holiday = compute_session_status(datetime(2026, 12, 25, 10, 0, tzinfo=PARIS))
+    monkeypatch.setattr(
+        "ichor_api.cli.run_session_cards_batch.compute_session_status",
+        lambda *a, **k: holiday,
+    )
+    seen: list[str] = []
+
+    async def _one(asset, _st, **_kw):
+        seen.append(asset)
+        return 0
+
+    monkeypatch.setattr("ichor_api.cli.run_session_cards_batch.run_one_card", _one)
+
+    rc = await _run_batch(
+        session_type="pre_ny",
+        assets=_DEFAULT_ASSETS,
+        live=False,
+        inter_card_sleep_s=0.0,
+        push_on_complete=False,
+    )
+    assert rc == 0
+    assert "SPX500_USD" not in seen and "NAS100_USD" not in seen
+    assert set(seen) == {"EUR_USD", "GBP_USD", "USD_CAD", "XAU_USD"}
+
+
+@pytest.mark.asyncio
+async def test_gate_FAILS_OPEN_when_flag_check_raises(monkeypatch, capsys):
+    """SAFETY-CRITICAL : if the gate errors (flag-DB read raises), the
+    batch MUST proceed and generate — a missed real pre-session is
+    unrecoverable (the timer does not re-fire). The gate never converts
+    an error into a skip (ADR-105 §3 fail-open invariant)."""
+    _patch_session(monkeypatch)
+    monkeypatch.setattr(
+        "ichor_api.cli.run_session_cards_batch.is_enabled",
+        AsyncMock(side_effect=RuntimeError("feature_flags DB unreachable")),
+    )
+    one = AsyncMock(return_value=0)
+    monkeypatch.setattr("ichor_api.cli.run_session_cards_batch.run_one_card", one)
+
+    rc = await _run_batch(
+        session_type="pre_ny",
+        assets=_DEFAULT_ASSETS,
+        live=False,
+        inter_card_sleep_s=0.0,
+        push_on_complete=False,
+    )
+    assert rc == 0
+    assert one.call_count == len(_DEFAULT_ASSETS)  # FAIL-OPEN: all ran
+    assert "fail-open" in capsys.readouterr().err
+
+
+@pytest.mark.asyncio
+async def test_gate_anomaly_empty_keepset_on_open_market_fails_open(monkeypatch, capsys):
+    """SAFETY-CRITICAL (ichor-trader R28 YELLOW-1) : a future SSOT
+    regression that empties the keep-set while the market is NOT
+    positively closed MUST NOT silently suppress a real session. The
+    early `return 0` is structurally gated on a positive closed-state ;
+    an empty keep-set on an OPEN market ⇒ log loud + generate the FULL
+    set (fail-open made structural, not emergent)."""
+    _patch_session(monkeypatch)
+    monkeypatch.setattr(
+        "ichor_api.cli.run_session_cards_batch.is_enabled",
+        AsyncMock(return_value=True),
+    )
+    # Open market (normal weekday pre-Londres : both closed-booleans False).
+    open_status = compute_session_status(datetime(2026, 5, 13, 7, 0, tzinfo=PARIS))
+    assert open_status.market_closed_fx is False
+    assert open_status.market_closed_us_equity is False
+    monkeypatch.setattr(
+        "ichor_api.cli.run_session_cards_batch.compute_session_status",
+        lambda *a, **k: open_status,
+    )
+    # Simulate a future SSOT regression : every asset reports "closed"
+    # even though the market is open → empty keep-set on an OPEN market.
+    monkeypatch.setattr(
+        "ichor_api.cli.run_session_cards_batch.market_closed_for_asset",
+        lambda *a, **k: True,
+    )
+    one = AsyncMock(return_value=0)
+    monkeypatch.setattr("ichor_api.cli.run_session_cards_batch.run_one_card", one)
+
+    rc = await _run_batch(
+        session_type="pre_ny",
+        assets=_DEFAULT_ASSETS,
+        live=False,
+        inter_card_sleep_s=0.0,
+        push_on_complete=False,
+    )
+    assert rc == 0
+    # The real session is NOT suppressed — all 6 generated despite the
+    # inconsistent gate SSOT.
+    assert one.call_count == len(_DEFAULT_ASSETS)
+    err = capsys.readouterr()
+    assert "anomaly" in err.err and "fail-open" in err.err
+    assert "no cards this tick" not in err.out
+
+
+# ─── ADR-105 §Implementation(r99) — should_skip_briefing pure SSOT ───────
+
+
+def test_daily_briefing_types_set_pinned():
+    # The gated set MUST be exactly the 4 daily intraday windows ; weekly
+    # + crisis are deliberately absent (exempt). A future change here is a
+    # conscious decision (the gate's correctness depends on this set).
+    assert _DAILY_BRIEFING_TYPES == frozenset({"pre_londres", "pre_ny", "ny_mid", "ny_close"})
+
+
+def test_should_skip_briefing_weekly_EXEMPT_even_on_sunday_weekend():
+    # 2026-05-17 = Sunday (the day after the pinned 2026-05-16 Saturday) ;
+    # 18:00 Paris = the actual `weekly` cron fire (wd==6, hour<22 ⇒
+    # market_closed_fx True). The weekly briefing is DELIBERATELY scheduled
+    # in the weekend to prep the week ahead — it must NEVER be gated.
+    s = compute_session_status(datetime(2026, 5, 17, 18, 0, tzinfo=PARIS))
+    assert s.state == "weekend"
+    assert s.market_closed_fx is True
+    assert should_skip_briefing("weekly", s) is False  # R59-critical
+
+
+def test_should_skip_briefing_crisis_EXEMPT_on_weekend():
+    # crisis = event-driven ; a weekend shock is exactly when it matters
+    # most — never gated.
+    s = compute_session_status(datetime(2026, 5, 16, 12, 0, tzinfo=PARIS))  # Saturday
+    assert s.state == "weekend"
+    assert should_skip_briefing("crisis", s) is False
+
+
+def test_should_skip_briefing_daily_skipped_on_weekend():
+    s = compute_session_status(datetime(2026, 5, 16, 12, 0, tzinfo=PARIS))  # Saturday
+    assert s.state == "weekend"
+    for bt in ("pre_londres", "pre_ny", "ny_mid", "ny_close"):
+        assert should_skip_briefing(bt, s) is True, bt
+
+
+def test_should_skip_briefing_daily_NOT_skipped_on_us_holiday():
+    # 2026-12-25 Christmas (Friday weekday) → us_holiday, market_closed_fx
+    # False (FX/XAU trade) → the market-wide briefing keeps forward value
+    # (under-suppression = fail-safe direction, ADR-105 §Negative).
+    s = compute_session_status(datetime(2026, 12, 25, 10, 0, tzinfo=PARIS))
+    assert s.state == "us_holiday"
+    assert s.market_closed_fx is False
+    for bt in ("pre_londres", "pre_ny", "ny_mid", "ny_close"):
+        assert should_skip_briefing(bt, s) is False, bt
+
+
+def test_should_skip_briefing_daily_NOT_skipped_normal_weekday():
+    s = compute_session_status(datetime(2026, 5, 13, 7, 0, tzinfo=PARIS))  # Wed
+    assert s.state == "pre_londres"
+    assert should_skip_briefing("pre_ny", s) is False
+
+
+def test_should_skip_briefing_unknown_type_never_skipped():
+    # Defensive : an unrecognised briefing_type is NEVER skipped (fail-safe
+    # — never suppress something the gate doesn't understand).
+    s = compute_session_status(datetime(2026, 5, 16, 12, 0, tzinfo=PARIS))  # Saturday
+    assert s.market_closed_fx is True
+    assert should_skip_briefing("totally_unknown_type", s) is False
+
+
+# ─── ADR-105 §Implementation(r99) — run_briefing.main gate wiring ────────
+
+
+def _patch_briefing_session(monkeypatch):
+    s = MagicMock()
+    s.add = MagicMock()
+    s.flush = AsyncMock()
+    s.commit = AsyncMock()
+    s.get = AsyncMock(return_value=MagicMock())
+    fake_sm = MagicMock(return_value=_async_ctx(s))
+    monkeypatch.setattr(
+        "ichor_api.cli.run_briefing.get_sessionmaker",
+        lambda: fake_sm,
+    )
+
+
+@pytest.mark.asyncio
+async def test_briefing_gate_skips_daily_on_weekend(monkeypatch, capsys):
+    """Flag ON + weekend + a DAILY briefing ⇒ main returns 0 BEFORE the
+    pending-row insert / _assemble_context (clean early skip, no wasted
+    DB row, no claude-runner POST)."""
+    _patch_briefing_session(monkeypatch)
+    monkeypatch.setattr(
+        "ichor_api.cli.run_briefing.is_enabled",
+        AsyncMock(return_value=True),
+    )
+    weekend = compute_session_status(datetime(2026, 5, 16, 12, 0, tzinfo=PARIS))
+    monkeypatch.setattr(
+        "ichor_api.cli.run_briefing.compute_session_status",
+        lambda *a, **k: weekend,
+    )
+    # Tripwire : if the gate did NOT short-circuit, this is awaited.
+    tripwire = AsyncMock()
+    monkeypatch.setattr("ichor_api.cli.run_briefing._assemble_context", tripwire)
+
+    rc = await _briefing_main("pre_londres")
+
+    assert rc == 0
+    tripwire.assert_not_awaited()  # gate returned BEFORE briefing assembly
+    assert "skipped (markets closed)" in capsys.readouterr().out
+
+
+@pytest.mark.asyncio
+async def test_briefing_gate_FAILS_OPEN_when_flag_check_raises(monkeypatch):
+    """SAFETY-CRITICAL : if the gate errors (flag-DB read raises), main
+    MUST proceed past the gate (a missed real pre-session briefing is
+    unrecoverable — the timer does not re-fire). Proven by _assemble_context
+    being reached (the gate did NOT convert the error into a skip)."""
+    _patch_briefing_session(monkeypatch)
+    monkeypatch.setattr(
+        "ichor_api.cli.run_briefing.is_enabled",
+        AsyncMock(side_effect=RuntimeError("feature_flags DB unreachable")),
+    )
+    reached = AsyncMock(side_effect=RuntimeError("SENTINEL — _assemble_context reached"))
+    monkeypatch.setattr("ichor_api.cli.run_briefing._assemble_context", reached)
+
+    # main handles the sentinel via its own try/except (marks the row
+    # failed) ; we only assert the gate fell through (fail-open).
+    await _briefing_main("pre_londres")
+
+    reached.assert_awaited()  # FAIL-OPEN: execution proceeded past the gate
+
+
+# ─── ADR-105 §Implementation(r100) — briefing_market_caveat SSOT + wiring ──
+
+# Independently-checkable 2026 dates (file docstring) : 2026-05-16 = Sat
+# (weekend) ; 2026-12-25 = Fri = Christmas Day (US-equity holiday, FX
+# open) ; 2026-01-19 = Mon = MLK (US-equity holiday) ; 2026-05-13 = Wed
+# 07:00 = normal pre_londres (reused from the existing suite).
+_WEEKEND_DT = datetime(2026, 5, 16, 12, 0, tzinfo=PARIS)
+_XMAS_DT = datetime(2026, 12, 25, 10, 0, tzinfo=PARIS)
+_MLK_DT = datetime(2026, 1, 19, 10, 0, tzinfo=PARIS)
+_NORMAL_WED_DT = datetime(2026, 5, 13, 7, 0, tzinfo=PARIS)
+
+
+def test_caveat_weekend_daily_returns_weekend_banner():
+    s = compute_session_status(_WEEKEND_DT)
+    assert s.state == "weekend" and s.holiday_name is None
+    cav = briefing_market_caveat("pre_ny", s)
+    assert cav is not None
+    assert "MARKET CLOSED" in cav and "weekend" in cav and "ADR-105" in cav
+    # weekend has no holiday_name → the equity-holiday wording must NOT leak
+    assert "US EQUITIES CLOSED" not in cav
+
+
+def test_caveat_us_holiday_daily_surfaces_holiday_name():
+    s = compute_session_status(_XMAS_DT)
+    assert s.state == "us_holiday" and s.holiday_name == "Christmas Day"
+    assert s.market_closed_fx is False and s.market_closed_us_equity is True
+    cav = briefing_market_caveat("pre_londres", s)
+    assert cav is not None
+    # the r99 YELLOW-1 requirement : holiday_name is surfaced verbatim
+    assert s.holiday_name in cav
+    assert "US EQUITIES CLOSED" in cav
+    assert "SPX500" in cav and "NAS100" in cav and "ADR-105" in cav
+    assert "MARKET CLOSED — weekend" not in cav
+
+
+def test_caveat_us_holiday_surfaces_name_for_a_second_holiday_mlk():
+    # not coupled to the exact NYSE spelling — assert the field is surfaced
+    s = compute_session_status(_MLK_DT)
+    assert s.state == "us_holiday" and s.holiday_name
+    cav = briefing_market_caveat("ny_close", s)
+    assert cav is not None and s.holiday_name in cav
+
+
+def test_caveat_normal_weekday_daily_returns_none():
+    s = compute_session_status(_NORMAL_WED_DT)
+    assert s.state == "pre_londres"
+    assert briefing_market_caveat("pre_londres", s) is None
+
+
+def test_caveat_weekly_EXEMPT_even_on_weekend():
+    s = compute_session_status(_WEEKEND_DT)
+    assert briefing_market_caveat("weekly", s) is None  # R59-critical mirror
+
+
+def test_caveat_crisis_EXEMPT_even_on_weekend():
+    s = compute_session_status(_WEEKEND_DT)
+    assert briefing_market_caveat("crisis", s) is None
+
+
+def test_caveat_unknown_type_returns_none():
+    s = compute_session_status(_WEEKEND_DT)
+    assert briefing_market_caveat("totally_unknown_type", s) is None
+
+
+def test_caveat_all_daily_types_get_one_identical_weekend_banner():
+    s = compute_session_status(_WEEKEND_DT)
+    cavs = {bt: briefing_market_caveat(bt, s) for bt in _DAILY_BRIEFING_TYPES}
+    assert all(c is not None for c in cavs.values())
+    assert len(set(cavs.values())) == 1  # market-wide → identical for all 4
+
+
+class _EmptyResult:
+    """SQLAlchemy-result stand-in : every query returns empty so
+    _assemble_context takes all its defensive empty-state branches and the
+    assertion is purely on the preamble caveat (the SSOT logic itself is
+    proven by the pure tests above — this is the wiring proof)."""
+
+    def scalars(self):
+        return self
+
+    def all(self):
+        return []
+
+    def first(self):
+        return None
+
+
+def _patch_assemble_empty_session(monkeypatch):
+    sess = MagicMock()
+    sess.execute = AsyncMock(return_value=_EmptyResult())
+    monkeypatch.setattr(
+        "ichor_api.cli.run_briefing.get_sessionmaker",
+        lambda: MagicMock(return_value=_async_ctx(sess)),
+    )
+
+
+@pytest.mark.asyncio
+async def test_assemble_context_threads_us_holiday_caveat_into_preamble(monkeypatch):
+    """_assemble_context (legacy path) emits the US-equity-holiday caveat
+    in the preamble, BEFORE the first content section, with holiday_name
+    surfaced — the r99 YELLOW-1 wiring proof."""
+    _patch_assemble_empty_session(monkeypatch)
+    holiday = compute_session_status(_XMAS_DT)
+    monkeypatch.setattr(
+        "ichor_api.cli.run_briefing.compute_session_status",
+        lambda *a, **k: holiday,
+    )
+
+    text, tok_est = await _assemble_context("pre_ny", ["EUR_USD", "SPX500_USD"])
+
+    assert "US EQUITIES CLOSED" in text
+    assert holiday.holiday_name in text  # YELLOW-1 : holiday_name surfaced
+    # preamble position : the caveat precedes the first content section
+    assert text.index("US EQUITIES CLOSED") < text.index("## Bias signals")
+    assert tok_est > 0
+
+
+@pytest.mark.asyncio
+async def test_assemble_context_weekend_threads_weekend_caveat(monkeypatch):
+    """A DAILY briefing generated on a weekend (gate flag-OFF default)
+    carries the weekend closed-market caveat — the sibling defect r100
+    closes alongside the documented holiday case."""
+    _patch_assemble_empty_session(monkeypatch)
+    weekend = compute_session_status(_WEEKEND_DT)
+    monkeypatch.setattr(
+        "ichor_api.cli.run_briefing.compute_session_status",
+        lambda *a, **k: weekend,
+    )
+
+    text, _ = await _assemble_context("pre_londres", ["EUR_USD"])
+
+    assert "MARKET CLOSED" in text and "weekend" in text
+    assert text.index("MARKET CLOSED") < text.index("## Bias signals")
+
+
+@pytest.mark.asyncio
+async def test_assemble_context_normal_weekday_emits_no_caveat(monkeypatch):
+    """Zero-regression on the common path : a normal trading weekday adds
+    NO caveat line to the preamble (the briefing is unchanged)."""
+    _patch_assemble_empty_session(monkeypatch)
+    normal = compute_session_status(_NORMAL_WED_DT)
+    monkeypatch.setattr(
+        "ichor_api.cli.run_briefing.compute_session_status",
+        lambda *a, **k: normal,
+    )
+
+    text, _ = await _assemble_context("pre_ny", ["EUR_USD"])
+
+    assert "MARKET CLOSED" not in text
+    assert "US EQUITIES CLOSED" not in text
+    assert text.startswith("# Briefing context (pre_ny)")
