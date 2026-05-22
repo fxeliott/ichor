@@ -49,11 +49,18 @@ _FILTER_MAX_FETCH = 500
 # r139 — minimum candidate-pool floor when asset filtering. The briefing
 # default limit=12 → pool=48 was empirically too SHALLOW for assets with
 # sparser news density (SPX/XAU). Tech-dominant news cycles push gold/
-# macro keywords beyond the 200-most-recent window. Floor of 100 ensures
-# the keyword precision pass surfaces non-zero matches at default briefing
-# limits even when news mix is unbalanced. Verified empirically 2026-05-22 :
-# pool=48 → matched=0 for SPX/XAU ; pool=200 → matched=10 for SPX, NAS+9.
-_FILTER_MIN_POOL = 100
+# macro keywords beyond the 200-most-recent window. Empirical sensitivity
+# study 2026-05-22 (Hetzner LIVE) :
+#   pool=48  → SPX matched=0, XAU=0
+#   pool=100 → SPX matched=0, XAU=0  (floor was insufficient)
+#   pool=200 → SPX matched=10, XAU=0
+#   pool=300 → SPX matched~52, XAU=0-4 (depends on cycle)
+#   pool=500 → SPX matched=80, XAU=4 (matcher ceiling for current cycle)
+# Floor of 300 ensures SPX surfaces non-zero matches at briefing default
+# limit=12 even in tech-dominant news cycles. XAU may still scarce-fallback
+# when the news mix has truly zero gold-related items in the latest 500
+# (honestly disclosed by the 4-state UI disclosure — lesson #11).
+_FILTER_MIN_POOL = 300
 # r138 — `_ASSET_REGEX` now re-imported from
 # `services/asset_news_affinity.ASSET_QUERY_REGEX` (code-reviewer N3 SSOT).
 
