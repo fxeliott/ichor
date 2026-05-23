@@ -161,7 +161,46 @@ See `docs/ROADMAP_2026-05-06.md` for the original 4-layer architecture (DATA FOU
 
 ---
 
-## §3 — Immediate next (r150)
+## §3 — Immediate next (r151)
+
+**r150 EXECUTED & SHIPPED & DEPLOYED (2026-05-23)** : Tier 1 calibrated-honesty + Tier 4 Engine 8 extension + Deploy infrastructure — single-source disclosure (Vojtko-Dujava paper title correction + parse_failures sentinel) + AUD/CAD Employment class explicit mapping + R-DEPLOY-6 Step-4 SSH-timeout hardening. **TWO HARDCORE PIVOTS** via R59 in one round : (1) candidate #1 ⭐ VIX 5y rolling REJECTED (empirical SSH probe : VIXCLS has only 16 obs / 3 weeks, NOT 5 years) ; (2) candidate #2 RBA/BoC sign-flip CODE REJECTED (researcher web R59 : Vojtko-Dujava paper title is "BoE, BoJ, SNB" — RBA/BoC = secondary histogram, single-source unreplicated, no independent confirmation). Pivoted to documentation-only single-source disclosure fix + Employment class extension + R-DEPLOY-6 hardening.
+
+Phase 1 (single feat commit `9ee664e` +343/-26 LOC across 3 files) : (1) `services/event_proximity_engine.py` docstring + caveat string + `parse_failures.add("single_source_direction")` sentinel for RBA/BoC (mirrors r141 SurpriseClassification pattern) ; (2) NEW `"Employment": 20.0` baseline + 2 patterns `("employment change", "Employment")` + `("unemployment rate", "Employment")` ordered after NFP-specific ; (3) `scripts/hetzner/redeploy-api.sh` Step 4 hardened with 3-attempt retry + 15s sleep + ConnectTimeout=15 + dropped 2>/dev/null per code-reviewer SHOULD-FIX. Codified as **pattern #14** R-DEPLOY-6 SSH-timeout decompose in `ichor_r51-r71_doctrinal_patterns.md`.
+
+Phase 2 2-reviewer concordance : ichor-trader SHIP-WITH-FIXES 0 RED 4 YELLOW (YELLOW-2 sentinel + YELLOW-4 invariant test + YELLOW-7 magnitude-via-sentinel applied ; YELLOW-3 per-currency Employment deferred r151) + code-reviewer READY TO MERGE 0 CRITICAL 2 SHOULD-FIX (sentinel + 2>/dev/null removal applied).
+
+Build gate : targeted 182/182 + ruff clean + ADR-017 invariants + Brier lockstep r142+r148 + r149 event-class consistency invariant all green.
+
+Deploy via R-DEPLOY-6 hardened : retry loop fired EXACTLY 3× as designed, bailed with lesson #24 message, manual recovery → healthz=200 + sample=200 + code on prod May 23 22:58 UTC + Employment×3 + single_source_direction×2 verified. **R-DEPLOY-6 hardening already empirically witnessed in r150 deploy itself**.
+
+R-WITNESS-EMPIRICAL pending : 0 AUD/CAD events in next 14 days, next rate decision ~3-4 weeks.
+
+Honest scope : NO new ADR / NO new migration / NO frontend / NO data backfill / RBA/BoC sign-flip CODE deferred INDEFINITELY pending peer-reviewed replication / per-currency Employment subclass r151+ / r147 MRO smell r151+ / VIX recompute pending ≥1y data.
+
+Voie D **65 rounds**. NO axis state change.
+
+**NEW pattern observation r150** : R59-disprove-before-commit pattern stable across 4 rounds (r147+r148+r150-pivot-1+r150-pivot-2). Codification candidate r151 as pattern #15.
+
+**r151 binding default candidates** (R59-AUDIT first) :
+
+1. ⭐ **AUTO-RECO : codify R59-disprove-before-commit as pattern #15** in `ichor_r51-r71_doctrinal_patterns.md` (r150 NEW observation, 4-round stable). Effort S.
+2. **FRED VIXCLS backfill** — fetch 5y history into `fred_observations` to unblock r150 deferred VIX recompute. Effort S-M.
+3. **`output_gap_proxy` wiring** — composite NFCI + SBET + macro nowcast → `business_cycle_sign`. Effort M.
+4. **Dedicated `<EventAnticipationPanel>` tile** once 7d Engine 8 prod calibration. Effort M.
+5. **Per-currency Employment subclass** (trader r150 YELLOW-3 deferred). Effort S.
+6. **Mirror R-DEPLOY-6 hardening to redeploy-web2.sh + redeploy-brain.sh**. Effort S.
+7. **Docstring SSOT for Vojtko-Dujava citation** (r150 code-reviewer NICE). Effort S.
+8. **Edge case 9 docstring entry** for RBA/BoC single-source sentinel (r150 code-reviewer NICE). Effort S.
+9. **Fix r147 `TestBrierLockstepWithR147(TestAdr017Invariants)` MRO smell** (r149+r150 code-reviewer NICE). Effort S.
+10. **r144 reconciler unit normalization upstream**. Effort M.
+11. **FF XML title-coverage CI invariant** (deferred since r144). Effort S-M.
+12. **ADR-017 web2 caveat RTL regex** (deferred since r143). Effort S-M.
+13. **`actual_source` / `actual_revised` columns** + EU/UK reconcilers (mirror r144). Effort M each.
+14. **MEMORY.md hygiene archive** (file ~184 lines, approaching 200-line cap). Effort S.
+15. **Codify R-DEPLOY-6 hardening doctrine** in CLAUDE.md auto-context-injector. Effort S.
+16. **Code-reviewer S4 orchestrator hook AsyncMock test** (deferred since r142). Effort S.
+
+## §3 — Previous immediate next (r150, EXECUTED above)
 
 **r149 EXECUTED & SHIPPED & DEPLOYED (2026-05-23)** : Tier 4 axis-4 +1 LEVEL extension — Engine 8 AUD/CAD/JPY title-fragment coverage + defensive negative-list + event-class consistency CI invariant. NO PIVOT — paste-prompt v67 #1 ⭐ AUTO-RECO stayed binding default (researcher web R59 + ichor-navigator dual-audit returned CLEAN actionable scope ; empirical prod DB ground truth : 8 AUD high+med events / 30d, 11 CAD high+med ; JPY documented future-proofing under FF `low` impact filter).
 
