@@ -778,3 +778,305 @@ class TestCodeReviewerN1CallOrderSentinel:
         second_sql = str(second_stmt.compile(compile_kwargs={"literal_binds": False}))
         assert "economic_events" in first_sql.lower()
         assert "fred_observations" in second_sql.lower()
+
+
+# ── r149 AUD/CAD/JPY title-fragment extension ────────────────────────
+
+
+class TestR149AudCadJpyTitleMapping:
+    """r149 — Engine 8 title-fragment extension for AUD (RBA) / CAD (BoC) /
+    JPY (BoJ broadened + Tankan). Each new fragment must map to its
+    expected event class via `_map_title_to_event_class()`. Empirical
+    FF XML titles verified via researcher web R59 fetch of
+    `https://nfs.faireconomy.media/ff_calendar_thisweek.xml` 2026-05-22
+    + prod DB query (5 high-impact AUD events + 3 high CAD + 0 high JPY
+    in last 30 days — JPY events fire as `low` impact in FF empirical,
+    documented honest-scope).
+    """
+
+    # RBA family
+    def test_cash_rate_bare_title_maps_RBA(self) -> None:
+        assert _map_title_to_event_class("Cash Rate") == "RBA"
+
+    def test_rba_rate_statement_maps_RBA(self) -> None:
+        assert _map_title_to_event_class("RBA Rate Statement") == "RBA"
+
+    def test_rba_press_conference_maps_RBA(self) -> None:
+        assert _map_title_to_event_class("RBA Press Conference") == "RBA"
+
+    def test_rba_monetary_policy_statement_maps_RBA(self) -> None:
+        assert _map_title_to_event_class("RBA Monetary Policy Statement") == "RBA"
+
+    def test_statement_on_monetary_policy_maps_RBA(self) -> None:
+        """RBA quarterly SoMP — FF XML title bare without RBA prefix."""
+        assert _map_title_to_event_class("Statement on Monetary Policy") == "RBA"
+
+    # BoC family
+    def test_overnight_rate_bare_title_maps_BoC(self) -> None:
+        assert _map_title_to_event_class("Overnight Rate") == "BoC"
+
+    def test_boc_rate_statement_maps_BoC(self) -> None:
+        assert _map_title_to_event_class("BOC Rate Statement") == "BoC"
+
+    def test_boc_press_conference_maps_BoC(self) -> None:
+        assert _map_title_to_event_class("BOC Press Conference") == "BoC"
+
+    def test_boc_monetary_policy_report_maps_BoC(self) -> None:
+        assert _map_title_to_event_class("BOC Monetary Policy Report") == "BoC"
+
+    # BoJ broadening
+    def test_boj_press_conference_maps_BoJ(self) -> None:
+        assert _map_title_to_event_class("BOJ Press Conference") == "BoJ"
+
+    def test_boj_summary_of_opinions_maps_BoJ(self) -> None:
+        assert _map_title_to_event_class("BOJ Summary of Opinions") == "BoJ"
+
+    def test_bare_monetary_policy_statement_maps_BoJ(self) -> None:
+        """JPY BoJ FF XML title is bare `Monetary Policy Statement`
+        (no BOJ prefix in FF XML feed — researcher web R59 verified).
+        Generic fallback pattern matches because more-specific RBA/ECB/BoE
+        patterns are tried first."""
+        assert _map_title_to_event_class("Monetary Policy Statement") == "BoJ"
+
+    # Tankan
+    def test_tankan_manufacturing_maps_Tankan(self) -> None:
+        assert _map_title_to_event_class("Tankan Manufacturing Index") == "Tankan"
+
+    def test_tankan_non_manufacturing_maps_Tankan(self) -> None:
+        assert _map_title_to_event_class("Tankan Non-Manufacturing Index") == "Tankan"
+
+    # CPI variants for AUD/CAD/JPY map to existing CPI class
+    def test_trimmed_mean_cpi_maps_CPI(self) -> None:
+        """AUD-specific RBA preferred-core measure."""
+        assert _map_title_to_event_class("Trimmed Mean CPI q/q") == "CPI"
+
+    def test_trimmed_cpi_maps_CPI(self) -> None:
+        """CAD-specific StatCan BoC-preferred measure."""
+        assert _map_title_to_event_class("Trimmed CPI y/y") == "CPI"
+
+    def test_median_cpi_maps_CPI(self) -> None:
+        """CAD-specific BoC preferred-core measure."""
+        assert _map_title_to_event_class("Median CPI y/y") == "CPI"
+
+    def test_common_cpi_maps_CPI(self) -> None:
+        """CAD-specific BoC preferred-core measure."""
+        assert _map_title_to_event_class("Common CPI y/y") == "CPI"
+
+    def test_tokyo_core_cpi_maps_CPI(self) -> None:
+        """JPY-specific BoJ preferred-core measure."""
+        assert _map_title_to_event_class("Tokyo Core CPI y/y") == "CPI"
+
+    def test_national_core_cpi_maps_CPI(self) -> None:
+        """JPY-specific BoJ preferred-core measure."""
+        assert _map_title_to_event_class("National Core CPI y/y") == "CPI"
+
+
+class TestR149RegressionExistingMappingsUnchanged:
+    """r149 must preserve all r147 USD / EUR / GBP / pre-r149 JPY mappings.
+    Ensures the new fragments + reordering didn't shift first-match-wins
+    semantics for established USD/EUR/GBP/BoJ titles.
+    """
+
+    def test_fomc_statement_still_maps_FOMC(self) -> None:
+        assert _map_title_to_event_class("FOMC Statement") == "FOMC"
+
+    def test_ecb_monetary_policy_statement_still_maps_ECB(self) -> None:
+        """Critical : ECB title contains `monetary policy statement`,
+        the new r149 generic fallback. Specific ECB pattern MUST win."""
+        assert _map_title_to_event_class("ECB Monetary Policy Statement") == "ECB"
+
+    def test_boe_monetary_policy_report_still_maps_BoE(self) -> None:
+        assert _map_title_to_event_class("BOE Monetary Policy Report") == "BoE"
+
+    def test_boj_outlook_report_still_maps_BoJ(self) -> None:
+        assert _map_title_to_event_class("BOJ Outlook Report") == "BoJ"
+
+    def test_boj_policy_rate_still_maps_BoJ(self) -> None:
+        assert _map_title_to_event_class("BOJ Policy Rate") == "BoJ"
+
+    def test_nfp_still_maps_NFP(self) -> None:
+        assert _map_title_to_event_class("Non-Farm Employment Change") == "NFP"
+
+    def test_core_cpi_mm_still_maps_CPI(self) -> None:
+        assert _map_title_to_event_class("Core CPI m/m") == "CPI"
+
+    def test_cpi_mm_still_maps_CPI(self) -> None:
+        assert _map_title_to_event_class("CPI m/m") == "CPI"
+
+
+class TestR149NewBaselineKeys:
+    """r149 — new event classes (RBA / BoC / Tankan) MUST have baseline_bp
+    entries to prevent the silent fall-through where a mapped class lacks
+    a baseline, which would yield `expected_drift_magnitude_bp=None` per
+    the engine's honest-scope `event_class_unmapped` short-circuit.
+    """
+
+    def test_rba_baseline_present(self) -> None:
+        assert "RBA" in EVENT_CLASS_BASELINE_BP
+        assert EVENT_CLASS_BASELINE_BP["RBA"] == 25.0
+
+    def test_boc_baseline_present(self) -> None:
+        assert "BoC" in EVENT_CLASS_BASELINE_BP
+        assert EVENT_CLASS_BASELINE_BP["BoC"] == 25.0
+
+    def test_tankan_baseline_present(self) -> None:
+        assert "Tankan" in EVENT_CLASS_BASELINE_BP
+        assert EVENT_CLASS_BASELINE_BP["Tankan"] == 15.0
+
+    def test_r147_baselines_unchanged(self) -> None:
+        """Regression : r147 baseline magnitudes must NOT drift silently."""
+        assert EVENT_CLASS_BASELINE_BP["FOMC"] == 50.0
+        assert EVENT_CLASS_BASELINE_BP["ECB"] == 35.0
+        assert EVENT_CLASS_BASELINE_BP["BoE"] == 25.0
+        assert EVENT_CLASS_BASELINE_BP["BoJ"] == 15.0
+        assert EVENT_CLASS_BASELINE_BP["NFP"] == 20.0
+        assert EVENT_CLASS_BASELINE_BP["CPI"] == 20.0
+
+
+class TestR149BlockedListCollisionGuard:
+    """r149 — defensive `_TITLE_FRAGMENT_BLOCKED` negative-list checked
+    BEFORE positive matching. Guards against RBNZ "Official Cash Rate"
+    silently substring-matching RBA "Cash Rate" pattern. No Ichor asset
+    has NZD exposure today, but the guard is future-proofing per
+    doctrine #11 calibrated-honesty defensive engineering (lesson #34
+    pattern extended to negative-list class).
+    """
+
+    def test_official_cash_rate_returns_none_not_RBA(self) -> None:
+        """RBNZ Official Cash Rate (NZD) must NOT silently classify as RBA."""
+        assert _map_title_to_event_class("Official Cash Rate") is None
+
+    def test_blocked_check_is_case_insensitive(self) -> None:
+        """Same case-insensitive handling as positive matching."""
+        assert _map_title_to_event_class("OFFICIAL CASH RATE") is None
+        assert _map_title_to_event_class("official cash rate") is None
+
+    def test_rba_cash_rate_still_maps_after_blocker(self) -> None:
+        """Regression : RBA bare `Cash Rate` title must STILL map to RBA
+        when `Official` prefix is absent."""
+        assert _map_title_to_event_class("Cash Rate") == "RBA"
+
+
+class TestR149RbaBocDirectionCaveatSurfaced:
+    """r149 trader YELLOW-1 fix — Vojtko-Dujava SSRN 5384407 documents
+    RBA/BoC pre-announcement drift as NEGATIVE (sign-flip vs FOMC).
+    r149 ships POSITIVE baseline_bp + default `+1` business_cycle_sign ;
+    the runtime caveat MUST surface the direction-not-implemented
+    honesty per doctrine #11.
+
+    Concordant fix : code-reviewer SHOULD-FIX #2 + trader YELLOW-1
+    flagged the same issue from different angles. r149 applies the
+    documentation/caveat fix ; r150+ candidate : per-event-class sign
+    override in business_cycle_sign resolution OR negative baseline_bp.
+    """
+
+    @pytest.mark.asyncio
+    async def test_rba_event_caveat_contains_direction_disclosure(self) -> None:
+        """An RBA event must produce a caveat string that names the
+        Vojtko-Dujava direction-flip honestly."""
+        evt = _make_event_row(
+            title="Cash Rate",
+            impact="high",
+            currency="AUD",
+            scheduled_at=datetime(2026, 6, 3, 4, 30, tzinfo=UTC),
+        )
+        session = _build_session(
+            event_rows=[evt],
+            vix_row=_make_fred_row(20.0, datetime(2026, 5, 23, tzinfo=UTC).date()),
+        )
+        result = await assess_event_proximity(
+            session,
+            asset="AUD_USD",
+            now=datetime(2026, 6, 1, 12, 0, tzinfo=UTC),
+            business_cycle_sign=1,
+        )
+        assert result is not None
+        assert result.next_event_class == "RBA"
+        assert "RBA/BoC" in result.caveat
+        assert "Vojtko-Dujava" in result.caveat
+        # ALWAYS prior caveat still appended (r147 trader YELLOW-1 baseline)
+        assert "Magnitude prior littérature" in result.caveat
+
+    @pytest.mark.asyncio
+    async def test_boc_event_caveat_contains_direction_disclosure(self) -> None:
+        """Same fix applies to BoC (Vojtko-Dujava co-class)."""
+        evt = _make_event_row(
+            title="Overnight Rate",
+            impact="high",
+            currency="CAD",
+            scheduled_at=datetime(2026, 6, 4, 14, 0, tzinfo=UTC),
+        )
+        session = _build_session(
+            event_rows=[evt],
+            vix_row=_make_fred_row(20.0, datetime(2026, 5, 23, tzinfo=UTC).date()),
+        )
+        result = await assess_event_proximity(
+            session,
+            asset="USD_CAD",
+            now=datetime(2026, 6, 1, 12, 0, tzinfo=UTC),
+            business_cycle_sign=1,
+        )
+        assert result is not None
+        assert result.next_event_class == "BoC"
+        assert "RBA/BoC" in result.caveat
+        assert "Vojtko-Dujava" in result.caveat
+
+    @pytest.mark.asyncio
+    async def test_fomc_event_caveat_does_NOT_contain_rba_boc_disclosure(self) -> None:
+        """Regression : FOMC events must NOT carry the RBA/BoC-specific caveat
+        (only fires when event_class in {"RBA","BoC"})."""
+        evt = _make_event_row(
+            title="Federal Funds Rate",
+            impact="high",
+            currency="USD",
+            scheduled_at=datetime(2026, 6, 18, 18, 0, tzinfo=UTC),
+        )
+        session = _build_session(
+            event_rows=[evt],
+            vix_row=_make_fred_row(20.0, datetime(2026, 5, 23, tzinfo=UTC).date()),
+        )
+        result = await assess_event_proximity(
+            session,
+            asset="EUR_USD",
+            now=datetime(2026, 6, 1, 12, 0, tzinfo=UTC),
+            business_cycle_sign=1,
+        )
+        assert result is not None
+        assert result.next_event_class == "FOMC"
+        assert "RBA/BoC" not in result.caveat
+        assert "Vojtko-Dujava" not in result.caveat
+
+
+class TestR149EventClassConsistencyInvariant:
+    """r149 — new CI invariant : every event class emitted by
+    `_TITLE_TO_EVENT_CLASS` must have a matching key in
+    `EVENT_CLASS_BASELINE_BP`. Catches the silent-fall-through class
+    where a mapping is added without a baseline (would yield
+    `expected_drift_magnitude_bp=None` per the engine's honest-scope
+    short-circuit and effectively drop the event from Engine 8).
+
+    Mirror of the r148 emission-vs-registry lockstep CI invariant pattern
+    (cf `test_r148_confluence_engine_driver_emissions_match_brier_registry`
+    in test_invariants_ichor.py). NEW pattern observation r148 codified
+    as the r149 deliverable.
+    """
+
+    def test_every_mapped_event_class_has_baseline(self) -> None:
+        from ichor_api.services.event_proximity_engine import _TITLE_TO_EVENT_CLASS
+
+        emitted_classes = {cls for _, cls in _TITLE_TO_EVENT_CLASS}
+        registry_classes = set(EVENT_CLASS_BASELINE_BP.keys())
+        missing_baselines = emitted_classes - registry_classes
+        assert not missing_baselines, (
+            "r149 lockstep CI violation : the following event classes are "
+            "emitted by _TITLE_TO_EVENT_CLASS but lack a corresponding "
+            "baseline entry in EVENT_CLASS_BASELINE_BP — events of these "
+            "classes would silently fall through to "
+            "`expected_drift_magnitude_bp=None` and be dropped from "
+            f"Engine 8 weighting :\n  Missing : {sorted(missing_baselines)}\n"
+            f"  Registry: {sorted(registry_classes)}\n"
+            "Fix : add the missing event class(es) to "
+            "EVENT_CLASS_BASELINE_BP with a literature-cited magnitude in "
+            "basis points (cite the source in a code comment per lesson "
+            "#37 honest-scope discipline)."
+        )

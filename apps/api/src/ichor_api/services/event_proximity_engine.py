@@ -117,6 +117,17 @@ EVENT_CLASS_BASELINE_BP: dict[str, float] = {
     "ECB": 35.0,
     "BoE": 25.0,
     "BoJ": 15.0,
+    # r149 — AUD/CAD/JPY central-bank extensions (Vojtko-Dujava SSRN 5384407,
+    # Quantpedia 2024). Magnitude ~ 25bp aligned with BoE per FX-G10 vol regime.
+    # NB direction is event-class-conditional : Vojtko-Dujava documents BoC/RBA
+    # as NEGATIVE pre-announcement drift (sign-flip vs FOMC) — currently
+    # handled at the per-asset transmission layer ; r150+ candidate :
+    # per-event-class sign override in `business_cycle_sign` resolution.
+    "RBA": 25.0,
+    "BoC": 25.0,
+    # Tankan quarterly survey (BoJ's flagship business sentiment) — magnitude
+    # aligns with BoJ baseline per JPY vol regime.
+    "Tankan": 15.0,
     # Tier-1 US macro — generic 20bp estimate (smaller than Fed, larger than tier-2)
     "NFP": 20.0,
     "CPI": 20.0,
@@ -187,9 +198,14 @@ class EventProximityFactor:
 #
 # Substring-match (case-insensitive) on `EconomicEvent.title` ; first match
 # wins. Order matters : more-specific patterns (e.g. "Core CPI") MUST come
-# BEFORE generic ones ("CPI"). Negative-list pattern parity with r144
-# `TITLE_FRAGMENT_BLOCKED` would be added in r148+ if collisions emerge
-# (R-WITNESS-EMPIRICAL : pre-deploy 2-reviewer + post-deploy witness).
+# BEFORE generic ones ("CPI"). `_TITLE_FRAGMENT_BLOCKED` (r149) acts as a
+# defensive negative-list checked BEFORE positive matching, mirroring the
+# r144 reconciler `TITLE_FRAGMENT_BLOCKED` pattern. The ForexFactory XML
+# feed strips country prefixes ("Cash Rate" not "AU Cash Rate"), so
+# substring collisions across countries are real (e.g. RBA "Cash Rate"
+# substring-matches RBNZ "Official Cash Rate"). Pattern naming convention
+# matches the verbatim FF XML titles empirically extracted from
+# `https://nfs.faireconomy.media/ff_calendar_thisweek.xml` 2026-05-22.
 _TITLE_TO_EVENT_CLASS: tuple[tuple[str, str], ...] = (
     # FOMC family
     ("fomc statement", "FOMC"),
@@ -205,29 +221,78 @@ _TITLE_TO_EVENT_CLASS: tuple[tuple[str, str], ...] = (
     ("boe monetary policy report", "BoE"),
     ("boe official bank rate", "BoE"),
     ("mpc meeting minutes", "BoE"),
-    # BoJ family
+    # BoJ family (r149 broadened — was BoJ outlook + policy rate only)
     ("boj outlook report", "BoJ"),
     ("boj policy rate", "BoJ"),
+    ("boj press conference", "BoJ"),
+    ("boj summary of opinions", "BoJ"),
+    # RBA family (r149 new — Vojtko-Dujava SSRN 5384407)
+    ("rba monetary policy statement", "RBA"),
+    ("rba press conference", "RBA"),
+    ("rba rate statement", "RBA"),
+    ("statement on monetary policy", "RBA"),  # quarterly SoMP, often bare
+    ("cash rate", "RBA"),  # bare 2-word FF XML title for RBA decision
+    # BoC family (r149 new — Vojtko-Dujava SSRN 5384407)
+    ("boc monetary policy report", "BoC"),
+    ("boc press conference", "BoC"),
+    ("boc rate statement", "BoC"),
+    ("overnight rate", "BoC"),  # bare FF XML title for BoC decision
+    # Tankan (r149 new — Japan flagship business sentiment, quarterly)
+    ("tankan", "Tankan"),
     # Tier-1 US macro
     ("non-farm employment change", "NFP"),
     ("nonfarm payrolls", "NFP"),
-    ("core cpi m/m", "CPI"),  # more specific before generic
-    ("cpi m/m", "CPI"),
-    ("cpi y/y", "CPI"),
+    # CPI variants — more specific BEFORE generic to preserve match order
+    ("core cpi m/m", "CPI"),
     ("core cpi y/y", "CPI"),
+    ("trimmed mean cpi", "CPI"),  # r149 AUD-specific (RBA preferred-core)
+    ("trimmed cpi", "CPI"),  # r149 CAD-specific (StatCan BoC-preferred)
+    ("median cpi", "CPI"),  # r149 CAD-specific
+    ("common cpi", "CPI"),  # r149 CAD-specific
+    ("tokyo core cpi", "CPI"),  # r149 JPY-specific
+    ("national core cpi", "CPI"),  # r149 JPY-specific
+    ("cpi m/m", "CPI"),  # shared US/CAD bare title
+    ("cpi y/y", "CPI"),
+    # Generic fallback patterns (r149) — matched ONLY if no specific
+    # pattern above matched ; ForexFactory uses bare titles for JPY BoJ
+    # rate decisions (`Monetary Policy Statement` with country=JPY).
+    ("monetary policy statement", "BoJ"),
+)
+
+
+# r149 — defensive negative-list. Checked BEFORE positive patterns ; returning
+# None for blocked titles prevents silent misclassification. Each entry must
+# have a comment explaining the specific collision risk it guards against.
+_TITLE_FRAGMENT_BLOCKED: frozenset[str] = frozenset(
+    {
+        # RBNZ "Official Cash Rate" (NZD) substring-matches RBA "Cash Rate" (AUD).
+        # No Ichor asset has NZD exposure today (per config.py:151-161), but
+        # blocking here is defensive future-proofing against the silent-class
+        # collision if NZD_USD or AUD_NZD is ever added to the tracked set.
+        "official cash rate",
+    }
 )
 
 
 def _map_title_to_event_class(title: str) -> str | None:
     """Pure-fn substring lookup ; returns None if no class mapped.
 
-    Honest scope : maps ~17 high-impact event titles to academic event
-    classes. Unmapped titles → None (caller surfaces "event_class_unmapped"
-    sentinel in parse_failures, never silent).
+    Honest scope : maps high-impact event titles for USD/EUR/GBP/AUD/CAD/JPY
+    central banks + tier-1 macro (FOMC/ECB/BoE/RBA/BoC/BoJ/NFP/CPI/Tankan) to
+    academic event classes. r149 broadened the r147 baseline (FOMC/ECB/BoE/BoJ
+    + NFP/CPI) with RBA/BoC families + Tankan + JPY/AUD/CAD CPI variants per
+    researcher web R59 FF XML verbatim verification. Unmapped titles → None
+    (caller surfaces "event_class_unmapped" sentinel in parse_failures, never
+    silent). Blocked titles (per `_TITLE_FRAGMENT_BLOCKED`) also return None
+    defensively, even if a positive pattern would otherwise match.
     """
     if not title:
         return None
     needle = title.lower().strip()
+    # r149 — defensive blocked-list short-circuit before positive matching
+    for blocked in _TITLE_FRAGMENT_BLOCKED:
+        if blocked in needle:
+            return None
     for fragment, cls in _TITLE_TO_EVENT_CLASS:
         if fragment in needle:
             return cls
@@ -353,17 +418,39 @@ async def assess_event_proximity(
     in window (caller surfaces "Aucun event majeur dans les 48h" empty
     state). Engine NEVER raises -- all edge cases honest-handled.
 
-    HONEST SCOPE — TITLE MAPPING COVERAGE (trader YELLOW-3) :
+    HONEST SCOPE — TITLE MAPPING COVERAGE (trader YELLOW-3, r149 update) :
 
     `_TITLE_TO_EVENT_CLASS` covers FOMC/ECB/BoE/BoJ central-bank classes
-    + tier-1 US macro (NFP, CPI variants). AUD/CAD-specific events
-    (RBA Cash Rate, BoC Overnight Rate) and JPY-specific events outside
-    BoJ Outlook Report fall through to `event_class_unmapped` → driver
-    silently None. This is HONEST per doctrine #11 (no fabricated
-    baseline magnitude for unmapped classes) ; r148+ candidate to
-    extend the title-fragment list. R-WITNESS-EMPIRICAL discipline :
-    post-deploy probe `SELECT title FROM economic_events WHERE
-    impact='high'` identifies unmapped titles for incremental coverage.
+    + tier-1 US macro (NFP, CPI variants). r149 extended coverage to
+    AUD (RBA family + Trimmed Mean CPI), CAD (BoC family + Median/
+    Trimmed/Common CPI), JPY (BoJ broadened + Tankan + Tokyo/National
+    Core CPI) per researcher web R59 FF XML verbatim. Unmapped titles
+    still fall through to `event_class_unmapped` → driver silently None
+    per doctrine #11 (no fabricated baseline magnitude).
+
+    HONEST SCOPE — JPY IMPACT FILTER GAP (trader YELLOW-3, r149) :
+
+    ForexFactory empirically marks ALL JPY events as `low` impact in
+    prod (0 high + 0 medium over 90 days, including National Core CPI,
+    BOJ Summary of Opinions, Monetary Policy Meeting Minutes — verified
+    via prod DB query 2026-05-23). `_impact_multiplier()` returns 0.0
+    for `low` impact, so r149 JPY title-mapping is FUTURE-PROOFING and
+    won't fire under current impact filter. r150+ candidate : either
+    elevate JPY impact handling explicitly OR ingest alternative
+    provider with proper JPY-event impact rating.
+
+    HONEST SCOPE — RBA/BoC PRE-DRIFT DIRECTION (trader YELLOW-1, r149) :
+
+    Vojtko-Dujava SSRN 5384407 documents RBA/BoC pre-announcement drift
+    as NEGATIVE (sign-flip vs FOMC positive drift). r149 ships POSITIVE
+    baseline_bp + default `+1` business_cycle_sign ; the runtime caveat
+    string surfaces this honestly when event_class in {"RBA","BoC"}.
+    r150+ candidate : per-event-class sign override in business_cycle_
+    sign resolution OR negative baseline_bp for RBA/BoC.
+
+    R-WITNESS-EMPIRICAL discipline : post-deploy probe
+    `SELECT title FROM economic_events WHERE impact='high' AND title
+    NOT IN <mapped>` identifies unmapped titles for incremental coverage.
 
     8 edge cases handled :
       1. No future events in window           → return None
@@ -480,6 +567,16 @@ async def assess_event_proximity(
         caveat_parts.append("VIX indisponible, gate régime dégradée")
     if event_class is None:
         caveat_parts.append("Classe d'événement non mappée")
+    # r149 trader YELLOW-1 : Vojtko-Dujava SSRN 5384407 documents RBA/BoC
+    # pre-announcement drift as NEGATIVE (sign-flip vs FOMC positive drift).
+    # r149 ships POSITIVE baseline + default `+1` business_cycle_sign ;
+    # per-event-class sign override is r150+ candidate. Surface the
+    # direction-not-implemented caveat honestly per doctrine #11.
+    if event_class in ("RBA", "BoC"):
+        caveat_parts.append(
+            "Drift pre-event RBA/BoC documenté négatif (Vojtko-Dujava), "
+            "direction r150+ ; magnitude r149 = prior positif littérature"
+        )
     # ALWAYS append the cold-start prior caveat (trader YELLOW-1).
     caveat_parts.append("Magnitude prior littérature, pas calibrée sur historique Ichor")
     caveat = " ; ".join(caveat_parts)
