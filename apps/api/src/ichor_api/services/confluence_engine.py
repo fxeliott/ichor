@@ -665,6 +665,117 @@ async def _factor_inflation_surprise(session: AsyncSession, asset: str) -> Drive
     )
 
 
+async def _factor_event_anticipation(session: AsyncSession, asset: str) -> Driver | None:
+    """r147 Engine 8 — Event-Driven anticipation per profondeur
+    (Mission centrale axis-4). Literature-cited PRIOR drift expectation
+    keyed on (event_class, impact_tier, time-to-event, VIX regime,
+    business-cycle phase).
+
+    Foundations (verbatim citations -- NOT memory) :
+    - Lucca-Moench (2015) JoF 70:329-371 — original pre-FOMC drift
+      (~50bp avg S&P 500 return in 24h pre-FOMC window, 1994-2011).
+    - Kurov-Halova-Wolfe-Gilbert (2021) — drift attenuation post-2016
+      attributed to FedWatch popularity ; alive in high-VIX regimes
+      2022-2024 (QuantSeeker replication through Dec 2024).
+    - Boyd-Hu-Jagannathan (2005) JoF — "bad news is good news"
+      business-cycle asymmetry : reaction SIGN flips with cycle phase.
+    - arXiv 2212.04525 (2022) — monetary-uncertainty conditioning of
+      MNA reaction (counter-intuitive regime guard).
+
+    HONEST SCOPE : magnitude is a LITERATURE-CITED PRIOR, not Ichor-
+    data-calibrated. Sign defaults to expansion (+1) when output_gap
+    proxy unavailable (doctrine #11 + lesson #37 explicit caveat in
+    Driver.evidence). Per-asset transmission :
+
+    - **USD-base / X-USD pairs** : positive expected drift → USD bid
+      anticipation (default expansion sign). Routes to long-USD
+      contribution via `_USD_IS_BASE` mapping (parity with
+      inflation_surprise).
+    - **Equity indices (SPX/NAS)** : positive drift is equity-positive
+      under expansion (Lucca-Moench original finding), regime-flipped
+      to equity-negative under contraction (Boyd-Hu-Jagannathan).
+    - **XAU** : ambiguous (rates ↑ bearish / inflation-hedge bid bullish
+      / USD-strength bearish) → zero contribution honestly (doctrine
+      #11 -- parity with `_factor_inflation_surprise` XAU=0 design).
+
+    Coefficient calibration (r147 code-reviewer SF-1 + post-empirical-math
+    review) : raw_bp / 100 × 1.2, capped at ±0.6. This calibrates against
+    the r142 `ENGINE_DRIVER_MIN_ABS_CONTRIBUTION = 0.2` threshold gating
+    surface visibility on `<ConvictionGroundingPanel>` 4th tile. At
+    coefficient=0.4 + cap=0.5 (initial r147 v0), even FOMC firing-now-peak-
+    VIX yielded contribution=0.2 (boundary, threshold is strict >0.2) so
+    drivers NEVER displayed. At coefficient=1.2 + cap=0.6 :
+
+      FOMC peak    50/100 × 1.2 = 0.60 (cap)  ✓ displays
+      ECB  peak    35/100 × 1.2 = 0.42        ✓ displays
+      BoE  peak    25/100 × 1.2 = 0.30        ✓ displays
+      NFP  peak    20/100 × 1.2 = 0.24        ✓ displays
+      CPI  peak    20/100 × 1.2 = 0.24        ✓ displays
+      BoJ  peak    15/100 × 1.2 = 0.18        × silent (acceptable -
+                                                 BoJ literature weakest)
+
+    Range respects r137 inflation_surprise budget (±1.0 cap with z×0.3
+    coefficient) ; cap ±0.6 leaves room for other factors in score
+    aggregator (parity with `_factor_inflation_surprise` philosophy).
+
+    r147 trader YELLOW-2 fix : attenuate magnitude × 0.5 when
+    `confidence='low'` AND `vix_regime_gate='unavailable'` to preserve
+    driver visibility without overweighting degraded data.
+    """
+    from .event_proximity_engine import assess_event_proximity
+
+    factor = await assess_event_proximity(session=session, asset=asset)
+    if factor is None:
+        return None  # no future events in window → empty
+    if factor.expected_drift_magnitude_bp is None:
+        return None  # event_class unmapped OR magnitude below noise floor
+
+    # Scale bp magnitude to confluence contribution range (SF-1 calibration).
+    raw = factor.expected_drift_magnitude_bp / 100.0 * 1.2
+    raw = max(-0.6, min(0.6, raw))
+
+    # r147 trader YELLOW-2 : attenuate × 0.5 on degraded VIX-unavailable
+    # confidence — preserves driver visibility (vs binary suppression)
+    # but halves the magnitude budget, matching the "honest gap" framing.
+    if factor.vix_regime_gate == "unavailable" and factor.confidence == "low":
+        raw = raw * 0.5
+
+    # Per-asset transmission (parity with _factor_inflation_surprise
+    # asset-conditional sign discipline).
+    if asset in {"NAS100_USD", "SPX500_USD"}:
+        # Positive drift = equity-positive under expansion ; regime-flipped
+        # under contraction (already encoded in factor.expected_drift_direction
+        # via business_cycle_sign).
+        contribution = raw
+    elif asset == "XAU_USD":
+        contribution = 0.0  # honest zero — sign genuinely ambiguous
+    elif asset in _USD_IS_BASE:
+        # USD-base : positive drift → USD strong (long the pair under expansion).
+        contribution = raw
+    else:
+        # X/USD : USD strong → short the pair.
+        contribution = -raw
+
+    # Evidence string : verbatim event title + minutes until + VIX gate +
+    # caveat for downstream Critic verification (source-stamping per ADR-017).
+    evidence_parts = []
+    if factor.next_event_title and factor.next_event_minutes_until is not None:
+        evidence_parts.append(
+            f"{factor.next_event_title} dans {factor.next_event_minutes_until} min"
+        )
+    evidence_parts.append(f"gate VIX={factor.vix_regime_gate}")
+    evidence_parts.append(f"drift attendu {factor.expected_drift_magnitude_bp:+.0f}bp")
+    evidence_parts.append(factor.caveat)
+    evidence = " | ".join(evidence_parts)
+
+    return Driver(
+        factor="event_anticipation",
+        contribution=round(contribution, 3),
+        evidence=evidence,
+        source="empirical_model:event_proximity_engine|FRED:VIXCLS|literature:Lucca-Moench-2015",
+    )
+
+
 # ────────────────────────── Aggregator ────────────────────────────────
 
 
@@ -701,6 +812,7 @@ async def assess_confluence(
         await _factor_vix_term(session, asset),
         await _factor_risk_appetite(session, asset),
         await _factor_btc_risk_proxy(session, asset),
+        await _factor_event_anticipation(session, asset),  # r147 Engine 8
     ):
         if factor is not None:
             drivers.append(factor)
