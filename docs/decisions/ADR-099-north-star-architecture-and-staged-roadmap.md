@@ -3878,3 +3878,52 @@ Voie D held **61 rounds** (zero `import anthropic` r146 ; pure compute defensive
 **No new lesson codified** — r146 applies the R-WITNESS-EMPIRICAL r144 codified rule EXACTLY as designed : pre-deploy review catches known classes, post-deploy empirical witness catches NEW classes, round-2 SAME-round fix preserves user trust. The pattern works.
 
 **r147 binding default candidates** : (a) ⭐ AUTO-RECO r144 reconciler unit normalization upstream (per-series unit map applied at ingest BEFORE storage — proper architectural fix) ; (b) small-consensus amplification UX refinement (IP/PPI/CPI showing +126% / +187% — "ppts" framing or secondary token) ; (c) FF XML title-coverage CI invariant (r144 trader Y2(a)) ; (d) ADR-017 web2 RTL regex (deferred r143+r144+r145+r146) ; (e) `actual_source` column ; (f) `actual_revised` T+24h overwrite ; (g) range envelope consensus-poll provider ; (h) EU `actual` reconciler via ECB SDMX.
+
+## Implementation (r147, 2026-05-23) — Tier 4 axis-4 +1 LEVEL : Engine 8 Event-Driven anticipation factor SHIPPED (1/5 ABSENT engines from 12-engine blueprint closed)
+
+r130 shipped PolymarketImpactPanel for axis-4 "anticipation par profondeur". r147 deepens axis-4 with Engine 8 from the ROADMAP_PHASE_F 12-engine blueprint : **calendar-proximity × historical reaction asymmetry pre-event drift expectation**. Driver-only path — auto-surfaces on r142 `<ConvictionGroundingPanel>` 4th tile via `deriveEngineDrivers()` filter when `|contribution| > 0.2`. Zero frontend change (researcher C OPTION A strict scope ; dedicated `<EventAnticipationPanel>` deferred r148+ once 7d prod data calibration).
+
+**PIVOT from r147 paste-prompt v65 default candidate (a)** : v65 binding default #1 was "r144 reconciler unit normalization upstream" (architectural debt repayment from r146). r147 pivoted to Engine 8 because Eliot's explicit emphasis on "anticipation par profondeur" + "mobiliser TOUTE la data" + "12x au-delà" maps to closing 12-engine blueprint gaps. The unit normalization stays as r148+ candidate. doctrine #2 strict scope respected via OPTION A driver-only.
+
+**Phase 0 R59 triple-audit** (3 parallel sub-agents) :
+
+- **researcher A web** : Bauer CEPR DP21003 identity EMPIRICALLY DISPROVED via CEPR landing page WebFetch — DP21003 is Acosta-Ajello-Bauer-Loria-Miranda-Agrippino (2026) FOMC Communication event-study database, NOT pre-FOMC drift. Correct citation chain : Lucca-Moench (2015) JoF 70:329-371 (original ~50bp/24h SPX 1994-2011, NY Fed SR 512) + Kurov-Halova-Wolfe-Gilbert (2021) attenuation post-2016 + QuantSeeker 2024 replication through Dec 2024 + Boyd-Hu-Jagannathan (2005) JoF business-cycle asymmetry + arXiv 2212.04525 (2022) monetary-uncertainty conditioning + Peng-Pan (2024) SSRN 4764451 term-premium channel + Quantpedia BoE/BoJ extensions + Vojtko-Dujava SSRN 5384407 (BoC/RBA NEGATIVE drift counter-intuitive).
+- **researcher B Ichor backend code-explorer** : 11 factor builders mapped at `confluence_engine.py:138-606` ; `Driver(factor, contribution, evidence, source)` shape ; Brier `latest_active_weights` lookup ; lesson #32 EXISTS-but-BROKEN check returned ZERO grep hits for `_event_*` / `pre_fomc` / `event_proximity` / `reaction_asymmetry` → Engine 8 is CLEAN net-new.
+- **researcher C frontend** : 25-panel sequence on `/briefing/[asset]` mapped ; Engine 8 driver auto-surfaces on existing r142 4th tile via `deriveEngineDrivers()` filter ; OPTION A (driver-only) recommended for r147 ; OPTION B dedicated tile deferred r148+.
+
+**Implementation** (5 files, +1409 LOC committed `484819b`) :
+
+- NEW `apps/api/src/ichor_api/services/event_proximity_engine.py` (~430 LOC pure compute, no I/O beyond DB session) : `EventProximityFactor` frozen dataclass with 12 fields + `EVENT_CLASS_BASELINE_BP` literature priors (FOMC=50/ECB=35/BoE=25/BoJ=15/NFP=20/CPI=20) + `_map_title_to_event_class()` substring lookup (17 entries) + `_impact_multiplier()` high=1.0/medium=0.4/low=0.0 + `_time_decay()` linear + `_vix_regime_to_gate()` Kurov 2021 conditioning (p75=1.0/p50=0.4/below=0.1/unavailable=0.4 fallback) + `_currencies_for_asset()` mapping + `assess_event_proximity()` main with 8 honest edge-case handlers.
+- NEW `_factor_event_anticipation()` ~70 LOC in `confluence_engine.py` (12th builder appended to tuple line 705). **SF-1 calibration** : coefficient 1.2 + cap ±0.6 (was 0.4/0.5 ; without fix ALL drivers UNDER r142 0.2 threshold = invisible). Per-asset transmission parity with r137 `_factor_inflation_surprise` (USD-base long+ / X/USD short- / XAU=0 / SPX-NAS regime-conditioned).
+- `brier_optimizer.DEFAULT_FACTOR_NAMES` + `cli/run_brier_optimizer._FACTOR_NAMES` both append `"event_anticipation"` (12-tuple lockstep ; CI guard `test_r142_brier_optimizer_factor_names_lockstep` holds).
+- NEW `apps/api/tests/test_event_proximity_engine.py` 57 tests across 10 classes (pure-fn + 8 edge cases + ADR-017 invariants + Brier lockstep + r147 trader GAP-2/GAP-3 probes + code-reviewer N-1 call-order sentinel).
+
+**2-reviewer concordance applied** (doctrine #17 backend-LLM-data-pool class : trader + code-reviewer parallel ; all SHIP-WITH-FIXES, 0 BLOCK + 0 CRITICAL/RED) :
+
+- **CRITICAL OPERATIONAL fix SF-1** (code-reviewer math check) : coefficient 0.4 → 1.2 + cap 0.5 → 0.6 so FOMC=0.6/ECB=0.42/BoE=0.30/NFP=0.24/CPI=0.24 at peak ALL clear r142 ENGINE_DRIVER_MIN_ABS_CONTRIBUTION=0.2 threshold (BoJ=0.18 designed silence at peak matches weak BoJ literature).
+- **YELLOW-1 trader** : "Magnitude prior littérature, pas calibrée sur historique Ichor" ALWAYS appended to caveat (doctrine #11 honest cold-start disclosure).
+- **YELLOW-2 trader** : `raw *= 0.5` attenuation when VIX unavailable + confidence low (preserves driver visibility but signals degraded honesty).
+- **YELLOW-3 trader** : AUD/CAD/JPY-specific events (RBA Cash Rate, BoC Overnight Rate) fall through `event_class_unmapped` → silent None (doctrine #11 honest, r148+ extension).
+- **SF-3 code-reviewer** : `parse_failures.add("impact_value_invalid")` sentinel + `next_event_impact=None` on malformed impact (parity with r141 SurpriseClassification honesty).
+- **SF-2/SF-4 code-reviewer** : docstring align (lookahead<=0 auto-default + VIX "4 business sessions ≈ 8 calendar days").
+- **GAP-2 trader** : `_VIX_P50=18.0` + `_VIX_P75=24.0` pinned in test.
+- **GAP-3 trader** : 3 AsyncMock probe tests per-asset transmission discipline.
+- **N-1 code-reviewer** : Call-order sentinel test (events query before VIX query, defensive against future reorder).
+
+**Build gate (MEASURED — doctrine #14)** : pytest **214/214 cross-module** (57 r147 + 13 invariants_ichor + 47 r141 + 22 r145 + 35 r144 + 40 other) + ADR-017 invariants green + Brier lockstep CI guard passes + pre-commit ruff-format 2-pass clean.
+
+**Deploy via R-DEPLOY-6** (no SSH timeout this round) : local-tar → scp → ssh-extract+rsync+restart → healthz=200 ✓.
+
+**R-WITNESS-EMPIRICAL probe** : zero future high/medium USD events in 48h window today (Saturday + Memorial Day Monday + NFP next 2026-06-06) — Engine 8 returns None for all assets today HONESTLY per edge case 1 ; **next session-card cron `Sat 2026-05-23 17:01:17 CEST` (ny_mid, ~4h)** will exercise Engine 8 end-to-end via orchestrator hook (driver auto-surfaces on r142 4th tile when events return Tuesday+).
+
+**4-channel deploy verification** : (1) healthz=200 ✓ (2) 214/214 pytest ✓ (3) rsync+restart OK ✓ (4) next cron fire scheduled ⏳ for Engine 8 live exercise.
+
+**Honest scope (doctrine #2 + #11)** : NO new ADR (additive factor + lockstep registration, established r137 pattern) ; NO new migration ; NO frontend (driver-only) ; magnitude LITERATURE-CITED PRIOR not Ichor-calibrated (cold-start caveat always surfaced) ; AUD/CAD/JPY events unmapped (r148+) ; `output_gap_proxy` not wired (cycle default +1 with caveat r148+) ; no dedicated `<EventAnticipationPanel>` (r148+) ; no Polygon Developer tier scrape.
+
+Voie D held **62 rounds** (zero `import anthropic` r147 ; pure compute + ORM read + FRED:VIXCLS observation — no LLM call). Doctrine #9 dated APPEND, NO new ADR (additive factor builder + Brier lockstep registration, established r137 pattern). Doctrine-#9 coord-math ledger UNCHANGED.
+
+**Mission centrale axis impact** : **axis-4 🎯+1 r130 → axis-4 🎯+1 LEVEL r147 ⭐** (Engine 8 Event-Driven literature-cited prior LIVE on prod). Axes 1-2 ✅ r123 / 3 ✅ r132+r133 / **4 🎯+1 LEVEL r147 ⭐** / 5 ✅ EMPIRICALLY GREEN r146 / 6 ✅ CLOSED r142+r143 / 7 🎯 LIVE / 8 🎯+1 PARTIAL r131. **3 of 8 axes ✅ CLOSED + axis 5 EMPIRICALLY GREEN + axis 6 visual witness GREEN + axis 4 +1 LEVEL Engine 8 LIVE.**
+
+**NEW lesson r147 candidate** : **citation-identity-verify-via-web-R59-before-pin**. The paste-prompt v65 / ROADMAP §3 r147 candidate citation "Bauer CEPR DP21003" was hallucinated — researcher A web R59 caught it by reading the CEPR landing page directly. Pattern : any academic citation in doctrine/ADR/paste-prompt MUST be URL-primary-source verified at codify time. (Codify candidate r148 doctrine #11 extension.)
+
+**r148 binding default candidates** : (a) ⭐ AUTO-RECO empirical reaction-beta backfill via Stooq/yfinance daily-bar (replaces literature priors with Ichor-historical) ; (b) AUD/CAD/JPY title-fragment extension ; (c) `output_gap_proxy` wiring (business_cycle_sign from NFCI/SBET composite) ; (d) dedicated `<EventAnticipationPanel>` ; (e) VIX threshold empirical recompute (rolling p50/p75 from `fred_observations`) ; (f) **r142 polymarket factor name SSOT fix** (code-reviewer discovered Driver.factor="polymarket" vs Brier "polymarket_overlay" silent fall-through) ; (g) FF XML title-coverage CI invariant (deferred r144+) ; (h) ADR-017 web2 caveat RTL regex (deferred r143+r144+r145+r146+r147).

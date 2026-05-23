@@ -161,7 +161,42 @@ See `docs/ROADMAP_2026-05-06.md` for the original 4-layer architecture (DATA FOU
 
 ---
 
-## §3 — Immediate next (r147)
+## §3 — Immediate next (r148)
+
+**r147 EXECUTED & SHIPPED & DEPLOYED (2026-05-23)** : Mission centrale **axis-4 +1 LEVEL : Engine 8 Event-Driven anticipation factor LIVE** (1/5 ABSENT engines from 12-engine blueprint closed). PIVOT from v65 default candidate (a) "r144 reconciler unit normalization" to Engine 8 because Eliot's explicit emphasis on "anticipation par profondeur" + "12x au-delà" maps to closing 12-engine blueprint gaps ; unit normalization stays r148+ candidate.
+
+Phase 0 R59 triple-audit (3 sub-agents) : researcher A web caught CRITICAL paper-identity error in own paste-prompt v65 ("Bauer CEPR DP21003" is Acosta-Ajello-Bauer-Loria-Miranda-Agrippino 2026 FOMC Communication, NOT pre-FOMC drift — correct chain : Lucca-Moench 2015 JoF + Kurov 2021 + Boyd-Hu-Jagannathan 2005 + arXiv 2212.04525 + Peng-Pan 2024 + Quantpedia + Vojtko-Dujava SSRN 5384407). researcher B Ichor mapped 11 builders + Brier lockstep + lesson #32 EXISTS-but-BROKEN zero hits → CLEAN net-new. researcher C frontend recommended OPTION A driver-only (ZERO frontend change) for strict scope.
+
+Phase 1 (5 files +1409 LOC commit `484819b`) : NEW `services/event_proximity_engine.py` pure compute + 8 honest edge cases + `EVENT_CLASS_BASELINE_BP` literature priors (FOMC=50/ECB=35/BoE=25/BoJ=15/NFP=20/CPI=20) ; NEW `_factor_event_anticipation()` 12th builder in `confluence_engine.py` with **SF-1 calibration** (coefficient 1.2 + cap ±0.6 — without fix ALL drivers fell UNDER r142 0.2 threshold = invisible) ; Brier lockstep registration ; 57 NEW tests.
+
+Phase 2 2-reviewer concordance applied (backend-LLM-data-pool class, all SHIP-WITH-FIXES 0 BLOCK + 0 RED/CRITICAL) ; 10-item fix-cluster : SF-1 math fix + YELLOW-1 cold-start prior caveat ALWAYS appended + YELLOW-2 VIX-unavail attenuation + SF-2/SF-4 docstring align + SF-3 impact-invalid sentinel + YELLOW-3 AUD/CAD/JPY doc note + GAP-2 VIX threshold pin + GAP-3 per-asset transmission probe tests + N-1 call-order sentinel.
+
+Build gate : pytest **214/214 cross-module** + ADR-017 invariants green + Brier 12-factor lockstep CI guard passes + pre-commit ruff-format 2-pass clean. Deploy via R-DEPLOY-6 (no SSH timeout this round) → healthz=200 ✓.
+
+R-WITNESS-EMPIRICAL probe : zero future high/medium USD events in 48h window today (Memorial Day Monday US closed + NFP next 2026-06-06) → Engine 8 returns None HONESTLY per edge case 1 ; next session-card cron `Sat 2026-05-23 17:01:17 CEST` (ny_mid) will exercise Engine 8 end-to-end via orchestrator hook ; driver populates Tuesday+ when events return.
+
+Voie D **62 rounds**. **Mission centrale axes** : axis-4 🎯+1 r130 → **🎯+1 LEVEL r147 ⭐** ; 3 of 8 ✅ CLOSED + axis 5 EMPIRICALLY GREEN + axis 6 visual witness GREEN + axis 4 +1 LEVEL Engine 8 LIVE. **NEW lesson r147 candidate** : citation-identity-verify-via-web-R59-before-pin (codify r148 doctrine #11 extension).
+
+**r148 binding default candidates** (R59-AUDIT first to pick) :
+
+1. ⭐ **AUTO-RECO : empirical reaction-beta backfill** — replace Engine 8 literature priors with Ichor-historical estimates via Stooq/yfinance daily-bar backfill on past `economic_events.actual` releases. Decouples Engine 8 from literature drift. Effort M.
+2. **AUD/CAD/JPY title-fragment extension** — RBA Cash Rate, BoC Overnight Rate, BoJ Outlook variants. Mirror r144 `TITLE_FRAGMENT_TO_SERIES` pattern. Effort S.
+3. **`output_gap_proxy` wiring** — derive business_cycle_sign from NFCI/SBET/macro nowcast composite. Removes default-expansion caveat. Effort M.
+4. **Dedicated `<EventAnticipationPanel>` tile** — explicit Mission centrale axis-4 surface once 7d prod calibration validates the driver. Mirrors `<RecentActualsPanel>` visual grammar. Effort M.
+5. **VIX threshold empirical recompute** — replace hard-coded p50=18.0/p75=24.0 with rolling p50/p75 from `fred_observations` 5y window. Effort S.
+6. **r142 polymarket factor name SSOT fix** — code-reviewer discovered `_factor_polymarket` emits `Driver.factor="polymarket"` but Brier registries use `"polymarket_overlay"` → silent fall-through to 1.0 equal weight. Effort S.
+7. **r144 reconciler unit normalization upstream** (was r147 default, now r148 candidate) — per-series unit map applied at reconciler ingest BEFORE storage (PAYEMS *1000, HOUST *1000, etc.). r146 defensive heuristic stays as belt-and-suspenders. Effort M.
+8. **FF XML title-coverage CI invariant** (r144 trader Y2(a) UPGRADED, deferred r145+r146+r147). Effort S-M.
+9. **ADR-017 web2 caveat RTL regex** (deferred r143+r144+r145+r146+r147). Effort S-M.
+10. **`actual_source` column on economic_events** (trader Y3 r144 deferred). Effort S.
+11. **`actual_revised` column for T+24h revision overwrite**. Effort S-M.
+12. **Range envelope consensus-poll provider** — HIGH LEVERAGE (auto-lights state badges on r145 RecentActualsPanel). Effort M.
+13. **EU `actual` reconciler via ECB SDMX** — mirror r144 + R-WITNESS-EMPIRICAL + new unit-normalization from #7. Effort M.
+14. **UK `actual` reconciler via ONS API** — mirror r144 for GBP events. Effort M.
+15. **Codify NEW lesson r147** : citation-identity-verify-via-web-R59-before-pin (doctrine #11 extension). Effort S.
+16. **Code-reviewer S4 orchestrator hook AsyncMock test** (r142+r143+r144+r145+r146+r147 deferred). Effort S.
+
+## §3 — Previous immediate next (r147, EXECUTED above)
 
 **r146 EXECUTED & DEPLOYED & WITNESSED (2026-05-22)** : Mission centrale **axis-5 USER-SURFACE VISIBILITY EMPIRICAL GREEN end-to-end on public Hetzner** + **R-WITNESS-EMPIRICAL round-2 fix-cluster APPLIED SAME-ROUND** (unit-scale mismatch defensive heuristic). Phase 0 SSH liveness probe → Hetzner recovered. Phase 1A retry r145 deploy via R-DEPLOY-6 manual decomposition (both `redeploy-api.sh` step 3 AND `redeploy-web2.sh` step 2 hit same SSH timeout cluster — applied 3-short-call pattern successfully for BOTH backend AND frontend). Empirical Playwright witness REVEALED 3 visible-nonsense rows : Building Permits 1442 vs 1.38M → -99.9% + Housing Starts 1465 vs 1.42M → -99.9% + NFP 115 vs 65K → -99.8% (unit-scale mismatch class : FRED ALFRED bare numeric in series-native units vs FF abbreviated K/M/B suffixes). **R-WITNESS-EMPIRICAL pattern firing EXACTLY as codified r144** : pre-deploy 4-reviewer caught known issues but missed unit-scale class ; post-deploy empirical witness on real prod data caught it. Phase 1B round-2 fix-cluster applied SAME-ROUND (trader stop-loss challenge : initial "defer to r147" rejected as panic-defer, codified rule explicitly demands round-2 fix BEFORE flag stays ON for live cron). Defensive heuristic in `classify_surprise()` : `if max(|actual|, |consensus|) / min > 100x → magnitude_pct=None + parse_failures.add("unit_scale_mismatch")`. 9 NEW regression tests + 157/157 pytest pass. Re-deploy via R-DEPLOY-6 + Playwright re-witness on `/briefing/EUR_USD?cb=r146b` : 3 bug rows correctly showing `n/a` magnitude + 12 legitimate rows preserved. **Mission centrale axis-5 EMPIRICALLY GREEN end-to-end on public surface for the FIRST TIME** — r144 reconciler data + r141 classifier + r145 panel + r146 round-2 unit-scale defensive heuristic all working in concert. Voie D **61 rounds**. **Honest scope** : NO new ADR / NO new migration / NO upstream reconciler unit normalization (r147+ proper architectural fix) / NO small-consensus amplification UX fix (r147 scope). See `docs/SESSION_LOG_2026-05-22-r146-EXECUTION.md` + ADR-099 §Impl(r146).
 
