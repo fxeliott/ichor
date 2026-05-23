@@ -32,6 +32,7 @@ table.
 
 from __future__ import annotations
 
+import ast
 import re
 import tokenize
 from pathlib import Path
@@ -1286,4 +1287,94 @@ def test_r142_brier_optimizer_factor_names_lockstep() -> None:
         f"  Only in cli.run_brier_optimizer  : {sorted(cli_set - svc_set)}\n"
         "Update BOTH files in the same commit when adding a new "
         "confluence driver."
+    )
+
+
+def test_r148_confluence_engine_driver_emissions_match_brier_registry() -> None:
+    """r148 SSOT closure — `Driver(factor=X)` emissions vs Brier registry lockstep.
+
+    Closes the CI guard gap that allowed the r142 polymarket SSOT bug to
+    ship undetected. The pre-r148 r142 invariant
+    `test_r142_brier_optimizer_factor_names_lockstep` only checked
+    registry-vs-registry set equality between
+    `services.brier_optimizer.DEFAULT_FACTOR_NAMES` and
+    `cli.run_brier_optimizer._FACTOR_NAMES`. It did NOT cross-reference
+    the actual `Driver(factor=X)` literals emitted by
+    `confluence_engine.py`.
+
+    Root cause of the missed bug : `_factor_polymarket()` emitted
+    `Driver(factor="polymarket", ...)` while both registries listed
+    `"polymarket_overlay"`. The Brier optimizer at
+    `brier_optimizer.py:281` does
+    `arr = np.array([by_factor.get(name, 0.5) for name in factor_names])`
+    — silent fall-through to neutral 0.5 on the missing-name lookup.
+    The runtime weight lookup at `confluence_engine.py:_factor_weight`
+    likewise silently defaults to 1.0. The polymarket factor was
+    therefore effectively dropped from Brier optimization for the
+    r142→r147 window (~1 day in prod) before r148 discovered + fixed it.
+
+    This test parses `confluence_engine.py` via AST (no execution) and
+    asserts that the set of every literal `Driver(factor=<str>, ...)`
+    emission name is set-equal to `DEFAULT_FACTOR_NAMES`. Any future
+    factor-builder addition that drifts the emission name out of the
+    registry fails the build mechanically.
+
+    Cf lesson #34 lockstep CI-pin + doctrine #4 SSOT.
+    """
+    confluence_engine_py = (
+        _REPO_ROOT / "apps" / "api" / "src" / "ichor_api" / "services" / "confluence_engine.py"
+    )
+    src = confluence_engine_py.read_text(encoding="utf-8")
+    tree = ast.parse(src)
+
+    emitted: set[str] = set()
+    dynamic_emissions: list[tuple[int, str]] = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        func = node.func
+        if isinstance(func, ast.Name):
+            if func.id != "Driver":
+                continue
+        elif isinstance(func, ast.Attribute):
+            if func.attr != "Driver":
+                continue
+        else:
+            continue
+        for kw in node.keywords:
+            if kw.arg != "factor":
+                continue
+            if isinstance(kw.value, ast.Constant) and isinstance(kw.value.value, str):
+                emitted.add(kw.value.value)
+            else:
+                dynamic_emissions.append((node.lineno, ast.unparse(kw.value)))
+
+    assert not dynamic_emissions, (
+        "r148 lockstep CI violation : Driver(factor=...) emitted with a "
+        "DYNAMIC value at the following call sites in confluence_engine.py :\n"
+        + "\n".join(f"  line {ln} : factor={expr}" for ln, expr in dynamic_emissions)
+        + "\n\nDynamic factor names break SSOT lockstep verification : the "
+        "Brier optimizer matches factors by literal string name only. Use "
+        "a string literal for `factor=...` so this guard can statically "
+        "assert membership in DEFAULT_FACTOR_NAMES."
+    )
+
+    from ichor_api.services.brier_optimizer import DEFAULT_FACTOR_NAMES
+
+    registry = set(DEFAULT_FACTOR_NAMES)
+    only_emitted = emitted - registry
+    only_registry = registry - emitted
+
+    assert emitted == registry, (
+        "r148 SSOT lockstep violation : Driver(factor=...) emissions in "
+        "confluence_engine.py have drifted out of set-equality with "
+        "DEFAULT_FACTOR_NAMES.\n"
+        f"  Emitted but missing from registry : {sorted(only_emitted)}\n"
+        f"  In registry but never emitted     : {sorted(only_registry)}\n"
+        "\nMissing-from-registry emissions silently fall back to neutral "
+        "0.5 in brier_optimizer.by_factor.get(name, 0.5) — the factor is "
+        "effectively dropped from Brier optimization. Fix : align the "
+        "Driver(factor=...) string literal to the canonical name in "
+        "DEFAULT_FACTOR_NAMES (and _FACTOR_NAMES per the existing r142 "
+        "registry lockstep test)."
     )

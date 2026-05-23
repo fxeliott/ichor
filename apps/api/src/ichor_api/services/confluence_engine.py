@@ -411,7 +411,9 @@ async def _factor_polymarket(session: AsyncSession, asset: str) -> Driver | None
         return None
     raw = max(-1.0, min(1.0, total_contribution))
     return Driver(
-        factor="polymarket",
+        # r148 — canonical name in brier_optimizer.DEFAULT_FACTOR_NAMES ;
+        # pre-r148 emitted bare "polymarket" → silent fall-through to 0.5
+        factor="polymarket_overlay",
         contribution=raw,
         evidence=" ; ".join(matched_examples)[:240],
         source="polymarket:keyword_aggregate",
