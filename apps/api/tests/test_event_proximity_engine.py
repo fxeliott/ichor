@@ -1080,3 +1080,260 @@ class TestR149EventClassConsistencyInvariant:
             "basis points (cite the source in a code comment per lesson "
             "#37 honest-scope discipline)."
         )
+
+
+# ── r150 AUD/CAD Employment Change explicit mapping ───────────────────
+
+
+class TestR150EmploymentClassMapping:
+    """r150 — closes r149 honest-scope gap "AUD/CAD Employment Change falls
+    through to `high_other` 10bp" (trader YELLOW-5 acknowledged as
+    conservative cold-start prior). r150 adds generic "Employment" event
+    class with 20bp baseline (aligned with NFP per labor-market release
+    literature priors). Maps :
+
+    - AUD "Employment Change" → Employment
+    - CAD "Employment Change" → Employment
+    - Any "Unemployment Rate" (US/AUD/CAD cross-currency) → Employment
+
+    PRESERVES r147 first-match-wins for US-specific NFP via pattern order :
+    `non-farm employment change` matches BEFORE `employment change` in tuple.
+    """
+
+    def test_bare_employment_change_maps_Employment_AUD(self) -> None:
+        """AUD FF XML title is bare 'Employment Change' (no 'Non-Farm' prefix)."""
+        assert _map_title_to_event_class("Employment Change") == "Employment"
+
+    def test_bare_employment_change_lowercase_maps_Employment_CAD(self) -> None:
+        """Same bare title for CAD. Title-only mapping (no currency context)."""
+        assert _map_title_to_event_class("employment change") == "Employment"
+
+    def test_unemployment_rate_maps_Employment(self) -> None:
+        """Cross-currency Unemployment Rate (US/AUD/CAD all use this bare title)."""
+        assert _map_title_to_event_class("Unemployment Rate") == "Employment"
+
+    def test_non_farm_employment_change_STILL_maps_NFP(self) -> None:
+        """REGRESSION : US-specific NFP must NOT fall into Employment class.
+        First-match-wins on pattern order ensures `non-farm employment change`
+        matches BEFORE generic `employment change`."""
+        assert _map_title_to_event_class("Non-Farm Employment Change") == "NFP"
+
+    def test_nonfarm_payrolls_STILL_maps_NFP(self) -> None:
+        """REGRESSION : second NFP variant unaffected by r150 generic Employment."""
+        assert _map_title_to_event_class("Nonfarm Payrolls") == "NFP"
+
+
+class TestR150NfpMappingPriorityProtected:
+    """r150 trader YELLOW-4 concordance fix — first-match-wins ordering MUST
+    preserve US NFP specificity even after the r150 generic `("employment
+    change", "Employment")` pattern was added. Defensive against future
+    FF title drift (e.g., FF rebrands "Non-Farm Employment Change" to
+    "Employment Change (United States)") that would silently steal NFP
+    into the generic Employment class.
+
+    The current first-match-wins pattern order at `_TITLE_TO_EVENT_CLASS`
+    ensures `non-farm employment change` matches BEFORE generic
+    `employment change`. This invariant pin documents + protects that
+    contract mechanically.
+    """
+
+    def test_non_farm_employment_change_pins_to_NFP(self) -> None:
+        """REGRESSION pin : US-specific NFP must map to NFP class, not the
+        generic r150 Employment class."""
+        assert _map_title_to_event_class("Non-Farm Employment Change") == "NFP"
+
+    def test_nonfarm_payrolls_pins_to_NFP(self) -> None:
+        """Second US NFP variant unaffected by Employment generic."""
+        assert _map_title_to_event_class("Nonfarm Payrolls") == "NFP"
+
+    def test_employment_change_without_nfp_prefix_falls_to_Employment(self) -> None:
+        """Confirm the generic Employment pattern DOES match when no NFP
+        prefix is present (AUD/CAD case)."""
+        assert _map_title_to_event_class("Employment Change") == "Employment"
+
+    def test_employment_change_with_country_suffix_falls_to_Employment(self) -> None:
+        """Edge case from trader YELLOW-4 : if FF ever emits a country-tagged
+        variant like 'Employment Change (United States)', the generic
+        Employment pattern catches it. While that loses NFP-class identity,
+        the magnitude (20bp) is the same. This test documents the trade-off
+        so a future FF rebrand surfaces this behaviour explicitly."""
+        # Substring match : "employment change" is in "employment change (united states)"
+        assert _map_title_to_event_class("Employment Change (United States)") == "Employment"
+
+
+class TestR150SingleSourceDirectionSentinel:
+    """r150 trader YELLOW-2 concordance fix — RBA/BoC events surface the
+    single-source weakness via BOTH the caveat string AND a machine-readable
+    `parse_failures` sentinel `"single_source_direction"`. Mirror of r141
+    `SurpriseClassification.parse_failures` discipline so downstream
+    consumers (Brier optimizer, frontend `deriveEngineDrivers`) can filter
+    mechanically on the weakness instead of parsing the human-readable
+    caveat string.
+    """
+
+    @pytest.mark.asyncio
+    async def test_rba_event_adds_single_source_direction_sentinel(self) -> None:
+        evt = _make_event_row(
+            title="Cash Rate",
+            impact="high",
+            currency="AUD",
+            scheduled_at=datetime(2026, 6, 3, 4, 30, tzinfo=UTC),
+        )
+        session = _build_session(
+            event_rows=[evt],
+            vix_row=_make_fred_row(20.0, datetime(2026, 5, 23, tzinfo=UTC).date()),
+        )
+        result = await assess_event_proximity(
+            session,
+            asset="AUD_USD",
+            now=datetime(2026, 6, 1, 12, 0, tzinfo=UTC),
+            business_cycle_sign=1,
+        )
+        assert result is not None
+        assert "single_source_direction" in result.parse_failures
+
+    @pytest.mark.asyncio
+    async def test_boc_event_adds_single_source_direction_sentinel(self) -> None:
+        evt = _make_event_row(
+            title="Overnight Rate",
+            impact="high",
+            currency="CAD",
+            scheduled_at=datetime(2026, 6, 4, 14, 0, tzinfo=UTC),
+        )
+        session = _build_session(
+            event_rows=[evt],
+            vix_row=_make_fred_row(20.0, datetime(2026, 5, 23, tzinfo=UTC).date()),
+        )
+        result = await assess_event_proximity(
+            session,
+            asset="USD_CAD",
+            now=datetime(2026, 6, 1, 12, 0, tzinfo=UTC),
+            business_cycle_sign=1,
+        )
+        assert result is not None
+        assert "single_source_direction" in result.parse_failures
+
+    @pytest.mark.asyncio
+    async def test_fomc_event_does_NOT_add_single_source_sentinel(self) -> None:
+        """REGRESSION : FOMC events must NOT carry RBA/BoC-specific sentinel
+        (Lucca-Moench is peer-reviewed JoF, not single-source)."""
+        evt = _make_event_row(
+            title="Federal Funds Rate",
+            impact="high",
+            currency="USD",
+            scheduled_at=datetime(2026, 6, 18, 18, 0, tzinfo=UTC),
+        )
+        session = _build_session(
+            event_rows=[evt],
+            vix_row=_make_fred_row(20.0, datetime(2026, 5, 23, tzinfo=UTC).date()),
+        )
+        result = await assess_event_proximity(
+            session,
+            asset="EUR_USD",
+            now=datetime(2026, 6, 1, 12, 0, tzinfo=UTC),
+            business_cycle_sign=1,
+        )
+        assert result is not None
+        assert "single_source_direction" not in result.parse_failures
+
+
+class TestR150EmploymentBaseline:
+    """r150 — `EVENT_CLASS_BASELINE_BP` must include the new 'Employment'
+    key at 20bp (aligned with NFP magnitude per Lucca-Moench 2015 + Kurov
+    2021 labor-market release priors). The r149 event-class consistency
+    invariant `TestR149EventClassConsistencyInvariant` (subset-not-equality)
+    would otherwise fail if Employment is emitted but lacks a baseline.
+    """
+
+    def test_employment_baseline_present(self) -> None:
+        assert "Employment" in EVENT_CLASS_BASELINE_BP
+        assert EVENT_CLASS_BASELINE_BP["Employment"] == 20.0
+
+    def test_employment_baseline_matches_nfp_magnitude(self) -> None:
+        """Cross-check labor-market release prior consistency."""
+        assert EVENT_CLASS_BASELINE_BP["Employment"] == EVENT_CLASS_BASELINE_BP["NFP"]
+
+
+class TestR150VojtkoDujavaSingleSourceDisclosure:
+    """r150 — r149's RBA/BoC direction caveat is REPLACED with a single-source
+    disclosure honestly reflecting researcher web R59 verification :
+    Vojtko-Dujava SSRN 5384407 paper title is "Pre-Announcement Drift for
+    BoE, BoJ, SNB" (NOT RBA/BoC) ; RBA/BoC NEGATIVE drift appears only as
+    secondary histogram observation. r149 sign-flip implementation DEFERRED
+    INDEFINITELY until peer-reviewed replication appears. Doctrine #11
+    calibrated honesty : surface the source weakness in the runtime caveat.
+    """
+
+    @pytest.mark.asyncio
+    async def test_rba_caveat_contains_single_source_disclosure(self) -> None:
+        """An RBA event must produce a caveat naming the single-source nature
+        + the secondary-observation framing."""
+        evt = _make_event_row(
+            title="Cash Rate",
+            impact="high",
+            currency="AUD",
+            scheduled_at=datetime(2026, 6, 3, 4, 30, tzinfo=UTC),
+        )
+        session = _build_session(
+            event_rows=[evt],
+            vix_row=_make_fred_row(20.0, datetime(2026, 5, 23, tzinfo=UTC).date()),
+        )
+        result = await assess_event_proximity(
+            session,
+            asset="AUD_USD",
+            now=datetime(2026, 6, 1, 12, 0, tzinfo=UTC),
+            business_cycle_sign=1,
+        )
+        assert result is not None
+        assert result.next_event_class == "RBA"
+        assert "source unique non-répliquée" in result.caveat
+        assert "BoE/BoJ/SNB" in result.caveat
+        # ALWAYS prior caveat still appended
+        assert "Magnitude prior littérature" in result.caveat
+
+    @pytest.mark.asyncio
+    async def test_boc_caveat_contains_single_source_disclosure(self) -> None:
+        evt = _make_event_row(
+            title="Overnight Rate",
+            impact="high",
+            currency="CAD",
+            scheduled_at=datetime(2026, 6, 4, 14, 0, tzinfo=UTC),
+        )
+        session = _build_session(
+            event_rows=[evt],
+            vix_row=_make_fred_row(20.0, datetime(2026, 5, 23, tzinfo=UTC).date()),
+        )
+        result = await assess_event_proximity(
+            session,
+            asset="USD_CAD",
+            now=datetime(2026, 6, 1, 12, 0, tzinfo=UTC),
+            business_cycle_sign=1,
+        )
+        assert result is not None
+        assert result.next_event_class == "BoC"
+        assert "source unique non-répliquée" in result.caveat
+        assert "BoE/BoJ/SNB" in result.caveat
+
+    @pytest.mark.asyncio
+    async def test_fomc_caveat_does_NOT_contain_single_source_disclosure(self) -> None:
+        """REGRESSION : FOMC events must NOT carry RBA/BoC-specific disclosure."""
+        evt = _make_event_row(
+            title="Federal Funds Rate",
+            impact="high",
+            currency="USD",
+            scheduled_at=datetime(2026, 6, 18, 18, 0, tzinfo=UTC),
+        )
+        session = _build_session(
+            event_rows=[evt],
+            vix_row=_make_fred_row(20.0, datetime(2026, 5, 23, tzinfo=UTC).date()),
+        )
+        result = await assess_event_proximity(
+            session,
+            asset="EUR_USD",
+            now=datetime(2026, 6, 1, 12, 0, tzinfo=UTC),
+            business_cycle_sign=1,
+        )
+        assert result is not None
+        assert result.next_event_class == "FOMC"
+        assert "source unique non-répliquée" not in result.caveat
+        assert "BoE/BoJ/SNB" not in result.caveat

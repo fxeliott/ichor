@@ -43,9 +43,13 @@ ACADEMIC FOUNDATIONS (verbatim citations, NOT memory)
 - Peng & Pan (2024) SSRN 4764451 : 10Y UST yield drops 0.79bp on day
   before FOMC (1994-2022), driven entirely by the term premium ; magnitude
   intensifies (1.91bp) conditional on high Macro Attention Index.
-- Quantpedia (2024) + Vojtko-Dujava SSRN 5384407 : pre-ECB drift strongest
-  day BEFORE announcement ; BoE/SNB show positive pre-announcement drift ;
-  BoC/RBA show NEGATIVE drift (opposite sign).
+- Vojtko-Dujava SSRN 5384407 (June 2025) "Pre-Announcement Drift for BoE,
+  BoJ, SNB" : MAIN result = POSITIVE pre-drift for those 3 central banks.
+  RBA/BoC NEGATIVE drift = SECONDARY histogram observation only (commodity-
+  exporter divergence hypothesis), single-source unreplicated working paper.
+  r150 sign-flip implementation deferred ; magnitude-only as cold-start prior
+  + runtime caveat surfaces the single-source weakness honestly (lesson #38
+  trader-claims-hypothesis-verify + lesson #11 calibrated refusal).
 
 HONEST SCOPE LIMITATIONS (doctrine #11 + lesson #37)
 ---------------------------------------------------
@@ -117,12 +121,15 @@ EVENT_CLASS_BASELINE_BP: dict[str, float] = {
     "ECB": 35.0,
     "BoE": 25.0,
     "BoJ": 15.0,
-    # r149 — AUD/CAD/JPY central-bank extensions (Vojtko-Dujava SSRN 5384407,
-    # Quantpedia 2024). Magnitude ~ 25bp aligned with BoE per FX-G10 vol regime.
-    # NB direction is event-class-conditional : Vojtko-Dujava documents BoC/RBA
-    # as NEGATIVE pre-announcement drift (sign-flip vs FOMC) — currently
-    # handled at the per-asset transmission layer ; r150+ candidate :
-    # per-event-class sign override in `business_cycle_sign` resolution.
+    # r149 — AUD/CAD/JPY central-bank extensions. Magnitude ~ 25bp aligned with
+    # BoE per FX-G10 vol regime.
+    # r150 single-source disclosure (researcher web R59) : Vojtko-Dujava SSRN
+    # 5384407 (June 2025) paper title is "Pre-Announcement Drift for BoE, BoJ,
+    # SNB" — its main result is POSITIVE drift for those 3. RBA/BoC NEGATIVE
+    # drift appears only as secondary histogram observation (commodity-exporter
+    # divergence hypothesis), unreplicated single source. Sign-flip deferred
+    # indefinitely until peer-reviewed replication ; magnitude-only POSITIVE
+    # 25bp as cold-start prior + caveat surfaces the source weakness honestly.
     "RBA": 25.0,
     "BoC": 25.0,
     # Tankan quarterly survey (BoJ's flagship business sentiment) — magnitude
@@ -131,6 +138,11 @@ EVENT_CLASS_BASELINE_BP: dict[str, float] = {
     # Tier-1 US macro — generic 20bp estimate (smaller than Fed, larger than tier-2)
     "NFP": 20.0,
     "CPI": 20.0,
+    # r150 — generic Employment family (AUD/CAD bare "Employment Change" + cross-
+    # currency "Unemployment Rate"). Magnitude aligned with NFP per labor-market
+    # release literature priors (Lucca-Moench 2015 + Kurov 2021 — 18 macro
+    # announcements, employment-class events all ~20bp magnitude).
+    "Employment": 20.0,
     # Other high-impact macro (PPI, ISM, Retail Sales, etc.)
     "high_other": 10.0,
     # Tier-2 events
@@ -239,9 +251,17 @@ _TITLE_TO_EVENT_CLASS: tuple[tuple[str, str], ...] = (
     ("overnight rate", "BoC"),  # bare FF XML title for BoC decision
     # Tankan (r149 new — Japan flagship business sentiment, quarterly)
     ("tankan", "Tankan"),
-    # Tier-1 US macro
+    # Tier-1 US macro — NFP-specific (US-only) before generic Employment family
     ("non-farm employment change", "NFP"),
     ("nonfarm payrolls", "NFP"),
+    # r150 — generic employment family for AUD/CAD bare "Employment Change"
+    # (FF XML title without "Non-Farm" prefix) + cross-currency "Unemployment
+    # Rate". Empirically verified in prod DB : 1 AUD high-impact + 1 CAD high-
+    # impact + 1 USA high-impact each in last 30 days (researcher web R59 +
+    # prod SQL probe r149+r150). Magnitude 20bp aligned with NFP (literature
+    # priors for labor-market releases per Lucca-Moench 2015 + Kurov 2021).
+    ("employment change", "Employment"),
+    ("unemployment rate", "Employment"),
     # CPI variants — more specific BEFORE generic to preserve match order
     ("core cpi m/m", "CPI"),
     ("core cpi y/y", "CPI"),
@@ -439,14 +459,22 @@ async def assess_event_proximity(
     elevate JPY impact handling explicitly OR ingest alternative
     provider with proper JPY-event impact rating.
 
-    HONEST SCOPE — RBA/BoC PRE-DRIFT DIRECTION (trader YELLOW-1, r149) :
+    HONEST SCOPE — RBA/BoC PRE-DRIFT DIRECTION (r150 single-source disclosure) :
 
-    Vojtko-Dujava SSRN 5384407 documents RBA/BoC pre-announcement drift
-    as NEGATIVE (sign-flip vs FOMC positive drift). r149 ships POSITIVE
-    baseline_bp + default `+1` business_cycle_sign ; the runtime caveat
-    string surfaces this honestly when event_class in {"RBA","BoC"}.
-    r150+ candidate : per-event-class sign override in business_cycle_
-    sign resolution OR negative baseline_bp for RBA/BoC.
+    Vojtko-Dujava SSRN 5384407 (June 2025) is titled "Pre-Announcement Drift
+    for BoE, BoJ, SNB" — its MAIN result is POSITIVE pre-drift for those 3
+    central banks. RBA/BoC NEGATIVE drift appears only as a SECONDARY
+    histogram observation (commodity-exporter divergence hypothesis). The
+    claim is SINGLE-SOURCE (Quantpedia-affiliated working paper, 71
+    downloads, no formal t-statistic battery in the blog write-up) and
+    UNREPLICATED. r150 researcher web R59 found NO independent secondary
+    confirmation (Kurov / Boyd-Hu-Jagannathan / BIS / RBA / BoC research
+    papers do not cover RBA/BoC pre-drift sign). r150 therefore KEEPS the
+    POSITIVE baseline_bp + caveat strategy : magnitude-only as cold-start
+    prior + runtime caveat surfaces the single-source weakness honestly.
+    Sign-flip implementation deferred INDEFINITELY until (a) Vojtko-Dujava
+    reaches peer-reviewed publication OR (b) independent replication
+    appears (Hu/Pan-style methodology on TSX/ASX intraday).
 
     R-WITNESS-EMPIRICAL discipline : post-deploy probe
     `SELECT title FROM economic_events WHERE impact='high' AND title
@@ -567,16 +595,25 @@ async def assess_event_proximity(
         caveat_parts.append("VIX indisponible, gate régime dégradée")
     if event_class is None:
         caveat_parts.append("Classe d'événement non mappée")
-    # r149 trader YELLOW-1 : Vojtko-Dujava SSRN 5384407 documents RBA/BoC
-    # pre-announcement drift as NEGATIVE (sign-flip vs FOMC positive drift).
-    # r149 ships POSITIVE baseline + default `+1` business_cycle_sign ;
-    # per-event-class sign override is r150+ candidate. Surface the
-    # direction-not-implemented caveat honestly per doctrine #11.
+    # r150 single-source disclosure (researcher web R59 verification) :
+    # Vojtko-Dujava SSRN 5384407 paper title is "Pre-Announcement Drift for
+    # BoE, BoJ, SNB" — RBA/BoC NEGATIVE drift appears only as secondary
+    # histogram observation. Single-source unreplicated working paper ;
+    # r150 KEEPS positive baseline + caveat strategy (no sign-flip in code)
+    # until independent peer-reviewed replication appears. Doctrine #11
+    # calibrated honesty : surface the source weakness explicitly via BOTH
+    # the human-readable caveat string AND the machine-readable
+    # `parse_failures` sentinel (r150 trader YELLOW-2 concordance fix :
+    # caveat string-only honesty is asymmetric, frontend/Brier consume
+    # `Driver.contribution` magnitude without reading caveat ; sentinel
+    # lets downstream filter on `single_source_direction` mechanically,
+    # mirroring r141 `SurpriseClassification.parse_failures` pattern).
     if event_class in ("RBA", "BoC"):
         caveat_parts.append(
-            "Drift pre-event RBA/BoC documenté négatif (Vojtko-Dujava), "
-            "direction r150+ ; magnitude r149 = prior positif littérature"
+            "Drift pre-event RBA/BoC : source unique non-répliquée "
+            "(Vojtko-Dujava SSRN 5384407 — sign-flip secondaire vs BoE/BoJ/SNB)"
         )
+        parse_failures.add("single_source_direction")
     # ALWAYS append the cold-start prior caveat (trader YELLOW-1).
     caveat_parts.append("Magnitude prior littérature, pas calibrée sur historique Ichor")
     caveat = " ; ".join(caveat_parts)

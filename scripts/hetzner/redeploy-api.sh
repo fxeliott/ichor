@@ -105,7 +105,30 @@ cmd_deploy() {
   "
 
   log "Step 4: restart ${SVC}; wait /healthz"
-  ${SSH} "sudo systemctl restart ${SVC}"
+  # r150 — R-DEPLOY-6 Step-4 SSH-timeout decompose rule (lesson #24 explicit
+  # codification, doctrinal pattern #14). The single `${SSH} "systemctl
+  # restart"` call has timed out r147→r148→r149 consecutively — stable
+  # failure pattern, not transient. Decompose into 3 retryable short calls
+  # with sleep-then-retry instead of failing the whole deploy on first
+  # timeout. Manual recovery from past rounds is now baked in.
+  local restart_ok=0
+  # r150 code-reviewer SHOULD-FIX : DO NOT `2>/dev/null` here — stderr must
+  # leak through so legitimate non-timeout failures (sudoers / unit-not-
+  # found / OOM) are visible to the operator instead of hidden behind a
+  # misleading "SSH timed out" log. The retry-on-any-error semantics stay
+  # correct (we retry regardless of which failure mode hit).
+  for attempt in 1 2 3; do
+    if ${SSH} -o ConnectTimeout=15 "sudo systemctl restart ${SVC}"; then
+      restart_ok=1
+      log "Step 4 attempt ${attempt}: SSH restart OK"
+      break
+    fi
+    log "Step 4 attempt ${attempt}/3 failed (timeout OR non-zero exit, see stderr above), sleep 15s + retry"
+    sleep 15
+  done
+  if [[ ${restart_ok} -eq 0 ]]; then
+    fail "Step 4 SSH restart failed 3 attempts (lesson #24 SSH-instability cluster) — manual intervention required" 9
+  fi
   local h="000"
   for _ in $(seq 1 30); do
     h="$(probe "${HEALTH}")"
