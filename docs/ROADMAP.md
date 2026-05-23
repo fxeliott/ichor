@@ -161,7 +161,45 @@ See `docs/ROADMAP_2026-05-06.md` for the original 4-layer architecture (DATA FOU
 
 ---
 
-## §3 — Immediate next (r148)
+## §3 — Immediate next (r149)
+
+**r148 EXECUTED & SHIPPED & DEPLOYED (2026-05-23)** : Tier 4 hygiene + Tier 1 doctrine — polymarket factor name SSOT alignment + emission-vs-registry CI invariant + r147 carry-forward fix. **PIVOT from v66 default candidate (a) "empirical reaction-beta backfill" because researcher web R59 EMPIRICALLY DISPROVED the methodological coherence** (Stooq/yfinance daily-bar cannot estimate 5-min intraday reaction-betas ; published 2015-2026 literature ALL uses intraday tick or minute bars in ≤30-min windows ; daily Adj Close is confounded by other releases ; Stooq 5-min has only ~1 month history vs the 5y design assumed). Anti-FOMO trader discipline + lesson #38 applied. Pivoted to candidate #6 (polymarket factor name SSOT fix) — a real production defect with clean scope and high doctrinal leverage.
+
+Phase 0 R59 dual-audit (2 parallel sub-agents) : ichor-navigator mapped polymarket factor → Brier flow + identified CI guard gap (registry-vs-registry equality but NEVER inspected `Driver(factor=X)` emissions) ; researcher web verified academic literature + free intraday provider pricing 2026.
+
+Phase 1 (3 files, +107 / -2 commit `3191616`) : (1) `confluence_engine.py:414` `factor="polymarket"` → `factor="polymarket_overlay"` 1-line align ; (2) NEW `tests/test_invariants_ichor.py::test_r148_confluence_engine_driver_emissions_match_brier_registry` AST-walks `confluence_engine.py` extracting every `Driver(factor=<str>)` literal, asserts set-equality vs `DEFAULT_FACTOR_NAMES`, fails loudly on dynamic emissions ; (3) `tests/test_brier_optimizer_cli.py::test_factor_names_match_confluence_engine` r147 carry-forward fix — added `"event_anticipation"` to hard-coded expected set (r147's "214/214" claim was a subset of the full suite which had 1 latent fail since r147).
+
+Phase 2 2-reviewer concordance (doctrine #17 backend-LLM-data-pool class) : ichor-trader SHIP-WITH-FIX 0 RED 3 YELLOW + code-reviewer READY TO MERGE 1 SHOULD-FIX 0 CRITICAL. Both YELLOW/SHOULD-FIX about "30-day Brier rolling-window historical JSONB contamination" RESOLVED EMPIRICALLY via pre-emptive SSH probe : **0 cards EVER in the entire DB history had `factor="polymarket"` literal** (`_factor_polymarket()` consistently returned None on every prod card since r142 LIVE — no `_POLY_KEYWORDS` match-impact fired). Production bug exposure = nil ; backfill concern moot.
+
+Build gate : pytest **2458 passed + 34 skipped, exit 0** (was 2457+1fail = r147 carry-forward closed) + targeted 197/197 + ruff clean + ADR-017 invariants green + both Brier lockstep CI guards pass (r142 registry-vs-registry + r148 emission-vs-registry).
+
+Deploy via R-DEPLOY-6 (lesson #24 SSH-timeout fired on Step 4, recovered via direct SSH after liveness probe) → healthz=200 + sample=200 + code on prod `factor="polymarket_overlay"` at line 416. **R-WITNESS-EMPIRICAL** : next `ichor-session-cards-ny_mid.timer` fire `Sat 2026-05-23 17:01:17 CEST` will exercise the polymarket path with canonical name ; today's factor likely returns None (per `_factor_polymarket()` empirical pattern observed in last 45 prod cards) — the genuine witness comes when polymarket triggers on a matching keyword-impact event.
+
+Honest scope : NO new ADR (additive 1-line fix + CI invariant + carry-forward hygiene, established lesson #34 pattern) ; NO new migration ; NO frontend changes ; NO data backfill needed (0 historical rows had buggy literal) ; deletion of now-tautological `test_factor_names_match_confluence_engine` deferred r149.
+
+Voie D held **63 rounds**. Mission centrale axes : no axis state change — r148 is doctrinal hygiene + Brier infrastructure correctness, not axis closure. The new emission-vs-registry CI invariant protects all 12 factors (every Mission axis touching the confluence pipeline) against the same class of bug going forward.
+
+**NEW lesson r147 codified r148** : pattern #13 `citation-identity-verify-via-web-R59-before-pin` appended to `~/.claude/projects/D--Ichor/memory/ichor_r51-r71_doctrinal_patterns.md`. Doctrine #11 calibrated-honesty extension on EXTERNAL fact verification (distinct from lesson #38 INTERNAL claim verification).
+
+**NEW pattern observation r148 (r149 codification candidate)** : emission-vs-registry lockstep is a necessary complement to registry-vs-registry lockstep when a factor-builder-like pattern exists ; set-equality between 2 registries is insufficient if a 3rd site can drift.
+
+**r149 binding default candidates** (R59-AUDIT first to pick) :
+
+1. ⭐ **AUTO-RECO : AUD/CAD/JPY title-fragment extension to Engine 8** — `_map_title_to_event_class()` currently covers USD/EUR/GBP + partial JPY ; RBA Cash Rate, BoC Overnight Rate, StatCan CPI, BoJ Outlook Report, Tankan Survey unmapped → events fall through as `event_class="other"` baseline=10bp. Mirror r144 `TITLE_FRAGMENT_TO_SERIES` pattern. Effort S.
+2. **VIX threshold empirical recompute** — replace hardcoded `_VIX_P50=18.0` + `_VIX_P75=24.0` with rolling p50/p75 from `fred_observations` series=VIXCLS 5y window. Closes r147 GAP-2 deferred. Effort S.
+3. **`output_gap_proxy` wiring** — composite NFCI (Chicago Fed) + SBET (NFIB) + macro nowcast → `business_cycle_sign ∈ {-1, 0, +1}`. Removes Engine 8 default `+1 with caveat`. Effort M.
+4. **Delete the now-tautological `test_factor_names_match_confluence_engine`** — r148 docstring flagged it ; new r148 AST invariant + r142 registry-vs-registry guard provide superior coverage. Effort S.
+5. **Dedicated `<EventAnticipationPanel>` tile** once 7d Engine 8 prod calibration accumulates. Mirrors `<RecentActualsPanel>` visual grammar. Effort M.
+6. **Empirical reaction-beta backfill** properly designed via Dukascopy 1-min FX/XAU/indices multi-year FREE (3-5 dev-days, methodologically rigorous per researcher web R59) OR Polygon Stocks Starter $29/mo + Currencies free tier (~2 dev-days within Voie D budget tolerance). Effort M-L.
+7. **Codify r148 emission-vs-registry pattern as lesson #39** in `ichor_r51-r71_doctrinal_patterns.md`. Effort S.
+8. **r144 reconciler unit normalization upstream** — per-series unit map applied at ingest BEFORE storage (PAYEMS *1000, HOUST *1000, PERMIT \*1000). r146 defensive heuristic stays as belt-and-suspenders. Effort M.
+9. **FF XML title-coverage CI invariant** (deferred r144+r145+r146+r147+r148). Effort S-M.
+10. **ADR-017 web2 caveat RTL regex** (deferred r143+r144+r145+r146+r147+r148). Effort S-M.
+11. **`actual_source` / `actual_revised` columns** + EU `actual` reconciler via ECB SDMX + UK via ONS API (mirror r144 pattern, ~M each).
+12. **Codify R-DEPLOY-6 step-4 SSH-timeout decompose pattern** as explicit rule (lesson #24 mitigation : when step 4 systemctl restart times out, do liveness probe + direct SSH manual restart). Effort S.
+13. **Code-reviewer S4 orchestrator hook AsyncMock test** (r142+r143+r144+r145+r146+r147+r148 deferred). Effort S.
+
+## §3 — Previous immediate next (r148, EXECUTED above)
 
 **r147 EXECUTED & SHIPPED & DEPLOYED (2026-05-23)** : Mission centrale **axis-4 +1 LEVEL : Engine 8 Event-Driven anticipation factor LIVE** (1/5 ABSENT engines from 12-engine blueprint closed). PIVOT from v65 default candidate (a) "r144 reconciler unit normalization" to Engine 8 because Eliot's explicit emphasis on "anticipation par profondeur" + "12x au-delà" maps to closing 12-engine blueprint gaps ; unit normalization stays r148+ candidate.
 
