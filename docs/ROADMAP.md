@@ -161,7 +161,41 @@ See `docs/ROADMAP_2026-05-06.md` for the original 4-layer architecture (DATA FOU
 
 ---
 
-## §3 — Immediate next (r153)
+## §3 — Immediate next (r154)
+
+**r153 EXECUTED & SHIPPED & DEPLOYED & WITNESSED (2026-05-24)** : Tier 4 axis-4 +1 LEVEL DEPTH — Engine 8 sentiment-class extension (CCI=10bp + Michigan=10bp + ISM=15bp + `asymmetric_negativity_bias` sentinel) + 12 new title patterns (closes ~73% pre-r153 coverage gap to ~39%) + 4 latent bug fixes (`gdp m/m`, `prelim gdp price index` added ; `adp non-farm` + `rbnz monetary policy statement` defensively blocked) + FF title-coverage CI invariant META-FIX (94-event fixture + ratchet threshold 35% — failing CI is the FEATURE) + Pattern #16 R-DEPLOY-6 Step-3 SSH-pipe decompose codified in `redeploy-{api,web2}.sh`. **Pattern #16 EMPIRICALLY VALIDATED in r153 deploy itself** — 3a/3b/3c on api+web2 each attempt 1 OK, zero retry, first round since r147 with no SSH-timeout cluster.
+
+**Pattern #15 R59-disprove caught Karnaukh-Vrolijk 2019 _JFE_ HALLUCINATION** (cited in r152 closing-sync from training-data memory ; closest real paper is Karnaukh-Vokata 2022 _JFE_ on FOMC growth forecasts, NOT consumer confidence). Same class as r147 Bauer DP21003. Replaced with researcher-web-verified Akhtar-Faff-Oliver-Subrahmanyam 2012 _JBF_ (US S&P/DJIA asymmetric) + Andersen-Bollerslev-Diebold-Vega 2007 _JIE_ (intraday MNA) + Pinchuk 2022 arXiv (aggregate 11-25 bp/1σ band). Pattern #15 now stable across 6 applications. Doctrine #9 dated §Impl(r153) APPEND, NO new ADR.
+
+Phase 2 trader concordance : SHIP-WITH-FIX 0 BLOCK 0 RED 4 YELLOW 2 GREEN-w/note. YELLOW-2 (caveat "Skew empirique négatif" purely-epistemic rewrite) + YELLOW-3 (CCI baseline methodology docstring 1-liner) APPLIED. YELLOW-1 (direction=down vs unknown architectural choice) DEFERRED with rationale (safer ADR-017 + parity r150). YELLOW-4 (Karnaukh hallucination historical record) — LEAVE r152 docs as-is + DOC in r153 §Impl per doctrine #9 dated-append invariant. **Code-reviewer dispatch killed by session-compact mid-flight (0 bytes)** ; self-applied QA fills gap ; r154 candidate re-dispatch for post-hoc concordance.
+
+Build gate (MEASURED per doctrine #14) : pytest targeted **199/199** + vitest **421/421** + tsc 0 + ESLint clean + Prettier clean + Ruff clean + Next build OK + ADR-017 source-inspection lockstep CI green + Brier 12-factor lockstep r142+r148 + r149 event-class consistency. Single feat commit `6c4c3cd` +740 LOC across 7 files.
+
+Phase 3.5 R-WITNESS-EMPIRICAL Playwright : panel renders with NEW CCI class — event meta "Confiance consommateurs (Conference Board)" (was "Catalyseur non-classé" r152), magnitude 0.06bp (non-zero now), caveat "Skew empirique négatif" (trader Y2 fix landed), literature_anchor extended with Akhtar 2012 + ABDV 2007 + Pinchuk 2022, "Limitations remontées : Réaction asymétrique : magnitude significative uniquement sur surprise négative" (PARSE_FAILURE_FR[asymmetric_negativity_bias] working).
+
+Voie D **68 rounds**. Mission centrale : axis-4 +1 LEVEL DEPTH (user-visible coverage extended) ; NO state change at axis-closure level. **4 of 8 axes ✅ CLOSED + axis 4 r153 deeper**.
+
+**r154 binding default candidates** (in priority order, R59-disprove first per pattern #15) :
+
+1. **Re-dispatch code-reviewer on r153 commit `6c4c3cd`** — closes the compact-kill gap (post-hoc Tier 4 backend concordance validation). Effort S.
+2. ⭐ **AUTO-RECO Pattern #16 codify in CLAUDE.md auto-context-injector** (mirrors r150 Pattern #14 codification — makes the deploy-pipe doctrine explicit in future-session paste-prompt). Effort S.
+3. **FRED VIXCLS backfill 5y** (deferred since r150). Effort M, R59 first on FRED bulk API + rate-limit.
+4. **Empirical reaction-beta backfill via Dukascopy 1-min FREE multi-year** (replaces literature priors with Ichor-historical, closes cold-start caveat at the source). Effort L (3-5 days). Pattern #15 R59 first.
+5. **`output_gap_proxy` wiring** (composite NFCI + SBET + macro nowcast → `business_cycle_sign`). Effort M.
+6. **Per-currency Employment subclass** (trader r150 YELLOW-3 — US-NFP-class 200K vs AUD/CAD ~20K swings). Effort S.
+7. **PMI Services class extension** (Flash Manufacturing/Services PMI EUR/GBP/USD currently unmapped — separate S&P Global PMI class). Effort S-M, researcher R59 first (literature thin per r153 audit).
+8. **US Retail Sales class extension** (Retail Sales m/m + Core Retail Sales m/m, Andersen-Bollerslev 2003 supports). Effort S.
+9. **UK Claimant Count Change + Average Earnings Index extension**. Effort S.
+10. **r152 trader YELLOW-1/2 visual demotion of literature priors** (italic / "· prior" suffix / lighter weight on cold-start magnitudes). Effort S.
+11. **r144 FRED ALFRED reconciler unit normalization upstream** (deferred since r147). Effort M.
+12. **`actual_source` / `actual_revised` columns** + EU/UK reconcilers. Effort M each.
+13. **Code-reviewer S4 orchestrator hook AsyncMock test** (deferred since r142). Effort S.
+
+Pattern #15 R59-disprove-before-commit applies to every r154 ⭐ AUTO-RECO candidate.
+
+---
+
+## §3 — Previous immediate next (r153, EXECUTED above)
 
 **r152 EXECUTED & SHIPPED & DEPLOYED & WITNESSED (2026-05-24)** : Tier 1 axis-4 USER-SURFACE VISIBILITY — dedicated `<EventAnticipationPanel>` shipped + DEPLOYED via R-DEPLOY-6 (manual r142 decompose on Step 3 NEW failure mode + hardened Step 4 OK) + Playwright R-WITNESS-EMPIRICAL GREEN on both `/briefing/EUR_USD?cb=r152` AND `/briefing/NAS100_USD?cb=r152` (CRIT-1 empirically validated in prod : NAS100/SPX500 no longer 422 silent). Engine 8 (LIVE backend since r147 + extended r149/r150) finally gets its own user-visible surface with 3-mode dispatch (ENGAGED / STANDBY / SILENT). Backend additions : PCE=20bp + GDP=25bp baselines + 6 new `_TITLE_TO_EVENT_CLASS` patterns (closes Thu May 28 Core PCE + Prelim GDP fall-through to high_other) + NEW service `event_anticipation_view.py` + NEW router `GET /v1/event-anticipation/{asset}`. Frontend additions : NEW `lib/eventAnticipation.ts` (pure-fn view-model + 5 FR copy SSOTs + NEW `PARSE_FAILURE_FR` translates sentinel jargon) + NEW `<EventAnticipationPanel>` component placed BEFORE ConvictionGrounding.
 
