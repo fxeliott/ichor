@@ -161,18 +161,40 @@ sudo systemctl daemon-reload"
   # quick tunnel mints a NEW *.trycloudflare.com URL on every restart,
   # so we never restart it on an app-only redeploy (URL stays stable
   # within the tunnel's lifetime; named tunnel = RUNBOOK-019 Tier 0.2).
-  ${SSH} "
-    sudo systemctl enable ${SVC}.service >/dev/null 2>&1 || true
-    sudo systemctl restart ${SVC}.service
-    sudo systemctl enable ${TUN}.service >/dev/null 2>&1 || true
-    sudo systemctl is-active --quiet ${TUN}.service || sudo systemctl start ${TUN}.service
-    for i in \$(seq 1 30); do
-      code=\$(curl -fsS -o /dev/null -w '%{http_code}' http://127.0.0.1:${PORT}/briefing 2>/dev/null || echo 000)
-      [ \"\$code\" = 200 ] && break
-      sleep 2
-    done
-    echo \"local /briefing http=\$code\"
-  "
+  #
+  # r151 — R-DEPLOY-6 Step-4 SSH-timeout decompose rule mirrored from
+  # redeploy-api.sh (lesson #24 + doctrinal pattern #14, codified r150).
+  # The single SSH-systemctl-restart call has been a stable failure
+  # point on redeploy-api.sh (r147→r150 4 consecutive rounds) ;
+  # redeploy-web2.sh shares the same SSH transport so the same
+  # mitigation applies. 3-attempt retry + 15s sleep + ConnectTimeout=15
+  # + fail-loud with lesson #24 ref. Stderr NOT swallowed per r150
+  # code-reviewer SHOULD-FIX so legitimate non-timeout failures
+  # (sudoers, unit-not-found, OOM) are visible to operator.
+  local restart_ok=0
+  for attempt in 1 2 3; do
+    if ${SSH} -o ConnectTimeout=15 "
+      sudo systemctl enable ${SVC}.service >/dev/null 2>&1 || true
+      sudo systemctl restart ${SVC}.service
+      sudo systemctl enable ${TUN}.service >/dev/null 2>&1 || true
+      sudo systemctl is-active --quiet ${TUN}.service || sudo systemctl start ${TUN}.service
+      for i in \$(seq 1 30); do
+        code=\$(curl -fsS -o /dev/null -w '%{http_code}' http://127.0.0.1:${PORT}/briefing 2>/dev/null || echo 000)
+        [ \"\$code\" = 200 ] && break
+        sleep 2
+      done
+      echo \"local /briefing http=\$code\"
+    "; then
+      restart_ok=1
+      log "Step 4 attempt ${attempt}: SSH restart OK"
+      break
+    fi
+    log "Step 4 attempt ${attempt}/3 failed (timeout OR non-zero exit, see stderr above), sleep 15s + retry"
+    sleep 15
+  done
+  if [[ ${restart_ok} -eq 0 ]]; then
+    fail "Step 4 SSH restart failed 3 attempts (lesson #24 SSH-instability cluster) — manual intervention required" 9
+  fi
 
   log "Step 5: capture public quick-tunnel URL + verify"
   local url

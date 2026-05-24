@@ -90,7 +90,26 @@ if [[ "$SKIP_RESTART" == "true" ]]; then
 fi
 
 echo "=== Step 3 : restart ichor-api ==="
-ssh ichor-hetzner "sudo systemctl restart ichor-api && sleep 3 && sudo systemctl is-active ichor-api"
+# r151 — R-DEPLOY-6 Step-4 SSH-timeout decompose rule mirrored from
+# redeploy-api.sh (lesson #24 + doctrinal pattern #14, codified r150).
+# The single SSH-systemctl-restart call has been a stable failure point
+# on redeploy-api.sh (r147→r150 4 consecutive rounds) ; redeploy-brain.sh
+# shares the same SSH transport so the same mitigation applies. 3-attempt
+# retry + 15s sleep + ConnectTimeout=15 + fail-loud with lesson #24 ref.
+restart_ok=0
+for attempt in 1 2 3; do
+  if ssh -o ConnectTimeout=15 ichor-hetzner "sudo systemctl restart ichor-api && sleep 3 && sudo systemctl is-active ichor-api"; then
+    restart_ok=1
+    echo "Step 3 attempt ${attempt}: SSH restart OK"
+    break
+  fi
+  echo "Step 3 attempt ${attempt}/3 failed (timeout OR non-zero exit, see stderr above), sleep 15s + retry"
+  sleep 15
+done
+if [[ ${restart_ok} -eq 0 ]]; then
+  echo "FATAL: Step 3 SSH restart failed 3 attempts (lesson #24 SSH-instability cluster) — manual intervention required" >&2
+  exit 9
+fi
 
 echo "=== Step 4 : verify Python imports from stable path ==="
 ssh ichor-hetzner "

@@ -486,11 +486,18 @@ class TestAdr017Invariants:
             assert v >= 0  # baselines are magnitudes ; sign applied externally
 
 
-class TestBrierLockstepWithR147(TestAdr017Invariants):
+class TestBrierLockstepWithR147:
     """r147 extension of r142 brier_optimizer factor names lockstep guard.
     The new "event_anticipation" factor MUST appear in BOTH
     `brier_optimizer.DEFAULT_FACTOR_NAMES` AND
     `cli.run_brier_optimizer._FACTOR_NAMES` lists.
+
+    r151 — dropped inheritance from `TestAdr017Invariants` (r147 MRO smell
+    flagged by code-reviewer r149 NICE #6 + r150 NICE) : the 2 inherited
+    ADR-017 tests (forbidden field names + baseline magnitudes ≥ 0) are
+    unrelated to Brier lockstep and were silently re-executing under this
+    class name. They still run from `TestAdr017Invariants` directly ; no
+    coverage loss.
     """
 
     def test_event_anticipation_in_brier_default_factor_names(self) -> None:
