@@ -161,7 +161,25 @@ See `docs/ROADMAP_2026-05-06.md` for the original 4-layer architecture (DATA FOU
 
 ---
 
-## §3 — Immediate next (r152)
+## §3 — Immediate next (r153)
+
+**r152 EXECUTED & SHIPPED & DEPLOYED & WITNESSED (2026-05-24)** : Tier 1 axis-4 USER-SURFACE VISIBILITY — dedicated `<EventAnticipationPanel>` shipped + DEPLOYED via R-DEPLOY-6 (manual r142 decompose on Step 3 NEW failure mode + hardened Step 4 OK) + Playwright R-WITNESS-EMPIRICAL GREEN on both `/briefing/EUR_USD?cb=r152` AND `/briefing/NAS100_USD?cb=r152` (CRIT-1 empirically validated in prod : NAS100/SPX500 no longer 422 silent). Engine 8 (LIVE backend since r147 + extended r149/r150) finally gets its own user-visible surface with 3-mode dispatch (ENGAGED / STANDBY / SILENT). Backend additions : PCE=20bp + GDP=25bp baselines + 6 new `_TITLE_TO_EVENT_CLASS` patterns (closes Thu May 28 Core PCE + Prelim GDP fall-through to high_other) + NEW service `event_anticipation_view.py` + NEW router `GET /v1/event-anticipation/{asset}`. Frontend additions : NEW `lib/eventAnticipation.ts` (pure-fn view-model + 5 FR copy SSOTs + NEW `PARSE_FAILURE_FR` translates sentinel jargon) + NEW `<EventAnticipationPanel>` component placed BEFORE ConvictionGrounding.
+
+Phase 2 4-reviewer concordance (doctrine #17 NEW visible UI class) : trader SHIP-WITH-FIX 0 RED 4 YELLOW 10 GREEN + ui-designer SHIP-WITH-FIX 3 SHOULD 5 NIT + a11y SHIP-WITH-FIX 2 IMPORTANT 4 SHOULD 3 NIT (0 WCAG blocker) + **code-reviewer BLOCK on CRIT-1** (regex `^[A-Z]{3,8}_[A-Z]{3,8}$` REJECTED digit prefixes → silent 422 on NAS100/SPX500 = 25% priority universe). Fix-cluster 12 items applied : CRIT-1 + SF-1/2/4 lockstep CI invariants + CONCORDANT 2/4 nested-chrome drop (ui+a11y) + CONCORDANT 2/4 PARSE_FAILURE_FR (trader+a11y) + CONCORDANT 2/4 glyph docstring (ui+a11y) + SSOT extractions + countdown text-size hierarchy + footer round-number removal + VIX in aria-label + role="text".
+
+Build gate (MEASURED per doctrine #14) : pytest **2529 passed + 34 skipped** ; vitest **416/416** ; tsc 0 ; ESLint clean ; Prettier clean ; Ruff clean ; Next build OK local + remote ; ADR-017 source-inspection lockstep CI green ; Brier 12-factor lockstep r142+r148 + r149 event-class consistency invariants all preserved. Single feat commit `6f0fa93` +2009 LOC across 11 files.
+
+Phase 3 deploy : R-DEPLOY-6 Step 3 (`tar | ssh` long pipe) timed out (NEW failure mode beyond r150-r151 Step 4 hardening) → manual r142 decompose local-tar → scp → ssh-extract+rsync. Step 4 hardened retry succeeded attempt 1. Healthz=200 + all 6 priority assets return 200. web2 deploy followed same decomposed pattern + tunnel `https://operations-mail-signals-rubber.trycloudflare.com`.
+
+Phase 3.5 R-WITNESS-EMPIRICAL Playwright : panel renders end-to-end with honest fallback path. Engine 8 engaged on CB Consumer Confidence (Tue May 26 16:00, USD, medium, ~44h ahead) ; class=null (CB CCI not in mapping) → `direction=unknown`, `magnitude=n/a`, `parse_failures=["event_class_unmapped"]`. Frontend renders heading + meta "Catalyseur non-classé · USD · medium" + countdown "T−1j 20h" + "Direction indéterminée pour cette classe d'événement" + "Confiance non évaluable · VIX < p50 (régime calme)" + caveat + "Limitations remontées : Classe d'événement non reconnue" (proves PARSE_FAILURE_FR translation working) + clean footer "Moteur d'anticipation événementiel..." (round numbers correctly dropped). NAS100_USD identical = CRIT-1 closed.
+
+Engine 8 future engagement timeline : T−48h windows open Tue May 26 14:30 Paris for Thu May 28 Core PCE + Prelim GDP. VIX gate=below_p50 (max=18.43) → magnitude attenuates → potentially direction=unknown fallback BY DESIGN per trader YELLOW-3.
+
+Voie D held **67 rounds**. Mission centrale axis-4 USER-VISIBLE CLOSED ⭐ — **4 of 8 axes ✅ CLOSED** (1-2 r123 / 3 r132+r133 / **4 r152** / 5 EMPIRICALLY GREEN r146 / 6 r142+r143 / 8 PARTIAL r131 ; 7 LIVE).
+
+**NEW pattern observation r152 (r153 codification candidate as pattern #16)** : R-DEPLOY-6 SSH-timeout fired on Step 3 (tar | ssh pipe) this round — NOT Step 4 (which was hardened r150-r151). Failure-class is the same : long-lived SSH pipe. Codifiable as pattern #16 : "any long-lived SSH pipe is a failure-class equal to Step 4 restart ; decompose pre-emptively into 3 short retryable calls instead of waiting for the timeout".
+
+---
 
 **r151 EXECUTED & SHIPPED (2026-05-24)** : Consolidation round — 4 S-effort deliverables (NO axis state change, NO deploy needed) : (1) MEMORY.md hygiene archive — pruned 203 → 62 lines via archive to `ichor_memory_archive_pre_r140.md` (URGENT operational unblock, file was past 200-line silent cap) ; (2) R-DEPLOY-6 hardening MIRRORED from redeploy-api.sh to redeploy-brain.sh:92-110 + redeploy-web2.sh:156-194 (all 3 production deploy scripts now share same retry-with-sleep + ConnectTimeout=15 + fail-loud-with-lesson-#24-ref discipline) ; (3) Pattern #15 R59-disprove-before-commit codified in `ichor_r51-r71_doctrinal_patterns.md` (stable across 4 rounds : r147+r148+r150×2) ; (4) r147 `TestBrierLockstepWithR147(TestAdr017Invariants)` MRO inheritance smell fixed (code-reviewer NICE #6 r149+r150 closure ; dropped inheritance, 2 inherited ADR-017 tests no longer silently re-executed).
 
