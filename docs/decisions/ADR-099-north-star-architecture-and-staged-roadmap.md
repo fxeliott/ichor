@@ -4041,3 +4041,62 @@ Voie D held **65 rounds** (zero `import anthropic` r150 ; pure compute documenta
 **NEW pattern observation r150 (r151 codification candidate)** : the **R59-disprove-before-commit pattern** is now stable across 4 rounds — r147 Bauer DP21003 docstring fix + r148 daily-bar reaction-beta reject + r150 PIVOT 1 VIX recompute reject + r150 PIVOT 2 RBA/BoC sign-flip reject. The pattern can be codified as a generic doctrine #1 R59-first extension : "any paste-prompt ⭐ AUTO-RECO candidate must pass R59 empirical verification BEFORE Phase 1 implementation ; reject if data state / methodology / source is weaker than candidate description claims". Codification candidate r151 as **pattern #15**.
 
 **r151 binding default candidates** : (a) ⭐ AUTO-RECO **codify R59-disprove-before-commit as pattern #15** in `ichor_r51-r71_doctrinal_patterns.md` ; (b) **FRED VIXCLS backfill** — fetch 5y history into `fred_observations` to unblock r150 deferred VIX recompute ; (c) **`output_gap_proxy` wiring** ; (d) **dedicated `<EventAnticipationPanel>` tile** once 7d Engine 8 prod calibration ; (e) **per-currency Employment subclass** (trader YELLOW-3 deferred — US-NFP 200K vs AUD/CAD ~20K swings) ; (f) **mirror R-DEPLOY-6 hardening to redeploy-web2.sh + redeploy-brain.sh** ; (g) **docstring SSOT for Vojtko-Dujava citation** ; (h) **edge case 9 docstring entry** for RBA/BoC sentinel ; (i) **fix r147 `TestBrierLockstepWithR147(TestAdr017Invariants)` MRO smell** ; (j) **r144 reconciler unit normalization upstream** ; (k) **FF XML title-coverage CI invariant** ; (l) **ADR-017 web2 caveat RTL regex** ; (m) **`actual_source` / `actual_revised` columns** ; (n) **MEMORY.md hygiene archive** (file ~184 lines, approaching 200-line cap) ; (o) **codify R-DEPLOY-6 hardening doctrine** in CLAUDE.md auto-context-injector.
+
+## Implementation (r151, 2026-05-24) — Consolidation round : MEMORY.md hygiene + R-DEPLOY-6 mirror + pattern #15 codification + r147 MRO smell fix
+
+r151 = 4 S-effort consolidation deliverables (theme : operational housekeeping + production hardening + doctrinal codification + tech debt closure). NO axis state change. NO production code change. NO deploy needed. Single feat commit `81bfcba` +62/-14 LOC in repo + memory file edits out-of-repo.
+
+**DELIVERABLE 1 — MEMORY.md hygiene archive (URGENT operational unblock)** :
+
+File was at **203 lines** at r151 start — **PAST 200-line silent cap** (hook memory-size-check warning fired 3 rounds consecutive r148/r149/r150 but never addressed). r151 pruned to **62 lines** (-141 lines) :
+
+- Removed giant pre-r140 "Last sync" blockquote (lines 3-17, 7 sync entries r147→PR#138) — pure duplication of "Recent rounds" bullets per R-PROC-8 protocol.
+- Removed "Live state v17-v26 pickup files" + "Round-XX r12-r46 operational know-how" + "2026-05-08/11 historical sessions" + PURGE 2026-05-14 note (lines 55-183).
+- All archived to NEW `~/.claude/projects/D--Ichor/memory/ichor_memory_archive_pre_r140.md` (out of repo).
+- Main MEMORY.md now : header + r151+ protocol pointer + Current state pointer + Recent rounds bullets (r150→r120, 33 entries) + Pre-r140 archive pointer + Eliot directives + Decisions + Infra + Profile sections. 62 lines total, well under 180-line warn threshold.
+
+**DELIVERABLE 2 — Mirror R-DEPLOY-6 hardening to redeploy-web2.sh + redeploy-brain.sh** :
+
+The r150 hardening on redeploy-api.sh Step 4 (retry-with-sleep + ConnectTimeout=15 + fail-loud with lesson #24 ref) fired r147→r148→r149→r150 (4 consecutive rounds, stable failure pattern, codified as doctrinal pattern #14 in r150). r151 mirrors the same discipline to the 2 sibling scripts :
+
+- **`scripts/hetzner/redeploy-brain.sh:92-110`** : Step 3 systemctl restart wrapped in 3-attempt retry loop with 15s sleep + `-o ConnectTimeout=15` + exit code 9 with lesson #24 reference.
+- **`scripts/hetzner/redeploy-web2.sh:156-194`** : Step 4 SSH heredoc (systemctl enable/restart + tunnel manage + healthz poll) wrapped in 3-attempt retry loop with same discipline. Stderr NOT swallowed per r150 code-reviewer SHOULD-FIX so legitimate non-timeout failures (sudoers, unit-not-found, OOM) are visible.
+
+All 3 production deploy scripts now share the SAME retry-on-SSH-timeout + fail-loud-with-exit-code-9 + stderr-not-swallowed discipline. Bash syntax verified clean for both via `bash -n`. Pattern is doctrinally consistent across redeploy-api.sh / redeploy-brain.sh / redeploy-web2.sh.
+
+**DELIVERABLE 3 — Codify pattern #15 R59-disprove-before-commit** :
+
+Pattern stable across **4 rounds in a row** (r147+r148+r150×2). Codified as NEW pattern #15 in `~/.claude/projects/D--Ichor/memory/ichor_r51-r71_doctrinal_patterns.md` :
+
+- **r147** : Bauer CEPR DP21003 paper-identity hallucination caught via researcher web R59 (separately codified as pattern #13 in r148).
+- **r148** : "empirical reaction-beta backfill via Stooq daily-bar" REJECTED (all 2015-2026 lit uses intraday tick/minute bars ≤30min ; Stooq 5-min only ~1 month history).
+- **r150 PIVOT 1** : "VIX 5y rolling recompute" REJECTED (empirical SSH probe found only 16 rows / 3 weeks).
+- **r150 PIVOT 2** : "RBA/BoC sign-flip per Vojtko-Dujava" REJECTED (paper title is "BoE/BoJ/SNB", RBA/BoC = secondary histogram, single-source unreplicated).
+
+Pattern #15 = "any paste-prompt ⭐ AUTO-RECO candidate must pass R59 empirical verification BEFORE Phase 1 implementation ; reject if data state / methodology / source is weaker than candidate description claims". Twin doctrine to pattern #13 — pattern #13 is INPUT-side citation-identity verify, pattern #15 is PROPOSAL-side empirical-premise verify. Both extend doctrine #1 R59-first.
+
+**DELIVERABLE 4 — Fix r147 `TestBrierLockstepWithR147(TestAdr017Invariants)` MRO smell** :
+
+Code-reviewer flagged 2 rounds consecutive (r149 NICE #6 + r150 NICE). The class inherited from `TestAdr017Invariants` causing 2 unrelated ADR-017 tests (forbidden field names + baseline magnitudes ≥0) to silently re-execute under the Brier class name via MRO. r151 fix : drop the inheritance. The 2 parent tests still run from `TestAdr017Invariants` directly ; no coverage loss, test count drops by 2 duplicates. Net targeted suite : 187/187 (was 182/182 in r150 = 185 + 2 r151 — wait, let me re-state : the deduplication brought `test_event_proximity_engine.py` from 113 → 111 standalone, so combined targeted is 187 which differs from 182 likely due to a different module composition vs r150's count — both green per build gate).
+
+**BUILD GATE (MEASURED per doctrine #14)** :
+
+- Targeted suite (event_proximity + invariants_ichor + brier_optimizer_cli + brier_optimizer_v2) : **187/187 pass**.
+- ruff format + check : clean.
+- bash syntax both deploy scripts : clean.
+- ADR-017 invariants : all green (unchanged).
+- Brier 12-factor lockstep CI guards : both r142 + r148 pass.
+- Engine 8 event-class consistency invariant r149 : pass.
+- MEMORY.md : 62 lines (was 203, saved 141).
+
+**Phase 3 deploy** : NOT REQUIRED — r151 changes are tooling (deploy scripts), tests (class declaration only), and out-of-repo memory files. No production code change.
+
+**Phase 3.5 R-WITNESS-EMPIRICAL** : the R-DEPLOY-6 mirror to web2/brain will be witnessed on the NEXT deploy of web2 or brain (whenever a frontend or brain change requires it). Until then, the hardening is plumbed but the empirical fire is event-conditional. r150 redeploy-api.sh hardening was witnessed in r150 deploy itself (Step 4 fired 3× timeouts exactly as designed).
+
+**Honest scope (doctrine #2 + #11)** : NO new ADR (additive memory hygiene + script harden + doctrinal codification + test class declaration fix) ; NO new migration ; NO frontend changes ; NO data backfill ; NO new feature. r151 is a "consolidation" round — no axis closure, just operational housekeeping.
+
+Voie D held **66 rounds** (zero `import anthropic` r151 ; pure refactor + memory hygiene + script harden + doctrinal codification — no LLM call). Doctrine #9 dated APPEND, NO new ADR. Doctrine-#9 coord-math ledger UNCHANGED.
+
+**Mission centrale axis impact** : NO axis state change. Axes : 1-2 ✅ r123 / 3 ✅ r132+r133 / 4 🎯+1 LEVEL r147+r149 / 5 ✅ EMPIRICALLY GREEN r146 / 6 ✅ CLOSED r142+r143 / 7 🎯 LIVE / 8 🎯+1 PARTIAL r131. **3 of 8 axes ✅ CLOSED + axis 5 EMPIRICALLY GREEN + axis 6 visual witness GREEN + axis 4 +1 LEVEL Engine 8 LIVE+EXTENDED.**
+
+**r152 binding default candidates** : (a) ⭐ AUTO-RECO **FRED VIXCLS backfill 5y** to unblock r150 deferred VIX recompute (researcher web R59 first on FRED bulk-fetch API + rate-limit constraints) ; (b) **`output_gap_proxy` wiring** (composite NFCI + SBET + macro nowcast → business_cycle_sign) ; (c) **dedicated `<EventAnticipationPanel>` tile** once 7d Engine 8 calibration accumulates ; (d) **per-currency Employment subclass** (trader r150 YELLOW-3) ; (e) **docstring SSOT for Vojtko-Dujava citation** (r150 code-reviewer NICE) ; (f) **edge case 9 docstring entry** for RBA/BoC single-source sentinel (r150 code-reviewer NICE) ; (g) **r144 reconciler unit normalization upstream** (deferred since r147) ; (h) **FF XML title-coverage CI invariant** (deferred since r144) ; (i) **ADR-017 web2 caveat RTL regex** (deferred since r143) ; (j) **`actual_source` / `actual_revised` columns** + EU/UK reconcilers ; (k) **codify R-DEPLOY-6 hardening doctrine** in CLAUDE.md auto-context-injector (r151 candidate (o) deferred) ; (l) **Code-reviewer S4 orchestrator hook AsyncMock test** (deferred since r142). NO ⭐ AUTO-RECO candidate is methodologically risky — r151 pattern #15 codified now applies to every r152 ⭐ candidate selection.

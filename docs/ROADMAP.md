@@ -161,7 +161,34 @@ See `docs/ROADMAP_2026-05-06.md` for the original 4-layer architecture (DATA FOU
 
 ---
 
-## §3 — Immediate next (r151)
+## §3 — Immediate next (r152)
+
+**r151 EXECUTED & SHIPPED (2026-05-24)** : Consolidation round — 4 S-effort deliverables (NO axis state change, NO deploy needed) : (1) MEMORY.md hygiene archive — pruned 203 → 62 lines via archive to `ichor_memory_archive_pre_r140.md` (URGENT operational unblock, file was past 200-line silent cap) ; (2) R-DEPLOY-6 hardening MIRRORED from redeploy-api.sh to redeploy-brain.sh:92-110 + redeploy-web2.sh:156-194 (all 3 production deploy scripts now share same retry-with-sleep + ConnectTimeout=15 + fail-loud-with-lesson-#24-ref discipline) ; (3) Pattern #15 R59-disprove-before-commit codified in `ichor_r51-r71_doctrinal_patterns.md` (stable across 4 rounds : r147+r148+r150×2) ; (4) r147 `TestBrierLockstepWithR147(TestAdr017Invariants)` MRO inheritance smell fixed (code-reviewer NICE #6 r149+r150 closure ; dropped inheritance, 2 inherited ADR-017 tests no longer silently re-executed).
+
+Build gate : targeted 187/187 + ruff clean + bash syntax both scripts OK + ADR-017 invariants + Brier 12-factor lockstep r142+r148 + r149 event-class consistency + MEMORY.md 62 lines. Single feat commit `81bfcba` +62/-14 LOC in repo + memory file edits out-of-repo.
+
+NO deploy needed (scripts are tools not deployed code ; memory files out of repo ; test class declaration only). NO production code change.
+
+Voie D held **66 rounds**. Mission centrale axes unchanged. NEW pattern #15 codified makes every future ⭐ AUTO-RECO subject to R59 empirical verification BEFORE Phase 1 implementation.
+
+**r152 binding default candidates** (R59-AUDIT first per pattern #15 codified r151) :
+
+1. ⭐ **AUTO-RECO : FRED VIXCLS backfill 5y** to unblock r150 deferred VIX threshold empirical recompute. Researcher web R59 first on FRED bulk-fetch API + rate-limit constraints. Effort S-M.
+2. **`output_gap_proxy` wiring** — composite NFCI + SBET + macro nowcast → `business_cycle_sign ∈ {-1, 0, +1}`. Removes Engine 8 default `+1 with caveat`. Effort M.
+3. **Dedicated `<EventAnticipationPanel>` tile** once 7d Engine 8 prod calibration accumulates (deferred since r149+r150). Effort M.
+4. **Per-currency Employment subclass** (trader r150 YELLOW-3 deferred — US-NFP-class 200K swings vs AUD/CAD ~20K swings). Effort S.
+5. **Docstring SSOT for Vojtko-Dujava citation** (r150 code-reviewer NICE — 3 prose sites can drift). Effort S.
+6. **Edge case 9 docstring entry** for RBA/BoC single-source sentinel (r150 code-reviewer NICE). Effort S.
+7. **r144 reconciler unit normalization upstream** (deferred since r147). Effort M.
+8. **FF XML title-coverage CI invariant** (deferred since r144). Effort S-M.
+9. **ADR-017 web2 caveat RTL regex** (deferred since r143). Effort S-M.
+10. **`actual_source` / `actual_revised` columns** + EU/UK reconcilers (mirror r144). Effort M each.
+11. **Codify R-DEPLOY-6 hardening doctrine** in CLAUDE.md auto-context-injector (r150 candidate #15 deferred from r151). Effort S.
+12. **Code-reviewer S4 orchestrator hook AsyncMock test** (deferred since r142). Effort S.
+
+**r152 pattern #15 application** : every ⭐ AUTO-RECO selected must pass R59 empirical verification BEFORE Phase 1 implementation. The FRED VIXCLS backfill candidate (a) requires R59 on FRED bulk-fetch API rate limits + retention policy before committing to implementation.
+
+## §3 — Previous immediate next (r151, EXECUTED above)
 
 **r150 EXECUTED & SHIPPED & DEPLOYED (2026-05-23)** : Tier 1 calibrated-honesty + Tier 4 Engine 8 extension + Deploy infrastructure — single-source disclosure (Vojtko-Dujava paper title correction + parse_failures sentinel) + AUD/CAD Employment class explicit mapping + R-DEPLOY-6 Step-4 SSH-timeout hardening. **TWO HARDCORE PIVOTS** via R59 in one round : (1) candidate #1 ⭐ VIX 5y rolling REJECTED (empirical SSH probe : VIXCLS has only 16 obs / 3 weeks, NOT 5 years) ; (2) candidate #2 RBA/BoC sign-flip CODE REJECTED (researcher web R59 : Vojtko-Dujava paper title is "BoE, BoJ, SNB" — RBA/BoC = secondary histogram, single-source unreplicated, no independent confirmation). Pivoted to documentation-only single-source disclosure fix + Employment class extension + R-DEPLOY-6 hardening.
 
