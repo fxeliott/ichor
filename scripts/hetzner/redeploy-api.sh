@@ -92,17 +92,61 @@ cmd_deploy() {
     ls -1dt ${BAK_ROOT}/ichor_api.* | tail -n +6 | xargs -r sudo rm -rf
   "
 
-  log "Step 3: tar-over-ssh local package -> staging -> ${STABLE}"
-  ${SSH} "rm -rf ${STAGING} && mkdir -p ${STAGING}"
-  tar czf - -C "${REPO_ROOT}/apps/api/src" \
+  # r153 — Pattern #16 R-DEPLOY-6 Step-3 SSH-pipe decompose rule (codifies
+  # the manual r142+r152 workaround into the script itself). The original
+  # `tar czf - ... | ${SSH} "tar xzf - ..."` is a long-lived SSH pipe that
+  # has empirically timed out (r152 — same failure-class as Step 4 SSH
+  # restart hardened r150 as pattern #14, but different step). Decompose
+  # into 3 short retryable calls : local-tar to disk → scp → ssh-extract+
+  # rsync. Each call is short enough that SSH transient instability
+  # doesn't kill the deploy mid-pipe. Same lesson #24 stop-loss applies
+  # if ANY of the 3 short calls fails after 3 retries.
+  log "Step 3a: local-tar package -> /tmp/ichor_api_redeploy.tar.gz"
+  local local_tarball
+  local_tarball="/tmp/ichor_api_redeploy_$$.tar.gz"
+  tar czf "${local_tarball}" -C "${REPO_ROOT}/apps/api/src" \
     --exclude='__pycache__' --exclude='*.pyc' --exclude='.pytest_cache' \
     ichor_api \
-    | ${SSH} "tar xzf - -C ${STAGING}"
-  ${SSH} "
-    sudo rsync -a --delete ${STAGING}/ichor_api/ ${STABLE}/ &&
-    sudo chown -R ichor:ichor ${STABLE} &&
-    sudo rm -rf ${STAGING}
-  "
+    || fail "Step 3a local-tar failed" 8
+
+  log "Step 3b: scp tarball -> remote /tmp"
+  local scp_ok=0
+  for attempt in 1 2 3; do
+    if scp -o ConnectTimeout=15 "${local_tarball}" \
+         ichor-hetzner:/tmp/ichor_api_redeploy.tar.gz; then
+      scp_ok=1
+      log "Step 3b attempt ${attempt}: scp OK"
+      break
+    fi
+    log "Step 3b attempt ${attempt}/3 failed, sleep 15s + retry"
+    sleep 15
+  done
+  rm -f "${local_tarball}"
+  if [[ ${scp_ok} -eq 0 ]]; then
+    fail "Step 3b scp failed 3 attempts (lesson #24 SSH-instability cluster) — manual intervention required" 8
+  fi
+
+  log "Step 3c: ssh-extract + rsync + chown (short single call)"
+  local extract_ok=0
+  for attempt in 1 2 3; do
+    if ${SSH} -o ConnectTimeout=15 "
+      set -e
+      mkdir -p ${STAGING}
+      tar xzf /tmp/ichor_api_redeploy.tar.gz -C ${STAGING}
+      sudo rsync -a --delete ${STAGING}/ichor_api/ ${STABLE}/
+      sudo chown -R ichor:ichor ${STABLE}
+      rm -f /tmp/ichor_api_redeploy.tar.gz
+    "; then
+      extract_ok=1
+      log "Step 3c attempt ${attempt}: extract+rsync OK"
+      break
+    fi
+    log "Step 3c attempt ${attempt}/3 failed, sleep 15s + retry"
+    sleep 15
+  done
+  if [[ ${extract_ok} -eq 0 ]]; then
+    fail "Step 3c extract+rsync failed 3 attempts (lesson #24) — manual intervention required" 8
+  fi
 
   log "Step 4: restart ${SVC}; wait /healthz"
   # r150 — R-DEPLOY-6 Step-4 SSH-timeout decompose rule (lesson #24 explicit

@@ -103,6 +103,10 @@ export const EVENT_CLASS_FR: Record<string, string> = {
   PCE: "Inflation (PCE)",
   GDP: "Croissance (GDP)",
   Tankan: "Tankan (JP)",
+  // r153 — US sentiment indicator classes (literature-anchored).
+  CCI: "Confiance consommateurs (Conference Board)",
+  Michigan: "Sentiment consommateurs (UoM)",
+  ISM: "ISM PMI (US Manufacturing/Services)",
 };
 
 /** FR copy per currency code — for STANDBY mode row meta. Falls back to
@@ -274,6 +278,14 @@ export const PARSE_FAILURE_FR: Record<string, string> = {
   vix_observation_missing: "Régime VIX non observable",
   impact_value_invalid: "Niveau d'impact inattendu",
   cold_start_no_calibration: "Pas encore calibré sur l'historique Ichor",
+  // r153 — asymmetric negativity bias sentinel for CCI / Michigan classes.
+  // Anchor : Akhtar-Faff-Oliver-Subrahmanyam 2012 *JBF* (US S&P/DJIA data,
+  // 2 peer-reviewed papers — better evidenced than RBA/BoC r150 sentinel).
+  // Magnitude significant only on negative surprise ; pre-event direction
+  // is `unknown` by literature (asymmetry breaks the symmetric
+  // business_cycle_sign logic). User-surface must surface this honestly.
+  asymmetric_negativity_bias:
+    "Réaction asymétrique : magnitude significative uniquement sur surprise négative",
 };
 
 /** Translate one sentinel to FR, falling back to the raw code when not

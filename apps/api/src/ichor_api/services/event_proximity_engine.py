@@ -152,7 +152,45 @@ EVENT_CLASS_BASELINE_BP: dict[str, float] = {
     # release because quarterly, but higher growth-channel impact).
     "PCE": 20.0,
     "GDP": 25.0,
-    # Other high-impact macro (PPI, ISM, Retail Sales, etc.)
+    # r153 — US sentiment indicators first-class mapping. Closes the engagement
+    # gap empirically witnessed r152 Playwright where "CB Consumer Confidence"
+    # rendered as "Catalyseur non-classé". Empirical SSH probe found ~73% of
+    # 60d high+medium impact FF titles were unmapped pre-r153 (94 events
+    # surveyed). The 3 new classes below cover the 4 highest-frequency
+    # unmapped US sentiment indicators (CCI + UoM Prelim/Revised + ISM Mfg/Svc).
+    #
+    # CCI (Conference Board Consumer Confidence) = 10bp baseline + asymmetric
+    # negativity bias. Anchor : Akhtar-Faff-Oliver-Subrahmanyam 2012 *JBF* 36
+    # "Stock salience and the asymmetric market effect of consumer sentiment
+    # news" (US S&P/DJIA data, replicates 2011 AUS study) + Pinchuk 2022 arXiv
+    # 2212.04525 (aggregate 11-25 bp/1σ MNA band). Asymmetric : bad sentiment
+    # surprise → significant negative ; good surprise → muted/no reaction.
+    # Engine 8 pre-event emits `direction=unknown` + sentinel
+    # `asymmetric_negativity_bias` (mirroring r150 `single_source_direction`
+    # pattern — but BETTER EVIDENCED : 2 peer-reviewed papers US data, not 1
+    # working paper). Forward-looking magnitude is conditional on negative
+    # surprise realization ; pre-event direction NOT determinable from
+    # business_cycle_sign alone (asymmetry breaks the symmetric +1/-1 logic).
+    # r153 trader YELLOW-3 methodology note : 10bp ≈ Akhtar 2012 |CAR| on
+    # negative surprise × Pinchuk 2022 pre-event/event ratio (lower-tier
+    # within the 11-25bp aggregate MNA band — sentiment surveys move equity
+    # less than NFP/CPI/FOMC per ABDV 2007 intraday volatility regression).
+    "CCI": 10.0,
+    # Michigan = same family as CCI (consumer sentiment, asymmetric). Anchor
+    # via Akhtar 2012 (covers both CCI + Michigan) + Andersen-Bollerslev-
+    # Diebold-Vega 2007 *JIE* (Michigan in volatility-significant set). Prelim
+    # > Revised magnitude qualitative consensus ; Engine 8 treats both same
+    # tier (honest scope — sub-component decomposition r154+).
+    "Michigan": 10.0,
+    # ISM (Institute for Supply Management) = 15bp. Anchor : Andersen-
+    # Bollerslev-Diebold-Vega 2007 *JIE* (intraday ISM significant in
+    # equity-vol regression) + Pinchuk 2022 aggregate band upper-mid. ISM
+    # Manufacturing PMI + ISM Services PMI both share class (Services class
+    # has thinner academic coverage post-2008 → docstring caveat). NOT
+    # asymmetric per literature.
+    "ISM": 15.0,
+    # Other high-impact macro (PPI, Retail Sales, etc. — literature thin or
+    # already covered elsewhere — r154+ to expand or stay honest).
     "high_other": 10.0,
     # Tier-2 events
     "medium": 3.0,
@@ -260,16 +298,43 @@ _TITLE_TO_EVENT_CLASS: tuple[tuple[str, str], ...] = (
     ("overnight rate", "BoC"),  # bare FF XML title for BoC decision
     # Tankan (r149 new — Japan flagship business sentiment, quarterly)
     ("tankan", "Tankan"),
+    # r153 — Consumer Confidence (Conference Board) family. Asymmetric class.
+    # MORE SPECIFIC than any catch-all ; ordered EARLY to preserve match order.
+    # Empirical 60d fixture catches "CB Consumer Confidence" exactly.
+    ("cb consumer confidence", "CCI"),
+    ("conference board consumer confidence", "CCI"),
+    # r153 — Michigan Consumer Sentiment family (UoM = University of Michigan).
+    # Both Prelim + Revised release variants. Asymmetric class.
+    ("prelim uom consumer sentiment", "Michigan"),
+    ("revised uom consumer sentiment", "Michigan"),
+    ("uom consumer sentiment", "Michigan"),
+    # r153 — Michigan inflation expectations sub-component. Treated same class
+    # as headline Michigan per literature (Akhtar 2012) ; engine cannot
+    # decompose without FF XML sub-field parsing (honest scope, r154+).
+    ("prelim uom inflation expectations", "Michigan"),
+    ("uom inflation expectations", "Michigan"),
+    # r153 — ISM family (US Institute for Supply Management). Manufacturing
+    # first (early-month, higher tier), Services second. ISM Non-Manufacturing
+    # is the older name for ISM Services — both mapped to same class.
+    ("ism manufacturing pmi", "ISM"),
+    ("ism services pmi", "ISM"),
+    ("ism non-manufacturing pmi", "ISM"),
+    ("ism manufacturing prices", "ISM"),
     # r152 — PCE family (FOMC's preferred core inflation gauge). MORE SPECIFIC
     # than generic CPI patterns ; ordered BEFORE CPI to preserve first-match-wins.
     ("core pce price index", "PCE"),
     ("pce price index", "PCE"),
     # r152 — GDP family (high-impact growth-channel release, quarterly). Generic
     # patterns catch US Advance/Prelim/Final + EZ/JP GDP variants.
+    # r153 — added "gdp m/m" + "prelim gdp price index" for UK/CAD monthly GDP
+    # + US GDP deflator (Prelim GDP Price Index q/q is the deflator component,
+    # same release window as headline GDP, similar magnitude class).
     ("advance gdp q/q", "GDP"),
     ("prelim gdp q/q", "GDP"),
     ("final gdp q/q", "GDP"),
     ("gdp q/q", "GDP"),
+    ("gdp m/m", "GDP"),  # r153 — UK + CAD monthly GDP
+    ("prelim gdp price index", "GDP"),  # r153 — US GDP deflator
     # Tier-1 US macro — NFP-specific (US-only) before generic Employment family
     ("non-farm employment change", "NFP"),
     ("nonfarm payrolls", "NFP"),
@@ -309,6 +374,25 @@ _TITLE_FRAGMENT_BLOCKED: frozenset[str] = frozenset(
         # blocking here is defensive future-proofing against the silent-class
         # collision if NZD_USD or AUD_NZD is ever added to the tracked set.
         "official cash rate",
+        # r153 — ADP "ADP Non-Farm Employment Change" (USD) silently substring-
+        # matches the NFP-specific pattern "non-farm employment change" → would
+        # misclassify ADP as the BLS-NFP class. ADP is a PRIVATE survey by ADP
+        # Research Institute (~26 million worker payroll sample), methodologically
+        # DISTINCT from BLS Non-Farm Payrolls (gov't establishment survey).
+        # Empirically ADP-NFP correlation has WEAKENED post-2020 (BLS rebench-
+        # marks rendered ADP a noisy leading indicator). The r144 actuals
+        # reconciler already blocks "adp" upstream ; mirror that defensive
+        # block here to prevent silent misclassification on the engine side.
+        "adp non-farm employment change",
+        # r153 — RBNZ "Monetary Policy Statement" (NZD) silently substring-
+        # matches the BoJ generic-fallback pattern "monetary policy statement"
+        # → would misclassify RBNZ as BoJ. RBNZ ≠ BoJ in literature priors :
+        # RBNZ uses Official Cash Rate (NZD-specific tightening cycle), BoJ
+        # uses YCC + JGB purchases (post-2024 normalization regime).
+        # Defensive future-proofing for the same reason as "official cash rate"
+        # block above — if NZD asset is ever tracked, silent collision would
+        # fire on every RBNZ MPC meeting (8/year).
+        "rbnz monetary policy statement",
     }
 )
 
@@ -589,6 +673,25 @@ async def assess_event_proximity(
             expected_drift_bp = round(signed, 2)
             direction = "up" if signed > 0 else "down" if signed < 0 else "unknown"
 
+    # r153 — asymmetric-negativity-bias handling for consumer-sentiment classes.
+    # Anchor : Akhtar-Faff-Oliver-Subrahmanyam 2012 *JBF* 36 "Stock salience and
+    # the asymmetric market effect of consumer sentiment news" (US S&P/DJIA
+    # data, replicates 2011 AUS study). Bad sentiment surprise → significant
+    # negative equity reaction ; good sentiment surprise → muted / no reaction.
+    # Engine 8 is FORWARD-LOOKING (pre-event) and CANNOT know the surprise
+    # sign before release — symmetric `business_cycle_sign` direction is
+    # MISLEADING for asymmetric classes (would claim "up" in expansion based
+    # on a model that empirically breaks for these). Override to `unknown`
+    # direction + surface `asymmetric_negativity_bias` sentinel (mirrors r150
+    # `single_source_direction` honest-scope pattern but BETTER evidenced —
+    # 2 peer-reviewed papers US data, not 1 working paper). Magnitude STAYS
+    # as the conditional-on-negative-surprise estimate (caveat string carries
+    # the conditional framing). Doctrine #11 calibrated honesty applied.
+    _ASYMMETRIC_NEGATIVITY_CLASSES: frozenset[str] = frozenset({"CCI", "Michigan"})
+    if event_class in _ASYMMETRIC_NEGATIVITY_CLASSES and expected_drift_bp is not None:
+        direction = "unknown"
+        parse_failures.add("asymmetric_negativity_bias")
+
     # Confidence ladder (lesson #37 honest-scope ladder)
     if expected_drift_bp is None:
         confidence: EventConfidence = "unavailable"
@@ -633,12 +736,40 @@ async def assess_event_proximity(
             "(Vojtko-Dujava SSRN 5384407 — sign-flip secondaire vs BoE/BoJ/SNB)"
         )
         parse_failures.add("single_source_direction")
+    # r153 — asymmetric-negativity-bias caveat surface (parity with RBA/BoC
+    # sentinel pattern). Anchor : Akhtar-Faff-Oliver-Subrahmanyam 2012 *JBF*
+    # (US S&P/DJIA data, replicated AUS 2011 finding) — for CCI + Michigan,
+    # bad sentiment surprises move equity SIGNIFICANTLY negative ; good
+    # surprises move equity barely. Magnitude 10bp reflects the conditional-
+    # on-negative-surprise estimate ; pre-event direction is `unknown` per
+    # the asymmetric override above. Caveat surfaces this honestly to user
+    # surface AND machine-readable sentinel mirrors RBA/BoC pattern.
+    if event_class in ("CCI", "Michigan"):
+        # r153 Phase 2 trader YELLOW-2 fix : prior caveat "magnitude
+        # significative uniquement sur surprise négative" was borderline
+        # directional read for a non-trader user. Reworded to pure
+        # epistemic/geometric framing (skew descriptor + literature
+        # citation only ; no implied behaviour). Parity with r150 RBA/BoC
+        # purely-epistemic disclosure pattern.
+        caveat_parts.append(
+            "Skew empirique négatif : magnitude observée historiquement "
+            "asymétrique selon le signe de la surprise "
+            "(Akhtar 2012 JBF + Pinchuk 2022 arXiv)"
+        )
     # ALWAYS append the cold-start prior caveat (trader YELLOW-1).
     caveat_parts.append("Magnitude prior littérature, pas calibrée sur historique Ichor")
     caveat = " ; ".join(caveat_parts)
 
+    # r153 — extended literature anchor : add Akhtar 2012 (consumer-sentiment
+    # asymmetry, peer-reviewed US data, replaces hallucinated Karnaukh-Vrolijk
+    # 2019 caught r153 R59 — pattern #13 + #15 in action) + Andersen-
+    # Bollerslev-Diebold-Vega 2007 (intraday ISM significant in equity-vol
+    # regression, foundational MNA event-study) + Pinchuk 2022 (aggregate
+    # 11-25 bp/1σ MNA band, cleanest cross-class anchor for r152+r153 priors).
     literature_anchor = (
-        "Lucca-Moench 2015 (drift) + Boyd-Hu-Jagannathan 2005 (asymétrie) + Kurov 2021 (gate VIX)"
+        "Lucca-Moench 2015 (drift) + Boyd-Hu-Jagannathan 2005 (asymétrie cyclique) "
+        "+ Kurov 2021 (gate VIX) + Akhtar et al. 2012 JBF (asymétrie consumer-sentiment) "
+        "+ Andersen-Bollerslev-Diebold-Vega 2007 JIE (MNA intraday) + Pinchuk 2022 arXiv"
     )
 
     # r147 code-reviewer SF-3 : malformed impact → surface sentinel + None,

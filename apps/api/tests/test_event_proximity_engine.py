@@ -28,6 +28,7 @@ Covers atom-level :
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
@@ -1344,3 +1345,352 @@ class TestR150VojtkoDujavaSingleSourceDisclosure:
         assert result.next_event_class == "FOMC"
         assert "source unique non-répliquée" not in result.caveat
         assert "BoE/BoJ/SNB" not in result.caveat
+
+
+# ── r153 — US sentiment indicator class extensions ───────────────────────────
+
+
+class TestR153SentimentClassMapping:
+    """r153 — Conference Board CCI + UoM Michigan Consumer Sentiment + ISM
+    Manufacturing/Services PMI title-fragment mapping. Closes the engagement
+    gap empirically witnessed r152 Playwright (CB Consumer Confidence
+    rendered as "Catalyseur non-classé"). Literature anchor : Akhtar-Faff-
+    Oliver-Subrahmanyam 2012 *JBF* (US S&P/DJIA asymmetric) + Andersen-
+    Bollerslev-Diebold-Vega 2007 *JIE* (ISM intraday significant) + Pinchuk
+    2022 arXiv (aggregate 11-25 bp/1σ MNA band).
+    """
+
+    def test_cb_consumer_confidence_maps_CCI(self) -> None:
+        """Conference Board CCI — the literal title witnessed r152 prod."""
+        assert _map_title_to_event_class("CB Consumer Confidence") == "CCI"
+
+    def test_conference_board_consumer_confidence_maps_CCI(self) -> None:
+        """Long-form variant for defensive future-proofing."""
+        assert _map_title_to_event_class("Conference Board Consumer Confidence") == "CCI"
+
+    def test_prelim_uom_consumer_sentiment_maps_Michigan(self) -> None:
+        """UoM Prelim — first release, higher market impact per qualitative consensus."""
+        assert _map_title_to_event_class("Prelim UoM Consumer Sentiment") == "Michigan"
+
+    def test_revised_uom_consumer_sentiment_maps_Michigan(self) -> None:
+        """UoM Revised — second release, lower magnitude same class."""
+        assert _map_title_to_event_class("Revised UoM Consumer Sentiment") == "Michigan"
+
+    def test_uom_consumer_sentiment_maps_Michigan(self) -> None:
+        """Bare UoM variant — defensive future-proofing."""
+        assert _map_title_to_event_class("UoM Consumer Sentiment") == "Michigan"
+
+    def test_prelim_uom_inflation_expectations_maps_Michigan(self) -> None:
+        """UoM inflation-expectations sub-component (literature treats same class)."""
+        assert _map_title_to_event_class("Prelim UoM Inflation Expectations") == "Michigan"
+
+    def test_ism_manufacturing_pmi_maps_ISM(self) -> None:
+        """ISM Manufacturing — early-month, higher-tier macro release."""
+        assert _map_title_to_event_class("ISM Manufacturing PMI") == "ISM"
+
+    def test_ism_services_pmi_maps_ISM(self) -> None:
+        """ISM Services — same class as Manufacturing (literature inferred)."""
+        assert _map_title_to_event_class("ISM Services PMI") == "ISM"
+
+    def test_ism_non_manufacturing_pmi_maps_ISM(self) -> None:
+        """Legacy name (pre-2024 rebrand)."""
+        assert _map_title_to_event_class("ISM Non-Manufacturing PMI") == "ISM"
+
+
+class TestR153NewBaselineKeys:
+    """r153 — `EVENT_CLASS_BASELINE_BP` must include the 3 new sentiment-class
+    keys at literature-anchored magnitudes.
+
+    Magnitudes : CCI=10 (Akhtar 2012 + Pinchuk 2022 lower-tier asymmetric) ;
+    Michigan=10 (same family) ; ISM=15 (Andersen-Bollerslev 2007 higher tier,
+    early-month consensus depth).
+    """
+
+    def test_cci_baseline_present(self) -> None:
+        assert "CCI" in EVENT_CLASS_BASELINE_BP
+        assert EVENT_CLASS_BASELINE_BP["CCI"] == 10.0
+
+    def test_michigan_baseline_present(self) -> None:
+        assert "Michigan" in EVENT_CLASS_BASELINE_BP
+        assert EVENT_CLASS_BASELINE_BP["Michigan"] == 10.0
+
+    def test_ism_baseline_present(self) -> None:
+        assert "ISM" in EVENT_CLASS_BASELINE_BP
+        assert EVENT_CLASS_BASELINE_BP["ISM"] == 15.0
+
+    def test_existing_baselines_unchanged(self) -> None:
+        """REGRESSION : r152 + r150 + r149 + r147 baselines preserved."""
+        assert EVENT_CLASS_BASELINE_BP["FOMC"] == 50.0
+        assert EVENT_CLASS_BASELINE_BP["ECB"] == 35.0
+        assert EVENT_CLASS_BASELINE_BP["BoE"] == 25.0
+        assert EVENT_CLASS_BASELINE_BP["BoJ"] == 15.0
+        assert EVENT_CLASS_BASELINE_BP["NFP"] == 20.0
+        assert EVENT_CLASS_BASELINE_BP["CPI"] == 20.0
+        assert EVENT_CLASS_BASELINE_BP["RBA"] == 25.0
+        assert EVENT_CLASS_BASELINE_BP["BoC"] == 25.0
+        assert EVENT_CLASS_BASELINE_BP["Employment"] == 20.0
+        assert EVENT_CLASS_BASELINE_BP["PCE"] == 20.0
+        assert EVENT_CLASS_BASELINE_BP["GDP"] == 25.0
+
+
+class TestR153AsymmetricNegativityBiasSentinel:
+    """r153 — for CCI + Michigan event classes, Engine 8 pre-event MUST emit
+    `direction=unknown` + `parse_failures.add("asymmetric_negativity_bias")`
+    because the literature (Akhtar 2012 + Pinchuk 2022) documents bad
+    sentiment surprise → significant negative ; good surprise → muted.
+    Symmetric `business_cycle_sign` direction would be MISLEADING.
+
+    Mirrors r150 `single_source_direction` sentinel pattern but BETTER
+    evidenced (2 peer-reviewed papers US data vs 1 working paper for
+    RBA/BoC). Doctrine #11 calibrated honesty.
+    """
+
+    @pytest.mark.asyncio
+    async def test_cci_event_emits_unknown_direction_and_sentinel(self) -> None:
+        # Event 4h ahead (close to release) — time_decay stays large enough
+        # that magnitude_unsigned > 0.01 noise floor for medium-impact CCI.
+        evt = _make_event_row(
+            title="CB Consumer Confidence",
+            impact="medium",
+            currency="USD",
+            scheduled_at=datetime(2026, 6, 1, 14, 0, tzinfo=UTC),
+        )
+        session = _build_session(
+            event_rows=[evt],
+            vix_row=_make_fred_row(20.0, datetime(2026, 5, 23, tzinfo=UTC).date()),
+        )
+        result = await assess_event_proximity(
+            session,
+            asset="EUR_USD",
+            now=datetime(2026, 6, 1, 10, 0, tzinfo=UTC),
+            business_cycle_sign=1,
+        )
+        assert result is not None
+        assert result.next_event_class == "CCI"
+        # Asymmetric override forces direction=unknown even when
+        # business_cycle_sign would otherwise produce up/down :
+        assert result.expected_drift_direction == "unknown"
+        # Magnitude STAYS as conditional-on-negative-surprise estimate :
+        assert result.expected_drift_magnitude_bp is not None
+        # Sentinel surfaces honestly :
+        assert "asymmetric_negativity_bias" in result.parse_failures
+        # Caveat carries the epistemic framing (r153 trader YELLOW-2 fix —
+        # purely geometric/citation, no implied behaviour) :
+        assert "skew" in result.caveat.lower()
+        assert "asymétrique" in result.caveat.lower()
+        assert "akhtar" in result.caveat.lower()
+
+    @pytest.mark.asyncio
+    async def test_michigan_event_emits_unknown_direction_and_sentinel(self) -> None:
+        # Event 4h ahead (close to release) — magnitude above noise floor.
+        evt = _make_event_row(
+            title="Prelim UoM Consumer Sentiment",
+            impact="medium",
+            currency="USD",
+            scheduled_at=datetime(2026, 6, 13, 14, 0, tzinfo=UTC),
+        )
+        session = _build_session(
+            event_rows=[evt],
+            vix_row=_make_fred_row(20.0, datetime(2026, 5, 23, tzinfo=UTC).date()),
+        )
+        result = await assess_event_proximity(
+            session,
+            asset="EUR_USD",
+            now=datetime(2026, 6, 13, 10, 0, tzinfo=UTC),
+            business_cycle_sign=1,
+        )
+        assert result is not None
+        assert result.next_event_class == "Michigan"
+        assert result.expected_drift_direction == "unknown"
+        assert "asymmetric_negativity_bias" in result.parse_failures
+
+    @pytest.mark.asyncio
+    async def test_ism_event_does_NOT_emit_asymmetric_sentinel(self) -> None:
+        """REGRESSION : ISM is NOT asymmetric per literature — must emit
+        symmetric direction (up/down) without the bias sentinel."""
+        evt = _make_event_row(
+            title="ISM Manufacturing PMI",
+            impact="high",
+            currency="USD",
+            scheduled_at=datetime(2026, 6, 2, 14, 0, tzinfo=UTC),
+        )
+        session = _build_session(
+            event_rows=[evt],
+            vix_row=_make_fred_row(20.0, datetime(2026, 5, 23, tzinfo=UTC).date()),
+        )
+        result = await assess_event_proximity(
+            session,
+            asset="EUR_USD",
+            now=datetime(2026, 6, 1, 12, 0, tzinfo=UTC),
+            business_cycle_sign=1,
+        )
+        assert result is not None
+        assert result.next_event_class == "ISM"
+        # Symmetric direction expected for ISM (business_cycle_sign=+1 → up
+        # in expansion regime by default) :
+        assert result.expected_drift_direction in ("up", "down")
+        assert "asymmetric_negativity_bias" not in result.parse_failures
+
+    @pytest.mark.asyncio
+    async def test_fomc_event_does_NOT_emit_asymmetric_sentinel(self) -> None:
+        """REGRESSION : FOMC class must NOT carry the asymmetric sentinel."""
+        evt = _make_event_row(
+            title="Federal Funds Rate",
+            impact="high",
+            currency="USD",
+            scheduled_at=datetime(2026, 6, 18, 18, 0, tzinfo=UTC),
+        )
+        session = _build_session(
+            event_rows=[evt],
+            vix_row=_make_fred_row(20.0, datetime(2026, 5, 23, tzinfo=UTC).date()),
+        )
+        result = await assess_event_proximity(
+            session,
+            asset="EUR_USD",
+            now=datetime(2026, 6, 17, 18, 0, tzinfo=UTC),
+            business_cycle_sign=1,
+        )
+        assert result is not None
+        assert result.next_event_class == "FOMC"
+        assert "asymmetric_negativity_bias" not in result.parse_failures
+
+
+class TestR153LiteratureAnchorExtended:
+    """r153 — `literature_anchor` extended with Akhtar 2012 + ABDV 2007 + Pinchuk
+    2022 citations (researcher web R59 verified primary sources). Hallucinated
+    Karnaukh-Vrolijk 2019 *JFE* (cited in my r152 closing-sync from training-
+    data memory) was REJECTED by R59 (closest real paper is Karnaukh-Vokata
+    2022 JFE about FOMC growth forecasts, NOT consumer confidence). Same
+    pattern class as r147 Bauer DP21003 hallucination — pattern #13 + #15
+    in action. The r152 historical docs (ADR-099 §Impl(r152) + SESSION_LOG +
+    CLAUDE.md) intentionally NOT corrected (historical records of what was
+    planned) ; the r153 §Impl documents the catch as doctrinal reinforcement.
+    """
+
+    @pytest.mark.asyncio
+    async def test_literature_anchor_contains_akhtar_2012(self) -> None:
+        evt = _make_event_row(
+            title="CB Consumer Confidence",
+            impact="medium",
+            currency="USD",
+            scheduled_at=datetime(2026, 6, 3, 14, 0, tzinfo=UTC),
+        )
+        session = _build_session(
+            event_rows=[evt],
+            vix_row=_make_fred_row(20.0, datetime(2026, 5, 23, tzinfo=UTC).date()),
+        )
+        result = await assess_event_proximity(
+            session,
+            asset="EUR_USD",
+            now=datetime(2026, 6, 1, 12, 0, tzinfo=UTC),
+            business_cycle_sign=1,
+        )
+        assert result is not None
+        assert "Akhtar" in result.literature_anchor
+        assert "Pinchuk" in result.literature_anchor
+        assert "Andersen-Bollerslev-Diebold-Vega" in result.literature_anchor
+
+
+class TestR153FfTitleCoverageInvariant:
+    """r153 META-FIX CI invariant — load the 60d snapshot fixture of real FF
+    high+medium impact titles from prod DB (94 events SSH-probed 2026-05-24)
+    and assert mapping coverage ≥ baseline %.
+
+    The fixture is NOT auto-refreshed ; refresh quarterly OR when CI starts
+    failing (which IS the alarm that says "title drift / new indicator type
+    to map"). Pattern follows r142+r148 lockstep CI invariant doctrine but
+    applied to title→event_class mapping coverage.
+
+    Baseline threshold = current post-r153 coverage. r154+ rounds should
+    raise this as more classes are mapped.
+    """
+
+    # Threshold = current measured baseline post-r153. Bump up over time
+    # as r154+ rounds add classes. Do NOT lower without explicit ADR.
+    _MIN_COVERAGE_PCT: float = 35.0
+
+    _FIXTURE_PATH = Path(__file__).parent / "fixtures" / "ff_titles_60d_high_medium_2026-05-24.json"
+
+    def _load_fixture_events(self) -> list[dict[str, str]]:
+        import json
+
+        data = json.loads(self._FIXTURE_PATH.read_text(encoding="utf-8"))
+        return data["events"]
+
+    def test_fixture_loads_and_has_events(self) -> None:
+        events = self._load_fixture_events()
+        assert len(events) >= 50, "fixture should carry meaningful sample"
+        # Sanity-check shape
+        assert all("title" in e and "currency" in e and "impact" in e for e in events)
+
+    def test_title_coverage_pct_above_threshold(self) -> None:
+        """The fundamental r153 CI invariant : ≥ _MIN_COVERAGE_PCT of fixture
+        titles MUST map to a known event_class. Catches title-drift OR new
+        indicator types worth mapping (failing CI IS the alarm)."""
+        events = self._load_fixture_events()
+        mapped = sum(1 for e in events if _map_title_to_event_class(e["title"]) is not None)
+        coverage_pct = 100.0 * mapped / len(events)
+        assert coverage_pct >= self._MIN_COVERAGE_PCT, (
+            f"FF title coverage dropped to {coverage_pct:.1f}% "
+            f"(threshold {self._MIN_COVERAGE_PCT}%). "
+            f"Either upstream FF changed titles → update "
+            f"`_TITLE_TO_EVENT_CLASS` ; or refresh the fixture via "
+            f"SSH SQL probe if titles drifted upstream legitimately."
+        )
+
+    def test_r153_new_classes_have_at_least_one_match_in_fixture(self) -> None:
+        """Empirical witness : confirm the 3 new r153 classes (CCI, Michigan,
+        ISM) each match ≥ 1 title in the empirical 60d fixture. Asserts the
+        mapping was effective — not just literature-cited."""
+        events = self._load_fixture_events()
+        classes_observed = {_map_title_to_event_class(e["title"]) for e in events}
+        assert "CCI" in classes_observed, "no CB Consumer Confidence in fixture"
+        assert "Michigan" in classes_observed, "no UoM Sentiment in fixture"
+        assert "ISM" in classes_observed, "no ISM PMI in fixture"
+
+
+# ── r153 — latent collision-class defensive blocks ────────────────────────────
+
+
+class TestR153LatentBugBlocks:
+    """r153 — defensive `_TITLE_FRAGMENT_BLOCKED` additions to prevent silent
+    misclassification empirically surfaced during r153 coverage audit.
+
+    Both bugs are LATENT today (no NZD asset → RBNZ events filter out at the
+    SQL query level ; ADP rarely fires Engine 8 because magnitude under
+    impact='medium' × cold VIX × time_decay collapses to None under noise
+    floor). But they would fire silently if either currency exposure or
+    impact configuration changes — defensive block is the same pattern as
+    r149 "official cash rate" entry.
+    """
+
+    def test_adp_non_farm_employment_change_blocked(self) -> None:
+        """ADP NFP substring-matches BLS NFP pattern → must be defensively
+        blocked at the r144-reconciler-doctrine parity layer. r144's
+        actuals reconciler already blocks ADP upstream ; engine side now
+        mirrors it."""
+        result = _map_title_to_event_class("ADP Non-Farm Employment Change")
+        assert result is None, (
+            "ADP must NOT misclassify as BLS NFP — methodologically distinct private survey"
+        )
+
+    def test_bls_non_farm_employment_change_still_maps_NFP(self) -> None:
+        """REGRESSION : the canonical BLS Non-Farm Employment Change must
+        still map to NFP class (the r150 NFP priority protection)."""
+        assert _map_title_to_event_class("Non-Farm Employment Change") == "NFP"
+
+    def test_rbnz_monetary_policy_statement_blocked(self) -> None:
+        """RBNZ MPS substring-matches the BoJ generic-fallback pattern
+        'monetary policy statement' → must be defensively blocked.
+        Mirrors the r149 'official cash rate' RBNZ collision guard."""
+        result = _map_title_to_event_class("RBNZ Monetary Policy Statement")
+        assert result is None, (
+            "RBNZ MPS must NOT misclassify as BoJ — RBNZ ≠ BoJ in literature priors"
+        )
+
+    def test_boj_monetary_policy_statement_still_maps_BoJ(self) -> None:
+        """REGRESSION : the canonical BoJ Monetary Policy Statement (or any
+        bare 'Monetary Policy Statement' for JPY) must still hit the BoJ
+        generic-fallback pattern."""
+        # Bare title without RBNZ/RBA prefix → maps to BoJ via fallback
+        assert _map_title_to_event_class("Monetary Policy Statement") == "BoJ"

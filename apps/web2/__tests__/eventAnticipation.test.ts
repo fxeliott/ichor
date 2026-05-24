@@ -418,15 +418,47 @@ describe("r152 Phase 2 PARSE_FAILURE_FR (CONCORDANT trader Y4 + a11y SHOULD-2)",
     expect(parseFailureLabel("future_r153_sentinel")).toBe("future_r153_sentinel");
   });
 
-  it("PARSE_FAILURE_FR carries the 5 canonical engine sentinels", () => {
+  it("PARSE_FAILURE_FR carries the 5 canonical engine sentinels + r153 asymmetric", () => {
     const expected = new Set([
       "single_source_direction",
       "event_class_unmapped",
       "vix_observation_missing",
       "impact_value_invalid",
       "cold_start_no_calibration",
+      // r153 — asymmetric negativity bias for CCI / Michigan classes
+      "asymmetric_negativity_bias",
     ]);
     const actual = new Set(Object.keys(PARSE_FAILURE_FR));
     expect(actual).toEqual(expected);
+  });
+
+  it("r153 translates asymmetric_negativity_bias sentinel", () => {
+    expect(parseFailureLabel("asymmetric_negativity_bias")).toContain("asymétrique");
+    expect(parseFailureLabel("asymmetric_negativity_bias")).toContain("négative");
+  });
+});
+
+// ── r153 — new event class FR labels ───────────────────────────────
+
+describe("r153 EVENT_CLASS_FR sentiment indicator extension", () => {
+  it("maps CCI → Conference Board label", () => {
+    expect(EVENT_CLASS_FR.CCI).toContain("Conference Board");
+  });
+
+  it("maps Michigan → UoM label", () => {
+    expect(EVENT_CLASS_FR.Michigan).toContain("UoM");
+  });
+
+  it("maps ISM → ISM PMI label", () => {
+    expect(EVENT_CLASS_FR.ISM).toContain("ISM");
+  });
+
+  it("preserves all r152 + r149 + r147 class labels (REGRESSION)", () => {
+    expect(EVENT_CLASS_FR.FOMC).toContain("Fed");
+    expect(EVENT_CLASS_FR.ECB).toContain("BCE");
+    expect(EVENT_CLASS_FR.PCE).toContain("PCE");
+    expect(EVENT_CLASS_FR.GDP).toContain("GDP");
+    expect(EVENT_CLASS_FR.RBA).toContain("RBA");
+    expect(EVENT_CLASS_FR.BoC).toContain("BoC");
   });
 });
