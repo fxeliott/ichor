@@ -29,6 +29,7 @@ from .routers import (
     data_pool_router,
     divergence_router,
     economic_events_router,
+    event_anticipation_router,
     geopolitics_router,
     graph_router,
     hourly_volatility_router,
@@ -215,6 +216,7 @@ app.include_router(confluence_router)
 app.include_router(currency_strength_router)
 app.include_router(calendar_router)
 app.include_router(economic_events_router)
+app.include_router(event_anticipation_router)
 app.include_router(correlations_router)
 app.include_router(hourly_volatility_router)
 app.include_router(journal_router)

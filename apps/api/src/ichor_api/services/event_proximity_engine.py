@@ -143,6 +143,15 @@ EVENT_CLASS_BASELINE_BP: dict[str, float] = {
     # release literature priors (Lucca-Moench 2015 + Kurov 2021 — 18 macro
     # announcements, employment-class events all ~20bp magnitude).
     "Employment": 20.0,
+    # r152 — PCE / GDP first-class mapping. Empirically captures the Tue May 26
+    # Core PCE Price Index + Thu May 28 Prelim GDP q/q events that were
+    # previously falling through to `high_other` 10bp (under-priced). PCE is
+    # FOMC's preferred core inflation gauge → similar magnitude to CPI per
+    # Kurov 2021 18-announcements study ; GDP is intermediate between CPI and
+    # FOMC per BIS macro-announcement reaction literature (less surprise per
+    # release because quarterly, but higher growth-channel impact).
+    "PCE": 20.0,
+    "GDP": 25.0,
     # Other high-impact macro (PPI, ISM, Retail Sales, etc.)
     "high_other": 10.0,
     # Tier-2 events
@@ -251,6 +260,16 @@ _TITLE_TO_EVENT_CLASS: tuple[tuple[str, str], ...] = (
     ("overnight rate", "BoC"),  # bare FF XML title for BoC decision
     # Tankan (r149 new — Japan flagship business sentiment, quarterly)
     ("tankan", "Tankan"),
+    # r152 — PCE family (FOMC's preferred core inflation gauge). MORE SPECIFIC
+    # than generic CPI patterns ; ordered BEFORE CPI to preserve first-match-wins.
+    ("core pce price index", "PCE"),
+    ("pce price index", "PCE"),
+    # r152 — GDP family (high-impact growth-channel release, quarterly). Generic
+    # patterns catch US Advance/Prelim/Final + EZ/JP GDP variants.
+    ("advance gdp q/q", "GDP"),
+    ("prelim gdp q/q", "GDP"),
+    ("final gdp q/q", "GDP"),
+    ("gdp q/q", "GDP"),
     # Tier-1 US macro — NFP-specific (US-only) before generic Employment family
     ("non-farm employment change", "NFP"),
     ("nonfarm payrolls", "NFP"),

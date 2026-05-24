@@ -299,6 +299,19 @@ export async function getPolymarketImpact(): Promise<PolymarketImpact | null> {
   return apiGet<PolymarketImpact>("/v1/polymarket-impact");
 }
 
+/** r152 — Engine 8 forward-looking surface from
+ *  `/v1/event-anticipation/{asset}`. Returns the composed
+ *  `EventAnticipationOut` with mode "engaged" / "standby" / "silent" so
+ *  the dedicated `<EventAnticipationPanel>` can dispatch off `data.mode`.
+ *
+ *  Pure server-side fetch (no signal needed — briefing SSR Promise.all). */
+export async function getEventAnticipation(asset: string): Promise<EventAnticipationOut | null> {
+  // Normalise EUR-USD / eur_usd → EUR_USD to match the router path
+  // pattern `^[A-Z]{3,8}_[A-Z]{3,8}$|^[A-Z]{3,8}$`.
+  const normalised = asset.toUpperCase().replace(/-/g, "_");
+  return apiGet<EventAnticipationOut>(`/v1/event-anticipation/${encodeURIComponent(normalised)}`);
+}
+
 /**
  * r69 + r138 — fetch recent news items from `/v1/news`.
  *
@@ -1049,6 +1062,67 @@ export interface RecentActuals {
   lookback_days: number;
   currency: string | null;
   rows: RecentActualRow[];
+}
+
+/**
+ * r152 — Engine 8 Event-Driven anticipation wire shape, mirrors the
+ * backend `EventAnticipationView` / `EventProximityFactor` dataclasses.
+ *
+ * Three modes :
+ *   - "engaged"  : Engine 8 fires (event in 48h window, mapped class).
+ *                  `engaged` populated with full factor projection.
+ *   - "standby"  : Engine 8 silent (no event in 48h), but next 1-3
+ *                  high/medium-impact events exist in the next 14d.
+ *                  `standby_events` populated.
+ *   - "silent"   : nothing in 14d window. Honest empty state — panel
+ *                  may still render explanatory chrome OR return null.
+ *
+ * ADR-017 boundary : DESCRIPTIVE drift expectation (geometric direction
+ * + signed magnitude_bp + literature-anchored caveat) ; NEVER imperative.
+ * Sign is stripped at the UI boundary per r142 trader RED-1 doctrine —
+ * the engine internal sign is an INTERNAL aggregation convention.
+ */
+export type EventAnticipationMode = "engaged" | "standby" | "silent";
+
+export type DriftDirection = "up" | "down" | "unknown";
+
+export type EventConfidence = "high" | "medium" | "low" | "unavailable";
+
+export type VixRegimeGate = "above_p75" | "p50_to_p75" | "below_p50" | "unavailable";
+
+export interface EventProximityFactorOut {
+  next_event_id: string | null;
+  next_event_title: string | null;
+  next_event_currency: string | null;
+  next_event_minutes_until: number | null;
+  next_event_impact: "high" | "medium" | "low" | null;
+  next_event_class: string | null;
+  expected_drift_direction: DriftDirection;
+  expected_drift_magnitude_bp: number | null;
+  confidence: EventConfidence;
+  vix_regime_gate: VixRegimeGate;
+  caveat: string;
+  literature_anchor: string;
+  parse_failures: string[];
+}
+
+export interface UpcomingEventOut {
+  event_id: string;
+  currency: string;
+  scheduled_at_utc: string;
+  title: string;
+  impact: "high" | "medium";
+  event_class: string | null;
+  minutes_until: number;
+}
+
+export interface EventAnticipationOut {
+  generated_at: string;
+  asset: string;
+  mode: EventAnticipationMode;
+  engaged: EventProximityFactorOut | null;
+  standby_events: UpcomingEventOut[];
+  parse_failures: string[];
 }
 
 export interface AlertItem {

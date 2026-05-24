@@ -18,6 +18,7 @@ from .currency_strength import router as currency_strength_router
 from .data_pool import router as data_pool_router
 from .divergence import router as divergence_router
 from .economic_events import router as economic_events_router
+from .event_anticipation import router as event_anticipation_router
 from .geopolitics import router as geopolitics_router
 from .graph import router as graph_router
 from .hourly_volatility import router as hourly_volatility_router
@@ -60,6 +61,7 @@ __all__ = [
     "data_pool_router",
     "divergence_router",
     "economic_events_router",
+    "event_anticipation_router",
     "geopolitics_router",
     "graph_router",
     "hourly_volatility_router",

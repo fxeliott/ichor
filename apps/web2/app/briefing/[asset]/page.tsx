@@ -31,6 +31,7 @@ import { ConvictionGroundingPanel } from "@/components/briefing/ConvictionGround
 import { CorrelationsStrip } from "@/components/briefing/CorrelationsStrip";
 import { DataIntegrityBadge } from "@/components/briefing/DataIntegrityBadge";
 import { EconomicCalendarPanel } from "@/components/briefing/EconomicCalendarPanel";
+import { EventAnticipationPanel } from "@/components/briefing/EventAnticipationPanel";
 import { EventSurpriseGauge } from "@/components/briefing/EventSurpriseGauge";
 import { GeopoliticsPanel } from "@/components/briefing/GeopoliticsPanel";
 import { InstitutionalPositioningPanel } from "@/components/briefing/InstitutionalPositioningPanel";
@@ -53,6 +54,7 @@ import {
   apiGet,
   getCalendarUpcoming,
   getCorrelations,
+  getEventAnticipation,
   getInstitutionalPositioning,
   getHourlyVol,
   getIntradayBars,
@@ -67,6 +69,7 @@ import {
   isLive,
   type CalendarUpcoming,
   type CorrelationMatrix,
+  type EventAnticipationOut,
   type InstitutionalPositioning,
   type IntradayBarOut,
   type PocketSummaryList,
@@ -136,6 +139,7 @@ export default async function BriefingPage({ params }: PageParams) {
     tempoBundle,
     macroPulse,
     recentActuals,
+    eventAnticipation,
   ] = await Promise.all([
     fetchSessionCardForAsset(normalisedAsset),
     getKeyLevels() as Promise<KeyLevelsResponse | null>,
@@ -172,6 +176,14 @@ export default async function BriefingPage({ params }: PageParams) {
     // window matches the r144 reconciler cadence ; the panel renders
     // honest silent absence (returns null) when the slice is dark.
     apiGet<RecentActuals>("/v1/calendar/recent-actuals?lookback_days=30&currency=USD&limit=15"),
+    // r152 — Engine 8 forward-looking surface for this asset
+    // (Mission centrale axis-4 +1 LEVEL extension). The endpoint
+    // composes ENGAGED / STANDBY / SILENT modes : ENGAGED when a
+    // mapped event sits inside the 48h window, STANDBY when the
+    // 14d horizon has 1-3 high/medium-impact events for the asset's
+    // currencies, SILENT otherwise. The dedicated <EventAnticipationPanel>
+    // renders null in SILENT mode (honest absence per doctrine #11).
+    getEventAnticipation(normalisedAsset) as Promise<EventAnticipationOut | null>,
   ]);
 
   // r123 — derive today's session pulse from the FULL intraday array
@@ -331,6 +343,19 @@ export default async function BriefingPage({ params }: PageParams) {
           panel inchangées tant que la collecte cron n'a pas tourné") avoids
           the "garbage-with-decoration" false-confidence read (trader RED-3). */}
       <FreshDataBanner asset={normalisedAsset} briefingGeneratedAt={card?.generated_at ?? null} />
+
+      {/* r152 — Engine 8 dedicated forward-looking surface (Mission
+          centrale axis-4 +1 LEVEL extension). Previously buried as 1 of
+          N drivers on the ConvictionGroundingPanel 4th tile (r142) — now
+          gets its own panel with countdown + literature-cited drift
+          expectation (ENGAGED) OR next 1-3 upcoming high/medium-impact
+          events for the asset's currencies (STANDBY). Placed right BEFORE
+          ConvictionGroundingPanel because Engine 8 is a forward-looking
+          factor and reading "what catalyst is coming" before "how grounded
+          is the read" matches the natural narrative flow. Silent fallback
+          (panel returns null) when nothing fires in 14d — no fabricated
+          chrome (doctrine #11 honest scope). */}
+      <EventAnticipationPanel data={eventAnticipation} />
 
       {/* r134 + r142 + r143 — ConvictionGroundingPanel (Mission centrale
           axis 6) : the QUALITATIVE grounding behind conviction_pct
