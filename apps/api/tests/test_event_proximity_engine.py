@@ -2596,3 +2596,57 @@ class TestR157Pattern17ObservationStatusPreserved:
         assert "Durable_Goods" in _LOW_SIGNAL_CONFIDENCE_CLASSES
         # Cardinality check : 2 witnesses post-r157 (extensible r158+)
         assert len(_LOW_SIGNAL_CONFIDENCE_CLASSES) >= 2
+
+
+class TestR158Pattern17R59CandidateDocumented:
+    """r158 — R59 verified that Flannery-Protopapadakis 2002 *RFS*
+    documents Industrial Production + Real GNP/GDP as STATISTICALLY
+    UNPRICED — a candidate for 2nd INDEPENDENT Pattern #17 anchor (different
+    paper + journal + methodology than Birz-Lott 2011 *JBF*). Docstring
+    annotation pins the r159+ candidate path so future contributors can
+    find the verified-primary citation without re-running R59.
+
+    Also documents the Pinchuk 2022 arXiv 2212.04525 RE-REJECTION
+    (aggregate MNA only, no per-class housing-starts breakout — r157 F2
+    + r158 R59 concordant)."""
+
+    def test_docstring_references_flannery_protopapadakis_r159_candidate(self) -> None:
+        from ichor_api.services import event_proximity_engine
+
+        doc = event_proximity_engine.__doc__ or ""
+        # Either explicit "Flannery-Protopapadakis 2002" OR "Industrial
+        # Production" OR "Real GNP" — any of the 3 anchor strings proves
+        # the r158 R59 candidate is documented for r159+ pickup.
+        has_r159_candidate_marker = (
+            "Flannery-Protopapadakis 2002" in doc
+            or "Industrial Production" in doc
+            or "Real GNP" in doc
+        )
+        assert has_r159_candidate_marker, (
+            "Pattern #17 r159+ candidate (Flannery-Protopapadakis 2002 RFS "
+            "Industrial Production / Real GNP negative-result anchor) must "
+            "be documented in module docstring per r158 R59 verified finding"
+        )
+
+    def test_docstring_documents_pinchuk_2022_re_rejection(self) -> None:
+        """REGRESSION GUARD : Pinchuk 2022 was RE-REJECTED r158 R59
+        (aggregate MNA only, NOT housing-starts breakout). Docstring must
+        document this so future contributors don't re-propose Pinchuk 2022
+        as Pattern #17 anchor."""
+        from ichor_api.services import event_proximity_engine
+
+        doc = event_proximity_engine.__doc__ or ""
+        # The string "aggregate" or "Pinchuk 2022" in NOTE context should
+        # surface the re-rejection. Either "aggregate-MNA" OR "Pinchuk 2022"
+        # explicit re-rejection marker.
+        has_pinchuk_rejection_marker = (
+            "aggregate-MNA only" in doc
+            or "aggregate MNA only" in doc
+            or "NOT a valid candidate" in doc
+            or "NOT a valid Pattern #17" in doc
+        )
+        assert has_pinchuk_rejection_marker, (
+            "Pinchuk 2022 RE-REJECTION (aggregate-MNA only, not housing-"
+            "starts breakout) must be documented per r158 R59 finding so "
+            "future contributors don't re-propose"
+        )

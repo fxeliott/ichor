@@ -70,9 +70,26 @@ is NOT 2 independent applications under multi-application discipline.
 Pattern #14 was validated via SEPARATE deploy events ; Pattern #16 via
 SEPARATE deploys. Pattern #17 r155+r157 share Birz-Lott 2011 *JBF* as
 single anchor source." Formal DOCTRINE codify pending a 2nd INDEPENDENT
-peer-reviewed negative-result anchor (candidates : Pinchuk 2022 housing-
-starts negative-result OR Industrial Production replication from a
-different paper).
+peer-reviewed negative-result anchor.
+
+**r158 R59 verified candidate path (NOT YET SHIPPED)** : Flannery-
+Protopapadakis 2002 *RFS* 15(3):751-782 documents **Industrial Production
++ Real GNP/GDP** as STATISTICALLY UNPRICED in the cross-section of stock
+returns ("Popular measures of overall economic activity, such as
+Industrial Production or GNP are not represented" in their 6 priced
+factors — CPI/PPI/Monetary-Aggregate/Balance-of-Trade/Employment/Housing-
+Starts). This is a **DIFFERENT PAPER** (RFS vs JBF) + DIFFERENT METHODOLOGY
+(cross-section pricing vs event-window correlation) than Birz-Lott 2011.
+r159+ candidate = wire `Industrial_Production` class at 5bp with the
+canonical r155/r157 triad (floor + sentinel + clamp + caveat) — that
+shipping triggers formal DOCTRINE codify.
+
+**NOTE on Pinchuk 2022 arXiv 2212.04525** : NOT a valid candidate.
+Verified r157 F2 + r158 R59 both : paper is aggregate-MNA only ("1σ
+surprise → 11-25 bps cash-flow channel and -23bp per 1% monetary
+uncertainty risk-free-rate channel"), NO per-class housing-starts /
+industrial-production breakout. Cited in `literature_anchor` as aggregate
+band-anchor, NOT as Pattern #17 negative-result anchor.
 
 A peer-reviewed **negative-result** IS a candidate-legitimate calibration
 anchor when paired with mechanical sentinel + confidence-clamp + caveat.

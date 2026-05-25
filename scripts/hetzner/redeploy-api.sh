@@ -49,7 +49,27 @@ REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 LOCAL_PKG="${REPO_ROOT}/apps/api/src/ichor_api"
 [[ -d "${LOCAL_PKG}" ]] || fail "local package not found: ${LOCAL_PKG}" 3
 
-probe() { ${SSH} "curl -fsS -o /dev/null -w '%{http_code}' '$1' 2>/dev/null || echo 000"; }
+probe() {
+  # r158 fix : the inner `|| echo 000` only handles curl-failure WITHIN the
+  # SSH session. If SSH ITSELF times out (the lesson #24 SSH-instability class
+  # documented in Pattern #14), the entire ${SSH} "..." command exits non-zero
+  # and bash strict-mode `set -e` trips BEFORE the function returns. r157
+  # Strand C Step 5 hardening assumed probe() returns "000" on SSH-timeout to
+  # trigger the 15s SSH-recovery sleep — but the assumption was wrong : SSH-
+  # itself-timeout bypassed the inner fallback. r155+r156+r157 all hit Step 5
+  # SSH timeout for this exact reason.
+  #
+  # Fix : OUTER `|| echo 000` catches SSH-itself-timeout/disconnect/auth-fail
+  # at the bash level. Stderr also swallowed at outer level so set -e doesn't
+  # trip on SSH stderr lines that aren't real failures (e.g., banner). The
+  # function now ALWAYS returns a 3-digit string + exit 0 :
+  #   - SSH OK + curl 200    → "200"
+  #   - SSH OK + curl failure → "000" (inner fallback)
+  #   - SSH timeout/disconnect → "000" (outer fallback, r158 hardening)
+  # Strand C 15s SSH-recovery retry loop now correctly observes "000" on
+  # SSH-itself-timeout and applies the retry-with-sleep discipline.
+  ${SSH} "curl -fsS -o /dev/null -w '%{http_code}' '$1' 2>/dev/null || echo 000" 2>/dev/null || echo 000
+}
 
 cmd_verify_only() {
   local h s
