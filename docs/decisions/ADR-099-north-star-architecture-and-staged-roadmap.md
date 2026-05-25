@@ -4499,7 +4499,7 @@ ZERO Anthropic API spend r158. **Voie D held 73 rounds.**
 
 ## Implementation (r159, 2026-05-25) — Pattern #17 OBSERVATION → formal DOCTRINE graduation via Industrial_Production class (2nd INDEPENDENT anchor F-P 2002 RFS)
 
-**TL;DR** : r159 ships Industrial_Production class with Flannery-Protopapadakis 2002 _RFS_ anchor (cross-section pricing methodology — different paper RFS vs JBF, different journal, different methodology than Birz-Lott 2011 r155+r157). Pattern #17 multi-application discipline SOURCE-level independence satisfied → **graduation OBSERVATION → formal DOCTRINE**. Single feat commit `12f3c80` +351/-68 LOC across 4 files. **Eliot "ichor usage perso" r159 directive** → Dukascopy ToU LICENSE BLOCKER RESOLVED → r160 binding-default #1 = Dukascopy MVP empirical reaction-beta backfill (transformational unlock).
+**TL;DR** : r159 ships Industrial*Production class with Flannery-Protopapadakis 2002 \_RFS* anchor (cross-section pricing methodology — different paper RFS vs JBF, different journal, different methodology than Birz-Lott 2011 r155+r157). Pattern #17 multi-application discipline SOURCE-level independence satisfied → **graduation OBSERVATION → formal DOCTRINE**. Single feat commit `12f3c80` +351/-68 LOC across 4 files. **Eliot "ichor usage perso" r159 directive** → Dukascopy ToU LICENSE BLOCKER RESOLVED → r160 binding-default #1 = Dukascopy MVP empirical reaction-beta backfill (transformational unlock).
 
 **r158 Strand A probe() fix VALIDATED 2ND CONSECUTIVE TIME** in r159 deploy : Step 5 SSH timeout fired → probe returned 000 → Pattern #14 retry sleep 15s → next iteration healthz=200 → DEPLOY OK. Pattern #14 + #16 + Strand C now durable infrastructure (2 consecutive empirical validations).
 
@@ -4536,3 +4536,51 @@ NO state change. Coverage Engine 8 : 54.7% UNCHANGED. Voie D **74 rounds**.
 8. actual_source/actual_revised columns.
 
 ZERO Anthropic API spend r159. **Voie D held 74 rounds.**
+
+---
+
+## Implementation (r160, 2026-05-25) — Tier 4 axis-4 +1 LEVEL DEPTH **FOUNDATION** : Dukascopy MVP `empirical_reaction_betas` table + service contract + Engine 8 graceful-degradation
+
+**Status** : SHIPPED (single feat commit `b6c8412`, closing-sync TBD-hash) ; **NOT YET DEPLOYED** (Option A — defer migration 0053 deploy until r161+ bundles with the actual Dukascopy fetcher in a single deploy cycle). **Reviews/Verification** : trader + code-reviewer concordance DEFERRED to r161+ (per the architecture-first scoping discipline, the FOUNDATION surface is too thin to review independently without the EXECUTION-phase consumer ; pre-emptive defensive coding applied : 6 CHECK constraints + Decimal→float boundary cast + frozen dataclass snapshot + cold-start safety net via 2-gate `is not None` chain). **Mission centrale impact** : axis-4 +1 LEVEL DEPTH **FOUNDATION** (deeper than r147+r152-r155+r157+r159) — closes the cold-start caveat at the SCHEMA layer ; the empirical-first branch ships dormant (table starts EMPTY at deploy = zero behavior change vs r159), r161+ data fetcher lights it up naturally.
+
+**Eliot r160 directive** : "Continue et exploite toutes tes capacités de Claude Code, sans aucune exception et sans aucune retenue... C'est toi qui prends le lead, pleinement et sans hésitation... si tu veux changer de session, vas-y". → Full autonomy ; r159 directive "déjà ichor est usage perso" remains the standing unblocker for Dukascopy (ToU "personal non-commercial use only" matches Ichor pre-trade research framing). Token-budget reality post-5-round session r155-r159 motivated splitting r160 = FOUNDATION (single commit, clean test coverage, zero observable change) + r161+ = EXECUTION (data fetcher + CLI + populate + Engine 8 lights up naturally) per doctrine #2 strict scope.
+
+**Phase 0 — Empirical state verification (R-WITNESS-EMPIRICAL pre-design)** : alembic head=0052 (next monotonic increment = 0053) ; `\d empirical_reaction_betas` does NOT exist (green field, no schema collision) ; FRED PAYEMS has 120 obs / 2016-04 / 2026-04 (10y NFP history ready for r161+ backfill via Pattern #11 PAYEMS dates → Dukascopy URL pattern).
+
+**Architecture shipped (5 strands in single feat commit)** :
+
+1. **Strand A — alembic migration `0053_empirical_reaction_betas`** : regular Postgres table (NOT TimescaleDB hypertable — small footprint ~850 rows/year ceiling) with 6 CHECK constraints (Pattern #29 ADR class hardening : `n_observations >= 1`, `p50_drift_bp >= 0`, monotonic `p75 >= p50` + `p90 >= p75`, `window_minutes_before >= 1`, `window_minutes_after >= 0`) + UniqueConstraint on `(event_class, instrument, window_minutes_before, window_minutes_after, computed_at)` + compound desc index `ix_empirical_reaction_betas_class_instrument_computed_at_desc` for the "latest per (event_class, instrument)" query. Historical-trace shape (one row per `(event_class, instrument, computed_at)`, NOT single-row upsert) preserves audit trail of backfill recomputes — mirror of r51 `tempo_thresholds` verbatim. `event_class` String(64) FK-less reference to `EVENT_CLASS_BASELINE_BP` Python dict keys (service-layer validated, same pattern as r51 `tempo_thresholds.asset`). `instrument` String(32) Dukascopy URL slug. `p50/p75/p90_drift_bp` Numeric(8, 3) ABSOLUTE-value magnitudes (sign stripped at DB layer per ADR-017 boundary + r142 trader RED-1 doctrine). Methodology stamps `window_minutes_before` + `window_minutes_after` explicitly recorded per row (Pattern #15 r158 R59 ABDV-2003 canonical 5min pre / 0min post). r170+ methodology evolution (1-min granular vs 5-min coarse) records directly without schema migration. `source` String(32) audit-trail column.
+
+2. **Strand B — SQLAlchemy 2 ORM** `EmpiricalReactionBeta` registered in `apps/api/src/ichor_api/models/__init__.py` (`Mapped[]` type annotations + UniqueConstraint + 6 CHECKs at ORM-level defense matching DB-level constraint set).
+
+3. **Strand C — Pure read-service** `apps/api/src/ichor_api/services/empirical_reaction_beta.py` (NEW) : `get_latest_empirical_beta(session, *, event_class, instrument)` async fn (`ORDER BY computed_at DESC LIMIT 1` uses Strand A compound desc index) returning `EmpiricalReactionBetaSnapshot | None` frozen dataclass (decoupled from session-lifecycle, no expired-attribute fetch surprises ; Decimal→float cast at boundary for downstream Engine 8 float-arithmetic compatibility). `asset_to_instrument(asset)` pure-fn mapping the 5 ADR-083 D1 priority assets (`EUR_USD` → `eurusd`, `GBP_USD` → `gbpusd`, `XAU_USD` → `xauusd`, `SPX500_USD` → `usa500idxusd`, `NAS100_USD` → `usatechidxusd` — slugs verified against Dukascopy URL pattern in module docstring) ; returns None for non-priority assets cleanly. Pure read-fn ; one DB round-trip ; NO INSERT/UPDATE from this module (backfill writes belong to r161+ Dukascopy fetcher, sanctioned write path).
+
+4. **Strand D — Engine 8 graceful-degradation wire** : `services/event_proximity_engine.py` baseline computation site modified — empirical-first read with 2-gate `is not None` chain (asset → instrument mapping + empirical row existence) BEFORE overriding `EVENT_CLASS_BASELINE_BP` lookup. Cold-start safety net by construction : missing row OR non-priority asset → byte-identical to r159. NEW `using_empirical_calibration` parse_failures sentinel surfaces honestly when empirical branch fires (POSITIVE disclosure polarity, opposite of `low_signal_confidence` / `asymmetric_negativity_bias` / `single_source_direction`).
+
+5. **Strand E — Tests + frontend FR translation** : 7 new TestR160 backend tests pinning the empirical-first contract end-to-end + extended SSOT call-order invariant from 2-execute pin to 3-execute pin (events → VIX → empirical) + `_build_session` helper extended with `empirical_beta_row=None` kwarg + 3rd side_effect slot (backward-compat default preserves all r147+ test semantics ; AsyncMock silently ignores unconsumed entries). `apps/web2/lib/eventAnticipation.ts` `PARSE_FAILURE_FR.using_empirical_calibration` + `PARSE_FAILURE_PRIORITY.using_empirical_calibration = 7` (sinks below noise floor 6 cold_start_no_calibration ; opposite polarity disclosure handled honestly).
+
+**Build gate (LOCAL MEASURED)** : pytest `tests/test_event_proximity_engine.py -x -q` → **214/214 pass** (7 new TestR160 + 1 updated SSOT call-order invariant + 206 r147-r159 inherited, 0 regressions). Targeted adjacent suites `test_event_anticipation.py` + `test_invariants_ichor.py` + `test_brier_optimizer_v2.py` + `test_brier_optimizer_cli.py` → **94/94 pass**. Full apps/api suite → **2610 passed / 34 skipped / 22 deselected** in 671.75s ; 0 regressions across the entire backend. ADR-017 invariants + r149 event-class consistency + Brier 12-factor lockstep all preserved.
+
+**Phase 2 reviewer concordance** : DEFERRED to r161+ per doctrine #17 Tier 4 NEW backend class + NEW migration discipline (the architectural surface is too thin to review independently without the EXECUTION-phase consumer ; lesson #38 trader hallucination risk acknowledged ; pre-emptive defensive coding applied instead — 6 CHECK constraints + Decimal→float boundary cast + frozen dataclass snapshot + cold-start safety net).
+
+**Phase 3 deploy** : SKIPPED this round — FOUNDATION-only. r160 ships byte-identical output to r159 in cold-start state (table empty, empirical branch dormant). **Option A elected** : bundle migration 0053 with r161+ Dukascopy fetcher deploy (avoids 2-step deploy where step 1 ships zero observable value).
+
+**Mission centrale impact** : axis-4 +1 LEVEL DEPTH **FOUNDATION** ; r161 EXECUTION ships the actual data flip (Dukascopy bi5 fetcher + EURUSD × NFP × 3y backfill via PAYEMS dates) → Engine 8 flips to empirical-first naturally on next briefing emission, closing the cold-start caveat that has fired on every Engine 8 emission since r147.
+
+**Honest scope (doctrine #2 + #11)** : NEW alembic migration 0053 + NEW ORM model + NEW service module + extended Engine 8 wire + NEW frontend FR sentinel + 7 new tests. NO new ADR (additive table + service contract — established r51 tempo_thresholds pattern). NO new feature flag (the empirical-first branch is mechanically gated by data presence, no explicit flag needed). NO data backfill at r160 (r161+ scope per architecture-first split). Doctrine #9 dated §Impl(r160) APPEND, NO new ADR. doctrine-#9 coord-math ledger UNCHANGED.
+
+**r161 binding-default candidates** :
+
+1. ⭐ AUTO-RECO Dukascopy bi5 fetcher + EURUSD × NFP × 3y backfill — transformational unlock, closes cold-start caveat.
+2. Positive-disclosure UI affordance for `using_empirical_calibration` (r160 carry-forward micro-fix).
+3. R-DEPLOY-6 bundled with migration 0053 + r161 fetcher deploy.
+4. FRED VIXCLS + NFCI 5y backfill.
+5. Pattern #17 sub-pattern split (trader r159 YELLOW-1+4 deferred).
+6. Per-currency Employment subclass refactor.
+7. r152 visual demotion (UI 4-reviewer).
+8. Code-reviewer r159 NICE refactor.
+9. Code-reviewer r153 SF-3 deploy latency budget.
+10. r144 FRED ALFRED reconciler.
+11. `actual_source` / `actual_revised` columns.
+
+ZERO Anthropic API spend r160. **Voie D held 75 rounds.**

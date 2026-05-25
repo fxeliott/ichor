@@ -161,7 +161,37 @@ See `docs/ROADMAP_2026-05-06.md` for the original 4-layer architecture (DATA FOU
 
 ---
 
-## §3 — Immediate next (r160) — ⭐ DUKASCOPY MVP UNLOCKED PER ELIOT "USAGE PERSO"
+## §3 — Immediate next (r161) — ⭐ DUKASCOPY EXECUTION (r160 FOUNDATION SHIPPED)
+
+**r160 EXECUTED & SHIPPED (2026-05-25)** : 🏗️ **Dukascopy MVP FOUNDATION** — `empirical_reaction_betas` table (migration 0053, 6 CHECK constraints + compound desc index) + SQLAlchemy 2 ORM `EmpiricalReactionBeta` + NEW pure read-service `services/empirical_reaction_beta.py` (`get_latest_empirical_beta()` async fn + `EmpiricalReactionBetaSnapshot` frozen dataclass + `asset_to_instrument()` 5-asset slug map) + Engine 8 **empirical-first graceful-degradation** wire + NEW `using_empirical_calibration` parse_failures sentinel (POSITIVE disclosure polarity, frontend FR + priority rank 7 wired). 7 new TestR160 backend tests + SSOT call-order invariant extended 2-execute → 3-execute (events → VIX → empirical).
+
+**Architecture-first scoping discipline** (doctrine #2 strict scope) : r160 ships **ZERO behavior change** vs r159 output (table starts EMPTY at deploy ; empirical-first branch never fires until r161+ data lands). r160 = FOUNDATION ; r161+ = EXECUTION. Token budget post-5-round session r155-r159 motivated splitting.
+
+**Build gate LOCAL MEASURED** : pytest 2610/2610 + 34 skipped + 22 deselected ; targeted test_event_proximity_engine.py 214/214 in 3.12s ; 0 regressions across full apps/api suite. ADR-017 invariants + r149 event-class consistency + Brier 12-factor lockstep all preserved.
+
+**Deploy strategy** : Option A elected — defer Hetzner deploy of migration 0053 until r161+ bundles it with the actual Dukascopy fetcher in a single deploy cycle (avoids 2-step deploy where step 1 ships zero observable value).
+
+**Voie D 75 rounds.** ZERO Anthropic API spend.
+
+**r161 binding default candidates** (priority order, Pattern #15 R59-first) :
+
+1. ⭐ AUTO-RECO **Dukascopy bi5 fetcher + EURUSD × NFP × 3y backfill** — wire `services/dukascopy_fetcher.py` (LZMA-compressed binary tick decode via `struct.unpack('>3i2f', chunk)`) + `cli/run_dukascopy_backfill.py` consuming FRED PAYEMS observation_date list (Pattern #11) + ABDV-2003 5-min pre-event window (canonical methodology, r160 stamped in `window_minutes_before=5 / window_minutes_after=0`) + INSERT into `empirical_reaction_betas` with `source="dukascopy_1min"`. First-light empirical p50 for `(NFP, eurusd)` ; Engine 8 flips to empirical-first naturally on next briefing emission. **TRANSFORMATIONAL** — closes the cold-start caveat that has fired on every Engine 8 emission since r147. Effort L 1-2 sessions.
+2. **Positive-disclosure UI affordance for `using_empirical_calibration`** (r160 carry-forward micro-fix) — current frontend folds the positive disclosure into the negative "Limitations remontées" pill. r161 ships a dedicated "Calibré empiriquement" chip distinct from the limitations surface. Effort S, blocking only when the empirical-first branch starts firing in prod.
+3. **R-DEPLOY-6 with migration 0053** — first deploy bundling alembic upgrade head + the r161 fetcher + the backfill CLI. Effort embedded in #1.
+4. **FRED VIXCLS + NFCI 5y backfill** (closes r150 + r157 data state blockers). Effort M.
+5. **Pattern #17 sub-pattern split** (trader r159 YELLOW-1+4 deferred). Effort S.
+6. **Per-currency Employment subclass refactor**. Effort S-M.
+7. **r152 visual demotion** (UI 4-reviewer). Effort S-M.
+8. **Code-reviewer r159 NICE refactor** (docstring archeology → memory). Effort S.
+9. **Code-reviewer r153 SF-3** deploy latency budget. Effort S.
+10. **r144 FRED ALFRED reconciler**. Effort M.
+11. **`actual_source` / `actual_revised` columns**. Effort M each.
+
+Pattern #15 R59-disprove applies to every ⭐. r161 Dukascopy fetcher needs Phase 0 R59 on technical execution (bi5 LZMA decode + tick-data integrity + URL pattern verification per asset slug).
+
+---
+
+## §3 — Previous immediate next (r160, EXECUTED above) — ⭐ DUKASCOPY MVP UNLOCKED PER ELIOT "USAGE PERSO"
 
 **r159 EXECUTED & SHIPPED & DEPLOYED & WITNESSED (2026-05-25)** : 🎓 Pattern #17 OBSERVATION → formal DOCTRINE graduation via **Industrial_Production class** (2nd INDEPENDENT anchor Flannery-Protopapadakis 2002 _RFS_ — different paper RFS vs JBF, different journal, different methodology cross-section pricing vs event-window correlation Birz-Lott 2011). **Eliot r159 directive "déjà ichor est usage perso" RESOLVES Dukascopy LICENSE blocker** → r160 transformational unlock. Single feat commit `12f3c80` +351/-68 LOC across 4 files.
 
