@@ -52,8 +52,10 @@ import {
   fmtScheduledAtParis,
   fmtScheduledDateParis,
   hasParseFailureDisclosures,
+  hiddenParseFailureCount,
   isEngagedDriftMeaningful,
   parseFailureLabel,
+  prioritizedParseFailures,
   shouldRenderPanel,
   visibleStandbyEvents,
 } from "@/lib/eventAnticipation";
@@ -243,15 +245,28 @@ function EngagedBody({ factor }: { factor: EventProximityFactorOut }): ReactElem
           translate sentinel codes via `parseFailureLabel` so the user
           sees "Direction prior issue d'une source unique non-répliquée"
           instead of "single_source_direction" (developer log shape).
-          Unknown sentinels fall through to raw code (defensive honest). */}
-      {hasParseFailureDisclosures(factor.parse_failures) ? (
-        <div className="rounded-md border border-[var(--color-border-subtle)] px-3 py-2">
-          <p className="text-[10px] text-[var(--color-text-secondary)]">
-            Limitations remontées :{" "}
-            {factor.parse_failures.map((s) => parseFailureLabel(s)).join(" · ")}
-          </p>
-        </div>
-      ) : null}
+          Unknown sentinels fall through to raw code (defensive honest).
+          r156 trader r155 YELLOW-4 fix : sentinel saturation collapse via
+          `prioritizedParseFailures` — most-restrictive sentinels first,
+          capped at PARSE_FAILURE_MAX_VISIBLE=3 ; remaining count surfaced
+          as honest "+N de plus" suffix so the user knows the engine
+          emitted more without being drowned by the noise floor (cold_start
+          + vix_observation_missing combinatorial saturation). */}
+      {(() => {
+        // r156 code-reviewer NICE-2 DRY fix : extract hiddenCount once instead
+        // of computing twice in the ternary.
+        if (!hasParseFailureDisclosures(factor.parse_failures)) return null;
+        const visible = prioritizedParseFailures(factor.parse_failures);
+        const hiddenCount = hiddenParseFailureCount(factor.parse_failures);
+        return (
+          <div className="rounded-md border border-[var(--color-border-subtle)] px-3 py-2">
+            <p className="text-[10px] text-[var(--color-text-secondary)]">
+              Limitations remontées : {visible.map((s) => parseFailureLabel(s)).join(" · ")}
+              {hiddenCount > 0 ? ` · +${hiddenCount} de plus` : ""}
+            </p>
+          </div>
+        );
+      })()}
     </div>
   );
 }

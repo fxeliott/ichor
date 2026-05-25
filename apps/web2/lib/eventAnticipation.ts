@@ -319,3 +319,65 @@ export const PARSE_FAILURE_FR: Record<string, string> = {
 export function parseFailureLabel(sentinel: string): string {
   return PARSE_FAILURE_FR[sentinel] ?? sentinel;
 }
+
+/** r156 — trader r155 YELLOW-4 sentinel saturation collapse logic.
+ *
+ * Priority ordering (most-restrictive-first per trader review) — when
+ * multiple sentinels fire simultaneously, the user reads the most action-
+ * relevant ones first and the noise floor (cold_start_no_calibration which
+ * ALWAYS fires per r147 doctrine) sinks to the bottom. Without this
+ * priority + cap, the 3-axis sentinel ladder (single_source / asymmetric /
+ * low_signal) introduced r150+r153+r155 could combinatorially saturate the
+ * "Limitations remontées" pill into a wall of disclosure that drowns signal.
+ *
+ * Rank rationale :
+ *   0 (highest) `event_class_unmapped`        — engine cannot quantify, drowns everything
+ *   1           `impact_value_invalid`        — data-quality issue, blocks compute
+ *   2           `single_source_direction`     — direction prior weakly grounded (r150)
+ *   3           `asymmetric_negativity_bias`  — sign-asymmetry, affects direction interp (r153)
+ *   4           `low_signal_confidence`       — magnitude effect-size weak (r155)
+ *   5           `vix_observation_missing`     — regime gate degraded
+ *   6 (lowest)  `cold_start_no_calibration`   — universal noise floor, ALWAYS fires
+ *
+ * Unmapped sentinels (future r157+) fall through to rank 99 (lowest priority).
+ */
+export const PARSE_FAILURE_PRIORITY: Record<string, number> = {
+  event_class_unmapped: 0,
+  impact_value_invalid: 1,
+  single_source_direction: 2,
+  asymmetric_negativity_bias: 3,
+  low_signal_confidence: 4,
+  vix_observation_missing: 5,
+  cold_start_no_calibration: 6,
+};
+
+/** Default visible-sentinel cap matching the "user reads top 3" heuristic.
+ * The 4th sentinel and beyond collapse into "+N de plus" suffix. */
+export const PARSE_FAILURE_MAX_VISIBLE = 3;
+
+/** r156 — Return up-to-`max` sentinels sorted by priority (most-restrictive
+ * first). Unknown sentinels fall through to lowest priority (rank 99) but
+ * still surface so the user knows the engine emitted something honest.
+ * Pure-fn — RSC-safe, no React, no I/O. */
+export function prioritizedParseFailures(
+  failures: ReadonlyArray<string>,
+  max: number = PARSE_FAILURE_MAX_VISIBLE,
+): ReadonlyArray<string> {
+  if (failures.length === 0) return [];
+  const sorted = [...failures].sort((a, b) => {
+    const pa = PARSE_FAILURE_PRIORITY[a] ?? 99;
+    const pb = PARSE_FAILURE_PRIORITY[b] ?? 99;
+    return pa - pb;
+  });
+  return sorted.slice(0, Math.max(0, max));
+}
+
+/** r156 — Return the count of sentinels HIDDEN by `prioritizedParseFailures`
+ * (i.e. `failures.length - visible.length`). Used by the panel to render
+ * "+N de plus" honest disclosure suffix. */
+export function hiddenParseFailureCount(
+  failures: ReadonlyArray<string>,
+  max: number = PARSE_FAILURE_MAX_VISIBLE,
+): number {
+  return Math.max(0, failures.length - max);
+}

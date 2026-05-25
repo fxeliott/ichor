@@ -35,6 +35,8 @@ import {
   DRIFT_UNKNOWN_FALLBACK_FR,
   EVENT_CLASS_FR,
   PARSE_FAILURE_FR,
+  PARSE_FAILURE_MAX_VISIBLE,
+  PARSE_FAILURE_PRIORITY,
   STANDBY_MAX_VISIBLE,
   VIX_REGIME_FR,
   eventClassLabel,
@@ -43,8 +45,10 @@ import {
   fmtScheduledAtParis,
   fmtScheduledDateParis,
   hasParseFailureDisclosures,
+  hiddenParseFailureCount,
   isEngagedDriftMeaningful,
   parseFailureLabel,
+  prioritizedParseFailures,
   shouldRenderPanel,
   visibleStandbyEvents,
 } from "@/lib/eventAnticipation";
@@ -549,5 +553,149 @@ describe("r155 PARSE_FAILURE_FR low_signal_confidence sentinel", () => {
     expect(parseFailureLabel("low_signal_confidence")).not.toBe(
       parseFailureLabel("asymmetric_negativity_bias"),
     );
+  });
+});
+
+// ── r156 — trader r155 YELLOW-4 sentinel saturation collapse logic ────────
+
+describe("r156 PARSE_FAILURE_PRIORITY ordering (trader r155 YELLOW-4)", () => {
+  it("PARSE_FAILURE_PRIORITY covers every PARSE_FAILURE_FR key (asymmetric superset SSOT)", () => {
+    // Code-reviewer r156 SF-1 fix : asymmetric superset relation, NOT strict
+    // equality. Every sentinel in PARSE_FAILURE_FR MUST have a priority rank
+    // (forward direction enforced) ; PRIORITY MAY pre-allocate ranks for
+    // r157+ future sentinels not yet in FR (backward direction allowed).
+    // The earlier strict-equality assertion contradicted the documented
+    // "unknown future sentinels fall back to rank 99" behavior tested below.
+    const labelKeys = Object.keys(PARSE_FAILURE_FR);
+    const priorityKeys = new Set(Object.keys(PARSE_FAILURE_PRIORITY));
+    for (const key of labelKeys) {
+      expect(priorityKeys.has(key)).toBe(true);
+    }
+  });
+
+  it("ranks event_class_unmapped highest (drowns everything)", () => {
+    // Engine cannot quantify when class is unmapped — the user must see
+    // this BEFORE any other partial honesty disclosure.
+    // tsc strict-mode index-signature : known canonical keys non-null asserted.
+    expect(PARSE_FAILURE_PRIORITY.event_class_unmapped!).toBe(0);
+  });
+
+  it("ranks cold_start_no_calibration lowest (noise floor)", () => {
+    // cold_start_no_calibration ALWAYS fires per r147 doctrine — if it
+    // ranked high it would block more action-relevant sentinels from
+    // surfacing in the top-N visible slice.
+    const all = Object.values(PARSE_FAILURE_PRIORITY).filter((v): v is number => v !== undefined);
+    expect(PARSE_FAILURE_PRIORITY.cold_start_no_calibration!).toBe(Math.max(...all));
+  });
+
+  it("ranks r155 low_signal_confidence below r153 asymmetric (effect-size after sign-asymmetry)", () => {
+    // Doctrine rationale : sign-asymmetry (r153) affects how the user
+    // interprets the direction read — must surface before magnitude
+    // effect-size weakness (r155).
+    expect(PARSE_FAILURE_PRIORITY.asymmetric_negativity_bias!).toBeLessThan(
+      PARSE_FAILURE_PRIORITY.low_signal_confidence!,
+    );
+  });
+
+  it("PARSE_FAILURE_MAX_VISIBLE is 3 (matches trader r155 YELLOW-4 cap suggestion)", () => {
+    expect(PARSE_FAILURE_MAX_VISIBLE).toBe(3);
+  });
+});
+
+describe("r156 prioritizedParseFailures (saturation collapse)", () => {
+  it("returns empty array for empty input", () => {
+    expect(prioritizedParseFailures([])).toEqual([]);
+  });
+
+  it("preserves single-sentinel input as-is", () => {
+    expect(prioritizedParseFailures(["asymmetric_negativity_bias"])).toEqual([
+      "asymmetric_negativity_bias",
+    ]);
+  });
+
+  it("sorts by priority — most-restrictive first", () => {
+    // Input order intentionally jumbled (cold_start lowest then mapped class)
+    const input = [
+      "cold_start_no_calibration",
+      "low_signal_confidence",
+      "event_class_unmapped",
+      "asymmetric_negativity_bias",
+    ];
+    const out = prioritizedParseFailures(input, 99); // unbounded for test
+    expect(out).toEqual([
+      "event_class_unmapped", // rank 0
+      "asymmetric_negativity_bias", // rank 3
+      "low_signal_confidence", // rank 4
+      "cold_start_no_calibration", // rank 6
+    ]);
+  });
+
+  it("caps output at PARSE_FAILURE_MAX_VISIBLE (default 3)", () => {
+    const input = [
+      "cold_start_no_calibration",
+      "low_signal_confidence",
+      "event_class_unmapped",
+      "asymmetric_negativity_bias",
+      "vix_observation_missing",
+    ];
+    const out = prioritizedParseFailures(input);
+    expect(out.length).toBe(3);
+    // Top-3 by priority
+    expect(out).toEqual([
+      "event_class_unmapped",
+      "asymmetric_negativity_bias",
+      "low_signal_confidence",
+    ]);
+  });
+
+  it("respects explicit max param override", () => {
+    const input = ["cold_start_no_calibration", "low_signal_confidence", "event_class_unmapped"];
+    expect(prioritizedParseFailures(input, 1)).toEqual(["event_class_unmapped"]);
+    expect(prioritizedParseFailures(input, 0)).toEqual([]);
+  });
+
+  it("places unknown future sentinels last (rank 99 fallback)", () => {
+    // Defensive : a future r157+ sentinel not yet in PARSE_FAILURE_PRIORITY
+    // still surfaces (rank 99 fallback) but doesn't displace known
+    // mapped sentinels at the top.
+    const input = ["future_r157_sentinel", "event_class_unmapped"];
+    const out = prioritizedParseFailures(input, 99);
+    expect(out).toEqual(["event_class_unmapped", "future_r157_sentinel"]);
+  });
+
+  it("does not mutate input array (pure-fn)", () => {
+    const input = [
+      "cold_start_no_calibration",
+      "event_class_unmapped",
+      "asymmetric_negativity_bias",
+    ];
+    const inputBefore = [...input];
+    prioritizedParseFailures(input);
+    expect(input).toEqual(inputBefore);
+  });
+});
+
+describe("r156 hiddenParseFailureCount (saturation collapse counterpart)", () => {
+  it("returns 0 when no truncation occurs", () => {
+    expect(hiddenParseFailureCount(["asymmetric_negativity_bias"])).toBe(0);
+    expect(hiddenParseFailureCount([])).toBe(0);
+  });
+
+  it("returns count of truncated sentinels when input exceeds cap", () => {
+    const input = [
+      "cold_start_no_calibration",
+      "low_signal_confidence",
+      "event_class_unmapped",
+      "asymmetric_negativity_bias",
+      "vix_observation_missing",
+    ];
+    expect(hiddenParseFailureCount(input)).toBe(2); // 5 - 3 default cap = 2
+  });
+
+  it("respects explicit max param (symmetric with prioritizedParseFailures)", () => {
+    const input = ["a", "b", "c", "d"];
+    expect(hiddenParseFailureCount(input, 2)).toBe(2);
+    expect(hiddenParseFailureCount(input, 4)).toBe(0);
+    expect(hiddenParseFailureCount(input, 99)).toBe(0);
   });
 });

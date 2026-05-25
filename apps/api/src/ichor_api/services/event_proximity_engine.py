@@ -61,6 +61,45 @@ ACADEMIC FOUNDATIONS (verbatim citations, NOT memory)
   magnitude-uncertainty sentinel after r150 `single_source_direction` +
   r153 `asymmetric_negativity_bias`.
 
+PATTERN #17 NEGATIVE-RESULT-ANCHOR OBSERVATION (r155 single application, codify-pending-2nd-witness per trader r156 YELLOW-5)
+------------------------------------------------------------------------------------------------------------------------------
+
+**Status** : OBSERVATION (1 application) — formal doctrine codification
+pending a 2nd independent witness (Pattern #14 + #16 both required 2
+empirical validations before codification). Trader r156 YELLOW-5 noted that
+codifying after 1 observation breaks the multi-application discipline
+established for prior infrastructure patterns. Next negative-result anchor
+candidate (e.g., durable goods orders per Birz-Lott 2011 same paper, or
+hypothetical r157+ PMI-services replication) will provide the 2nd witness
+and trigger full doctrine codification.
+
+A peer-reviewed **negative-result** IS a legitimate calibration anchor when
+paired with mechanical sentinel + confidence-clamp + caveat. The r155
+Retail_Sales class is the single current example : Birz-Lott 2011 *JBF*
+documented EXPECTED SIGN + STATISTICALLY INSIGNIFICANT correlation for
+retail sales news effect on stock returns. Rather than leave the class
+unmapped (Pattern #15 honest abstention), the engine ships :
+
+  - 5 bp floor estimate (well below significant-class baselines)
+  - `low_signal_confidence` sentinel (mechanical downstream filter)
+  - confidence clamp (visual discipline : imminent → "medium", else "low")
+  - Birz-Lott 2011 citation in caveat + literature_anchor
+
+The asymmetric pairing preserves doctrine #11 calibrated honesty while still
+SHIPPING value (vs. alternative of leaving unmapped per Pattern #15). The
+3-axis sentinel ladder now covers :
+
+  - r150 `single_source_direction`     — direction prior weakly grounded
+  - r153 `asymmetric_negativity_bias`  — sign-asymmetry, breaks symmetric logic
+  - r155 `low_signal_confidence`       — magnitude effect-size below detection
+
+Each surfaces a DIFFERENT axis of weak-evidence honesty without overlapping.
+
+Future r157+ negative-result anchors (durable goods orders, hypothetical
+PMI-services replication) MUST follow the same triad : floor magnitude +
+sentinel in `_LOW_SIGNAL_CONFIDENCE_CLASSES` (or new sentinel class if
+different axis) + caveat with peer-reviewed citation.
+
 PATTERN #15 R59-DISPROVE HONEST-UNMAPPED SUBSET (r147+r150+r153+r154+r155)
 -------------------------------------------------------------------------
 
@@ -521,6 +560,20 @@ _TITLE_FRAGMENT_BLOCKED: frozenset[str] = frozenset(
         # block above — if NZD asset is ever tracked, silent collision would
         # fire on every RBNZ MPC meeting (8/year).
         "rbnz monetary policy statement",
+        # r156 — trader r155 YELLOW-5 defensive prophylactic against future FF
+        # title drift. The r155 substring pattern `"retail sales m/m"` captures
+        # all 5 current fixture entries (USD/GBP/CAD bare + USD/CAD Core) but
+        # would also silently match a HYPOTHETICAL future variant like
+        # "Retail Sales m/m Excl. Auto" or "Retail Sales m/m Ex Gas" if
+        # ForexFactory ever publishes a sub-component variant. The Birz-Lott
+        # 2011 *JBF* anchor specifically tested HEADLINE retail sales (not
+        # ex-component sub-aggregates), so a sub-aggregate match would
+        # silently propagate the low_signal_confidence sentinel into an event
+        # class that the literature anchor doesn't cover. Defensive block
+        # entry future-proofs the pattern (no current event matches it ;
+        # zero behavioral change today, prophylactic only).
+        "retail sales m/m excl",
+        "retail sales m/m ex ",
     }
 )
 
@@ -912,7 +965,15 @@ async def assess_event_proximity(
     # The sentinel (`low_signal_confidence`) ALWAYS fires regardless of
     # proximity — the clamp is the visual-discipline layer, the sentinel is
     # the mechanical-honesty layer.
-    if event_class in _LOW_SIGNAL_CONFIDENCE_CLASSES:
+    #
+    # r156 code-reviewer NICE-3 symmetry guard : add `expected_drift_bp is
+    # not None` guard for documentation parity with the sentinel emission
+    # block (line 889). Currently safe because the confidence ladder routes
+    # `expected_drift_bp is None` to `confidence="unavailable"` (which is NOT
+    # in `("high", "medium")`), so the clamp is a no-op for None. But the
+    # explicit guard documents the invariant and is robust against future
+    # ladder changes that might surface "unavailable" as a clamp-target.
+    if event_class in _LOW_SIGNAL_CONFIDENCE_CLASSES and expected_drift_bp is not None:
         if minutes_until < 60 and confidence == "high":
             confidence = "medium"  # proximity warrants attention despite weak signal
         elif confidence in ("high", "medium"):

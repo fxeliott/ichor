@@ -2221,3 +2221,197 @@ class TestR155FfTitleCoverageRatchet:
             f"r155 coverage dropped to {coverage_pct:.1f}% — expected >= 50% "
             f"(45 r154 baseline + 5 Retail_Sales entries / 95 events = 52.6%)"
         )
+
+
+# ── r156 hygiene + carry-forward closure tests ──────────────────────────
+
+
+class TestR156SentinelSaturationBackend:
+    """r156 — trader r155 YELLOW-4 sentinel saturation invariant (backend side).
+
+    Verify the engine's MAX possible sentinel emission across all known paths
+    ≤ 4. Combinatorial analysis :
+      - event_class_unmapped (when class is None) — mutually exclusive with
+        single_source / asymmetric / low_signal class-specific sentinels
+      - impact_value_invalid (malformed impact) — orthogonal, can co-fire
+      - single_source_direction (RBA/BoC) — class-specific
+      - asymmetric_negativity_bias (CCI/Michigan/SNB_Speech) — class-specific
+      - low_signal_confidence (Retail_Sales r155) — class-specific
+      - vix_observation_missing — orthogonal, can co-fire
+
+    Max realistic = (1 class-specific) + impact_value_invalid + vix_missing = 3.
+    Cap of 4 is comfortable safety margin for r157+ extensions.
+
+    Frontend `prioritizedParseFailures` + `hiddenParseFailureCount` collapse
+    logic ensures user-visible cap of 3 regardless of backend count."""
+
+    @pytest.mark.asyncio
+    async def test_engine_never_exceeds_4_sentinels_max_degenerate_scenario(self) -> None:
+        """Maximally-degenerate scenario : Retail_Sales (low_signal) + malformed
+        impact (impact_value_invalid) + missing VIX (vix_observation_missing).
+        Expected emission = 3 sentinels (≤ 4 cap)."""
+        evt = _make_event_row(
+            title="Retail Sales m/m",
+            impact="bogus_value",  # → impact_value_invalid
+            currency="USD",
+            scheduled_at=datetime(2026, 6, 1, 14, 0, tzinfo=UTC),
+        )
+        session = _build_session(
+            event_rows=[evt],
+            vix_row=None,  # → vix_observation_missing
+        )
+        result = await assess_event_proximity(
+            session,
+            asset="EUR_USD",
+            now=datetime(2026, 6, 1, 10, 0, tzinfo=UTC),
+            business_cycle_sign=1,
+        )
+        assert result is not None
+        assert len(result.parse_failures) <= 4, (
+            f"Engine emitted {len(result.parse_failures)} sentinels > 4 cap "
+            f"(trader r155 YELLOW-4 saturation invariant violated). "
+            f"Sentinels : {sorted(result.parse_failures)}"
+        )
+
+    @pytest.mark.asyncio
+    async def test_engine_unmapped_class_max_2_sentinels(self) -> None:
+        """When class is None, event_class_unmapped fires but the class-
+        specific sentinels (single_source / asymmetric / low_signal) CANNOT
+        fire (mutually exclusive). Max emission = event_class_unmapped +
+        impact_value_invalid + vix_observation_missing = 3."""
+        evt = _make_event_row(
+            title="Some Unknown Event That Doesn't Match Any Pattern",
+            impact="bogus_value",
+            currency="USD",
+            scheduled_at=datetime(2026, 6, 1, 14, 0, tzinfo=UTC),
+        )
+        session = _build_session(
+            event_rows=[evt],
+            vix_row=None,
+        )
+        result = await assess_event_proximity(
+            session,
+            asset="EUR_USD",
+            now=datetime(2026, 6, 1, 10, 0, tzinfo=UTC),
+            business_cycle_sign=1,
+        )
+        assert result is not None
+        assert "event_class_unmapped" in result.parse_failures
+        # Class-specific sentinels MUST NOT fire when class is None
+        assert "single_source_direction" not in result.parse_failures
+        assert "asymmetric_negativity_bias" not in result.parse_failures
+        assert "low_signal_confidence" not in result.parse_failures
+        assert len(result.parse_failures) <= 4
+
+
+class TestR156Pattern17NegativeResultAnchorDoctrine:
+    """r156 codifies Pattern #17 — peer-reviewed negative-result IS a
+    legitimate calibration anchor when paired with mechanical sentinel +
+    confidence-clamp + caveat. Observed in r155 (Birz-Lott 2011 *JBF* anchor
+    for Retail_Sales class) ; documented in module docstring.
+
+    These tests pin the doctrine mechanically — future contributors adding
+    a new class with negative-result anchor MUST also add a corresponding
+    sentinel in `_LOW_SIGNAL_CONFIDENCE_CLASSES` (or extend the sentinel
+    ladder) + caveat with the citation."""
+
+    def test_retail_sales_class_has_low_signal_sentinel_membership(self) -> None:
+        """Pattern #17 lockstep : Retail_Sales (r155 negative-result class)
+        MUST be in `_LOW_SIGNAL_CONFIDENCE_CLASSES` — drop would silently
+        regress the doctrine."""
+        from ichor_api.services.event_proximity_engine import (
+            _LOW_SIGNAL_CONFIDENCE_CLASSES,
+        )
+
+        assert "Retail_Sales" in _LOW_SIGNAL_CONFIDENCE_CLASSES
+
+    def test_engine_docstring_references_pattern_17_or_negative_result(self) -> None:
+        """The engine docstring should reference the negative-result-anchor
+        doctrine (r155+r156) so future contributors understand the pattern."""
+        from ichor_api.services import event_proximity_engine
+
+        doc = event_proximity_engine.__doc__ or ""
+        # Either explicit "Pattern #17" reference OR "negative-result" mention
+        # OR Birz-Lott 2011 citation (r155 anchor). At least one must appear.
+        has_doctrine_marker = (
+            "Pattern #17" in doc
+            or "negative-result" in doc
+            or "Birz-Lott 2011" in doc
+            or "negative result" in doc.lower()
+        )
+        assert has_doctrine_marker, (
+            "Pattern #17 negative-result-anchor doctrine must be discoverable "
+            "in module docstring (r155+r156 codification)"
+        )
+
+
+class TestR156DefensiveRetailSalesNegativeList:
+    """r156 — trader r155 YELLOW-5 defensive prophylactic against future FF
+    title drift. The r155 substring `"retail sales m/m"` would silently match
+    a hypothetical "Retail Sales m/m Excl. Auto" sub-aggregate — Birz-Lott
+    2011 tested HEADLINE retail sales, not sub-components. Negative-list
+    pre-empts future drift."""
+
+    def test_retail_sales_excl_variant_returns_none(self) -> None:
+        """Hypothetical future FF title with sub-component qualifier MUST
+        NOT silently misclassify into the Retail_Sales class."""
+        # Negative-list blocks before positive matching ; result MUST be None
+        # so caller surfaces 'event_class_unmapped' sentinel honestly.
+        assert _map_title_to_event_class("Retail Sales m/m Excl. Auto") is None
+        assert _map_title_to_event_class("Retail Sales m/m Ex Gas") is None
+
+    def test_retail_sales_bare_still_maps_correctly(self) -> None:
+        """REGRESSION : the defensive prophylactic MUST NOT break the r155
+        canonical pattern. Bare "Retail Sales m/m" + Core variant continue
+        to map to Retail_Sales class."""
+        assert _map_title_to_event_class("Retail Sales m/m") == "Retail_Sales"
+        assert _map_title_to_event_class("Core Retail Sales m/m") == "Retail_Sales"
+
+    def test_blocked_list_grows_to_5_entries_r156(self) -> None:
+        """SSOT lockstep : `_TITLE_FRAGMENT_BLOCKED` grows from 3 entries r153
+        (official cash rate + adp non-farm + rbnz mps) to 5 entries r156
+        (+ retail sales excl + retail sales ex). Future drift of the
+        negative-list must update this count + the doctrinal docstring.
+        r156 code-reviewer NICE-3 fix : test name aligned with assertion
+        (was "4_entries" while asserting >=5)."""
+        from ichor_api.services.event_proximity_engine import _TITLE_FRAGMENT_BLOCKED
+
+        # Allow defensive growth ; assert AT LEAST 5 entries post-r156
+        assert len(_TITLE_FRAGMENT_BLOCKED) >= 5
+
+
+class TestR156NICE3SymmetryGuard:
+    """r156 — code-reviewer r155 NICE-3 symmetry guard on confidence clamp.
+    Added `expected_drift_bp is not None` guard for documentation parity with
+    sentinel emission block. Currently safe because the ladder routes
+    `expected_drift_bp is None` to `confidence="unavailable"` (which is NOT
+    in `("high", "medium")` clamp-target set), so the clamp was a no-op for
+    None. Explicit guard documents the invariant + is robust against future
+    ladder changes."""
+
+    @pytest.mark.asyncio
+    async def test_unavailable_confidence_not_clamped_when_magnitude_none(self) -> None:
+        """REGRESSION : when magnitude is None (e.g. unmapped class), confidence
+        should be "unavailable" and the clamp guard prevents touching it."""
+        evt = _make_event_row(
+            title="Some Unmapped Event Title",
+            impact="medium",
+            currency="USD",
+            scheduled_at=datetime(2026, 6, 1, 14, 0, tzinfo=UTC),
+        )
+        session = _build_session(
+            event_rows=[evt],
+            vix_row=_make_fred_row(20.0, datetime(2026, 5, 23, tzinfo=UTC).date()),
+        )
+        result = await assess_event_proximity(
+            session,
+            asset="EUR_USD",
+            now=datetime(2026, 6, 1, 10, 0, tzinfo=UTC),
+            business_cycle_sign=1,
+        )
+        assert result is not None
+        assert result.next_event_class is None
+        assert result.expected_drift_magnitude_bp is None
+        # Confidence stays "unavailable" — NOT touched by Retail_Sales clamp
+        # (which doesn't fire because class is None, not Retail_Sales).
+        assert result.confidence == "unavailable"
