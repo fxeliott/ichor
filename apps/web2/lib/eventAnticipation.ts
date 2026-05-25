@@ -113,6 +113,11 @@ export const EVENT_CLASS_FR: Record<string, string> = {
   ECB_Speech: "Discours BCE (Lagarde, hors décision)",
   BoE_Speech: "Discours BoE (Bailey, Mansion House)",
   SNB_Speech: "Discours SNB (Schlegel)",
+  // r155 — Retail Sales class (US/UK/CAD bare + Core variants). LOW baseline
+  // 5bp + `low_signal_confidence` sentinel per Birz-Lott 2011 *JBF*
+  // negative-result peer-reviewed anchor. Pattern #15 8th stable application
+  // (PMI Services + Ivey PMI + Philly Fed kept honestly UNMAPPED).
+  Retail_Sales: "Ventes au détail (US/UK/CAD)",
 };
 
 /** FR copy per currency code — for STANDBY mode row meta. Falls back to
@@ -294,6 +299,19 @@ export const PARSE_FAILURE_FR: Record<string, string> = {
   // + Ranaldo-Rossi 2009 *JIMF* (SNB_Speech r154).
   asymmetric_negativity_bias:
     "Skew empirique négatif (asymétrie selon le signe de la surprise, Akhtar 2012 / Ranaldo-Rossi 2009)",
+  // r155 — 3rd magnitude-uncertainty sentinel after single_source_direction
+  // (r150) + asymmetric_negativity_bias (r153). Surfaces honest disclosure
+  // that the literature documents the expected DIRECTION/SIGN but the effect
+  // SIZE is statistically below classical detection power. Anchor : Birz-Lott
+  // 2011 *JBF* (Retail Sales = expected sign + insignificant correlation).
+  // Confidence is clamped to "low" engine-side regardless of VIX/time.
+  // r155 trader YELLOW-3 fix : reworded action-oriented + simpler framing for
+  // non-trader users. Prior "statistiquement non-significative" reads as
+  // developer-jargon ; "sans force statistique fiable" surfaces the same
+  // epistemic content but more accessibly (parity with r153 trader YELLOW-2
+  // epistemic-rewording pattern for asymmetric_negativity_bias).
+  low_signal_confidence:
+    "Faible-signal (la littérature documente la direction attendue mais sans force statistique fiable, Birz-Lott 2011 JBF)",
 };
 
 /** Translate one sentinel to FR, falling back to the raw code when not

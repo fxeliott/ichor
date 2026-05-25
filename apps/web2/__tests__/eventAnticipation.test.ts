@@ -418,15 +418,20 @@ describe("r152 Phase 2 PARSE_FAILURE_FR (CONCORDANT trader Y4 + a11y SHOULD-2)",
     expect(parseFailureLabel("future_r153_sentinel")).toBe("future_r153_sentinel");
   });
 
-  it("PARSE_FAILURE_FR carries the 5 canonical engine sentinels + r153 asymmetric", () => {
+  it("PARSE_FAILURE_FR carries the 6 canonical engine sentinels + r153 asymmetric + r155 low-signal", () => {
     const expected = new Set([
       "single_source_direction",
       "event_class_unmapped",
       "vix_observation_missing",
       "impact_value_invalid",
       "cold_start_no_calibration",
-      // r153 — asymmetric negativity bias for CCI / Michigan classes
+      // r153 — asymmetric negativity bias for CCI / Michigan / SNB_Speech classes
       "asymmetric_negativity_bias",
+      // r155 — low-signal confidence for Retail_Sales class (Birz-Lott 2011 JBF
+      // negative-result : expected sign but statistically insignificant). 3rd
+      // magnitude-uncertainty sentinel after single_source_direction (r150) +
+      // asymmetric_negativity_bias (r153).
+      "low_signal_confidence",
     ]);
     const actual = new Set(Object.keys(PARSE_FAILURE_FR));
     expect(actual).toEqual(expected);
@@ -493,5 +498,56 @@ describe("r154 EVENT_CLASS_FR CB Speaker extension", () => {
     expect(EVENT_CLASS_FR.ECB_Speech).not.toBe(EVENT_CLASS_FR.ECB);
     // BoE_Speech must differ from BoE (Official Bank Rate decision)
     expect(EVENT_CLASS_FR.BoE_Speech).not.toBe(EVENT_CLASS_FR.BoE);
+  });
+});
+
+// ── r155 — Retail Sales class + low_signal_confidence sentinel ────────
+
+describe("r155 EVENT_CLASS_FR Retail_Sales extension", () => {
+  it("maps Retail_Sales → Ventes au détail label", () => {
+    expect(EVENT_CLASS_FR.Retail_Sales).toContain("Ventes au détail");
+  });
+
+  it("Retail_Sales label includes US/UK/CAD scope (3-currency family)", () => {
+    expect(EVENT_CLASS_FR.Retail_Sales).toContain("US");
+    expect(EVENT_CLASS_FR.Retail_Sales).toContain("UK");
+    expect(EVENT_CLASS_FR.Retail_Sales).toContain("CAD");
+  });
+
+  it("Retail_Sales label distinct from other macro classes (REGRESSION)", () => {
+    // Retail_Sales must not collide with any other class label
+    expect(EVENT_CLASS_FR.Retail_Sales).not.toBe(EVENT_CLASS_FR.NFP);
+    expect(EVENT_CLASS_FR.Retail_Sales).not.toBe(EVENT_CLASS_FR.CPI);
+    expect(EVENT_CLASS_FR.Retail_Sales).not.toBe(EVENT_CLASS_FR.Employment);
+  });
+});
+
+describe("r155 PARSE_FAILURE_FR low_signal_confidence sentinel", () => {
+  it("translates low_signal_confidence with Birz-Lott 2011 anchor", () => {
+    const translated = parseFailureLabel("low_signal_confidence");
+    // Case-insensitive : r155 YELLOW-3 reword puts "Faible-signal" at start
+    expect(translated.toLowerCase()).toContain("faible-signal");
+    expect(translated).toContain("Birz-Lott 2011");
+    // Honest framing — no directional imperative (ADR-017 boundary)
+    expect(translated).not.toMatch(/acheter|vendre|long|short/i);
+  });
+
+  it("low_signal_confidence message frames the negative-result honesty", () => {
+    const translated = parseFailureLabel("low_signal_confidence");
+    // Must surface the weak-statistical-detection framing without leaking
+    // into a directive (purely epistemic, mirrors r150 single_source_direction
+    // + r153 asymmetric_negativity_bias purely-epistemic discipline). r155
+    // trader YELLOW-3 fix reworded "statistiquement non-significative" to
+    // "sans force statistique fiable" for non-trader accessibility.
+    expect(translated).toMatch(/force statistique|sans force/i);
+  });
+
+  it("low_signal_confidence is distinct from r153 asymmetric sentinel (REGRESSION)", () => {
+    // Different axes of weak-evidence honesty :
+    //   - asymmetric_negativity_bias → SIGN-asymmetric magnitude
+    //   - low_signal_confidence      → MAGNITUDE-undetectable effect
+    expect(parseFailureLabel("low_signal_confidence")).not.toBe(
+      parseFailureLabel("asymmetric_negativity_bias"),
+    );
   });
 });

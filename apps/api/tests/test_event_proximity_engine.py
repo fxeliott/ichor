@@ -1918,3 +1918,306 @@ class TestR154FixtureMetaReconciliation:
         assert coverage_pct >= 45.0, (
             f"r154 coverage dropped to {coverage_pct:.1f}% — expected >= 45%"
         )
+
+
+class TestR155RetailSalesClassMapping:
+    """r155 — Retail Sales family mapping (US/UK/CAD bare + Core variants).
+    Single pattern `("retail sales m/m", "Retail_Sales")` captures all 5
+    fixture entries via substring (bare "Retail Sales m/m" + "Core Retail
+    Sales m/m" because the latter contains the former as substring).
+    Pattern #15 8th application : PMI Services + Ivey PMI + Philly Fed
+    REJECTED honestly ; Retail_Sales accepted with LOW baseline + sentinel."""
+
+    def test_usd_retail_sales_mm_maps_to_retail_sales(self) -> None:
+        assert _map_title_to_event_class("Retail Sales m/m") == "Retail_Sales"
+
+    def test_usd_core_retail_sales_mm_maps_to_retail_sales(self) -> None:
+        assert _map_title_to_event_class("Core Retail Sales m/m") == "Retail_Sales"
+
+    def test_gbp_retail_sales_mm_maps_to_retail_sales(self) -> None:
+        # GBP fixture has bare "Retail Sales m/m" too
+        assert _map_title_to_event_class("Retail Sales m/m") == "Retail_Sales"
+
+    def test_cad_core_retail_sales_mm_maps_to_retail_sales(self) -> None:
+        assert _map_title_to_event_class("Core Retail Sales m/m") == "Retail_Sales"
+
+    def test_retail_sales_pattern_does_not_collide_with_nfp(self) -> None:
+        """Defensive ordering : Retail Sales pattern placed BEFORE NFP-specific
+        patterns ; verify NFP titles still map correctly to NFP class."""
+        assert _map_title_to_event_class("Non-Farm Employment Change") == "NFP"
+        assert _map_title_to_event_class("Nonfarm Payrolls") == "NFP"
+
+
+class TestR155RetailSalesBaseline:
+    """r155 — EVENT_CLASS_BASELINE_BP["Retail_Sales"] = 5.0 floor estimate
+    per Birz-Lott 2011 *JBF* negative-result (expected sign + statistically
+    insignificant). Well below NFP=20 / CPI=20 / GDP=25 / ISM=15 — the floor
+    is intentional, reflecting that Birz-Lott documented an effect direction
+    that COULD NOT be statistically detected at conventional power."""
+
+    def test_retail_sales_baseline_at_floor(self) -> None:
+        assert EVENT_CLASS_BASELINE_BP["Retail_Sales"] == 5.0
+
+    def test_retail_sales_baseline_below_other_us_macro(self) -> None:
+        # Retail_Sales is below NFP/CPI/GDP/ISM but above generic medium=3
+        assert EVENT_CLASS_BASELINE_BP["Retail_Sales"] < EVENT_CLASS_BASELINE_BP["NFP"]
+        assert EVENT_CLASS_BASELINE_BP["Retail_Sales"] < EVENT_CLASS_BASELINE_BP["CPI"]
+        assert EVENT_CLASS_BASELINE_BP["Retail_Sales"] < EVENT_CLASS_BASELINE_BP["GDP"]
+        assert EVENT_CLASS_BASELINE_BP["Retail_Sales"] < EVENT_CLASS_BASELINE_BP["ISM"]
+        assert EVENT_CLASS_BASELINE_BP["Retail_Sales"] > EVENT_CLASS_BASELINE_BP["medium"]
+
+
+class TestR155LowSignalConfidenceSentinel:
+    """r155 — `low_signal_confidence` sentinel for Retail_Sales class.
+    Parity with r150 `single_source_direction` + r153 `asymmetric_negativity_bias`
+    mechanical-honesty patterns. Sentinel + confidence-clamp BOTH surface so
+    downstream consumers can filter mechanically (vs caveat-string-only)."""
+
+    @pytest.mark.asyncio
+    async def test_retail_sales_emits_low_signal_sentinel(self) -> None:
+        evt = _make_event_row(
+            title="Retail Sales m/m",
+            impact="high",
+            currency="USD",
+            scheduled_at=datetime(2026, 6, 1, 14, 0, tzinfo=UTC),
+        )
+        session = _build_session(
+            event_rows=[evt],
+            vix_row=_make_fred_row(20.0, datetime(2026, 5, 23, tzinfo=UTC).date()),
+        )
+        result = await assess_event_proximity(
+            session,
+            asset="EUR_USD",
+            now=datetime(2026, 6, 1, 10, 0, tzinfo=UTC),
+            business_cycle_sign=1,
+        )
+        assert result is not None
+        assert result.next_event_class == "Retail_Sales"
+        assert "low_signal_confidence" in result.parse_failures
+
+    @pytest.mark.asyncio
+    async def test_retail_sales_imminent_clamps_to_medium_per_yellow_2(self) -> None:
+        """r155 trader YELLOW-2 fix : when proximity <60min + would normally
+        compute 'high' confidence, clamp ceiling to 'medium' (not 'low').
+        Birz-Lott documents MAGNITUDE insignificance, NOT PROXIMITY
+        insignificance — an imminent Retail Sales print still warrants
+        medium attention even if magnitude direction is statistically weak."""
+        evt = _make_event_row(
+            title="Retail Sales m/m",
+            impact="high",
+            currency="USD",
+            scheduled_at=datetime(2026, 6, 1, 14, 30, tzinfo=UTC),
+        )
+        session = _build_session(
+            event_rows=[evt],
+            vix_row=_make_fred_row(20.0, datetime(2026, 5, 23, tzinfo=UTC).date()),
+        )
+        result = await assess_event_proximity(
+            session,
+            asset="EUR_USD",
+            # event in 30 minutes → would compute confidence="high"
+            now=datetime(2026, 6, 1, 14, 0, tzinfo=UTC),
+            business_cycle_sign=1,
+        )
+        assert result is not None
+        assert result.next_event_class == "Retail_Sales"
+        # Per trader YELLOW-2 : clamp ceiling to "medium" (not "low") when
+        # proximity < 60min. Sentinel ALWAYS fires regardless of proximity.
+        assert result.confidence == "medium"
+        assert "low_signal_confidence" in result.parse_failures
+
+    @pytest.mark.asyncio
+    async def test_retail_sales_medium_distance_clamps_to_low(self) -> None:
+        """r155 YELLOW-2 carve-out : at 60-240min distance, would compute
+        'medium' confidence ; the clamp must demote to 'low' because this
+        range is OUTSIDE the imminent <60min proximity-conditional window."""
+        evt = _make_event_row(
+            title="Retail Sales m/m",
+            impact="high",
+            currency="USD",
+            scheduled_at=datetime(2026, 6, 1, 16, 0, tzinfo=UTC),
+        )
+        session = _build_session(
+            event_rows=[evt],
+            vix_row=_make_fred_row(20.0, datetime(2026, 5, 23, tzinfo=UTC).date()),
+        )
+        result = await assess_event_proximity(
+            session,
+            asset="EUR_USD",
+            # event in 2 hours → would compute confidence="medium"
+            now=datetime(2026, 6, 1, 14, 0, tzinfo=UTC),
+            business_cycle_sign=1,
+        )
+        assert result is not None
+        assert result.next_event_class == "Retail_Sales"
+        assert result.confidence == "low"
+        assert "low_signal_confidence" in result.parse_failures
+
+    @pytest.mark.asyncio
+    async def test_retail_sales_distant_stays_low(self) -> None:
+        """REGRESSION : at distances >=240min the ladder computes 'low' on its
+        own ; the clamp is a no-op but the sentinel still fires honestly."""
+        evt = _make_event_row(
+            title="Retail Sales m/m",
+            impact="high",
+            currency="USD",
+            scheduled_at=datetime(2026, 6, 1, 19, 0, tzinfo=UTC),
+        )
+        session = _build_session(
+            event_rows=[evt],
+            vix_row=_make_fred_row(20.0, datetime(2026, 5, 23, tzinfo=UTC).date()),
+        )
+        result = await assess_event_proximity(
+            session,
+            asset="EUR_USD",
+            # event in 5 hours → ladder would compute confidence="low"
+            now=datetime(2026, 6, 1, 14, 0, tzinfo=UTC),
+            business_cycle_sign=1,
+        )
+        assert result is not None
+        assert result.next_event_class == "Retail_Sales"
+        assert result.confidence == "low"
+        assert "low_signal_confidence" in result.parse_failures
+
+    @pytest.mark.asyncio
+    async def test_retail_sales_caveat_surfaces_birz_lott(self) -> None:
+        evt = _make_event_row(
+            title="Retail Sales m/m",
+            impact="high",
+            currency="USD",
+            scheduled_at=datetime(2026, 6, 1, 14, 0, tzinfo=UTC),
+        )
+        session = _build_session(
+            event_rows=[evt],
+            vix_row=_make_fred_row(20.0, datetime(2026, 5, 23, tzinfo=UTC).date()),
+        )
+        result = await assess_event_proximity(
+            session,
+            asset="EUR_USD",
+            now=datetime(2026, 6, 1, 10, 0, tzinfo=UTC),
+            business_cycle_sign=1,
+        )
+        assert result is not None
+        assert "Birz-Lott 2011" in result.caveat
+        # Case-insensitive : r155 YELLOW-3 caveat reword puts "Faible-signal"
+        # at sentence start (capital F per French capitalization).
+        assert "faible-signal" in result.caveat.lower()
+
+    @pytest.mark.asyncio
+    async def test_retail_sales_preserves_signed_magnitude(self) -> None:
+        """REGRESSION : Retail_Sales is NOT asymmetric ; the signed magnitude
+        from business_cycle_sign must be PRESERVED (unlike CCI/Michigan/
+        SNB_Speech which strip via abs()). Birz-Lott documented expected SIGN
+        (just weak statistical detection of effect SIZE)."""
+        evt = _make_event_row(
+            title="Retail Sales m/m",
+            impact="high",
+            currency="USD",
+            scheduled_at=datetime(2026, 6, 1, 14, 0, tzinfo=UTC),
+        )
+        session = _build_session(
+            event_rows=[evt],
+            vix_row=_make_fred_row(20.0, datetime(2026, 5, 23, tzinfo=UTC).date()),
+        )
+        result_neg = await assess_event_proximity(
+            session,
+            asset="EUR_USD",
+            now=datetime(2026, 6, 1, 10, 0, tzinfo=UTC),
+            business_cycle_sign=-1,  # contraction
+        )
+        assert result_neg is not None
+        assert "asymmetric_negativity_bias" not in result_neg.parse_failures
+        assert result_neg.expected_drift_magnitude_bp is not None
+        assert result_neg.expected_drift_magnitude_bp < 0, (
+            "Retail_Sales is NOT asymmetric — signed magnitude must follow "
+            "business_cycle_sign (Birz-Lott documented expected sign, just "
+            "weak effect-size detection)"
+        )
+
+
+class TestR155LiteratureAnchorExtendedWithBirzLott:
+    """r155 — `literature_anchor` extended with Birz-Lott 2011 JBF citation.
+    Mirrors r153 ABDV/Akhtar/Pinchuk extension pattern. Verified via web R59
+    (RePEc + Oxford Academic abstract accessible, primary-source confirmed)."""
+
+    @pytest.mark.asyncio
+    async def test_literature_anchor_contains_birz_lott(self) -> None:
+        evt = _make_event_row(
+            title="Retail Sales m/m",
+            impact="high",
+            currency="USD",
+            scheduled_at=datetime(2026, 6, 1, 14, 0, tzinfo=UTC),
+        )
+        session = _build_session(
+            event_rows=[evt],
+            vix_row=_make_fred_row(20.0, datetime(2026, 5, 23, tzinfo=UTC).date()),
+        )
+        result = await assess_event_proximity(
+            session,
+            asset="EUR_USD",
+            now=datetime(2026, 6, 1, 10, 0, tzinfo=UTC),
+            business_cycle_sign=1,
+        )
+        assert result is not None
+        # Birz-Lott citation must be present alongside r153 baseline anchors
+        assert "Birz-Lott 2011" in result.literature_anchor
+        # r153 anchors preserved (regression guard)
+        assert "Akhtar" in result.literature_anchor
+        assert "Pinchuk" in result.literature_anchor
+
+
+class TestR155Pattern15HonestUnmappedDocstring:
+    """r155 — Pattern #15 R59-disprove 8th stable application. Engine module
+    docstring MUST list PMI Services + Ivey PMI + Philly Fed Manufacturing
+    Index as honestly UNMAPPED (parity with r147 BoJ Ueda / BoC Macklem /
+    Fed-Chair-non-FOMC / Trump / RBNZ Breman honest-unmapped subset)."""
+
+    def test_docstring_lists_pmi_services_as_unmapped(self) -> None:
+        from ichor_api.services import event_proximity_engine
+
+        doc = event_proximity_engine.__doc__ or ""
+        assert "PMI Services" in doc, (
+            "Pattern #15 8th application : PMI Services must be documented "
+            "as honestly UNMAPPED in module docstring"
+        )
+
+    def test_docstring_lists_ivey_pmi_as_unmapped(self) -> None:
+        from ichor_api.services import event_proximity_engine
+
+        doc = event_proximity_engine.__doc__ or ""
+        assert "Ivey PMI" in doc
+
+    def test_docstring_lists_philly_fed_as_unmapped(self) -> None:
+        from ichor_api.services import event_proximity_engine
+
+        doc = event_proximity_engine.__doc__ or ""
+        assert "Philly Fed" in doc
+
+    def test_docstring_references_pattern_15_eighth_application(self) -> None:
+        from ichor_api.services import event_proximity_engine
+
+        doc = event_proximity_engine.__doc__ or ""
+        assert "8 applications" in doc, (
+            "Pattern #15 stability tracker must update on each new application"
+        )
+
+
+class TestR155FfTitleCoverageRatchet:
+    """r155 — CI coverage ratchet 45% → 50%. With Retail_Sales class added,
+    expected coverage = 45 (r154) + 5 (Retail Sales fixture entries) = 50/95
+    = 52.6%. Conservative ratchet to 50% (~2.6% safety margin). Failing CI
+    is the FEATURE — surfaces title drift or new event-class candidates."""
+
+    def test_post_r155_coverage_above_50_percent(self) -> None:
+        import json
+
+        path = Path(__file__).parent / "fixtures" / "ff_titles_60d_high_medium_2026-05-24.json"
+        data = json.loads(path.read_text(encoding="utf-8"))
+        events = data["events"]
+        mapped = sum(1 for e in events if _map_title_to_event_class(e["title"]) is not None)
+        coverage_pct = 100.0 * mapped / len(events)
+        # r155 ratchet : ≥50% (post-Retail_Sales extension). Conservative.
+        assert coverage_pct >= 50.0, (
+            f"r155 coverage dropped to {coverage_pct:.1f}% — expected >= 50% "
+            f"(45 r154 baseline + 5 Retail_Sales entries / 95 events = 52.6%)"
+        )

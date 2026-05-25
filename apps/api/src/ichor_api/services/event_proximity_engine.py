@@ -50,6 +50,47 @@ ACADEMIC FOUNDATIONS (verbatim citations, NOT memory)
   r150 sign-flip implementation deferred ; magnitude-only as cold-start prior
   + runtime caveat surfaces the single-source weakness honestly (lesson #38
   trader-claims-hypothesis-verify + lesson #11 calibrated refusal).
+- Birz & Lott (2011) "The effect of macroeconomic news on stock returns:
+  New evidence from newspaper coverage", *Journal of Banking and Finance*
+  35(11):2791-2800. Tested GDP, unemployment, retail sales, durable goods :
+  GDP + unemployment significant, retail sales + durable goods = expected
+  sign but STATISTICALLY INSIGNIFICANT correlation. Negative-result peer-
+  reviewed grounding for r155 `Retail_Sales` class at LOW baseline 5 bp +
+  `low_signal_confidence` sentinel (clamps confidence to "low" regardless
+  of VIX/time, parity with `vix_observation_missing` clamp pattern). 3rd
+  magnitude-uncertainty sentinel after r150 `single_source_direction` +
+  r153 `asymmetric_negativity_bias`.
+
+PATTERN #15 R59-DISPROVE HONEST-UNMAPPED SUBSET (r147+r150+r153+r154+r155)
+-------------------------------------------------------------------------
+
+Per Pattern #15 R59-disprove-before-commit (now stable across 8 applications),
+these event classes were considered for mapping but REJECTED because the
+researcher web R59 verify found NO peer-reviewed source quantifying their
+reaction-beta in basis points (or only single-source unreplicated working
+papers). All kept HONESTLY UNMAPPED rather than fabricating a baseline :
+
+  - r147 BoJ Ueda Speeches              (single-source media, no academic study)
+  - r147 BoC Macklem Speeches           (zero academic event study)
+  - r147 Fed Chair non-FOMC speeches    (Kohn-Sack 2004 found NO effect)
+  - r147 Trump Speeches                 (content-dependent, 1-4h fade per
+                                         Bianchi-Gomez-Komlos 2022)
+  - r147 RBNZ Breman Speeches           (single-source unreplicated)
+  - r155 PMI Services (US ISM Services + S&P Global Flash Composite) :
+        Flannery-Protopapadakis 2002 RFS EXCLUDED PMI from 6 priced factors ;
+        Lucca-Moench 2015 JoF found pre-drift FOMC-unique NOT generalizable ;
+        ABDV 2007 JIE announcement list unverifiable (paywall/binary PDFs) ;
+        Wang-Yang 2018/2023 IJFE asymmetric-PMI is China-only single-source
+        unreplicated (Vojtko-Dujava class risk).
+  - r155 Ivey PMI (CAD)                 (no peer-reviewed bp magnitude found)
+  - r155 Philly Fed Manufacturing Index (regional Fed survey, literature thin)
+
+The pattern is self-correcting at multi-round timescale : r152-r154 baseline
+citations (ABDV 2007 for ISM=15 ; Pinchuk 2022 for 11-25bp aggregate band)
+are themselves vérifiable AT THE ABSTRACT LEVEL only (paywall PDFs unreadable
+via WebFetch). All Engine 8 baselines are therefore COLD-START PRIORS pending
+empirical replacement (r156+ Dukascopy 1-min multi-year reaction-beta
+backfill is the canonical empirical-grounded alternative).
 
 HONEST SCOPE LIMITATIONS (doctrine #11 + lesson #37)
 ---------------------------------------------------
@@ -218,8 +259,38 @@ EVENT_CLASS_BASELINE_BP: dict[str, float] = {
     # Honest scope note : Ranaldo-Rossi data is 2000-2005 (pre-floor-cap) ;
     # may not generalize to post-2015 free-float SNB regime — caveat surfaces.
     "SNB_Speech": 10.0,
-    # Other high-impact macro (PPI, Retail Sales, etc. — literature thin or
-    # already covered elsewhere — r155+ to expand or stay honest).
+    # r155 — Retail Sales family (US "Retail Sales m/m" + "Core Retail Sales
+    # m/m" + GBP/CAD bare variants). HONEST LOW baseline 5bp + new sentinel
+    # `low_signal_confidence`. Anchor : Birz-Lott 2011 *JBF* "The effect of
+    # macroeconomic news on stock returns: New evidence from newspaper
+    # coverage" — tested GDP, unemployment, durable goods AND retail sales ;
+    # GDP+unemployment significant, durable+retail = expected sign BUT
+    # statistically insignificant correlation. The negative result is itself
+    # a calibration anchor : retail sales news moves equity in the expected
+    # direction but with effect size BELOW statistical detection power.
+    # 5bp = floor estimate (well below NFP=20, CPI=20, GDP=25, ISM=15 in our
+    # current ladder), with the new `low_signal_confidence` sentinel +
+    # confidence clamp ensuring downstream consumers can mechanically filter
+    # on the weak-evidence class (parity with r150 `single_source_direction`
+    # + r153 `asymmetric_negativity_bias` mechanical-honesty patterns).
+    #
+    # PATTERN #15 R59-disprove 8th application context (r155, 2026-05-25) :
+    # The r155 ⭐ AUTO-RECO was "PMI Services class extension" (Flash Mfg/Svc
+    # PMI EUR/GBP/USD + ISM Services). Researcher web R59 dispatched found
+    # NO peer-reviewed source quantifying ISM Services PMI or Flash Composite
+    # PMI reaction-beta in basis points (8 queries) : Flannery-Protopapadakis
+    # 2002 RFS EXCLUDED PMI from 6 priced factors ; Lucca-Moench 2015 JoF
+    # found pre-drift FOMC-unique NOT generalizable to PMI ; ABDV 2007 JIE
+    # announcement list unverifiable (paywall/binary PDFs) ; Wang-Yang
+    # 2018/2023 IJFE asymmetric-PMI is China-only single-source unreplicated
+    # (Vojtko-Dujava class risk). Pattern #15 reaches 8 stable applications
+    # (r147 Bauer DP21003 + r148 daily-bar + r150×2 VIX/RBA-BoC + r153
+    # Karnaukh-Vrolijk + r153 ISM-Services-honest + r154 CB-Speaker-honest-
+    # subset + r155 PMI-Services-REJECT). PMI Services + Ivey PMI + Philly
+    # Fed Manufacturing Index kept HONESTLY UNMAPPED per the doctrine.
+    "Retail_Sales": 5.0,
+    # Other high-impact macro (PPI, etc. — literature thin or already
+    # covered elsewhere — r156+ to expand or stay honest).
     "high_other": 10.0,
     # Tier-2 events
     "medium": 3.0,
@@ -383,6 +454,15 @@ _TITLE_TO_EVENT_CLASS: tuple[tuple[str, str], ...] = (
     ("gdp q/q", "GDP"),
     ("gdp m/m", "GDP"),  # r153 — UK + CAD monthly GDP
     ("prelim gdp price index", "GDP"),  # r153 — US GDP deflator
+    # r155 — Retail Sales family. Ordered BEFORE NFP-specific to preserve
+    # first-match-wins (no substring collision risk : "retail sales" doesn't
+    # appear in NFP or Employment titles, but defensive ordering anyway).
+    # Single pattern "retail sales m/m" captures ALL 5 fixture variants via
+    # substring : "Retail Sales m/m" (USD/GBP/CAD bare) AND "Core Retail Sales
+    # m/m" (USD/CAD Core variant has "retail sales m/m" as substring at
+    # position 5). Same Retail_Sales class for all — Birz-Lott 2011 didn't
+    # differentiate Core vs Headline.
+    ("retail sales m/m", "Retail_Sales"),
     # Tier-1 US macro — NFP-specific (US-only) before generic Employment family
     ("non-farm employment change", "NFP"),
     ("nonfarm payrolls", "NFP"),
@@ -454,6 +534,26 @@ _TITLE_FRAGMENT_BLOCKED: frozenset[str] = frozenset(
 # Michigan ; r154 adds SNB_Speech per Ranaldo-Rossi 2009 + 2024 SNB
 # textual-analysis paper.
 _ASYMMETRIC_NEGATIVITY_CLASSES: frozenset[str] = frozenset({"CCI", "Michigan", "SNB_Speech"})
+
+
+# r155 — Low-signal-confidence class set. Mechanically signals that an event
+# class has peer-reviewed literature with EXPECTED SIGN but STATISTICALLY
+# INSIGNIFICANT correlation (cf Birz-Lott 2011 *JBF* for Retail Sales). The
+# magnitude IS quantified (cold-start prior at floor) but the user / consumer
+# should KNOW the effect is below classical detection power. Confidence is
+# clamped to "low" (parity with `vix_observation_missing` clamping pattern) +
+# `low_signal_confidence` sentinel surfaced in `parse_failures` (parity with
+# r150 `single_source_direction` + r153 `asymmetric_negativity_bias` —
+# mechanical downstream filtering on weak-evidence class).
+#
+# This is the 3rd magnitude-uncertainty sentinel in the Engine 8 honest-scope
+# ladder :
+#   r150 `single_source_direction` — direction prior weakly grounded
+#   r153 `asymmetric_negativity_bias` — symmetric sign breaks
+#   r155 `low_signal_confidence` — magnitude effect-size below detection
+# Each surfaces a DIFFERENT axis of weak-evidence honesty without overlapping
+# (a class can hold multiple sentinels in principle — none currently do).
+_LOW_SIGNAL_CONFIDENCE_CLASSES: frozenset[str] = frozenset({"Retail_Sales"})
 
 
 def _map_title_to_event_class(title: str) -> str | None:
@@ -775,6 +875,20 @@ async def assess_event_proximity(
         expected_drift_bp = abs(expected_drift_bp)
         parse_failures.add("asymmetric_negativity_bias")
 
+    # r155 — Low-signal-confidence class handling. Birz-Lott 2011 JBF tested
+    # retail sales news effect on stock returns : expected sign but
+    # statistically insignificant correlation. The magnitude IS shipped
+    # (5bp floor) but the confidence should signal honestly that the effect
+    # size is below classical detection power. Mechanism : add the sentinel
+    # to parse_failures (parity with single_source_direction r150 +
+    # asymmetric_negativity_bias r153) AND clamp confidence below (post-
+    # ladder). Sentinel + clamp BOTH surface so downstream consumers can
+    # filter mechanically. Direction stays as computed by business_cycle_sign
+    # because Birz-Lott documented the EXPECTED SIGN (not asymmetric like
+    # CCI/Michigan/SNB_Speech).
+    if event_class in _LOW_SIGNAL_CONFIDENCE_CLASSES and expected_drift_bp is not None:
+        parse_failures.add("low_signal_confidence")
+
     # Confidence ladder (lesson #37 honest-scope ladder)
     if expected_drift_bp is None:
         confidence: EventConfidence = "unavailable"
@@ -786,6 +900,23 @@ async def assess_event_proximity(
         confidence = "medium"
     else:
         confidence = "low"
+
+    # r155 — Low-signal-confidence proximity-conditional clamp. Trader r155
+    # YELLOW-2 fix : unconditional clamp to "low" was too aggressive for the
+    # imminent high-impact case. Birz-Lott documents MAGNITUDE insignificance
+    # (effect size below detection), NOT PROXIMITY insignificance — an
+    # imminent Retail Sales print (<60min) still warrants "medium" attention
+    # even if magnitude direction is statistically weak. Clamp logic :
+    #   - imminent (<60min) + computed "high" → demote to "medium"
+    #   - all other distances + computed "high" or "medium" → demote to "low"
+    # The sentinel (`low_signal_confidence`) ALWAYS fires regardless of
+    # proximity — the clamp is the visual-discipline layer, the sentinel is
+    # the mechanical-honesty layer.
+    if event_class in _LOW_SIGNAL_CONFIDENCE_CLASSES:
+        if minutes_until < 60 and confidence == "high":
+            confidence = "medium"  # proximity warrants attention despite weak signal
+        elif confidence in ("high", "medium"):
+            confidence = "low"
 
     # Caveat : honest-scope verbatim disclosure for Driver.evidence.
     # r147 trader YELLOW-1 : add cold-start prior disclosure ALWAYS to
@@ -860,6 +991,22 @@ async def assess_event_proximity(
             "2007 ECB WP 557) vers l'equity via gate VIX — calibration "
             "equity-specifique r155+"
         )
+    # r155 — Retail Sales weak-signal caveat (parity with single_source_direction
+    # r150 + asymmetric_negativity_bias r153 purely-epistemic framing). Anchor :
+    # Birz-Lott 2011 *JBF* "The effect of macroeconomic news on stock returns:
+    # New evidence from newspaper coverage" — retail sales news showed expected
+    # sign but statistically insignificant correlation. 5bp = floor estimate,
+    # well below NFP/CPI/GDP class — caveat surfaces the weak-evidence honesty.
+    if event_class == "Retail_Sales":
+        # r155 trader YELLOW-3 fix : caveat reworded action-oriented + simpler
+        # framing for non-trader users. Prior "statistiquement non-significative"
+        # reads as developer-jargon ; "sans force statistique fiable" surfaces
+        # the same epistemic content but more accessibly (parity with r153
+        # trader YELLOW-2 epistemic-rewording pattern for CCI/Michigan).
+        caveat_parts.append(
+            "Faible-signal : la littérature documente la direction attendue "
+            "mais sans force statistique fiable (Birz-Lott 2011 JBF)"
+        )
     # ALWAYS append the cold-start prior caveat (trader YELLOW-1).
     caveat_parts.append("Magnitude prior littérature, pas calibrée sur historique Ichor")
     caveat = " ; ".join(caveat_parts)
@@ -870,10 +1017,15 @@ async def assess_event_proximity(
     # Bollerslev-Diebold-Vega 2007 (intraday ISM significant in equity-vol
     # regression, foundational MNA event-study) + Pinchuk 2022 (aggregate
     # 11-25 bp/1σ MNA band, cleanest cross-class anchor for r152+r153 priors).
+    # r155 — extended literature anchor : add Birz-Lott 2011 JBF for the new
+    # Retail_Sales class. Their negative-result peer-reviewed finding (expected
+    # sign + statistically insignificant correlation) is the calibration anchor
+    # for the 5bp floor magnitude + `low_signal_confidence` sentinel pattern.
     literature_anchor = (
         "Lucca-Moench 2015 (drift) + Boyd-Hu-Jagannathan 2005 (asymétrie cyclique) "
         "+ Kurov 2021 (gate VIX) + Akhtar et al. 2012 JBF (asymétrie consumer-sentiment) "
-        "+ Andersen-Bollerslev-Diebold-Vega 2007 JIE (MNA intraday) + Pinchuk 2022 arXiv"
+        "+ Andersen-Bollerslev-Diebold-Vega 2007 JIE (MNA intraday) + Pinchuk 2022 arXiv "
+        "+ Birz-Lott 2011 JBF (retail-sales faible-signal)"
     )
 
     # r147 code-reviewer SF-3 : malformed impact → surface sentinel + None,
