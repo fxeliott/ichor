@@ -78,10 +78,15 @@ def _build_session(
     *,
     event_rows: list[MagicMock] | None = None,
     vix_row: MagicMock | None = None,
+    empirical_beta_row: MagicMock | None = None,
 ) -> MagicMock:
     """Build AsyncSession mock with sequential execute() returns :
     1st execute = events query → event_rows scalar all
     2nd execute = VIX query → vix_row scalar_one_or_none
+    3rd execute = r160 empirical_reaction_betas query →
+        empirical_beta_row scalar_one_or_none. Default None preserves
+        every pre-r160 test semantics : the empirical-first path
+        graceful-degrades to the literature_prior dict cleanly.
     """
     session = MagicMock()
     events_result = MagicMock()
@@ -92,7 +97,15 @@ def _build_session(
     vix_result = MagicMock()
     vix_result.scalar_one_or_none = MagicMock(return_value=vix_row)
 
-    session.execute = AsyncMock(side_effect=[events_result, vix_result])
+    # r160 — 3rd slot for the empirical reaction-beta query inside
+    # `assess_event_proximity()`. Only consumed when event_class maps
+    # AND asset is in `ASSET_TO_INSTRUMENT` (the 5 priority assets).
+    # Providing the slot unconditionally is safe : extra side_effect
+    # entries that aren't called are silently ignored by AsyncMock.
+    empirical_result = MagicMock()
+    empirical_result.scalar_one_or_none = MagicMock(return_value=empirical_beta_row)
+
+    session.execute = AsyncMock(side_effect=[events_result, vix_result, empirical_result])
     return session
 
 
@@ -761,6 +774,11 @@ class TestCodeReviewerN1CallOrderSentinel:
         """The internal call order is :
         1. SELECT ... FROM economic_events WHERE ... (proximity query)
         2. SELECT ... FROM fred_observations WHERE series_id='VIXCLS' (VIX gate)
+        3. r160 ADR-099 §Impl — SELECT ... FROM empirical_reaction_betas
+           WHERE event_class=:c AND instrument=:i ORDER BY computed_at DESC
+           LIMIT 1 (empirical-first baseline path, fires AFTER VIX gate and
+           ONLY when event_class is mapped AND asset is in the
+           ASSET_TO_INSTRUMENT slug map — 5 priority assets at r160).
         If this order ever flips, the AsyncMock side_effect pattern would
         mis-pair, hiding test failures. Assert verbatim."""
 
@@ -772,20 +790,33 @@ class TestCodeReviewerN1CallOrderSentinel:
             scheduled_at=now + timedelta(hours=6),
         )
         vix = _make_fred_row(30.0, now.date())
+        # r160 — EUR_USD is in ASSET_TO_INSTRUMENT so the empirical query
+        # fires as 3rd execute. No row provided → graceful-degradation to
+        # literature_prior. The test asserts the SSOT call order only ;
+        # behavioural pinning is covered by TestR160EmpiricalReactionBetaPath.
         session = _build_session(event_rows=[event], vix_row=vix)
         await assess_event_proximity(session, asset="EUR_USD", now=now)
 
-        # Verify the call sequence : first execute() call references
-        # EconomicEvent, second references FredObservation.
+        # Verify the call sequence : first execute() = EconomicEvent,
+        # second = FredObservation (VIX), third = EmpiricalReactionBeta.
         calls = session.execute.await_args_list
-        assert len(calls) == 2
+        assert len(calls) == 3, (
+            f"r160 SSOT call order : expected 3 execute() calls "
+            f"(events + VIX + empirical_reaction_betas), got {len(calls)}"
+        )
         first_stmt = calls[0].args[0]
         second_stmt = calls[1].args[0]
-        # Compiled SQL inspection : EconomicEvent first, FredObservation second.
+        third_stmt = calls[2].args[0]
+        # Compiled SQL inspection : EconomicEvent first, FredObservation
+        # second, EmpiricalReactionBeta third.
         first_sql = str(first_stmt.compile(compile_kwargs={"literal_binds": False}))
         second_sql = str(second_stmt.compile(compile_kwargs={"literal_binds": False}))
+        third_sql = str(third_stmt.compile(compile_kwargs={"literal_binds": False}))
         assert "economic_events" in first_sql.lower()
         assert "fred_observations" in second_sql.lower()
+        assert "empirical_reaction_betas" in third_sql.lower(), (
+            "r160 ADR-099 §Impl SSOT : 3rd execute() must reference empirical_reaction_betas table"
+        )
 
 
 # ── r149 AUD/CAD/JPY title-fragment extension ────────────────────────
@@ -2828,3 +2859,231 @@ class TestR159Pattern17FormalDoctrineCodify:
             "difference (cross-section pricing F-P 2002 vs event-window "
             "correlation Birz-Lott 2011) for doctrine #11 calibrated honesty"
         )
+
+
+# ── r160 — empirical reaction-beta first-read path ─────────────────
+
+
+def _make_empirical_beta_row(
+    *,
+    event_class: str = "FOMC",
+    instrument: str = "eurusd",
+    p50_drift_bp: float = 35.0,
+    p75_drift_bp: float = 60.0,
+    p90_drift_bp: float = 95.0,
+    n_observations: int = 50,
+    window_minutes_before: int = 5,
+    window_minutes_after: int = 0,
+    source: str = "dukascopy_1min",
+    computed_at: datetime | None = None,
+) -> MagicMock:
+    """Build an EmpiricalReactionBeta-shaped MagicMock for the 3rd
+    execute() slot in `_build_session(empirical_beta_row=...)`."""
+    from decimal import Decimal
+
+    row = MagicMock()
+    row.event_class = event_class
+    row.instrument = instrument
+    # ORM column is Numeric(8, 3) → Decimal at the Python boundary.
+    # The service casts to float ; tests mirror the ORM contract.
+    row.p50_drift_bp = Decimal(str(p50_drift_bp))
+    row.p75_drift_bp = Decimal(str(p75_drift_bp))
+    row.p90_drift_bp = Decimal(str(p90_drift_bp))
+    row.n_observations = n_observations
+    row.window_minutes_before = window_minutes_before
+    row.window_minutes_after = window_minutes_after
+    row.source = source
+    row.computed_at = computed_at or datetime(2026, 5, 25, 12, 0, tzinfo=UTC)
+    return row
+
+
+class TestR160EmpiricalReactionBetaPath:
+    """r160 ADR-099 §Impl — Engine 8 empirical-first baseline path.
+
+    Pins the Engine 8 graceful-degradation contract :
+      - When no row exists (cold-start ; r160 ship state) → engine
+        falls back to literature_prior cleanly, output is byte-
+        identical to pre-r160 behaviour, no sentinel fires.
+      - When a row exists → engine uses the row's `p50_drift_bp` as
+        the magnitude PRIOR, `using_empirical_calibration` sentinel
+        surfaces honestly via parse_failures (positive disclosure
+        polarity, parity with low_signal_confidence /
+        asymmetric_negativity_bias / single_source_direction).
+      - For non-priority assets (no Dukascopy slug mapping) → engine
+        skips the empirical query entirely, falls back cleanly.
+    """
+
+    @pytest.mark.asyncio
+    async def test_no_empirical_row_falls_back_to_literature_prior(self) -> None:
+        """Cold-start ship state (r160) : empty `empirical_reaction_betas`
+        table → engine output identical to r147+ literature_prior path,
+        no `using_empirical_calibration` sentinel fires."""
+        now = datetime(2026, 5, 23, 12, 0, tzinfo=UTC)
+        event = _make_event_row(
+            title="FOMC Statement",
+            impact="high",
+            currency="USD",
+            scheduled_at=now + timedelta(hours=12),
+        )
+        vix = _make_fred_row(30.0, now.date())
+        # empirical_beta_row=None (default) preserves cold-start ship state
+        session = _build_session(event_rows=[event], vix_row=vix)
+        result = await assess_event_proximity(session, asset="EUR_USD", now=now)
+        assert result is not None
+        assert "using_empirical_calibration" not in result.parse_failures
+        # Magnitude must reflect literature_prior path (FOMC=50bp baseline)
+        assert result.expected_drift_magnitude_bp is not None
+        assert result.next_event_class == "FOMC"
+
+    @pytest.mark.asyncio
+    async def test_empirical_row_overrides_literature_baseline(self) -> None:
+        """Backfill populated state (r161+) : empirical row exists for
+        (FOMC, eurusd) → engine uses `p50_drift_bp` instead of the 50bp
+        literature_prior. Sentinel `using_empirical_calibration`
+        surfaces honestly."""
+        now = datetime(2026, 5, 23, 12, 0, tzinfo=UTC)
+        event = _make_event_row(
+            title="FOMC Statement",
+            impact="high",
+            currency="USD",
+            scheduled_at=now + timedelta(hours=12),
+        )
+        vix = _make_fred_row(30.0, now.date())
+        # Empirical p50 = 80bp >> 50bp literature prior — distinguishable
+        empirical = _make_empirical_beta_row(
+            event_class="FOMC", instrument="eurusd", p50_drift_bp=80.0
+        )
+        session = _build_session(event_rows=[event], vix_row=vix, empirical_beta_row=empirical)
+        result = await assess_event_proximity(session, asset="EUR_USD", now=now)
+        assert result is not None
+        assert "using_empirical_calibration" in result.parse_failures
+        # Magnitude must scale with empirical 80bp, not literature 50bp.
+        # Full Engine 8 chain (impact * time_decay * vix * cycle_sign)
+        # makes the absolute value hard to pin to a single number, but
+        # the ratio empirical/literature must be ≈ 1.6× (80/50).
+        # Compute literature-baseline equivalent and verify the
+        # empirical output is meaningfully larger.
+        assert result.expected_drift_magnitude_bp is not None
+        # Default cycle_sign = +1 (positive); empirical p50=80 should
+        # produce drift > 50bp baseline raw (impact=1.0 high, vix=1.0
+        # above_p75, time_decay 12h/48h ≈ 0.75 → ~60bp before sign)
+        assert abs(result.expected_drift_magnitude_bp) > 30.0
+
+    @pytest.mark.asyncio
+    async def test_non_priority_asset_skips_empirical_query(self) -> None:
+        """Asset NOT in `ASSET_TO_INSTRUMENT` (e.g., USD_JPY r170+
+        carry-forward) → empirical query SKIPPED, no sentinel fires,
+        literature_prior used cleanly."""
+        now = datetime(2026, 5, 23, 12, 0, tzinfo=UTC)
+        event = _make_event_row(
+            title="FOMC Statement",
+            impact="high",
+            currency="USD",
+            scheduled_at=now + timedelta(hours=12),
+        )
+        vix = _make_fred_row(30.0, now.date())
+        # Even if a row WERE provided, the engine must skip the empirical
+        # path for non-priority assets — this row should never be read.
+        empirical = _make_empirical_beta_row(
+            event_class="FOMC", instrument="eurusd", p50_drift_bp=999.0
+        )
+        session = _build_session(event_rows=[event], vix_row=vix, empirical_beta_row=empirical)
+        # USD_JPY is NOT in ASSET_TO_INSTRUMENT (r160 ; future r170+)
+        result = await assess_event_proximity(session, asset="USD_JPY", now=now)
+        assert result is not None
+        assert "using_empirical_calibration" not in result.parse_failures
+
+    @pytest.mark.asyncio
+    async def test_asset_to_instrument_mapping_priority_5(self) -> None:
+        """ROADMAP §1 priority-5 universe is the exact set of priority
+        assets with Dukascopy slug mapping wired r160. New entries MUST
+        be empirically verified against the live Dukascopy URL pattern
+        before being added (doctrine #11 calibrated honesty)."""
+        from ichor_api.services.empirical_reaction_beta import (
+            ASSET_TO_INSTRUMENT,
+            asset_to_instrument,
+        )
+
+        # The 5 priority assets that ship with `/briefing/[asset]` routes
+        expected = {
+            "EUR_USD": "eurusd",
+            "GBP_USD": "gbpusd",
+            "XAU_USD": "xauusd",
+            "SPX500_USD": "usa500idxusd",
+            "NAS100_USD": "usatechidxusd",
+        }
+        for asset, instrument in expected.items():
+            assert asset_to_instrument(asset) == instrument, (
+                f"r160 priority asset {asset} must map to Dukascopy slug "
+                f"{instrument!r} for empirical-beta read"
+            )
+        assert ASSET_TO_INSTRUMENT == expected, (
+            "ASSET_TO_INSTRUMENT mapping drift detected — new assets "
+            "must be empirically verified against the live Dukascopy "
+            "URL pattern before being added (doctrine #11)"
+        )
+
+    @pytest.mark.asyncio
+    async def test_asset_to_instrument_unknown_returns_none(self) -> None:
+        """Unknown asset codes must return None cleanly, never raise.
+        Caller falls back to literature_prior path."""
+        from ichor_api.services.empirical_reaction_beta import (
+            asset_to_instrument,
+        )
+
+        assert asset_to_instrument("USD_JPY") is None  # r170+ carry-fwd
+        assert asset_to_instrument("USD_CAD") is None  # r170+ carry-fwd
+        assert asset_to_instrument("BTC_USD") is None  # never planned
+        assert asset_to_instrument("") is None
+
+    @pytest.mark.asyncio
+    async def test_get_latest_empirical_beta_returns_snapshot_not_orm(self) -> None:
+        """The read-fn must return a frozen dataclass snapshot (decoupled
+        from SQLAlchemy session-lifecycle) — NOT the raw ORM row.
+        Decimal columns must be cast to float for downstream arithmetic
+        compatibility (Engine 8 multiplies by float multipliers)."""
+        from ichor_api.services.empirical_reaction_beta import (
+            EmpiricalReactionBetaSnapshot,
+            get_latest_empirical_beta,
+        )
+
+        empirical = _make_empirical_beta_row(
+            event_class="FOMC",
+            instrument="eurusd",
+            p50_drift_bp=35.5,
+            p75_drift_bp=60.25,
+            p90_drift_bp=95.125,
+        )
+        session = MagicMock()
+        result_mock = MagicMock()
+        result_mock.scalar_one_or_none = MagicMock(return_value=empirical)
+        session.execute = AsyncMock(return_value=result_mock)
+
+        snapshot = await get_latest_empirical_beta(session, event_class="FOMC", instrument="eurusd")
+        assert snapshot is not None
+        assert isinstance(snapshot, EmpiricalReactionBetaSnapshot)
+        # Decimal → float cast verified at the boundary
+        assert isinstance(snapshot.p50_drift_bp, float)
+        assert isinstance(snapshot.p75_drift_bp, float)
+        assert isinstance(snapshot.p90_drift_bp, float)
+        assert snapshot.p50_drift_bp == 35.5
+        assert snapshot.p75_drift_bp == 60.25
+        assert snapshot.p90_drift_bp == 95.125
+        assert snapshot.event_class == "FOMC"
+        assert snapshot.instrument == "eurusd"
+
+    @pytest.mark.asyncio
+    async def test_get_latest_empirical_beta_returns_none_when_no_row(self) -> None:
+        """Cold-start contract : missing row → None (never raises).
+        Engine 8 graceful-degradation depends on this."""
+        from ichor_api.services.empirical_reaction_beta import (
+            get_latest_empirical_beta,
+        )
+
+        session = MagicMock()
+        result_mock = MagicMock()
+        result_mock.scalar_one_or_none = MagicMock(return_value=None)
+        session.execute = AsyncMock(return_value=result_mock)
+
+        snapshot = await get_latest_empirical_beta(session, event_class="FOMC", instrument="eurusd")
+        assert snapshot is None

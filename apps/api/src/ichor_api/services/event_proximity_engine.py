@@ -198,6 +198,10 @@ from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models import EconomicEvent, FredObservation
+from .empirical_reaction_beta import (
+    asset_to_instrument,
+    get_latest_empirical_beta,
+)
 
 __all__ = [
     "EVENT_CLASS_BASELINE_BP",
@@ -1026,7 +1030,40 @@ async def assess_event_proximity(
         expected_drift_bp: float | None = None
         direction: DriftDirection = "unknown"
     else:
+        # r160 ADR-099 §Impl — empirical-first baseline path. When a row
+        # exists in `empirical_reaction_betas` for the queried
+        # (event_class, instrument), use the row's `p50_drift_bp` as the
+        # magnitude PRIOR instead of the literature_prior dict. Falls
+        # back to the literature_prior cleanly when (a) the asset is
+        # not in the Dukascopy slug mapping, OR (b) no row matches.
+        # Closes the cold-start caveat that has fired on every Engine 8
+        # emission since r147 — at r160 ship the table starts EMPTY so
+        # the path is dormant ; r161+ Dukascopy bi5 backfill populates
+        # rows and the engine flips to empirical-first naturally without
+        # a separate code change (Pattern #17 formal DOCTRINE r159 →
+        # empirical calibration r160).
         baseline_bp = EVENT_CLASS_BASELINE_BP.get(event_class, 0.0)
+        instrument = asset_to_instrument(asset)
+        if instrument is not None:
+            empirical = await get_latest_empirical_beta(
+                session,
+                event_class=event_class,
+                instrument=instrument,
+            )
+            if empirical is not None:
+                # Empirical magnitude wins. p50 is the central-tendency
+                # estimate ; p75/p90 are surfaced via the snapshot for
+                # future r170+ confidence-band consumers (not consumed
+                # here yet, doctrine #2 strict scope). Surface the
+                # `using_empirical_calibration` sentinel honestly so
+                # downstream consumers can mechanically tell whether
+                # the baseline came from literature vs Ichor's own
+                # backfill — parity with the other parse_failures
+                # sentinels (low_signal_confidence /
+                # asymmetric_negativity_bias / single_source_direction),
+                # opposite polarity (positive disclosure).
+                baseline_bp = empirical.p50_drift_bp
+                parse_failures.add("using_empirical_calibration")
         impact_mult = _impact_multiplier(next_event.impact)
         time_dec = _time_decay(minutes_until, lookahead_minutes)
         magnitude_unsigned = baseline_bp * impact_mult * time_dec * vix_multiplier

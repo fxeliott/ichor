@@ -45,6 +45,12 @@ from .cot_position import CotPosition
 from .couche2_output import Couche2Output
 from .economic_event import EconomicEvent
 
+# r160 ADR-099 §Impl — Engine 8 axis-4 +1 LEVEL DEPTH foundation : per-(event_class,
+# instrument) empirical reaction-beta calibration snapshot store. Replaces literature
+# priors when populated ; closes the cold-start caveat that has fired on every
+# Engine 8 emission since r147 (Pattern #17 formal DOCTRINE r159 → empirical r160).
+from .empirical_reaction_beta import EmpiricalReactionBeta
+
 # Phase D ADR-090 P0 step-4 — €STR Euro Short-Term Rate daily (round-34)
 from .estr_observation import EstrObservation
 from .finra_short_volume import FinraShortVolume
@@ -118,6 +124,8 @@ __all__ = [
     # Phase 2
     "Couche2Output",
     "EconomicEvent",
+    # r160 ADR-099 §Impl — empirical reaction-beta calibration (Engine 8 axis-4 +1)
+    "EmpiricalReactionBeta",
     # Phase D ADR-090 P0 step-4 — €STR daily (round-34)
     "EstrObservation",
     # Phase 2 — FINRA Reg SHO daily short volume

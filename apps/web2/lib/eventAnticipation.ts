@@ -328,6 +328,17 @@ export const PARSE_FAILURE_FR: Record<string, string> = {
   // epistemic-rewording pattern for asymmetric_negativity_bias).
   low_signal_confidence:
     "Faible-signal (la littérature documente la direction attendue mais sans force statistique fiable, Birz-Lott 2011 JBF)",
+  // r160 ADR-099 §Impl — Engine 8 axis-4 +1 LEVEL DEPTH foundation.
+  // Positive-disclosure sentinel (opposite polarity to the 3 r150/r153/r155
+  // magnitude-uncertainty sentinels) : surfaces honestly that the baseline
+  // magnitude came from Ichor's own empirical backfill, not the literature
+  // prior. At r160 ship the table is EMPTY so this sentinel NEVER fires ;
+  // r161+ Dukascopy bi5 backfill lights it up naturally as rows accumulate.
+  // FR copy stays demoted (no false confidence boost) — the magnitude is
+  // empirical BUT confidence is still gated by VIX regime + time decay +
+  // impact tier + cold-start sample size considerations.
+  using_empirical_calibration:
+    "Magnitude calibrée sur l'historique empirique Ichor (n observations, source documentée)",
 };
 
 /** Translate one sentinel to FR, falling back to the raw code when not
@@ -365,6 +376,15 @@ export const PARSE_FAILURE_PRIORITY: Record<string, number> = {
   low_signal_confidence: 4,
   vix_observation_missing: 5,
   cold_start_no_calibration: 6,
+  // r160 ADR-099 §Impl — POSITIVE disclosure sentinel (opposite polarity).
+  // Sinks below the cold-start noise floor so when both fire simultaneously
+  // (transition state where some events have empirical calibration but
+  // cold_start_no_calibration is still appended by docstring discipline),
+  // the negative limitation rises above the positive disclosure. r161+ when
+  // the empirical path dominates, a dedicated positive-disclosure UI surface
+  // will likely promote `using_empirical_calibration` out of the limitations
+  // pill into its own affordance. r160 scope keeps it in the existing pipe.
+  using_empirical_calibration: 7,
 };
 
 /** Default visible-sentinel cap matching the "user reads top 3" heuristic.
