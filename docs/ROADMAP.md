@@ -161,7 +161,34 @@ See `docs/ROADMAP_2026-05-06.md` for the original 4-layer architecture (DATA FOU
 
 ---
 
-## §3 — Immediate next (r158)
+## §3 — Immediate next (r159)
+
+**r158 EXECUTED & SHIPPED & DEPLOYED & SELF-WITNESSED (2026-05-25)** : 🛠️ probe() outer-SSH fix EMPIRICALLY VALIDATED + **Pattern #15 13ᵉ application** + Pattern #17 r159 candidate documented. Single feat commit `3f8a55e` +95/-4 LOC, 3 files.
+
+**Strand A** (probe() outer-SSH fix `redeploy-api.sh:52`) **EMPIRICALLY VALIDATED IN r158 DEPLOY ITSELF** — Step 5 SSH-timeout fired → probe() returned 000 → Pattern #14 retry sleep 15s → next iteration healthz=200 → DEPLOY OK. Closes r155+r156+r157 3-consecutive Step 5 SSH-timeout pattern.
+
+**Strand B** docstring annotation : Pinchuk 2022 RE-REJECTED + Flannery-Protopapadakis 2002 _RFS_ Industrial Production/Real GNP identified as **2nd INDEPENDENT Pattern #17 anchor r159+** (different paper RFS vs JBF, different methodology cross-section pricing vs event-window correlation). r158 R59 caught Housing-Starts INVERTED status hypothesis pre-commit (Housing Starts IS in F-P 2002's 6 SIGNIFICANT priced factors, NOT negative-result).
+
+Phase 2 reviewer SKIPPED per doctrine #17 r151 precedent (XS hygiene round, self-witnessed). Build gate 241/241 pytest + 451/451 vitest + tsc 0 + ruff/bash clean. Coverage Engine 8 : 54.7% UNCHANGED. Voie D **73 rounds**.
+
+**Pattern #14 + #16 + Strand C now cover full R-DEPLOY-6 lesson #24 spectrum** : 6 deploy events r153-r158 each demonstrating different failure-mode + recovery path.
+
+**r159 binding default candidates** (priority order, Pattern #15 R59-first) :
+
+1. ⭐ AUTO-RECO **Industrial_Production class at 5bp with Flannery-Protopapadakis 2002 _RFS_ anchor** → Pattern #17 OBSERVATION → formal DOCTRINE codify (verified 2nd INDEPENDENT anchor different paper RFS vs JBF + different methodology). Methodology-difference caveat stamp obligatoire ("cross-section pricing vs event-window correlation" honesty disclosure). Effort S.
+2. **Dukascopy backfill** (Eliot license escalation required per F1 R59 Phase 0.5 — "Ichor pre-trade research is non-commercial framing OK" decision pending).
+3. **FRED VIXCLS + NFCI 5y backfill** (closes r150 + r157 data state blockers via FRED collector extension + manual backfill trigger).
+4. **Per-currency Employment subclass refactor** — current Employment class is generic 20bp ; r157 UK_Employment shipped 12bp split. Need parallel split for AUD/CAD/JPY/NZD (currency-aware mapping or downstream multiplier). Effort S-M.
+5. **r152 trader YELLOW-1/2 visual demotion of literature priors** (UI change → 4-reviewer required). Effort S-M.
+6. **Code-reviewer r153 SF-3** deploy latency budget + optional exponential backoff. Effort S.
+7. **r144 FRED ALFRED reconciler unit normalization upstream**. Effort M.
+8. **`actual_source` / `actual_revised` columns** + EU/UK reconcilers. Effort M each.
+
+Pattern #15 R59-disprove-before-commit applies to every r159 ⭐ AUTO-RECO candidate.
+
+---
+
+## §3 — Previous immediate next (r158, EXECUTED above)
 
 **r157 EXECUTED & SHIPPED & DEPLOYED & WITNESSED (2026-05-25)** : 🧹 Multi-strand consolidation + **Pattern #15 12ᵉ application** (Dukascopy + output_gap_proxy DOUBLE-REJECT) + Pattern #17 OBSERVATION preserved. r157 ⭐ AUTO-RECO Dukascopy backfill REJECTED LICENSE BLOCKER ; Fallback B output_gap_proxy ALSO REJECTED DATA STATE. PIVOTED to 5-strand consolidation : (A) NEW Durable_Goods class 5bp Pattern #17 1-paper-2-series Birz-Lott 2011 ; (B) NEW UK_Employment class 12bp NOT US NFP=20 parity per trader RED-2 + Pattern #15 self-applied 12ᵉ Bauer-Swanson 2022 NBER w29939 citation DROPPED ; (C) Step 5 SSH retry hardening (implementation gap → r158 carry-forward) ; (D) aria-label conditional a11y r153 N-3 ; (E) Pattern #17 OBSERVATION PRESERVED (trader+code-reviewer concordant : 1 paper × 2 series ≠ 2 independent applications). Single feat `0945ead` +398/-23 LOC.
 

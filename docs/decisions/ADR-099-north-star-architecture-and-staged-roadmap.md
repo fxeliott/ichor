@@ -4430,7 +4430,7 @@ ZERO Anthropic API spend r156. **Voie D held 71 rounds.**
 
 **5 strands** :
 
-- **A** : NEW Durable_Goods class (5bp, Pattern #17 1-paper-2-series witness Birz-Lott 2011 _JBF_) — 0 fixture, prophylactic.
+- **A** : NEW Durable*Goods class (5bp, Pattern #17 1-paper-2-series witness Birz-Lott 2011 \_JBF*) — 0 fixture, prophylactic.
 - **B** : NEW UK_Employment class (12bp, NOT US NFP=20 parity per trader RED-2 — UK FX volume + global-reserve asymmetry). Captures 2 GBP fixture events. **Pattern #15 self-applied 12th** : Bauer-Swanson 2022 NBER w29939 citation DROPPED (paper is FOMC monetary NOT UK labor — same risk class as r147 Bauer DP21003 + r153 Karnaukh hallucinations, caught mid-round by reviewers).
 - **C** : Step 5 SSH retry hardening on `redeploy-api.sh`. **Implementation gap** : `probe()` `|| echo 000` only handles inner curl error not outer SSH timeout — Step 5 fired same timeout in r157 deploy. r158 micro-fix candidate.
 - **D** : `<EventAnticipationPanel>` aria-label CONDITIONAL on `driftMeaningful` (r153 N-3 a11y fix).
@@ -4456,3 +4456,43 @@ ZERO Anthropic API spend r156. **Voie D held 71 rounds.**
 **r158 binding default candidates** : (a) ⭐ Strand C probe() outer-SSH fix (1-line XS) ; (b) 2nd INDEPENDENT negative-result anchor (Pinchuk 2022 housing-starts) → Pattern #17 formal DOCTRINE ; (c) Dukascopy backfill (license-escalate Eliot) ; (d) FRED VIXCLS+NFCI 5y backfill (closes r150+r157 data state blockers) ; (e-j) per-currency Employment, visual demotion, SF-4, SF-3 deploy latency, ALFRED reconciler, actual_source columns.
 
 ZERO Anthropic API spend r157. **Voie D held 72 rounds.**
+
+## Implementation (r158, 2026-05-25) — probe() outer-SSH fix EMPIRICALLY VALIDATED + Pattern #17 r159 candidate documented
+
+**TL;DR** : r158 ships Strand A probe() outer-SSH fix in `redeploy-api.sh` (closes r155+r156+r157 3-consecutive Step 5 SSH-timeout pattern) + Strand B docstring annotation documenting r158 R59 verified candidate for Pattern #17 formal DOCTRINE r159+. **Strand A EMPIRICALLY VALIDATED IN r158 DEPLOY ITSELF** : Step 5 SSH-timeout fired → probe() returned 000 → Pattern #14 retry sleep 15s → next iteration healthz=200 → DEPLOY OK. Single feat commit `3f8a55e` +95/-4 LOC.
+
+**Pattern #15 stable 13 applications** : r158 adds (a) Pinchuk 2022 RE-REJECTED ; (b) Housing-Starts INVERTED status corrected (Flannery-Protopapadakis 2002 _RFS_ has Housing Starts IN the 6 significant priced factors, NOT negative-result). R59 caught my OWN inverted hypothesis pre-commit. Negative-result series in F-P 2002 = **Industrial Production + Real GNP** → r159+ formal DOCTRINE codify candidate.
+
+**Strand A self-witness log** :
+
+```
+[16:41:48Z] Step 5 healthz probe 1/30 returned 000 (SSH-timeout signature) — Pattern #14 retry sleep 15s
+[16:42:04Z] Step 5: verify health + sample endpoint
+[16:42:05Z] RESULT: healthz=200 sample(/v1/geopolitics/briefing)=200
+[16:42:05Z] DEPLOY OK
+```
+
+**Build gate** : pytest engine + invariants 241/241 + vitest 451/451 + tsc 0 + ruff/eslint/prettier clean + bash syntax OK.
+
+**Phase 2 reviewer SKIPPED** per doctrine #17 r151 precedent (XS hygiene round, no production behavior change beyond probe() shell fix self-witnessed).
+
+**Mission centrale** : NO state change. Coverage Engine 8 : 54.7% UNCHANGED. Voie D **73 rounds**.
+
+**NEW r158 pattern observations** :
+
+- Pattern #15 stable **13 applications** (r158 +2 : Pinchuk 2022 re-rejected + Housing-Starts INVERTED status corrected via R59 primary verification of Flannery-Protopapadakis 2002).
+- **Pattern #14 + #16 + Strand C now cover full R-DEPLOY-6 lesson #24 spectrum** — 6 deploy events across r153-r158 each demonstrating a different failure-mode + recovery path : r153 zero-retry / r154 zero-retry / r155 Step 5 undetected / r156 Step 4 retry × 3 + recover / r157 Step 5 detected but probe() gap / r158 Step 5 probe() fixed + recover.
+- **r159 candidate path verified-primary** : Flannery-Protopapadakis 2002 _RFS_ Industrial Production/Real GNP negative-result anchor (different paper + journal + methodology than Birz-Lott 2011) → Pattern #17 formal DOCTRINE codify on shipping `Industrial_Production` class.
+
+**r159 binding default candidates** :
+
+1. ⭐ AUTO-RECO **Industrial_Production class at 5bp with Flannery-Protopapadakis 2002 _RFS_ anchor** → Pattern #17 OBSERVATION → formal DOCTRINE codify. Effort S, methodology-difference caveat stamp obligatoire.
+2. **Dukascopy backfill** (Eliot license escalation per F1 R59).
+3. **FRED VIXCLS + NFCI 5y backfill** (closes r150 + r157 data state blockers).
+4. Per-currency Employment subclass refactor (S-M).
+5. r152 trader YELLOW-1/2 visual demotion (S-M, 4-reviewer required).
+6. Code-reviewer r153 SF-3 deploy latency budget exponential backoff (S).
+7. r144 FRED ALFRED reconciler unit normalization (M).
+8. `actual_source`/`actual_revised` columns + EU/UK reconcilers (M each).
+
+ZERO Anthropic API spend r158. **Voie D held 73 rounds.**
