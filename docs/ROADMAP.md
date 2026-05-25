@@ -161,7 +161,33 @@ See `docs/ROADMAP_2026-05-06.md` for the original 4-layer architecture (DATA FOU
 
 ---
 
-## §3 — Immediate next (r157)
+## §3 — Immediate next (r158)
+
+**r157 EXECUTED & SHIPPED & DEPLOYED & WITNESSED (2026-05-25)** : 🧹 Multi-strand consolidation + **Pattern #15 12ᵉ application** (Dukascopy + output_gap_proxy DOUBLE-REJECT) + Pattern #17 OBSERVATION preserved. r157 ⭐ AUTO-RECO Dukascopy backfill REJECTED LICENSE BLOCKER ; Fallback B output_gap_proxy ALSO REJECTED DATA STATE. PIVOTED to 5-strand consolidation : (A) NEW Durable_Goods class 5bp Pattern #17 1-paper-2-series Birz-Lott 2011 ; (B) NEW UK_Employment class 12bp NOT US NFP=20 parity per trader RED-2 + Pattern #15 self-applied 12ᵉ Bauer-Swanson 2022 NBER w29939 citation DROPPED ; (C) Step 5 SSH retry hardening (implementation gap → r158 carry-forward) ; (D) aria-label conditional a11y r153 N-3 ; (E) Pattern #17 OBSERVATION PRESERVED (trader+code-reviewer concordant : 1 paper × 2 series ≠ 2 independent applications). Single feat `0945ead` +398/-23 LOC.
+
+**Phase 2 concordance** : trader SHIP-WITH-FIX (1 RED + 3 YELLOW APPLIED) + code-reviewer READY-WITH-FIXES (4 SHOULD-FIX + 2 NICE APPLIED, 5 NICE deferred). Build gate **239/239** + **451/451** + tsc 0 + ruff/eslint/prettier clean. Deploy api Steps 3a-4 OK + Step 5 timeout (Strand C gap) ; web2 OK local=200 public=200.
+
+Coverage 52.6% → **~54.7%** (50 r156 + 2 UK / 95). CI ratchet 50% → 53%. Voie D **72 rounds**. NO axis state change.
+
+**r158 binding default candidates** (priority order, Pattern #15 R59-first) :
+
+1. ⭐ AUTO-RECO **Strand C probe() outer-SSH error fix** — `redeploy-api.sh:52` modify `probe() { ${SSH} ... ; }` to add outer `|| echo 000` (1-line XS fix). r155+r156+r157 ALL hit Step 5 SSH timeout — high-impact micro-fix.
+2. **2nd INDEPENDENT peer-reviewed negative-result anchor** (Pinchuk 2022 housing-starts OR Industrial Production replication different paper) → triggers Pattern #17 formal DOCTRINE codify (currently OBSERVATION per trader r157 YELLOW-5). Effort S.
+3. **Dukascopy backfill** (r157 carry-forward — requires Eliot license-escalation decision per F1 R59 Phase 0.5). Effort L 3-5 dev-days if Eliot greenlights.
+4. **FRED VIXCLS + NFCI 5y backfill** — closes BOTH r150 VIX threshold recompute AND r157 output_gap_proxy DATA STATE blockers. Effort M.
+5. **Per-currency Employment subclass** (AUD/CAD anchor differentiation, parity with r150 trader YELLOW-3 / r157 UK_Employment pattern). Effort S.
+6. **r152 trader YELLOW-1/2 visual demotion of literature priors** (UI change → 4-reviewer required). Effort S-M.
+7. **Code-reviewer r157 SF-4** redeploy-api.sh false-positive cost explicit doc. Effort XS.
+8. **Code-reviewer r153 SF-3** deploy latency budget + optional exponential backoff. Effort S.
+9. **Code-reviewer r153 N-3** aria-label asymmetric a11y — DONE r157 Strand D ; removed from binding default list (hygiene per r156 ROADMAP correction precedent).
+10. **r144 FRED ALFRED reconciler unit normalization upstream**. Effort M.
+11. **`actual_source` / `actual_revised` columns** + EU/UK reconcilers. Effort M each.
+
+Pattern #15 R59-disprove-before-commit applies to every r158 ⭐ AUTO-RECO. r157 NICE-3 N-3 a11y fix REMOVED from r158 binding defaults (verified APPLIED Strand D r157, doctrinal hygiene per r156 MRO removal precedent).
+
+---
+
+## §3 — Previous immediate next (r157, EXECUTED above)
 
 **r156 EXECUTED & SHIPPED & DEPLOYED & WITNESSED (2026-05-25)** : 🧹 Consolidation round — **5-strand carry-forward closure + Pattern #17 OBSERVATION codify**. Pivoted from r156 ⭐ AUTO-RECO Dukascopy backfill (L-effort 3-5 dev-days) per doctrine #2 strict scope + r151 precedent. Single feat commit `e6badab` (+510/-16 LOC, 6 files). NO new ADR, migration, flag, backfill, or coverage change (52.6% unchanged).
 

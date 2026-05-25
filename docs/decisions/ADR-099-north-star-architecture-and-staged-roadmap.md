@@ -4312,7 +4312,7 @@ ZERO Anthropic API spend r155. **Voie D held 70 rounds.**
 **Strands shipped (single feat commit `e6badab`)** :
 
 - **Strand A** (trader r155 YELLOW-4) — Sentinel saturation collapse logic. NEW `PARSE_FAILURE_PRIORITY: Record<string, number>` ordering (most-restrictive-first, 7 sentinels ranks 0-6) + `PARSE_FAILURE_MAX_VISIBLE=3` cap + `prioritizedParseFailures()` + `hiddenParseFailureCount()` pure-fns in `apps/web2/lib/eventAnticipation.ts`. `<EventAnticipationPanel>` JSX uses `prioritizedParseFailures` + renders "+N de plus" honest suffix when sentinels exceed cap (preserves doctrine #11 — never hides, just deprioritizes by rank). Backend invariant test `TestR156SentinelSaturationBackend` verifies engine max ≤ 4 sentinels per call via combinatorial enumeration (max realistic = 3 : event_class_unmapped OR class-specific sentinel + impact_value_invalid + vix_observation_missing).
-- **Strand B** (trader r155 YELLOW-5) — Retail_Sales defensive `_TITLE_FRAGMENT_BLOCKED` += 2 entries (`"retail sales m/m excl"` + `"retail sales m/m ex "`) prophylactic against future FF title drift. Birz-Lott 2011 _JBF_ tested HEADLINE retail sales only ; hypothetical sub-aggregate "Retail Sales m/m Excl. Auto" would silently propagate `low_signal_confidence` sentinel into a class the literature anchor doesn't cover. Trader r156 YELLOW-3 (add "advance retail sales" + "core retail sales" to block list) REJECTED empirically per lesson #38 — "Core Retail Sales m/m" lowercased contains "retail sales m/m" substring at offset 5 → maps correctly via POSITIVE pattern ; "Advance Retail Sales m/m" same. Trader claim that current list "covers Core variants" was empirically wrong.
+- **Strand B** (trader r155 YELLOW-5) — Retail*Sales defensive `_TITLE_FRAGMENT_BLOCKED` += 2 entries (`"retail sales m/m excl"` + `"retail sales m/m ex "`) prophylactic against future FF title drift. Birz-Lott 2011 \_JBF* tested HEADLINE retail sales only ; hypothetical sub-aggregate "Retail Sales m/m Excl. Auto" would silently propagate `low_signal_confidence` sentinel into a class the literature anchor doesn't cover. Trader r156 YELLOW-3 (add "advance retail sales" + "core retail sales" to block list) REJECTED empirically per lesson #38 — "Core Retail Sales m/m" lowercased contains "retail sales m/m" substring at offset 5 → maps correctly via POSITIVE pattern ; "Advance Retail Sales m/m" same. Trader claim that current list "covers Core variants" was empirically wrong.
 - **Strand C** (code-reviewer r155 NICE-3) — Confidence clamp symmetry guard. Added `expected_drift_bp is not None` guard to the proximity-conditional clamp block for documentation parity with the sentinel emission block. Currently safe (the confidence ladder routes `None` magnitude to `"unavailable"` which is NOT in `("high", "medium")` clamp-target set), but the explicit guard documents the invariant + is robust against future ladder refactors. Test `TestR156NICE3SymmetryGuard` pins regression behavior.
 - **Strand D** (pre-existing flaky test, r155 carry-forward) — `test_tempo_recalibration::test_daily_ranges_bp_sql_pins_paris_tz_and_safety_filters` CWD-relative path bug fix : `open("src/ichor_api/services/tempo_recalibration.py")` → `Path(__file__).resolve().parent.parent / "src" / "ichor_api" / "services" / "tempo_recalibration.py"`. Verified pre-r155 via `git stash` on HEAD `6779ebf` PRE-r155 (NOT r155 regression). Generalizable lesson : every test that opens a source file MUST use `__file__`-relative resolution, NEVER bare relative paths. Docstring documents this meta-pattern.
 - **Strand E** (NEW Pattern #17 OBSERVATION codify) — Module docstring NEW section "PATTERN #17 NEGATIVE-RESULT-ANCHOR OBSERVATION (r155 single application, codify-pending-2nd-witness per trader r156 YELLOW-5)". Out-of-repo `~/.claude/projects/D--Ichor/memory/ichor_r51-r71_doctrinal_patterns.md` += matching observation entry. Pattern #17 = peer-reviewed negative-result IS legitimate calibration anchor when paired with mechanical sentinel + confidence-clamp + caveat (Birz-Lott 2011 + Retail_Sales class r155). Trader r156 YELLOW-5 fixed : codification downgraded from "DOCTRINE" to "OBSERVATION pending 2nd witness" — Pattern #14 + #16 required 2 empirical validations before formal codification ; Pattern #17 has only r155 observation. Next negative-result anchor (durable goods orders per Birz-Lott same paper, or r157+ replication) will provide the 2nd witness.
@@ -4423,3 +4423,36 @@ Priority order, Pattern #15 R59-disprove-before-commit applies to every ⭐ AUTO
 13. **`actual_source` / `actual_revised` columns** + EU/UK reconcilers.
 
 ZERO Anthropic API spend r156. **Voie D held 71 rounds.**
+
+## Implementation (r157, 2026-05-25) — Multi-strand consolidation + Pattern #15 12th application (Dukascopy + output_gap_proxy DOUBLE-REJECT) + Pattern #17 OBSERVATION preserved
+
+**TL;DR** : r157 ⭐ AUTO-RECO "Dukascopy backfill" REJECTED via Pattern #15 R59 LICENSE BLOCKER (Dukascopy ToU "personal non-commercial only"). Fallback B `output_gap_proxy` ALSO REJECTED (NFCI n=3 / 3 weeks empirical, CFNAI n=1, cleveland_fed_nowcasts EMPTY). PIVOTED to multi-strand consolidation (mirror r151+r156, theme "post-double-reject closure"). Single feat commit `0945ead` +398/-23 LOC, 6 files.
+
+**5 strands** :
+
+- **A** : NEW Durable_Goods class (5bp, Pattern #17 1-paper-2-series witness Birz-Lott 2011 _JBF_) — 0 fixture, prophylactic.
+- **B** : NEW UK_Employment class (12bp, NOT US NFP=20 parity per trader RED-2 — UK FX volume + global-reserve asymmetry). Captures 2 GBP fixture events. **Pattern #15 self-applied 12th** : Bauer-Swanson 2022 NBER w29939 citation DROPPED (paper is FOMC monetary NOT UK labor — same risk class as r147 Bauer DP21003 + r153 Karnaukh hallucinations, caught mid-round by reviewers).
+- **C** : Step 5 SSH retry hardening on `redeploy-api.sh`. **Implementation gap** : `probe()` `|| echo 000` only handles inner curl error not outer SSH timeout — Step 5 fired same timeout in r157 deploy. r158 micro-fix candidate.
+- **D** : `<EventAnticipationPanel>` aria-label CONDITIONAL on `driftMeaningful` (r153 N-3 a11y fix).
+- **E** : Pattern #17 status **OBSERVATION PRESERVED** (NOT formal DOCTRINE per trader r157 YELLOW-5 + code-reviewer N-5 concordant — "1 paper × 2 series" not 2 independent applications under multi-application discipline).
+
+**Phase 2 concordance** :
+
+- trader : SHIP-WITH-FIX (1 RED + 3 YELLOW + 2 GREEN). RED-2 + YELLOW-5 + YELLOW-1 APPLIED.
+- code-reviewer : READY-WITH-FIXES (0 CRITICAL, 4 SHOULD-FIX, 5 NICE, 8 CONFIRMATIONS). SF-1 + SF-2 + SF-3 + N-1 + N-2 APPLIED.
+
+**Build gate** : pytest engine + invariants **239/239** + vitest **451/451** + tsc 0 + ruff/eslint/prettier clean + bash syntax OK.
+
+**Phase 3 deploy** : api Steps 3a/3b/3c/4 attempt 1 OK + Step 5 SSH timeout (Strand C gap) — manual SSH curl verify : healthz=200 + Engine 8 200 ; web2 attempt 1 OK local=200 public=200.
+
+**Phase 3.5 R-WITNESS-EMPIRICAL** : r157 backend LIVE (UK_Employment + Durable_Goods baselines shipped + aria-label conditional shipped + Step 5 hardening shipped with discovered gap) ; visual witness UK events deferred jusqu'à next Claimant Count Change ~mi-juin 2026.
+
+**Coverage Engine 8** : 52.6% → ~54.7% (50 r156 + 2 UK fixture / 95). CI ratchet 50% → 53%.
+
+**Mission centrale** : NO axis state change. **4 of 8 axes ✅ CLOSED + axis-4 r152-r155 deeper still.** Voie D **72 rounds**.
+
+**NEW r157 pattern observations** : Pattern #15 stable **12 applications** (10 Dukascopy LICENSE + 11 output_gap_proxy DATA STATE + 12 Bauer-Swanson META r157) ; Pattern #17 status preserved OBSERVATION ; Strand C implementation gap discovered (probe outer-SSH-error not covered).
+
+**r158 binding default candidates** : (a) ⭐ Strand C probe() outer-SSH fix (1-line XS) ; (b) 2nd INDEPENDENT negative-result anchor (Pinchuk 2022 housing-starts) → Pattern #17 formal DOCTRINE ; (c) Dukascopy backfill (license-escalate Eliot) ; (d) FRED VIXCLS+NFCI 5y backfill (closes r150+r157 data state blockers) ; (e-j) per-currency Employment, visual demotion, SF-4, SF-3 deploy latency, ALFRED reconciler, actual_source columns.
+
+ZERO Anthropic API spend r157. **Voie D held 72 rounds.**
