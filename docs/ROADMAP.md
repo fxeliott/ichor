@@ -161,7 +161,44 @@ See `docs/ROADMAP_2026-05-06.md` for the original 4-layer architecture (DATA FOU
 
 ---
 
-## §3 — Immediate next (r154)
+## §3 — Immediate next (r155)
+
+**r154 EXECUTED & SHIPPED & DEPLOYED & WITNESSED (2026-05-25)** : Tier 4 axis-4 +1 LEVEL DEPTH compound round — CB Speaker class extension (ECB_Speech=7bp + BoE_Speech=8bp + SNB_Speech=10bp asymmetric) + r153 code-reviewer post-hoc fix-cluster (SF-1 fixture 94→95, SF-2 architectural sign-strip on asymmetric, N-1 module-level constant, N-2 frontend SSOT) + Strand B Pattern #16 doctrine codify in CLAUDE.md auto-context-injector hook + memory file (PERMANENT via session-resume).
+
+**Pattern #16 EMPIRICALLY VALIDATED 2ND TIME** : r154 deploy api+web2 each Step-3a/3b/3c + Step-4 attempt 1 OK (zero retry). The codification works durably across consecutive rounds.
+
+**Pattern #15 R59-disprove now stable across 7 applications** : r154 added CB Speaker honest-unmapped subset (BoJ Ueda / BoC Macklem / Fed-Chair-non-FOMC / Trump / RBNZ Breman) — researcher web R59 verified literature too thin → kept unmapped per calibrated refusal. Only 3 speakers ship (ECB/BoE/SNB) with verified peer-reviewed anchors.
+
+Coverage extension 41.1% (r153 actual) → 47.4% post-r154 (45 mapped / 95 events ; +6 net : BoE_Speech 3 + ECB_Speech 2 + SNB_Speech 1). CI threshold ratchet 35% → 45%.
+
+Build gate (MEASURED) : pytest targeted 216/216 + vitest 425/425 + tsc 0 + Ruff clean + Prettier clean + ADR-017 source-inspection lockstep CI green + Brier 12-factor + r149 event-class consistency invariants preserved. Single feat commit `3626a8d` +382 LOC across 5 files.
+
+Phase 3.5 R-WITNESS-EMPIRICAL Playwright : event meta "Confiance consommateurs (Conference Board)" preserved + magnitude 0.2bp (positive abs() SF-2 fix landed) + **"Limitations remontées : Skew empirique négatif (asymétrie selon le signe de la surprise, Akhtar 2012 / Ranaldo-Rossi 2009)"** (N-2 SSOT fix LIVE — was borderline directional pre-r154) + caveat preserved + literature_anchor extended.
+
+Voie D **69 rounds**. Mission centrale : axis-4 r154 deeper. NO state change at axis-closure level. **4 of 8 axes ✅ CLOSED + axis 4 r154 deeper**.
+
+**r155 binding default candidates** (in priority order, R59-disprove first per pattern #15) :
+
+1. ⭐ AUTO-RECO **PMI Services class extension** (Flash Manufacturing/Services PMI EUR/GBP/USD currently unmapped — 6 events in fixture). Researcher R59 first on S&P Global Flash PMI vs ISM separate class literature. Effort S-M. Would lift coverage 47.4% → ~53-55%.
+2. **US Retail Sales + Core Retail Sales class** (4 events in fixture). Andersen-Bollerslev 2003 supports. Effort S.
+3. **UK Claimant Count Change + Average Earnings Index extension**. Effort S.
+4. **FRED VIXCLS backfill 5y** (deferred since r150). Researcher R59 first on FRED bulk API. Effort M.
+5. **Empirical reaction-beta backfill via Dukascopy 1-min FREE multi-year** (replaces literature priors with Ichor-historical, closes cold-start caveat at source). Effort L (3-5 dev-days). Pattern #15 R59 first.
+6. **`output_gap_proxy` wiring** (composite NFCI + SBET + macro nowcast → `business_cycle_sign`). Effort M.
+7. **r147 MRO smell fix** (`TestBrierLockstepWithR147(TestAdr017Invariants)` inherits non-Brier tests — still deferred since r150). Effort S.
+8. **Per-currency Employment subclass** (trader r150 YELLOW-3). Effort S.
+9. **r152 trader YELLOW-1/2 visual demotion of literature priors** (italic / "· prior" suffix / lighter weight on cold-start magnitudes). Effort S.
+10. **Code-reviewer r153 SF-3** (deploy latency budget + optional exponential backoff). Effort S.
+11. **Code-reviewer r153 N-3** (aria-label conditional magnitude when driftMeaningful=false — asymmetric a11y). Effort S.
+12. **r144 FRED ALFRED reconciler unit normalization upstream** (deferred since r147). Effort M.
+13. **`actual_source` / `actual_revised` columns** + EU/UK reconcilers. Effort M each.
+14. **Code-reviewer S4 orchestrator hook AsyncMock test** (deferred since r142). Effort S.
+
+Pattern #15 R59-disprove-before-commit applies to every r155 ⭐ AUTO-RECO candidate.
+
+---
+
+## §3 — Previous immediate next (r154, EXECUTED above)
 
 **r153 EXECUTED & SHIPPED & DEPLOYED & WITNESSED (2026-05-24)** : Tier 4 axis-4 +1 LEVEL DEPTH — Engine 8 sentiment-class extension (CCI=10bp + Michigan=10bp + ISM=15bp + `asymmetric_negativity_bias` sentinel) + 12 new title patterns (closes ~73% pre-r153 coverage gap to ~39%) + 4 latent bug fixes (`gdp m/m`, `prelim gdp price index` added ; `adp non-farm` + `rbnz monetary policy statement` defensively blocked) + FF title-coverage CI invariant META-FIX (94-event fixture + ratchet threshold 35% — failing CI is the FEATURE) + Pattern #16 R-DEPLOY-6 Step-3 SSH-pipe decompose codified in `redeploy-{api,web2}.sh`. **Pattern #16 EMPIRICALLY VALIDATED in r153 deploy itself** — 3a/3b/3c on api+web2 each attempt 1 OK, zero retry, first round since r147 with no SSH-timeout cluster.
 

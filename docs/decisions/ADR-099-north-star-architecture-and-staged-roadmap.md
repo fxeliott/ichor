@@ -4175,3 +4175,89 @@ Voie D held **68 rounds** (zero `import anthropic` r153 ; pure compute extension
 **Mission centrale axis impact** : NO state change at axis level — r153 is depth extension within axis-4 (Engine 8 LIVE + USER-VISIBLE + now wider class coverage). Axes : 1-2 ✅ r123 / 3 ✅ r132+r133 / **4 ✅ +1 LEVEL r152 (user-visible) + r153 (coverage depth) ⭐** / 5 ✅ EMPIRICALLY GREEN r146 / 6 ✅ CLOSED r142+r143 / 7 🎯 LIVE / 8 🎯+1 PARTIAL r131. **4 of 8 axes ✅ CLOSED + axis 5 EMPIRICALLY GREEN + axis 4 r153 deeper.**
 
 **r154 binding default candidates** : (a) **Re-dispatch code-reviewer on r153 commit** (post-hoc concordance validation — closes the r153 compact-kill gap) ; (b) ⭐ AUTO-RECO **Pattern #16 codify in CLAUDE.md auto-context-injector** (deploy-pipe doctrine, mirrors r150 Pattern #14 codification) ; (c) **FRED VIXCLS backfill 5y** (deferred since r150) ; (d) **`output_gap_proxy` wiring** ; (e) **per-currency Employment subclass** (trader r150 YELLOW-3) ; (f) **Empirical reaction-beta backfill** via Dukascopy 1-min FREE multi-year (replaces literature priors with Ichor-historical — closes cold-start caveat at the source) ; (g) **PMI Services class extension** (Flash Manufacturing/Services PMI EUR/GBP/USD currently unmapped — separate S&P Global PMI class) ; (h) **US Retail Sales class extension** ; (i) **UK Claimant Count Change + Average Earnings Index extension** ; (j) **r152 trader YELLOW-1/2 visual demotion of literature priors** ; (k) **Code-reviewer S4 orchestrator hook AsyncMock test** (deferred since r142) ; (l) **FRED ALFRED reconciler unit normalization upstream** (deferred since r147).
+
+## Implementation (r154, 2026-05-25) — Tier 4 axis-4 +1 LEVEL DEPTH : CB Speaker class extension + r153 code-reviewer fix-cluster + Pattern #16 doctrine codify (compound round)
+
+r154 closes 2 r153 binding default candidates in a single compound feat commit `3626a8d` (+382 LOC across 5 files) :
+
+- **Strand A** (r154 candidate (a)) : re-dispatched code-reviewer on r153 commit `6c4c3cd` ; returned READY-WITH-FIX (3 SHOULD-FIX + 6 NICE, 0 BLOCK, 0 CRITICAL) — 4 findings applied this round (SF-1 fixture, SF-2 architectural, N-1 module-level, N-2 SSOT)
+- **Strand B** (r154 candidate (b) ⭐ AUTO-RECO) : Pattern #16 codify in CLAUDE.md auto-context-injector + memory doctrinal patterns file (out-of-repo PERMANENT)
+- **Strand C** : CB Governor scheduled-speech class extension (3 new event classes : ECB_Speech, BoE_Speech, SNB_Speech) per researcher web R59 literature audit
+
+Coverage extension : pre-r154 41.1% (39/95 — SF-1 reconciliation : not 39.4%/94 as r153 closing-sync claimed) → post-r154 **47.4%** (45/95). +6 net mapped events (BoE_Speech 3 + ECB_Speech 2 + SNB_Speech 1).
+
+**Phase 0 R59 dual-audit** (2 parallel sub-agents) :
+
+- **researcher web** verified literature for CB Speaker reaction magnitudes : Ehrmann-Fratzscher 2007 ECB WP 557 (monetary-inclination 1.5-2.5 bp + BoE-specific 6-10 bp dispersion) + Cieslak-Schrimpf 2019 _JIE_ (press-conf information channel) + Ranaldo-Rossi 2009 _JIMF_ (SNB verbal interventions DO move assets, contrast Kohn-Sack 2004 ordinary Fed speeches do NOT) + Born-Ehrmann-Fratzscher 2014 (speeches little effect in tranquil times, substantial only in crisis — implies VIX-gated magnitude). HONEST UNMAPPED preserved per Pattern #15 R59-disprove (literature too thin for BoJ Ueda / BoC Macklem / Fed-Chair-non-FOMC / Trump / RBNZ Breman speakers).
+- **code-reviewer** post-hoc on r153 commit `6c4c3cd` : READY-WITH-FIX 3 SHOULD-FIX + 6 NICE.
+
+**Pattern #15 R59-disprove now stable across 7 applications** : r147 Bauer DP21003 + r148 daily-bar + r150×2 VIX/RBA-BoC + r153 Karnaukh-Vrolijk + r153 ISM-Services-honest + **r154 CB Speaker honest-unmapped subset** (refused to fabricate magnitudes where literature thin).
+
+**Phase 1 compound implementation** (single feat commit `3626a8d` +382 LOC across 5 files) :
+
+**Strand A — code-reviewer post-hoc fix-cluster** :
+
+- **SF-1 (fixture data integrity)** : `_meta.n_events: 94` → 95 (off-by-one drift since r153). Coverage prose updated 39.4% → **47.4%** (post-r154 mechanical re-computation).
+- **SF-2 (architectural — sign-strip on asymmetric)** : when `event_class in _ASYMMETRIC_NEGATIVITY_CLASSES`, override now sets `expected_drift_bp = abs(expected_drift_bp)` IN ADDITION to `direction="unknown"` + sentinel. Strips business_cycle_sign bias at the SOURCE rather than relying on downstream consumers (Brier optimizer + confluence aggregation) to handle it. Same doctrine #11 calibrated honesty class as r150 RBA/BoC trader YELLOW-2.
+- **N-1 (module-level constant)** : `_ASYMMETRIC_NEGATIVITY_CLASSES` moved from inline (hot path) to module-level frozenset.
+- **N-2 (frontend SSOT)** : `PARSE_FAILURE_FR["asymmetric_negativity_bias"]` reworded from r153 borderline-directional "magnitude significative uniquement sur surprise négative" to SSOT-consistent epistemic "Skew empirique négatif (asymétrie selon le signe de la surprise, Akhtar 2012 / Ranaldo-Rossi 2009)". Mirrors backend trader YELLOW-2 epistemic discipline.
+
+**Strand B — Pattern #16 doctrine codify (OUT-OF-REPO PERMANENT)** :
+
+- `~/.claude/projects/D--Ichor/memory/ichor_r51-r71_doctrinal_patterns.md` : NEW Pattern #16 section after Pattern #15 (~80 LOC) — pattern statement + empirical witness + how-to-apply + where-it-applies + twin-doctrine-to-Pattern-#14.
+- `~/.claude/hooks/auto_context_injector.ps1` KEYWORD DEPLOY rule extended to inject Pattern #14 + #16 doctrine reference on deploy-keyword detection. Hook syntax verified clean.
+- Out-of-repo files (memory + hook), no commit in this repo. Doctrine is now PERMANENT — future sessions inherit it via session-resume hook.
+
+**Strand C — CB Governor scheduled-speech class extension** :
+
+- `EVENT_CLASS_BASELINE_BP` += 3 new classes :
+  - `ECB_Speech`: 7.0 (Ehrmann-Fratzscher 2007 + Cieslak-Schrimpf 2019)
+  - `BoE_Speech`: 8.0 (Ehrmann-Fratzscher 2007 BoE-specific 6-10 bp)
+  - `SNB_Speech`: 10.0 + asymmetric_negativity_bias sentinel (Ranaldo-Rossi 2009 + 2024 SNB textual-analysis)
+- `_TITLE_TO_EVENT_CLASS` += 4 patterns ordered EARLY (before BoJ generic fallback) : `("ecb president", ...)` + `("bailey", ...)` + `("mansion house", ...)` + `("snb chairman", ...)`.
+- `_ASYMMETRIC_NEGATIVITY_CLASSES` extended with SNB_Speech.
+- NEW caveat surface for SNB_Speech (honest scope flag re Ranaldo-Rossi 2000-2005 data pre-floor-cap regime).
+- NEW caveat surface for ECB_Speech + BoE_Speech (flag rate-channel extrapolation to equity).
+- HONEST UNMAPPED kept : BoJ Ueda / BoC Macklem / Fed-Chair-non-FOMC / Trump / RBNZ Breman (researcher R59 verified literature too thin).
+- Frontend `EVENT_CLASS_FR` += 3 new CB Speaker labels.
+
+**Tests added** (17 new backend + 4 frontend = 21 total) :
+
+- Backend (4 r154 classes) : TestR154CbSpeakerClassMapping 7 (3 ship + 4 honest-unmapped regression) + TestR154NewBaselineKeys 4 (baselines + tier-ordering invariant) + TestR154SnbSpeechAsymmetricSentinel 2 (SNB in set + module-level import) + TestR154AsymmetricMagnitudeSignStripped 2 (SF-2 empirical) + TestR154FixtureMetaReconciliation 2 (SF-1 + ≥45% coverage)
+- Frontend : 4 new EVENT_CLASS_FR CB Speaker tests + N-2 SSOT-consistency rewrite
+
+**BUILD GATE (MEASURED on COMMITTED-shape doctrine #14)** :
+
+- pytest targeted **216/216** (was 199 r153 + 17 r154 = 216)
+- vitest **425/425** (was 421 r153 + 4 r154 EVENT_CLASS_FR + 1 SSOT fix update)
+- tsc 0, ESLint clean, Prettier clean, Ruff clean
+- ADR-017 source-inspection lockstep CI green
+- Brier 12-factor lockstep r142+r148 + r149 event-class consistency preserved
+
+**Phase 3 deploy via R-DEPLOY-6 (Pattern #16 EMPIRICALLY VALIDATED 2ND TIME)** :
+
+- api : Step 1-4 each attempt 1 OK (Pattern #16 codification works r154 just as r153)
+- web2 : Step 1-4 each attempt 1 OK
+- healthz=200 + all 6 priority asset endpoints return 200
+- web2 tunnel stable `https://operations-mail-signals-rubber.trycloudflare.com`
+
+**Phase 3.5 R-WITNESS-EMPIRICAL Playwright on `/briefing/EUR_USD?cb=r154`** :
+
+- ✓ Event meta "Confiance consommateurs (Conference Board) · USD · medium" (r153 mapping preserved)
+- ✓ Magnitude 0.2 bp (SF-2 abs() fix landed — positive)
+- ✓ "Direction indéterminée pour cette classe d'événement"
+- ✓ Caveat "Skew empirique négatif (Akhtar 2012 JBF + Pinchuk 2022 arXiv)" (r153 trader Y2 preserved)
+- ✓ **"Limitations remontées : Skew empirique négatif (asymétrie selon le signe de la surprise, Akhtar 2012 / Ranaldo-Rossi 2009)"** — **N-2 SSOT fix LIVE** (was borderline directional pre-r154)
+- ✓ Countdown "T−1j 4h" to Tue 26 May 16:00 CB Consumer Confidence
+
+Screenshot archived `r154_briefing_eur_usd_event_anticipation_panel.png`.
+
+**Honest scope (doctrine #2 + #11)** : NO new ADR + NO new migration + NO new feature flag + NO data backfill. Pure compute extension + test invariants + frontend SSOT alignment + out-of-repo Strand B doctrine codification. Doctrine #9 dated §Impl(r154) APPEND, NO new ADR. doctrine-#9 coord-math ledger UNCHANGED.
+
+Voie D held **69 rounds**.
+
+**NEW pattern observation r154** : Pattern #16 EMPIRICALLY VALIDATED 2nd consecutive deploy (r153 + r154 both zero retries across all SSH steps). The codification works durably. r154 also demonstrates **multi-round doctrinal self-correction** : code-reviewer dispatch killed by r153 session-compact → r154 re-dispatched + 4 findings applied → r154 itself codified the post-hoc validation pattern. Future rounds : if a sub-agent dies mid-session, the NEXT round's Phase 0 includes "re-dispatch on prior commit" as candidate (a).
+
+**Mission centrale axis impact** : axis-4 r154 deeper. NO state change at axis-closure level. Axes : 1-2 ✅ r123 / 3 ✅ r132+r133 / **4 ✅ +1 LEVEL r152 + r153 + r154 ⭐** / 5 ✅ EMPIRICALLY GREEN r146 / 6 ✅ CLOSED r142+r143 / 7 🎯 LIVE / 8 🎯+1 PARTIAL r131. **4 of 8 axes ✅ CLOSED + axis 4 r154 deeper still.**
+
+**r155 binding default candidates** : (a) **PMI Services class extension** (Flash Manufacturing/Services PMI EUR/GBP/USD currently unmapped — 6 events in fixture, would lift coverage from 47.4% to ~53-55%) ; (b) **US Retail Sales + Core Retail Sales class** (~4 events in fixture) ; (c) **UK Claimant Count + Average Earnings Index** ; (d) ⭐ AUTO-RECO **FRED VIXCLS backfill 5y** (deferred since r150 — researcher R59 first on FRED bulk API rate-limit + retention policy) ; (e) **Empirical reaction-beta backfill** via Dukascopy 1-min FREE multi-year (3-5 dev-days, closes cold-start caveat at source) ; (f) **`output_gap_proxy` wiring** ; (g) **r147 MRO smell fix** (still deferred from r150) ; (h) **Per-currency Employment subclass** (r150 trader YELLOW-3) ; (i) **r152 trader YELLOW-1/2 visual demotion of literature priors** ; (j) **Code-reviewer SF-3** (deploy latency budget + optional exponential backoff) ; (k) **Code-reviewer N-3** (aria-label conditional magnitude when driftMeaningful=false — asymmetric a11y) ; (l) **FRED ALFRED reconciler unit normalization upstream** ; (m) **`actual_source` / `actual_revised` columns** + EU/UK reconcilers.
