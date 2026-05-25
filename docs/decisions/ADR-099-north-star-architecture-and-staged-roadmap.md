@@ -4486,7 +4486,7 @@ ZERO Anthropic API spend r157. **Voie D held 72 rounds.**
 
 **r159 binding default candidates** :
 
-1. ⭐ AUTO-RECO **Industrial_Production class at 5bp with Flannery-Protopapadakis 2002 _RFS_ anchor** → Pattern #17 OBSERVATION → formal DOCTRINE codify. Effort S, methodology-difference caveat stamp obligatoire.
+1. ⭐ AUTO-RECO **Industrial*Production class at 5bp with Flannery-Protopapadakis 2002 \_RFS* anchor** → Pattern #17 OBSERVATION → formal DOCTRINE codify. Effort S, methodology-difference caveat stamp obligatoire.
 2. **Dukascopy backfill** (Eliot license escalation per F1 R59).
 3. **FRED VIXCLS + NFCI 5y backfill** (closes r150 + r157 data state blockers).
 4. Per-currency Employment subclass refactor (S-M).
@@ -4496,3 +4496,43 @@ ZERO Anthropic API spend r157. **Voie D held 72 rounds.**
 8. `actual_source`/`actual_revised` columns + EU/UK reconcilers (M each).
 
 ZERO Anthropic API spend r158. **Voie D held 73 rounds.**
+
+## Implementation (r159, 2026-05-25) — Pattern #17 OBSERVATION → formal DOCTRINE graduation via Industrial_Production class (2nd INDEPENDENT anchor F-P 2002 RFS)
+
+**TL;DR** : r159 ships Industrial_Production class with Flannery-Protopapadakis 2002 _RFS_ anchor (cross-section pricing methodology — different paper RFS vs JBF, different journal, different methodology than Birz-Lott 2011 r155+r157). Pattern #17 multi-application discipline SOURCE-level independence satisfied → **graduation OBSERVATION → formal DOCTRINE**. Single feat commit `12f3c80` +351/-68 LOC across 4 files. **Eliot "ichor usage perso" r159 directive** → Dukascopy ToU LICENSE BLOCKER RESOLVED → r160 binding-default #1 = Dukascopy MVP empirical reaction-beta backfill (transformational unlock).
+
+**r158 Strand A probe() fix VALIDATED 2ND CONSECUTIVE TIME** in r159 deploy : Step 5 SSH timeout fired → probe returned 000 → Pattern #14 retry sleep 15s → next iteration healthz=200 → DEPLOY OK. Pattern #14 + #16 + Strand C now durable infrastructure (2 consecutive empirical validations).
+
+### Two INDEPENDENT anchors Pattern #17 formal DOCTRINE
+
+1. **r155 Retail_Sales + r157 Durable_Goods** : Birz-Lott 2011 _JBF_ event-window correlation
+2. **r159 Industrial_Production** : Flannery-Protopapadakis 2002 _RFS_ cross-section pricing (verified-primary r158 R59)
+
+Methodology-difference honest scope : converge "below detection" via different statistical frameworks ; shipping triad METHODOLOGY-AGNOSTIC.
+
+### Phase 2 concordance
+
+- trader : SHIP-WITH-FIX (0 RED, 4 YELLOW, 2 GREEN). YELLOW-3 caveat rewording APPLIED ; GREEN-6 Dukascopy r160 elevation APPLIED. YELLOW-1/2/4 deferred r160.
+- code-reviewer : READY-WITH-FIXES (0 CRITICAL, 2 SHOULD-FIX, 5 NICE, 14 CONFIRMATIONS). SF-1 stale docstring + cardinality APPLIED. SF-2 r157 class rename partial. NICE deferred r160.
+
+### Build gate (MEASURED)
+
+- pytest engine + invariants : **252/252** + vitest **454/454** + tsc 0 + ruff/eslint/prettier clean
+- 15/15 pre-commit hooks GREEN
+
+### Mission centrale
+
+NO state change. Coverage Engine 8 : 54.7% UNCHANGED. Voie D **74 rounds**.
+
+### r160 binding default candidates (Dukascopy elevated #1)
+
+1. ⭐ AUTO-RECO **Dukascopy MVP empirical reaction-beta backfill** — Pattern #15 LICENSE blocker RESOLVED per Eliot r159 "usage perso" directive. EURUSD × NFP × 3y backfill (n≈36 events) via PAYEMS observation_date + Dukascopy bi5 fetcher. ABDV-2003 5-min methodology + p50 + variance + `low_signal_confidence` sentinel n<30. Engine 8 empirical-first fallback literature-prior. Effort L 2-3 sessions, replaces ALL r147-r159 literature priors with Ichor-historical empirical betas.
+2. Pattern #17 sub-pattern split (trader YELLOW-1+4 r159).
+3. FRED VIXCLS + NFCI 5y backfill.
+4. Per-currency Employment subclass refactor.
+5. r152 visual demotion (UI 4-reviewer).
+6. Code-reviewer r159 NICE refactor.
+7. r144 FRED ALFRED reconciler.
+8. actual_source/actual_revised columns.
+
+ZERO Anthropic API spend r159. **Voie D held 74 rounds.**

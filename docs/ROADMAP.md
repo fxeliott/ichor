@@ -161,7 +161,33 @@ See `docs/ROADMAP_2026-05-06.md` for the original 4-layer architecture (DATA FOU
 
 ---
 
-## §3 — Immediate next (r159)
+## §3 — Immediate next (r160) — ⭐ DUKASCOPY MVP UNLOCKED PER ELIOT "USAGE PERSO"
+
+**r159 EXECUTED & SHIPPED & DEPLOYED & WITNESSED (2026-05-25)** : 🎓 Pattern #17 OBSERVATION → formal DOCTRINE graduation via **Industrial_Production class** (2nd INDEPENDENT anchor Flannery-Protopapadakis 2002 _RFS_ — different paper RFS vs JBF, different journal, different methodology cross-section pricing vs event-window correlation Birz-Lott 2011). **Eliot r159 directive "déjà ichor est usage perso" RESOLVES Dukascopy LICENSE blocker** → r160 transformational unlock. Single feat commit `12f3c80` +351/-68 LOC across 4 files.
+
+Pattern #17 graduation = SOURCE-level independence per trader r157 YELLOW-5 + code-reviewer r157 N-5 multi-application discipline. Shipping triad METHODOLOGY-AGNOSTIC (floor 5bp + low_signal_confidence sentinel + proximity-conditional clamp + caveat).
+
+**r158 Strand A probe() fix VALIDATED 2ND CONSECUTIVE TIME** in r159 deploy (Step 5 SSH timeout → probe 000 → retry sleep → healthz=200 → DEPLOY OK). Pattern #14+#16+Strand C durable infrastructure.
+
+**Phase 2 concordance** : trader SHIP-WITH-FIX (YELLOW-3 + GREEN-6 APPLIED) + code-reviewer READY-WITH-FIXES (SF-1 + SF-2 partial APPLIED). Build gate **252/252** + **454/454** + tsc 0 + ruff/eslint/prettier clean. Coverage 54.7% UNCHANGED. Voie D **74 rounds**.
+
+**r160 binding default candidates** (priority order, Pattern #15 R59-first) :
+
+1. ⭐ AUTO-RECO **Dukascopy MVP empirical reaction-beta backfill** — Pattern #15 LICENSE BLOCKER **RESOLVED** per Eliot r159 "ichor usage perso" directive. MVP scope : EURUSD × NFP × 3y backfill (n≈36 events) via PAYEMS observation_date + Dukascopy bi5 fetcher + ABDV-2003 5-min FX methodology + Engine 8 empirical-first fallback literature-prior. Effort L 2-3 sessions, **TRANSFORMATIONAL** (replaces ALL r147-r159 literature priors with Ichor-historical empirical betas).
+2. **Pattern #17 sub-pattern split** (trader r159 YELLOW-1+4 deferred) : event-window-insignificance vs cross-section-unpricing methodological distinction. Effort S.
+3. **FRED VIXCLS + NFCI 5y backfill** (closes r150 + r157 data state blockers). Effort M.
+4. **Per-currency Employment subclass refactor**. Effort S-M.
+5. **r152 visual demotion** (UI 4-reviewer). Effort S-M.
+6. **Code-reviewer r159 NICE refactor** (docstring archeology → memory + vestigial test cleanup). Effort S.
+7. **Code-reviewer r153 SF-3** deploy latency budget. Effort S.
+8. **r144 FRED ALFRED reconciler**. Effort M.
+9. **`actual_source`/`actual_revised` columns**. Effort M each.
+
+Pattern #15 R59-disprove applies à every ⭐. r160 Dukascopy needs Phase 0 R59 on technical execution (bi5 parsing methodology window sample size).
+
+---
+
+## §3 — Previous immediate next (r159, EXECUTED above)
 
 **r158 EXECUTED & SHIPPED & DEPLOYED & SELF-WITNESSED (2026-05-25)** : 🛠️ probe() outer-SSH fix EMPIRICALLY VALIDATED + **Pattern #15 13ᵉ application** + Pattern #17 r159 candidate documented. Single feat commit `3f8a55e` +95/-4 LOC, 3 files.
 
@@ -175,7 +201,7 @@ Phase 2 reviewer SKIPPED per doctrine #17 r151 precedent (XS hygiene round, self
 
 **r159 binding default candidates** (priority order, Pattern #15 R59-first) :
 
-1. ⭐ AUTO-RECO **Industrial_Production class at 5bp with Flannery-Protopapadakis 2002 _RFS_ anchor** → Pattern #17 OBSERVATION → formal DOCTRINE codify (verified 2nd INDEPENDENT anchor different paper RFS vs JBF + different methodology). Methodology-difference caveat stamp obligatoire ("cross-section pricing vs event-window correlation" honesty disclosure). Effort S.
+1. ⭐ AUTO-RECO **Industrial*Production class at 5bp with Flannery-Protopapadakis 2002 \_RFS* anchor** → Pattern #17 OBSERVATION → formal DOCTRINE codify (verified 2nd INDEPENDENT anchor different paper RFS vs JBF + different methodology). Methodology-difference caveat stamp obligatoire ("cross-section pricing vs event-window correlation" honesty disclosure). Effort S.
 2. **Dukascopy backfill** (Eliot license escalation required per F1 R59 Phase 0.5 — "Ichor pre-trade research is non-commercial framing OK" decision pending).
 3. **FRED VIXCLS + NFCI 5y backfill** (closes r150 + r157 data state blockers via FRED collector extension + manual backfill trigger).
 4. **Per-currency Employment subclass refactor** — current Employment class is generic 20bp ; r157 UK_Employment shipped 12bp split. Need parallel split for AUD/CAD/JPY/NZD (currency-aware mapping or downstream multiplier). Effort S-M.
