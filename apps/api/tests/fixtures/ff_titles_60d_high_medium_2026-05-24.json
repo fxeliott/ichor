@@ -3,7 +3,7 @@
     "purpose": "r153 META-FIX CI invariant — empirically witness FF title coverage % on real prod 60d window. Updated quarterly (or when CI starts failing, which IS the alarm that says \"new event class to map\").",
     "source": "SSH prod DB probe 2026-05-24 19:50 Paris : `SELECT title, currency, impact FROM economic_events WHERE scheduled_at BETWEEN now() - interval '30 days' AND now() + interval '30 days' AND impact IN ('high','medium') AND currency IN ('USD','EUR','GBP','JPY','AUD','CAD','CHF','NZD')`",
     "window": "2026-04-24 → 2026-06-23 (60 day window around 2026-05-24)",
-    "n_events": 94,
+    "n_events": 95,
     "currencies": ["USD", "EUR", "GBP", "JPY", "AUD", "CAD", "CHF", "NZD"],
     "impact_levels": ["high", "medium"],
     "convention": "Each entry = one FF event row. Title verbatim. The CI invariant computes mapping coverage % via `_map_title_to_event_class(title)` and asserts >= _MIN_COVERAGE_PCT (r153 baseline TBD). Failing CI is the FEATURE — it surfaces title drift OR new indicator types worth mapping."

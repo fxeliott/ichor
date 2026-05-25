@@ -432,9 +432,16 @@ describe("r152 Phase 2 PARSE_FAILURE_FR (CONCORDANT trader Y4 + a11y SHOULD-2)",
     expect(actual).toEqual(expected);
   });
 
-  it("r153 translates asymmetric_negativity_bias sentinel", () => {
-    expect(parseFailureLabel("asymmetric_negativity_bias")).toContain("asymétrique");
-    expect(parseFailureLabel("asymmetric_negativity_bias")).toContain("négative");
+  it("r153 → r154 SSOT-consistency : translates asymmetric_negativity_bias with epistemic framing", () => {
+    // r154 code-reviewer N-2 fix : prior assertion expected "négative" but
+    // the backend caveat was reworded r153 trader YELLOW-2 to purely
+    // epistemic "Skew empirique négatif (asymétrie selon le signe)". The
+    // frontend sentinel translation now mirrors that SSOT discipline.
+    const translated = parseFailureLabel("asymmetric_negativity_bias");
+    expect(translated).toContain("Skew");
+    expect(translated).toContain("asymétrie");
+    // Anchors verified by researcher web R59 — must appear in translation
+    expect(translated).toMatch(/Akhtar 2012|Ranaldo-Rossi 2009/);
   });
 });
 
@@ -460,5 +467,31 @@ describe("r153 EVENT_CLASS_FR sentiment indicator extension", () => {
     expect(EVENT_CLASS_FR.GDP).toContain("GDP");
     expect(EVENT_CLASS_FR.RBA).toContain("RBA");
     expect(EVENT_CLASS_FR.BoC).toContain("BoC");
+  });
+});
+
+// ── r154 — CB Governor scheduled-speech class FR labels ──────────────────
+
+describe("r154 EVENT_CLASS_FR CB Speaker extension", () => {
+  it("maps ECB_Speech → ECB Lagarde discours label", () => {
+    expect(EVENT_CLASS_FR.ECB_Speech).toContain("BCE");
+    expect(EVENT_CLASS_FR.ECB_Speech).toContain("Lagarde");
+  });
+
+  it("maps BoE_Speech → BoE Bailey + Mansion House label", () => {
+    expect(EVENT_CLASS_FR.BoE_Speech).toContain("BoE");
+    expect(EVENT_CLASS_FR.BoE_Speech).toContain("Mansion House");
+  });
+
+  it("maps SNB_Speech → SNB Schlegel discours label", () => {
+    expect(EVENT_CLASS_FR.SNB_Speech).toContain("SNB");
+    expect(EVENT_CLASS_FR.SNB_Speech).toContain("Schlegel");
+  });
+
+  it("CB Speaker labels distinguish from decision-day classes (REGRESSION)", () => {
+    // ECB_Speech must differ from ECB (decision-day press conference)
+    expect(EVENT_CLASS_FR.ECB_Speech).not.toBe(EVENT_CLASS_FR.ECB);
+    // BoE_Speech must differ from BoE (Official Bank Rate decision)
+    expect(EVENT_CLASS_FR.BoE_Speech).not.toBe(EVENT_CLASS_FR.BoE);
   });
 });

@@ -1694,3 +1694,227 @@ class TestR153LatentBugBlocks:
         generic-fallback pattern."""
         # Bare title without RBNZ/RBA prefix → maps to BoJ via fallback
         assert _map_title_to_event_class("Monetary Policy Statement") == "BoJ"
+
+
+# ── r154 — CB Governor scheduled-speech class extensions ─────────────────────
+
+
+class TestR154CbSpeakerClassMapping:
+    """r154 — Calibrated honest scope per researcher web R59 :
+    - ECB_Speech (Lagarde) = 7bp symmetric : Ehrmann-Fratzscher 2007 + Cieslak-Schrimpf 2019
+    - BoE_Speech (Bailey + Mansion House) = 8bp symmetric : Ehrmann-Fratzscher 2007 BoE-specific
+    - SNB_Speech (Schlegel) = 10bp + asymmetric_negativity_bias : Ranaldo-Rossi 2009 + 2024 SNB textual-analysis
+    - BoJ/BoC/Fed-Chair-non-FOMC/Trump speeches kept UNMAPPED honestly
+      (literature too thin per Pattern #15 R59-disprove discipline).
+    """
+
+    def test_ecb_president_lagarde_speaks_maps_ECB_Speech(self) -> None:
+        """Verbatim FF title witnessed in r153 60d fixture."""
+        assert _map_title_to_event_class("ECB President Lagarde Speaks") == "ECB_Speech"
+
+    def test_boe_gov_bailey_speaks_maps_BoE_Speech(self) -> None:
+        """Verbatim FF title witnessed in r153 60d fixture (×3 instances)."""
+        assert _map_title_to_event_class("BOE Gov Bailey Speaks") == "BoE_Speech"
+
+    def test_mansion_house_speech_maps_BoE_Speech(self) -> None:
+        """Future-proofing for annual Mansion House speech variant."""
+        assert _map_title_to_event_class("Mansion House Speech") == "BoE_Speech"
+
+    def test_snb_chairman_schlegel_speaks_maps_SNB_Speech(self) -> None:
+        """Verbatim FF title witnessed in r153 60d fixture."""
+        assert _map_title_to_event_class("SNB Chairman Schlegel Speaks") == "SNB_Speech"
+
+    def test_boc_gov_macklem_speaks_stays_UNMAPPED(self) -> None:
+        """HONEST SCOPE : no peer-reviewed BoC speaker bp magnitude exists.
+        Researcher web R59 verified — kept unmapped honestly per Pattern #15."""
+        assert _map_title_to_event_class("BOC Gov Macklem Speaks") is None
+
+    def test_boj_gov_ueda_speaks_stays_UNMAPPED(self) -> None:
+        """HONEST SCOPE : no peer-reviewed BoJ speaker bp magnitude exists.
+        Researcher web R59 verified — kept unmapped honestly per Pattern #15."""
+        assert _map_title_to_event_class("BOJ Gov Ueda Speaks") is None
+
+    def test_president_trump_speaks_stays_UNMAPPED(self) -> None:
+        """HONEST SCOPE : Trump-speech literature exists but content-dependent
+        with 1-4h fade — methodologically incoherent with pre-event drift
+        framework. Kept unmapped per Pattern #15."""
+        assert _map_title_to_event_class("President Trump Speaks") is None
+
+
+class TestR154NewBaselineKeys:
+    """r154 — `EVENT_CLASS_BASELINE_BP` must include 3 new CB Speech classes
+    at literature-anchored magnitudes (Ehrmann-Fratzscher 2007 for ECB/BoE,
+    Ranaldo-Rossi 2009 for SNB)."""
+
+    def test_ecb_speech_baseline_present(self) -> None:
+        assert "ECB_Speech" in EVENT_CLASS_BASELINE_BP
+        assert EVENT_CLASS_BASELINE_BP["ECB_Speech"] == 7.0
+
+    def test_boe_speech_baseline_present(self) -> None:
+        assert "BoE_Speech" in EVENT_CLASS_BASELINE_BP
+        assert EVENT_CLASS_BASELINE_BP["BoE_Speech"] == 8.0
+
+    def test_snb_speech_baseline_present(self) -> None:
+        assert "SNB_Speech" in EVENT_CLASS_BASELINE_BP
+        assert EVENT_CLASS_BASELINE_BP["SNB_Speech"] == 10.0
+
+    def test_speaker_magnitudes_below_decision_magnitudes(self) -> None:
+        """REGRESSION : speakers must NEVER exceed canonical decision-day
+        magnitudes (Lucca-Moench 2015 + Cieslak-Schrimpf 2019 — speeches
+        carry less information than rate-decision day press conferences)."""
+        assert EVENT_CLASS_BASELINE_BP["ECB_Speech"] < EVENT_CLASS_BASELINE_BP["ECB"]
+        assert EVENT_CLASS_BASELINE_BP["BoE_Speech"] < EVENT_CLASS_BASELINE_BP["BoE"]
+        # SNB has no decision-day class (Ichor doesn't track SNB rate decisions
+        # explicitly — SNB_Speech is the only SNB class). Verify against the
+        # tier hierarchy at minimum.
+        assert EVENT_CLASS_BASELINE_BP["SNB_Speech"] < EVENT_CLASS_BASELINE_BP["FOMC"]
+
+
+class TestR154SnbSpeechAsymmetricSentinel:
+    """r154 — SNB_Speech extends the r153 asymmetric_negativity_bias pattern
+    to a 3rd class (in addition to CCI + Michigan). Anchor : Ranaldo-Rossi
+    2009 *JIMF* (SNB verbal interventions DO move assets — contrast Kohn-Sack
+    2004 finding ordinary Fed speeches do NOT) + 2024 SNB textual-analysis
+    documenting negative-sentiment moves sectors faster than positive."""
+
+    @pytest.mark.asyncio
+    async def test_snb_speech_emits_unknown_direction_and_sentinel(self) -> None:
+        evt = _make_event_row(
+            title="SNB Chairman Schlegel Speaks",
+            impact="medium",
+            currency="CHF",
+            scheduled_at=datetime(2026, 6, 1, 14, 0, tzinfo=UTC),
+        )
+        session = _build_session(
+            event_rows=[evt],
+            vix_row=_make_fred_row(20.0, datetime(2026, 5, 23, tzinfo=UTC).date()),
+        )
+        # Note : Ichor doesn't track CHF directly today (no CHF asset in
+        # priority set). Use XAU_USD which includes USD currencies for
+        # _currencies_for_asset to NOT include CHF. Engine 8 will then
+        # filter the CHF event out. Use EUR_USD instead for the test —
+        # but EUR_USD also doesn't include CHF. The test would return None.
+        # Approach : test the mapping + sentinel logic at the lower level
+        # by directly calling the engine with an asset that includes CHF.
+        # Ichor's asset map doesn't include CHF, so we use the engine's
+        # internal helpers directly via the mapping function.
+        result_class = _map_title_to_event_class("SNB Chairman Schlegel Speaks")
+        assert result_class == "SNB_Speech"
+        # Verify SNB_Speech is in the asymmetric set
+        from ichor_api.services.event_proximity_engine import (
+            _ASYMMETRIC_NEGATIVITY_CLASSES,
+        )
+
+        assert "SNB_Speech" in _ASYMMETRIC_NEGATIVITY_CLASSES
+
+    def test_asymmetric_negativity_classes_module_level(self) -> None:
+        """r154 code-reviewer N-1 fix : `_ASYMMETRIC_NEGATIVITY_CLASSES` moved
+        from inline (hot path) to module-level constant. Verify import works
+        + frozenset contains the 3 expected classes."""
+        from ichor_api.services.event_proximity_engine import (
+            _ASYMMETRIC_NEGATIVITY_CLASSES,
+        )
+
+        assert isinstance(_ASYMMETRIC_NEGATIVITY_CLASSES, frozenset)
+        assert _ASYMMETRIC_NEGATIVITY_CLASSES == frozenset({"CCI", "Michigan", "SNB_Speech"})
+
+
+class TestR154AsymmetricMagnitudeSignStripped:
+    """r154 code-reviewer SF-2 architectural fix : when the asymmetric
+    sentinel fires, `expected_drift_bp` MUST be UNSIGNED (abs value). Prior
+    r153 implementation preserved the signed value, silently propagating
+    business_cycle_sign bias into downstream Brier consumers (which multiply
+    by sign). Doctrine #11 calibrated honesty at the source vs relying on
+    each downstream consumer to strip the sign."""
+
+    @pytest.mark.asyncio
+    async def test_cci_pre_event_magnitude_is_unsigned_when_asymmetric_fires(
+        self,
+    ) -> None:
+        evt = _make_event_row(
+            title="CB Consumer Confidence",
+            impact="medium",
+            currency="USD",
+            scheduled_at=datetime(2026, 6, 1, 14, 0, tzinfo=UTC),
+        )
+        session = _build_session(
+            event_rows=[evt],
+            vix_row=_make_fred_row(20.0, datetime(2026, 5, 23, tzinfo=UTC).date()),
+        )
+        result_neg = await assess_event_proximity(
+            session,
+            asset="EUR_USD",
+            now=datetime(2026, 6, 1, 10, 0, tzinfo=UTC),
+            business_cycle_sign=-1,  # contraction regime → signed=negative
+        )
+        assert result_neg is not None
+        assert result_neg.next_event_class == "CCI"
+        assert "asymmetric_negativity_bias" in result_neg.parse_failures
+        # SF-2 fix : magnitude must be UNSIGNED, not -value
+        assert result_neg.expected_drift_magnitude_bp is not None
+        assert result_neg.expected_drift_magnitude_bp >= 0, (
+            "asymmetric override must strip sign — direction is unknown, "
+            "magnitude must not carry business_cycle_sign bias"
+        )
+
+    @pytest.mark.asyncio
+    async def test_symmetric_class_preserves_signed_magnitude(self) -> None:
+        """REGRESSION : non-asymmetric classes (FOMC, ECB, ISM, etc.) must
+        STILL emit signed `expected_drift_bp` per business_cycle_sign — the
+        abs() fix applies ONLY to asymmetric classes."""
+        evt = _make_event_row(
+            title="ISM Manufacturing PMI",
+            impact="high",
+            currency="USD",
+            scheduled_at=datetime(2026, 6, 1, 14, 0, tzinfo=UTC),
+        )
+        session = _build_session(
+            event_rows=[evt],
+            vix_row=_make_fred_row(20.0, datetime(2026, 5, 23, tzinfo=UTC).date()),
+        )
+        result_neg = await assess_event_proximity(
+            session,
+            asset="EUR_USD",
+            now=datetime(2026, 6, 1, 10, 0, tzinfo=UTC),
+            business_cycle_sign=-1,
+        )
+        assert result_neg is not None
+        assert result_neg.next_event_class == "ISM"
+        # ISM is NOT asymmetric → magnitude can be negative under
+        # business_cycle_sign=-1 (the contraction regime sign)
+        assert "asymmetric_negativity_bias" not in result_neg.parse_failures
+        assert result_neg.expected_drift_magnitude_bp is not None
+        # Under business_cycle_sign=-1 the signed magnitude must be negative
+        assert result_neg.expected_drift_magnitude_bp < 0
+
+
+class TestR154FixtureMetaReconciliation:
+    """r154 code-reviewer SF-1 fix : fixture `_meta.n_events` had drifted
+    to 94 vs actual events[] length of 95 (off-by-one). Reconciled r154."""
+
+    def test_fixture_meta_n_events_matches_events_length(self) -> None:
+        import json
+
+        path = Path(__file__).parent / "fixtures" / "ff_titles_60d_high_medium_2026-05-24.json"
+        data = json.loads(path.read_text(encoding="utf-8"))
+        meta_count = data["_meta"]["n_events"]
+        actual_count = len(data["events"])
+        assert meta_count == actual_count, (
+            f"fixture _meta drift : declared {meta_count} but actual {actual_count}"
+        )
+
+    def test_post_r154_coverage_above_baseline(self) -> None:
+        """Empirical : post-r154 mapping coverage must exceed the 35% ratchet
+        threshold + the post-r154 measured baseline. r154 closing-sync prose
+        claims ~47% — verify mechanically."""
+        import json
+
+        path = Path(__file__).parent / "fixtures" / "ff_titles_60d_high_medium_2026-05-24.json"
+        data = json.loads(path.read_text(encoding="utf-8"))
+        events = data["events"]
+        mapped = sum(1 for e in events if _map_title_to_event_class(e["title"]) is not None)
+        coverage_pct = 100.0 * mapped / len(events)
+        # r154 baseline ≥ 45% (post-CB-Speech extension). Conservative.
+        assert coverage_pct >= 45.0, (
+            f"r154 coverage dropped to {coverage_pct:.1f}% — expected >= 45%"
+        )

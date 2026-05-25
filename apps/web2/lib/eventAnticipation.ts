@@ -107,6 +107,12 @@ export const EVENT_CLASS_FR: Record<string, string> = {
   CCI: "Confiance consommateurs (Conference Board)",
   Michigan: "Sentiment consommateurs (UoM)",
   ISM: "ISM PMI (US Manufacturing/Services)",
+  // r154 — CB Governor scheduled-speech classes (literature-anchored
+  // subset, Pattern #15 R59-disprove honest scope). BoJ/BoC/Fed-Chair-non-
+  // FOMC speeches kept UNMAPPED honestly (no peer-reviewed bp magnitude).
+  ECB_Speech: "Discours BCE (Lagarde, hors décision)",
+  BoE_Speech: "Discours BoE (Bailey, Mansion House)",
+  SNB_Speech: "Discours SNB (Schlegel)",
 };
 
 /** FR copy per currency code — for STANDBY mode row meta. Falls back to
@@ -278,14 +284,16 @@ export const PARSE_FAILURE_FR: Record<string, string> = {
   vix_observation_missing: "Régime VIX non observable",
   impact_value_invalid: "Niveau d'impact inattendu",
   cold_start_no_calibration: "Pas encore calibré sur l'historique Ichor",
-  // r153 — asymmetric negativity bias sentinel for CCI / Michigan classes.
-  // Anchor : Akhtar-Faff-Oliver-Subrahmanyam 2012 *JBF* (US S&P/DJIA data,
-  // 2 peer-reviewed papers — better evidenced than RBA/BoC r150 sentinel).
-  // Magnitude significant only on negative surprise ; pre-event direction
-  // is `unknown` by literature (asymmetry breaks the symmetric
-  // business_cycle_sign logic). User-surface must surface this honestly.
+  // r153 → r154 SSOT-consistency fix : the backend caveat string was
+  // reworded r153 trader YELLOW-2 from borderline-directional "magnitude
+  // significative uniquement sur surprise négative" to purely epistemic
+  // "Skew empirique négatif (...) asymétrique selon le signe de la
+  // surprise". The frontend sentinel translation must mirror that
+  // epistemic discipline (code-reviewer r153 N-2 finding applied r154).
+  // Anchor : Akhtar-Faff-Oliver-Subrahmanyam 2012 *JBF* (CCI/Michigan)
+  // + Ranaldo-Rossi 2009 *JIMF* (SNB_Speech r154).
   asymmetric_negativity_bias:
-    "Réaction asymétrique : magnitude significative uniquement sur surprise négative",
+    "Skew empirique négatif (asymétrie selon le signe de la surprise, Akhtar 2012 / Ranaldo-Rossi 2009)",
 };
 
 /** Translate one sentinel to FR, falling back to the raw code when not

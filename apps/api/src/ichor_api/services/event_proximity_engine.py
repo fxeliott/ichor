@@ -189,8 +189,37 @@ EVENT_CLASS_BASELINE_BP: dict[str, float] = {
     # has thinner academic coverage post-2008 → docstring caveat). NOT
     # asymmetric per literature.
     "ISM": 15.0,
+    # r154 — CB Governor scheduled-speech mappings. Calibrated honest scope :
+    # only 3 CB Speaker classes have sufficient peer-reviewed literature to
+    # ship ; BoJ / BoC / Fed-Chair-non-FOMC / Trump speeches kept UNMAPPED
+    # honestly per Pattern #15 R59-disprove (no academic per-event-bp study).
+    # Magnitudes 5-15 bp band (well below FOMC=50 / ECB=35 baselines — these
+    # are SCHEDULED speeches, not policy decisions).
+    #
+    # ECB_Speech (Lagarde + ECB President speeches outside decision-day press
+    # conferences) = 7bp symmetric. Anchor : Ehrmann-Fratzscher 2007 ECB WP
+    # 557 (monetary-inclination statements move rates 1.5-2.5 bp — equity
+    # extrapolation conservative 7bp via VIX-gated multiplier) + Cieslak-
+    # Schrimpf 2019 *JIE* (50%+ ECB press conferences carry non-monetary
+    # news → speeches are an information channel separate from decisions).
+    # NOT asymmetric per literature.
+    "ECB_Speech": 7.0,
+    # BoE_Speech (Bailey + BoE Governor scheduled speeches, including Mansion
+    # House annual) = 8bp symmetric. Anchor : Ehrmann-Fratzscher 2007 BoE-
+    # specific communication-dispersion 6-10 bp (UK rates ; equity extrap
+    # conservative midpoint 8bp). NOT asymmetric per literature.
+    "BoE_Speech": 8.0,
+    # SNB_Speech (Schlegel + SNB Chairman scheduled speeches) = 10bp +
+    # asymmetric_negativity_bias sentinel. Anchor : Ranaldo-Rossi 2009 *JIMF*
+    # (SNB verbal interventions DO move assets, contrast with Kohn-Sack 2004
+    # finding ordinary Fed speeches do NOT). 2024 SNB textual-analysis paper
+    # documents NEGATIVE-sentiment moves sectors faster than positive →
+    # asymmetric_negativity_bias applies (parity with CCI/Michigan r153).
+    # Honest scope note : Ranaldo-Rossi data is 2000-2005 (pre-floor-cap) ;
+    # may not generalize to post-2015 free-float SNB regime — caveat surfaces.
+    "SNB_Speech": 10.0,
     # Other high-impact macro (PPI, Retail Sales, etc. — literature thin or
-    # already covered elsewhere — r154+ to expand or stay honest).
+    # already covered elsewhere — r155+ to expand or stay honest).
     "high_other": 10.0,
     # Tier-2 events
     "medium": 3.0,
@@ -320,6 +349,25 @@ _TITLE_TO_EVENT_CLASS: tuple[tuple[str, str], ...] = (
     ("ism services pmi", "ISM"),
     ("ism non-manufacturing pmi", "ISM"),
     ("ism manufacturing prices", "ISM"),
+    # r154 — CB Governor scheduled-speech mappings (literature-anchored
+    # subset, Pattern #15 R59-disprove honest scope). MORE SPECIFIC than the
+    # generic "monetary policy statement" BoJ fallback ; ordered EARLY to
+    # preserve first-match-wins. Each pattern matches a verbatim FF title
+    # substring witnessed in the 60d empirical fixture.
+    #
+    # ECB_Speech : "ECB President Lagarde Speaks" + future Lagarde successor
+    # variants. Substring "ecb president" is safer than bare "lagarde" (less
+    # collision risk if a non-ECB Lagarde shows up). Order BEFORE the BoJ
+    # fallback "monetary policy statement".
+    ("ecb president", "ECB_Speech"),
+    # BoE_Speech : "BOE Gov Bailey Speaks" + Mansion House annual speech +
+    # any future BoE Governor successor. Substring "bailey" is the simplest
+    # match for current governor ; "mansion house" covers the annual speech.
+    ("bailey", "BoE_Speech"),
+    ("mansion house", "BoE_Speech"),
+    # SNB_Speech : "SNB Chairman Schlegel Speaks" + future SNB Chairman
+    # variants. Substring "snb chairman" is more durable than "schlegel".
+    ("snb chairman", "SNB_Speech"),
     # r152 — PCE family (FOMC's preferred core inflation gauge). MORE SPECIFIC
     # than generic CPI patterns ; ordered BEFORE CPI to preserve first-match-wins.
     ("core pce price index", "PCE"),
@@ -395,6 +443,17 @@ _TITLE_FRAGMENT_BLOCKED: frozenset[str] = frozenset(
         "rbnz monetary policy statement",
     }
 )
+
+
+# r154 code-reviewer N-1 fix : moved from inline (`assess_event_proximity` hot
+# path) to module-level constant. Saves one frozenset allocation per session-
+# card × asset × pass + aligns with codebase convention (every other frozenset/
+# map in this module is module-level). Pattern : the canonical asymmetric
+# event classes that emit `direction="unknown"` + `asymmetric_negativity_bias`
+# sentinel pre-event regardless of `business_cycle_sign`. r153 added CCI +
+# Michigan ; r154 adds SNB_Speech per Ranaldo-Rossi 2009 + 2024 SNB
+# textual-analysis paper.
+_ASYMMETRIC_NEGATIVITY_CLASSES: frozenset[str] = frozenset({"CCI", "Michigan", "SNB_Speech"})
 
 
 def _map_title_to_event_class(title: str) -> str | None:
@@ -687,9 +746,33 @@ async def assess_event_proximity(
     # 2 peer-reviewed papers US data, not 1 working paper). Magnitude STAYS
     # as the conditional-on-negative-surprise estimate (caveat string carries
     # the conditional framing). Doctrine #11 calibrated honesty applied.
-    _ASYMMETRIC_NEGATIVITY_CLASSES: frozenset[str] = frozenset({"CCI", "Michigan"})
+    # r154 code-reviewer SF-2 architectural fix : when an asymmetric class
+    # fires, we set `direction="unknown"` + add the sentinel — but the prior
+    # implementation (r153) PRESERVED the SIGNED `expected_drift_bp` carrying
+    # `business_cycle_sign` bias from line 672. Downstream `_factor_event_
+    # anticipation` would propagate this sign into `Driver.contribution` →
+    # Brier pipeline silently inherits business-cycle-default-expansion bias
+    # for events where the engine itself emits "unknown" direction. Same
+    # doctrine #11 calibrated honesty class as r150 RBA/BoC trader YELLOW-2
+    # (caveat string-only honesty was asymmetric). Fix : strip the sign when
+    # the asymmetric sentinel fires — the magnitude is INHERENTLY UNSIGNED
+    # under the literature framing (conditional-on-negative-surprise estimate,
+    # direction unknown pre-event). `_ASYMMETRIC_NEGATIVITY_CLASSES` moved to
+    # module-level r154 (N-1 fix).
     if event_class in _ASYMMETRIC_NEGATIVITY_CLASSES and expected_drift_bp is not None:
         direction = "unknown"
+        # r154 SF-2 architectural fix : strip business_cycle_sign bias from
+        # the magnitude when the asymmetric sentinel fires. The literature
+        # framing is conditional-on-negative-surprise UNSIGNED magnitude ;
+        # the pre-event direction is unknown ; therefore exporting a signed
+        # value would silently propagate business-cycle-default bias into
+        # downstream Brier/confluence consumers (which multiply by sign).
+        # Set abs() so the magnitude is honest-unsigned and downstream
+        # consumers compute on an unbiased prior. Doctrine #11 calibrated
+        # honesty applied at the source rather than relying on each
+        # downstream consumer to strip the sign (frontend already does,
+        # but Brier optimizer was silently inheriting the bias).
+        expected_drift_bp = abs(expected_drift_bp)
         parse_failures.add("asymmetric_negativity_bias")
 
     # Confidence ladder (lesson #37 honest-scope ladder)
@@ -755,6 +838,27 @@ async def assess_event_proximity(
             "Skew empirique négatif : magnitude observée historiquement "
             "asymétrique selon le signe de la surprise "
             "(Akhtar 2012 JBF + Pinchuk 2022 arXiv)"
+        )
+    # r154 — SNB_Speech asymmetric skew caveat (parity with CCI/Michigan
+    # purely-epistemic framing). Anchor : Ranaldo-Rossi 2009 *JIMF* + 2024
+    # SNB textual-analysis paper.
+    if event_class == "SNB_Speech":
+        caveat_parts.append(
+            "Skew empirique négatif : sentiment négatif observé historiquement "
+            "plus rapide à propager que sentiment positif "
+            "(Ranaldo-Rossi 2009 JIMF, données 2000-2005 pré-floor-cap — "
+            "généralisation post-2015 à confirmer)"
+        )
+    # r154 — ECB_Speech + BoE_Speech symmetric caveat (no asymmetric
+    # documented in Ehrmann-Fratzscher 2007 ; effect is rate-channel-only,
+    # equity extrapolation conservative). Honest scope flag surfaces that
+    # the 7-8bp magnitude is extrapolated from interest-rate event-window
+    # studies, not direct equity event studies.
+    if event_class in ("ECB_Speech", "BoE_Speech"):
+        caveat_parts.append(
+            "Magnitude extrapolée de l'event-window taux (Ehrmann-Fratzscher "
+            "2007 ECB WP 557) vers l'equity via gate VIX — calibration "
+            "equity-specifique r155+"
         )
     # ALWAYS append the cold-start prior caveat (trader YELLOW-1).
     caveat_parts.append("Magnitude prior littérature, pas calibrée sur historique Ichor")
