@@ -2540,62 +2540,78 @@ class TestR157UKEmploymentClassMapping:
         assert EVENT_CLASS_BASELINE_BP["UK_Employment"] > EVENT_CLASS_BASELINE_BP["Retail_Sales"]
 
 
-class TestR157Pattern17ObservationStatusPreserved:
-    """r157 — Pattern #17 status post-trader-r157-YELLOW-5 REVERT. Initial
-    r157 draft promoted Pattern #17 OBSERVATION → DOCTRINE on Durable_Goods
-    2nd witness. Trader r157 YELLOW-5 REJECTED : "1 paper × 2 series is
-    NOT 2 independent applications" — both r155 + r157 anchored on the SAME
-    Birz-Lott 2011 *JBF* paper. Formal DOCTRINE codify pending 2nd
-    INDEPENDENT peer-reviewed anchor (Pinchuk 2022 housing-starts OR
-    different paper). Status preserved as OBSERVATION.
+class TestR157Pattern17ObservationStatusHistoricalArcheology:
+    """r157+r159 — Pattern #17 LIFECYCLE archeology. r157 initial draft
+    promoted Pattern #17 OBSERVATION → DOCTRINE on Durable_Goods 2nd
+    witness ; trader r157 YELLOW-5 REJECTED ("1 paper × 2 series ≠ 2
+    independent applications") ; status preserved OBSERVATION r157+r158.
+    **r159 LEGITIMATE PROMOTION** : ships Industrial_Production class
+    with Flannery-Protopapadakis 2002 *RFS* anchor — different paper +
+    journal + methodology than Birz-Lott 2011 *JBF* — SOURCE-level
+    independence satisfied. Pattern #17 graduates to formal DOCTRINE.
 
-    Code-reviewer r157 SF-2 fix : test tightened from 4 OR-matchers (3 of
-    which were historical strings that would pass forever even if doctrine
-    reverts) to a SINGLE STRICT pin on the OBSERVATION status marker, with
-    a negative guard against the rejected DOCTRINE marker."""
+    r159 test update : the r157 OBSERVATION-status pin + DOCTRINE-status
+    negative guard are now BOTH inverted. r159 promotion is the
+    legitimate-source-independent codification trader r157 YELLOW-5
+    anticipated."""
 
-    def test_docstring_preserves_pattern_17_observation_status(self) -> None:
+    def test_docstring_promoted_pattern_17_to_formal_doctrine_r159(self) -> None:
+        """r159 LEGITIMATE PROMOTION : Pattern #17 graduates from
+        OBSERVATION (r155+r157 1-paper-2-series) to formal DOCTRINE
+        (r155+r157 Birz-Lott 2011 + r159 Flannery-Protopapadakis 2002 =
+        2 INDEPENDENT anchors)."""
         from ichor_api.services import event_proximity_engine
 
         doc = event_proximity_engine.__doc__ or ""
-        # Single strict pin : OBSERVATION status string (per trader r157
-        # YELLOW-5 revert + code-reviewer r157 SF-2 tighten).
-        assert "PATTERN #17 NEGATIVE-RESULT-ANCHOR OBSERVATION" in doc, (
-            "Pattern #17 status must remain OBSERVATION (1 paper × 2 series "
-            "witnessed) per trader r157 YELLOW-5 — formal DOCTRINE codify "
-            "pending 2nd INDEPENDENT peer-reviewed anchor source"
+        # r159 promotion pin : formal DOCTRINE marker in section header
+        assert "PATTERN #17 NEGATIVE-RESULT-ANCHOR FORMAL DOCTRINE" in doc, (
+            "Pattern #17 must be promoted from OBSERVATION (r155+r157) to "
+            "formal DOCTRINE (r159) in module docstring per trader r157 "
+            "YELLOW-5 SOURCE-level independence discipline — r159 ships "
+            "Industrial_Production with INDEPENDENT F-P 2002 anchor"
         )
 
-    def test_docstring_does_not_falsely_claim_doctrine_status(self) -> None:
-        """REGRESSION GUARD : the rejected "formal DOCTRINE codify" marker
-        from the initial r157 draft MUST NOT appear in the OBSERVATION
-        section header. Catches drift if a future round prematurely
-        re-promotes on insufficient witness independence."""
+    def test_docstring_no_longer_carries_observation_section_header(self) -> None:
+        """REGRESSION GUARD against doctrine drift : after r159 promotion,
+        the OBSERVATION section header must NOT appear (graduated to
+        DOCTRINE). The historical observation lifecycle is documented
+        within the DOCTRINE section, not as a competing section header."""
         from ichor_api.services import event_proximity_engine
 
         doc = event_proximity_engine.__doc__ or ""
-        # The string "PATTERN #17 NEGATIVE-RESULT-ANCHOR DOCTRINE" with
-        # DOCTRINE at the section-header level MUST NOT appear — would
-        # indicate premature promotion.
-        assert "PATTERN #17 NEGATIVE-RESULT-ANCHOR DOCTRINE" not in doc, (
-            "Pattern #17 must NOT claim formal DOCTRINE status — only "
-            "OBSERVATION until 2nd INDEPENDENT peer-reviewed anchor"
+        # The string "PATTERN #17 NEGATIVE-RESULT-ANCHOR OBSERVATION" with
+        # OBSERVATION at the section-header level MUST NOT appear post-r159.
+        # Inversion of r157 negative guard : OBSERVATION was the safe state
+        # pre-r159, DOCTRINE is the post-r159 state.
+        assert "PATTERN #17 NEGATIVE-RESULT-ANCHOR OBSERVATION" not in doc, (
+            "Pattern #17 graduated to formal DOCTRINE r159 — OBSERVATION "
+            "section header must no longer appear (historical archeology "
+            "now lives within the DOCTRINE section body)"
         )
 
-    def test_low_signal_confidence_classes_includes_both_witnesses(self) -> None:
-        """SSOT lockstep : _LOW_SIGNAL_CONFIDENCE_CLASSES MUST include both
-        Pattern #17 single-paper-witness applications (Retail_Sales r155 +
-        Durable_Goods r157). Future r158+ negative-result anchors from
-        INDEPENDENT sources extend this frozenset + trigger DOCTRINE
-        promotion."""
+    def test_low_signal_confidence_classes_includes_all_three_pattern_17_classes(self) -> None:
+        """r159 code-reviewer SF-1 fix : renamed from `_includes_both_witnesses`
+        + cardinality bumped to 3 post-r159 (Industrial_Production added via
+        2nd INDEPENDENT anchor Flannery-Protopapadakis 2002 *RFS*).
+
+        SSOT lockstep : _LOW_SIGNAL_CONFIDENCE_CLASSES MUST include all 3
+        Pattern #17 class applications post-r159 :
+          - Retail_Sales r155 (Birz-Lott 2011 *JBF* event-window correlation)
+          - Durable_Goods r157 (Birz-Lott 2011 same paper, 2nd series)
+          - Industrial_Production r159 (Flannery-Protopapadakis 2002 *RFS*
+            cross-section pricing — INDEPENDENT anchor triggering formal
+            DOCTRINE codify)
+
+        Future r160+ negative-result anchors extend this frozenset."""
         from ichor_api.services.event_proximity_engine import (
             _LOW_SIGNAL_CONFIDENCE_CLASSES,
         )
 
         assert "Retail_Sales" in _LOW_SIGNAL_CONFIDENCE_CLASSES
         assert "Durable_Goods" in _LOW_SIGNAL_CONFIDENCE_CLASSES
-        # Cardinality check : 2 witnesses post-r157 (extensible r158+)
-        assert len(_LOW_SIGNAL_CONFIDENCE_CLASSES) >= 2
+        assert "Industrial_Production" in _LOW_SIGNAL_CONFIDENCE_CLASSES
+        # Cardinality check : 3 classes post-r159 (extensible r160+)
+        assert len(_LOW_SIGNAL_CONFIDENCE_CLASSES) >= 3
 
 
 class TestR158Pattern17R59CandidateDocumented:
@@ -2649,4 +2665,166 @@ class TestR158Pattern17R59CandidateDocumented:
             "Pinchuk 2022 RE-REJECTION (aggregate-MNA only, not housing-"
             "starts breakout) must be documented per r158 R59 finding so "
             "future contributors don't re-propose"
+        )
+
+
+class TestR159IndustrialProductionClassMapping:
+    """r159 — Industrial_Production class extension (Pattern #17 2nd
+    INDEPENDENT anchor → formal DOCTRINE codify). Single substring captures
+    both m/m + y/y variants (USD bare + CAD-specific y/y release frequency).
+    Same triad pattern as r155 Retail_Sales + r157 Durable_Goods."""
+
+    def test_industrial_production_mm_maps_to_class(self) -> None:
+        assert _map_title_to_event_class("Industrial Production m/m") == "Industrial_Production"
+
+    def test_industrial_production_yy_maps_to_class(self) -> None:
+        assert _map_title_to_event_class("Industrial Production y/y") == "Industrial_Production"
+
+    def test_industrial_production_pattern_does_not_collide_with_retail_or_durable(self) -> None:
+        """REGRESSION : Industrial_Production pattern must NOT match
+        retail sales or durable goods titles + vice versa. Order discipline
+        preserved (no overlap)."""
+        assert _map_title_to_event_class("Retail Sales m/m") == "Retail_Sales"
+        assert _map_title_to_event_class("Durable Goods Orders m/m") == "Durable_Goods"
+        # Industrial_Production specific pattern won't match generic event titles
+        assert _map_title_to_event_class("FOMC Statement") == "FOMC"
+
+
+class TestR159IndustrialProductionBaseline:
+    """r159 — EVENT_CLASS_BASELINE_BP["Industrial_Production"] = 5.0 parity
+    with r155 Retail_Sales + r157 Durable_Goods. Same negative-result
+    floor (below-detection threshold per both Birz-Lott 2011 *JBF* +
+    Flannery-Protopapadakis 2002 *RFS* — different methodological
+    frameworks converging on similar magnitude class)."""
+
+    def test_industrial_production_baseline_at_floor(self) -> None:
+        assert EVENT_CLASS_BASELINE_BP["Industrial_Production"] == 5.0
+
+    def test_industrial_production_baseline_matches_pattern_17_class(self) -> None:
+        # All 3 Pattern #17 classes share the same 5bp floor (negative-
+        # result calibration)
+        assert (
+            EVENT_CLASS_BASELINE_BP["Industrial_Production"]
+            == EVENT_CLASS_BASELINE_BP["Retail_Sales"]
+            == EVENT_CLASS_BASELINE_BP["Durable_Goods"]
+        )
+
+
+class TestR159IndustrialProductionLowSignalSentinel:
+    """r159 — Industrial_Production fires `low_signal_confidence` sentinel
+    (same triad as r155+r157). 3rd Pattern #17 class application but FIRST
+    via INDEPENDENT anchor (different paper). Formal DOCTRINE codify
+    trigger."""
+
+    @pytest.mark.asyncio
+    async def test_industrial_production_emits_low_signal_sentinel(self) -> None:
+        evt = _make_event_row(
+            title="Industrial Production m/m",
+            impact="high",
+            currency="USD",
+            scheduled_at=datetime(2026, 6, 1, 14, 0, tzinfo=UTC),
+        )
+        session = _build_session(
+            event_rows=[evt],
+            vix_row=_make_fred_row(20.0, datetime(2026, 5, 23, tzinfo=UTC).date()),
+        )
+        result = await assess_event_proximity(
+            session,
+            asset="EUR_USD",
+            now=datetime(2026, 6, 1, 10, 0, tzinfo=UTC),
+            business_cycle_sign=1,
+        )
+        assert result is not None
+        assert result.next_event_class == "Industrial_Production"
+        assert "low_signal_confidence" in result.parse_failures
+
+    @pytest.mark.asyncio
+    async def test_industrial_production_caveat_cites_flannery_protopapadakis(self) -> None:
+        evt = _make_event_row(
+            title="Industrial Production m/m",
+            impact="high",
+            currency="USD",
+            scheduled_at=datetime(2026, 6, 1, 14, 0, tzinfo=UTC),
+        )
+        session = _build_session(
+            event_rows=[evt],
+            vix_row=_make_fred_row(20.0, datetime(2026, 5, 23, tzinfo=UTC).date()),
+        )
+        result = await assess_event_proximity(
+            session,
+            asset="EUR_USD",
+            now=datetime(2026, 6, 1, 10, 0, tzinfo=UTC),
+            business_cycle_sign=1,
+        )
+        assert result is not None
+        # r159 caveat MUST cite Flannery-Protopapadakis 2002 (Pattern #17
+        # formal DOCTRINE 2nd INDEPENDENT anchor) + methodology-difference
+        # stamp (cross-section pricing vs event-window correlation)
+        assert "Flannery-Protopapadakis 2002" in result.caveat
+        assert "cross-section" in result.caveat.lower()
+
+
+class TestR159Pattern17FormalDoctrineCodify:
+    """r159 — Pattern #17 graduation from OBSERVATION (r155+r157 single
+    paper × 2 series) to formal DOCTRINE (r155+r157 Birz-Lott 2011 + r159
+    Flannery-Protopapadakis 2002 = 2 INDEPENDENT anchors). Engine docstring
+    must reflect formal DOCTRINE status per trader r157 YELLOW-5 + code-
+    reviewer r157 N-5 multi-application discipline source-level."""
+
+    def test_docstring_promotes_pattern_17_to_formal_doctrine(self) -> None:
+        from ichor_api.services import event_proximity_engine
+
+        doc = event_proximity_engine.__doc__ or ""
+        # Strict pin : formal DOCTRINE marker present in section header
+        # (r158 used OBSERVATION marker, r159 promotes to formal DOCTRINE).
+        assert "PATTERN #17 NEGATIVE-RESULT-ANCHOR FORMAL DOCTRINE" in doc, (
+            "Pattern #17 must be promoted from OBSERVATION (r155+r157) to "
+            "formal DOCTRINE (r159) in module docstring per trader r157 "
+            "YELLOW-5 SOURCE-level independence discipline"
+        )
+
+    def test_docstring_references_two_independent_anchors(self) -> None:
+        """Pattern #17 formal DOCTRINE requires 2 INDEPENDENT anchors.
+        Docstring must reference BOTH papers for verifiability."""
+        from ichor_api.services import event_proximity_engine
+
+        doc = event_proximity_engine.__doc__ or ""
+        # Both papers cited verbatim with primary journal identification
+        assert "Birz-Lott 2011" in doc, "1st anchor (Birz-Lott 2011 JBF) must be cited"
+        assert "Flannery-Protopapadakis 2002" in doc, (
+            "2nd INDEPENDENT anchor (Flannery-Protopapadakis 2002 RFS) must be cited"
+        )
+
+    def test_low_signal_confidence_classes_includes_industrial_production(self) -> None:
+        """SSOT lockstep : _LOW_SIGNAL_CONFIDENCE_CLASSES MUST include all 3
+        Pattern #17 classes post-r159 (Retail_Sales r155 + Durable_Goods
+        r157 + Industrial_Production r159)."""
+        from ichor_api.services.event_proximity_engine import (
+            _LOW_SIGNAL_CONFIDENCE_CLASSES,
+        )
+
+        assert "Retail_Sales" in _LOW_SIGNAL_CONFIDENCE_CLASSES
+        assert "Durable_Goods" in _LOW_SIGNAL_CONFIDENCE_CLASSES
+        assert "Industrial_Production" in _LOW_SIGNAL_CONFIDENCE_CLASSES
+        # Cardinality check : 3 classes post-r159 (extensible r160+)
+        assert len(_LOW_SIGNAL_CONFIDENCE_CLASSES) >= 3
+
+    def test_docstring_methodology_difference_stamp(self) -> None:
+        """r159 methodology-difference honest scope : the docstring must
+        surface the cross-section pricing vs event-window correlation
+        difference (Pattern #17 honesty disclosure per doctrine #11)."""
+        from ichor_api.services import event_proximity_engine
+
+        doc = event_proximity_engine.__doc__ or ""
+        # Either "cross-section pricing" + "event-window" OR explicit
+        # methodology-difference marker
+        has_methodology_marker = (
+            ("cross-section pricing" in doc and "event-window" in doc)
+            or "DIFFERENT methodology" in doc
+            or "different methodological frameworks" in doc.lower()
+        )
+        assert has_methodology_marker, (
+            "Pattern #17 formal DOCTRINE caveat must stamp the methodology-"
+            "difference (cross-section pricing F-P 2002 vs event-window "
+            "correlation Birz-Lott 2011) for doctrine #11 calibrated honesty"
         )

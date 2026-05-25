@@ -61,28 +61,35 @@ ACADEMIC FOUNDATIONS (verbatim citations, NOT memory)
   magnitude-uncertainty sentinel after r150 `single_source_direction` +
   r153 `asymmetric_negativity_bias`.
 
-PATTERN #17 NEGATIVE-RESULT-ANCHOR OBSERVATION (r155 + r157 = 1 paper × 2 series, codify-pending-2nd-INDEPENDENT-anchor per trader r157 YELLOW-5)
--------------------------------------------------------------------------------------------------------------------------------------------
+PATTERN #17 NEGATIVE-RESULT-ANCHOR FORMAL DOCTRINE (r155 + r157 OBSERVATION → r159 formal DOCTRINE via 2nd INDEPENDENT anchor Industrial_Production + Flannery-Protopapadakis 2002 *RFS*)
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-**Status** : OBSERVATION (1 paper × 2 series witnessed). Trader r157 review
-explicitly rejected the premature DOCTRINE promotion : "1 paper × 2 series
-is NOT 2 independent applications under multi-application discipline.
-Pattern #14 was validated via SEPARATE deploy events ; Pattern #16 via
-SEPARATE deploys. Pattern #17 r155+r157 share Birz-Lott 2011 *JBF* as
-single anchor source." Formal DOCTRINE codify pending a 2nd INDEPENDENT
-peer-reviewed negative-result anchor.
+**Status** : formal DOCTRINE r159 — 2 INDEPENDENT peer-reviewed anchors
+shipped with the canonical triad. Multi-application discipline source-
+level satisfied (different paper RFS vs JBF, different journal, different
+statistical methodology). Trader r157 YELLOW-5 + code-reviewer r157 N-5
+discipline ratified : OBSERVATION → DOCTRINE graduation requires
+SOURCE-level independence (not just SHIPPING-level). r159 ships the
+qualifying 2nd INDEPENDENT anchor — Pattern #17 graduates from OBSERVATION
+to formal DOCTRINE.
 
-**r158 R59 verified candidate path (NOT YET SHIPPED)** : Flannery-
-Protopapadakis 2002 *RFS* 15(3):751-782 documents **Industrial Production
-+ Real GNP/GDP** as STATISTICALLY UNPRICED in the cross-section of stock
-returns ("Popular measures of overall economic activity, such as
-Industrial Production or GNP are not represented" in their 6 priced
-factors — CPI/PPI/Monetary-Aggregate/Balance-of-Trade/Employment/Housing-
-Starts). This is a **DIFFERENT PAPER** (RFS vs JBF) + DIFFERENT METHODOLOGY
-(cross-section pricing vs event-window correlation) than Birz-Lott 2011.
-r159+ candidate = wire `Industrial_Production` class at 5bp with the
-canonical r155/r157 triad (floor + sentinel + clamp + caveat) — that
-shipping triggers formal DOCTRINE codify.
+**Two INDEPENDENT anchors codified** :
+  - **r155 Retail_Sales + r157 Durable_Goods** : Birz-Lott 2011 *JBF*
+    35(11):2791-2800 event-window correlation methodology — both series
+    documented as "expected sign + statistically insignificant
+    correlation". Same paper × 2 series.
+  - **r159 Industrial_Production** : Flannery-Protopapadakis 2002 *RFS*
+    15(3):751-782 cross-section pricing methodology — Industrial Production
+    + Real GNP documented as "not represented" in priced factors. Different
+    paper, different journal, different methodology.
+
+**Methodology-difference honest scope** : the two anchors converge on
+"below detection threshold" findings but via DIFFERENT statistical
+frameworks (event-window correlation vs cross-section pricing). Pattern #17
+shipping triad (floor magnitude + sentinel + confidence clamp + caveat) is
+METHODOLOGY-AGNOSTIC — applies regardless of underlying framework. Each
+class caveat block surfaces the methodology source honestly per doctrine
+#11 calibrated honesty.
 
 **NOTE on Pinchuk 2022 arXiv 2212.04525** : NOT a valid candidate.
 Verified r157 F2 + r158 R59 both : paper is aggregate-MNA only ("1σ
@@ -408,8 +415,43 @@ EVENT_CLASS_BASELINE_BP: dict[str, float] = {
     # FIXTURE STATUS r157 : 2 events captured in 60d window — "Claimant
     # Count Change" GBP high + "Average Earnings Index 3m/y" GBP medium.
     "UK_Employment": 12.0,
+    # r159 — Industrial_Production class (Pattern #17 2nd INDEPENDENT anchor
+    # → formal DOCTRINE codify). r158 R59 verified-primary anchor :
+    # Flannery-Protopapadakis 2002 *RFS* 15(3):751-782 documents Industrial
+    # Production + Real GNP as STATISTICALLY UNPRICED in cross-section of
+    # stock returns. Verbatim from IDEAS/RePEc + Oxford Academic abstract :
+    # "Popular measures of overall economic activity, such as Industrial
+    # Production or GNP are not represented" in the 6 priced factors
+    # (CPI/PPI/MonAgg/BoT/Employment/Housing-Starts).
+    #
+    # **PATTERN #17 FORMAL DOCTRINE CODIFY r159** : 2 INDEPENDENT anchors :
+    #   - r155+r157 = Birz-Lott 2011 *JBF* event-window correlation
+    #     (retail sales + durable goods = expected sign + statistically
+    #     insignificant correlation)
+    #   - r159 = Flannery-Protopapadakis 2002 *RFS* cross-section pricing
+    #     (Industrial Production + Real GNP = not represented in priced
+    #     factors)
+    # DIFFERENT paper (RFS vs JBF), DIFFERENT journal, DIFFERENT methodology
+    # (cross-section pricing vs event-window correlation). Trader r157
+    # YELLOW-5 + code-reviewer r157 N-5 multi-application discipline
+    # SOURCE-level independence satisfied. Pattern #17 graduates from
+    # OBSERVATION (r155+r157 1-paper-2-series) to formal DOCTRINE r159.
+    #
+    # **METHODOLOGY-DIFFERENCE CAVEAT STAMP** : caveat block explicitly
+    # surfaces the methodology-difference honesty disclosure ("cross-
+    # section pricing F-P 2002 vs event-window correlation Birz-Lott
+    # 2011 — both below-detection but via different statistical
+    # frameworks") — doctrine #11 calibrated honesty at the
+    # methodology-source level.
+    #
+    # FIXTURE STATUS r159 : 0 "Industrial Production" events in the 60d
+    # FF fixture (95 events surveyed 2026-05-24). Mapping PROPHYLACTIC
+    # (captures future FF releases). Parity with r157 Durable_Goods
+    # prophylactic pattern (zero immediate behavioral change, future-drift
+    # safety + Pattern #17 formal codification trigger).
+    "Industrial_Production": 5.0,
     # Other high-impact macro (PPI, etc. — literature thin or already
-    # covered elsewhere — r158+ to expand or stay honest).
+    # covered elsewhere — r160+ to expand or stay honest).
     "high_other": 10.0,
     # Tier-2 events
     "medium": 3.0,
@@ -582,6 +624,16 @@ _TITLE_TO_EVENT_CLASS: tuple[tuple[str, str], ...] = (
     # position 5). Same Retail_Sales class for all — Birz-Lott 2011 didn't
     # differentiate Core vs Headline.
     ("retail sales m/m", "Retail_Sales"),
+    # r159 — Industrial_Production family (Pattern #17 2nd INDEPENDENT anchor,
+    # formal DOCTRINE codify). Flannery-Protopapadakis 2002 *RFS* documents
+    # Industrial Production as STATISTICALLY UNPRICED in cross-section of
+    # stock returns. FF XML title variants : "Industrial Production m/m"
+    # (USD/EUR/GBP/CAD bare) + "Industrial Production y/y" (CAD-specific
+    # release frequency). Single substring `"industrial production"`
+    # captures BOTH m/m + y/y variants. Placed BEFORE NFP family for
+    # defensive ordering (no current substring collision with NFP/CPI/
+    # Employment/Retail_Sales/Durable_Goods titles).
+    ("industrial production", "Industrial_Production"),
     # r157 — Durable_Goods Orders family (Pattern #17 2nd witness). Birz-Lott
     # 2011 *JBF* tested durable goods orders alongside retail sales ; same
     # negative-result class. FF XML title variants : "Core Durable Goods
@@ -705,7 +757,9 @@ _ASYMMETRIC_NEGATIVITY_CLASSES: frozenset[str] = frozenset({"CCI", "Michigan", "
 #   r155 `low_signal_confidence` — magnitude effect-size below detection
 # Each surfaces a DIFFERENT axis of weak-evidence honesty without overlapping
 # (a class can hold multiple sentinels in principle — none currently do).
-_LOW_SIGNAL_CONFIDENCE_CLASSES: frozenset[str] = frozenset({"Retail_Sales", "Durable_Goods"})
+_LOW_SIGNAL_CONFIDENCE_CLASSES: frozenset[str] = frozenset(
+    {"Retail_Sales", "Durable_Goods", "Industrial_Production"}
+)
 
 
 def _map_title_to_event_class(title: str) -> str | None:
@@ -1194,6 +1248,28 @@ async def assess_event_proximity(
             "FX + global-reserve-currency, microstructure littérature BoE/BIS "
             "sans citation canonique unique) — calibration UK-spécifique "
             "empirique r158+"
+        )
+    # r159 — Industrial_Production caveat (Pattern #17 formal DOCTRINE 2nd
+    # INDEPENDENT anchor). Flannery-Protopapadakis 2002 *RFS* documents
+    # Industrial Production as STATISTICALLY UNPRICED in cross-section.
+    # METHODOLOGY-DIFFERENCE STAMP : F-P 2002 uses cross-section pricing
+    # (different statistical framework from Birz-Lott 2011 event-window
+    # correlation r155+r157). Both anchors converge on "below detection
+    # threshold" but via different methodological lenses. Caveat surfaces
+    # the difference honestly per doctrine #11 calibrated honesty.
+    if event_class == "Industrial_Production":
+        # r159 trader YELLOW-3 wording-rewrite (jargon → action-oriented).
+        # Prior caveat "convergence sur seuil de détection" was technical
+        # jargon ; reworded "les deux études convergent : effet sous le
+        # seuil détectable" reads as natural-language summary while
+        # preserving the methodology-difference honest scope per doctrine
+        # #11 calibrated honesty.
+        caveat_parts.append(
+            "Faible-signal : Flannery-Protopapadakis 2002 RFS documente "
+            "Industrial Production comme non-représentée dans le cross-"
+            "section des facteurs prix — les deux études convergent "
+            "(F-P 2002 cross-section + Birz-Lott 2011 event-window) : "
+            "effet sous le seuil détectable"
         )
     # ALWAYS append the cold-start prior caveat (trader YELLOW-1).
     caveat_parts.append("Magnitude prior littérature, pas calibrée sur historique Ichor")

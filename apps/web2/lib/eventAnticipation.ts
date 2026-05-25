@@ -128,6 +128,12 @@ export const EVENT_CLASS_FR: Record<string, string> = {
   // RED-2 (UK FX volume + global-reserve asymmetry). 2 fixture events
   // captured GBP.
   UK_Employment: "Emploi UK (Claimant Count / Average Earnings)",
+  // r159 — Industrial_Production class (Pattern #17 formal DOCTRINE 2nd
+  // INDEPENDENT anchor). Flannery-Protopapadakis 2002 *RFS* cross-section
+  // pricing (different paper + journal + methodology than Birz-Lott 2011
+  // event-window correlation r155+r157). 0 fixture events r159
+  // (prophylactic mapping, captures future FF releases).
+  Industrial_Production: "Production industrielle (cross-section unpriced)",
 };
 
 /** FR copy per currency code — for STANDBY mode row meta. Falls back to

@@ -732,3 +732,26 @@ describe("r157 EVENT_CLASS_FR UK_Employment extension (trader RED-2 fix)", () =>
     expect(EVENT_CLASS_FR.UK_Employment).toMatch(/UK|Claimant|Earnings/);
   });
 });
+
+// ── r159 — Industrial_Production class (Pattern #17 formal DOCTRINE) ──
+
+describe("r159 EVENT_CLASS_FR Industrial_Production extension (Pattern #17 formal DOCTRINE)", () => {
+  it("maps Industrial_Production → Production industrielle label", () => {
+    expect(EVENT_CLASS_FR.Industrial_Production).toContain("Production industrielle");
+  });
+
+  it("Industrial_Production label cites cross-section unpriced framing (REGRESSION)", () => {
+    // F-P 2002 anchor is "cross-section unpriced" (different methodology
+    // from Birz-Lott 2011 event-window correlation r155+r157). Label
+    // surfaces this honestly per doctrine #11 calibrated honesty.
+    expect(EVENT_CLASS_FR.Industrial_Production).toMatch(/cross-section|unpriced/);
+  });
+
+  it("Industrial_Production label distinct from Pattern #17 1st-anchor classes (REGRESSION)", () => {
+    // All 3 Pattern #17 classes share same 5bp floor + low_signal_confidence
+    // sentinel but render as DISTINCT user-visible labels (independent
+    // anchors deserve independent visual identification).
+    expect(EVENT_CLASS_FR.Industrial_Production).not.toBe(EVENT_CLASS_FR.Retail_Sales);
+    expect(EVENT_CLASS_FR.Industrial_Production).not.toBe(EVENT_CLASS_FR.Durable_Goods);
+  });
+});
