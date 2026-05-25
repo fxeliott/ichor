@@ -161,7 +161,34 @@ See `docs/ROADMAP_2026-05-06.md` for the original 4-layer architecture (DATA FOU
 
 ---
 
-## §3 — Immediate next (r155)
+## §3 — Immediate next (r156)
+
+**r155 EXECUTED & SHIPPED & DEPLOYED & WITNESSED (2026-05-25)** : Tier 4 axis-4 +1 LEVEL DEPTH continued — **Retail_Sales class extension + Pattern #15 R59-disprove 8th application (PMI Services REJECT pivot)**. R59 caught PMI Services baseline as unverifiable peer-reviewed magnitude (Flannery-Protopapadakis 2002 EXCLUDED PMI ; Lucca-Moench 2015 pre-drift FOMC-unique ; ABDV 2007 paywall-unverifiable ; Wang-Yang 2018 China-only single-source). Pivoted to Birz-Lott 2011 _JBF_ negative-result anchor : 5bp floor + new `low_signal_confidence` sentinel (3rd magnitude-uncertainty sentinel after r150 single_source_direction + r153 asymmetric_negativity_bias) + proximity-conditional confidence clamp (imminent <60min → "medium" ; else → "low") + Pattern #15 8th-application docstring honest-unmapped subset (PMI Services + Ivey PMI + Philly Fed). Coverage 47.4% → **52.6%** (50/95). CI ratchet 45% → 50%. Single feat commit `326164d` +534/-5 LOC across 4 files. **Phase 2 concordance** : trader SHIP-WITH-FIX (YELLOW-2 + YELLOW-3 applied pre-commit) + code-reviewer READY-TO-MERGE (0 CRITICAL 0 SHOULD-FIX 3 NICE 8 CONFIRMATIONS). **Build gate** : pytest engine 172/172 + invariants 45/45 + vitest 431/431 + tsc 0 + ruff/eslint/prettier clean. **Phase 3 deploy** : R-DEPLOY-6 Pattern #14+#16 validated 3rd consecutive zero-retry deploy (48 SSH operations across r153+r154+r155, zero failures). **Phase 3.5 R-WITNESS-EMPIRICAL** : Birz-Lott 2011 citation LIVE in `/v1/event-anticipation/EUR_USD` `literature_anchor` field on prod (mechanical proof). Voie D **70 rounds**. **NEW r155 doctrinal observation (r156 pattern #17 candidate)** : peer-reviewed negative-result IS legitimate calibration anchor when paired with mechanical sentinel + confidence-clamp + caveat ; 3-axis sentinel ladder (single_source / asymmetric / low_signal) now covers direction-weakness + sign-symmetry-breaks + magnitude-effect-size-undetectable without overlapping.
+
+**r156 binding default candidates** (in priority order, R59-disprove first per Pattern #15) :
+
+1. ⭐ AUTO-RECO **Empirical reaction-beta backfill via Dukascopy 1-min FREE multi-year** (deferred since r150+r152+r153+r154 — now MOST priority because r155 R59 confirmed ALL r152-r154 baselines are cold-start priors). Replaces literature priors with Ichor-historical betas, closes cold-start caveat at source. Effort L 3-5 dev-days, Pattern #15 R59 first on Dukascopy API + sampling discipline.
+2. **trader r155 YELLOW-4 sentinel saturation invariant** (Pydantic `len(parse_failures) ≤ 3` + frontend collapse logic prioritizing most-restrictive sentinel). Effort S.
+3. **trader r155 YELLOW-5 Retail_Sales defensive `_TITLE_FRAGMENT_BLOCKED`** entry `{"retail sales m/m excl"}` prophylactic vs future FF drift. Effort XS.
+4. **code-reviewer r155 NICE-3 symmetry guard** : add `expected_drift_bp is not None` guard to confidence clamp for documentation parity with sentinel emission. Effort XS.
+5. **`test_tempo_recalibration::test_daily_ranges_bp_sql_pins_paris_tz_and_safety_filters` path-relative bug fix** : switch `open("src/...")` to `Path(__file__).parent.parent / "src" / ...` for CWD-independence. Effort XS, 1-line.
+6. **FRED VIXCLS backfill 5y** (deferred since r150 — researcher R59 first on FRED bulk API). Effort M.
+7. **UK Claimant Count Change + Average Earnings Index extension** (deferred r155). Effort S.
+8. **`output_gap_proxy` wiring** (composite NFCI + SBET + macro nowcast → `business_cycle_sign`). Effort M.
+9. **r147 MRO smell fix** (`TestBrierLockstepWithR147(TestAdr017Invariants)` inherits non-Brier tests — deferred 6 rounds r150-r155). Effort S.
+10. **Per-currency Employment subclass** (trader r150 YELLOW-3, deferred 5 rounds). Effort S.
+11. **r152 trader YELLOW-1/2 visual demotion of literature priors** (italic / "· prior" suffix / lighter weight on cold-start magnitudes ; UI change → 4-reviewer concordance). Effort S-M.
+12. **Code-reviewer r153 SF-3** (deploy latency budget + optional exponential backoff). Effort S.
+13. **Code-reviewer r153 N-3** (aria-label conditional magnitude asymmetric a11y). Effort XS.
+14. **r144 FRED ALFRED reconciler unit normalization upstream** (deferred since r147). Effort M.
+15. **`actual_source` / `actual_revised` columns** + EU/UK reconcilers. Effort M each.
+16. **Code-reviewer S4 orchestrator hook AsyncMock test** (deferred since r142). Effort S.
+
+Pattern #15 R59-disprove-before-commit applies to every r156 ⭐ AUTO-RECO candidate.
+
+---
+
+## §3 — Previous immediate next (r155, EXECUTED above)
 
 **r154 EXECUTED & SHIPPED & DEPLOYED & WITNESSED (2026-05-25)** : Tier 4 axis-4 +1 LEVEL DEPTH compound round — CB Speaker class extension (ECB_Speech=7bp + BoE_Speech=8bp + SNB_Speech=10bp asymmetric) + r153 code-reviewer post-hoc fix-cluster (SF-1 fixture 94→95, SF-2 architectural sign-strip on asymmetric, N-1 module-level constant, N-2 frontend SSOT) + Strand B Pattern #16 doctrine codify in CLAUDE.md auto-context-injector hook + memory file (PERMANENT via session-resume).
 

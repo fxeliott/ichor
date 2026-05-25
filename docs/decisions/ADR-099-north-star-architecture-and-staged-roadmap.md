@@ -4261,3 +4261,46 @@ Voie D held **69 rounds**.
 **Mission centrale axis impact** : axis-4 r154 deeper. NO state change at axis-closure level. Axes : 1-2 ✅ r123 / 3 ✅ r132+r133 / **4 ✅ +1 LEVEL r152 + r153 + r154 ⭐** / 5 ✅ EMPIRICALLY GREEN r146 / 6 ✅ CLOSED r142+r143 / 7 🎯 LIVE / 8 🎯+1 PARTIAL r131. **4 of 8 axes ✅ CLOSED + axis 4 r154 deeper still.**
 
 **r155 binding default candidates** : (a) **PMI Services class extension** (Flash Manufacturing/Services PMI EUR/GBP/USD currently unmapped — 6 events in fixture, would lift coverage from 47.4% to ~53-55%) ; (b) **US Retail Sales + Core Retail Sales class** (~4 events in fixture) ; (c) **UK Claimant Count + Average Earnings Index** ; (d) ⭐ AUTO-RECO **FRED VIXCLS backfill 5y** (deferred since r150 — researcher R59 first on FRED bulk API rate-limit + retention policy) ; (e) **Empirical reaction-beta backfill** via Dukascopy 1-min FREE multi-year (3-5 dev-days, closes cold-start caveat at source) ; (f) **`output_gap_proxy` wiring** ; (g) **r147 MRO smell fix** (still deferred from r150) ; (h) **Per-currency Employment subclass** (r150 trader YELLOW-3) ; (i) **r152 trader YELLOW-1/2 visual demotion of literature priors** ; (j) **Code-reviewer SF-3** (deploy latency budget + optional exponential backoff) ; (k) **Code-reviewer N-3** (aria-label conditional magnitude when driftMeaningful=false — asymmetric a11y) ; (l) **FRED ALFRED reconciler unit normalization upstream** ; (m) **`actual_source` / `actual_revised` columns** + EU/UK reconcilers.
+
+## Implementation (r155, 2026-05-25) — Tier 4 axis-4 +1 LEVEL DEPTH : Retail_Sales class + Pattern #15 R59-disprove 8th application (PMI Services REJECT pivot)
+
+**TL;DR** : r155 ⭐ AUTO-RECO was "PMI Services class extension" (candidate (a) of r154 binding defaults). Pattern #15 R59-disprove-before-commit FIRED — researcher web R59 (8 queries) found NO peer-reviewed bp magnitude quantifying ISM Services / Flash Composite PMI reaction-beta. Citation-identity verification ground-truth :
+
+- Flannery-Protopapadakis 2002 _RFS_ (`https://academic.oup.com/rfs/article-abstract/15/3/751/1603456`) : **6 priced factors = CPI, PPI, Monetary Aggregate, Balance of Trade, Employment, Housing Starts. PMI/NAPM/ISM EXCLUDED.**
+- Lucca-Moench 2015 _JoF_ : pre-drift is **FOMC-unique, NOT generalizable** to ISM/PMI.
+- Andersen-Bollerslev-Diebold-Vega 2007 _JIE_ NBER w11312 : abstract + DOI confirmed but specific announcement list NOT verifiable via WebFetch (paywall/binary PDF). r152 memory citation "ABDV 2007 for ISM=15 bp" is itself **citation-unverified** in r155 session.
+- Wang-Yang 2018/2023 _IJFE_ : Chinese market only, Manufacturing PMI only, single-source unreplicated (Vojtko-Dujava class risk).
+- Birz-Lott 2011 _JBF_ : tested GDP, unemployment, retail sales, durable goods. GDP+unemployment significant ; **durable + retail = expected sign + statistically insignificant correlation**.
+
+**PIVOTED to Retail_Sales class** with Birz-Lott 2011 negative-result as peer-reviewed calibration anchor : 5 bp floor + **NEW `low_signal_confidence` sentinel** (3rd magnitude-uncertainty sentinel after r150 `single_source_direction` + r153 `asymmetric_negativity_bias`) + proximity-conditional confidence clamp + Pattern #15 8th-application docstring honest-unmapped subset (PMI Services + Ivey PMI + Philly Fed).
+
+**Coverage** : 47.4% (r154) → **52.6%** (50/95). CI ratchet 45% → 50%. Single feat commit `326164d` — 4 files, +534/-5 LOC.
+
+### Phase 2 reviewer concordance (doctrine #17 Tier 4 backend)
+
+- **trader** : SHIP-WITH-FIX (0 RED, 4 YELLOW, 2 GREEN) — YELLOW-2 (proximity-conditional clamp imminent <60min → "medium") + YELLOW-3 (caveat action-oriented rewrite) APPLIED pre-commit. YELLOW-4 (sentinel saturation r156) + YELLOW-5 (substring future-drift r156) deferred.
+- **code-reviewer** : READY-TO-MERGE (0 CRITICAL, 0 SHOULD-FIX, 3 NICE, 8 CONFIRMATIONS).
+
+### Build gate (MEASURED on COMMITTED-shape doctrine #14)
+
+pytest engine targeted **172/172** + invariants_ichor **45/45** + vitest **431/431** + tsc 0 + ESLint/Prettier/Ruff clean + ADR-017 source-inspection lockstep + r149 event-class consistency + Brier 12-factor lockstep all preserved. Pre-existing flaky `test_tempo_recalibration::test_daily_ranges_bp_sql_pins_paris_tz_and_safety_filters` documented as r156 candidate (CWD-dependent path bug verified via `git stash` on HEAD `6779ebf` — NOT r155 regression).
+
+### Phase 3 deploy + Phase 3.5 R-WITNESS-EMPIRICAL
+
+R-DEPLOY-6 Pattern #14 + #16 validated **3rd consecutive zero-retry** (api Steps 3a/3b/3c/4 + web2 Steps 1a/1b/1c/4 each attempt 1 OK). healthz=200 + `/v1/event-anticipation/SPX500_USD`=200 (Engine 8 LIVE) + web2 local=200 public=200. Live prod response `/v1/event-anticipation/EUR_USD` contains the new `literature_anchor` field with `"+ Birz-Lott 2011 JBF (retail-sales faible-signal)"` substring — mechanical proof r155 backend is deployed.
+
+### Mission centrale axis impact
+
+axis-4 +1 LEVEL DEPTH cumulatif **r152+r153+r154+r155**. NO state change at axis-closure level. **4 of 8 axes ✅ CLOSED + axis 4 r155 deeper still.**
+
+### NEW pattern observations r155
+
+**Pattern #15 R59-disprove now stable across 8 applications** : r147 Bauer DP21003 + r148 daily-bar + r150×2 VIX/RBA-BoC + r153 Karnaukh-Vrolijk + r153 ISM-Services-honest + r154 CB-Speaker-honest-subset + **r155 PMI-Services-REJECT-with-Retail_Sales-pivot**. Doctrine self-correcting at multi-round timescale AND now demonstrates **pivot-with-anchor** behavior : when AUTO-RECO fails R59, pivot to a different candidate with a defensible anchor (Birz-Lott 2011 negative-result peer-reviewed is itself a legitimate calibration source).
+
+**Pattern #16 + #14 validated 3 consecutive deploys** (r153 + r154 + r155 zero SSH-retry across 48 SSH operations) — R-DEPLOY-6 structurally hardened against lesson #24 SSH-instability class.
+
+**NEW r155 doctrinal observation (r156 codification candidate as pattern #17)** : a peer-reviewed negative-result IS a legitimate calibration anchor when paired with mechanical sentinel + confidence-clamp + caveat. 3-axis sentinel ladder (single_source / asymmetric / low_signal) covers : direction-weakness (r150) ; sign-symmetry-breaks (r153) ; magnitude-effect-size-undetectable (r155) — each surfaces a DIFFERENT axis of weak-evidence honesty without overlapping.
+
+**r156 binding default candidates** : (a) ⭐ AUTO-RECO **Empirical reaction-beta backfill via Dukascopy 1-min FREE multi-year** — replaces literature priors with Ichor-historical betas, closes cold-start caveat at source (effort L 3-5 dev-days, R59 first) ; (b) YELLOW-4 sentinel saturation invariant ; (c) YELLOW-5 Retail_Sales defensive `_TITLE_FRAGMENT_BLOCKED` ; (d) NICE-3 symmetry guard ; (e) `test_tempo_recalibration` path-relative bug fix ; (f) FRED VIXCLS backfill 5y ; (g) UK Claimant Count + Average Earnings Index ; (h) `output_gap_proxy` wiring ; (i) r147 MRO smell fix ; (j) per-currency Employment subclass ; (k) r152 trader YELLOW-1/2 visual demotion ; (l) code-reviewer r153 SF-3 deploy latency budget ; (m) code-reviewer r153 N-3 aria-label asymmetric a11y ; (n) r144 reconciler unit normalization ; (o) `actual_source`/`actual_revised` columns + EU/UK reconcilers. Pattern #15 applies to every ⭐ candidate.
+
+ZERO Anthropic API spend r155. **Voie D held 70 rounds.**
