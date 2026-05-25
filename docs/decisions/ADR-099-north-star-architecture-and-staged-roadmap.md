@@ -4304,3 +4304,122 @@ axis-4 +1 LEVEL DEPTH cumulatif **r152+r153+r154+r155**. NO state change at axis
 **r156 binding default candidates** : (a) ⭐ AUTO-RECO **Empirical reaction-beta backfill via Dukascopy 1-min FREE multi-year** — replaces literature priors with Ichor-historical betas, closes cold-start caveat at source (effort L 3-5 dev-days, R59 first) ; (b) YELLOW-4 sentinel saturation invariant ; (c) YELLOW-5 Retail_Sales defensive `_TITLE_FRAGMENT_BLOCKED` ; (d) NICE-3 symmetry guard ; (e) `test_tempo_recalibration` path-relative bug fix ; (f) FRED VIXCLS backfill 5y ; (g) UK Claimant Count + Average Earnings Index ; (h) `output_gap_proxy` wiring ; (i) r147 MRO smell fix ; (j) per-currency Employment subclass ; (k) r152 trader YELLOW-1/2 visual demotion ; (l) code-reviewer r153 SF-3 deploy latency budget ; (m) code-reviewer r153 N-3 aria-label asymmetric a11y ; (n) r144 reconciler unit normalization ; (o) `actual_source`/`actual_revised` columns + EU/UK reconcilers. Pattern #15 applies to every ⭐ candidate.
 
 ZERO Anthropic API spend r155. **Voie D held 70 rounds.**
+
+## Implementation (r156, 2026-05-25) — Consolidation round : 5-strand carry-forward closure + Pattern #17 negative-result-anchor OBSERVATION codify
+
+**TL;DR** : r156 = pure hygiene consolidation (mirroring r151 pattern), closes ALL 4 carry-forward items deferred from r155 (trader YELLOW-4 sentinel saturation + YELLOW-5 defensive negative-list + code-reviewer NICE-3 symmetry guard + pre-existing flaky `test_tempo_recalibration` path bug) plus codifies the new Pattern #17 negative-result-anchor observation in engine docstring + memory file. 5 theme-coherent strands, 6 files changed, +510/-16 LOC. NO new ADR, NO new migration, NO new feature flag, NO data backfill, NO coverage change. Pivot from r156 ⭐ AUTO-RECO Dukascopy backfill (L-effort 3-5 dev-days) to consolidation round was the doctrinally-correct choice (doctrine #2 strict scope + r151 consolidation precedent).
+
+**Strands shipped (single feat commit `e6badab`)** :
+
+- **Strand A** (trader r155 YELLOW-4) — Sentinel saturation collapse logic. NEW `PARSE_FAILURE_PRIORITY: Record<string, number>` ordering (most-restrictive-first, 7 sentinels ranks 0-6) + `PARSE_FAILURE_MAX_VISIBLE=3` cap + `prioritizedParseFailures()` + `hiddenParseFailureCount()` pure-fns in `apps/web2/lib/eventAnticipation.ts`. `<EventAnticipationPanel>` JSX uses `prioritizedParseFailures` + renders "+N de plus" honest suffix when sentinels exceed cap (preserves doctrine #11 — never hides, just deprioritizes by rank). Backend invariant test `TestR156SentinelSaturationBackend` verifies engine max ≤ 4 sentinels per call via combinatorial enumeration (max realistic = 3 : event_class_unmapped OR class-specific sentinel + impact_value_invalid + vix_observation_missing).
+- **Strand B** (trader r155 YELLOW-5) — Retail_Sales defensive `_TITLE_FRAGMENT_BLOCKED` += 2 entries (`"retail sales m/m excl"` + `"retail sales m/m ex "`) prophylactic against future FF title drift. Birz-Lott 2011 _JBF_ tested HEADLINE retail sales only ; hypothetical sub-aggregate "Retail Sales m/m Excl. Auto" would silently propagate `low_signal_confidence` sentinel into a class the literature anchor doesn't cover. Trader r156 YELLOW-3 (add "advance retail sales" + "core retail sales" to block list) REJECTED empirically per lesson #38 — "Core Retail Sales m/m" lowercased contains "retail sales m/m" substring at offset 5 → maps correctly via POSITIVE pattern ; "Advance Retail Sales m/m" same. Trader claim that current list "covers Core variants" was empirically wrong.
+- **Strand C** (code-reviewer r155 NICE-3) — Confidence clamp symmetry guard. Added `expected_drift_bp is not None` guard to the proximity-conditional clamp block for documentation parity with the sentinel emission block. Currently safe (the confidence ladder routes `None` magnitude to `"unavailable"` which is NOT in `("high", "medium")` clamp-target set), but the explicit guard documents the invariant + is robust against future ladder refactors. Test `TestR156NICE3SymmetryGuard` pins regression behavior.
+- **Strand D** (pre-existing flaky test, r155 carry-forward) — `test_tempo_recalibration::test_daily_ranges_bp_sql_pins_paris_tz_and_safety_filters` CWD-relative path bug fix : `open("src/ichor_api/services/tempo_recalibration.py")` → `Path(__file__).resolve().parent.parent / "src" / "ichor_api" / "services" / "tempo_recalibration.py"`. Verified pre-r155 via `git stash` on HEAD `6779ebf` PRE-r155 (NOT r155 regression). Generalizable lesson : every test that opens a source file MUST use `__file__`-relative resolution, NEVER bare relative paths. Docstring documents this meta-pattern.
+- **Strand E** (NEW Pattern #17 OBSERVATION codify) — Module docstring NEW section "PATTERN #17 NEGATIVE-RESULT-ANCHOR OBSERVATION (r155 single application, codify-pending-2nd-witness per trader r156 YELLOW-5)". Out-of-repo `~/.claude/projects/D--Ichor/memory/ichor_r51-r71_doctrinal_patterns.md` += matching observation entry. Pattern #17 = peer-reviewed negative-result IS legitimate calibration anchor when paired with mechanical sentinel + confidence-clamp + caveat (Birz-Lott 2011 + Retail_Sales class r155). Trader r156 YELLOW-5 fixed : codification downgraded from "DOCTRINE" to "OBSERVATION pending 2nd witness" — Pattern #14 + #16 required 2 empirical validations before formal codification ; Pattern #17 has only r155 observation. Next negative-result anchor (durable goods orders per Birz-Lott same paper, or r157+ replication) will provide the 2nd witness.
+
+### Phase 2 reviewer concordance (doctrine #17 Tier 4 backend)
+
+- **trader** : SHIP-WITH-FIX (0 RED, 3 YELLOW, 3 GREEN). YELLOW-5 (Pattern #17 OBSERVATION downgrade) APPLIED ; YELLOW-1 (priority order asymmetric > low_signal) defended with rationale (sign-asymmetry precedes magnitude calibration) ; YELLOW-3 (add "advance/core retail sales" to block list) REJECTED empirically per lesson #38. GREEN on cap=3 + "+N de plus" copy + NICE-3 symmetry guard.
+- **code-reviewer** : READY-TO-MERGE (0 CRITICAL, 1 SHOULD-FIX, 3 NICE, 6 CONFIRMATIONS). SF-1 (SSOT asymmetric superset test : weaken from strict equality to "PRIORITY ⊇ FR labels" — allows pre-allocation for r157+ future sentinels) APPLIED. N-2 (DRY `hiddenCount` extracted once via IIFE) APPLIED. N-3 (test name "4_entries" → "5_entries" matching assertion `≥ 5`) APPLIED. N-1 (trailing-space docstring note) deferred — cosmetic.
+
+### Build gate (MEASURED on COMMITTED-shape doctrine #14)
+
+- **pytest engine + invariants + tempo_recal** : **247/247** (engine 172 + invariants 45 + tempo 30)
+- **vitest** : **446/446** (was 431 r155 + 15 r156 net : PRIORITY ordering 5 + prioritizedParseFailures 7 + hiddenParseFailureCount 3)
+- **tsc** : 0 errors ; **ESLint** : clean ; **Prettier** : clean ; **Ruff** : All checks passed
+- **ADR-017 source-inspection lockstep CI** : green (no directional imperatives in new collapse copy, sentinel labels, or +N suffix)
+- **r149 event-class consistency invariant** : preserved (Retail_Sales ∈ baseline ✓)
+- **Brier 12-factor lockstep r142+r148** : preserved (no new factor name)
+- **Pre-existing `test_tempo_recalibration` failure FIXED r156** (was r155 carry-forward flagged in closing-sync)
+- 15/15 pre-commit hooks passed (gitleaks + ruff + prettier + ichor doctrinal invariants ADR-081 included)
+
+### Phase 3 deploy via R-DEPLOY-6 (Pattern #14 EMPIRICAL VALIDATION IN r156 DEPLOY ITSELF)
+
+```
+[api]
+[2026-05-25T15:40:39Z] Step 1: hard-check OK
+[2026-05-25T15:40:40Z] Step 2: backup OK
+[2026-05-25T15:40:41Z] Step 3a/3b/3c: tar + scp + ssh-extract — all attempt 1 OK
+[2026-05-25T15:40:44Z] Step 4: SSH restart attempt 1 OK
+[2026-05-25T15:40:45Z] Step 5 SSH timeout — manual SSH curl verify : healthz=200, /v1/event-anticipation/SPX500_USD=200
+
+[web2 attempt 1 — Pattern #14 fired EXACTLY AS DESIGNED]
+[2026-05-25T15:41:36Z] Step 1b attempt 1/3 failed
+[2026-05-25T15:42:06Z] Step 1b attempt 2/3 failed
+[2026-05-25T15:42:36Z] Step 1b attempt 3/3 failed
+[2026-05-25T15:42:51Z] FATAL: Step 1b scp failed 3 attempts (lesson #24 cluster) — manual intervention required
+
+[manual SSH liveness probe]
+[2026-05-25T15:43:39Z] SSH_OK: ubuntu-16gb-nbg1-1
+
+[web2 attempt 2 — post-recovery]
+[2026-05-25T15:44:23Z] Step 4 attempt 1: SSH restart OK
+[2026-05-25T15:44:32Z] RESULT: local=200 public=200
+```
+
+**Pattern #14 EMPIRICALLY VALIDATED IN r156 DEPLOY ITSELF** — the retry × 3 with 15s sleep + ConnectTimeout=15 + fail-loud-with-lesson-#24-ref fired exactly as designed, allowed manual SSH liveness probe + retry, no silent corruption. r153+r154+r155 were zero-retry (3 consecutive zero-failure runs validating the pattern works because it never fires in stable conditions) ; r156 demonstrates the pattern works when it DOES fire (graceful failure + recovery path).
+
+### Phase 3.5 R-WITNESS-EMPIRICAL via SSH curl on live prod
+
+`/v1/event-anticipation/SPX500_USD` response (verbatim extract from live Hetzner prod 2026-05-25 15:44:58 UTC) :
+
+```json
+{
+  "next_event_title": "CB Consumer Confidence",
+  "next_event_class": "CCI",
+  "expected_drift_direction": "unknown",
+  "expected_drift_magnitude_bp": 0.21,
+  "confidence": "low",
+  "vix_regime_gate": "below_p50",
+  "literature_anchor": "Lucca-Moench 2015 (drift) + Boyd-Hu-Jagannathan 2005 + Kurov 2021 + Akhtar et al. 2012 JBF + Andersen-Bollerslev-Diebold-Vega 2007 JIE + Pinchuk 2022 arXiv + Birz-Lott 2011 JBF (retail-sales faible-signal)",
+  "parse_failures": ["asymmetric_negativity_bias"]
+}
+```
+
+**Witness validators** :
+
+- ✅ Birz-Lott 2011 citation preserved (r155 carry-forward intact, no regression from r156 docstring updates)
+- ✅ Engine 8 still ENGAGED + structurally correct (r153-r155 functionality preserved)
+- ✅ Current scenario emits 1 sentinel (asymmetric_negativity_bias only) — NO collapse triggered (cap=3 not exceeded) → frontend renders without "+N de plus" suffix
+- ⏳ **Multi-sentinel saturation visual witness deferred** — current production state never emits >3 sentinels naturally (max realistic = 3 per backend invariant). Will visually fire on a hypothetical Retail_Sales event + missing VIX scenario. Test coverage via vitest 446/446 mechanically pins behavior.
+
+### Honest scope (doctrine #2 + #11)
+
+- NO new ADR.
+- NO new migration (alembic 0052 unchanged).
+- NO new feature flag.
+- NO data backfill.
+- Coverage Engine 8 : **52.6% UNCHANGED** (pure hygiene + prophylactic — new negative-list entries capture 0 current events).
+- Pure carry-forward closure + doctrine codification. Doctrine #9 dated §Impl(r156) APPEND on ADR-099 (THIS SECTION). doctrine-#9 coord-math ledger UNCHANGED.
+
+### Mission centrale axis impact
+
+NO axis state change. Axes post-r156 : 1-2 ✅ r123 / 3 ✅ r132+r133 / **4 ✅ +1 LEVEL r152+r153+r154+r155 ⭐** / 5 ✅ EMPIRICALLY GREEN r146 / 6 ✅ CLOSED r142+r143 / 7 🎯 LIVE / 8 🎯+1 PARTIAL r131. **4 of 8 axes ✅ CLOSED + axis 4 r152-r155 deeper still.**
+
+### NEW pattern observations r156
+
+**Pattern #14 EMPIRICALLY VALIDATED IN r156 DEPLOY ITSELF** : 4th deploy of the pattern (r153/r154/r155 zero-retry + r156 retry × 3 + recover). The pattern works in BOTH stable conditions (decomposition prevents failure entirely) AND failure conditions (graceful retry-with-sleep + fail-loud + manual recovery path). Twin doctrines #14+#16 are now structurally hardened against the lesson #24 SSH-instability class across the full r-DEPLOY-6 sequence.
+
+**Pattern #17 OBSERVATION status (codify-pending-2nd-witness)** : trader r156 YELLOW-5 fix established the discipline — formal "DOCTRINE" codification requires 2+ empirical applications (matching Pattern #14 + #16 precedent). r155 alone insufficient ; codify formally when r157+ ships a 2nd negative-result anchor class.
+
+**Lesson #38 trader-claims-hypothesis-verify** : trader r156 YELLOW-3 ("current negative-list covers Core variants — add advance/core retail sales") was empirically wrong. Static analysis of the substring matcher proved "Core Retail Sales m/m" lowercased contains "retail sales m/m" at offset 5 → maps correctly via positive pattern without needing negative-list entry. The trader claim was a hypothesis (per lesson #38 from r140 lesson-codification) ; empirical verification REJECTED. Documented honestly in commit message + this §Impl to preserve doctrine #11 calibrated honesty.
+
+### r157 binding default candidates
+
+Priority order, Pattern #15 R59-disprove-before-commit applies to every ⭐ AUTO-RECO :
+
+1. ⭐ AUTO-RECO **Dukascopy 1-min FREE multi-year empirical reaction-beta backfill** — still deferred since r150+r152+r153+r154+r155+r156 (MOST priority since closes cold-start at source). Effort L 3-5 dev-days. R59 first on Dukascopy API + sampling discipline.
+2. **2nd negative-result anchor class** (e.g., Durable Goods Orders per Birz-Lott 2011 same paper) — triggers Pattern #17 formal DOCTRINE codification (currently OBSERVATION pending 2nd witness). Effort S.
+3. **Step 5 endpoint-verify SSH retry hardening** (r155+r156 deploy both hit Step 5 SSH timeout on the post-restart endpoint verify step — extend Pattern #14 retry-with-sleep to Step 5). Effort S.
+4. **FRED VIXCLS backfill 5y** (deferred since r150). Effort M.
+5. **UK Claimant Count + Average Earnings Index extension**. Effort S.
+6. **`output_gap_proxy` wiring**. Effort M.
+7. **r147 MRO smell fix** (verified ALREADY DONE empirically r156 ; remove from binding default list — line 490 `class TestBrierLockstepWithR147:` has no inheritance, was fixed r151 per memory r151 detail).
+8. **Per-currency Employment subclass** (trader r150 YELLOW-3, deferred 6 rounds).
+9. **r152 trader YELLOW-1/2 visual demotion of literature priors** (UI change → 4-reviewer required).
+10. **Code-reviewer r153 SF-3** deploy latency budget. Effort S.
+11. **Code-reviewer r153 N-3** aria-label conditional magnitude asymmetric a11y. Effort XS.
+12. **r144 FRED ALFRED reconciler unit normalization upstream**.
+13. **`actual_source` / `actual_revised` columns** + EU/UK reconcilers.
+
+ZERO Anthropic API spend r156. **Voie D held 71 rounds.**

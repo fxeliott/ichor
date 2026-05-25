@@ -161,7 +161,45 @@ See `docs/ROADMAP_2026-05-06.md` for the original 4-layer architecture (DATA FOU
 
 ---
 
-## §3 — Immediate next (r156)
+## §3 — Immediate next (r157)
+
+**r156 EXECUTED & SHIPPED & DEPLOYED & WITNESSED (2026-05-25)** : 🧹 Consolidation round — **5-strand carry-forward closure + Pattern #17 OBSERVATION codify**. Pivoted from r156 ⭐ AUTO-RECO Dukascopy backfill (L-effort 3-5 dev-days) per doctrine #2 strict scope + r151 precedent. Single feat commit `e6badab` (+510/-16 LOC, 6 files). NO new ADR, migration, flag, backfill, or coverage change (52.6% unchanged).
+
+**5 strands shipped** : (A) trader r155 YELLOW-4 sentinel saturation collapse logic (NEW `PARSE_FAILURE_PRIORITY` + cap=3 + `prioritizedParseFailures`/`hiddenParseFailureCount` + "+N de plus" suffix) ; (B) trader r155 YELLOW-5 defensive `_TITLE_FRAGMENT_BLOCKED` prophylactic ; (C) code-reviewer r155 NICE-3 symmetry guard ; (D) pre-existing `test_tempo_recalibration` CWD path bug FIXED ; (E) Pattern #17 negative-result-anchor OBSERVATION codify (downgrade to "OBSERVATION pending 2nd witness" per trader YELLOW-5).
+
+**Phase 2 concordance** : trader SHIP-WITH-FIX (3 YELLOW : YELLOW-5 APPLIED, YELLOW-1 defended, YELLOW-3 REJECTED empirically per lesson #38) + code-reviewer READY-TO-MERGE (SF-1 + N-2 + N-3 APPLIED).
+
+**Build gate (MEASURED)** : pytest full 2598/2598 + 34 skipped + engine targeted 172/172 + invariants 45/45 + tempo_recal FIXED + vitest 446/446 + tsc 0 + ruff/eslint/prettier clean.
+
+**Phase 3 deploy** : **Pattern #14 EMPIRICALLY VALIDATED IN r156 DEPLOY ITSELF** — api Steps 3a/3b/3c/4 attempt 1 OK then web2 Step 1b SSH timeout × 3 (retry-with-sleep + fail-loud-with-lesson-#24-ref fired exactly as designed) ; manual SSH liveness probe + retry succeeded. Pattern works in BOTH stable conditions (r153+r154+r155 zero-retry) AND failure conditions (r156 retry + recover).
+
+**Phase 3.5 R-WITNESS-EMPIRICAL** : Birz-Lott 2011 citation preserved on live prod ; current scenario emits 1 sentinel (no collapse triggered ; visual witness deferred to multi-sentinel natural scenario, vitest 446/446 pins mechanical behavior).
+
+Voie D **71 rounds**. NO axis state change. Mission centrale post-r156 : 1-2 ✅ r123 / 3 ✅ r132+r133 / **4 ✅ +1 LEVEL r152+r153+r154+r155 ⭐** / 5 ✅ r146 / 6 ✅ r142+r143 / 7 🎯 LIVE / 8 🎯+1 PARTIAL r131. **4 of 8 axes ✅ CLOSED + axis 4 r152-r155 deeper still.**
+
+**r157 binding default candidates** (priority order, Pattern #15 R59-first per pattern #15) :
+
+1. ⭐ AUTO-RECO **Dukascopy 1-min FREE multi-year empirical reaction-beta backfill** (deferred since r150+r152+r153+r154+r155+r156 — MOST priority because closes cold-start at source ; r155 R59 confirmed ALL r152-r154 baselines are cold-start priors). Effort L 3-5 dev-days. Pattern #15 R59 first on Dukascopy API + sampling discipline.
+2. **2nd negative-result anchor class** (Durable Goods Orders per Birz-Lott 2011 same paper, or PMI-services replication r157+). Triggers Pattern #17 formal DOCTRINE codification (currently OBSERVATION pending 2nd witness). Effort S.
+3. **Step 5 endpoint-verify SSH retry hardening** (r155+r156 both hit Step 5 SSH timeout on post-restart endpoint verify). Extend Pattern #14 retry-with-sleep + ConnectTimeout=15 to Step 5. Effort S.
+4. **FRED VIXCLS backfill 5y** (deferred since r150). Effort M.
+5. **UK Claimant Count Change + Average Earnings Index extension**. Effort S.
+6. **`output_gap_proxy` wiring** (composite NFCI + SBET + macro nowcast → `business_cycle_sign`). Effort M.
+7. **Per-currency Employment subclass** (trader r150 YELLOW-3, deferred 7 rounds). Effort S.
+8. **r152 trader YELLOW-1/2 visual demotion of literature priors** (italic / "· prior" suffix / lighter weight ; UI change → 4-reviewer required). Effort S-M.
+9. **Code-reviewer r153 SF-3** (deploy latency budget + optional exponential backoff). Effort S.
+10. **Code-reviewer r153 N-3** (aria-label conditional magnitude asymmetric a11y). Effort XS.
+11. **r144 FRED ALFRED reconciler unit normalization upstream** (deferred since r147). Effort M.
+12. **`actual_source` / `actual_revised` columns** + EU/UK reconcilers. Effort M each.
+13. **Code-reviewer S4 orchestrator hook AsyncMock test** (deferred since r142). Effort S.
+
+Pattern #15 R59-disprove-before-commit applies to every r157 ⭐ AUTO-RECO candidate.
+
+NOTE r156 doctrinal corrections : **r147 MRO smell fix** was ALREADY DONE r151 per memory r151 detail (`class TestBrierLockstepWithR147:` line 490 has no inheritance — verified empirically r156). Removed from r156 binding default list (was incorrectly listed in r155 ROADMAP closing-sync — doctrinal hygiene fix).
+
+---
+
+## §3 — Previous immediate next (r156, EXECUTED above)
 
 **r155 EXECUTED & SHIPPED & DEPLOYED & WITNESSED (2026-05-25)** : Tier 4 axis-4 +1 LEVEL DEPTH continued — **Retail_Sales class extension + Pattern #15 R59-disprove 8th application (PMI Services REJECT pivot)**. R59 caught PMI Services baseline as unverifiable peer-reviewed magnitude (Flannery-Protopapadakis 2002 EXCLUDED PMI ; Lucca-Moench 2015 pre-drift FOMC-unique ; ABDV 2007 paywall-unverifiable ; Wang-Yang 2018 China-only single-source). Pivoted to Birz-Lott 2011 _JBF_ negative-result anchor : 5bp floor + new `low_signal_confidence` sentinel (3rd magnitude-uncertainty sentinel after r150 single_source_direction + r153 asymmetric_negativity_bias) + proximity-conditional confidence clamp (imminent <60min → "medium" ; else → "low") + Pattern #15 8th-application docstring honest-unmapped subset (PMI Services + Ivey PMI + Philly Fed). Coverage 47.4% → **52.6%** (50/95). CI ratchet 45% → 50%. Single feat commit `326164d` +534/-5 LOC across 4 files. **Phase 2 concordance** : trader SHIP-WITH-FIX (YELLOW-2 + YELLOW-3 applied pre-commit) + code-reviewer READY-TO-MERGE (0 CRITICAL 0 SHOULD-FIX 3 NICE 8 CONFIRMATIONS). **Build gate** : pytest engine 172/172 + invariants 45/45 + vitest 431/431 + tsc 0 + ruff/eslint/prettier clean. **Phase 3 deploy** : R-DEPLOY-6 Pattern #14+#16 validated 3rd consecutive zero-retry deploy (48 SSH operations across r153+r154+r155, zero failures). **Phase 3.5 R-WITNESS-EMPIRICAL** : Birz-Lott 2011 citation LIVE in `/v1/event-anticipation/EUR_USD` `literature_anchor` field on prod (mechanical proof). Voie D **70 rounds**. **NEW r155 doctrinal observation (r156 pattern #17 candidate)** : peer-reviewed negative-result IS legitimate calibration anchor when paired with mechanical sentinel + confidence-clamp + caveat ; 3-axis sentinel ladder (single_source / asymmetric / low_signal) now covers direction-weakness + sign-symmetry-breaks + magnitude-effect-size-undetectable without overlapping.
 
