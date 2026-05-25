@@ -173,11 +173,39 @@ cmd_deploy() {
   if [[ ${restart_ok} -eq 0 ]]; then
     fail "Step 4 SSH restart failed 3 attempts (lesson #24 SSH-instability cluster) — manual intervention required" 9
   fi
+  # r157 Step 5 SSH retry hardening — r155+r156 deploys both hit SSH timeout
+  # on the post-restart endpoint-verify probe (Step 5 internal SSH calls).
+  # Extends Pattern #14 retry-with-sleep + ConnectTimeout=15 + fail-loud-with-
+  # lesson-#24-ref discipline to the Step 5 probe loop. The probe() helper
+  # already uses ${SSH} (which carries ConnectTimeout=15), but the 30×2s
+  # polling loop above had no retry-on-SSH-timeout — a single connection
+  # timeout would silently report h=000 for that probe and the loop would
+  # continue, eventually exhausting the 30 attempts on h!=200 alone.
+  #
+  # r157 hardening (code-reviewer SF-3 comment-vs-code aligned) : if probe
+  # returns 000 (SSH-timeout signature per probe() fallback, OR ANY curl
+  # failure including TCP RST during normal cold-start per code-reviewer
+  # SF-4 false-positive note), invoke a 15s SSH-recovery sleep instead of
+  # the bare 2s polling sleep. Capped at 3 SSH-recovery waits per 30-attempt
+  # loop so the total wallclock stays ≤ ~110s vs ~60s baseline. The
+  # `ssh_recovery_count` bound is the ONLY guard (no poll_idx threshold —
+  # prior comment claimed "after 10 polls" but code never enforced it).
+  # False-positive cost (h=000 fires on cold-start TCP RST not just SSH
+  # timeout) is acceptable : the 3-recovery cap bounds the cost at +45s
+  # wallclock even in worst-case false-positive scenario.
   local h="000"
-  for _ in $(seq 1 30); do
+  local ssh_recovery_count=0
+  local poll_idx
+  for poll_idx in $(seq 1 30); do
     h="$(probe "${HEALTH}")"
     [[ "${h}" == 200 ]] && break
-    sleep 2
+    if [[ "${h}" == 000 && ${ssh_recovery_count} -lt 3 ]]; then
+      log "Step 5 healthz probe ${poll_idx}/30 returned 000 (SSH-timeout signature) — Pattern #14 retry sleep 15s (recovery ${ssh_recovery_count}/3 lesson #24 cluster)"
+      ssh_recovery_count=$((ssh_recovery_count + 1))
+      sleep 15
+    else
+      sleep 2
+    fi
   done
 
   log "Step 5: verify health + sample endpoint"

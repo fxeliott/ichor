@@ -699,3 +699,36 @@ describe("r156 hiddenParseFailureCount (saturation collapse counterpart)", () =>
     expect(hiddenParseFailureCount(input, 99)).toBe(0);
   });
 });
+
+// ── r157 — Durable_Goods + UK_Employment classes (post-trader-fix-cluster) ──
+
+describe("r157 EVENT_CLASS_FR Durable_Goods extension (Pattern #17 OBSERVATION)", () => {
+  it("maps Durable_Goods → Commandes de biens durables label", () => {
+    expect(EVENT_CLASS_FR.Durable_Goods).toContain("Commandes de biens durables");
+  });
+
+  it("Durable_Goods label distinct from Retail_Sales (REGRESSION)", () => {
+    // Both Pattern #17 witnesses share same negative-result class anchor
+    // (Birz-Lott 2011) but render as distinct user-visible labels.
+    expect(EVENT_CLASS_FR.Durable_Goods).not.toBe(EVENT_CLASS_FR.Retail_Sales);
+  });
+
+  it("preserves r155+r156 Retail_Sales label (REGRESSION)", () => {
+    expect(EVENT_CLASS_FR.Retail_Sales).toContain("Ventes au détail");
+  });
+});
+
+describe("r157 EVENT_CLASS_FR UK_Employment extension (trader RED-2 fix)", () => {
+  it("maps UK_Employment → Emploi UK label", () => {
+    expect(EVENT_CLASS_FR.UK_Employment).toContain("Emploi UK");
+  });
+
+  it("UK_Employment label distinct from generic Employment (REGRESSION)", () => {
+    // UK is a dedicated class at 12bp (NOT US NFP=20 parity per trader
+    // r157 RED-2). Distinct user-visible label preserves the asymmetry
+    // honestly.
+    expect(EVENT_CLASS_FR.UK_Employment).not.toBe(EVENT_CLASS_FR.Employment);
+    // Distinguishes via UK / Claimant Count / Average Earnings markers
+    expect(EVENT_CLASS_FR.UK_Employment).toMatch(/UK|Claimant|Earnings/);
+  });
+});

@@ -61,24 +61,26 @@ ACADEMIC FOUNDATIONS (verbatim citations, NOT memory)
   magnitude-uncertainty sentinel after r150 `single_source_direction` +
   r153 `asymmetric_negativity_bias`.
 
-PATTERN #17 NEGATIVE-RESULT-ANCHOR OBSERVATION (r155 single application, codify-pending-2nd-witness per trader r156 YELLOW-5)
-------------------------------------------------------------------------------------------------------------------------------
+PATTERN #17 NEGATIVE-RESULT-ANCHOR OBSERVATION (r155 + r157 = 1 paper × 2 series, codify-pending-2nd-INDEPENDENT-anchor per trader r157 YELLOW-5)
+-------------------------------------------------------------------------------------------------------------------------------------------
 
-**Status** : OBSERVATION (1 application) — formal doctrine codification
-pending a 2nd independent witness (Pattern #14 + #16 both required 2
-empirical validations before codification). Trader r156 YELLOW-5 noted that
-codifying after 1 observation breaks the multi-application discipline
-established for prior infrastructure patterns. Next negative-result anchor
-candidate (e.g., durable goods orders per Birz-Lott 2011 same paper, or
-hypothetical r157+ PMI-services replication) will provide the 2nd witness
-and trigger full doctrine codification.
+**Status** : OBSERVATION (1 paper × 2 series witnessed). Trader r157 review
+explicitly rejected the premature DOCTRINE promotion : "1 paper × 2 series
+is NOT 2 independent applications under multi-application discipline.
+Pattern #14 was validated via SEPARATE deploy events ; Pattern #16 via
+SEPARATE deploys. Pattern #17 r155+r157 share Birz-Lott 2011 *JBF* as
+single anchor source." Formal DOCTRINE codify pending a 2nd INDEPENDENT
+peer-reviewed negative-result anchor (candidates : Pinchuk 2022 housing-
+starts negative-result OR Industrial Production replication from a
+different paper).
 
-A peer-reviewed **negative-result** IS a legitimate calibration anchor when
-paired with mechanical sentinel + confidence-clamp + caveat. The r155
-Retail_Sales class is the single current example : Birz-Lott 2011 *JBF*
+A peer-reviewed **negative-result** IS a candidate-legitimate calibration
+anchor when paired with mechanical sentinel + confidence-clamp + caveat.
+The r155 Retail_Sales + r157 Durable_Goods classes are the canonical
+single-paper-multi-series witnesses : Birz-Lott 2011 *JBF* 35(11):2791-2800
 documented EXPECTED SIGN + STATISTICALLY INSIGNIFICANT correlation for
-retail sales news effect on stock returns. Rather than leave the class
-unmapped (Pattern #15 honest abstention), the engine ships :
+BOTH retail sales AND durable goods orders. Rather than leave these
+classes unmapped (Pattern #15 honest abstention), the engine ships :
 
   - 5 bp floor estimate (well below significant-class baselines)
   - `low_signal_confidence` sentinel (mechanical downstream filter)
@@ -95,7 +97,7 @@ SHIPPING value (vs. alternative of leaving unmapped per Pattern #15). The
 
 Each surfaces a DIFFERENT axis of weak-evidence honesty without overlapping.
 
-Future r157+ negative-result anchors (durable goods orders, hypothetical
+Future r158+ negative-result anchors (Pinchuk 2022 housing-starts, hypothetical
 PMI-services replication) MUST follow the same triad : floor magnitude +
 sentinel in `_LOW_SIGNAL_CONFIDENCE_CLASSES` (or new sentinel class if
 different axis) + caveat with peer-reviewed citation.
@@ -328,8 +330,69 @@ EVENT_CLASS_BASELINE_BP: dict[str, float] = {
     # subset + r155 PMI-Services-REJECT). PMI Services + Ivey PMI + Philly
     # Fed Manufacturing Index kept HONESTLY UNMAPPED per the doctrine.
     "Retail_Sales": 5.0,
+    # r157 — Durable_Goods Orders class (Pattern #17 1-paper-2-series
+    # witness, NOT yet formal DOCTRINE per trader r157 YELLOW-5 — promotion
+    # pending 2nd INDEPENDENT peer-reviewed anchor). Same Birz-Lott 2011
+    # *JBF* 35(11):2791-2800 anchor as r155 Retail_Sales (same paper tested
+    # 4 series : GDP, unemployment, retail sales, durable goods orders ;
+    # last two are the negative-result class). Honest 5bp floor +
+    # `low_signal_confidence` sentinel + proximity-conditional confidence
+    # clamp (same triad as r155).
+    #
+    # COLD-START STAMP r157 YELLOW-1 trader concordance : 5bp = parity with
+    # Retail_Sales NOT empirical separate-class calibration. Durable goods
+    # is more volatile than retail sales (capex cycle vs consumer cadence)
+    # but Birz-Lott didn't disaggregate the two series within their negative-
+    # result class. Caveat explicitly stamps "magnitude identique faute de
+    # désagrégation empirique, à recalibrer post-backfill" — r158+ candidate
+    # = per-series reaction-beta when range provider populates.
+    #
+    # FIXTURE STATUS r157 : 0 "Durable Goods Orders" events in the 60d FF
+    # fixture (95 events surveyed 2026-05-24). Mapping is PROPHYLACTIC —
+    # captures future FF releases when they enter the 60d window. Parity
+    # with r156 defensive negative-list pattern (zero immediate behavioral
+    # change, future-drift safety).
+    #
+    # Pattern #17 STATUS POST-r157 trader review : remains OBSERVATION
+    # (1 paper × 2 series witnessed) NOT formal DOCTRINE. Promotion pending
+    # a 2nd INDEPENDENT peer-reviewed negative-result anchor from a
+    # different paper. Multi-application discipline established by trader
+    # r156 YELLOW-5 requires source-independence at the literature level,
+    # not just shipping-application level (parity with Pattern #14 SEPARATE
+    # deploy events + Pattern #16 SEPARATE round deploys).
+    "Durable_Goods": 5.0,
+    # r157 — UK_Employment class (Claimant Count Change + Average Earnings
+    # Index 3m/y). NOT parity with US NFP=20 per trader r157 RED-2 + code-
+    # reviewer r157 SF-1 concordant : UK FX trading volume + global-reserve-
+    # currency asymmetry imply UK labor-market reaction empirically SMALLER
+    # than US NFP. Magnitude 12bp = midpoint of trader-suggested 12-15bp
+    # band (below NFP=20, above CCI/Michigan/SNB_Speech=10, above
+    # Retail_Sales/Durable_Goods=5 floor).
+    #
+    # PATTERN #15 R59 SELF-APPLIED r157 (12th application, META — caught
+    # mid-round by reviewers before deploy) : an earlier draft cited Bauer-
+    # Swanson 2022 NBER w29939 as UK labor-market anchor. Both trader RED-2
+    # AND code-reviewer SF-1 concordant : w29939 is "A Reassessment of
+    # Monetary Policy Surprises and High-Frequency Identification" (FOMC
+    # monetary surprises, NOT UK labor releases). Same risk class as r147
+    # Bauer DP21003 + r153 Karnaukh-Vrolijk hallucinations. Citation
+    # DROPPED ; 12bp magnitude justified by class-positioning logic (mid-
+    # tier macro release, below US-NFP-class because of FX-volume/reserve-
+    # asymmetry well-documented in BoE/Bank-for-International-Settlements
+    # market-microstructure literature without single canonical paper).
+    # r158+ candidate : per-currency reaction-beta backfill via Dukascopy
+    # OR independent verified UK-specific event-study citation.
+    #
+    # No `low_signal_confidence` sentinel — UK labour-market reaction IS
+    # empirically significant (Birz-Lott 2011 documented UK unemployment
+    # as significant alongside US unemployment ; only retail-sales and
+    # durable-goods are the negative-result class). Symmetric direction.
+    #
+    # FIXTURE STATUS r157 : 2 events captured in 60d window — "Claimant
+    # Count Change" GBP high + "Average Earnings Index 3m/y" GBP medium.
+    "UK_Employment": 12.0,
     # Other high-impact macro (PPI, etc. — literature thin or already
-    # covered elsewhere — r156+ to expand or stay honest).
+    # covered elsewhere — r158+ to expand or stay honest).
     "high_other": 10.0,
     # Tier-2 events
     "medium": 3.0,
@@ -502,6 +565,25 @@ _TITLE_TO_EVENT_CLASS: tuple[tuple[str, str], ...] = (
     # position 5). Same Retail_Sales class for all — Birz-Lott 2011 didn't
     # differentiate Core vs Headline.
     ("retail sales m/m", "Retail_Sales"),
+    # r157 — Durable_Goods Orders family (Pattern #17 2nd witness). Birz-Lott
+    # 2011 *JBF* tested durable goods orders alongside retail sales ; same
+    # negative-result class. FF XML title variants : "Core Durable Goods
+    # Orders m/m" (USD, ex-defense+transportation) + bare "Durable Goods
+    # Orders m/m" (USD headline). Single substring `"durable goods orders"`
+    # captures BOTH bare + Core variants (Core contains bare as substring).
+    # Placed BEFORE NFP family for defensive ordering (no current substring
+    # collision, future-proof).
+    ("durable goods orders", "Durable_Goods"),
+    # r157 — UK Claimant Count Change + Average Earnings Index. Both fire
+    # in the 60d fixture (Claimant Count Change GBP high + Average Earnings
+    # Index 3m/y GBP medium). Mapped to dedicated UK_Employment class at
+    # 12bp (NOT US NFP=20 parity) per trader r157 RED-2 : UK FX volume +
+    # global-reserve-currency asymmetry empirically smaller reaction than
+    # US NFP. Bauer-Swanson 2022 NBER w29939 is path-shock methodology,
+    # not a UK=US magnitude claim. BoE Quarterly Bulletin staff papers
+    # support the smaller-but-significant UK class.
+    ("claimant count change", "UK_Employment"),
+    ("average earnings index", "UK_Employment"),
     # Tier-1 US macro — NFP-specific (US-only) before generic Employment family
     ("non-farm employment change", "NFP"),
     ("nonfarm payrolls", "NFP"),
@@ -606,7 +688,7 @@ _ASYMMETRIC_NEGATIVITY_CLASSES: frozenset[str] = frozenset({"CCI", "Michigan", "
 #   r155 `low_signal_confidence` — magnitude effect-size below detection
 # Each surfaces a DIFFERENT axis of weak-evidence honesty without overlapping
 # (a class can hold multiple sentinels in principle — none currently do).
-_LOW_SIGNAL_CONFIDENCE_CLASSES: frozenset[str] = frozenset({"Retail_Sales"})
+_LOW_SIGNAL_CONFIDENCE_CLASSES: frozenset[str] = frozenset({"Retail_Sales", "Durable_Goods"})
 
 
 def _map_title_to_event_class(title: str) -> str | None:
@@ -1067,6 +1149,34 @@ async def assess_event_proximity(
         caveat_parts.append(
             "Faible-signal : la littérature documente la direction attendue "
             "mais sans force statistique fiable (Birz-Lott 2011 JBF)"
+        )
+    # r157 — Durable_Goods caveat (Pattern #17 1-paper-2-series witness).
+    # Same Birz-Lott 2011 *JBF* anchor as Retail_Sales (same paper, same
+    # negative-result class for both series). r157 YELLOW-1 trader cold-
+    # start stamp : magnitude 5bp = parity with Retail_Sales NOT empirical
+    # separate-class calibration (Birz-Lott didn't disaggregate within the
+    # negative-result class). r158+ candidate : per-series reaction-beta
+    # differentiation when range provider populates.
+    if event_class == "Durable_Goods":
+        caveat_parts.append(
+            "Faible-signal : la littérature documente la direction attendue "
+            "mais sans force statistique fiable (Birz-Lott 2011 JBF, "
+            "durable goods + retail sales = même classe négative-résultat) "
+            "— magnitude identique à Retail_Sales faute de désagrégation "
+            "empirique, à recalibrer post-backfill empirique"
+        )
+    # r157 — UK_Employment caveat. Pattern #15 R59 self-applied (trader r157
+    # RED-2 + code-reviewer r157 SF-1 concordant) : earlier Bauer-Swanson 2022
+    # NBER w29939 citation DROPPED — paper is FOMC monetary surprises not UK
+    # labor (same risk class as r147 Bauer DP21003 hallucination). 12bp
+    # justified by class-positioning (below US-NFP=20 per FX-volume asymmetry,
+    # above noise floor). r158+ candidate : per-currency backfill empirique.
+    if event_class == "UK_Employment":
+        caveat_parts.append(
+            "Magnitude UK calibrée 12bp sous US-NFP 20bp (asymétrie volume "
+            "FX + global-reserve-currency, microstructure littérature BoE/BIS "
+            "sans citation canonique unique) — calibration UK-spécifique "
+            "empirique r158+"
         )
     # ALWAYS append the cold-start prior caveat (trader YELLOW-1).
     caveat_parts.append("Magnitude prior littérature, pas calibrée sur historique Ichor")

@@ -118,6 +118,16 @@ export const EVENT_CLASS_FR: Record<string, string> = {
   // negative-result peer-reviewed anchor. Pattern #15 8th stable application
   // (PMI Services + Ivey PMI + Philly Fed kept honestly UNMAPPED).
   Retail_Sales: "Ventes au détail (US/UK/CAD)",
+  // r157 — Durable Goods Orders class (Pattern #17 1-paper-2-series witness ;
+  // formal DOCTRINE promotion deferred pending 2nd INDEPENDENT peer-reviewed
+  // anchor per trader r157 YELLOW-5). Same Birz-Lott 2011 *JBF* anchor as
+  // Retail_Sales. 0 fixture events r157 (prophylactic, captures future).
+  Durable_Goods: "Commandes de biens durables (US)",
+  // r157 — UK_Employment class (Claimant Count Change + Average Earnings
+  // Index 3m/y). 12bp magnitude NOT parity with US NFP=20 per trader r157
+  // RED-2 (UK FX volume + global-reserve asymmetry). 2 fixture events
+  // captured GBP.
+  UK_Employment: "Emploi UK (Claimant Count / Average Earnings)",
 };
 
 /** FR copy per currency code — for STANDBY mode row meta. Falls back to

@@ -183,7 +183,20 @@ function EngagedBody({ factor }: { factor: EventProximityFactorOut }): ReactElem
           + VIX regime) in one announcement. */}
       <div
         role="group"
-        aria-label={`Biais de dérive attendu : ${directionWord}, magnitude ${magnitudeText}, ${CONFIDENCE_FR[factor.confidence].toLowerCase()}, ${VIX_REGIME_FR[factor.vix_regime_gate].toLowerCase()}`}
+        // r157 code-reviewer r153 N-3 fix : aria-label conditional on
+        // driftMeaningful — when direction is "unknown" (asymmetric override
+        // r153/r154 + r155 low-signal-clamp) OR magnitude is null, the
+        // magnitude/direction announce as "magnitude n/a, direction
+        // indéterminée" which is acoustic noise for SR users. Conditional
+        // form : meaningful drift → full focal context (4 fields) ; honest
+        // fallback → drop magnitude + direction, surface only confidence +
+        // VIX regime + the honest fallback marker. Doctrine #11 calibrated
+        // honesty applied to SR users.
+        aria-label={
+          driftMeaningful
+            ? `Biais de dérive attendu : ${directionWord}, magnitude ${magnitudeText}, ${CONFIDENCE_FR[factor.confidence].toLowerCase()}, ${VIX_REGIME_FR[factor.vix_regime_gate].toLowerCase()}`
+            : `Biais de dérive non quantifiable pour cette classe d'événement, ${CONFIDENCE_FR[factor.confidence].toLowerCase()}, ${VIX_REGIME_FR[factor.vix_regime_gate].toLowerCase()}`
+        }
         className="flex flex-col gap-1 rounded-xl border border-[var(--color-border-subtle)] px-4 py-3"
       >
         {driftMeaningful ? (

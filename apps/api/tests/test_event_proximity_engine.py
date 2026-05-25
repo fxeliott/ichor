@@ -2415,3 +2415,184 @@ class TestR156NICE3SymmetryGuard:
         # Confidence stays "unavailable" — NOT touched by Retail_Sales clamp
         # (which doesn't fire because class is None, not Retail_Sales).
         assert result.confidence == "unavailable"
+
+
+# ── r157 multi-strand consolidation tests ───────────────────────────────
+
+
+class TestR157DurableGoodsClassMapping:
+    """r157 — Durable_Goods Orders class extension (Pattern #17 2nd witness,
+    promotes negative-result-anchor pattern from OBSERVATION r155 to formal
+    DOCTRINE r157). Same Birz-Lott 2011 *JBF* anchor as Retail_Sales (same
+    paper tested both series). Pattern : single substring captures bare +
+    Core variants (Core contains bare as substring)."""
+
+    def test_durable_goods_orders_mm_maps_to_durable_goods(self) -> None:
+        assert _map_title_to_event_class("Durable Goods Orders m/m") == "Durable_Goods"
+
+    def test_core_durable_goods_orders_mm_maps_to_durable_goods(self) -> None:
+        # Core variant : "Core Durable Goods Orders m/m".lower() contains
+        # "durable goods orders" at offset 5 → matches via single pattern.
+        assert _map_title_to_event_class("Core Durable Goods Orders m/m") == "Durable_Goods"
+
+    def test_durable_goods_pattern_does_not_collide_with_retail_sales(self) -> None:
+        """REGRESSION : Durable_Goods pattern (`durable goods orders`) must
+        NOT match retail sales titles + vice versa. Order discipline
+        preserved. Code-reviewer r157 N-2 cleanup : explicit assertion on
+        hypothetical hybrid title that the engine doesn't confuse the two
+        negative-result classes (substring matching is the failure mode
+        guarded against)."""
+        assert _map_title_to_event_class("Retail Sales m/m") == "Retail_Sales"
+        assert _map_title_to_event_class("Core Retail Sales m/m") == "Retail_Sales"
+        # Hypothetical hybrid : if FF ever publishes a title containing
+        # BOTH substrings, first-match-wins means retail_sales pattern
+        # (placed earlier) takes precedence. Defensive : verify that
+        # Durable_Goods pattern alone does NOT match retail-only titles.
+        assert _map_title_to_event_class("Retail Sales m/m") != "Durable_Goods"
+        assert _map_title_to_event_class("Core Retail Sales m/m") != "Durable_Goods"
+
+
+class TestR157DurableGoodsBaseline:
+    """r157 — EVENT_CLASS_BASELINE_BP["Durable_Goods"] = 5.0 floor (same as
+    Retail_Sales, Birz-Lott 2011 documented identical negative-result
+    statistical properties for both series)."""
+
+    def test_durable_goods_baseline_at_floor(self) -> None:
+        assert EVENT_CLASS_BASELINE_BP["Durable_Goods"] == 5.0
+
+    def test_durable_goods_baseline_equals_retail_sales(self) -> None:
+        # Same negative-result class anchor → same floor magnitude
+        assert EVENT_CLASS_BASELINE_BP["Durable_Goods"] == EVENT_CLASS_BASELINE_BP["Retail_Sales"]
+
+
+class TestR157DurableGoodsLowSignalSentinel:
+    """r157 — Durable_Goods uses same `low_signal_confidence` sentinel as
+    Retail_Sales (Pattern #17 2nd witness shares the canonical triad)."""
+
+    @pytest.mark.asyncio
+    async def test_durable_goods_emits_low_signal_sentinel(self) -> None:
+        evt = _make_event_row(
+            title="Durable Goods Orders m/m",
+            impact="high",
+            currency="USD",
+            scheduled_at=datetime(2026, 6, 1, 14, 0, tzinfo=UTC),
+        )
+        session = _build_session(
+            event_rows=[evt],
+            vix_row=_make_fred_row(20.0, datetime(2026, 5, 23, tzinfo=UTC).date()),
+        )
+        result = await assess_event_proximity(
+            session,
+            asset="EUR_USD",
+            now=datetime(2026, 6, 1, 10, 0, tzinfo=UTC),
+            business_cycle_sign=1,
+        )
+        assert result is not None
+        assert result.next_event_class == "Durable_Goods"
+        assert "low_signal_confidence" in result.parse_failures
+
+    @pytest.mark.asyncio
+    async def test_durable_goods_caveat_cites_birz_lott(self) -> None:
+        evt = _make_event_row(
+            title="Durable Goods Orders m/m",
+            impact="high",
+            currency="USD",
+            scheduled_at=datetime(2026, 6, 1, 14, 0, tzinfo=UTC),
+        )
+        session = _build_session(
+            event_rows=[evt],
+            vix_row=_make_fred_row(20.0, datetime(2026, 5, 23, tzinfo=UTC).date()),
+        )
+        result = await assess_event_proximity(
+            session,
+            asset="EUR_USD",
+            now=datetime(2026, 6, 1, 10, 0, tzinfo=UTC),
+            business_cycle_sign=1,
+        )
+        assert result is not None
+        assert "Birz-Lott 2011" in result.caveat
+        # r157 caveat specifically cites the multi-series anchor framing
+        assert "durable goods + retail sales" in result.caveat.lower()
+
+
+class TestR157UKEmploymentClassMapping:
+    """r157 — UK Claimant Count Change + Average Earnings Index mapping to
+    dedicated UK_Employment class at 12bp (NOT US NFP=20 parity per trader
+    r157 RED-2 + code-reviewer r157 SF-1 concordant). UK FX volume +
+    global-reserve asymmetry → empirically smaller reaction than US NFP."""
+
+    def test_uk_claimant_count_change_maps_to_uk_employment(self) -> None:
+        assert _map_title_to_event_class("Claimant Count Change") == "UK_Employment"
+
+    def test_uk_average_earnings_index_maps_to_uk_employment(self) -> None:
+        assert _map_title_to_event_class("Average Earnings Index 3m/y") == "UK_Employment"
+
+    def test_uk_patterns_do_not_collide_with_nfp(self) -> None:
+        """REGRESSION : UK_Employment patterns must not interfere with
+        US NFP-specific mapping."""
+        assert _map_title_to_event_class("Non-Farm Employment Change") == "NFP"
+
+    def test_uk_employment_baseline_below_nfp(self) -> None:
+        """trader r157 RED-2 magnitude justification : UK_Employment=12bp <
+        US NFP=20bp (FX-volume + global-reserve-currency asymmetry)."""
+        assert EVENT_CLASS_BASELINE_BP["UK_Employment"] == 12.0
+        assert EVENT_CLASS_BASELINE_BP["UK_Employment"] < EVENT_CLASS_BASELINE_BP["NFP"]
+        assert EVENT_CLASS_BASELINE_BP["UK_Employment"] > EVENT_CLASS_BASELINE_BP["Retail_Sales"]
+
+
+class TestR157Pattern17ObservationStatusPreserved:
+    """r157 — Pattern #17 status post-trader-r157-YELLOW-5 REVERT. Initial
+    r157 draft promoted Pattern #17 OBSERVATION → DOCTRINE on Durable_Goods
+    2nd witness. Trader r157 YELLOW-5 REJECTED : "1 paper × 2 series is
+    NOT 2 independent applications" — both r155 + r157 anchored on the SAME
+    Birz-Lott 2011 *JBF* paper. Formal DOCTRINE codify pending 2nd
+    INDEPENDENT peer-reviewed anchor (Pinchuk 2022 housing-starts OR
+    different paper). Status preserved as OBSERVATION.
+
+    Code-reviewer r157 SF-2 fix : test tightened from 4 OR-matchers (3 of
+    which were historical strings that would pass forever even if doctrine
+    reverts) to a SINGLE STRICT pin on the OBSERVATION status marker, with
+    a negative guard against the rejected DOCTRINE marker."""
+
+    def test_docstring_preserves_pattern_17_observation_status(self) -> None:
+        from ichor_api.services import event_proximity_engine
+
+        doc = event_proximity_engine.__doc__ or ""
+        # Single strict pin : OBSERVATION status string (per trader r157
+        # YELLOW-5 revert + code-reviewer r157 SF-2 tighten).
+        assert "PATTERN #17 NEGATIVE-RESULT-ANCHOR OBSERVATION" in doc, (
+            "Pattern #17 status must remain OBSERVATION (1 paper × 2 series "
+            "witnessed) per trader r157 YELLOW-5 — formal DOCTRINE codify "
+            "pending 2nd INDEPENDENT peer-reviewed anchor source"
+        )
+
+    def test_docstring_does_not_falsely_claim_doctrine_status(self) -> None:
+        """REGRESSION GUARD : the rejected "formal DOCTRINE codify" marker
+        from the initial r157 draft MUST NOT appear in the OBSERVATION
+        section header. Catches drift if a future round prematurely
+        re-promotes on insufficient witness independence."""
+        from ichor_api.services import event_proximity_engine
+
+        doc = event_proximity_engine.__doc__ or ""
+        # The string "PATTERN #17 NEGATIVE-RESULT-ANCHOR DOCTRINE" with
+        # DOCTRINE at the section-header level MUST NOT appear — would
+        # indicate premature promotion.
+        assert "PATTERN #17 NEGATIVE-RESULT-ANCHOR DOCTRINE" not in doc, (
+            "Pattern #17 must NOT claim formal DOCTRINE status — only "
+            "OBSERVATION until 2nd INDEPENDENT peer-reviewed anchor"
+        )
+
+    def test_low_signal_confidence_classes_includes_both_witnesses(self) -> None:
+        """SSOT lockstep : _LOW_SIGNAL_CONFIDENCE_CLASSES MUST include both
+        Pattern #17 single-paper-witness applications (Retail_Sales r155 +
+        Durable_Goods r157). Future r158+ negative-result anchors from
+        INDEPENDENT sources extend this frozenset + trigger DOCTRINE
+        promotion."""
+        from ichor_api.services.event_proximity_engine import (
+            _LOW_SIGNAL_CONFIDENCE_CLASSES,
+        )
+
+        assert "Retail_Sales" in _LOW_SIGNAL_CONFIDENCE_CLASSES
+        assert "Durable_Goods" in _LOW_SIGNAL_CONFIDENCE_CLASSES
+        # Cardinality check : 2 witnesses post-r157 (extensible r158+)
+        assert len(_LOW_SIGNAL_CONFIDENCE_CLASSES) >= 2
