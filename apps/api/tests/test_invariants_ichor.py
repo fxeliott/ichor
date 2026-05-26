@@ -1378,3 +1378,148 @@ def test_r148_confluence_engine_driver_emissions_match_brier_registry() -> None:
         "DEFAULT_FACTOR_NAMES (and _FACTOR_NAMES per the existing r142 "
         "registry lockstep test)."
     )
+
+
+# ───────────── r163 Strand C — Pass-6 _SYSTEM prompt invariants ──────────────
+#
+# ADR-106 §175 Stride 1 foundational : the Pass-6 system prompt is the
+# server-side instruction that the LLM (Claude Sonnet 4.6 via Voie D
+# claude-runner) MUST follow to populate `Scenario.invalidations` per
+# bucket. Three CI guards pin the prompt's structural invariants so a
+# future refactor that strips one of them silently regresses Strand C
+# closure without test feedback (the LLM would still emit, but the
+# invalidations field would land empty and Strands D-F would no-op).
+
+
+def test_pass6_system_prompt_includes_invalidations_instruction() -> None:
+    """r163 Strand C invariant #1 : the Pass-6 `_SYSTEM` prompt MUST
+    instruct the LLM to populate `Scenario.invalidations` per bucket.
+
+    Pins both the schema-example shape (`"invalidations":` appears in
+    the JSON envelope) AND the prose CRITICAL RULE that documents the
+    field's semantics (rule 9 r163 Strand C).
+    """
+    from ichor_brain.passes.scenarios import _SYSTEM
+
+    # The schema JSON example must show `"invalidations":` in at least
+    # 3 bucket entries (the directional buckets where the mechanism is
+    # measurable — crash_flush, strong_bear, base, strong_bull per the
+    # r163 prompt). 3 is the minimum quorum to defend against a
+    # refactor that strips invalidations from all but one bucket.
+    schema_occurrences = _SYSTEM.count('"invalidations":')
+    assert schema_occurrences >= 3, (
+        "r163 Strand C invariant violated : the Pass-6 `_SYSTEM` prompt "
+        f'shows `"invalidations":` only {schema_occurrences} times in '
+        "the schema JSON example. ADR-106 §175 Stride 1 requires the "
+        "LLM to populate invalidations per bucket — the example must "
+        "show ≥3 buckets carrying the field so the LLM understands "
+        "the shape. If you removed the field on purpose, also revert "
+        "the Scenario.invalidations schema in `ichor_brain/scenarios.py:277`."
+    )
+
+    # The prose CRITICAL RULE 9 (or any equivalent prose mentioning the
+    # field name with surrounding context) must exist. Loose match : the
+    # token "invalidations" appears outside the schema example too.
+    prose_mentions = _SYSTEM.lower().count("invalidations")
+    assert prose_mentions >= 5, (
+        "r163 Strand C invariant violated : the Pass-6 `_SYSTEM` prompt "
+        f"mentions `invalidations` only {prose_mentions} times total "
+        "(schema + prose). ADR-106 §175 Stride 1 prose section "
+        "explaining severity tiers, direction operators, and the "
+        "doctrine #11 calibrated-honesty `[]` empty-list legitimacy "
+        "is required. If the prose was stripped, the LLM will fill "
+        "the schema mechanically without the discipline."
+    )
+
+
+def test_pass6_system_prompt_lists_metric_name_whitelist() -> None:
+    """r163 Strand C invariant #2 : the Pass-6 `_SYSTEM` prompt MUST
+    enumerate the canonical 33-entry `INVALIDATION_METRIC_NAMES`
+    whitelist verbatim. Without this enumeration the LLM hallucinates
+    metric names that have no Ichor collector (e.g., "TLT_yield" or
+    "Eurodollar_OIS_spread") and the server-side validator rejects
+    every emission — silent Pass-6 failure mode.
+
+    Pins ALL 33 metric names against the canonical frozenset, with
+    a strictness margin (>=32/33 must be present) to absorb a future
+    metric being deprecated without breaking the CI on the same
+    commit as the deprecation. If only 31/33 ever pass, the prompt
+    has lost >2 metrics — that's a real regression.
+    """
+    from ichor_brain.passes.scenarios import _SYSTEM
+    from ichor_brain.scenarios import INVALIDATION_METRIC_NAMES
+
+    # The 33-metric whitelist constant size pin — if a future commit
+    # adds/removes a metric without updating the prompt, this catches
+    # the drift.
+    assert len(INVALIDATION_METRIC_NAMES) == 33, (
+        "r163 Strand C invariant violated : "
+        f"INVALIDATION_METRIC_NAMES has {len(INVALIDATION_METRIC_NAMES)} "
+        "entries, expected 33. If the whitelist evolved, update this "
+        "test + verify the Pass-6 prompt enumerates the new set."
+    )
+
+    missing: list[str] = []
+    for metric in sorted(INVALIDATION_METRIC_NAMES):
+        if metric not in _SYSTEM:
+            missing.append(metric)
+
+    # Strict threshold : ≤1 metric may be absent (absorbs a deprecation
+    # in the same commit as the whitelist change).
+    assert len(missing) <= 1, (
+        "r163 Strand C invariant violated : the Pass-6 `_SYSTEM` prompt "
+        f"is missing {len(missing)} entries from the 33-metric "
+        f"INVALIDATION_METRIC_NAMES whitelist : {missing}. The LLM "
+        "needs to see the verbatim list to avoid fabricating metric "
+        "names that have no Ichor collector. Add the missing entries "
+        "to the INVALIDATION CONDITIONS section of `_SYSTEM`."
+    )
+
+
+def test_pass6_system_prompt_enforces_adr017_on_invalidations_description() -> None:
+    """r163 Strand C invariant #3 : the Pass-6 `_SYSTEM` prompt MUST
+    extend the ADR-017 ABSOLUTE BAN to cover `invalidations[*]
+    .description` in addition to `mechanism`. Without this extension
+    the LLM may produce a description like "if VIX > 25, SELL the
+    rally" — even though the field is described as "WHY the breach
+    invalidates the bucket" rather than a trade instruction.
+
+    Mirror of the server-side enforcement in
+    `InvalidationCondition._reject_trade_tokens_in_description`
+    validator (`scenarios.py:231-245`) — the validator catches the
+    bypass at construction time, but the prompt must instruct the
+    LLM not to even try (saves a Pydantic validation round-trip +
+    LLM token cost on retry).
+    """
+    from ichor_brain.passes.scenarios import _SYSTEM
+
+    # The prompt must explicitly mention that the ABSOLUTE BAN
+    # applies to BOTH mechanism AND invalidations[*].description.
+    # Loose match : look for "invalidations" within 200 chars of
+    # "ABSOLUTE BAN" or any equivalent enforcement marker.
+    _SYSTEM_lower = _SYSTEM.lower()
+
+    # Find the "absolute ban" marker (rule 6 ABSOLUTE BAN).
+    ban_idx = _SYSTEM_lower.find("absolute ban")
+    assert ban_idx >= 0, (
+        "r163 Strand C invariant violated : the Pass-6 `_SYSTEM` "
+        "prompt no longer contains 'ABSOLUTE BAN' marker for the "
+        "ADR-017 boundary. This is a baseline ADR-017 doctrinal "
+        "regression independent of Strand C — revert the prompt."
+    )
+
+    # Within 800 chars after "ABSOLUTE BAN", the prompt must
+    # mention invalidations[*].description (or just "invalidations"
+    # as a token) so the LLM knows the ban applies there too.
+    window = _SYSTEM_lower[ban_idx : ban_idx + 800]
+    assert "invalidations" in window, (
+        "r163 Strand C invariant violated : the Pass-6 `_SYSTEM` "
+        "ABSOLUTE BAN section does NOT extend the ADR-017 boundary "
+        "to `invalidations[*].description`. The LLM will then "
+        "potentially emit trade instructions in the description "
+        "field, only to have the server reject the entire "
+        "emission via the InvalidationCondition Pydantic "
+        "validator (`scenarios.py:231-245`). Fix : add "
+        "`invalidations[*].description` to the ABSOLUTE BAN scope "
+        "in rule 6 of the _SYSTEM prompt."
+    )
