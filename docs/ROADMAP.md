@@ -204,7 +204,40 @@ See `docs/ROADMAP_2026-05-06.md` for the original 4-layer architecture (DATA FOU
 
 ---
 
-## §3 — Immediate next (r162) — ⭐ STRIDE 8 PHASE 2 COACH FRONTEND (r161 BACKEND FOUNDATION SHIPPED)
+## §3 — Immediate next (r168) — ⭐ R-DEPLOY-6 STACK r163+r164+r165+r167 (requires Eliot KEYWORD DEPLOY)
+
+**r167 EXECUTED & SHIPPED (2026-05-26)** : 🎯 **G1+G8 TradeabilityFlag honest disclosure** closes Eliot Fathom 2026-05-25 §VIII CRITICAL methodology gap « ne trade pas aujourd'hui ». Single feat commit `bfe71db` +1100 LOC across 7 files (5 modified + 2 NEW) on branch `claude/amazing-heyrovsky-80df1e` (push origin OK, 57 commits ahead origin/main `353df68` post-closing-sync).
+
+Note on r166 numbering : r166 was the placeholder for "R-DEPLOY-6 stack r163+r164+r165 + register-cron" left as binding-default by r165-close. r167 elected to ship G1+G8 first (CRITICAL severity per Eliot transcript §VIII closure) and BUNDLE the deploy with r167 into r168 — preserves doctrine #14 + #16 R-DEPLOY-6 batched-deploy + Pattern #15 R59 single-feature scope. r166 is therefore SUBSUMED into r168 (zero functional gap, only label drift).
+
+**Pre-r167 stack** (4 rounds shipped post-r161, NOT YET DEPLOYED Hetzner) :
+
+- `ac5ea3a` r162 Stride 8 Phase 2 frontend `<CoachMacroContextPanel>` apex LIVE
+- `2b9e565` r163 Strand C Pass-6 `_SYSTEM` prompt populates `Scenario.invalidations`
+- `7984074` r164 Strand D `services/scenario_invalidation_monitor.py` 6-source dispatcher
+- `9a595cb` r165 Strand E+F alerts + CLI + CRON (Stride 1 CLOSED)
+- `bfe71db` r167 G1+G8 TradeabilityFlag honest disclosure
+
+**Build gate LOCAL MEASURED post-r167 round-2 audit** : pytest target 178/178 (initial r167 ship) + full apps/api suite (round-2 cross-check after `test_ai_watermark_middleware.py:107` regression-guard set update for r161+r162 prefixes drift) ; tsc --noEmit clean ; ESLint clean ; 15/15 pre-commit hooks PASS.
+
+**Voie D held 84 rounds** (zero `import anthropic` r162→r167 = 6 rounds). **Pattern #15 R59-disprove → 14 applications stable** (r167 +1 NYSE holiday calendar).
+
+**r168 binding-default candidates** (priority order, doctrine #10 default-sans-pivot) :
+
+1. ⭐ **R-DEPLOY-6 stack r163+r164+r165+r167** : `scripts/hetzner/redeploy-api.sh` (Python backend r163+r164+r165+r167) + `scripts/hetzner/redeploy-web2.sh` (Next.js frontend r167) + `scripts/hetzner/register-cron-scenario-invalidation-check.sh` (6×/jour Paris 00/04/08/12/16/20 per ADR-106 D3) + Playwright witness on `<SessionVerdictPanel>` disclosure banner. **REQUIERS Eliot KEYWORD DEPLOY** (doctrine #14 + #16 SSH-instability preserves trader discipline). Effort S, 1 session. AFTER empirical Pass-6 emit invalidations ≥ 3 sessions → `UPDATE feature_flags SET enabled=true WHERE key='scenario_invalidation_monitor_enabled'` flag flip.
+2. **G3 Risk-on/off chip** + **G4 Daily candle classification** (Eliot methodology §IV.4 + §X — HIGH leverage) : extends `<CoachMacroContextPanel>` with a risk-on/off label derived from `regime_classifier` + a 3-class daily candle classification (`momentum_bullish` / `momentum_bearish` / `uncertainty`) materialising Eliot's §IV.4 manual workflow. Effort M, 1-2 sessions.
+3. **G2 DXY corrélation panel** (Eliot methodology §XI « pilier de notre analyse » — HIGH leverage) : NEW `<DxyCorrelationPanel>` on `/briefing/[asset]` displaying 20-day rolling correlation of asset vs DXY + divergence flag when |Δ| > σ. Effort M, 1-2 sessions.
+4. **G5 previous-session origin zone** + **G6 volatility-by-hour signature** (Eliot methodology §V + §VI — MED leverage) : persist `previous_session_origin_zone` (high/low + direction) in `session_card_audit` + compute 3-month volatility-by-hour signature per asset (Market Milk equivalent). Effort M-L.
+5. **G7 pre-NY respiratory pattern detector** + **G9 métaphore rivière pédagogique** (Eliot methodology §IV.1 + macro-lessons C1 — MED + LOW-MED leverage) : detect contrarian wick during Asian/London session + add pedagogical "speculative bubble" metaphor to `coach_explanation`. Effort M.
+6. **Strides 2-7 ADR-106** (autonomous 24/7 living-system continuation) : real-time news feed (5min cadence) + news-driven re-analysis trigger + post-event auto re-analysis + conviction decay function + cross-asset cascading + WebSocket SSE push. Each stride is M-L effort, sequencing per ADR-106 §175 roadmap.
+7. **Honest-gap closures r164 monitor** (Tier 4 hygiene) : MOVE dedicated collector + Couche-2 `news_nlp` extension for `EVENT_*` metrics (currently 5 honest gaps return `not_evaluable` per doctrine #11). Effort S-M.
+8. **Doctrine #21 R30 closing-sync ROADMAP §3 anti-recidive** (r167-close round-2 self-discovery) : codify in `ichor_r51-r71_doctrinal_patterns.md` that `closing-sync` MUST touch BOTH §1 AND §3 of `ROADMAP.md` (the r165-close + r167-close both touched §1 only, leaving §3 5-rounds stale until r167-close round-2 audit caught it). Possibly bake into a CI invariant or pre-commit guard parsing `## §3 — Immediate next (rNNN)` against the latest CLAUDE.md `Last sync: rNNN` header.
+
+Pattern #15 R59 applies to every ⭐ — r168 Phase 0 R59 obligatoire if any external data dependency (DXY, daily candle classifier thresholds, etc.). r168 deploy itself doesn't need R59 (codified deploy procedure per doctrine #14 + #16).
+
+---
+
+## §3 — Previous immediate next (r162, EXECUTED r162-r165) — ⭐ STRIDE 8 PHASE 2 COACH FRONTEND (r161 BACKEND FOUNDATION SHIPPED)
 
 **r161 EXECUTED & SHIPPED (2026-05-26)** : 🎯 **Composite 5-commit ship materialising Eliot's r161 directive verbatim apex output** ("hausse sur la session à 85 %, de façon structurée") + the autonomous interconnected 24/7 ecosystem vision + the coach explicateur dimension.
 

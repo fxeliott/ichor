@@ -422,7 +422,7 @@ describe("r152 Phase 2 PARSE_FAILURE_FR (CONCORDANT trader Y4 + a11y SHOULD-2)",
     expect(parseFailureLabel("future_r153_sentinel")).toBe("future_r153_sentinel");
   });
 
-  it("PARSE_FAILURE_FR carries the 6 canonical engine sentinels + r153 asymmetric + r155 low-signal", () => {
+  it("PARSE_FAILURE_FR carries the canonical engine sentinels + r153 asymmetric + r155 low-signal + r160 using_empirical_calibration", () => {
     const expected = new Set([
       "single_source_direction",
       "event_class_unmapped",
@@ -436,6 +436,11 @@ describe("r152 Phase 2 PARSE_FAILURE_FR (CONCORDANT trader Y4 + a11y SHOULD-2)",
       // magnitude-uncertainty sentinel after single_source_direction (r150) +
       // asymmetric_negativity_bias (r153).
       "low_signal_confidence",
+      // r160 — POSITIVE-polarity disclosure when Dukascopy empirical reaction-beta
+      // overrides the EVENT_CLASS_BASELINE_BP literature prior. Opposite polarity
+      // vs the 3 magnitude-uncertainty sentinels above (added to PARSE_FAILURE_FR
+      // r160-close ; expectation drift caught in r167-close round-2 audit).
+      "using_empirical_calibration",
     ]);
     const actual = new Set(Object.keys(PARSE_FAILURE_FR));
     expect(actual).toEqual(expected);
@@ -580,12 +585,31 @@ describe("r156 PARSE_FAILURE_PRIORITY ordering (trader r155 YELLOW-4)", () => {
     expect(PARSE_FAILURE_PRIORITY.event_class_unmapped!).toBe(0);
   });
 
-  it("ranks cold_start_no_calibration lowest (noise floor)", () => {
+  it("ranks cold_start_no_calibration lowest among NEGATIVE-polarity sentinels (noise floor)", () => {
     // cold_start_no_calibration ALWAYS fires per r147 doctrine — if it
     // ranked high it would block more action-relevant sentinels from
     // surfacing in the top-N visible slice.
-    const all = Object.values(PARSE_FAILURE_PRIORITY).filter((v): v is number => v !== undefined);
-    expect(PARSE_FAILURE_PRIORITY.cold_start_no_calibration!).toBe(Math.max(...all));
+    //
+    // r160 introduced `using_empirical_calibration` at rank 7 (POSITIVE
+    // disclosure polarity, sinks BELOW the negative-polarity noise floor
+    // intentionally per memory r160-close). Therefore the noise-floor
+    // assertion now selects MAX(rank) among NEGATIVE-polarity sentinels
+    // exclusively (caught r167-close round-2 audit ; was returning 7 vs
+    // expected 6 before the polarity-aware filter).
+    const NEGATIVE_POLARITY_SENTINELS: readonly string[] = [
+      "single_source_direction",
+      "event_class_unmapped",
+      "vix_observation_missing",
+      "impact_value_invalid",
+      "cold_start_no_calibration",
+      "asymmetric_negativity_bias",
+      "low_signal_confidence",
+    ];
+    const negativeRanks = Object.entries(PARSE_FAILURE_PRIORITY)
+      .filter(([k]) => NEGATIVE_POLARITY_SENTINELS.includes(k))
+      .map(([, v]) => v)
+      .filter((v): v is number => v !== undefined);
+    expect(PARSE_FAILURE_PRIORITY.cold_start_no_calibration!).toBe(Math.max(...negativeRanks));
   });
 
   it("ranks r155 low_signal_confidence below r153 asymmetric (effect-size after sign-asymmetry)", () => {

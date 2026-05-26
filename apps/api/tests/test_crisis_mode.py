@@ -35,9 +35,11 @@ def test_catalog_breakdown() -> None:
     # Counts match assert_catalog_complete() in catalog.py.
     # If you bump the catalog, update both here AND the assert in catalog.py.
     # Phase D.5 + Phase E shipped 21 alerts wave 1-22 (33→54 total).
+    # r165 added 3 SCENARIO_INVALIDATION_ALERTS (HARD/SOFT/NOTE → critical/warning/info)
+    # joining ALL_ALERTS 54→57 ; catalog expectation re-aligned r167-close round-2 audit.
     assert len(PLAN_ALERTS) == 46
     assert len(AUDIT_V2_ALERTS) == 8
-    assert len(ALL_ALERTS) == 54
+    assert len(ALL_ALERTS) == 57
 
 
 def test_catalog_severity_values_valid() -> None:

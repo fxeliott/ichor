@@ -67,8 +67,17 @@ def test_inventory_provider_and_disclosure_url() -> None:
 
 
 def test_inventory_watermarked_prefixes_match_adr_079() -> None:
-    """Default 5 prefixes must align with the AIWatermarkMiddleware
-    DEFAULT_WATERMARKED_PREFIXES tuple (single source of truth)."""
+    """Default prefixes must align with the AIWatermarkMiddleware
+    DEFAULT_WATERMARKED_PREFIXES tuple (single source of truth).
+
+    History (same drift as `test_ai_watermark_middleware.py:107`,
+    re-aligned r167-close round-2 audit) :
+      - Original : 5 LLM-derived routes (briefings, sessions,
+        post-mortems, today, scenarios).
+      - r161 added `/v1/verdict` (SessionVerdict apex per ADR-106 D1+D4).
+      - r162 added `/v1/coach-macro-context` (CoachMacroContext FR
+        coach paragraph LLM-template-derived).
+    """
     client = TestClient(_build_app())
     r = client.get("/.well-known/ai-content")
     body = r.json()
@@ -78,6 +87,8 @@ def test_inventory_watermarked_prefixes_match_adr_079() -> None:
         "/v1/post-mortems",
         "/v1/today",
         "/v1/scenarios",
+        "/v1/verdict",
+        "/v1/coach-macro-context",
     }
 
 
