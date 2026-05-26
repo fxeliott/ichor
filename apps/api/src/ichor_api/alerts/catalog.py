@@ -664,7 +664,15 @@ AUDIT_V2_ALERTS: tuple[AlertDef, ...] = (
     ),
 )
 
-ALL_ALERTS: tuple[AlertDef, ...] = PLAN_ALERTS + AUDIT_V2_ALERTS
+# r165 Strand E — Scenario Invalidation alerts (3 severity tiers) joining
+# the canonical catalog. Defined in `alerts/scenario_invalidation.py` and
+# imported here to extend the registry via the same `+` concatenation
+# pattern used for PLAN + AUDIT_V2. Imported below `ALL_ALERTS` would
+# create a circular import (scenario_invalidation imports from catalog),
+# so the import lives here at module top via lazy resolution.
+from .scenario_invalidation import SCENARIO_INVALIDATION_ALERTS  # noqa: E402
+
+ALL_ALERTS: tuple[AlertDef, ...] = PLAN_ALERTS + AUDIT_V2_ALERTS + SCENARIO_INVALIDATION_ALERTS
 
 # Quick lookup
 BY_CODE: dict[str, AlertDef] = {a.code: a for a in ALL_ALERTS}
@@ -680,8 +688,11 @@ def get_alert_def(code: str) -> AlertDef:
 
 
 def assert_catalog_complete() -> None:
-    """Sanity check at startup: total = 51 alerts, all unique codes."""
+    """Sanity check at startup: total = 57 alerts, all unique codes.
+
+    r165 Strand E added 3 SCENARIO_INVALIDATION_* entries (54 → 57).
+    """
     codes = [a.code for a in ALL_ALERTS]
     assert len(codes) == len(set(codes)), f"Duplicate alert codes: {codes}"
-    assert len(ALL_ALERTS) == 54, f"Expected 54 alerts, got {len(ALL_ALERTS)}"
+    assert len(ALL_ALERTS) == 57, f"Expected 57 alerts, got {len(ALL_ALERTS)}"
     assert len(CRISIS_TRIGGERS) >= 5, f"Expected ≥5 crisis triggers, got {len(CRISIS_TRIGGERS)}"
