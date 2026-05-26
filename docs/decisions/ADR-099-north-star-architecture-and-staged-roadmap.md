@@ -4647,3 +4647,86 @@ ZERO Anthropic API spend r160. **Voie D held 75 rounds.**
 8. Strides 2-7 of ADR-106 roadmap (real-time news feed / news-driven trigger / post-event auto / conviction decay / cross-asset cascade / WebSocket SSE).
 
 ZERO Anthropic API spend r161. **Voie D held 79 rounds.**
+
+## Implementation (r162-r165, 2026-05-26) — Tier 4 axis "autonomy 24/7 auto-invalidating + coach explicateur" : ADR-106 §175 STRIDE 1 CLOSED end-to-end + Stride 8 Phase 2 coach LIVE
+
+Single closing-sync covers 4 rounds shipped same session post-r161 (doctrine #21 R30 last-sync hygiene applied) :
+
+**r162 Stride 8 Phase 2 frontend coach LIVE (`ac5ea3a`)**
+NEW `<CoachMacroContextPanel>` apex LIVE on `/briefing/[asset]` ABOVE `<SessionVerdictPanel>` per ADR-106 D4 ordering directive. NEW `GET /v1/coach-macro-context` router (asset-agnostic, `Cache-Control: private, no-store` mirror verdict.py) + watermark middleware lockstep (added `/v1/coach-macro-context` to BOTH `Settings.ai_watermarked_route_prefixes` AND `DEFAULT_WATERMARKED_PREFIXES` per W90 invariant). NEW `apps/web2/lib/coachMacroContext.ts` FR copy SSOTs + helpers + extend `lib/api.ts` 6 TypeScript interfaces (BusinessCycle/GrowthSignal/InflationSignal/MacroTheme/SurprisePriority/CalendarSurprise/CoachMacroContext) + `getCoachMacroContext()` async fn. NEW `<CoachMacroContextPanel>` React component (motion 12 + glassmorphism mirror SessionVerdictPanel + cycle chip + axis chips + intensity bar + top-3 surprises + coach paragraph + doctrine #11 honest-absence chrome). 7 router tests. Single feat commit +956 LOC across 10 files.
+
+**r163 Strand C Pass-6 prompt populate invalidations (`2b9e565`)**
+Extend `passes/scenarios.py:_SYSTEM` prompt : (a) extend règle 6 ABSOLUTE BAN ADR-017 to cover `invalidations[*].description` ; (b) NEW CRITICAL RULE 9 invalidations format spec (0..5 per bucket, severity hard/soft/note, 4 directions above/below/crosses_above/crosses_below) ; (c) NEW section "INVALIDATION CONDITIONS" enumerating canonical 33-metric `INVALIDATION_METRIC_NAMES` whitelist verbatim grouped by collector source (FX+DXY 6, equity 2, commodities 3, rates 6, vol/risk 4, credit/liquidity 3, inflation/growth 3, geopol events 3, polymarket 3) ; (d) NEW section "THRESHOLD UNIT CONVENTION" per-metric natural unit ; (e) extended schema JSON to 4 representative buckets carrying `"invalidations": [...]`. NEW 3 CI invariants in `test_invariants_ichor.py` (W90 extension) : `test_pass6_system_prompt_includes_invalidations_instruction` + `test_pass6_system_prompt_lists_metric_name_whitelist` (whitelist size pin = 33 + ≤1 missing tolerance) + `test_pass6_system_prompt_enforces_adr017_on_invalidations_description`. Backward-compat preserved : `Scenario.invalidations` field default `[]` keeps pre-r163 emissions valid. +312/-16 LOC.
+
+**r164 Strand D monitor service (`7984074`)**
+NEW `services/scenario_invalidation_monitor.py` (~840 LOC) : 6-source dispatcher (FRED 12 + Polygon 11 + CBOE*SKEW 1 + CBOE_VVIX 1 + Polymarket 3 + honest_gap 5) classifying by `_classify_metric_source(metric_name)`. 5 per-source async evaluator functions querying the appropriate ORM table (FredObservation/PolygonIntradayBar/CboeSkewObservation/CboeVvixObservation/PolymarketSnapshot) + uniform 4-direction operator support (`above`/`below` 1-row + `crosses_above`/`crosses_below` 2-row state transition detection). 5 `InvalidationStatus` enum (`fired_hard`/`fired_soft`/`fired_note`/`not_fired`/`not_evaluable`). Top-level `evaluate_scenario_invalidations(session, *, session_card_id)` aggregator walks 7 buckets per card + applies STRICT severity hierarchy hard > soft > note (bucket appears in AT MOST one list) + returns `None` when no card OR empty scenarios OR all-empty invalidations[] (doctrine #11 : distinct from non-None with empty lists = "all clear"). Coverage 28/33 evaluable (84.8%) + 5/33 honest gap (15.2%, MOVE + 3 EVENT*\* + future closures r167+). Wired into `session_verdict_builder.py` populated path (try/except defensive : monitor failure preserves None fallback). NEW `tests/test_scenario_invalidation_monitor.py` (45 tests) + NEW W90 invariant `test_r164_invalidation_metric_lockstep_coverage` (symmetric pin to r163 prompt invariant). +1555/-7 LOC.
+
+**r165 Strand E+F alerts pipeline + CRON (`9a595cb`)**
+NEW `alerts/scenario_invalidation.py` (3 AlertDef joining `ALL_ALERTS` 54→57 : `SCENARIO_INVALIDATION_HARD` critical / `_SOFT` warning / `_NOTE` info). NEW `evaluate_scenario_invalidation_hits()` returning `(AlertHit, asset)` tuples with strict severity hierarchy + per-card defensive try/except. Circular-import avoidance via TYPE_CHECKING + function-local lazy import for `AlertHit` (since `evaluator.py` imports `ALL_ALERTS` from `catalog.py` + `catalog.py` extends `ALL_ALERTS` from `SCENARIO_INVALIDATION_ALERTS` here). NEW `alerts_runner.check_scenario_invalidations()` wrapper (dedup per alert_code+asset window via existing `_is_recent_duplicate` + persist via existing `_persist_hit` machinery). UPDATE `catalog.py` extend `ALL_ALERTS` tuple + bump `assert_catalog_complete` 54→57. NEW `cli/run_scenario_invalidation_check.py` (feature-flag `scenario_invalidation_monitor_enabled` gated + `--dry-run` rollback + structured exit codes 0/1/3). NEW `scripts/hetzner/register-cron-scenario-invalidation-check.sh` (systemd .service + .timer 6×/jour Paris 00,04,08,12,16,20 per ADR-106 D3 cadence rationale : EOD/pre-Tokyo/pre-London/peri-briefing/mid-NY/end-NY). NEW `tests/test_scenario_invalidation_alerts.py` (23 tests) including catalog count pin 57 + status→AlertDef mapping covers all 5 monitor enum + strict severity hierarchy + multi-card fan-out + defensive try/except. +1022/-3 LOC across 6 files.
+
+**Stride 1 ADR-106 = ALL 7 STRANDS SHIPPED** (A+H+G r161 + C r163 + D r164 + E+F r165). Débloque Strides 4/5/6 ADR-106 cascade (post-event auto re-analysis / conviction decay / cross-asset cascading).
+
+**Build gate (LOCAL MEASURED, end of r165)** :
+
+- pytest test_invariants_ichor + test_scenarios + test_coach_macro_context_router + test_scenario_invalidation_monitor + test_scenario_invalidation_alerts → **158/158 PASS** (48 invariants r163 + 35 scenarios + 7 coach router r162 + 45 monitor r164 + 23 alerts r165)
+- TypeScript tsc --noEmit clean r162
+- ruff check + format clean across 4 rounds
+- bash -n register-cron-scenario-invalidation-check.sh syntax OK
+- Pre-commit hooks all green (gitleaks + ruff + prettier + ichor-invariants ADR-081)
+
+**Doctrine alignment** :
+
+- ADR-017 boundary preserved 3 layers (regex source-inspection W90 + Pydantic field_validator on `InvalidationCondition.description` + Pass-6 prompt-level ABSOLUTE BAN extends to `invalidations[*].description`) ; alerts catalog descriptive only
+- ADR-022 cap-95 unchanged (no probability emission in monitor/alerts)
+- ADR-023 Couche-2 Haiku unchanged (no LLM call in monitor/alerts/CRON)
+- ADR-079 watermark middleware lockstep extended `/v1/coach-macro-context` r162 (Settings ⇄ DEFAULT_WATERMARKED_PREFIXES parity W90)
+- ADR-085 Pass-6 7-bucket SSOT preserved
+- ADR-106 §175 Stride 1 CLOSED
+- ADR-030 ResolveCron canonical .service + .timer pattern
+- Voie D : ZERO Anthropic SDK across 4 rounds → **83 rounds tenus** (79 → 83, +4)
+- Doctrine #2 strict scope : 4 atomic cohesive commits
+- Doctrine #4 SSOT : AlertDef + AlertHit + ScenarioInvalidationState + BUCKET_LABELS + INVALIDATION_METRIC_NAMES + MacroTheme all single-source via canonical imports
+- Doctrine #9 anti-accumulation : 3 alert codes follow existing UPPER_SNAKE_CASE convention + tuple-concat extension (no new registry)
+- Doctrine #11 calibrated honesty : 6 levels honest absence preserved (no recent cards / monitor None / all-empty lists / not_fired / not_evaluable / feature flag OFF) + 5 honest gaps return `not_evaluable` r164 + None vs empty-lists distinction in aggregator
+- Doctrine #12 anti-recidive : Pattern #15 R59 pre-flight before each ship (ORM schemas r164 + alerts_runner pattern r165 verified first-hand)
+- Doctrine #14 R-DEPLOY-6 (SuccessExitStatus=0 1 + ConnectTimeout=15 preserved)
+- Doctrine #21 R30 last-sync hygiene (closing-sync this commit r165-close covers 4 rounds)
+
+**Pattern ledger evolution** :
+
+- Pattern #4 (worktree-venv .pth) : 5 applications stable (unchanged from r161 — no worktree cleanup r162-r165)
+- Pattern #15 (R59-disprove-before-commit) : **13 applications stable** (r163 prompt premises Strand C + r164 ORM schemas Strand D + r165 alerts_runner pattern Strand E = 3 NEW applications)
+- NEW observation r165 (r166 codification candidate) : circular-import via TYPE_CHECKING + function-local lazy import = clean fix when extending registry tuples with cross-module deps (will codify as pattern #18 if recurs)
+
+**2 Eliot transcripts INTEGRATED this session** durable cross-session :
+
+- `C:\Users\eliot\Downloads\transcript vidéo.txt` macro/fondamental episode 2 Elliot Pena Hewi Capital MTA (128 KB / ~12k mots) → distilled in NEW memory file `C:\Users\eliot\.claude\projects\D--Ichor\memory\ichor_macro_lessons_episode2.md` (5 takeaways HIGH+MED leverage + 4 cycles éco + 7 drivers + 3-step méthodologie + Pattern #15 R59 alert pitch commercial zero academic citation)
+- Fathom recording 70 min Eliot Pena 2026-05-25 trading methodology backtest → distilled in NEW memory file `C:\Users\eliot\.claude\projects\D--Ichor\memory\ichor_eliot_trading_methodology.md` (12 invariants opérationnels + workflow top-down Daily→H1→15min→5min + 6 sessions structurelles + zone-based discipline + pattern respiratoire + 9 NEW gaps identified G1-G9)
+
+**9 gaps identified r167+ priorisés par leverage** :
+
+| #   | Gap                                                                                                     | Source                                             | Leverage     |
+| --- | ------------------------------------------------------------------------------------------------------- | -------------------------------------------------- | ------------ |
+| G1  | TradeabilityFlag `tradeable/no_setup/holiday/event_freeze/low_volatility/range` on SessionVerdict       | Eliot methodology VIII (bank holiday → no trade)   | **CRITICAL** |
+| G2  | DXY × actif correlation panel sur `/briefing/[asset]` (rolling 20-day + divergence flag)                | Eliot methodology XI (« pilier de notre analyse ») | **HIGH**     |
+| G3  | Risk-on/off chip explicite frontend depuis `regime_classifier`                                          | Eliot methodology X                                | **HIGH**     |
+| G4  | Daily candle classification (`momentum_bullish/_bearish/uncertainty`) dans CoachMacroContext            | Eliot methodology IV.4                             | **HIGH**     |
+| G5  | `previous_session_origin_zone` (high/low + direction) persisté `session_card_audit`                     | Eliot methodology V                                | MED-HIGH     |
+| G6  | Volatility-by-hour signature 3-month MA par actif (équivalent Market Milk)                              | Eliot methodology VI                               | MED          |
+| G7  | Pre-NY respiratory pattern detector (mèche contraire session asiatique/Londres)                         | Eliot methodology IV.1                             | MED          |
+| G8  | "Pas de trade aujourd'hui" honest disclosure frontend quand TradeabilityFlag ≠ tradeable                | Eliot methodology VIII                             | **CRITICAL** |
+| G9  | Pattern respiratoire pédagogique dans coach_explanation (métaphore "bulle spéculative" niveau débutant) | Macro lessons C1 + Eliot methodology IV.1          | LOW-MED      |
+
+**r166 binding-default #1** : ⭐ AUTO-RECO **R-DEPLOY-6 stack r163+r164+r165 + register-cron** (closes Stride 1 production activation) + Playwright witness + AFTER empirical Pass-6 emit invalidations ≥3 sessions → `UPDATE feature_flags SET enabled=true WHERE key='scenario_invalidation_monitor_enabled'` activation flag flip. Effort S-M, 1 session.
+
+**r167+ binding-default candidates par leverage** :
+
+1. ⭐ G1 + G8 TradeabilityFlag (CRITICAL — closes Eliot "ne trade pas aujourd'hui" gap)
+2. G3 Risk-on/off chip + G4 Daily candle classification
+3. G2 DXY corrélation panel
+4. G5 previous-session origin zone + G6 volatility-by-hour signature
+5. G7 pre-NY respiratory pattern detector + G9 métaphore rivière pédagogique
+6. Strides 2-7 ADR-106 (real-time news feed + news-driven trigger + post-event auto + conviction decay + cross-asset cascade + WebSocket SSE)
+7. Honest-gap closures r164 monitor (MOVE dedicated collector + Couche-2 news*nlp extension for EVENT*\*)
+
+ZERO Anthropic API spend r162+r163+r164+r165. **Voie D held 83 rounds.**

@@ -10,6 +10,28 @@
 
 ---
 
+## §1 — Current state (r165-close, 2026-05-26)
+
+### Shipped at r165 — 🌟 **ADR-106 §175 STRIDE 1 CLOSED end-to-end** (Scenario Invalidation Engine 7 strands complete)
+
+- **Stride 1 ALL 7 STRANDS SHIPPED** (foundational for ADR-106 autonomous 24/7 living-system) :
+  - **A** schema ✅ r161 `8c94d4b` (`Scenario.invalidations` + 33-metric whitelist)
+  - **H** verdict contract ✅ r161 `649db43` (`SessionVerdict` 14 fields + ADR-106 ratified)
+  - **G** apex panel ✅ r161 `29d4c40` (`<SessionVerdictPanel>` LIVE)
+  - **C** Pass-6 prompt ✅ **r163 `2b9e565`** (LLM populates invalidations per bucket + 33-metric verbatim + ADR-017 boundary extends to `invalidations[*].description` + 3 CI invariants)
+  - **D** monitor service ✅ **r164 `7984074`** (NEW `services/scenario_invalidation_monitor.py` 6-source dispatcher + 4 direction operators + 5 status enum + strict severity hierarchy aggregator + wire dans `session_verdict_builder.py` + 45 tests + W90 invariant 33-metric lockstep)
+  - **E** alerts pipeline ✅ **r165 `9a595cb`** (3 NEW AlertDef joining ALL_ALERTS 54→57 + evaluator returning `(AlertHit, asset)` tuples + circular-import fix + `alerts_runner.check_scenario_invalidations()` dedup+persist wrapper)
+  - **F** CLI + CRON ✅ **r165 `9a595cb`** (NEW `cli/run_scenario_invalidation_check.py` feature-flag gated + NEW `scripts/hetzner/register-cron-scenario-invalidation-check.sh` 6×/jour Paris 00/04/08/12/16/20 per ADR-106 D3)
+- **Stride 8 Phase 2 Coach Frontend ✅ r162 `ac5ea3a`** : NEW `<CoachMacroContextPanel>` apex LIVE on `/briefing/[asset]` ABOVE `<SessionVerdictPanel>` per ADR-106 D4 + NEW `GET /v1/coach-macro-context` router + watermark middleware lockstep + 7 router tests.
+- **4 commits stack** : `ac5ea3a` r162 + `2b9e565` r163 + `7984074` r164 + `9a595cb` r165 (now 54 ahead origin/main `353df68`). 158/158 PASS (48 invariants + 35 scenarios + 7 coach + 45 monitor + 23 alerts) + tsc 0 + ruff/eslint clean + ADR-017 CI green + pre-commit hooks all green.
+- **Voie D held 83 rounds** (zero `import anthropic` across 4 rounds). **Pattern #15 R59-disprove = 13 applications stable** (ORM schemas r164 + alerts_runner pattern r165 verified first-hand). **NEW pattern observation r165** : circular-import via TYPE_CHECKING + function-local lazy import = clean fix when extending registry tuples with cross-module deps.
+- **2 Eliot transcripts INTEGRATED** durable cross-session : (1) macro/fondamental episode 2 Elliot Pena Hewi Capital MTA → `ichor_macro_lessons_episode2.md` (5 takeaways + 4 cycles + 7 drivers + Pattern #15 R59 alert pitch-commercial) ; (2) Fathom recording 70 min Eliot trading methodology → `ichor_eliot_trading_methodology.md` (12 invariants opérationnels + workflow Daily→H1→15min→5min + 6 sessions + pattern respiratoire + zone-based discipline). **9 gaps identified G1-G9** prioritised r167+ : G1 TradeabilityFlag (CRITICAL "ne trade pas aujourd'hui") + G2 DXY corrélation panel + G3 Risk-on/off chip + G4 Daily candle classification + G5-G9.
+- **Mission centrale axes** post-r165 : 4 of 8 ✅ CLOSED + NEW r161 axis "autonomy 24/7 + coach explicateur" FOUNDATION + Stride 1 CLOSED + Stride 8 Phase 2 visible. **Pass-6 production state** : `enable_scenarios=False` default `orchestrator.py:114` → SessionVerdict en mode dormant fallback ; Strands C-F prêts mais bloqués par flag jusqu'à r166 deploy + empirical Pass-6 validation ≥3 sessions.
+- **r166 immediate next** : R-DEPLOY-6 stack r163+r164+r165 + register-cron + dry-run smoke + Playwright witness ; AFTER empirical Pass-6 ≥3 sessions → flag flip.
+- **r167+ binding-defaults par leverage** : ⭐ G1+G8 TradeabilityFlag (HIGH-HIGH closes Eliot "ne trade pas aujourd'hui" CRITICAL gap) → G3 Risk-on/off → G4 Daily candle → G2 DXY corrélation → G5-G9 + Strides 2-7 ADR-106.
+
+### Pre-r165 state (preserved for archeology)
+
 ## §1 — Current state (r140-close, 2026-05-22)
 
 ### Shipped at r140 (axis-5 réactivité temps réel LIVE — `<FreshDataBanner>` polling `/v1/calendar/upcoming?since_minutes=60` on `/briefing/[asset]`)
