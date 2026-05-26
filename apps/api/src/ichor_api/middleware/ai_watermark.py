@@ -60,6 +60,14 @@ DEFAULT_WATERMARKED_PREFIXES: tuple[str, ...] = (
     "/v1/post-mortems",
     "/v1/today",
     "/v1/scenarios",
+    # r161 Strand G — ADR-106 D5 SessionVerdict endpoint. The verdict is
+    # LLM-derived (aggregated from Pass-6 7-bucket scenarios) even when
+    # the fallback path returns derived_from_scenarios=False (the
+    # fallback is itself a probabilistic-research-output requiring AI
+    # disclosure per ADR-079 + EU AI Act §50.2). MUST stay byte-identical
+    # to Settings.ai_watermarked_route_prefixes default per W90 invariant
+    # `test_ai_watermark_default_prefixes_match_settings`.
+    "/v1/verdict",
 )
 
 # Disclosure URL surfaced via `X-Ichor-AI-Disclosure`. Must resolve

@@ -42,6 +42,7 @@ from .tempo_thresholds import router as tempo_thresholds_router
 from .today import router as today_router
 from .tools import router as tools_router
 from .trade_plan import router as trade_plan_router
+from .verdict import router as verdict_router
 from .well_known import router as well_known_router
 from .ws import router as ws_router
 from .yield_curve import router as yield_curve_router
@@ -85,6 +86,7 @@ __all__ = [
     "today_router",
     "tools_router",
     "trade_plan_router",
+    "verdict_router",
     "well_known_router",
     "ws_router",
     "yield_curve_router",

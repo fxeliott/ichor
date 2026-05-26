@@ -45,6 +45,9 @@ import { PocketSkillBadge } from "@/components/briefing/PocketSkillBadge";
 import { ScenariosPanel } from "@/components/briefing/ScenariosPanel";
 import { SentimentPanel } from "@/components/briefing/SentimentPanel";
 import { SessionStatus } from "@/components/briefing/SessionStatus";
+// r161 Strand G — ADR-106 SessionVerdict apex panel (Eliot's r161 directive
+// "verdict exact" verbatim). Rendered prominently above EventAnticipationPanel.
+import { SessionVerdictPanel } from "@/components/briefing/SessionVerdictPanel";
 import { TodaySessionPulse } from "@/components/briefing/TodaySessionPulse";
 import { FreshDataBanner } from "@/components/briefing/FreshDataBanner";
 import { VerdictBanner } from "@/components/briefing/VerdictBanner";
@@ -57,6 +60,7 @@ import {
   getEventAnticipation,
   getInstitutionalPositioning,
   getHourlyVol,
+  getSessionVerdict,
   getIntradayBars,
   getKeyLevels,
   getGeopoliticsBriefing,
@@ -140,6 +144,7 @@ export default async function BriefingPage({ params }: PageParams) {
     macroPulse,
     recentActuals,
     eventAnticipation,
+    sessionVerdict,
   ] = await Promise.all([
     fetchSessionCardForAsset(normalisedAsset),
     getKeyLevels() as Promise<KeyLevelsResponse | null>,
@@ -184,6 +189,13 @@ export default async function BriefingPage({ params }: PageParams) {
     // currencies, SILENT otherwise. The dedicated <EventAnticipationPanel>
     // renders null in SILENT mode (honest absence per doctrine #11).
     getEventAnticipation(normalisedAsset) as Promise<EventAnticipationOut | null>,
+    // r161 Strand G — ADR-106 D5 SessionVerdict apex endpoint. Returns
+    // null on 404 (no session_card_audit today yet) OR any apiGet
+    // failure (graceful per apiGet contract). <SessionVerdictPanel>
+    // renders null when data===null (honest absence). Pass-6 dormant
+    // → builder returns downgraded verdict (derived_from_scenarios=
+    // false) and the panel surfaces a "mode dormant" badge.
+    getSessionVerdict(normalisedAsset),
   ]);
 
   // r123 — derive today's session pulse from the FULL intraday array
@@ -355,6 +367,18 @@ export default async function BriefingPage({ params }: PageParams) {
           is the read" matches the natural narrative flow. Silent fallback
           (panel returns null) when nothing fires in 14d — no fabricated
           chrome (doctrine #11 honest scope). */}
+      {/* r161 Strand G — ADR-106 D4 SessionVerdict APEX panel : the
+          canonical "verdict exact" per Eliot's r161 directive verbatim.
+          Rendered ABOVE EventAnticipationPanel because the verdict is
+          the user's primary read (direction + conviction % + nature for
+          the 14h-20h Paris NY-session window) ; everything else is the
+          provenance / drill-down behind it. Honest absence : returns
+          null when no session_card_audit row today yet (apiGet 404).
+          When Pass-6 is dormant in prod, the verdict still renders with
+          derived_from_scenarios=false + "mode dormant" badge — doctrine
+          #11 calibrated honesty surface. */}
+      <SessionVerdictPanel data={sessionVerdict} />
+
       <EventAnticipationPanel data={eventAnticipation} />
 
       {/* r134 + r142 + r143 — ConvictionGroundingPanel (Mission centrale

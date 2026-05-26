@@ -64,6 +64,11 @@ class Settings(BaseSettings):
             "/v1/post-mortems",
             "/v1/today",
             "/v1/scenarios",
+            # r161 Strand G — ADR-106 D5 SessionVerdict endpoint. The verdict
+            # is LLM-derived (via Pass-6 7-bucket scenarios) even when the
+            # fallback path returns derived_from_scenarios=False (the fallback
+            # is itself a probabilistic-research-output, not raw data).
+            "/v1/verdict",
         ]
     )
     """Path prefixes whose responses get the X-Ichor-AI-* watermark

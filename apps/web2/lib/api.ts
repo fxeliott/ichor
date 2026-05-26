@@ -312,6 +312,21 @@ export async function getEventAnticipation(asset: string): Promise<EventAnticipa
   return apiGet<EventAnticipationOut>(`/v1/event-anticipation/${encodeURIComponent(normalised)}`);
 }
 
+/** r161 Strand G — fetch ADR-106 SessionVerdict for the asset's current-day
+ *  NY-session window. Returns null on 404 (no card today yet OR Pass-6 dormant
+ *  → builder returns downgraded verdict, but apiGet would surface a 404 if no
+ *  card exists at all) OR any apiGet failure (network, 5xx). Frontend renders
+ *  honest absence when null — doctrine #11 calibrated honesty mirror of
+ *  EventAnticipationPanel's shouldRenderPanel pattern.
+ *
+ *  Endpoint contract per ADR-106 D5 : GET /v1/verdict/session-ny/{asset}
+ *  Path-param regex mirrors event_anticipation (CRIT-1 fix accepts digit
+ *  prefixes for NAS100/SPX500). */
+export async function getSessionVerdict(asset: string): Promise<SessionVerdict | null> {
+  const normalised = asset.toUpperCase().replace(/-/g, "_");
+  return apiGet<SessionVerdict>(`/v1/verdict/session-ny/${encodeURIComponent(normalised)}`);
+}
+
 /**
  * r69 + r138 — fetch recent news items from `/v1/news`.
  *
@@ -1123,6 +1138,61 @@ export interface EventAnticipationOut {
   engaged: EventProximityFactorOut | null;
   standby_events: UpcomingEventOut[];
   parse_failures: string[];
+}
+
+/* ─────────────────────────── r161 Strand G — ADR-106 SessionVerdict ── */
+
+export type VerdictDirection = "up" | "down" | "neutral";
+export type VerdictNature = "structured" | "momentum" | "range_bound" | "uncertain";
+export type LiveTriggerType =
+  | "economic_release"
+  | "central_bank_speech"
+  | "news_headline"
+  | "polymarket_shift"
+  | "cross_asset_breakout"
+  | "scenario_invalidation"
+  | "scenario_confirmation";
+export type LiveTriggerImpact = "confirms_verdict" | "tests_verdict" | "invalidates_verdict";
+export type PriorityAsset = "EUR_USD" | "GBP_USD" | "XAU_USD" | "SPX500_USD" | "NAS100_USD";
+export type BucketLabel =
+  | "crash_flush"
+  | "strong_bear"
+  | "mild_bear"
+  | "base"
+  | "mild_bull"
+  | "strong_bull"
+  | "melt_up";
+
+export interface LiveTrigger {
+  trigger_type: LiveTriggerType;
+  description: string;
+  fired_at_utc: string;
+  impact: LiveTriggerImpact;
+  source: string;
+}
+
+export interface ScenarioInvalidationState {
+  scenarios_invalidated_hard: BucketLabel[];
+  scenarios_invalidated_soft: BucketLabel[];
+  scenarios_with_notes: BucketLabel[];
+  last_check_utc: string;
+}
+
+export interface SessionVerdict {
+  asset: PriorityAsset;
+  session_window: "ny_14h_to_20h_paris";
+  direction: VerdictDirection;
+  conviction_pct: number;
+  nature: VerdictNature;
+  derived_from_scenarios: boolean;
+  scenario_decomposition_id: string | null;
+  invalidation_state: ScenarioInvalidationState | null;
+  live_triggers: LiveTrigger[];
+  coach_explanation: string;
+  ne_pas_actionner_avant_paris: string;
+  couper_au_plus_tard_paris: string;
+  last_updated_utc: string;
+  expires_at_utc: string;
 }
 
 export interface AlertItem {

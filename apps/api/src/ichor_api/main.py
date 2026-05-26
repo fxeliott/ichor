@@ -53,6 +53,7 @@ from .routers import (
     today_router,
     tools_router,
     trade_plan_router,
+    verdict_router,
     well_known_router,
     ws_router,
     yield_curve_router,
@@ -217,6 +218,7 @@ app.include_router(currency_strength_router)
 app.include_router(calendar_router)
 app.include_router(economic_events_router)
 app.include_router(event_anticipation_router)
+app.include_router(verdict_router)
 app.include_router(correlations_router)
 app.include_router(hourly_volatility_router)
 app.include_router(journal_router)
