@@ -21,9 +21,12 @@ the queried (event_class, instrument), Engine 8 uses the row's
     backfill recompute. Methodology stamps (window_minutes_before /
     after) are returned to the caller for caveat-surfacing but do NOT
     participate in row selection — r160 is single-methodology
-    (ABDV-2003 5min pre / 0min post canonical default). r170+ multi-
-    methodology selection logic will plug in here via an optional
-    `prefer_methodology` kwarg without breaking the r160 default.
+    (ABDV-2003 5min pre / 0min post canonical default — Andersen,
+    Bollerslev, Diebold & Vega 2003, "Micro Effects of Macro
+    Announcements: Real-Time Price Discovery in Foreign Exchange",
+    *American Economic Review* 93(1):38-62, DOI 10.1257/000282803321455151).
+    r170+ multi-methodology selection logic will plug in here via an
+    optional `prefer_methodology` kwarg without breaking the r160 default.
 
 **Asset ↔ instrument mapping** :
 

@@ -14,7 +14,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from ..claude_runner import ClaudeRunnerConfig
 from ..fallback import FallbackChain
@@ -59,6 +59,34 @@ class AssetSentiment(BaseModel):
     score: float = Field(ge=-1.0, le=1.0)
     n_articles: int = Field(ge=0)
     top_drivers: list[str] = Field(default_factory=list, max_length=3)
+
+    @field_validator("tone", mode="before")
+    @classmethod
+    def _normalize_mixed_tone(cls, v: object) -> object:
+        """r161 calibrated-honesty normalizer — Haiku low has demonstrated
+        drift emitting `'mixed'` tone (witnessed prod failure 2026-05-25
+        20:47:41 CEST on ``ichor-couche2@news_nlp.service`` :
+        ``asset_sentiment.1.tone='mixed'`` violating the Literal narrows
+        to a 500-class Pydantic ValidationError that crashed the agent
+        run).
+
+        Root cause : the sibling ``Narrative.sentiment`` Literal at line
+        38 above explicitly includes ``'mixed'`` as a valid value within
+        the same NewsNlpAgentOutput schema — Haiku generalises this
+        token from one field to the other. Sibling pattern applied to
+        ``cb_nlp.CbNlp.bias`` (Literal of the same tri-state shape, same
+        contamination risk).
+
+        Fix mechanics (per doctrine #2 strict scope) : a ``mode="before"``
+        validator that maps ``'mixed' → 'neutral'`` BEFORE the Literal
+        narrows. Byte-identical for non-violating outputs (no consumer
+        change), zero contract surface drift (ADR-023 tri-state
+        semantics preserved), structural defense beats prompt
+        engineering (which Haiku has drifted across r147-r155).
+        """
+        if isinstance(v, str) and v.strip().lower() == "mixed":
+            return "neutral"
+        return v
 
 
 class NewsNlpAgentOutput(BaseModel):

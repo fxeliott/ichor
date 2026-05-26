@@ -57,7 +57,9 @@ class EmpiricalReactionBeta(Base):
 
     methodology stamps : window_minutes_before + window_minutes_after
     explicitly record the event-window methodology (e.g., r161+ ABDV-2003
-    canonical 5min-pre + 0min-post). Future r170+ granularity refinements
+    canonical 5min-pre + 0min-post — Andersen, Bollerslev, Diebold & Vega
+    2003, *American Economic Review* 93(1):38-62, DOI
+    10.1257/000282803321455151). Future r170+ granularity refinements
     (1-min vs 5-min) recorded directly in the row without schema migration.
     """
 

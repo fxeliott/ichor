@@ -38,10 +38,16 @@ historical-trace pattern.
 
 **Methodology stamps in the table** : `window_minutes_before` +
 `window_minutes_after` columns explicitly store the event-window choice
-(per Pattern #15 r158 R59 ABDV-2003 5-min canonical methodology). Future
-methodology evolution (e.g., r170+ 1-min granular vs r160 5-min coarse)
-recorded directly in the row — Engine 8 can pick the best-methodology
-match if multiple rows present.
+(per Pattern #15 r158 R59 ABDV-2003 5-min canonical methodology —
+Andersen, Bollerslev, Diebold & Vega 2003, "Micro Effects of Macro
+Announcements: Real-Time Price Discovery in Foreign Exchange",
+*American Economic Review* 93(1):38-62, DOI 10.1257/000282803321455151
+[r161 Pattern #13 citation completion : r160 docstring referenced
+ABDV-2003 by name without primary-source journal/DOI ; Agent I r161
+R59 Phase 0 caught the gap pre-emptively even though no false-journal
+attribution was committed]). Future methodology evolution (e.g., r170+
+1-min granular vs r160 5-min coarse) recorded directly in the row —
+Engine 8 can pick the best-methodology match if multiple rows present.
 
 **Schema invariants (defense-in-depth, ADR-029 class hardening)** :
 
