@@ -47,7 +47,6 @@ from ..models import SessionCardAudit
 from .session_verdict import (
     LiveTrigger,
     PriorityAsset,
-    ScenarioInvalidationState,
     SessionVerdict,
     VerdictDirection,
     VerdictNature,
@@ -307,12 +306,43 @@ async def build_session_verdict(
         scenarios=scenarios_raw,
     )
 
-    # invalidation_state will be populated by r161 Strand D monitor service
-    # once it lands. For now (Strand A foundation + Strand H contract +
-    # Strand G builder shipped), invalidation_state is None and
-    # live_triggers is empty. Frontend renders "Déclencheurs : 0" + "Aucun
-    # scénario invalidé" placeholder until Strands C-F activate the monitor.
-    invalidation_state: ScenarioInvalidationState | None = None
+    # r164 Strand D : invalidation_state now populated by the
+    # `scenario_invalidation_monitor.evaluate_scenario_invalidations()`
+    # service. The monitor walks each bucket's `invalidations[]` list
+    # (populated by r163 Strand C Pass-6 system prompt) and evaluates
+    # each `InvalidationCondition` against current data from the
+    # appropriate Ichor source (FRED / Polygon / CBOE / Polymarket /
+    # honest_gap). Returns `None` when no invalidations are populated
+    # on the card yet — typical pre-deploy state since Pass-6
+    # `enable_scenarios=False` default keeps `card.scenarios=[]` AND
+    # even when scenarios are populated, the LLM prompt change (r163
+    # Strand C) needs to propagate via deploy + new emissions before
+    # the field is filled. Doctrine #11 calibrated honesty preserved :
+    # `None` = "monitor has no data to report" ; non-None with 3 empty
+    # lists = "evaluated, all clear" (distinct semantic).
+    #
+    # Strand E (r165) wires the alerts_runner pipeline on top so a
+    # hard-invalidation fire ALSO emits an Ichor alert via the canonical
+    # `check_metric()` quadruplet. Strand F (r165) wires the CRON.
+    #
+    # live_triggers stays empty here — populated by Strand E (the
+    # alerts_runner integration converts hard fires + news/economic
+    # release / polymarket shift triggers into LiveTrigger entries
+    # that bump conviction proportionally).
+    try:
+        from .scenario_invalidation_monitor import evaluate_scenario_invalidations
+
+        invalidation_state = await evaluate_scenario_invalidations(
+            session,
+            session_card_id=str(card.id),
+            now_utc=now_utc,
+        )
+    except Exception:
+        # Defensive : monitor failure must NOT block verdict emission.
+        # Frontend interprets `invalidation_state=None` as "no data" per
+        # doctrine #11 (vs hard "all clear" when non-None with empty lists).
+        invalidation_state = None
+
     live_triggers: list[LiveTrigger] = []
 
     return SessionVerdict(
