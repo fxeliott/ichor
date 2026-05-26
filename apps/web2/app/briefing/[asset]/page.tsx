@@ -48,6 +48,10 @@ import { SessionStatus } from "@/components/briefing/SessionStatus";
 // r161 Strand G — ADR-106 SessionVerdict apex panel (Eliot's r161 directive
 // "verdict exact" verbatim). Rendered prominently above EventAnticipationPanel.
 import { SessionVerdictPanel } from "@/components/briefing/SessionVerdictPanel";
+// r162 Stride 8 Phase 2 — ADR-106 §"coach explicateur" apex panel rendered
+// AT THE TOP of the briefing, ABOVE SessionVerdictPanel — the macro narrative
+// frames the per-asset verdict interpretation per D4 ordering directive.
+import { CoachMacroContextPanel } from "@/components/briefing/CoachMacroContextPanel";
 import { TodaySessionPulse } from "@/components/briefing/TodaySessionPulse";
 import { FreshDataBanner } from "@/components/briefing/FreshDataBanner";
 import { VerdictBanner } from "@/components/briefing/VerdictBanner";
@@ -56,6 +60,7 @@ import { HourlyVolReport } from "@/components/hourly-vol/HourlyVolReport";
 import {
   apiGet,
   getCalendarUpcoming,
+  getCoachMacroContext,
   getCorrelations,
   getEventAnticipation,
   getInstitutionalPositioning,
@@ -72,6 +77,7 @@ import {
   getTempoThresholds,
   isLive,
   type CalendarUpcoming,
+  type CoachMacroContext,
   type CorrelationMatrix,
   type EventAnticipationOut,
   type InstitutionalPositioning,
@@ -145,6 +151,7 @@ export default async function BriefingPage({ params }: PageParams) {
     recentActuals,
     eventAnticipation,
     sessionVerdict,
+    coachMacroContext,
   ] = await Promise.all([
     fetchSessionCardForAsset(normalisedAsset),
     getKeyLevels() as Promise<KeyLevelsResponse | null>,
@@ -196,6 +203,15 @@ export default async function BriefingPage({ params }: PageParams) {
     // → builder returns downgraded verdict (derived_from_scenarios=
     // false) and the panel surfaces a "mode dormant" badge.
     getSessionVerdict(normalisedAsset),
+    // r162 Stride 8 Phase 2 — ADR-106 §"coach explicateur" surface.
+    // Asset-agnostic by design (the macro narrative is the SAME across
+    // the 5-asset priority universe) — the call is repeated identically
+    // for every /briefing/[asset] visit. <CoachMacroContextPanel>
+    // renders null when data===null (honest absence per apiGet contract).
+    // The builder always returns a fully-populated CoachMacroContext —
+    // doctrine #11 calibrated-honesty outputs (cycle="uncertain" /
+    // dominant_theme=null / empty surprises) surface with explicit chrome.
+    getCoachMacroContext() as Promise<CoachMacroContext | null>,
   ]);
 
   // r123 — derive today's session pulse from the FULL intraday array
@@ -367,6 +383,19 @@ export default async function BriefingPage({ params }: PageParams) {
           is the read" matches the natural narrative flow. Silent fallback
           (panel returns null) when nothing fires in 14d — no fabricated
           chrome (doctrine #11 honest scope). */}
+      {/* r162 Stride 8 Phase 2 — ADR-106 §"coach explicateur" APEX panel
+          rendered AT THE VERY TOP of the briefing macro stack, ABOVE
+          SessionVerdictPanel per D4 ordering directive. The macro narrative
+          (4-cycle business-cycle classification + dominant theme +
+          3 next surprises + FR coach paragraph) FRAMES the per-asset
+          verdict interpretation : cycle/theme awareness BEFORE direction/
+          conviction read. Honest absence : returns null on apiGet failure
+          (network/5xx). Builder always returns a fully-populated context —
+          doctrine #11 outputs (cycle="uncertain" / no dominant theme / no
+          surprises) surface with explicit honest-uncertainty chrome rather
+          than hiding. */}
+      <CoachMacroContextPanel data={coachMacroContext} />
+
       {/* r161 Strand G — ADR-106 D4 SessionVerdict APEX panel : the
           canonical "verdict exact" per Eliot's r161 directive verbatim.
           Rendered ABOVE EventAnticipationPanel because the verdict is

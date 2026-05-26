@@ -11,6 +11,7 @@ from .briefings import router as briefings_router
 from .brier_feedback import router as brier_feedback_router
 from .calendar import router as calendar_router
 from .calibration import router as calibration_router
+from .coach_macro_context import router as coach_macro_context_router
 from .confluence import router as confluence_router
 from .correlations import router as correlations_router
 from .counterfactual import router as counterfactual_router
@@ -55,6 +56,7 @@ __all__ = [
     "brier_feedback_router",
     "calendar_router",
     "calibration_router",
+    "coach_macro_context_router",
     "confluence_router",
     "correlations_router",
     "counterfactual_router",

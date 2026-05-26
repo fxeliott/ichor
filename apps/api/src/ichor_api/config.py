@@ -69,6 +69,15 @@ class Settings(BaseSettings):
             # fallback path returns derived_from_scenarios=False (the fallback
             # is itself a probabilistic-research-output, not raw data).
             "/v1/verdict",
+            # r162 Stride 8 Phase 2 — ADR-106 §"coach explicateur" surface.
+            # The CoachMacroContext.coach_paragraph + CalendarSurprise.why_
+            # it_matters strings are AI-derived narrative synthesis (rule-
+            # based aggregation of FRED + EconomicEvent, but the output
+            # IS probabilistic-research-output text per EU AI Act §50.2
+            # definitional scope). MUST stay byte-identical to middleware
+            # DEFAULT_WATERMARKED_PREFIXES per W90 invariant
+            # `test_ai_watermark_default_prefixes_match_settings`.
+            "/v1/coach-macro-context",
         ]
     )
     """Path prefixes whose responses get the X-Ichor-AI-* watermark

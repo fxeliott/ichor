@@ -68,6 +68,14 @@ DEFAULT_WATERMARKED_PREFIXES: tuple[str, ...] = (
     # to Settings.ai_watermarked_route_prefixes default per W90 invariant
     # `test_ai_watermark_default_prefixes_match_settings`.
     "/v1/verdict",
+    # r162 Stride 8 Phase 2 — ADR-106 §"coach explicateur" surface.
+    # CoachMacroContext.coach_paragraph + CalendarSurprise.why_it_matters
+    # are AI-derived narrative synthesis (rule-based aggregation of FRED +
+    # EconomicEvent rows, but the rendered output IS probabilistic-
+    # research-output text per EU AI Act §50.2 definitional scope). MUST
+    # stay byte-identical to Settings.ai_watermarked_route_prefixes
+    # default per W90 invariant lockstep.
+    "/v1/coach-macro-context",
 )
 
 # Disclosure URL surfaced via `X-Ichor-AI-Disclosure`. Must resolve

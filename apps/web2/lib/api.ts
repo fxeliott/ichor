@@ -327,6 +327,21 @@ export async function getSessionVerdict(asset: string): Promise<SessionVerdict |
   return apiGet<SessionVerdict>(`/v1/verdict/session-ny/${encodeURIComponent(normalised)}`);
 }
 
+/** r162 Stride 8 Phase 2 — fetch ADR-106 CoachMacroContext (asset-agnostic).
+ *  Returns null on any apiGet failure (network / 5xx) — the panel renders
+ *  honest absence in that case (doctrine #11 calibrated-honesty surface).
+ *
+ *  The backend builder always returns a fully-populated CoachMacroContext
+ *  even when classifiers are inconclusive (`cycle="uncertain"` /
+ *  `dominant_theme=null` / `top_next_surprises=[]` are LEGITIMATE doctrine
+ *  #11 outputs — the panel surfaces them with explicit honest-uncertainty
+ *  chrome rather than hiding the section). Pure server-side fetch (SSR
+ *  Promise.all). LIVE state — backend sets `Cache-Control: private,
+ *  no-store`. */
+export async function getCoachMacroContext(): Promise<CoachMacroContext | null> {
+  return apiGet<CoachMacroContext>("/v1/coach-macro-context");
+}
+
 /**
  * r69 + r138 — fetch recent news items from `/v1/news`.
  *
@@ -1193,6 +1208,67 @@ export interface SessionVerdict {
   couper_au_plus_tard_paris: string;
   last_updated_utc: string;
   expires_at_utc: string;
+}
+
+/* ─────────────────────── r162 Stride 8 Phase 2 — ADR-106 CoachMacroContext ── */
+
+/** 4-phase business-cycle classification per the Hewi Capital trader transcript
+ *  framework (growth × inflation 2×2 matrix). `uncertain` is a legitimate
+ *  doctrine #11 calibrated-honesty output when FRED data is stale (>= 45 days)
+ *  OR one axis is genuinely ambiguous (mirror of `coach_macro_context.py:101`). */
+export type BusinessCycle = "expansion" | "reflation" | "deflation" | "stagflation" | "uncertain";
+
+/** Coarse growth axis label — surfaced standalone as a frontend chip
+ *  ("Croissance: forte"). Sourced from PAYEMS m/m trend over last 90d. */
+export type GrowthSignal = "strong" | "weak" | "uncertain";
+
+/** Coarse inflation axis label — surfaced standalone as a frontend chip
+ *  ("Inflation: en hausse"). Sourced from CPIAUCSL 3-month direction. */
+export type InflationSignal = "rising" | "falling" | "uncertain";
+
+/** Canonical 8-driver macro theme literal (single source of truth :
+ *  `packages/agents/.../macro.py:24-33` ; mirrored in
+ *  `packages/ichor_brain/.../coach_macro_context.py:65-74` for the Pydantic
+ *  Literal). The dominant theme is classified by rule-based max |z-score|
+ *  over the 18 FRED series mapped in `coach_macro_context_builder.py:_SERIES_TO_THEME`. */
+export type MacroTheme =
+  | "monetary_policy"
+  | "growth_data"
+  | "inflation_data"
+  | "labor_market"
+  | "fiscal_policy"
+  | "geopolitics"
+  | "credit_conditions"
+  | "commodity_supply";
+
+/** Surprise priority tier — drives UI emphasis on the upcoming-events list.
+ *  Sourced from `_surprise_priority(title, impact, cycle)` cycle-aware rule. */
+export type SurprisePriority = "high" | "medium" | "low";
+
+/** One upcoming high/medium-impact event surfaced for the coach narrative.
+ *  Mirror of `CalendarSurprise` Pydantic (frozen, extra=forbid). */
+export interface CalendarSurprise {
+  event_label: string;
+  scheduled_at_paris: string;
+  priority: SurprisePriority;
+  why_it_matters: string;
+}
+
+/** Canonical Ichor coach macro narrative — rendered at the TOP of
+ *  `/briefing/[asset]` ABOVE `<SessionVerdictPanel>` per ADR-106 §"coach
+ *  explicateur". Materialises Eliot's r161 directive verbatim ("coach de
+ *  compréhension", "guide lumineux qui rend chaque élément limpide"). */
+export interface CoachMacroContext {
+  cycle: BusinessCycle;
+  cycle_confidence_pct: number;
+  growth_signal: GrowthSignal;
+  inflation_signal: InflationSignal;
+  dominant_theme: MacroTheme | null;
+  dominant_theme_strength_z: number | null;
+  top_next_surprises: CalendarSurprise[];
+  coach_paragraph: string;
+  data_freshness_days: number;
+  generated_at_utc: string;
 }
 
 export interface AlertItem {

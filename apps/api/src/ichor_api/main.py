@@ -22,6 +22,7 @@ from .routers import (
     brier_feedback_router,
     calendar_router,
     calibration_router,
+    coach_macro_context_router,
     confluence_router,
     correlations_router,
     counterfactual_router,
@@ -219,6 +220,7 @@ app.include_router(calendar_router)
 app.include_router(economic_events_router)
 app.include_router(event_anticipation_router)
 app.include_router(verdict_router)
+app.include_router(coach_macro_context_router)
 app.include_router(correlations_router)
 app.include_router(hourly_volatility_router)
 app.include_router(journal_router)
