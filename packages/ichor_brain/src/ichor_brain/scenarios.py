@@ -91,9 +91,171 @@ CAP_95: float = 0.95
 SUM_TOLERANCE: float = 1e-6
 
 
+# r161 Strand A — InvalidationCondition canonical metric whitelist. Mirror of
+# the Ichor alerts catalog name-space (cf. `services/alerts/evaluator.py` +
+# `ALL_ALERTS`). Each entry MUST be polled by an existing collector OR
+# computable from already-persisted observations — never inventing a metric
+# the system cannot measure. Extension policy : any new metric requires (a)
+# a collector or service that persists current values, (b) corresponding
+# catalog entry in `alerts/evaluator.py`, (c) test coverage. Doctrine #4 SSOT.
+INVALIDATION_METRIC_NAMES: frozenset[str] = frozenset(
+    {
+        # Cross-asset FX + DXY (polygon_intraday + FRED)
+        "DXY",
+        "EURUSD",
+        "GBPUSD",
+        "USDJPY",
+        "USDCAD",
+        "AUDUSD",
+        # Equity indices (polygon_intraday)
+        "SPX500",
+        "NAS100",
+        # Commodities (polygon_intraday + FRED proxies)
+        "XAUUSD",
+        "BRENT",
+        "WTI",
+        # Rates + curve (FRED)
+        "FRED_DGS10",
+        "FRED_DGS2",
+        "FRED_DGS30",
+        "FRED_DFII10",
+        "FRED_T10Y2Y",
+        "FRED_T10YIE",
+        # Vol / risk (FRED + CBOE)
+        "VIX",
+        "VVIX",
+        "SKEW",
+        "MOVE",
+        # Credit / liquidity (FRED)
+        "FRED_BAMLH0A0HYM2",
+        "FRED_NFCI",
+        "FRED_DTWEXBGS",
+        # Inflation / growth (FRED)
+        "FRED_CPIAUCSL",
+        "FRED_PCEPI",
+        "FRED_PAYEMS",
+        # Geopolitical / event keyword polled via news_nlp + gdelt
+        "EVENT_HORMUZ_VOLUME_PCT",
+        "EVENT_IRAN_CEASEFIRE_STATUS",
+        "EVENT_TRUMP_TARIFF_STATUS",
+        # Polymarket probability markets
+        "POLY_FED_CUTS_2026",
+        "POLY_FED_HIKE_2026",
+        "POLY_RECESSION_2026",
+    }
+)
+
+
+# r161 Strand A — descriptive-only ADR-017 boundary applied to InvalidationCondition
+# `description` field. Same forbidden-token set as `_FORBIDDEN_MECHANISM_TOKENS_RE`
+# but reused at the validator site below for clarity (single source of truth on
+# regex pattern remains :50-53).
+
+
+class InvalidationCondition(BaseModel):
+    """One measurable threshold that, if breached, makes the parent scenario
+    less-likely-to-realize (or fully invalidated, depending on `severity`).
+
+    Doctrine alignment :
+      - ADR-017 boundary : descriptive only. ``description`` is what changes
+        in the world if the condition fires — never a trade instruction.
+      - Doctrine #4 SSOT : ``metric_name`` is enforced against
+        ``INVALIDATION_METRIC_NAMES`` so we cannot reference a metric that
+        Ichor has no way to poll.
+      - Doctrine #11 calibrated honesty : ``severity`` lets the LLM tier
+        invalidation strength (hard / soft / note) rather than collapsing
+        all to a single boolean fire.
+
+    Wire-up : when the Pass-6 LLM generates scenarios, it lists for each
+    bucket the conditions that — if measured against current data —
+    contradict the bucket's mechanism. A downstream service
+    (``services/scenario_invalidation_monitor.py``, r161 Strand D) polls
+    these conditions against current observations + fires through the
+    canonical ``alerts_runner.check_metric()`` quadruplet
+    (services/alerts/evaluator.py + Alert ORM + cli/run_*_check.py +
+    register-cron-*.sh) when a hard breach materialises.
+    """
+
+    model_config = {"frozen": True, "extra": "forbid"}
+
+    metric_name: str = Field(min_length=2, max_length=64)
+    """Canonical Ichor metric name. MUST be in
+    ``INVALIDATION_METRIC_NAMES`` (whitelist enforced by validator below).
+    Maps to either a polygon_intraday ticker, a FRED series_id, an
+    economic_events column, or a structured news-keyword polled feed."""
+
+    threshold: float
+    """Numerical threshold the metric is compared against. Unit varies by
+    metric (yield % for FRED_DGS10, index points for VIX, USD spot for
+    XAUUSD, etc.). The Pass-6 LLM is responsible for emitting a threshold
+    consistent with the metric's natural unit ; downstream monitor is
+    metric-aware via the ``alerts/evaluator.py`` catalog."""
+
+    direction: Literal["above", "below", "crosses_above", "crosses_below"]
+    """Threshold comparison operator. ``above``/``below`` = current value
+    >/< threshold. ``crosses_above``/``crosses_below`` = last-tick was on
+    the other side AND current-tick is on this side (state transition
+    detection ; needs 2-tick memory in the monitor)."""
+
+    severity: Literal["hard", "soft", "note"]
+    """How strongly the breach invalidates the scenario.
+      - ``hard`` : scenario fully invalidated, conviction → 0, ``p`` should
+        be redistributed across remaining buckets per ``cap_and_normalize``.
+      - ``soft`` : scenario partially invalidated, conviction should be
+        reduced (no auto-redistribution ; consumer decides).
+      - ``note`` : informational only, surface to user as "context
+        changed" without modifying probability."""
+
+    description: str = Field(min_length=10, max_length=200)
+    """Plain-French (or plain-English) one-sentence explanation of WHY
+    this condition invalidates the bucket. Critic-verifiable. ADR-017
+    boundary applies : never imperative, never a trade instruction —
+    the description explains the macro/structural mechanism that links
+    the metric breach to the bucket's contradicted thesis."""
+
+    @field_validator("metric_name")
+    @classmethod
+    def _validate_metric_name_in_whitelist(cls, v: str) -> str:
+        """Doctrine #4 SSOT : the LLM cannot fabricate a metric Ichor
+        cannot measure. Enforce against the canonical
+        ``INVALIDATION_METRIC_NAMES`` set at construction time."""
+        if v not in INVALIDATION_METRIC_NAMES:
+            raise ValueError(
+                f"metric_name {v!r} is not in INVALIDATION_METRIC_NAMES "
+                f"whitelist. Add it to the constant only if a collector "
+                f"or service persists current values for it. Current "
+                f"whitelist has {len(INVALIDATION_METRIC_NAMES)} entries."
+            )
+        return v
+
+    @field_validator("description")
+    @classmethod
+    def _reject_trade_tokens_in_description(cls, v: str) -> str:
+        """ADR-017 boundary mirror of ``Scenario._reject_trade_tokens``.
+        The description explains the mechanism of invalidation ; never
+        prescribes a trade action."""
+        if _FORBIDDEN_MECHANISM_TOKENS_RE.search(v):
+            raise ValueError(
+                "ADR-017 boundary violated : InvalidationCondition.description "
+                f"contains a forbidden trade-signal token. Got: {v!r}. The "
+                "description explains the macro/structural mechanism that "
+                "links the metric breach to the bucket's contradicted thesis ; "
+                "it never prescribes BUY/SELL/TP/SL or entry/exit."
+            )
+        return v
+
+
 class Scenario(BaseModel):
     """One bucket emission. ADR-017 compliant — describes probability +
-    magnitude range, never a trade signal."""
+    magnitude range, never a trade signal.
+
+    r161 Strand A extension : ``invalidations`` field carries 0..5
+    measurable conditions that, if breached, contradict this bucket's
+    mechanism. Optional + default-empty preserves byte-compatibility
+    with pre-r161 Pass-6 outputs (when the Pass-6 LLM prompt has not
+    yet been updated to generate invalidations, the field stays
+    ``[]`` and downstream consumers no-op cleanly).
+    """
 
     model_config = {"frozen": True, "extra": "forbid"}
 
@@ -111,6 +273,24 @@ class Scenario(BaseModel):
     bucket : event, narrative, technical level (referenced not prescribed).
     Critic-verifiable. ADR-017 forbids BUY/SELL/TP/SL tokens — enforced
     by `_reject_trade_tokens` validator below."""
+
+    invalidations: list[InvalidationCondition] = Field(
+        default_factory=list,
+        max_length=5,
+    )
+    """r161 Strand A — list of 0..5 measurable conditions that contradict
+    this bucket's mechanism if breached. Default empty preserves
+    backward-compat with pre-r161 Pass-6 emissions ; once Strand C ships
+    the updated Pass-6 system prompt, the LLM will populate this field
+    per bucket. Consumed by ``services/scenario_invalidation_monitor.py``
+    (Strand D) which polls each condition against current data and
+    fires through ``alerts_runner.check_metric()`` (canonical Ichor
+    alert pipeline) when a hard breach materialises.
+
+    Cap at 5 invalidations per bucket prevents prompt-engineering
+    saturation (the LLM tends to enumerate every adjacent risk if
+    unbounded ; 5 is the trader-mindset reading capacity per the
+    transcript framework + Pass-3 stress addendum doctrine)."""
 
     @field_validator("mechanism")
     @classmethod

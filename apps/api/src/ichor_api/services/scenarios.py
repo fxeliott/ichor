@@ -28,8 +28,10 @@ from ichor_brain.scenarios import (
     BUCKET_LABELS,
     BUCKET_Z_THRESHOLDS,
     CAP_95,
+    INVALIDATION_METRIC_NAMES,
     SUM_TOLERANCE,
     BucketLabel,
+    InvalidationCondition,
     Scenario,
     ScenarioDecomposition,
     bucket_for_zscore,
@@ -40,8 +42,12 @@ __all__ = [
     "BUCKET_LABELS",
     "BUCKET_Z_THRESHOLDS",
     "CAP_95",
+    # r161 Strand A — Scenario invalidation engine foundation (Mission centrale
+    # "système autonome interconnecté 24/7 auto-invalidating", ADR-106 vision).
+    "INVALIDATION_METRIC_NAMES",
     "SUM_TOLERANCE",
     "BucketLabel",
+    "InvalidationCondition",
     "Scenario",
     "ScenarioDecomposition",
     "bucket_for_zscore",
