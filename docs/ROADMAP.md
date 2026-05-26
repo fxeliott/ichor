@@ -161,7 +161,42 @@ See `docs/ROADMAP_2026-05-06.md` for the original 4-layer architecture (DATA FOU
 
 ---
 
-## §3 — Immediate next (r161) — ⭐ DUKASCOPY EXECUTION (r160 FOUNDATION SHIPPED)
+## §3 — Immediate next (r162) — ⭐ STRIDE 8 PHASE 2 COACH FRONTEND (r161 BACKEND FOUNDATION SHIPPED)
+
+**r161 EXECUTED & SHIPPED (2026-05-26)** : 🎯 **Composite 5-commit ship materialising Eliot's r161 directive verbatim apex output** ("hausse sur la session à 85 %, de façon structurée") + the autonomous interconnected 24/7 ecosystem vision + the coach explicateur dimension.
+
+5 commits on branch `claude/amazing-heyrovsky-80df1e` (push origin OK, 50 commits ahead origin/main `353df68`) :
+
+1. **`ead105e`** — Pydantic `mixed`-tone normalizer + ABDV-2003 _AER_ citation completion + Pattern #4 self-applied 5th
+2. **`8c94d4b`** — Strand A : Scenario Invalidation Engine foundation (`Scenario.invalidations` + `InvalidationCondition` + 33-metric whitelist)
+3. **`649db43`** — Strand H : `SessionVerdict` Pydantic contract + **NEW ADR-106** (autonomous living-system + 7-stride roadmap)
+4. **`29d4c40`** — Strand G : `<SessionVerdictPanel>` apex LIVE on `/briefing/[asset]` (backend builder + endpoint + frontend full slice)
+5. **`b7e2456`** — Stride 8 Phase 1 : `CoachMacroContext` backend foundation (4-cycle classifier + dominant theme + 3-next-surprises + FR coach paragraph)
+
+Build gate LOCAL MEASURED : pytest 80/80 + 16/16 smoke tests across 3 schemas + tsc clean.
+
+**Pass-6 production state** : still gated `enable_scenarios=False` per `orchestrator.py:114`. SessionVerdict surfaces in `derived_from_scenarios=false` mode-dormant fallback until Strand C-F activate the populated path.
+
+**Deploy state** : NOT YET DEPLOYED to Hetzner. r162 candidate #2 = R-DEPLOY-6 + Playwright witness.
+
+**Voie D held 79 rounds.** ADR-017/022/023/079/085/106 all preserved.
+
+**r162 binding-default candidates** (priority order, doctrine #10 default-sans-pivot) :
+
+1. ⭐ **AUTO-RECO Stride 8 Phase 2 frontend** : NEW `GET /v1/coach-macro-context` endpoint + `apps/web2/lib/coachMacroContext.ts` + NEW `<CoachMacroContextPanel>` + integration ABOVE `<SessionVerdictPanel>` on `/briefing/[asset]`. Materialises the visible apex of the coach explicateur dimension. Effort M, 1-2 sessions.
+2. **Deploy r161 stack to Hetzner + Playwright witness** : R-DEPLOY-6 api+web2 + screenshot `<SessionVerdictPanel>` LIVE in mode dormant + curl smoke `GET /v1/verdict/session-ny/EUR_USD` + `GET /v1/coach-macro-context` (assuming endpoint shipped). Effort S, 1 session.
+3. **Stride 1 Strands C-F continuation** : Pass-6 system prompt update (generates `invalidations` per scenario) + NEW `services/scenario_invalidation_monitor.py` + `alerts_runner.check_metric` integration + NEW `cli/run_scenario_invalidation_check.py` + register-cron 6×/jour Paris (00, 04, 08, 12, 16, 20). Unlocks the verdict's `derived_from_scenarios=true` populated path. Effort M, 2-3 sessions.
+4. **D:/Ichor main fast-forward** : still blocked by Eliot WIP (5 modified files RAG embeddings + CLAUDE.md). 182 commits stale.
+5. **5 worktrees --force cleanup** : busy-visvesvaraya / bold-mcclintock / pedantic-austin / gifted-bell / hopeful-cray have untracked/modified files, `--force` pending Eliot OK.
+6. **Doctrine #9 refactor** : extract `_fetch_upcoming_events_async()` shared helper consumed by `build_economic_calendar_context` + `event_anticipation_view` + `_fetch_next_surprises` (closure of mild r161 deferral).
+7. **Pattern #14+#16 deploy hardening mirror** to `redeploy-brain.sh` + `redeploy-web2.sh` if any deploy fires r162+.
+8. Strides 2-7 of ADR-106 roadmap (real-time news feed 5min / news-driven re-analysis trigger / post-event auto re-analysis / conviction decay function / cross-asset cascading / WebSocket SSE push).
+
+Pattern #15 R59 applies to every ⭐ — r162 Phase 0 R59 obligatoire if any external data dependency.
+
+---
+
+## §3 — Previous immediate next (r161, EXECUTED above) — ⭐ DUKASCOPY EXECUTION (r160 FOUNDATION SHIPPED)
 
 **r160 EXECUTED & SHIPPED (2026-05-25)** : 🏗️ **Dukascopy MVP FOUNDATION** — `empirical_reaction_betas` table (migration 0053, 6 CHECK constraints + compound desc index) + SQLAlchemy 2 ORM `EmpiricalReactionBeta` + NEW pure read-service `services/empirical_reaction_beta.py` (`get_latest_empirical_beta()` async fn + `EmpiricalReactionBetaSnapshot` frozen dataclass + `asset_to_instrument()` 5-asset slug map) + Engine 8 **empirical-first graceful-degradation** wire + NEW `using_empirical_calibration` parse_failures sentinel (POSITIVE disclosure polarity, frontend FR + priority rank 7 wired). 7 new TestR160 backend tests + SSOT call-order invariant extended 2-execute → 3-execute (events → VIX → empirical).
 

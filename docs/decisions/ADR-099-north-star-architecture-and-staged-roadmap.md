@@ -4584,3 +4584,66 @@ ZERO Anthropic API spend r159. **Voie D held 74 rounds.**
 11. `actual_source` / `actual_revised` columns.
 
 ZERO Anthropic API spend r160. **Voie D held 75 rounds.**
+
+---
+
+## Implementation (r161, 2026-05-26) — Tier 4 axis "autonomy 24/7 auto-invalidating + coach explicateur" : 5-commit composite shipping SessionVerdict + Scenario Invalidation Engine foundation + ADR-106 + CoachMacroContext
+
+**Round shape** : 5 commits across 4 atomic strides materialising Eliot's r161 directive verbatim apex output ("hausse sur la session à 85 %, de façon structurée") + the autonomous interconnected 24/7 ecosystem vision + the coach explicateur dimension. Spans Strand A (Pass-6 schema extension), Strand H (SessionVerdict contract + ADR-106), Strand G (apex panel LIVE on /briefing/[asset]), Stride 8 Phase 1 (CoachMacroContext backend foundation), plus carry-forward fix from r160.
+
+**Commits** :
+
+1. **`ead105e`** — `fix(api+agents)` r161 calibrated-honesty consolidation : Pydantic `mixed`-tone validator on `news_nlp.AssetSentiment.tone` + sibling preventive on `cb_nlp.CbAssetImpact.bias` (witnessed prod failure 2026-05-25 20:47:41 CEST `ichor-couche2@news_nlp.service`). ABDV-2003 _American Economic Review_ DOI 10.1257/000282803321455151 citation completion on r160 docstrings (Pattern #13 hygiene — Agent I r161 R59 claimed false-journal misattribution was empirically NOT in source, only citation-incomplete). 5 files, +73/-10 LOC. By-product : Pattern #4 worktree-venv `.pth` doctrine self-applied 5th application (Strand F worktree cleanup deleted `friendly-fermi-2fff71` which `_editable_impl_ichor_brain.pth` pointed to ; repointed all 3 `.pth` to `amazing-heyrovsky-80df1e` worktree).
+
+2. **`8c94d4b`** — `feat(ichor_brain+api)` r161 Strand A : Scenario Invalidation Engine foundation. NEW `InvalidationCondition` Pydantic class + `Scenario.invalidations: list[InvalidationCondition] = Field(default_factory=list, max_length=5)` extension + `INVALIDATION_METRIC_NAMES` frozenset (33 canonical Ichor metric names spanning FX/equities/commodities/rates/vol/credit/inflation/geopolitical-events/Polymarket-probabilities) + ADR-017 boundary regex mirror on `description`. ZERO migration needed (session_card_audit.scenarios JSONB free-form absorbs new shape per Agent researcher GREEN verdict). 2 files, +187/-1 LOC. 7 R59 Phase 0 verifications passed via researcher subagent.
+
+3. **`649db43`** — `feat(ichor_brain+api+docs)` r161 Strand H : NEW Pydantic `SessionVerdict` (14 fields : asset / session_window stamped `"ny_14h_to_20h_paris"` / direction up-down-neutral / conviction_pct 0..CAP_95\*100 / nature structured-momentum-range_bound-uncertain / derived_from_scenarios bool / scenario_decomposition_id UUID / invalidation_state nested ScenarioInvalidationState / live_triggers max 10 LiveTrigger / coach_explanation 80..800 chars ADR-017-regex / ne_pas_actionner_avant_paris 14h / couper_au_plus_tard_paris 20h / last_updated_utc / expires_at_utc) + LiveTrigger + ScenarioInvalidationState + apps/api re-export + **NEW ADR-106** (Autonomous living-system architecture & SessionVerdict contract — 5 decisions D1-D5 codified, 7-stride roadmap to r162+, full doctrine alignment summary). 3 files, +631 LOC.
+
+4. **`29d4c40`** — `feat(api+web2)` r161 Strand G : SessionVerdict apex panel LIVE on `/briefing/[asset]`. Backend : NEW `services/session_verdict_builder.py` (Paris-tz today-midnight bound, 14h00-20h00 window stamps + 15min expiry buffer, ADR-106 D2 directional dead-zone 0.15 + nature thresholds 0.55/0.45, FR coach explanation templates ZERO forbidden tokens, fallback handles None/dormant/populated paths). NEW `routers/verdict.py` (`GET /v1/verdict/session-ny/{asset}` with 200/404/410/422 + Cache-Control private no-store + r152 CRIT-1 regex `^[A-Z0-9]{3,8}_[A-Z]{3,8}$` accepting NAS100/SPX500 digit prefixes). Config + watermark middleware updated lockstep (`/v1/verdict` added to Settings.ai_watermarked_route_prefixes + DEFAULT_WATERMARKED_PREFIXES — W90 invariant `test_ai_watermark_default_prefixes_match_settings` GREEN). Frontend : NEW `lib/sessionVerdict.ts` (DIRECTION_FR/GLYPH/TONE + NATURE_FR/HINT_FR + TRIGGER SSOTs + formatRelativeUpdate/isVerdictExpired/isVerdictDormant/convictionTier/formatWindow pure helpers), api.ts extended with 9 TypeScript interfaces mirror Pydantic + getSessionVerdict async fn, NEW `<SessionVerdictPanel>` (prominent 4xl direction glyph + conviction tier + nature hint + coach paragraph + conditional live_triggers list + conditional invalidation chips + mode-dormant badge + verdict-expire badge + WCAG aria-labelledby + glassmorphism). page.tsx integration ABOVE `<EventAnticipationPanel>` per ADR-106 D4. 10 files, +930 LOC.
+
+5. **`b7e2456`** — `feat(ichor_brain+api)` r161 Stride 8 Phase 1 : CoachMacroContext narrative-synthesis backend. Pre-flight Pattern #15 R59 via researcher subagent on 5 existing macro services (regime_classifier 7-bucket stress / macro_quartet+quintet_check z-stress / couche2_context FRED-mapping / geopol_regime_check) → YELLOW 25% overlap verdict → REUSE `MacroTheme` Literal from `agents/macro.py:24` (doctrine #4 SSOT) + REUSE 18 FRED series mapping keys (couche2_context.py:179-198 SSOT) + BUILD NEW 4-cycle business-cycle classifier (PAYEMS+CPIAUCSL 2×2 matrix : strong+rising=reflation / strong+falling=expansion / weak+rising=stagflation / weak+falling=deflation / any-uncertain=uncertain) + BUILD NEW rule-based dominant theme classifier (max |z| over 18 series mapped to 8 themes) + BUILD NEW FR coach paragraph templater (3-sentence FR débutant, ZERO forbidden tokens by construction). NEW `packages/ichor_brain/src/ichor_brain/coach_macro_context.py` (Pydantic schema + CalendarSurprise + 11 fields + ADR-017 regex + MAX_FRESHNESS_DAYS=45 freshness gate). NEW `apps/api/src/ichor_api/services/coach_macro_context_builder.py` (~430 LOC, async build_coach_macro_context public API). Doctrine #9 anti-accumulation : EconomicEvent query in `_fetch_next_surprises` is technically a 3rd path vs `build_economic_calendar_context` (markdown) + `event_anticipation_view` (per-asset) — DEFERRED REFACTOR r162+ honestly documented in module docstring. 2 files, +794 LOC.
+
+**Build gate (LOCAL MEASURED across the 5 commits)** :
+
+- pytest `test_invariants_ichor.py` + `test_scenarios.py` → **80/80 PASS** (Pass-6 invariants + ADR-017 source-inspection + Brier 12-factor lockstep + AI watermark middleware-settings lockstep all preserved)
+- 5/5 SessionVerdict smoke tests pass (minimal verdict / invalidation_state / 2 triggers / ADR-017 BUY-TP-SL rejection / cap-95 enforcement / priority-5 whitelist)
+- 6/6 InvalidationCondition smoke tests pass (backward-compat empty list / valid invalidation / whitelist rejection / ADR-017 description / max-5 cap / re-export identity)
+- 5/5 CoachMacroContext smoke tests pass (schema construct / ADR-017 boundary / 4-cycle 2×2 matrix all 6 cases / trend_direction edge cases / cycle-aware surprise priority)
+- TypeScript `tsc --noEmit` clean
+
+**Mission centrale impact** : the architectural foundation for "écosystème vivant 24/7 auto-invalidating + coach explicateur" is now LOCKED — Eliot's r161 directive verbatim apex ("hausse sur la session à 85 %, de façon structurée") is materialised at the Pydantic contract level (SessionVerdict) + the prod frontend level (`<SessionVerdictPanel>` rendered above EventAnticipationPanel per ADR-106 D4). The coach pedagogy dimension foundation shipped via CoachMacroContext backend (4-cycle + dominant theme + 3-next-surprises + FR paragraph) — Phase 2 frontend ships r162. Pass-6 still gated `enable_scenarios=False` so verdict surfaces in `derived_from_scenarios=false` mode-dormant fallback until Strands C-F (Pass-6 prompt + monitor + alerts + CRON) land in r162-r166. Strides 2-7 of ADR-106 7-stride roadmap (real-time news feed / news-driven trigger / post-event auto / conviction decay / cross-asset cascade / WebSocket-SSE) remain carry-forward.
+
+**Phase 3 deploy status** : NOT YET DEPLOYED to Hetzner. The 4 r161 commits sit on branch `claude/amazing-heyrovsky-80df1e` at HEAD `b7e2456` (push origin OK, 49 commits ahead origin/main `353df68`). r162 candidate #1 = `R-DEPLOY-6 + Playwright witness` to make the SessionVerdictPanel + coach surface visible on prod tunnel.
+
+**Doctrine alignment verified across all 5 commits** :
+
+- ADR-017 : 5 boundary regex mirrors (`_FORBIDDEN_MECHANISM_TOKENS_RE`, `_FORBIDDEN_VERDICT_TOKENS_RE`, `_FORBIDDEN_COACH_TOKENS_RE`) catch BUY/SELL/TP/SL at Pydantic construction time across Scenario / SessionVerdict / LiveTrigger / CoachMacroContext / CalendarSurprise / news_nlp / cb_nlp ; FR templates ZERO forbidden tokens by construction
+- ADR-022 cap-95 : `conviction_pct` Field(le=CAP_95 \* 100.0) traced through `scenarios.py` constant + defensive `min(raw, 95.0)` clamps
+- ADR-023 (Couche-2 Haiku low) : Pydantic validator extension on `tone` + `bias` does NOT change model routing
+- ADR-079 (AI watermark) : `/v1/verdict` added to BOTH middleware default tuple AND Settings default list (W90 invariant GREEN)
+- ADR-085 (Pass-6 7 buckets) : SessionVerdict aggregates the canonical 7 buckets per ADR-106 D2, no new bucket
+- ADR-106 (NEW this round) : 7-stride roadmap codified, Strand A + H + G shipped, Stride 8 Phase 1 shipped
+- Voie D : pure compute aggregation across builders, zero Anthropic SDK consumption ; 79 rounds held
+- Doctrine #2 strict scope : each commit is atomic + cohesive, NO over-reach
+- Doctrine #4 SSOT : MacroTheme + BUCKET_LABELS + CAP_95 + PriorityAsset + INVALIDATION_METRIC_NAMES + DIRECTION_FR all single-source-of-truth
+- Doctrine #9 anti-accumulation : 1 mild deferral honestly documented (`_fetch_next_surprises` 3rd EconomicEvent query path → r162+ shared helper)
+- Doctrine #11 calibrated honesty : 4 levels of honest absence (verdict data=null / Pass-6 dormant fallback / verdict expired / coach cycle=uncertain)
+- Doctrine #12 anti-recidive : researcher pre-flight Pattern #15 R59 audits before each major code ship (no hallucinated architecture)
+
+**Pattern ledger updates** :
+
+- Pattern #4 (worktree-venv .pth doctrine) : 5th application self-applied r161 (Strand F worktree cleanup broke ichor_brain import, repointed)
+- Pattern #15 (R59-disprove-before-commit) : 11 stable applications (researcher pre-flight audits across Strand A + H + Stride 8)
+
+**r162 binding-default candidates** (priority order, doctrine #10 default-sans-pivot for the next "continue") :
+
+1. ⭐ **AUTO-RECO Stride 8 Phase 2 frontend** : NEW `GET /v1/coach-macro-context` endpoint + `apps/web2/lib/coachMacroContext.ts` + NEW `<CoachMacroContextPanel>` + integration ABOVE `<SessionVerdictPanel>` on `/briefing/[asset]`. The visible apex of the coach explicateur dimension. Effort M, 1-2 sessions.
+2. **Deploy r161 stack to Hetzner + Playwright witness** : R-DEPLOY-6 api+web2 + screenshot `<SessionVerdictPanel>` LIVE in mode dormant + CoachMacroContext smoke via curl. Effort S, 1 session.
+3. **Stride 1 Strands C-F continuation** : Pass-6 prompt update (genères invalidations per scenario) + NEW `services/scenario_invalidation_monitor.py` + alerts_runner integration + register-cron 6×/jour Paris. Effort M, 2-3 sessions. Unlocks the verdict's `derived_from_scenarios=true` populated path.
+4. **D:/Ichor main fast-forward** (still blocked by Eliot WIP : 5 modified files RAG embeddings + CLAUDE.md). 182 commits stale.
+5. **5 worktree cleanup --force** (busy-visvesvaraya, bold-mcclintock, pedantic-austin, gifted-bell, hopeful-cray have untracked/modified files, --force pending).
+6. **Doctrine #9 refactor** : extract `_fetch_upcoming_events_async()` shared helper consumed by `build_economic_calendar_context` + `event_anticipation_view` + `_fetch_next_surprises`.
+7. **Pattern #14 + #16 deploy hardening mirror** to redeploy-brain.sh + redeploy-web2.sh if any deploy fires next round.
+8. Strides 2-7 of ADR-106 roadmap (real-time news feed / news-driven trigger / post-event auto / conviction decay / cross-asset cascade / WebSocket SSE).
+
+ZERO Anthropic API spend r161. **Voie D held 79 rounds.**
