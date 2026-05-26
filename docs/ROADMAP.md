@@ -10,6 +10,27 @@
 
 ---
 
+## §1 — Current state (r167-close, 2026-05-26)
+
+### Shipped at r167 — 🎯 **G1+G8 TradeabilityFlag honest disclosure** (closes Eliot Fathom 2026-05-25 §VIII CRITICAL gap "ne trade pas aujourd'hui")
+
+- **Single feat commit `bfe71db`** +1100 LOC across 7 files (5 modified + 2 NEW). Branche `claude/amazing-heyrovsky-80df1e`, **56 commits ahead origin/main `353df68`** pre-closing-sync (57 post), NOT YET DEPLOYED Hetzner (r168 = R-DEPLOY-6 stack r163+r164+r165+r167 attend Eliot KEYWORD DEPLOY).
+- **Schema** — `TradeabilityFlag = Literal["tradeable", "no_setup", "holiday", "event_freeze", "low_volatility", "range"]` ajouté au contrat canonical `SessionVerdict` (`packages/ichor_brain/src/ichor_brain/session_verdict.py`). Backward-compat default `"tradeable"` préserve tous les consommateurs r161-r165 (ADR-106 D1).
+- **Service** — NEW `apps/api/src/ichor_api/services/tradeability_evaluator.py` (~430 LOC) avec composite priority-ordered `holiday > event_freeze > low_volatility > range > no_setup > tradeable`. Helpers purs : `_today_paris_date()` + `_is_us_market_holiday()` (NYSE static 2026-2028) + `_has_high_impact_event_within_horizon()` (≤ 2 h Tier 1/2) + `_is_low_volatility_current_hour()` (current-hour bp < 5.0 baseline `hourly_vol_report`) + fail-open sur exception (doctrine #11 honest fallback — false-block plus coûteux que false-tradeable sur infra hiccup).
+- **Wire** — `_safe_evaluate_tradeability()` defensive wrapper appelé sur **les deux paths** dans `session_verdict_builder.py` : fallback (Pass-6 dormant) ET populated (Pass-6 active). Préserve les 4 niveaux honest-absence existants et ajoute le **5ᵉ niveau** : tradeability ≠ `"tradeable"`.
+- **Frontend** — `lib/api.ts` TS literal + `lib/sessionVerdict.ts` 3 SSOT maps (`TRADEABILITY_FR` + `TRADEABILITY_HINT_FR` + `TRADEABILITY_TONE`) + `isTradeable()` pure helper (ZERO forbidden tokens ADR-017 source-inspection). `<SessionVerdictPanel>` disclosure banner rendered **ABOVE** direction chip when `!tradeable` (role="status" aria-live="polite" WCAG 2.2 AA, demoted chrome text-muted "honest but not alarmist", uniquement 5 valeurs sur 6 surface chrome — `"tradeable"` reste invisible).
+- **20 tests new** dans NEW `apps/api/tests/test_tradeability_evaluator.py` (~470 LOC) across 6 classes : `TestTodayParisDate` (3) + `TestIsUsMarketHoliday` (3) + `TestHasHighImpactEventWithinHorizon` (2) + `TestIsLowVolatilityCurrentHour` (4) + `TestEvaluateTradeabilityPriority` (5 strict ladder) + `TestEvaluateTradeabilityFailOpen` (1) + `TestR167TradeabilityFlagLockstepCoverage` (2 CI invariant exhaustive dispatch).
+- **Build gate LOCAL MEASURED** : pytest target suite **178/178 PASS** in 6.28s (158 baseline r165 + 20 new r167) ; tsc --noEmit on apps/web2 EXIT 0 clean ; ESLint sur 3 fichiers web2 modifiés EXIT 0 clean ; ruff format + ruff check --fix applied ; 15/15 pre-commit hooks PASS (gitleaks + ruff + prettier + ADR-081 doctrinal invariants).
+- **Doctrine alignment** : ADR-017 (5 FR strings regex-verified ZERO forbidden tokens) + ADR-106 D1 (contrat étendu backward-compat) + ADR-079 (W90 unchanged) + Voie D **84 rounds tenus** + Doctrine #2 strict scope + #4 SSOT + #9 anti-accumulation (pas de nouveau ADR ; ADR-106 §Impl(r167) APPEND uniquement) + #11 calibrated honesty 5-level ladder + #12 anti-recidive (Pattern #15 R59 sur NYSE holiday library → roll-own justified).
+- **Pattern #15 R59-disprove → 14 applications stable** (r167 +1 : NYSE holiday calendar absence-verify → roll-own static within scope).
+- **NEW r167 doctrinal observation (r168 codification candidate pattern #19)** : honest-absence ladder requires **strict-priority composite evaluator** with unit-tested transition pairs.
+- **G1+G8 ✅ CLOSED** : Eliot's #1 CRITICAL methodology gap (Fathom 2026-05-25 §VIII « ne trade pas aujourd'hui ») fermé end-to-end backend+frontend.
+- **r167 axis-state** : NEW axis "honest tradeability disclosure" FOUNDATION locked.
+- **r168 immediate-next** : R-DEPLOY-6 stack r163+r164+r165+r167 + register-cron + Playwright witness on `<SessionVerdictPanel>` disclosure banner — REQUIERS Eliot KEYWORD DEPLOY (doctrine #14 + #16 SSH-instability).
+- **r169+ binding-defaults par leverage** : G3 Risk-on/off chip + G4 Daily candle classification → G2 DXY corrélation panel → G5 previous-session origin zone + G6 volatility-by-hour signature → G7 pre-NY respiratory pattern + G9 métaphore rivière pédagogique → Strides 2-7 ADR-106 → honest-gap closures r164 monitor.
+
+### Pre-r167 state (preserved for archeology)
+
 ## §1 — Current state (r165-close, 2026-05-26)
 
 ### Shipped at r165 — 🌟 **ADR-106 §175 STRIDE 1 CLOSED end-to-end** (Scenario Invalidation Engine 7 strands complete)

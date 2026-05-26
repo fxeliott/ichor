@@ -4659,7 +4659,7 @@ NEW `<CoachMacroContextPanel>` apex LIVE on `/briefing/[asset]` ABOVE `<SessionV
 Extend `passes/scenarios.py:_SYSTEM` prompt : (a) extend règle 6 ABSOLUTE BAN ADR-017 to cover `invalidations[*].description` ; (b) NEW CRITICAL RULE 9 invalidations format spec (0..5 per bucket, severity hard/soft/note, 4 directions above/below/crosses_above/crosses_below) ; (c) NEW section "INVALIDATION CONDITIONS" enumerating canonical 33-metric `INVALIDATION_METRIC_NAMES` whitelist verbatim grouped by collector source (FX+DXY 6, equity 2, commodities 3, rates 6, vol/risk 4, credit/liquidity 3, inflation/growth 3, geopol events 3, polymarket 3) ; (d) NEW section "THRESHOLD UNIT CONVENTION" per-metric natural unit ; (e) extended schema JSON to 4 representative buckets carrying `"invalidations": [...]`. NEW 3 CI invariants in `test_invariants_ichor.py` (W90 extension) : `test_pass6_system_prompt_includes_invalidations_instruction` + `test_pass6_system_prompt_lists_metric_name_whitelist` (whitelist size pin = 33 + ≤1 missing tolerance) + `test_pass6_system_prompt_enforces_adr017_on_invalidations_description`. Backward-compat preserved : `Scenario.invalidations` field default `[]` keeps pre-r163 emissions valid. +312/-16 LOC.
 
 **r164 Strand D monitor service (`7984074`)**
-NEW `services/scenario_invalidation_monitor.py` (~840 LOC) : 6-source dispatcher (FRED 12 + Polygon 11 + CBOE*SKEW 1 + CBOE_VVIX 1 + Polymarket 3 + honest_gap 5) classifying by `_classify_metric_source(metric_name)`. 5 per-source async evaluator functions querying the appropriate ORM table (FredObservation/PolygonIntradayBar/CboeSkewObservation/CboeVvixObservation/PolymarketSnapshot) + uniform 4-direction operator support (`above`/`below` 1-row + `crosses_above`/`crosses_below` 2-row state transition detection). 5 `InvalidationStatus` enum (`fired_hard`/`fired_soft`/`fired_note`/`not_fired`/`not_evaluable`). Top-level `evaluate_scenario_invalidations(session, *, session_card_id)` aggregator walks 7 buckets per card + applies STRICT severity hierarchy hard > soft > note (bucket appears in AT MOST one list) + returns `None` when no card OR empty scenarios OR all-empty invalidations[] (doctrine #11 : distinct from non-None with empty lists = "all clear"). Coverage 28/33 evaluable (84.8%) + 5/33 honest gap (15.2%, MOVE + 3 EVENT*\* + future closures r167+). Wired into `session_verdict_builder.py` populated path (try/except defensive : monitor failure preserves None fallback). NEW `tests/test_scenario_invalidation_monitor.py` (45 tests) + NEW W90 invariant `test_r164_invalidation_metric_lockstep_coverage` (symmetric pin to r163 prompt invariant). +1555/-7 LOC.
+NEW `services/scenario_invalidation_monitor.py` (~840 LOC) : 6-source dispatcher (FRED 12 + Polygon 11 + CBOE*SKEW 1 + CBOE_VVIX 1 + Polymarket 3 + honest_gap 5) classifying by `_classify_metric_source(metric_name)`. 5 per-source async evaluator functions querying the appropriate ORM table (FredObservation/PolygonIntradayBar/CboeSkewObservation/CboeVvixObservation/PolymarketSnapshot) + uniform 4-direction operator support (`above`/`below` 1-row + `crosses_above`/`crosses_below` 2-row state transition detection). 5 `InvalidationStatus` enum (`fired_hard`/`fired_soft`/`fired_note`/`not_fired`/`not_evaluable`). Top-level `evaluate_scenario_invalidations(session, *, session_card_id)`aggregator walks 7 buckets per card + applies STRICT severity hierarchy hard > soft > note (bucket appears in AT MOST one list) + returns`None`when no card OR empty scenarios OR all-empty invalidations[] (doctrine #11 : distinct from non-None with empty lists = "all clear"). Coverage 28/33 evaluable (84.8%) + 5/33 honest gap (15.2%, MOVE + 3 EVENT*\* + future closures r167+). Wired into`session_verdict_builder.py`populated path (try/except defensive : monitor failure preserves None fallback). NEW`tests/test_scenario_invalidation_monitor.py`(45 tests) + NEW W90 invariant`test_r164_invalidation_metric_lockstep_coverage` (symmetric pin to r163 prompt invariant). +1555/-7 LOC.
 
 **r165 Strand E+F alerts pipeline + CRON (`9a595cb`)**
 NEW `alerts/scenario_invalidation.py` (3 AlertDef joining `ALL_ALERTS` 54→57 : `SCENARIO_INVALIDATION_HARD` critical / `_SOFT` warning / `_NOTE` info). NEW `evaluate_scenario_invalidation_hits()` returning `(AlertHit, asset)` tuples with strict severity hierarchy + per-card defensive try/except. Circular-import avoidance via TYPE_CHECKING + function-local lazy import for `AlertHit` (since `evaluator.py` imports `ALL_ALERTS` from `catalog.py` + `catalog.py` extends `ALL_ALERTS` from `SCENARIO_INVALIDATION_ALERTS` here). NEW `alerts_runner.check_scenario_invalidations()` wrapper (dedup per alert_code+asset window via existing `_is_recent_duplicate` + persist via existing `_persist_hit` machinery). UPDATE `catalog.py` extend `ALL_ALERTS` tuple + bump `assert_catalog_complete` 54→57. NEW `cli/run_scenario_invalidation_check.py` (feature-flag `scenario_invalidation_monitor_enabled` gated + `--dry-run` rollback + structured exit codes 0/1/3). NEW `scripts/hetzner/register-cron-scenario-invalidation-check.sh` (systemd .service + .timer 6×/jour Paris 00,04,08,12,16,20 per ADR-106 D3 cadence rationale : EOD/pre-Tokyo/pre-London/peri-briefing/mid-NY/end-NY). NEW `tests/test_scenario_invalidation_alerts.py` (23 tests) including catalog count pin 57 + status→AlertDef mapping covers all 5 monitor enum + strict severity hierarchy + multi-card fan-out + defensive try/except. +1022/-3 LOC across 6 files.
@@ -4730,3 +4730,126 @@ NEW `alerts/scenario_invalidation.py` (3 AlertDef joining `ALL_ALERTS` 54→57 :
 7. Honest-gap closures r164 monitor (MOVE dedicated collector + Couche-2 news*nlp extension for EVENT*\*)
 
 ZERO Anthropic API spend r162+r163+r164+r165. **Voie D held 83 rounds.**
+
+---
+
+## §Impl(r167) — G1+G8 TradeabilityFlag honest disclosure (closes Eliot Fathom 2026-05-25 §VIII gap)
+
+**Date** : 2026-05-26 (empirically verified `date -u` + 3 git commit timestamps concordants)
+**Commit** : `bfe71db` (single feat, +1100 LOC across 7 files)
+**Branch** : `claude/amazing-heyrovsky-80df1e` (56→57 ahead `origin/main` `353df68`)
+**Status** : SHIPPED in repo. NOT YET DEPLOYED Hetzner — r168 = R-DEPLOY-6 stack r163+r164+r165+r167.
+
+### Decision recap
+
+Pre-r167 `SessionVerdict` lacked a structural-blocker field. The apex panel rendered a direction chip + conviction % unconditionally — even on days an experienced discretionary trader would skip entirely. r167 closes this gap by adding a `TradeabilityFlag` literal + composite priority-ordered evaluator + demoted-chrome frontend disclosure banner, materialising Eliot's #1 CRITICAL methodology gap from Fathom 2026-05-25 §VIII.
+
+### Files (modified 5 / NEW 2)
+
+| File                                                         | Status   | LOC  |
+| ------------------------------------------------------------ | -------- | ---- |
+| `packages/ichor_brain/src/ichor_brain/session_verdict.py`    | Modified | +68  |
+| `apps/api/src/ichor_api/services/tradeability_evaluator.py`  | **NEW**  | ~430 |
+| `apps/api/src/ichor_api/services/session_verdict_builder.py` | Modified | +58  |
+| `apps/api/tests/test_tradeability_evaluator.py`              | **NEW**  | ~470 |
+| `apps/web2/lib/api.ts`                                       | Modified | +18  |
+| `apps/web2/lib/sessionVerdict.ts`                            | Modified | +55  |
+| `apps/web2/components/briefing/SessionVerdictPanel.tsx`      | Modified | +27  |
+
+### Composite rule (strict priority-ordering)
+
+```
+holiday > event_freeze > low_volatility > range > no_setup > tradeable
+```
+
+- `holiday` : `_is_us_market_holiday(today_paris)` — NYSE static calendar 2026-2028 (Pattern #15 R59 justified roll-own vs ajout dépendance)
+- `event_freeze` : `_has_high_impact_event_within_horizon(now, ≤ 2 h, Tier 1/2)`
+- `low_volatility` : `_is_low_volatility_current_hour(asset, < 5.0 bp)` from `hourly_vol_report` baseline
+- `range` : Pass-6 range nature threshold (`scenario_nature == "range_bound"`)
+- `no_setup` : `conviction_pct < 30.0 %` directional dead-zone
+- `tradeable` : default fall-through
+
+Fail-open semantics : any exception → `"tradeable"`. Justified by asymmetric cost (doctrine #11) — false-block during normal trading day is worse than false-tradeable on infra hiccup.
+
+### Wire points
+
+Both `session_verdict_builder.py` paths call `_safe_evaluate_tradeability()` defensive wrapper :
+
+- **Fallback path** (Pass-6 dormant) : `fallback_tradeability = await _safe_evaluate_tradeability(session, asset=asset, conviction_pct=0.0, now_utc=now_utc)` then `tradeability=fallback_tradeability` in `SessionVerdict(...)`.
+- **Populated path** (Pass-6 active) : `populated_tradeability = await _safe_evaluate_tradeability(session, asset=asset, conviction_pct=conviction_pct, now_utc=now_utc)` then `tradeability=populated_tradeability` in `SessionVerdict(...)`.
+
+5-level honest-absence ladder now : verdict null / Pass-6 dormant / verdict expired / coach uncertain / **NEW** tradeability ≠ tradeable.
+
+### Frontend disclosure
+
+`<SessionVerdictPanel>` renders demoted-chrome banner ABOVE direction chip when `!tradeable` :
+
+```tsx
+{
+  !tradeable && (
+    <div role="status" aria-live="polite" className="rounded-md border ...">
+      <p className="font-medium uppercase tracking-wide text-[var(--color-text-muted)]">
+        {TRADEABILITY_FR[data.tradeability]} · ne pas prendre position aujourd'hui
+      </p>
+      <p className="mt-1 leading-relaxed text-[var(--color-text-secondary)]">
+        {TRADEABILITY_HINT_FR[data.tradeability]}
+      </p>
+    </div>
+  );
+}
+```
+
+WCAG 2.2 AA (role="status" aria-live="polite") ; text-muted "honest but not alarmist" tone ; 5 of 6 flag values surface chrome — `"tradeable"` remains invisible.
+
+### Build gate (LOCAL MEASURED)
+
+```
+pytest target suite → 178 passed / 10 warnings in 6.28s
+  (158 baseline r165 + 20 new r167)
+
+tsc --noEmit on apps/web2 → EXIT 0 clean
+ESLint on 3 modified web2 files → EXIT 0 clean
+ruff format + ruff check --fix → applied pre-commit
+15/15 pre-commit hooks PASS (gitleaks + ruff + prettier + ADR-081)
+```
+
+### Doctrine alignment verified
+
+- **ADR-017** boundary preserved — 5 FR strings regex-verified ZERO forbidden tokens (description NEVER imperative).
+- **ADR-022** cap-95 unchanged.
+- **ADR-023** Couche-2 Haiku unchanged.
+- **ADR-079** watermark middleware unchanged (W90 invariant green — no new `/v1` route).
+- **ADR-085** Pass-6 7-bucket SSOT preserved.
+- **ADR-106 D1** SessionVerdict contract extended backward-compat (default `"tradeable"`) ; D2 deterministic builder honored.
+- **Voie D 84 rounds tenus** (zero `import anthropic`, zero `dspy.LM("claude-*")` literal).
+- **Doctrine #2** strict scope — single atomic feat commit, ONE gap (G1+G8 paired).
+- **Doctrine #4 SSOT** — single TradeabilityFlag literal mirrored TS + 4 Record<TradeabilityFlag,\_> maps + CI invariant exhaustive dispatch (`TestR167TradeabilityFlagLockstepCoverage`).
+- **Doctrine #9 anti-accumulation** — NO new ADR (this §Impl(r167) APPEND only) ; 1 new service file ; Literal extension.
+- **Doctrine #11 calibrated honesty** — 5-level honest-absence ladder ; fail-open semantics justified by asymmetric cost.
+- **Doctrine #12 anti-recidive** — Pattern #15 R59 pre-flight on NYSE holiday library question : researcher verified absence of well-maintained Python NYSE-calendar package within scope → roll-own static 2026-2028 calendar.
+- **Doctrine #14 R-DEPLOY-6** — N/A r167 (no deploy this round ; bundled into r168).
+- **Doctrine #21 R30** last-sync hygiene — closing-sync this commit.
+
+### Pattern ledger evolution
+
+- **Pattern #4** (worktree-venv .pth) : 5 applications stable (unchanged).
+- **Pattern #15** (R59-disprove-before-commit) : **14 applications stable** (r167 +1 : NYSE holiday calendar absence-verify → roll-own justified vs ajout dépendance externe).
+- **NEW observation r167** (r168 codification candidate as pattern #19) : honest-absence ladder requires **strict-priority composite evaluator** with unit-tested transition pairs to remain non-ambiguous when multiple triggers can fire simultaneously.
+
+### Closure mapping
+
+- **G1 (TradeabilityFlag CRITICAL)** ✅ CLOSED end-to-end backend+frontend.
+- **G8 (Honest disclosure §VIII)** ✅ CLOSED via demoted-chrome banner.
+- **NEW r167 axis** "honest tradeability disclosure" → FOUNDATION locked.
+
+### r168 binding-default candidates par leverage
+
+1. ⭐ **R-DEPLOY-6 stack r163+r164+r165+r167** + register-cron `scenario-invalidation-check` + Playwright witness on `<SessionVerdictPanel>` disclosure banner — REQUIERS Eliot KEYWORD DEPLOY (doctrine #14 + #16 SSH-instability).
+2. **G3 Risk-on/off chip** + **G4 Daily candle classification** (Eliot methodology §IV.4 + §X) extends `<CoachMacroContextPanel>`.
+3. **G2 DXY corrélation panel** (Eliot methodology §XI : « pilier de notre analyse ») rolling 20-day + divergence flag.
+4. **G5 previous-session origin zone** + **G6 volatility-by-hour signature** 3-month MA équivalent Market Milk.
+5. **G7 pre-NY respiratory pattern detector** + **G9 métaphore rivière pédagogique** dans `coach_explanation`.
+6. **Strides 2-7 ADR-106** : real-time news feed + news-driven trigger + post-event auto re-analysis + conviction decay + cross-asset cascade + WebSocket SSE.
+7. **Honest-gap closures r164 monitor** : MOVE dedicated collector + Couche-2 `news_nlp` extension for EVENT\_\* metrics.
+
+ZERO Anthropic API spend r167. **Voie D held 84 rounds.**
