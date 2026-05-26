@@ -106,6 +106,51 @@ VerdictDirection = Literal["up", "down", "neutral"]
 VerdictNature = Literal["structured", "momentum", "range_bound", "uncertain"]
 
 
+# r167 G1 — TradeabilityFlag : closes Eliot's #1 CRITICAL gap from his trading
+# methodology transcript (Fathom 2026-05-25 §VIII). When the day is structurally
+# unsuitable for taking a NY-session position (bank holiday / pending high-impact
+# event freeze / abnormally low volatility / market range absolu / no strong
+# setup), Ichor surfaces a HONEST DISCLOSURE rather than emitting a conviction
+# read that the trader would have to OVERRIDE.
+#
+# Eliot verbatim from the methodology transcript : « on était en bank holiday
+# aujourd'hui, mais on peut bien le voir ici sur la session de New York... toute
+# une session orange. Donc on n'a vraiment pas du tout de volatilité, donc ça
+# vraiment pas du tout intéressant à trader pour aujourd'hui ».
+#
+# The 6 values map to 6 distinct decision contexts :
+#   - ``tradeable``       : all gates pass — verdict reads as normal, trader
+#                           proceeds with technical entry analysis.
+#   - ``no_setup``        : verdict conviction_pct < 30 — read is too weak ;
+#                           trader passes without holiday/event-freeze cause.
+#   - ``holiday``         : US market holiday (cf. ``market_session.us_market_
+#                           holidays``) — NY session sees reduced volume even
+#                           on FX/XAU, Eliot's discipline = no trade.
+#   - ``event_freeze``    : high-impact economic event scheduled within next
+#                           2h — Eliot's discipline = wait the event then trade
+#                           reaction, never trade across the event.
+#   - ``low_volatility``  : current hour-UTC median_bp from rolling 30-day
+#                           hourly_volatility window is below threshold (5 bp
+#                           default) — market is structurally inert, momentum
+#                           unlikely.
+#   - ``range``           : last N daily candles all small body (range-bound
+#                           inertia). r167 honest gap : always False until
+#                           r168 wires G4 daily-candle classification ; the
+#                           literal is shipped now for forward-compat schema.
+#
+# Derivation logic lives in ``services/tradeability_evaluator.py`` (r167 G1).
+# Frontend surfaces ``<SessionVerdictPanel>`` disclosure banner via r167 G8
+# when ``tradeability != "tradeable"``.
+TradeabilityFlag = Literal[
+    "tradeable",
+    "no_setup",
+    "holiday",
+    "event_freeze",
+    "low_volatility",
+    "range",
+]
+
+
 # Live-trigger type taxonomy. Each value maps to a specific upstream feed
 # the system polls (Strands C-F of r161 Scenario Invalidation Engine).
 LiveTriggerType = Literal[
@@ -338,6 +383,29 @@ class SessionVerdict(BaseModel):
     consumed. Frontend banner switches to "verdict expiré, attente
     nouvelle session" past this. Typically set to
     ``couper_au_plus_tard_paris`` + 15min buffer."""
+
+    tradeability: TradeabilityFlag = "tradeable"
+    """r167 G1 — closes Eliot's #1 CRITICAL gap from his methodology
+    transcript (Fathom 2026-05-25 §VIII : « pas du tout intéressant à
+    trader pour aujourd'hui »).
+
+    6-state Literal indicating whether the day is structurally suitable
+    for taking a NY-session position. Default ``"tradeable"`` preserves
+    backward-compat with pre-r167 emissions (any older row deserialised
+    with this Pydantic class lands as ``"tradeable"`` — same semantic
+    as "no honest reason to abstain").
+
+    Derived deterministically by ``services/tradeability_evaluator.py``
+    composite rule (priority-ordered : holiday > event_freeze >
+    low_volatility > range > no_setup > tradeable). The evaluator is
+    called by ``session_verdict_builder.py`` for BOTH the populated path
+    and the fallback path so a dormant verdict can still honestly
+    surface ``"holiday"`` or ``"event_freeze"`` to the trader.
+
+    Frontend ``<SessionVerdictPanel>`` r167 G8 renders a disclosure
+    banner (demoted chrome + honest FR copy) when this field is anything
+    other than ``"tradeable"`` ; the trader sees clearly WHY the verdict
+    should not be acted on today, even though the verdict still emits."""
 
     @field_validator("coach_explanation")
     @classmethod

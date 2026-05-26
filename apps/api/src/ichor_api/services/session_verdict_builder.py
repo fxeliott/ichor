@@ -222,6 +222,38 @@ def _build_coach_explanation_fallback(asset: PriorityAsset) -> str:
     )
 
 
+async def _safe_evaluate_tradeability(
+    session: AsyncSession,
+    *,
+    asset: str,
+    conviction_pct: float,
+    now_utc: datetime,
+) -> str:
+    """r167 G1 — defensive wrapper around ``tradeability_evaluator.evaluate
+    _tradeability``. Returns ``"tradeable"`` on ANY exception so the
+    verdict emission is never blocked by an evaluator failure (fail-open
+    asymmetry : false ``tradeable`` on infra hiccup is less harmful than
+    false-flag blocking a normal trading day).
+
+    Imported lazily inside the function to keep the build_session_verdict
+    module entry-point fast and to defer the tradeability_evaluator
+    initialisation cost until first invocation."""
+    try:
+        from .tradeability_evaluator import evaluate_tradeability
+
+        return await evaluate_tradeability(
+            session,
+            asset=asset,
+            conviction_pct=conviction_pct,
+            now_utc=now_utc,
+        )
+    except Exception:
+        # Doctrine #11 calibrated honesty + fail-open : default to
+        # tradeable to never block verdict emission. The tradeability
+        # evaluator itself logs structured warnings on internal gates.
+        return "tradeable"
+
+
 async def build_session_verdict(
     session: AsyncSession,
     *,
@@ -274,6 +306,19 @@ async def build_session_verdict(
 
     scenarios_raw: list[dict[str, Any]] = list(card.scenarios or [])
 
+    # r167 G1 — evaluate TradeabilityFlag for the fallback path. The
+    # holiday/event_freeze gates are STRUCTURAL (independent of Pass-6
+    # state) so a dormant verdict still surfaces "holiday" if today is
+    # one — closes Eliot's transcript §VIII gap precisely. Defensive
+    # try/except : evaluator failure defaults to "tradeable" (fail-open
+    # — false-positive trade day is less harmful than false holiday).
+    fallback_tradeability = await _safe_evaluate_tradeability(
+        session,
+        asset=asset,
+        conviction_pct=0.0,
+        now_utc=now_utc,
+    )
+
     # Fallback path : Pass-6 dormant OR malformed JSONB.
     if len(scenarios_raw) != 7 or not all(
         isinstance(s, dict) and "label" in s and "p" in s for s in scenarios_raw
@@ -292,6 +337,7 @@ async def build_session_verdict(
             couper_au_plus_tard_paris=window_close,
             last_updated_utc=card.generated_at,
             expires_at_utc=expires_utc,
+            tradeability=fallback_tradeability,
         )
 
     # Populated path : derive per ADR-106 D2.
@@ -345,6 +391,17 @@ async def build_session_verdict(
 
     live_triggers: list[LiveTrigger] = []
 
+    # r167 G1 — evaluate TradeabilityFlag for the populated path. Uses the
+    # derived conviction_pct so the `no_setup` gate (last priority before
+    # `tradeable`) can fire for weak Pass-6 emissions even when no
+    # structural blocker (holiday / event_freeze / low_vol) is present.
+    populated_tradeability = await _safe_evaluate_tradeability(
+        session,
+        asset=asset,
+        conviction_pct=conviction_pct,
+        now_utc=now_utc,
+    )
+
     return SessionVerdict(
         asset=asset,
         direction=direction,
@@ -355,6 +412,7 @@ async def build_session_verdict(
         invalidation_state=invalidation_state,
         live_triggers=live_triggers,
         coach_explanation=coach_explanation,
+        tradeability=populated_tradeability,
         ne_pas_actionner_avant_paris=window_open,
         couper_au_plus_tard_paris=window_close,
         last_updated_utc=card.generated_at,

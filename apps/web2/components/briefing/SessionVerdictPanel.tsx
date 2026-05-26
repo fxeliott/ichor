@@ -48,12 +48,15 @@ import {
   DIRECTION_TONE,
   NATURE_FR,
   NATURE_HINT_FR,
+  TRADEABILITY_FR,
+  TRADEABILITY_HINT_FR,
   TRIGGER_IMPACT_FR,
   TRIGGER_IMPACT_GLYPH,
   TRIGGER_TYPE_FR,
   convictionTier,
   formatRelativeUpdate,
   formatWindow,
+  isTradeable,
   isVerdictDormant,
   isVerdictExpired,
 } from "@/lib/sessionVerdict";
@@ -67,6 +70,7 @@ export function SessionVerdictPanel({ data }: Props): ReactElement | null {
 
   const dormant = isVerdictDormant(data);
   const expired = isVerdictExpired(data);
+  const tradeable = isTradeable(data);
   const tier = convictionTier(data.conviction_pct);
   const updatedLabel = formatRelativeUpdate(data.last_updated_utc);
   const windowLabel = formatWindow(data);
@@ -112,6 +116,29 @@ export function SessionVerdictPanel({ data }: Props): ReactElement | null {
       </header>
 
       <div className="space-y-5 px-6 py-5">
+        {/* r167 G8 — TradeabilityFlag honest disclosure banner. Closes
+            Eliot's #1 CRITICAL gap from his methodology transcript (Fathom
+            2026-05-25 §VIII : « ne trade pas aujourd'hui » when bank
+            holiday / range / low volatility). Demoted chrome to avoid
+            drowning the verdict apex when tradeability == "tradeable"
+            (banner only renders for the 5 non-tradeable values per
+            doctrine #11 honest disclosure ; surfaced ABOVE the direction
+            chip so the trader sees the structural blocker FIRST). */}
+        {!tradeable && (
+          <div
+            role="status"
+            aria-live="polite"
+            className="rounded-md border border-[var(--color-border-subtle)] bg-[var(--color-bg-base)]/40 px-4 py-3 text-xs text-[var(--color-text-muted)]"
+          >
+            <p className="font-medium uppercase tracking-wide text-[var(--color-text-muted)]">
+              {TRADEABILITY_FR[data.tradeability]} · ne pas prendre position aujourd'hui
+            </p>
+            <p className="mt-1 leading-relaxed text-[var(--color-text-secondary)]">
+              {TRADEABILITY_HINT_FR[data.tradeability]}
+            </p>
+          </div>
+        )}
+
         {/* Prominent direction chip — the apex of the panel per ADR-106 D4. */}
         <div className="flex items-baseline gap-4">
           <span className={`text-4xl font-light leading-none ${directionTone}`} aria-hidden="true">

@@ -16,6 +16,7 @@ import type {
   LiveTrigger,
   LiveTriggerImpact,
   SessionVerdict,
+  TradeabilityFlag,
   VerdictDirection,
   VerdictNature,
 } from "@/lib/api";
@@ -140,6 +141,60 @@ export function convictionTier(pct: number): "haute" | "modérée" | "faible" | 
   if (pct >= 40) return "faible";
   return "dormante";
 }
+
+/* ──────────────────────── r167 G1+G8 — TRADEABILITY ───────────── */
+
+/** Canonical FR labels per TradeabilityFlag value. Doctrine #4 SSOT —
+ *  every UI surface MUST read from this map. Mirrors the canonical
+ *  TradeabilityFlag Literal from `packages/ichor_brain/session_verdict.py`.
+ *  Strings are pedagogical FR pour expliquer pourquoi "ne trade pas
+ *  aujourd'hui" plutôt que de juste afficher le flag technique. */
+export const TRADEABILITY_FR: Record<TradeabilityFlag, string> = {
+  tradeable: "Conditions favorables",
+  no_setup: "Pas de setup clair",
+  holiday: "Jour férié US",
+  event_freeze: "Annonce économique imminente",
+  low_volatility: "Volatilité anormalement basse",
+  range: "Marché en range",
+};
+
+/** One-sentence FR explainer per TradeabilityFlag value. Surfaced
+ *  inline under the disclosure banner so the trader understands WHY
+ *  Ichor signals "ne trade pas aujourd'hui" (Eliot's discipline
+ *  transcript §VIII). Pedagogical — never imperative. */
+export const TRADEABILITY_HINT_FR: Record<TradeabilityFlag, string> = {
+  tradeable: "Toutes les conditions structurelles sont remplies pour un setup NY 14h-20h.",
+  no_setup:
+    "La conviction probabiliste est trop faible pour déclencher une lecture exploitable — verdict en mode dormant.",
+  holiday:
+    "Le marché actions US est fermé ou en volume réduit ; même le forex et l'or voient une volatilité dégradée. Discipline trader = pas de prise de position aujourd'hui.",
+  event_freeze:
+    "Une donnée économique à fort impact est prévue dans les 2 prochaines heures. Discipline = attendre la publication + réaction avant tout position.",
+  low_volatility:
+    "La volatilité moyenne sur cette heure-UTC (fenêtre glissante 30 jours) est sous le seuil structurel. Le momentum NY est statistiquement improbable.",
+  range:
+    "Les 3 dernières bougies daily sont en consolidation (corps faible) — environnement range-bound où les manipulations à l'open dominent les momentum.",
+};
+
+/** Visual tone token per TradeabilityFlag. `tradeable` reste invisible
+ *  (pas de chrome), tous les autres dégradent en `text-muted` pour
+ *  signaler honest disclosure sans drama. */
+export const TRADEABILITY_TONE: Record<TradeabilityFlag, string> = {
+  tradeable: "",
+  no_setup: "text-[var(--color-text-muted)]",
+  holiday: "text-[var(--color-text-muted)]",
+  event_freeze: "text-[var(--color-text-muted)]",
+  low_volatility: "text-[var(--color-text-muted)]",
+  range: "text-[var(--color-text-muted)]",
+};
+
+/** Whether the trader should consider acting on the verdict today. Pure
+ *  function — RSC-safe, no React, no I/O. */
+export function isTradeable(verdict: SessionVerdict): boolean {
+  return verdict.tradeability === "tradeable";
+}
+
+/* ──────────────────────── PURE HELPERS (continued) ─────────────── */
 
 /** Format the verdict's window stamps into a single Paris-time line :
  *  "fenêtre opératoire : 14h00 → 20h00 Paris". Pure function. */

@@ -1159,6 +1159,19 @@ export interface EventAnticipationOut {
 
 export type VerdictDirection = "up" | "down" | "neutral";
 export type VerdictNature = "structured" | "momentum" | "range_bound" | "uncertain";
+/** r167 G1 — TradeabilityFlag : closes Eliot's #1 CRITICAL gap from
+ *  his trading methodology transcript (Fathom 2026-05-25 §VIII).
+ *  Surfaces a HONEST DISCLOSURE when the day is structurally unsuitable
+ *  for taking a NY-session position (bank holiday / pending event /
+ *  abnormally low volatility / market range / no strong setup).
+ *  Mirror of ``packages/ichor_brain/.../session_verdict.py:TradeabilityFlag``. */
+export type TradeabilityFlag =
+  | "tradeable"
+  | "no_setup"
+  | "holiday"
+  | "event_freeze"
+  | "low_volatility"
+  | "range";
 export type LiveTriggerType =
   | "economic_release"
   | "central_bank_speech"
@@ -1208,6 +1221,11 @@ export interface SessionVerdict {
   couper_au_plus_tard_paris: string;
   last_updated_utc: string;
   expires_at_utc: string;
+  /** r167 G1 — TradeabilityFlag derived from tradeability_evaluator
+   *  composite rule (priority : holiday > event_freeze > low_volatility >
+   *  range > no_setup > tradeable). Default ``"tradeable"`` preserves
+   *  backward-compat with pre-r167 emissions. */
+  tradeability: TradeabilityFlag;
 }
 
 /* ─────────────────────── r162 Stride 8 Phase 2 — ADR-106 CoachMacroContext ── */
