@@ -61,6 +61,9 @@ import {
   CYCLE_TONE,
   GROWTH_SIGNAL_FR,
   INFLATION_SIGNAL_FR,
+  RISK_REGIME_FR,
+  RISK_REGIME_HINT_FR,
+  RISK_REGIME_TONE,
   SURPRISE_PRIORITY_FR,
   SURPRISE_PRIORITY_TONE,
   formatRelativeUpdate,
@@ -134,6 +137,29 @@ export function CoachMacroContextPanel({ data }: Props): ReactElement | null {
           )}
         </div>
         <p className="text-xs italic text-[var(--color-text-muted)]">{cycleHint}</p>
+
+        {/* r168 G3 — Risk-on/off chip — Eliot's §X pillar verbatim ("régime
+            risk on ou risk off"). Placed between cycle + growth/inflation row
+            per ADR-106 D4 hierarchy (cycle = WHERE in macro phase ; risk
+            regime = WHAT risk environment ; growth/inflation = WHICH axes).
+            Self-calibrating z-score classifier — chip stays muted in
+            `transitional` state (honest no-signal default). */}
+        <div className="flex items-baseline gap-3">
+          <span
+            className={`text-sm font-semibold uppercase tracking-wide ${RISK_REGIME_TONE[data.risk_regime]}`}
+            aria-label={`Régime de risque actuel : ${RISK_REGIME_FR[data.risk_regime]}`}
+          >
+            {RISK_REGIME_FR[data.risk_regime]}
+          </span>
+          <span className="text-xs italic text-[var(--color-text-muted)]">
+            {RISK_REGIME_HINT_FR[data.risk_regime]}
+          </span>
+        </div>
+        {data.risk_regime_evidence.length > 0 && (
+          <p className="text-[10px] font-mono text-[var(--color-text-muted)]">
+            Évidence : {data.risk_regime_evidence.join(" · ")}
+          </p>
+        )}
 
         {/* Growth + Inflation axis chips — standalone surfaces. */}
         <div className="flex flex-wrap gap-2">

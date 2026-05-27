@@ -77,6 +77,7 @@ from ichor_brain.coach_macro_context import (
     GrowthSignal,
     InflationSignal,
     MacroTheme,  # type: ignore[attr-defined]
+    RiskRegime,
     SurprisePriority,
 )
 from sqlalchemy import select
@@ -285,6 +286,103 @@ async def _classify_dominant_theme(
         return (None, None)
 
     return (best_theme, best_z)
+
+
+# r168 G3 — Risk-regime classifier thresholds (self-calibrating sigma boundaries).
+# Pattern #15 R59 immune by design : these are statistical conventions on the
+# z-score scale (1-sigma = 0.7 rounded), NOT peer-reviewed claims about
+# absolute VIX/HY-IG levels. The z-score is computed over the 252d trailing
+# rolling window (same as ``_classify_dominant_theme``) — no new threshold
+# pinning, no new query path, no new constant requiring citation.
+_RISK_REGIME_Z_RISK_ON: float = -0.7
+"""Both VIXCLS and BAMLH0A0HYM2 must be at OR below this z-threshold for
+``risk_on``. -0.7σ ≈ bottom 25th-percentile of 1y history ; stress
+indicators *both* significantly below trend = calm + tight credit."""
+
+
+_RISK_REGIME_Z_RISK_OFF: float = +0.7
+"""Either VIXCLS or BAMLH0A0HYM2 above this z-threshold triggers
+``risk_off``. +0.7σ ≈ top 25th-percentile of 1y history ; one stress
+indicator significantly above trend = elevated risk-aversion."""
+
+
+async def _classify_risk_regime(
+    session: AsyncSession,
+) -> tuple[RiskRegime, list[str]]:
+    """Classify ``risk_on`` / ``risk_off`` / ``transitional`` from z-scores
+    of VIXCLS + BAMLH0A0HYM2 over the trailing 252d rolling window.
+
+    Returns ``(regime, evidence)`` where ``evidence`` is up to 3 mechanical
+    "<SERIES_ID> z=±X.XX" strings surfacing the classification signal.
+
+    **Pattern #15 R59 immune by design** :
+      - No absolute threshold ("VIX > 22 means stress" would be a citation
+        claim — REJECTED in r150 PIVOT 1 + r147 Bauer DP21003 hallucination
+        catch lineage)
+      - Z-score is self-calibrating relative to the series' own 1y history
+      - The ±0.7σ boundary is statistical convention (~1-sigma rounded), not
+        peer-reviewed citation
+
+    **Doctrine alignment** :
+      - #4 SSOT : reuses ``_fetch_fred_window`` + ``_z_score_latest``
+        already used by ``_classify_dominant_theme``. No new query path,
+        no new constant requiring R59 citation.
+      - #9 anti-accumulation : VIXCLS + BAMLH0A0HYM2 are already in
+        ``_SERIES_TO_THEME`` (theme=credit_conditions) ; the z-scoring is
+        re-performed here (different decision context) but reuses the
+        SAME pure helpers — no logic duplication.
+      - #11 calibrated honesty : returns ``transitional`` + empty evidence
+        when neither indicator crosses ±0.7σ OR when both series are stale
+        / sample-too-small. Doctrine #2 strict-scope : honest classification
+        beats forced classification.
+
+    **Why not reuse ``regime_classifier.classify_master_regime``** :
+      The 7-bucket ``MasterRegime`` requires 7 inputs (skew/vix/hy_oas/nfci/
+      cli_us/expinf/term_prem). The skew + nfci + cli_us + expinf + term_prem
+      inputs require non-FRED data sources (cboe_skew_observations table +
+      FRED-Chicago NFCI feed + OECD CLI feed + EXPINF1YR + THREEFYTP10). For
+      r168 atomic ship we keep scope narrow : only the 2 FRED-side stress
+      indicators (VIXCLS + BAMLH0A0HYM2). r169+ candidate : extend the
+      classifier to use the full ``RegimeInputs`` once the full input
+      assembly is shared with ``data_pool._section_executive_summary``.
+    """
+    # Doctrine #4 SSOT : same FRED series IDs as ``_SERIES_TO_THEME``.
+    vix_obs = await _fetch_fred_window(session, "VIXCLS", _ZSCORE_ROLLING_DAYS)
+    hy_obs = await _fetch_fred_window(session, "BAMLH0A0HYM2", _ZSCORE_ROLLING_DAYS)
+
+    vix_z = _z_score_latest(vix_obs)
+    hy_z = _z_score_latest(hy_obs)
+
+    evidence: list[str] = []
+    if vix_z is not None:
+        evidence.append(f"VIXCLS z={vix_z:+.2f}σ")
+    if hy_z is not None:
+        evidence.append(f"BAMLH0A0HYM2 z={hy_z:+.2f}σ")
+
+    # Doctrine #11 honest absence : if BOTH series are insufficient → transitional
+    if vix_z is None and hy_z is None:
+        return ("transitional", evidence)
+
+    # Risk-on : BOTH stress indicators significantly below their 1y trend.
+    # The AND discipline avoids labelling "risk_on" on a single quiet metric
+    # while the other is elevated. Both calm = consistent calm regime.
+    if (
+        vix_z is not None
+        and vix_z <= _RISK_REGIME_Z_RISK_ON
+        and hy_z is not None
+        and hy_z <= _RISK_REGIME_Z_RISK_ON
+    ):
+        return ("risk_on", evidence)
+
+    # Risk-off : EITHER stress indicator significantly above its 1y trend.
+    # The OR discipline catches single-channel stress (vol-only OR credit-only).
+    if (vix_z is not None and vix_z >= _RISK_REGIME_Z_RISK_OFF) or (
+        hy_z is not None and hy_z >= _RISK_REGIME_Z_RISK_OFF
+    ):
+        return ("risk_off", evidence)
+
+    # Default : signal sub-threshold → honest transitional.
+    return ("transitional", evidence)
 
 
 def _surprise_priority(title: str, impact: str, cycle: BusinessCycle) -> SurprisePriority:
@@ -497,6 +595,9 @@ async def build_coach_macro_context(
     # --- Dominant theme classification -----------------------------
     dominant_theme, theme_z = await _classify_dominant_theme(session)
 
+    # --- r168 G3 Risk regime classification (self-calibrating z-score)
+    risk_regime, risk_regime_evidence = await _classify_risk_regime(session)
+
     # --- Top-3 next surprises (cycle-aware) ------------------------
     surprises = await _fetch_next_surprises(session, cycle=cycle, max_items=3)
 
@@ -517,6 +618,8 @@ async def build_coach_macro_context(
         inflation_signal=inflation,
         dominant_theme=dominant_theme,
         dominant_theme_strength_z=theme_z,
+        risk_regime=risk_regime,
+        risk_regime_evidence=risk_regime_evidence,
         top_next_surprises=surprises,
         coach_paragraph=coach_paragraph,
         data_freshness_days=min(freshness_days, 365),

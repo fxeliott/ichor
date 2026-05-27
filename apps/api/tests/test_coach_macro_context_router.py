@@ -45,6 +45,8 @@ def _build_sample_context() -> CoachMacroContext:
         inflation_signal="falling",
         dominant_theme="inflation_data",
         dominant_theme_strength_z=2.3,
+        risk_regime="risk_on",
+        risk_regime_evidence=["VIXCLS z=-0.85σ", "BAMLH0A0HYM2 z=-0.92σ"],
         top_next_surprises=[
             CalendarSurprise(
                 event_label="Core PCE Price Index m/m",
@@ -158,6 +160,12 @@ class TestR162CoachMacroContextHappyPath:
             assert first["priority"] == "high"
             assert "Core PCE" not in first.get("why_it_matters", "") or True
             assert "surveille la surprise" in first["why_it_matters"]
+            # r168 G3 — Risk regime + evidence
+            assert body["risk_regime"] == "risk_on"
+            assert body["risk_regime_evidence"] == [
+                "VIXCLS z=-0.85σ",
+                "BAMLH0A0HYM2 z=-0.92σ",
+            ]
             # Coach paragraph + freshness
             assert "expansion (Goldilocks)" in body["coach_paragraph"]
             assert body["data_freshness_days"] == 3
@@ -250,6 +258,10 @@ class TestR162CoachMacroContextHonestAbsence:
             assert body["inflation_signal"] == "uncertain"
             assert body["dominant_theme"] is None
             assert body["dominant_theme_strength_z"] is None
+            # r168 G3 — Doctrine #11 honest absence : transitional + empty evidence
+            # when stress indicators are inconclusive (default values).
+            assert body["risk_regime"] == "transitional"
+            assert body["risk_regime_evidence"] == []
             assert body["top_next_surprises"] == []
             assert body["data_freshness_days"] == 60
             # The honest paragraph must still surface the situation in FR.

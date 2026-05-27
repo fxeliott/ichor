@@ -30,6 +30,7 @@ import type {
   GrowthSignal,
   InflationSignal,
   MacroTheme,
+  RiskRegime,
   SurprisePriority,
 } from "@/lib/api";
 
@@ -99,6 +100,36 @@ export const THEME_FR: Record<MacroTheme, string> = {
   geopolitics: "Géopolitique",
   credit_conditions: "Conditions de crédit",
   commodity_supply: "Offre de matières premières",
+};
+
+/* ───────────────────────────── FR copy SSOT — RISK REGIME ─ (r168 G3) */
+
+/** r168 G3 — Canonical FR label per risk-regime bucket. Eliot's §X
+ *  verbatim pillar ("régime risk on ou risk off"). Doctrine #4 SSOT —
+ *  every UI surface MUST read from this map ; never hardcode a translation. */
+export const RISK_REGIME_FR: Record<RiskRegime, string> = {
+  risk_on: "Risk-on",
+  risk_off: "Risk-off",
+  transitional: "Régime transitoire",
+};
+
+/** r168 G3 — One-sentence FR explainer per risk regime — surfaced as
+ *  italic hint under the chip so a beginner reader can ground the label.
+ *  ADR-017 boundary preserved : descriptive macro observations, not directives. */
+export const RISK_REGIME_HINT_FR: Record<RiskRegime, string> = {
+  risk_on: "Volatilité calme + spreads de crédit serrés — appétit pour le risque",
+  risk_off: "Stress vol ou spreads élevés — recherche de haven, USD souvent demandé",
+  transitional: "Aucun stress majeur, ni calme prononcé — signal sub-seuil",
+};
+
+/** r168 G3 — Visual tone token per risk regime — drives the chip's accent
+ *  color. Tokens resolve at runtime via Tailwind v4 CSS variables (preserves
+ *  the dark/light theme parity). `transitional` stays muted = honest
+ *  no-signal default. */
+export const RISK_REGIME_TONE: Record<RiskRegime, string> = {
+  risk_on: "text-[var(--color-accent-bull)]",
+  risk_off: "text-[var(--color-accent-bear)]",
+  transitional: "text-[var(--color-text-muted)]",
 };
 
 /* ─────────────────────────────── FR copy SSOT — SURPRISE PRIORITY ─ */

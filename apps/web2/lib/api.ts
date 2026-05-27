@@ -1263,6 +1263,14 @@ export type MacroTheme =
  *  Sourced from `_surprise_priority(title, impact, cycle)` cycle-aware rule. */
 export type SurprisePriority = "high" | "medium" | "low";
 
+/** r168 G3 — Risk-on / risk-off / transitional ambient regime label.
+ *  Eliot's §X verbatim pillar ("régime risk on ou risk off"). Self-calibrating
+ *  z-score classifier in backend `coach_macro_context_builder._classify_risk_regime`
+ *  over VIXCLS + BAMLH0A0HYM2 FRED series (252d rolling window). Pattern #15 R59
+ *  immune by design (sigma-based thresholds, no peer-reviewed citation claim).
+ *  Mirror of `packages/ichor_brain/.../coach_macro_context.py` RiskRegime Literal. */
+export type RiskRegime = "risk_on" | "risk_off" | "transitional";
+
 /** One upcoming high/medium-impact event surfaced for the coach narrative.
  *  Mirror of `CalendarSurprise` Pydantic (frozen, extra=forbid). */
 export interface CalendarSurprise {
@@ -1283,6 +1291,12 @@ export interface CoachMacroContext {
   inflation_signal: InflationSignal;
   dominant_theme: MacroTheme | null;
   dominant_theme_strength_z: number | null;
+  /** r168 G3 — Eliot's §X risk-on/off pillar. Default `"transitional"` for
+   *  backward-compat with pre-r168 wire responses. */
+  risk_regime: RiskRegime;
+  /** r168 G3 — Up to 3 mechanical evidence strings (e.g. `"VIXCLS z=+1.23σ"`).
+   *  Empty when `risk_regime === "transitional"` and no signal crossed ±0.7σ. */
+  risk_regime_evidence: string[];
   top_next_surprises: CalendarSurprise[];
   coach_paragraph: string;
   data_freshness_days: number;

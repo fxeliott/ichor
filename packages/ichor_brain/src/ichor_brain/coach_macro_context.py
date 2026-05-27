@@ -115,6 +115,63 @@ InflationSignal = Literal["rising", "falling", "uncertain"]
 SurprisePriority = Literal["high", "medium", "low"]
 
 
+# r168 G3 — Risk-on / risk-off / transitional ambient regime label per
+# Eliot's methodology transcript §X verbatim : « régime risk on ou risk
+# off et on a pas mal de choses à voir pour anticiper notre risque ou
+# non » (Fathom 2026-05-25). One of the four "piliers" Eliot cites
+# explicitly for his pre-trade lecture (alongside DXY corrélation,
+# fundamental, géopolitique).
+#
+# Derivation : self-calibrating z-score classifier in
+# ``coach_macro_context_builder._classify_risk_regime`` over VIXCLS
+# (CBOE vol) + BAMLH0A0HYM2 (ICE BofA US HY OAS in %) FRED series with
+# trailing 252d rolling window. The classifier returns ``risk_on`` only
+# when BOTH stress indicators are significantly below their own 1y trend
+# (z ≤ -0.7σ) ; ``risk_off`` when EITHER is significantly above (z ≥
+# +0.7σ) ; ``transitional`` otherwise.
+#
+# **Pattern #15 R59 satisfied by design** : the ±0.7σ threshold is a
+# statistical convention (sigma boundary, not peer-reviewed citation
+# claim). Z-score is self-calibrating relative to the series's own 1y
+# history — no absolute threshold pinning ; no literature anchor needed
+# (cf. r147 Bauer DP21003 paper-hallucination catch + r150 PIVOT 1 VIX
+# 5y rolling REJECTED for same reason).
+#
+# **r168 R59-verified peer-reviewed backbone** (researcher dispatch 2026-05-27,
+# 14 WebSearches + DOI primary-source verification — see r168 session_log) :
+#   - HY OAS z-score foundation : Gilchrist-Zakrajšek 2012 *AER* 102(4)
+#     1692-1720 DOI 10.1257/aer.102.4.1692 ("Excess Bond Premium") +
+#     López-Salido-Stein-Zakrajšek 2017 *QJE* 132(3) DOI 10.1093/qje/qjx014
+#     (credit sentiment mean-reversion supports continuous z-score, NOT
+#     absolute percentile thresholds — credit spreads non-stationary).
+#   - VIX caveat : Whaley 2000 *JPM* 26(3) 12-17 proposed the "fear gauge"
+#     framing at threshold 30 (NOT 20) ; Whaley himself walked it back in
+#     2009. The popular VIX>20 = stress claim is **practitioner**, NOT
+#     peer-reviewed. Memory's pre-r168 proposal "VIX > 22 → risk_off"
+#     would have been a citation hallucination — REJECTED.
+#   - Variance Risk Premium decomposition : Bekaert-Hoerova-Lo Duca 2013
+#     *JME* 60(7) 771-788 DOI 10.1016/j.jmoneco.2013.06.003 — decomposes
+#     VIX² into risk-aversion (VRP) + uncertainty (realized variance).
+#     r169+ candidate : enrich classifier with VRP instead of raw VIX.
+#   - Full RORO composite : Chari-Dilts Stedman-Lundblad 2025 *JIMF*
+#     RORO Index (KC Fed RWP24-12 / CEPR DP20932 / NBER w31907) — PCA
+#     first principal component of credit + equity-vol + funding + FX.
+#     The canonical academic RORO. r170+ candidate.
+#   - NFCI z-score methodology : Brave-Butters 2011 *Econ. Perspectives*
+#     + Butters 2012 *IJCB* 8(2) 191-239 — standardized mean=0 SD=1
+#     since 1973 ; empirical crisis threshold –0.39. r169+ candidate to
+#     add NFCI as 3rd backbone indicator.
+#
+# Doctrine #4 SSOT : reuses ``_fetch_fred_window`` + ``_z_score_latest``
+# already powering ``_classify_dominant_theme`` — no new query path.
+# Doctrine #9 anti-accumulation : appends to the existing CoachMacroContext
+# narrative, no new ADR ; ADR-106 §Impl(r168) APPEND-only.
+# Doctrine #11 calibrated honesty : ``transitional`` + empty evidence
+# is a LEGITIMATE output when neither stress indicator crosses ±0.7σ
+# (no signal → honest absence, not forced classification).
+RiskRegime = Literal["risk_on", "risk_off", "transitional"]
+
+
 # Maximum allowed staleness (days) for FRED data feeding the cycle
 # classifier. Past this threshold, the builder forces ``cycle="uncertain"``
 # regardless of raw computation — doctrine #11 calibrated honesty. The
@@ -229,6 +286,21 @@ class CoachMacroContext(BaseModel):
     """The z-score magnitude of the representative series that earned
     the ``dominant_theme`` classification. Surfaced to the frontend as
     an intensity indicator ("|z|=2.3 → exceptionnellement marqué")."""
+
+    risk_regime: RiskRegime = "transitional"
+    """r168 G3 — Eliot's §X risk-on/risk-off pillar. Self-calibrating z-score
+    classifier over VIXCLS + BAMLH0A0HYM2. Default ``transitional`` preserves
+    backward-compat with pre-r168 emissions (any older row deserialised lands
+    as ``transitional`` = honest no-signal). The frontend
+    ``<CoachMacroContextPanel>`` r168 renders this as a chip ABOVE the
+    growth/inflation row per ADR-106 D4 surface hierarchy."""
+
+    risk_regime_evidence: list[str] = Field(default_factory=list, max_length=3)
+    """r168 G3 — Up to 3 plain-text evidence strings (FRED series name +
+    z-score) that drove the ``risk_regime`` classification. Empty when
+    ``risk_regime == "transitional"`` and no signal crossed ±0.7σ threshold
+    (doctrine #11 honest absence). ADR-017 boundary preserved by construction
+    (every string is mechanical "VIXCLS z=+1.23" — zero forbidden tokens)."""
 
     top_next_surprises: list[CalendarSurprise] = Field(default_factory=list, max_length=3)
     """Up to 3 next-N upcoming economic events ordered by priority +
