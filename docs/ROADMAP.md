@@ -10,7 +10,26 @@
 
 ---
 
-## §1 — Current state (r168-close, 2026-05-27)
+## §1 — Current state (r170-close, 2026-05-27)
+
+### 🏆 Shipped at r170 — **G-fix-Couche2 hooks PS1 conditional bail-out via CLAUDE_AGENT_MODE_OVERRIDE env var — TRANSFORMATIONAL UNLOCK (8/8 services empirically validated)**
+
+**Commit** `814569c` `feat(claude-runner): r170 G-fix-Couche2 — CLAUDE_AGENT_MODE_OVERRIDE env var unblocks 8/8 services empirically validated`. Patch = **5 fichiers** (3 hooks PS1 user-level `~/.claude/hooks/{userpromptsubmit-chain,tracker_init,tracker_gate}.ps1` early-bail `exit 0` sur `$env:CLAUDE_AGENT_MODE_OVERRIDE -eq "1"` + 2 `subprocess_runner.py` Win11 runtime + REPO dev `env={**os.environ, "CLAUDE_AGENT_MODE_OVERRIDE":"1"}` à `asyncio.create_subprocess_exec`). Fully reversible via `~/.claude/.backups/r170-pre/`. Restart standalone uvicorn PID 18956 healthz HTTP 200.
+
+**Validation empirique end-to-end 8/8 services** (Hetzner → cloudflared → Win11 → claude subprocess → JSON parsable) :
+
+- **5/5 Couche-2** : cb_nlp 47s/2942 chars, sentiment, news_nlp, positioning, macro 35s/3673 chars — TOUS Result=success ExecMainStatus=0
+- **3/3 briefings** : ny_close, pre_londres, pre_ny — TOUS Result=success ExecMainStatus=0
+
+**Patterns codifiés r170 (3 nouveaux)** : Pattern #22 CRITICAL (`--setting-sources project` Voie D incompat — fix = hooks PS1 bail-out PAS spawn flags) + Pattern #23 (OAuth + clean agent subprocess mutually-exclusive Claude Code v2.1.146) + Pattern #24 (user FULL authorization binding contract). **Pattern #15 R59 = 18 applications stable** (Round 3 catches : Elaut→Baltussen 2021 JFE + GK→Rogers-Satchell FX/Yang-Zhang equity + Engel-West puzzle framing co-mouvement-NOT-prediction + Polymarket z-score practitioner-stamp).
+
+**Découverte META Round 4** (Pattern #15 R59 SUR MOI-MÊME) : mémoire claim `Pass-6 dormant enable_scenarios=False` IMPRÉCISE. Empirically `session_card_audit` rows ALL `scenarios_state=populated` (`orchestrator.py:114` False = DEFAULT kwarg seulement ; `run_session_card.py:278` instantie `Orchestrator(enable_scenarios=live)` où `live=True` quand CLI `--live`). SessionVerdict / Pass-6 7-bucket scenarios étaient déjà LIVE bien avant r170. Couche-2 cassé dégradait juste la narrative-depth Pass-2 Haiku, pas le mécanisme. → r170 unlock impact PLUS profond : Pass-2 narrative Haiku redevient world-class Voie D.
+
+**16 sub-agents cumulés cette session** (Round 1 audit + Round 2 deep-state + Round 3 researcher G2 DXY Engel-West/G5 origin_zone Baltussen 2021/G6 vol Andersen-Bollerslev+Rogers-Satchell+Yang-Zhang/Polymarket+Kalshi Ng-Peng-Tao-Zhou + Round 4 researcher STIR Bauer-Swanson+Nakamura-Steinsson/SPF dispersion Born et al/7-engines Brave-Butters+Caldara-Iacoviello/newsfeed GDELT+RSS). **Roadmap r171-r190 RANKED 20 axes** (ADR-099 §Impl(r170) + memory `ichor_r170_detail.md`).
+
+**Mission centrale axes post-r170** : 4 of 8 ✅ CLOSED (1 r123 / 2 r123 / 3 r132+r133 / 4 r152+r147→r160) + 5 r140+r146 ✅ + 6 r142+r143 ✅ + 7 🎯 r65+r128 LIVE + 8 🟡 r131 PARTIAL + NEW r161 axis Autonomy 24/7 ADR-106 FOUNDATION + NEW r167 axis Honest tradeability LIVE. **Voie D 88 rounds tenus** (revert in time `--setting-sources project` $0.09 unique leak r169 stopped).
+
+**SESSION_LOG** `2026-05-27-r170-EXECUTION.md` pending r170-close commit. **ZERO Anthropic API spend r170 cycle.**
 
 ### Shipped at r168 — 🎯 **G3 Risk-on/off chip + G4 Daily candle classifier + r169 G-fix-Couche2 (PARTIAL) + R-DEPLOY-6 LIVE Hetzner**
 

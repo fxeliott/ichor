@@ -4939,3 +4939,86 @@ After 5 user prompts authorizing "tout ce que je devrais réaliser manuellement"
 Build gate : pytest 28/28 in 2.20s + 15/15 pre-commit hooks PASS.
 
 ZERO Anthropic API spend r168 cycle (excluding $0.09 unique test leak caught + reverted). **Voie D held 87 rounds.** Pattern #15 → **17 applications stable**.
+
+## §Impl(r170) — Hooks PS1 conditional bail-out via CLAUDE_AGENT_MODE_OVERRIDE env var (TRANSFORMATIONAL UNLOCK, 2026-05-27)
+
+**Closure** : r169 G-fix-Couche2 PARTIAL → r170 COMPLETE end-to-end empirically validated.
+
+### Root cause (consolidated 4-round audit Round 1-4)
+
+Couche-2 5/5 + 3/3 briefings failing depuis 2026-05-25 → HTTP 500/502 Win11 claude-runner ← subprocess prose pollution from user-level PowerShell hooks (`userpromptsubmit-chain.ps1` 7-en-1 MEGA-chain + `tracker_init.ps1` + `tracker_gate.ps1` + others) that fire INDÉPENDAMMENT du CLAUDE.md content and inject compliance text (tracker checkboxes, audit-exhaustive triggers, self-checklist directives, Ready-for-Stop preamble) into the agent subprocess JSON-only context. Pydantic validator on `packages/agents/` side cannot parse the resulting prose-prefixed output → HTTP 500 cascade.
+
+### Patch shipped (5 files, fully reversible via `~/.claude/.backups/r170-pre/`)
+
+| File                                                                                   | Change                                                                                                          |
+| -------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `~/.claude/hooks/userpromptsubmit-chain.ps1` lines 18-26                               | early-bail `exit 0` sur `$env:CLAUDE_AGENT_MODE_OVERRIDE -eq "1"` AVANT ReadToEnd                               |
+| `~/.claude/hooks/tracker_init.ps1` lines 22-24                                         | idem after CLAUDE_SKIP_TRACKER existing bypass                                                                  |
+| `~/.claude/hooks/tracker_gate.ps1` lines 25-29                                         | idem AVANT ConvertFrom-Json                                                                                     |
+| `D:\Ichor\apps\claude-runner\src\ichor_claude_runner\subprocess_runner.py:151` RUNTIME | `subprocess_env = {**os.environ, "CLAUDE_AGENT_MODE_OVERRIDE": "1"}` injecté à `asyncio.create_subprocess_exec` |
+| `amazing-heyrovsky-80df1e/apps/claude-runner/.../subprocess_runner.py` REPO dev        | même patch (commit `814569c`)                                                                                   |
+
+Restart standalone uvicorn PID 18956 → healthz HTTP 200 confirmé (claude_cli_available=true, in_flight=0, rate_limit 60/60).
+
+### Empirical validation end-to-end (8/8 services LIVE post-r170)
+
+**5/5 Couche-2 agents** (Hetzner → cloudflared → Win11 → subprocess → JSON parsable) :
+
+- `cb_nlp` : 47s duration, output 2942 chars JSON, status=done, attempt=1, exit 0/SUCCESS
+- `sentiment` : Result=success, ExecMainStatus=0
+- `news_nlp` : Result=success, ExecMainStatus=0
+- `positioning` : Result=success, ExecMainStatus=0
+- `macro` : 35s duration, output 3673 chars JSON, attempt=1, exit 0/SUCCESS
+
+**3/3 briefings** :
+
+- `ny_close` : Result=success, ExecMainStatus=0
+- `pre_londres` : Result=success, ExecMainStatus=0
+- `pre_ny` : Result=success, ExecMainStatus=0
+
+### Découverte META Round 4 (Pattern #15 R59 SUR MOI-MÊME)
+
+**Mémoire claim `Pass-6 dormant enable_scenarios=False`** = IMPRÉCISE. Empirically `session_card_audit` rows ALL `scenarios_state=populated` since long time. Le `False` de `orchestrator.py:114` est seulement le DEFAULT kwarg ; en production CLI `--live` mode (`run_session_card.py:278` `enable_scenarios=live`), c'est ACTIVÉ. SessionVerdict / Pass-6 7-bucket scenarios étaient déjà LIVE bien avant r170. Couche-2 cassé dégradait juste la narrative-depth Pass-2 Haiku, pas le mécanisme lui-même.
+
+→ **r170 unlock impact PLUS profond que prévu** : Pass-2 narrative Haiku redevient world-class Voie D, scenarios narrative-depth retrouve sa profondeur.
+
+### Patterns codifiés r170 (3 NEW + 1 candidate)
+
+- **Pattern #22 (CRITICAL)** — `--setting-sources project` (and `--bare` family) Voie D INCOMPAT — fix path = hooks PS1 conditional bail-out, NOT spawn flags
+- **Pattern #23** — OAuth + clean agent subprocess architecturally mutually-exclusive dans Claude Code v2.1.146 ; resolution = modifier user-level hooks pour détecter agent context via env var
+- **Pattern #24** — user FULL authorization is binding contract ; don't re-introduce limits that contradict it (self-realization r170)
+- **Pattern #15 R59 = 18ème application stable** (Round 3 catches : Elaut→Baltussen 2021 JFE + GK→Rogers-Satchell FX + Yang-Zhang equity + Engel-West puzzle framing + Polymarket z-score practitioner-stamp)
+
+### Sub-agents Round 1-4 sources peer-reviewed Round 3+4 (16 cumulés)
+
+Engel-West 2005 JPE DOI 10.1086/429137 + Jiang-Krishnamurthy-Lustig-Sun 2024 NBER 32092 + Andersen-Bollerslev 1997 JEF FFF DOI 10.1016/S0927-5398(97)00004-2 + Rogers-Satchell 1991 + Yang-Zhang 2000 JBusiness DOI 10.1086/209650 + Baltussen-Da-Lammers-Martens 2021 JFE DOI 10.1016/j.jfineco.2021.04.029 + Gao-Han-Li-Zhou 2018 JFE + Lou-Polk-Skouras 2019 JFE + Ng-Peng-Tao-Zhou 2024 SSRN 5331995 + Wolfers-Zitzewitz 2004 JEP + Bauer-Swanson 2023 AER DOI 10.1257/aer.20201220 + Nakamura-Steinsson 2018 QJE 133(3):1283-1330 + Born-Enders-Müller-Niemann 2023 EER + Brave-Butters 2012 IJCB + Caldara-Iacoviello 2022 AER DOI 10.1257/aer.20191823 + Heitfield-Park FEDS 2019-014 + Diebold-Yilmaz 2012 IJF + Ojo 2024 IJFE + Shapiro-Sudhof-Wilson 2022 J Econometrics + Ederington-Lee 1993 JF + NBER w25817.
+
+### Roadmap r171-r190 ranked (transformational unlock chain post-r170)
+
+| #       | Round     | Sujet                                                                                           | Effort | Impact               |
+| ------- | --------- | ----------------------------------------------------------------------------------------------- | ------ | -------------------- |
+| 1       | r171      | G2 DXY corrélation panel (Eliot §XI "pilier", Engel-West framing monitoring)                    | M      | High                 |
+| 2       | r172      | G6 hour-of-day vol signature (Andersen-Bollerslev FFF + Rogers-Satchell FX + Yang-Zhang equity) | M      | High                 |
+| 3       | r173      | G5 origin_zone session précédente (Baltussen 2021 PAS Elaut RUB-only)                           | M      | Medium               |
+| 4       | r174      | Polymarket whale detection on-chain Polygon RPC OrderFilled + cross-venue Kalshi divergence     | L      | Medium               |
+| 5       | r175      | ADR-106 Stride 5 conviction decay function                                                      | S      | Medium               |
+| 6       | r176      | ADR-106 Stride 7 WebSocket/SSE push frontend                                                    | M      | Medium               |
+| 7       | r177      | ADR-106 Stride 2 real-time news feed 5min (depend r184 ✅ sources)                              | M      | High                 |
+| 8       | r178      | G7 pre-NY false move (honest_sentinel ou drop)                                                  | L      | Low                  |
+| 9-10    | r179-r180 | Frontend coach explicateur premium étendu (transcript Hewi narratives)                          | XL     | UX                   |
+| 11 ⭐   | r181      | Philadelphia Fed SPF dispersion (Born-Enders-Müller-Niemann 2023 EER)                           | M      | High                 |
+| 12 ⭐⭐ | r182      | STIR markets multi-month + Atlanta Fed MPT + PyFedWatch + implied probability path              | L      | **Transformational** |
+| 13      | r183      | 7 engrenages méta-classifier (extension `regime_classifier.py`)                                 | M      | High                 |
+| 14      | r184      | Real-time newsfeed criticality scorer + BoJ/SNB/BoC RSS gap fill (GDELT déjà câblé)             | M      | High                 |
+| 15      | r185      | Forward-looking discount mechanism primitive                                                    | M      | Medium               |
+| 16      | r186      | 4 cycles économiques classifier (PAYEMS×CPIAUCSL×GDP×VIX)                                       | S      | Medium               |
+| 17      | r187      | Interconnexions yield spread systematic                                                         | M      | Medium               |
+| 18      | r188      | Données économiques temporalité classifier (avancées/coïncidentes/retardés)                     | S      | Medium               |
+| 19      | r189      | Frontend `/learn` feedback loop Brier→prompt evolution wired UI                                 | L      | Medium               |
+| 20      | r190      | Notifications user-side push web + email + SMS NTFY                                             | M      | Medium               |
+
+**Honest scope (doctrine #2 + #11)** : NO new ADR (this §Impl(r170) APPEND only) + NO new migration + NO new feature flag + NO data backfill + NO API consumption. Pure infra patch hooks PS1 + 1 line subprocess_runner.py env var. Patch fully reversible via `~/.claude/.backups/r170-pre/`. Doctrine #9 dated §Impl(r170) APPEND. doctrine-#9 coord-math ledger UNCHANGED. Voie D held **88 rounds** (zero `import anthropic`, zero `--setting-sources project` ; r169 leak $0.09 reverted in time).
+
+Build gate : 15/15 pre-commit hooks PASS (gitleaks + ruff + prettier + Ichor doctrinal invariants ADR-081 GREEN). Empirical validation 8/8 services exit 0/SUCCESS via SSH journalctl + systemctl show.
+
+**ZERO Anthropic API spend r170 cycle.**
