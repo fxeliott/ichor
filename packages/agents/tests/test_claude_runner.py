@@ -20,10 +20,14 @@ from unittest.mock import patch
 import httpx
 import pytest
 from ichor_agents.claude_runner import (
+    _AGENT_MODE_OVERRIDE_PREFIX,
     ClaudeRunnerConfig,
     ClaudeRunnerError,
     ClaudeRunnerOutputError,
+    _extract_first_balanced_json,
+    _schema_hint,
     _strip_json_fence,
+    _wrap_system_prompt_with_agent_override,
     call_agent_task,
 )
 from ichor_agents.fallback import AllProvidersFailed, FallbackChain
@@ -135,11 +139,22 @@ def _cfg() -> ClaudeRunnerConfig:
 async def test_call_agent_task_returns_validated_pydantic() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         body = request.read()
-        assert b'"system":"sys"' in body
-        # Prompt is enriched with the JSON schema when output_type is set,
-        # so we just check the original user text appears at the start.
+        # r169 G-fix-Couche2 : system is now wrapped with the
+        # [AGENT-MODE-OVERRIDE] prefix to prevent user-scope CLAUDE.md
+        # leakage. The original "sys" persona MUST still appear verbatim
+        # at the tail of the wrapped block, AND the override preamble
+        # MUST be present at the top.
+        assert b"[AGENT-MODE-OVERRIDE" in body
+        assert b"[ORIGINAL AGENT SYSTEM PROMPT BELOW]" in body
+        # The agent persona "sys" lives verbatim AFTER the override block
+        # (json-encoded forms ; escaping preserves the trailing literal).
+        assert b"sys" in body
+        # Prompt is enriched with the JSON schema when output_type is set ;
+        # check the original user text appears at the start and the
+        # strengthened "OUTPUT CONTRACT" instruction is present.
         assert b'"prompt":"user-prompt' in body
-        assert b"validates against the following schema" in body  # schema hint appended
+        assert b"OUTPUT CONTRACT" in body  # r169 strengthened schema hint
+        assert b"Now output the single JSON object" in body  # r169 JSON priming suffix
         assert request.headers["CF-Access-Client-Id"] == "id"
         return httpx.Response(
             200,
@@ -368,3 +383,139 @@ async def test_fallback_raises_when_claude_fails_and_no_providers() -> None:
 
     names = [name for name, _err in exc.value.attempts]
     assert "claude" in names
+
+
+# ── r169 G-fix-Couche2 — AGENT_MODE_OVERRIDE + balanced JSON extraction ───
+
+
+class TestR169AgentModeOverridePrefix:
+    """The [AGENT-MODE-OVERRIDE] prefix is the canonical fix for the
+    r168 production failure where claude CLI inherited user-scope
+    CLAUDE.md rules (self-checklist / tracker / Ready-for-Stop) and
+    returned pure prose instead of JSON. Tests pin :
+      - the prefix CONTAINS the explicit forbidden patterns
+      - the wrapper PREPENDS it to the agent persona (not appends)
+      - the prefix is the FIRST text claude sees in the system block
+    """
+
+    def test_prefix_contains_explicit_forbidden_patterns(self) -> None:
+        """Empirically observed prose patterns from Hetzner journalctl
+        MUST be in the forbidden list of the override prefix so claude
+        cannot leak them."""
+        forbidden = [
+            "Self-checklist",
+            "Ready for Stop",
+            "tracker",
+            "Perfect.",
+            "Markdown",
+        ]
+        for marker in forbidden:
+            assert marker in _AGENT_MODE_OVERRIDE_PREFIX, (
+                f"forbidden marker {marker!r} missing from "
+                "_AGENT_MODE_OVERRIDE_PREFIX (regression vs r168 root cause)"
+            )
+
+    def test_prefix_declares_highest_priority(self) -> None:
+        """The prefix must explicitly assert priority over OTHER rules
+        so claude resolves the conflict in favor of the agent contract."""
+        assert "HIGHEST PRIORITY" in _AGENT_MODE_OVERRIDE_PREFIX
+        assert "OVERRIDES ALL OTHER RULES" in _AGENT_MODE_OVERRIDE_PREFIX
+
+    def test_wrapper_prepends_not_appends(self) -> None:
+        """The override MUST be the FIRST text claude sees. If it were
+        appended, the user-scope CLAUDE.md rules loaded BEFORE the
+        agent persona would already have shaped claude's response mode."""
+        original = "You are the Test Agent. Do thing X."
+        wrapped = _wrap_system_prompt_with_agent_override(original)
+        assert wrapped.startswith("[AGENT-MODE-OVERRIDE")
+        assert wrapped.endswith(original)
+        assert "[ORIGINAL AGENT SYSTEM PROMPT BELOW]" in wrapped
+
+    def test_wrapper_preserves_original_system_intact(self) -> None:
+        """The agent's persona must reach claude verbatim — no
+        truncation, no normalization, no escape."""
+        original = (
+            "Multi-line\n"
+            "agent persona with 'quotes' and \"double-quotes\"\n"
+            "and unicode é à ü ñ chars.\n"
+        )
+        wrapped = _wrap_system_prompt_with_agent_override(original)
+        assert original in wrapped
+
+
+class TestR169SchemaHintStrengthened:
+    """The schema_hint instruction now enumerates the empirically
+    observed forbidden patterns so claude cannot rationalise away the
+    no-prose constraint."""
+
+    def test_schema_hint_lists_forbidden_patterns(self) -> None:
+        """Mirror of the override prefix : schema hint repeats the
+        forbidden patterns at the prompt-tail level for defense in depth."""
+
+        class _Schema(BaseModel):
+            x: int
+
+        hint = _schema_hint(_Schema)
+        for marker in ["Self-checklist", "Ready for Stop", "Perfect."]:
+            assert marker in hint, (
+                f"forbidden marker {marker!r} missing from _schema_hint "
+                "tail block (defense-in-depth regression)"
+            )
+
+    def test_schema_hint_appends_priming_suffix(self) -> None:
+        """The 'Now output the single JSON object' primer gives claude
+        a clean handoff from prompt-tail to output start."""
+
+        class _Schema(BaseModel):
+            x: int
+
+        hint = _schema_hint(_Schema)
+        assert "Now output the single JSON object" in hint
+
+    def test_schema_hint_returns_priming_only_for_non_pydantic(self) -> None:
+        """When output_type isn't a Pydantic BaseModel, the helper
+        still returns the priming suffix so claude doesn't slip into
+        prose mode — degrades gracefully without the schema."""
+        hint = _schema_hint(int)  # raw int has no model_json_schema
+        assert "Now output" in hint
+
+
+class TestR169BalancedJsonExtractor:
+    """Stack-based bracket matcher used as the last-resort fallback
+    inside ``_strip_json_fence``. Robust against prose containing stray
+    braces (markdown lists, code snippets in explanations)."""
+
+    def test_extracts_first_balanced_object_when_embedded_in_prose(self) -> None:
+        text = 'Here is the answer: {"a": 1, "b": 2} and that is all.'
+        assert _extract_first_balanced_json(text) == '{"a": 1, "b": 2}'
+
+    def test_returns_none_when_no_brace_anywhere(self) -> None:
+        """Production root cause : pure prose with ZERO braces."""
+        assert _extract_first_balanced_json("Perfect. Ready for Stop.") is None
+
+    def test_handles_nested_objects_correctly(self) -> None:
+        text = 'prefix {"outer": {"inner": 1}, "x": 2} suffix'
+        # Outer balanced span = `{"outer": {"inner": 1}, "x": 2}`
+        assert _extract_first_balanced_json(text) == '{"outer": {"inner": 1}, "x": 2}'
+
+    def test_ignores_braces_inside_string_literals(self) -> None:
+        """Brace inside a JSON string MUST NOT confuse the bracket count."""
+        text = '{"name": "has } inside string", "value": 1}'
+        assert _extract_first_balanced_json(text) == text
+
+    def test_escaped_quote_does_not_break_string_tracking(self) -> None:
+        """Escaped quote (\\\") inside a string must not terminate the
+        string scan prematurely."""
+        text = '{"q": "she said \\"hi\\""}'
+        result = _extract_first_balanced_json(text)
+        assert result == text
+
+    def test_strip_json_fence_uses_balanced_extractor_on_prose_with_braces(self) -> None:
+        """End-to-end : prose surrounding the JSON object with additional
+        braces in trailing markdown — balanced extractor wins over greedy."""
+        text = 'prefix {"clean": "json"} suffix {bogus}'
+        # Greedy regex `\{.*\}` would capture from first `{` to LAST `}`,
+        # returning `{"clean": "json"} suffix {bogus}` which Pydantic
+        # would fail. Balanced extractor returns the clean first object.
+        stripped = _strip_json_fence(text)
+        assert stripped == '{"clean": "json"}'
