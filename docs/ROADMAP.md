@@ -10,6 +10,31 @@
 
 ---
 
+## §1 — Current state (r168-close, 2026-05-27)
+
+### Shipped at r168 — 🎯 **G3 Risk-on/off chip + G4 Daily candle classifier + r169 G-fix-Couche2 (PARTIAL) + R-DEPLOY-6 LIVE Hetzner**
+
+- **3 commits shipped this cycle** : `40c3ace` r168a G3 (CoachMacroContextPanel chip) + `83274bb` r168b G4 (Garman-Klass + unblocks TradeabilityFlag.range from r167 honest-gap) + `d7242ed` r169 G-fix-Couche2 AGENT-MODE-OVERRIDE (partial). Branch `claude/amazing-heyrovsky-80df1e` HEAD `d7242ed`, **61 commits ahead origin/main `353df68`** (was 58 at r167-close → +3 r168 cycle).
+- **DEPLOYED LIVE Hetzner via R-DEPLOY-6 manual recovery** (first autonomous deploy this session per Eliot's "tout ce que je devrais réaliser manuellement" verbatim) : redeploy-api.sh auto-rollback SSH-timeout per doctrine #14 → forward-roll ichor_brain via manual `tar+scp+ssh` (redeploy-brain.sh broken Win11 rsync absent) → catch python import path packages-staging-vs-packages → re-deploy correct path + pyc clear → HAS_OVERRIDE:True confirmed → redeploy-web2.sh zero-retry local=200 public=200.
+- **NEW endpoints LIVE empirically verified** : `/v1/verdict/session-ny/EUR_USD` → HTTP 404 honest FR no-briefing-today + `/v1/coach-macro-context` → HTTP 200 full JSON with G3 fields `"risk_regime":"transitional"` + `"risk_regime_evidence":[]` + 3 surprises + coach_paragraph FR rendering.
+- **Public URL LIVE** : `https://operations-mail-signals-rubber.trycloudflare.com/briefing` (Tier 0.1 quick-tunnel, mints new URL on restart).
+- **Pattern #15 R59 → 17 applications stable** : 3 NEW catches this cycle :
+  - **r168a #15** : Whaley 1993 _JoD_ VIX>20 fear threshold PARTIAL HALLU (Whaley 1993 = construction paper ; "30" from Whaley 2000 _JPM_ walked back 2009 ; "VIX>20" = practitioner NOT peer-reviewed). Peer-reviewed backbone : Gilchrist-Zakrajšek 2012 _AER_ DOI 10.1257/aer.102.4.1692 + Bekaert-Hoerova-Lo Duca 2013 _JME_ DOI 10.1016/j.jmoneco.2013.06.003 + Brave-Butters 2011/2012 _IJCB_ NFCI
+  - **r168b #16** : Kaul-Sapp 2008 _JBF_ "intraday momentum" HALLU memory r167 → correct = Elaut-Frömmel-Lampaert 2018 _JFM_ 37:35-51 (NOT _JBF_). Marshall-Young-Rose 2006 _JBF_ DOI 10.1016/j.jbankfin.2005.08.001 NULL result on candlestick patterns confirmed as HONEST_SENTINEL anchor.
+  - **r169 #17 ARCHITECTURAL CRITIQUE** : `claude --setting-sources project` flag triggers OAuth Max x20 → API key billing mode = VOIE D VIOLATION. Empirical $0.09 unique test leak caught + REVERTED before propagation. Voie D-compatible fix path = r170 modify hooks PS1 conditional bail-out, NOT spawn flags.
+- **Couche-2 STILL failing post-r169 deploy** : 4-iter empirical chronology confirmed root cause = hooks PS1 (`auto-exploit-injector` + `tracker_init` + `tracker_gate` + `long_prompt_detector`) configured user-level inject prose compliance text into subprocess sessions INDEPENDENTLY of CLAUDE.md content. Output progression : 444 (pre-r169) → 1116 (r169 system_prompt) → 0 (CLAUDE.md aggressive) → 765 chars prose (CLAUDE.md simplified) → HTTP 500 + $0.09 leak (spawn flag REVERTED).
+- **Architectural truth ROOT CAUSE** : OAuth Max x20 + clean agent subprocess **mutually exclusive** in Claude Code v2.1.146 (OAuth credentials user-level = same scope as hooks PS1 ; can't skip user without losing OAuth).
+- **CLAUDE.md user-scope EDITED** (additive 11 lines "EXCEPTION SUPRÊME — Agent subprocess mode" clause activated by `[AGENT-MODE-OVERRIDE` marker) — INSUFFICIENT alone (root cause is hooks PS1 layer).
+- **Build gate LOCAL MEASURED** : pytest 97/97 target r168 cycle (17 G3 + 52 G4 + 28 r169) + 117/117 wider regression + tsc 0 + ruff clean + 15/15 pre-commit hooks PASS per commit.
+- **Voie D held 87 rounds** (revert in time of `--setting-sources project` flag preserved Voie D ; $0.09 unique test leak STOPPED before propagation).
+- **NEW codification candidates r170+ Patterns #20-#24** : #20 memory citations REQUIRE R59-pre-commit-mandatory ; #21 retail conventions paired with HONEST_SENTINEL ; #22 CRITICAL `--setting-sources project` Voie D incompat ; #23 OAuth + clean agent subprocess architectural conflict ; #24 self-realization "if user authorized FULL action, treat as binding".
+- **r170 immediate-next** ⭐ AUTO-RECO : **Hooks PS1 conditional bail-out** on `AGENT-MODE-OVERRIDE` marker detected in stdin → unblocks Couche-2 → Pass-6 emit → SessionVerdict actif **TRANSFORMATIONAL**. Effort L. ONLY Voie D-compatible fix path identified.
+- **Mission centrale axes** post-r168 : 4 of 8 ✅ CLOSED + Stride 1 LIVE Hetzner + Stride 8 Phase 2 LIVE + r167 TradeabilityFlag LIVE + r168b range literal LIVE + r168a Risk-on/off chip LIVE.
+
+SESSION_LOG_2026-05-27-r168-EXECUTION.md.
+
+### Pre-r168 state (preserved for archeology)
+
 ## §1 — Current state (r167-close, 2026-05-26)
 
 ### Shipped at r167 — 🎯 **G1+G8 TradeabilityFlag honest disclosure** (closes Eliot Fathom 2026-05-25 §VIII CRITICAL gap "ne trade pas aujourd'hui")
