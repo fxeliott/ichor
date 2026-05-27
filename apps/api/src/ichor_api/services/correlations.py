@@ -40,6 +40,23 @@ _ASSETS = (
     "XAU_USD",
     "NAS100_USD",
     "SPX500_USD",
+    # r171 G2 — DXY added to surface co-mouvement vs USD broad strength,
+    # honoring Eliot's verbatim "DXY = pilier de notre analyse" (Fathom
+    # transcript 2026-05-25 §XI). The correlation surface stays a
+    # co-mouvement MONITORING tool, not a directional prediction — per
+    # Engel-West 2005 *JPE* 113(3):485-517 DOI 10.1086/429137 abstract :
+    # "fundamental variables ... provide little help in predicting changes
+    # in floating exchange rates". The DXY row helps Eliot read the regime,
+    # not predict the next bar (ADR-017 boundary preserved).
+    #
+    # Cold-start note : Polygon free tier does not stream I:DXY (mirrors
+    # the I:SPX 403 documented in ADR-089 / r27 ; SPY proxy adopted for
+    # SPX500_USD). Until a DXY ETF proxy (UUP — Invesco DB US Dollar Index
+    # Bullish Fund) is wired (r172 candidate), `series["DXY"]` returns {}
+    # and DXY-* matrix cells stay None (graceful via len(common) < 30 skip
+    # at line ~162). The frontend r171 <DxyCorrelationPanel> renders the
+    # honest "insufficient history" sentinel until proxy ships.
+    "DXY",
 )
 
 
@@ -71,6 +88,25 @@ _REFERENCE_CORR: dict[tuple[str, str], float] = {
     ("NAS100_USD", "SPX500_USD"): +0.92,
     ("NAS100_USD", "XAU_USD"): +0.20,
     ("USD_JPY", "USD_CAD"): +0.30,
+    # r171 G2 — DXY co-mouvement priors (trader-heuristic, FX desk
+    # standard ; NOT peer-reviewed values per se — Engel-West 2005 is
+    # the FRAMING backbone, individual prior magnitudes are calibrated
+    # against the published DXY ICE basket weights and classic textbook
+    # FX inversions). Stamped as such for Pattern #15 R59 honesty.
+    #
+    # DXY ICE basket weights (per Federal Reserve H.10 / FactSet methodology) :
+    # EUR 57.6% / JPY 13.6% / GBP 11.9% / CAD 9.1% / SEK 4.2% / CHF 3.6%
+    # → EUR/USD is the near-perfect inverse, JPY/CAD pairs inverted by
+    # quoting convention (USD/JPY = positive corr with DXY, USD/CAD = same).
+    # XAU = classic dollar inverse. NAS/SPX = mild headwind via multinationals.
+    ("DXY", "EUR_USD"): -0.95,  # 57.6% of basket, near-perfect inverse
+    ("DXY", "GBP_USD"): -0.85,  # 11.9% of basket, inverse
+    ("DXY", "USD_JPY"): +0.55,  # 13.6% of basket, USD/JPY quoting convention
+    ("DXY", "AUD_USD"): -0.65,  # commodity FX, USD-driven risk
+    ("DXY", "USD_CAD"): +0.55,  # 9.1% of basket, USD/CAD quoting convention
+    ("DXY", "XAU_USD"): -0.75,  # gold-dollar classic inverse
+    ("DXY", "NAS100_USD"): -0.30,  # USD strength = multinational earnings headwind
+    ("DXY", "SPX500_USD"): -0.25,  # similar transmission, smaller magnitude
 }
 
 
