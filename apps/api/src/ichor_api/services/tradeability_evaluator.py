@@ -83,6 +83,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models import EconomicEvent
+from .daily_candle_classifier import is_range_bound
 from .hourly_volatility import assess_hourly_volatility
 from .market_session import us_market_holidays
 
@@ -329,11 +330,32 @@ async def evaluate_tradeability(
         )
         return "low_volatility"
 
-    # Gate 4 : range honest gap r167 (always False — wired r168 G4
-    # daily candle classification). Defensive : keep the gate in the
-    # priority chain so r168 only needs to plug a function.
-    is_range = False  # r168 G4 will set : await _is_range_bound_3_day(session, asset, now_utc)
-    if is_range:
+    # Gate 4 : range-bound check via daily candle classification +
+    # Garman-Klass volatility compression (r168b G4 — replaces the
+    # r167 honest-gap "always False"). Composite rule = uncertainty
+    # candle AND GK variance < 80% trailing-30d mean. See
+    # ``services/daily_candle_classifier.py`` for the full doctrine
+    # including the Marshall-Young-Rose 2006 *JBF* HONEST_SENTINEL
+    # discipline.
+    try:
+        is_range_flag, range_reason = await is_range_bound(
+            session,
+            asset=asset,
+            now_utc=now_utc,
+        )
+    except Exception as exc:
+        log.warning(
+            "tradeability_evaluator.range_check_failed",
+            asset=asset,
+            error=str(exc)[:200],
+        )
+        is_range_flag, range_reason = (False, None)
+    if is_range_flag:
+        log.info(
+            "tradeability_evaluator.range_detected",
+            asset=asset,
+            reason=range_reason,
+        )
         return "range"
 
     # Gate 5 : verdict conviction too weak to be actionable.
