@@ -10,7 +10,23 @@
 
 ---
 
-## §1 — Current state (r170-close, 2026-05-27)
+## §1 — Current state (r171a partial close, 2026-05-27)
+
+### Shipped at r171a — **G2 DXY co-mouvement backend extension correlations 8→9 (Eliot §XI "DXY = pilier")**
+
+**Commit** `8e08470` `feat(api): r171 G2 DXY co-mouvement extension correlations 8→9 assets` (+118 LOC, 2 files). **66 commits ahead origin/main** (was 65 at r170-close → +1 r171a). Backend `services/correlations.py` extension Option A : `_ASSETS` 8→9 append "DXY" (back-compat indices preserved) + `_REFERENCE_CORR` +8 DXY priors trader-heuristic calibrated vs DXY ICE basket weights (EUR 57.6% / JPY 13.6% / GBP 11.9% / CAD 9.1% ; XAU classic dollar inverse ; NAS/SPX multinational earnings headwind ; quoting convention USD_JPY/USD_CAD +ve corr). `test_correlations_and_vol.py` +5 r171 tests (**25/25 PASS**). SSOT respected (réutilise `_pearson` + `_hourly_returns` + `PolygonIntradayBar` + endpoint `/v1/correlations` existant). ZERO new router/migration/feature flag/API consumption.
+
+**Framing ADR-017 critical** : "co-mouvement MONITORING" jamais "prédiction directionnelle" — Engel-West 2005 _JPE_ 113(3):485-517 DOI 10.1086/429137 abstract verbatim "fundamental variables ... provide little help in predicting changes in floating exchange rates" (verified Phase 1A R59 pre-flight sub-agent ab892d065).
+
+**Cold-start by construction** : Polygon free tier blocks I:DXY (mirror I:SPX 403 ADR-089 r27 SPY proxy) → DXY series empty → matrix cells stay None via existing `len(common) < 30` skip line 162. **r172 candidate** = DXY ETF proxy UUP (Invesco DB US Dollar Index Bullish Fund) pour populate matrix.
+
+**Pattern #15 R59 = 19 applications stable** (4 catches Phase 1A : Engel-West verified + Jiang 2024 NBER 32092 NOT "dollar smile" formalized but convenience-yield channel + BIS QR Sept 2024 authors Gelos-Patelli-Shim NOT "Erik et al." + Bekaert-Hoerova-Lo Duca 2013 cross-round consistent r168a).
+
+**Frontend `<DxyCorrelationPanel>` r171b carry-forward fresh session** : NEW `apps/web2/components/briefing/DxyCorrelationPanel.tsx` + NEW `apps/web2/lib/dxyCorrelation.ts` 3 SSOT maps (mirror r167 sessionVerdict) + MODIFY `briefing/[asset]/page.tsx` lignes 621-641 insertion AVANT `<CorrelationsStrip>` (anti-doublon Eliot). Réutilise SSOT `lib/correlationHeat.ts`. Plan détaillé Phase 1C sub-agent af69ad20c output ADR-099 §Impl(r171a).
+
+**Voie D 89 rounds tenus**. ZERO Anthropic API spend r171a. R-PROC-8 partial closing (full closing post-frontend ship r171b + deploy R-DEPLOY-6 + R-WITNESS-EMPIRICAL Playwright).
+
+### Pre-r171a line preserved (r170-close)
 
 ### 🏆 Shipped at r170 — **G-fix-Couche2 hooks PS1 conditional bail-out via CLAUDE_AGENT_MODE_OVERRIDE env var — TRANSFORMATIONAL UNLOCK (8/8 services empirically validated)**
 

@@ -5022,3 +5022,45 @@ Engel-West 2005 JPE DOI 10.1086/429137 + Jiang-Krishnamurthy-Lustig-Sun 2024 NBE
 Build gate : 15/15 pre-commit hooks PASS (gitleaks + ruff + prettier + Ichor doctrinal invariants ADR-081 GREEN). Empirical validation 8/8 services exit 0/SUCCESS via SSH journalctl + systemctl show.
 
 **ZERO Anthropic API spend r170 cycle.**
+
+## §Impl(r171a) — G2 DXY co-mouvement backend extension correlations 8→9 (2026-05-27)
+
+**Closure partielle** : Eliot Fathom 2026-05-25 §XI verbatim "DXY = pilier de notre analyse" — backend shipped, frontend `<DxyCorrelationPanel>` carry-forward r171b.
+
+### Patch backend (commit `8e08470`, ~118 LOC)
+
+- `apps/api/src/ichor_api/services/correlations.py` : `_ASSETS` 8→9 (append "DXY" back-compat) + `_REFERENCE_CORR` +8 DXY priors trader-heuristic (calibrés vs DXY ICE basket weights EUR 57.6% / JPY 13.6% / GBP 11.9% / CAD 9.1% ; XAU classic dollar inverse ; NAS/SPX multinational earnings headwind ; quoting convention USD_JPY/USD_CAD positive corr)
+- `apps/api/tests/test_correlations_and_vol.py` : 5 NEW r171 tests (DXY in universe + priors exhaustive + DXY-EUR_USD -0.95 both orders + JPY/CAD positive convention + render DXY column) ; **25/25 PASS**
+
+### Architecture Option A SSOT respected
+
+- Réutilise `_pearson` + `_hourly_returns` + `PolygonIntradayBar` + `render_correlations_block` + endpoint `GET /v1/correlations` + Pydantic `CorrelationOut`
+- ZERO new router / migration / feature flag / API consumption
+- Graceful cold-start : Polygon free tier blocks I:DXY (mirror I:SPX 403 ADR-089 r27 SPY proxy) → DXY series empty → matrix cells stay None via existing `len(common) < 30` skip line 162
+- **r172 candidate** : DXY ETF proxy UUP (Invesco DB US Dollar Index Bullish Fund) to populate matrix cells comme SPY proxy SPX500
+
+### Pre-flight Pattern #15 R59 (4 catches sub-agent ab892d065)
+
+- ✅ Engel-West 2005 _JPE_ 113(3):485-517 DOI 10.1086/429137 — abstract verbatim supports framing "FX→fundamentals co-movement NOT directional prediction"
+- ⚠️ Jiang-Krishnamurthy-Lustig-Sun 2024 NBER WP 32092 = convenience-yield safe-asset channel, NOT "dollar smile" formalized (overreach corrected — Jen 2001 = practitioner Morgan Stanley sell-side stamp obligatoire)
+- ⚠️ BIS QR Sept 2024 authors = **Gelos-Patelli-Shim** (NOT "Erik et al." commonly cited)
+- ✅ Bekaert-Hoerova-Lo Duca 2013 _JME_ 60(7):771-788 DOI 10.1016/j.jmoneco.2013.06.003 — cross-round consistent r168a
+
+### Frontend carry-forward r171b (Phase 1C sub-agent af69ad20c)
+
+- NEW `apps/web2/components/briefing/DxyCorrelationPanel.tsx` — diverging heatmap focus DXY row + sparkline shift indicator + 5 HONEST_SENTINEL FR labels collapsible
+- NEW `apps/web2/lib/dxyCorrelation.ts` — 3 SSOT maps `DXY_CORR_FR` + `DXY_CORR_HINT_FR` + `DXY_CORR_TONE` (mirror r167 sessionVerdict pattern)
+- MODIFY `apps/web2/app/briefing/[asset]/page.tsx` lignes 621-641 — insert `<DxyCorrelationPanel>` AVANT `<CorrelationsStrip>` dans section Corrélations existante (anti-doublon Eliot)
+- Réutilise SSOT `lib/correlationHeat.ts` (divergingStop OKLCH 7-stop + trendGlyph + NEAR_ZERO 0.05)
+- ADR-017 framing : copy verbatim "co-mouvement observé · monitoring · pas un signal (frontière ADR-017)" depuis `CorrelationsStrip.tsx:204`
+
+### Honest scope (doctrine #2 + #11 + #9)
+
+- NO new ADR (this §Impl(r171a) APPEND only) + NO new migration + NO new feature flag + NO data backfill + NO API consumption
+- Pure backend extension `_ASSETS` 8→9 + 8 priors + 5 tests (~118 LOC)
+- Cold-start safety BY CONSTRUCTION (graceful None when DXY series absent)
+- Doctrine #9 dated §Impl(r171a) APPEND. doctrine-#9 coord-math ledger UNCHANGED.
+
+Build gate **25/25 PASS** test_correlations_and_vol.py + 15/15 pre-commit hooks PASS (gitleaks + ruff + ruff-format + prettier + Ichor doctrinal invariants ADR-081 GREEN). Voie D **89 rounds** (zero `import anthropic` r171). Pattern #15 R59 = **19 applications stable** (4 NEW catches r171 pre-flight). Pattern #22/#23/#24 codified r170 preserved.
+
+**ZERO Anthropic API spend r171a cycle.**
