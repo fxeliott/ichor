@@ -10,6 +10,35 @@
 
 ---
 
+## §1 — Current state (r182 full close — N1 THEME CLASSIFIER EXECUTION-PHASE SHIPPED, atomic continuation r181→r182 same-session, 2026-05-28)
+
+### Shipped at r182 — **N1 Theme EXECUTION-phase compute logic (4 hetero inputs + 8-driver strength scoring, closes r181 FOUNDATION → r182 EXECUTION arc)**
+
+`services/theme_classifier.py:classify_dominant_theme()` replaces r181 skeleton `return None` with full EXECUTION compute over 4 hetero inputs : FRED VIXCLS + DTWEXBGS + DGS10 latest (max 7d age) + economic_events FOMC proximity ±5d + economic_events recent high-impact USD releases (last 5d) + GprObservation 90d percentile rank.
+
+**8-driver strength scoring rules (practitioner-grade, r183+ Phase D Brier calibration may refine)** :
+
+- `monetary_policy` : FOMC ±5d → 0.7 + 0.05 × (5 - days_distance) capped 0.95 ; else baseline 0.2
+- `economic_data` : ≥2 high-impact releases → 0.4 + 0.1 × n capped 0.9 ; 1 release → 0.5 ; else baseline
+- `geopolitics` : ai_gpr > 80th percentile rolling 90d → 0.75 ; else baseline (Caldara-Iacoviello 2022 AER backbone GPR construction, threshold practitioner)
+- `market_interconnexions` : VIX > 30 (Bekaert-Hoerova-Lo Duca 2013 JME DOI 10.1016/j.jmoneco.2013.06.003 funding-stress) → 0.7 ; VIX < 15 → 0.4 ; else 0.3
+- `macroeconomic` : VIX > 30 AND DXY extreme (>105 OR <95) co-occurrence regime shift → 0.65 ; else baseline
+- `fiscal_policy` / `price_action_flow` / `supply_demand` : baseline 0.2 at r182 (r183+ adds tariff_shock_check / VPIN+gamma_flip / OPEC respectively)
+
+**Doctrine #11 calibrated honesty** : returns `None` when no driver meets `_DOMINANCE_THRESHOLD = 0.5` (all inputs absent → all drivers at baseline 0.2-0.3 → honest absence). NEVER fabricates a forced ranking.
+
+**5 NEW pure helpers extracted** : `_latest_fred_value()` + `_fomc_proximity_days()` + `_count_recent_high_impact_releases()` + `_is_ai_gpr_elevated()` + `_rank_drivers()` (pure ranking with `_DOMINANCE_THRESHOLD` + `_SECONDARY_MIN_STRENGTH` + max_length=3 cap).
+
+**Build gate (LOCAL MEASURED)** : `pytest tests/test_theme_classifier.py tests/test_data_pool_previous_session_context.py tests/test_previous_session_origin_zone.py tests/test_invariants_ichor.py` → **102/102 PASS** in 6.43s (9 r182 NEW : `TestRankDriversPure` 4 + `TestClassifyDominantThemeExecution` 5 incl. FOMC dominance + GPR dominance + VIX panic + economic_data releases + multi-driver coincidence + 12 r181 FOUNDATION pinning + 9 r180 + 25 r179 + 47 W90 invariants ALL intact).
+
+**Doctrine #21 R30 HONORED 9 rounds consecutifs RECORD EXTENDED** : §1+§3 chain r171b+r172+r173+r177+r178+r179+r180+r181+r182 = **9 consecutive** (was 8 RECORD r181-close, +1 r182).
+
+**Voie D 102 rounds** post-CENTURY.
+
+**Mission centrale axes post-r182** : Axes 1-7 ✅ + 8 PARTIAL + 9 ADR-106 Stride 1 + 10 r167 LIVE + +11 G2 DXY ✅ + +12 honest_sentinels ✅ + +13 r174-r176 ✅ + +14 r179 G5 EXECUTION ✅ + +15 r180 G5 CONSUMER WIRING ✅ + +16 r181 N1 FOUNDATION ✅ + **+17 r182 N1 EXECUTION-phase compute logic ✅** (r181 → r182 N1 arc closed ; r183 N1 CONSUMER WIRING Pass-2 data_pool + 3 backlog drivers fiscal/flow/supply enrichment queued).
+
+### Pre-r182 line preserved (r181-close)
+
 ## §1 — Current state (r181 full close — N1 THEME CLASSIFIER FOUNDATION SHIPPED, atomic continuation r180→r181 same-session, 2026-05-28)
 
 ### Shipped at r181 — **N1 Theme sous-jacent classifier 8 drivers FOUNDATION skeleton (Eliot Fathom transcript page 1 étape 1 verbatim, mirror r174 G5 FOUNDATION pattern)**
@@ -381,7 +410,29 @@ See `docs/ROADMAP_2026-05-06.md` for the original 4-layer architecture (DATA FOU
 
 ---
 
-## §3 — Immediate next (r182) — ⭐ N1 THEME CLASSIFIER EXECUTION-PHASE (5-step compute over Pass-1 régime + NFCI + VIX + DXY + 10Y + economic_events + ai_gpr + GDELT)
+## §3 — Immediate next (r183) — ⭐ N1 THEME CONSUMER WIRING + 3 backlog drivers enrichment (Pass-2 data_pool injection + fiscal_policy/price_action_flow/supply_demand wiring)
+
+**r182 EXECUTED & SHIPPED (2026-05-28)** : N1 Theme EXECUTION-phase compute logic ships full 4-input + 8-driver scoring + 5 pure helpers + 9 NEW tests. 102/102 build gate. Doctrine #21 R30 9 rounds RECORD. Voie D 102 rounds.
+
+**r183 binding-default candidates** :
+
+1. ⭐ **N1 THEME CONSUMER WIRING** : NEW `_section_theme_dominant(session, asset)` in `services/data_pool.py` consuming `classify_dominant_theme()` + plain-FR prose rendering (« Le thème dominant actuel est `geopolitics` (75% conviction) — Pass-2 narrative doit lire les autres signaux dans ce contexte »). Always-rendered (honest absence prose when None). ADR-017 boundary self-affirming line. Wire into `build_data_pool`. Mirror r180 G5 CONSUMER WIRING pattern. Effort S-M, 1 session. **HIGH leverage** (operationalizes étape 1 méthodologie Eliot end-to-end Pass-2).
+
+2. **r183 THEME enrichment 3 backlog drivers** : (a) `fiscal_policy` strength via `tariff_shock_check` recent fire + economic_events fiscal classification ; (b) `price_action_flow` strength via VPIN regime + gamma_flip KeyLevel signals ; (c) `supply_demand` strength via commodity-specific OPEC/inventory shifts. Effort M, 1-2 sessions. MED-HIGH (closes 8/8 driver EXECUTION).
+
+3. **N4 ST markets / FedWatch collector** (Eliot étape 3 misprice verdict). Effort M. HIGH.
+
+4. **N2 Range attentes économistes** (Eliot étape 2). Effort S-M. MED-HIGH.
+
+5. **Frontend `<PreviousSessionContextPanel>` + `<ThemeRankingPanel>`** (closes r180+r182 frontend wave). Effort M. MED.
+
+6. **PR #159 6 CI failures + merge to main**. Effort M.
+
+Pattern #15 R59 applies — r183 CONSUMER WIRING R59 obligatoire (verify FR copy ADR-017 boundary + verify session prose has no BUY/SELL tokens).
+
+### Pre-r183 line preserved (r182 default-sans-pivot)
+
+## §3 — Previous immediate next (r182) — ⭐ N1 THEME CLASSIFIER EXECUTION-PHASE (5-step compute over Pass-1 régime + NFCI + VIX + DXY + 10Y + economic_events + ai_gpr + GDELT)
 
 **r181 EXECUTED & SHIPPED (2026-05-28)** : N1 Theme sous-jacent classifier 8 drivers FOUNDATION skeleton (`services/theme_classifier.py` ~190 LOC + Pydantic frozen ThemeRanking + 8 canonical drivers Literal + skeleton returns None). 93/93 tests. Doctrine #21 R30 8 rounds RECORD. Voie D 101 rounds.
 

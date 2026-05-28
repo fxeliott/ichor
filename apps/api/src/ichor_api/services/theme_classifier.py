@@ -93,11 +93,14 @@ Per Eliot recording, each represents one « engrenage moteur » :
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Final, Literal
 
 from pydantic import BaseModel, Field
+from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from ..models import EconomicEvent, FredObservation, GprObservation
 
 # ─────────────────────────────────── DOMAIN ─────────────────────────────
 
@@ -188,7 +191,217 @@ class ThemeRanking(BaseModel):
     EXECUTION ship time."""
 
 
-# ─────────────────────────────────── SKELETON COMPUTE ──────────────────
+# ─────────────────────────────────── r182 EXECUTION CONSTANTS ──────────
+
+_FRED_MAX_AGE_DAYS: Final[int] = 7
+"""FRED series max staleness for r182 EXECUTION inputs. Mirror
+``_section_data_integrity`` r93 ADR-103 discipline : freshness >7d
+treated as absent (silent-skip avoided via honest None return)."""
+
+_VIX_PANIC_THRESHOLD: Final[float] = 30.0
+"""Bekaert-Hoerova-Lo Duca 2013 JME funding-stress threshold (DOI
+10.1016/j.jmoneco.2013.06.003). VIX > 30 = funding-stress regime
+where cross-asset correlations collapse toward +1 (panic) or
+decouple. Practitioner Whaley 2000 originally proposed 30 but walked
+back 2009 — the FUNDING-STRESS CHANNEL is the peer-reviewed
+contribution that anchors the threshold here."""
+
+_VIX_COMPLACENT_THRESHOLD: Final[float] = 15.0
+"""Practitioner-grade complacency band (VIX < 15). Below this, the
+market is structurally complacent — different driver regime than
+panic. r183+ calibration via Phase D Brier feedback may refine."""
+
+_DXY_STRONG_THRESHOLD: Final[float] = 105.0
+"""Practitioner-grade strong-USD threshold on DTWEXBGS broad basket.
+Bertaut-DeMarco-Kamin-Tryon 2012 (FRB IFDP 1063) divergence
+discipline informs the broad-vs-narrow read at r183+ ; for r182
+we use the broad index level alone."""
+
+_DXY_WEAK_THRESHOLD: Final[float] = 95.0
+"""Practitioner-grade weak-USD threshold."""
+
+_GPR_HIGH_PERCENTILE: Final[float] = 0.80
+"""ai_gpr above 80th percentile of rolling 90-day window =
+geopolitics-driven regime. Practitioner-grade ; Caldara-Iacoviello
+2022 AER « Measuring Geopolitical Risk » DOI 10.1257/aer.20191823
+informs the GPR construction (which the collector backfills), the
+80th-percentile threshold is an Ichor calibration."""
+
+_GPR_LOOKBACK_DAYS: Final[int] = 90
+
+_FOMC_PROXIMITY_LOOKBACK_DAYS: Final[int] = 5
+"""±5 business days around FOMC = monetary-policy-driven window
+per Nakamura-Steinsson 2018 QJE high-frequency identification
+discipline DOI 10.1093/qje/qjy004."""
+
+_FOMC_TITLE_KEYWORDS: Final[tuple[str, ...]] = (
+    "FOMC",
+    "Fed Chair",
+    "FOMC Statement",
+    "FOMC Press Conference",
+)
+"""ForexFactory title prefixes that mark FOMC events. Practitioner
+parse of forex_factory title format ; r183+ may add ECB/BoE/BoJ."""
+
+_HIGH_IMPACT_DATA_LOOKBACK_DAYS: Final[int] = 5
+_HIGH_IMPACT_TAG: Final[str] = "high"
+
+_BASELINE_STRENGTH: Final[float] = 0.2
+"""Driver baseline strength when no positive signal. Doctrine #11
+calibrated honesty : NOT zero (avoids false honest-absence trigger
+when one driver is mid-strength) but low enough that any positive
+signal dominates."""
+
+_DOMINANCE_THRESHOLD: Final[float] = 0.5
+"""Minimum top_theme strength to emit ThemeRanking. Below this,
+classifier returns None (honest absence : no theme dominates clearly,
+per doctrine #11 calibrated honesty)."""
+
+_SECONDARY_MIN_STRENGTH: Final[float] = 0.4
+"""Minimum strength to include in secondary_themes list."""
+
+
+# ─────────────────────────────────── r182 EXECUTION HELPERS ────────────
+
+
+async def _latest_fred_value(
+    session: AsyncSession,
+    series_id: str,
+    *,
+    now_utc: datetime,
+    max_age_days: int = _FRED_MAX_AGE_DAYS,
+) -> float | None:
+    """Pure-ish : query latest ``fred_observations`` row for
+    ``series_id`` within ``max_age_days``. Returns ``None`` when
+    absent OR stale (honest absence per ADR-103 discipline)."""
+    cutoff = (now_utc - timedelta(days=max_age_days)).date()
+    stmt = (
+        select(FredObservation)
+        .where(FredObservation.series_id == series_id)
+        .where(FredObservation.observation_date >= cutoff)
+        .order_by(desc(FredObservation.observation_date))
+        .limit(1)
+    )
+    row = (await session.execute(stmt)).scalars().first()
+    if row is None or row.value is None:
+        return None
+    return float(row.value)
+
+
+async def _fomc_proximity_days(
+    session: AsyncSession,
+    *,
+    now_utc: datetime,
+) -> int | None:
+    """Pure-ish : days-distance to nearest FOMC event within ±5
+    business days. Returns ``None`` if no FOMC in window.
+
+    Queries ``economic_events`` for titles matching
+    ``_FOMC_TITLE_KEYWORDS`` (ILIKE pattern) scheduled within the
+    proximity window. Returns min(|scheduled_at - now_utc|.days)
+    or None."""
+    lo = now_utc - timedelta(days=_FOMC_PROXIMITY_LOOKBACK_DAYS)
+    hi = now_utc + timedelta(days=_FOMC_PROXIMITY_LOOKBACK_DAYS)
+    stmt = (
+        select(EconomicEvent)
+        .where(EconomicEvent.currency == "USD")
+        .where(EconomicEvent.scheduled_at.is_not(None))
+        .where(EconomicEvent.scheduled_at >= lo)
+        .where(EconomicEvent.scheduled_at <= hi)
+    )
+    rows = (await session.execute(stmt)).scalars().all()
+    # Filter in Python for the OR-of-keyword match (cleaner than
+    # OR-chain in SQL ; small result set after the time-window filter).
+    candidates = [
+        r
+        for r in rows
+        if r.scheduled_at is not None
+        and any(kw.lower() in r.title.lower() for kw in _FOMC_TITLE_KEYWORDS)
+    ]
+    if not candidates:
+        return None
+    min_days = min(abs((r.scheduled_at - now_utc).days) for r in candidates)
+    return min_days
+
+
+async def _count_recent_high_impact_releases(
+    session: AsyncSession,
+    *,
+    now_utc: datetime,
+) -> int:
+    """Pure-ish : count high-impact USD economic_events fired in
+    last 5 business days (with ``actual IS NOT NULL`` = data release
+    happened). Returns 0 when none.
+
+    This is a proxy for « major data surprises » at r182 ; a
+    proper z-score surprise calculation requires the forecast +
+    actual numeric parse + stddev across history, deferred r183+
+    (N2 range attentes économistes column add per Eliot Fathom
+    transcript étape 2)."""
+    lo = now_utc - timedelta(days=_HIGH_IMPACT_DATA_LOOKBACK_DAYS)
+    stmt = (
+        select(EconomicEvent)
+        .where(EconomicEvent.currency == "USD")
+        .where(EconomicEvent.impact == _HIGH_IMPACT_TAG)
+        .where(EconomicEvent.scheduled_at.is_not(None))
+        .where(EconomicEvent.scheduled_at >= lo)
+        .where(EconomicEvent.scheduled_at <= now_utc)
+        .where(EconomicEvent.actual.is_not(None))
+    )
+    rows = (await session.execute(stmt)).scalars().all()
+    return len(rows)
+
+
+async def _is_ai_gpr_elevated(
+    session: AsyncSession,
+    *,
+    now_utc: datetime,
+) -> bool:
+    """Pure-ish : True if today's ai_gpr exceeds the 80th percentile
+    of the rolling ``_GPR_LOOKBACK_DAYS`` window. Returns False when
+    insufficient history (< 30 observations, doctrine #11 honest
+    absence per Cohen 1988 small-sample threshold)."""
+    cutoff = (now_utc - timedelta(days=_GPR_LOOKBACK_DAYS)).date()
+    stmt = (
+        select(GprObservation)
+        .where(GprObservation.observation_date >= cutoff)
+        .order_by(desc(GprObservation.observation_date))
+    )
+    rows = (await session.execute(stmt)).scalars().all()
+    if len(rows) < 30:
+        return False  # honest absence : insufficient history
+    values = sorted(float(r.ai_gpr) for r in rows)
+    # Percentile rank of today's value (rows[0] = most-recent by
+    # ``order_by desc``).
+    today_value = float(rows[0].ai_gpr)
+    rank = sum(1 for v in values if v <= today_value)
+    percentile = rank / len(values)
+    return percentile >= _GPR_HIGH_PERCENTILE
+
+
+def _rank_drivers(
+    strengths: dict[ThemeDriverKey, float],
+) -> tuple[ThemeDriverKey, list[ThemeDriverKey]] | None:
+    """Pure : pick top + ranked secondaries.
+
+    Returns ``(top, secondary_list)`` when top's strength meets
+    ``_DOMINANCE_THRESHOLD`` ; ``None`` otherwise (honest absence —
+    no driver dominates).
+
+    Secondary list : up to 3 entries (Pydantic max_length=3) with
+    strength > ``_SECONDARY_MIN_STRENGTH``, in decreasing order.
+    """
+    if not strengths:
+        return None
+    sorted_pairs = sorted(strengths.items(), key=lambda kv: -kv[1])
+    top_key, top_strength = sorted_pairs[0]
+    if top_strength < _DOMINANCE_THRESHOLD:
+        return None
+    secondary = [k for k, v in sorted_pairs[1:] if v > _SECONDARY_MIN_STRENGTH][:3]
+    return top_key, secondary
+
+
+# ─────────────────────────────────── r182 EXECUTION MAIN ───────────────
 
 
 async def classify_dominant_theme(
@@ -196,39 +409,34 @@ async def classify_dominant_theme(
     *,
     now_utc: datetime,
 ) -> ThemeRanking | None:
-    """r181 FOUNDATION skeleton — returns None unconditionally.
+    """r182 EXECUTION-phase — compute per-driver strength scores
+    via 4 hetero inputs (FRED VIXCLS + DTWEXBGS + DGS10 latest +
+    economic_events FOMC proximity + economic_events recent high-
+    impact data releases + GprObservation 90d percentile rank).
 
-    r182+ EXECUTION-phase will implement :
+    Strength rules per driver (r183+ Phase D Brier calibration may
+    refine) :
 
-    1. Resolve recent macro state via Pass-1 régime classifier output
-       (Master Quadrant) + NFCI + VIX + DXY level + 10Y yield.
-    2. Query ``economic_events`` for events fired in last 72h with
-       high impact + ``ai_gpr`` daily for geopolitical risk index +
-       ``gdelt_events`` for global crisis indicators.
-    3. Compute per-driver strength scores via deterministic rules :
-       - ``macroeconomic`` : recent regime shift (Pass-1 quadrant
-         change) → 0.7+ else 0.2
-       - ``monetary_policy`` : FOMC/ECB/BoE/BoJ days +/- 5d → 0.7+
-       - ``economic_data`` : major data surprises (|z-score| > 1.5)
-         in last 5d → 0.6+
-       - ``fiscal_policy`` : tariff_shock_check OR fiscal_event in
-         last 7d → 0.6+
-       - ``market_interconnexions`` : cross-asset breakouts (DXY +
-         10Y + VIX simultaneous shifts) → 0.5+
-       - ``geopolitics`` : ai_gpr above threshold OR GDELT crisis
-         events spike → 0.7+
-       - ``price_action_flow`` : VPIN regime + gamma flip + key levels
-         crossed → 0.4+
-       - ``supply_demand`` : commodity-specific OPEC/inventory data
-         shift → 0.3+ (asset-class-dependent)
-    4. Pick ``top_theme = argmax(driver_strengths)`` ; ``secondary_
-       themes = top 3 by strength after top, threshold > 0.4``.
-    5. Return ``ThemeRanking`` OR None if all driver strengths < 0.3
-       (honest absence : no theme dominates clearly).
+    - ``monetary_policy`` : FOMC ±5d → 0.7 + 0.05 × (5 - days_distance),
+      else baseline 0.2.
+    - ``economic_data`` : ≥2 high-impact data releases in last 5d →
+      0.4 + 0.1 × n (capped 0.9), else 1 release → 0.5, else baseline.
+    - ``geopolitics`` : ai_gpr > 80th percentile rolling 90d → 0.75,
+      else baseline.
+    - ``market_interconnexions`` : VIX > 30 (Bekaert-Hoerova-Lo Duca
+      panic) → 0.7 ; VIX < 15 (complacent) → 0.4 ; else 0.3.
+    - ``macroeconomic`` : VIX > 30 AND DXY extreme (>105 OR <95) =
+      co-occurrence regime shift → 0.65, else baseline.
+    - ``fiscal_policy`` / ``price_action_flow`` / ``supply_demand`` :
+      baseline 0.2 at r182 EXECUTION (r183+ adds tariff_shock_check
+      / VPIN+gamma_flip / OPEC inputs respectively).
 
-    r181 FOUNDATION returns None unconditionally. ZERO behavior change
-    at r181 deploy. Consumer wiring (Pass-2 data-pool ``_section_
-    theme_dominant`` + frontend ``<ThemeRankingPanel>``) lands r182+.
+    Returns ``ThemeRanking`` when ``top_theme`` strength ≥
+    ``_DOMINANCE_THRESHOLD`` (0.5) ; ``None`` otherwise (honest
+    absence per doctrine #11 calibrated honesty).
+
+    Consumer wiring (Pass-2 data-pool ``_section_theme_dominant`` +
+    frontend ``<ThemeRankingPanel>``) lands r183+.
 
     Args:
         session : SQLAlchemy async session (DB query handle, NOT used
@@ -242,8 +450,70 @@ async def classify_dominant_theme(
         ``ThemeRanking`` when classifier inputs are sufficient,
         else None.
     """
-    # r181 FOUNDATION : skeleton. r182+ implements the 5-step compute.
-    # Function signature is FROZEN by this ship so r182+ wiring consumers
-    # (Pass-2 data-pool, frontend, tests) can integrate incrementally.
-    _ = (session, now_utc)  # silence ruff unused-arg warning
-    return None
+    # r182 EXECUTION : 4 hetero inputs + 8-driver strength scoring.
+    vix = await _latest_fred_value(session, "VIXCLS", now_utc=now_utc)
+    dxy = await _latest_fred_value(session, "DTWEXBGS", now_utc=now_utc)
+    # dgs10 query reserved for r183+ extension (US10Y yield-shift signal)
+    _ = await _latest_fred_value(session, "DGS10", now_utc=now_utc)
+    fomc_days = await _fomc_proximity_days(session, now_utc=now_utc)
+    recent_releases = await _count_recent_high_impact_releases(session, now_utc=now_utc)
+    gpr_elevated = await _is_ai_gpr_elevated(session, now_utc=now_utc)
+
+    # Per-driver strength scoring.
+    strengths: dict[ThemeDriverKey, float] = {}
+
+    if fomc_days is not None:
+        strengths["monetary_policy"] = min(
+            0.95, 0.7 + 0.05 * max(0, _FOMC_PROXIMITY_LOOKBACK_DAYS - fomc_days)
+        )
+    else:
+        strengths["monetary_policy"] = _BASELINE_STRENGTH
+
+    if recent_releases >= 2:
+        strengths["economic_data"] = min(0.9, 0.4 + 0.1 * recent_releases)
+    elif recent_releases == 1:
+        strengths["economic_data"] = 0.5
+    else:
+        strengths["economic_data"] = _BASELINE_STRENGTH
+
+    strengths["geopolitics"] = 0.75 if gpr_elevated else _BASELINE_STRENGTH
+
+    if vix is not None and vix > _VIX_PANIC_THRESHOLD:
+        strengths["market_interconnexions"] = 0.7
+    elif vix is not None and vix < _VIX_COMPLACENT_THRESHOLD:
+        strengths["market_interconnexions"] = 0.4
+    else:
+        strengths["market_interconnexions"] = 0.3
+
+    if (
+        vix is not None
+        and dxy is not None
+        and vix > _VIX_PANIC_THRESHOLD
+        and (dxy > _DXY_STRONG_THRESHOLD or dxy < _DXY_WEAK_THRESHOLD)
+    ):
+        strengths["macroeconomic"] = 0.65
+    else:
+        strengths["macroeconomic"] = _BASELINE_STRENGTH
+
+    # r183+ EXECUTION enrichment : these 3 use baseline at r182 ship.
+    strengths["fiscal_policy"] = _BASELINE_STRENGTH
+    strengths["price_action_flow"] = _BASELINE_STRENGTH
+    strengths["supply_demand"] = _BASELINE_STRENGTH
+
+    # Doctrine #11 calibrated honesty : if all inputs absent (no FRED,
+    # no FOMC, no releases, no GPR history), the dominant driver will
+    # be at baseline 0.3 (market_interconnexions default) which is
+    # below _DOMINANCE_THRESHOLD = 0.5. ``_rank_drivers()`` returns
+    # None in that case.
+    ranked = _rank_drivers(strengths)
+    if ranked is None:
+        return None  # honest absence : no driver dominates clearly
+    top_theme, secondary = ranked
+
+    return ThemeRanking(
+        top_theme=top_theme,
+        secondary_themes=secondary,
+        driver_strengths=strengths,
+        computed_at_utc=now_utc,
+        provenance="practitioner_stamp",
+    )

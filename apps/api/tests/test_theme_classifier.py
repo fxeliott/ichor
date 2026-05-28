@@ -1,33 +1,35 @@
-"""r181 FOUNDATION specs for theme_classifier.py.
+"""r181 FOUNDATION + r182 EXECUTION specs for theme_classifier.py.
 
-Pins the FOUNDATION-only contract :
-- Pydantic frozen ThemeRanking shape (fields + types + frozenness)
-- ThemeDriverKey Literal 8 canonical drivers (Eliot Fathom transcript
-  page 1 étape 1 verbatim)
-- THEME_DRIVERS ordered tuple stable render order
-- classify_dominant_theme() returns None unconditionally at r181
-  (skeleton). r182+ EXECUTION-phase will refine.
-- provenance defaults to "practitioner_stamp" per Pattern #20 mechanical
-  R59-pre-commit-mandatory (the 8-driver taxonomy is practitioner-stamp,
-  NOT peer-reviewed)
+r181 (preserved) pins the FOUNDATION-only contract.
+r182 (this commit) ships EXECUTION compute logic :
+- 4 hetero inputs (FRED VIXCLS + DTWEXBGS + DGS10 + economic_events
+  FOMC proximity + economic_events recent high-impact releases +
+  GprObservation 90d percentile rank)
+- 8-driver strength scoring with practitioner-grade thresholds
+- ``_rank_drivers`` pure helper unit-tested in isolation
+- DB-touching main async fn tested via AsyncMock + monkeypatch
+  on the internal helpers (cleaner than mocking session.execute
+  multi-call sequence)
 
-Mirror r160 Dukascopy + r174 G5 FOUNDATION test pattern : structural
-pinning of the shell, no compute-logic assertions.
-
-Doctrine #5 pure-module discipline : no I/O, no DB hit (the skeleton
-fn takes a ``session`` arg but never uses it). CI-gated since r181.
+Doctrine #5 pure-module discipline : helper fns are pure (no I/O,
+no DB hit at the helper layer for ``_rank_drivers``). The DB-touching
+helpers are tested via AsyncMock session.
 """
 
 from __future__ import annotations
 
 import asyncio
 from datetime import UTC, datetime
+from typing import Any
+from unittest.mock import AsyncMock, patch
 
 import pytest
+from ichor_api.services import theme_classifier as tc_mod
 from ichor_api.services.theme_classifier import (
     THEME_DRIVERS,
     ThemeDriverKey,
     ThemeRanking,
+    _rank_drivers,
     classify_dominant_theme,
 )
 
@@ -157,38 +159,244 @@ class TestThemeDriverKeyLiteral:
         assert ThemeDriverKey is not None
 
 
-class TestClassifyDominantThemeSkeletonReturnsNone:
-    """r181 FOUNDATION : skeleton fn returns None unconditionally.
-    r182+ EXECUTION-phase will refine the contract — but the function
-    signature (session, *, now_utc) is FROZEN by this ship so consumers
-    can integrate incrementally."""
+class TestRankDriversPure:
+    """r182 EXECUTION : ``_rank_drivers`` pure helper unit tests."""
 
-    def test_skeleton_returns_none(self) -> None:
-        """r181 FOUNDATION : zero behavior change at deploy. Skeleton
-        returns None regardless of inputs. r182+ EXECUTION-phase will
-        implement the 5-step compute."""
+    def test_returns_none_on_empty_strengths(self) -> None:
+        assert _rank_drivers({}) is None
+
+    def test_returns_none_when_top_below_dominance_threshold(self) -> None:
+        """All drivers at baseline 0.2 < dominance 0.5 → None."""
+        strengths: dict[ThemeDriverKey, float] = dict.fromkeys(THEME_DRIVERS, 0.2)
+        assert _rank_drivers(strengths) is None
+
+    def test_picks_argmax_top_with_secondaries(self) -> None:
+        """Sorted by strength desc, top=monetary_policy, secondaries
+        include drivers > 0.4 in decreasing order, capped at 3."""
+        strengths: dict[ThemeDriverKey, float] = {
+            "monetary_policy": 0.85,
+            "geopolitics": 0.75,
+            "market_interconnexions": 0.70,
+            "economic_data": 0.50,
+            "macroeconomic": 0.30,
+            "fiscal_policy": 0.20,
+            "price_action_flow": 0.20,
+            "supply_demand": 0.20,
+        }
+        result = _rank_drivers(strengths)
+        assert result is not None
+        top, secondary = result
+        assert top == "monetary_policy"
+        assert secondary == [
+            "geopolitics",
+            "market_interconnexions",
+            "economic_data",
+        ]  # top 3 above 0.4, decreasing
+
+    def test_secondary_caps_at_max_length_3(self) -> None:
+        """Even if 5 drivers are above 0.4, secondary list caps at 3."""
+        strengths: dict[ThemeDriverKey, float] = {
+            "monetary_policy": 0.9,
+            "geopolitics": 0.8,
+            "market_interconnexions": 0.7,
+            "economic_data": 0.6,
+            "macroeconomic": 0.5,
+            "fiscal_policy": 0.2,
+            "price_action_flow": 0.2,
+            "supply_demand": 0.2,
+        }
+        result = _rank_drivers(strengths)
+        assert result is not None
+        _, secondary = result
+        assert len(secondary) == 3
+
+
+class TestClassifyDominantThemeExecution:
+    """r182 EXECUTION : end-to-end with monkeypatched helpers.
+
+    Pattern : monkeypatch the 4 helpers (``_latest_fred_value``,
+    ``_fomc_proximity_days``, ``_count_recent_high_impact_releases``,
+    ``_is_ai_gpr_elevated``) to known values, verify
+    ``classify_dominant_theme`` ranks correctly.
+    """
+
+    def test_returns_none_when_all_inputs_absent(self) -> None:
+        """Doctrine #11 calibrated honesty : when no FRED, no FOMC, no
+        releases, no GPR → no driver dominates → None."""
 
         async def _run() -> None:
-            # Skeleton accepts None for session (it's reserved for r182+)
-            result = await classify_dominant_theme(
-                session=None,  # type: ignore[arg-type]
-                now_utc=datetime(2026, 5, 28, 13, 0, tzinfo=UTC),
-            )
+            with (
+                patch.object(tc_mod, "_latest_fred_value", AsyncMock(return_value=None)),
+                patch.object(tc_mod, "_fomc_proximity_days", AsyncMock(return_value=None)),
+                patch.object(
+                    tc_mod, "_count_recent_high_impact_releases", AsyncMock(return_value=0)
+                ),
+                patch.object(tc_mod, "_is_ai_gpr_elevated", AsyncMock(return_value=False)),
+            ):
+                result = await classify_dominant_theme(
+                    session=AsyncMock(),
+                    now_utc=datetime(2026, 5, 28, 13, 0, tzinfo=UTC),
+                )
             assert result is None
 
         asyncio.run(_run())
 
-    def test_skeleton_returns_none_across_time_window(self) -> None:
-        """Skeleton is time-agnostic at FOUNDATION : same None output
-        across pre-Londres / NY mid / NY close windows."""
+    def test_monetary_policy_dominates_on_fomc_proximity(self) -> None:
+        """FOMC in 2 days → monetary_policy = 0.7 + 0.05*(5-2) = 0.85."""
 
         async def _run() -> None:
-            for hour in (7, 13, 20):
+            with (
+                patch.object(tc_mod, "_latest_fred_value", AsyncMock(return_value=None)),
+                patch.object(tc_mod, "_fomc_proximity_days", AsyncMock(return_value=2)),
+                patch.object(
+                    tc_mod, "_count_recent_high_impact_releases", AsyncMock(return_value=0)
+                ),
+                patch.object(tc_mod, "_is_ai_gpr_elevated", AsyncMock(return_value=False)),
+            ):
                 result = await classify_dominant_theme(
-                    session=None,  # type: ignore[arg-type]
-                    now_utc=datetime(2026, 5, 28, hour, 0, tzinfo=UTC),
+                    session=AsyncMock(),
+                    now_utc=datetime(2026, 5, 28, 13, 0, tzinfo=UTC),
                 )
-                assert result is None, f"hour={hour}: skeleton must return None at r181"
+            assert result is not None
+            assert result.top_theme == "monetary_policy"
+            assert result.driver_strengths["monetary_policy"] == pytest.approx(0.85)
+
+        asyncio.run(_run())
+
+    def test_geopolitics_dominates_when_gpr_elevated(self) -> None:
+        """ai_gpr > 80th percentile → geopolitics = 0.75 dominates."""
+
+        async def _run() -> None:
+            with (
+                patch.object(tc_mod, "_latest_fred_value", AsyncMock(return_value=None)),
+                patch.object(tc_mod, "_fomc_proximity_days", AsyncMock(return_value=None)),
+                patch.object(
+                    tc_mod, "_count_recent_high_impact_releases", AsyncMock(return_value=0)
+                ),
+                patch.object(tc_mod, "_is_ai_gpr_elevated", AsyncMock(return_value=True)),
+            ):
+                result = await classify_dominant_theme(
+                    session=AsyncMock(),
+                    now_utc=datetime(2026, 5, 28, 13, 0, tzinfo=UTC),
+                )
+            assert result is not None
+            assert result.top_theme == "geopolitics"
+            assert result.driver_strengths["geopolitics"] == pytest.approx(0.75)
+
+        asyncio.run(_run())
+
+    def test_market_interconnexions_dominates_on_vix_panic(self) -> None:
+        """VIX > 30 alone → market_interconnexions = 0.7 dominates
+        (DXY absent, so macroeconomic stays at baseline)."""
+
+        async def _run() -> None:
+            # Provide VIX=35, but DXY None (so co-occurrence rule
+            # doesn't fire and macroeconomic stays baseline).
+            async def fake_fred(session: Any, series_id: str, **kwargs: Any) -> float | None:
+                return 35.0 if series_id == "VIXCLS" else None
+
+            with (
+                patch.object(tc_mod, "_latest_fred_value", side_effect=fake_fred),
+                patch.object(tc_mod, "_fomc_proximity_days", AsyncMock(return_value=None)),
+                patch.object(
+                    tc_mod, "_count_recent_high_impact_releases", AsyncMock(return_value=0)
+                ),
+                patch.object(tc_mod, "_is_ai_gpr_elevated", AsyncMock(return_value=False)),
+            ):
+                result = await classify_dominant_theme(
+                    session=AsyncMock(),
+                    now_utc=datetime(2026, 5, 28, 13, 0, tzinfo=UTC),
+                )
+            assert result is not None
+            assert result.top_theme == "market_interconnexions"
+            assert result.driver_strengths["market_interconnexions"] == pytest.approx(0.7)
+
+        asyncio.run(_run())
+
+    def test_economic_data_dominates_on_multiple_releases(self) -> None:
+        """3 recent high-impact releases → economic_data = 0.7 dominates."""
+
+        async def _run() -> None:
+            with (
+                patch.object(tc_mod, "_latest_fred_value", AsyncMock(return_value=None)),
+                patch.object(tc_mod, "_fomc_proximity_days", AsyncMock(return_value=None)),
+                patch.object(
+                    tc_mod, "_count_recent_high_impact_releases", AsyncMock(return_value=3)
+                ),
+                patch.object(tc_mod, "_is_ai_gpr_elevated", AsyncMock(return_value=False)),
+            ):
+                result = await classify_dominant_theme(
+                    session=AsyncMock(),
+                    now_utc=datetime(2026, 5, 28, 13, 0, tzinfo=UTC),
+                )
+            assert result is not None
+            assert result.top_theme == "economic_data"
+            assert result.driver_strengths["economic_data"] == pytest.approx(0.7)
+
+        asyncio.run(_run())
+
+    def test_macroeconomic_dominates_on_vix_panic_dxy_extreme_cooccurrence(
+        self,
+    ) -> None:
+        """VIX > 30 AND DXY > 105 co-occurrence → macroeconomic = 0.65
+        ; market_interconnexions = 0.7 wins as top, macroeconomic in
+        secondary."""
+
+        async def _run() -> None:
+            async def fake_fred(session: Any, series_id: str, **kwargs: Any) -> float | None:
+                if series_id == "VIXCLS":
+                    return 35.0
+                if series_id == "DTWEXBGS":
+                    return 108.0  # > 105 threshold
+                return None
+
+            with (
+                patch.object(tc_mod, "_latest_fred_value", side_effect=fake_fred),
+                patch.object(tc_mod, "_fomc_proximity_days", AsyncMock(return_value=None)),
+                patch.object(
+                    tc_mod, "_count_recent_high_impact_releases", AsyncMock(return_value=0)
+                ),
+                patch.object(tc_mod, "_is_ai_gpr_elevated", AsyncMock(return_value=False)),
+            ):
+                result = await classify_dominant_theme(
+                    session=AsyncMock(),
+                    now_utc=datetime(2026, 5, 28, 13, 0, tzinfo=UTC),
+                )
+            assert result is not None
+            # market_interconnexions (0.7) > macroeconomic (0.65) → top
+            assert result.top_theme == "market_interconnexions"
+            assert "macroeconomic" in result.secondary_themes
+            assert result.driver_strengths["macroeconomic"] == pytest.approx(0.65)
+
+        asyncio.run(_run())
+
+    def test_multi_driver_coincidence_picks_strongest(self) -> None:
+        """FOMC + gpr elevated + VIX panic all firing → monetary_policy
+        wins (0.85 max FOMC distance=0), geopolitics + market_inter
+        in secondary, ADR-017 boundary preserved."""
+
+        async def _run() -> None:
+            async def fake_fred(session: Any, series_id: str, **kwargs: Any) -> float | None:
+                return 32.0 if series_id == "VIXCLS" else None
+
+            with (
+                patch.object(tc_mod, "_latest_fred_value", side_effect=fake_fred),
+                patch.object(tc_mod, "_fomc_proximity_days", AsyncMock(return_value=0)),
+                patch.object(
+                    tc_mod, "_count_recent_high_impact_releases", AsyncMock(return_value=0)
+                ),
+                patch.object(tc_mod, "_is_ai_gpr_elevated", AsyncMock(return_value=True)),
+            ):
+                result = await classify_dominant_theme(
+                    session=AsyncMock(),
+                    now_utc=datetime(2026, 5, 28, 13, 0, tzinfo=UTC),
+                )
+            assert result is not None
+            assert result.top_theme == "monetary_policy"
+            assert result.driver_strengths["monetary_policy"] == pytest.approx(0.95)
+            assert "geopolitics" in result.secondary_themes
+            assert "market_interconnexions" in result.secondary_themes
+            assert result.provenance == "practitioner_stamp"
 
         asyncio.run(_run())
 

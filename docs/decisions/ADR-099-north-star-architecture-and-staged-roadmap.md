@@ -5282,6 +5282,22 @@ Pure docs hygiene : ROADMAP §1 mark r174+r175+r176 ✅ shipped + §3 promotion 
 
 Closes the ONLY deferred debt from r177-close. After 12 atomic rounds shipped this session, the immutable-ledger is now in CLEAN state — every shipped round has its corresponding §Impl entry. Doctrine #21 R30 HONORED 5 rounds consecutifs RECORD extended.
 
+## §Impl(r182) — N1 Theme EXECUTION-phase compute logic + Doctrine #21 R30 9 rounds RECORD (2026-05-28)
+
+**Default-sans-pivot honored** per ROADMAP §3 r181-close (« N1 THEME EXECUTION-PHASE ⭐ #1 »). Closes r181 FOUNDATION → r182 EXECUTION arc backend side (consumer wiring r183+). Mirror r174 → r179 G5 progression pattern : skeleton FOUNDATION → compute EXECUTION → Pass-2 CONSUMER WIRING → frontend.
+
+**Files modified** : `apps/api/src/ichor_api/services/theme_classifier.py` (skeleton replaced with full EXECUTION : 5 NEW pure helpers extracted `_latest_fred_value` + `_fomc_proximity_days` + `_count_recent_high_impact_releases` + `_is_ai_gpr_elevated` + `_rank_drivers` + 11 NEW module constants with peer-reviewed cite anchors Bekaert-Hoerova-Lo Duca 2013 JME + Caldara-Iacoviello 2022 AER + Nakamura-Steinsson 2018 QJE + Bertaut-DeMarco-Kamin-Tryon 2012 IFDP).
+
+**Files modified** : `apps/api/tests/test_theme_classifier.py` (2 obsolete TestClassifyDominantThemeSkeletonReturnsNone tests replaced by 9 NEW r182 tests across 2 NEW test classes — `TestRankDriversPure` 4 + `TestClassifyDominantThemeExecution` 5 incl. FOMC dominance + GPR dominance + VIX panic + economic_data multiple releases + VIX-DXY co-occurrence macroeconomic + multi-driver coincidence).
+
+**Build gate (LOCAL MEASURED)** : 102/102 PASS in 6.43s ALL inclusive.
+
+**Doctrine #21 R30 HONORED 9 rounds consecutifs RECORD EXTENDED** : §1+§3 dual-sync chain r171b+r172+r173+r177+r178+r179+r180+r181+r182 = **9 consecutive** (was 8 RECORD r181-close, +1 r182).
+
+**Voie D 102 rounds** post-CENTURY MILESTONE. **ZERO Anthropic API spend r182 cycle.**
+
+**Mission centrale axes post-r182** : Axes 1-7 ✅ + 8 PARTIAL + 9 ADR-106 Stride 1 + 10 r167 LIVE + +11 G2 DXY ✅ + +12 honest_sentinels ✅ + +13 r174-r176 ✅ + +14 r179 G5 EXECUTION ✅ + +15 r180 G5 CONSUMER WIRING ✅ + +16 r181 N1 FOUNDATION ✅ + **+17 r182 N1 EXECUTION-phase compute ✅** (r181 → r182 N1 arc closed ; r183 CONSUMER WIRING queued).
+
 ## §Impl(r181) — N1 Theme sous-jacent classifier 8 drivers FOUNDATION skeleton (Eliot Fathom transcript étape 1 verbatim) + Doctrine #21 R30 8 rounds RECORD (2026-05-28)
 
 **Default-sans-pivot honored** per ROADMAP §3 r180-close (« N1 Theme classifier 8 drivers ⭐ #1 »). Mirror r160 Dukascopy + r174 G5 FOUNDATION pattern : ship skeleton + Pydantic frozen + Literal taxonomie + structural-pinning tests ; r182+ EXECUTION-phase ships compute logic.
