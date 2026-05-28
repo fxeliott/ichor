@@ -5282,6 +5282,44 @@ Pure docs hygiene : ROADMAP §1 mark r174+r175+r176 ✅ shipped + §3 promotion 
 
 Closes the ONLY deferred debt from r177-close. After 12 atomic rounds shipped this session, the immutable-ledger is now in CLEAN state — every shipped round has its corresponding §Impl entry. Doctrine #21 R30 HONORED 5 rounds consecutifs RECORD extended.
 
+## §Impl(r180) — G5 CONSUMER WIRING Pass-2 data_pool injection + Voie D 100 rounds CENTURY MILESTONE + Doctrine #21 R30 7 rounds RECORD (2026-05-28)
+
+**Default-sans-pivot honored** per ROADMAP §3 r179-close (« G5 CONSUMER WIRING ⭐ #1 »). Closes the r174 FOUNDATION → r179 EXECUTION → r180 CONSUMER WIRING end-to-end arc on the Pass-2 backend side. Frontend visual surface defers to r181+ per doctrine #2 strict scope.
+
+**Files modified** :
+
+- `apps/api/src/ichor_api/services/data_pool.py` : 3 surgical edits — (a) import `from .previous_session_origin_zone import compute_previous_session_origin_zone` after `polymarket_impact` alphabetically ; (b) NEW `_section_previous_session_context(session, asset)` async fn ~70 LOC after `_section_polygon_intraday` (logical neighbor — both query `polygon_intraday` table) ; (c) `build_data_pool` wire — section append after `_section_rate_diff` (asset-aware section group). ZERO new model/migration/feature flag/endpoint.
+- `apps/api/tests/test_data_pool_previous_session_context.py` : NEW file ~250 LOC with 9 tests across 4 NEW test classes (`TestSectionHonestAbsence` 3 + `TestSectionPopulatedNYDominantUp` 2 + `TestSectionDirectionFRTranslations` 2 + `TestSectionWiredIntoBuildDataPool` 1). AsyncMock session + fake-bar fixtures mirror r179 EXECUTION test discipline.
+
+**FR rendering Eliot Fathom §V vocabulary trilingue** :
+
+- Zones : `asian/london/ny` → « asiatique (Tokyo + Sydney + Hong Kong) / londonienne (London cash open + NY pré-open) / new-yorkaise (NYSE RTH + extended FX / late-NY rollover) »
+- Directions : `up/down/range` → « haussier / baissier / range-bound (consolidation / chop) »
+- Métriques : Zone dominante + Direction + High + Low + Range observé + Barres 1-min + Fenêtre UTC (start → end)
+
+**ADR-017 boundary explicit in-prose** : last rendered line verbatim « Frontière ADR-017 : snapshot factuel pur, jamais un signal de direction pour la session courante. » Defense-in-depth 3-layers : (1) `_FORBIDDEN_VERDICT_TOKENS_RE` regex r161 + (2) Pydantic field_validator OriginZoneSnapshot r174 + (3) self-affirming prose line r180.
+
+**Doctrine #11 calibrated honesty** : honest-absence prose verbatim cites Cohen 1988 §3.3 n=30 small-sample threshold + warns Pass-2 to read absence as REAL data gap rather than neutral-by-default fabrication. The Pass-2 narrative LLM MUST distinguish « absent context » from « neutral context ».
+
+**Source-stamping discipline** (Pattern #14 R-DEPLOY-6 + Critic verification) :
+
+- Populated : `origin_zone:polygon_intraday:{asset}@{start_utc.isoformat()}..{end_utc.isoformat()}`
+- Honest absence : `origin_zone:{asset}:absent`
+
+**Build gate (LOCAL MEASURED)** :
+
+- `pytest tests/test_data_pool_previous_session_context.py tests/test_previous_session_origin_zone.py tests/test_invariants_ichor.py -v` → **81/81 PASS** in 19.14s (9 r180 NEW + 25 r179 structural-pinning + 47 W90 invariants ALL intact)
+- ADR-017 source-inspection (test_no_buy_sell_in_python_code_tokens) GREEN — new FR prose docstrings PASS tokenizer-aware grep (« haussier / baissier / range-bound » are NOT in `_FORBIDDEN_TOKENS` frozenset by construction)
+- Voie D + Haiku + immutable + watermark + GEPA hard-zero + 7-bucket cap + DSPy stub + CLI + honest_sentinels lockstep ALL intact
+
+**Pattern #15 R59 pre-flight HONORED** : ground-truth grep on existing `data_pool.py` (4975 LOC, 30+ sections) confirmed insertion pattern BEFORE any edit (alphabetical import block + asset-aware section group + `build_data_pool` tuple list append). ZERO cargo-cult.
+
+**Doctrine #21 R30 HONORED 7 rounds consecutifs RECORD EXTENDED** : §1 + §3 dual-sync chain r171b + r172 + r173 + r177 + r178 + r179 + r180 = **7 consecutive** (was 6 RECORD at r179-close, this round extends to 7).
+
+**🎉 Voie D 100 rounds CENTURY MILESTONE** — 100ème round consécutif `Grep "^import anthropic|^from anthropic" apps/ packages/` = 0 résultat empirique au HEAD du worktree. Zero Anthropic SDK ingestion cumulée jamais. Zero `--setting-sources project` Pattern #22 violation jamais. r80 → r180 inclusive. ZERO Anthropic API spend r180 cycle.
+
+**Mission centrale axes post-r180** : Axes 1-7 ✅ CLOSED + 8 PARTIAL + 9 ADR-106 Stride 1 + 10 r167 LIVE + +11 G2 DXY ✅ + +12 honest_sentinels ✅ + +13 r174-r176 FOUNDATION + #20 + W90 ✅ + +14 r179 G5 EXECUTION ✅ + **+15 r180 G5 CONSUMER WIRING Pass-2 data_pool injection ✅** (r174 → r179 → r180 G5 arc CLOSED ; frontend visual surface r181+ queued).
+
 ## §Impl(r179) — G5 EXECUTION-phase compute logic + Pattern #15 R59 META catch 14ème (on prior-session cargo-cult Strand G pivot) (2026-05-28)
 
 **Default-sans-pivot honored** per ROADMAP §3 r177 (« G5 EXECUTION-phase ⭐ #1 »). r174 FOUNDATION skeleton (`compute_previous_session_origin_zone()` returns None unconditionally) → r179 EXECUTION ships the 5-step classifier compute per the FOUNDATION docstring contract. Signature FROZEN by r174 ; ZERO breaking change ; consumers can integrate incrementally.

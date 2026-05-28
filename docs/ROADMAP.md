@@ -10,6 +10,26 @@
 
 ---
 
+## §1 — Current state (r180 full close — G5 CONSUMER WIRING SHIPPED, Pass-2 data_pool injection, atomic continuation r179→r180 same-session, 2026-05-28)
+
+### Shipped at r180 — **G5 CONSUMER WIRING : `_section_previous_session_context` Pass-2 data_pool injection (closes r174 FOUNDATION → r179 EXECUTION → r180 CONSUMER WIRING end-to-end arc)**
+
+**`services/data_pool.py:_section_previous_session_context` NEW section** consommant r179 `compute_previous_session_origin_zone()` + render plain-FR prose pour Pass-2 narrative. Section wired into `build_data_pool` après `_section_rate_diff` (logical placement : asset-aware section group). Always-rendered : Pass-2 voit l'état honnête explicite (snapshot populated OR « Contexte session précédente indisponible » per doctrine #11) plutôt qu'une section disparaissant silencieusement.
+
+**FR rendering trilingue (Eliot Fathom §V vocabulary)** : Zone `asian/london/ny` → « asiatique/londonienne/new-yorkaise » + Direction `up/down/range` → « haussier/baissier/range-bound » + Métriques (Zone + Direction + High + Low + Range observé + Barres 1-min + Fenêtre UTC).
+
+**ADR-017 boundary explicit in-prose** : ligne finale verbatim « Frontière ADR-017 : snapshot factuel pur, jamais un signal de direction pour la session courante. » Défense 3-couches (regex + Pydantic validator + self-affirming prose).
+
+**Build gate (LOCAL MEASURED)** : `pytest tests/test_data_pool_previous_session_context.py tests/test_previous_session_origin_zone.py tests/test_invariants_ichor.py` → **81/81 PASS** in 19.14s (9 r180 NEW + 25 r179 + 47 W90 invariants ALL intact).
+
+**Doctrine #21 R30 HONORED 7 rounds consecutifs RECORD EXTENDED** : §1+§3 dual-sync chain r171b+r172+r173+r177+r178+r179+r180 = 7 consecutive (was 6 RECORD r179-close, +1 r180 extension).
+
+**🎉 Voie D 100 rounds CENTURY MILESTONE** (100ème round consécutif `Grep "^import anthropic"` = 0 résultat empirique).
+
+**Mission centrale axes post-r180** : Axes 1-7 ✅ + 8 PARTIAL + 9 ADR-106 Stride 1 + 10 r167 LIVE + +11 G2 DXY ✅ + +12 honest_sentinels ✅ + +13 r174-r176 ✅ + +14 r179 G5 EXECUTION ✅ + **+15 r180 G5 CONSUMER WIRING ✅** (r174 FOUNDATION → r179 EXECUTION → r180 CONSUMER WIRING arc CLOSED).
+
+### Pre-r180 line preserved (r179-close)
+
 ## §1 — Current state (r179 full close — G5 EXECUTION-phase SHIPPED, atomic continuation r176→r179 fresh-session, 2026-05-28)
 
 ### Shipped at r179 — **G5 origin_zone EXECUTION-phase compute logic (5-step classifier, closes r174 FOUNDATION → EXECUTION arc)**
@@ -345,7 +365,33 @@ See `docs/ROADMAP_2026-05-06.md` for the original 4-layer architecture (DATA FOU
 
 ---
 
-## §3 — Immediate next (r180) — ⭐ G5 CONSUMER WIRING (Pass-2 data-pool injection + frontend `<OriginZoneSnapshot>` panel)
+## §3 — Immediate next (r181) — ⭐ N1 THEME SOUS-JACENT CLASSIFIER 8 DRIVERS (Eliot Fathom transcript étape 1 direct méthodologie operationalization)
+
+**r180 EXECUTED & SHIPPED (2026-05-28)** : G5 CONSUMER WIRING Pass-2 data_pool injection ships `_section_previous_session_context` consuming r179 EXECUTION classifier + plain-FR prose with ADR-017 boundary self-affirming line. 81/81 tests + W90 invariants intact. Doctrine #21 R30 7 rounds RECORD. 🎉 **Voie D 100 rounds CENTURY MILESTONE**.
+
+**r181 binding-default candidates** (priority order, doctrine #10 default-sans-pivot) :
+
+1. ⭐ **N1 THEME SOUS-JACENT CLASSIFIER 8 DRIVERS** : Eliot Fathom transcript page 1 étape 1 verbatim. NEW `services/theme_classifier.py` ranking {macroéconomique / politique monétaire / données économiques / politique fiscale / interconnexions marché / géopolitique / price action+flux / offre+demande}. Inputs : Pass-1 régime + NFCI + VIX + DXY + 10Y + economic_events recent + ai_gpr + GDELT. Output : `ThemeRanking` Pydantic frozen avec `top_theme` + `secondary_themes` + `driver_strengths`. Pass-2 consume via NEW `_section_theme_dominant`. Effort M-L, 2-3 sessions. **TRANSFORMATIONAL leverage** : opérationnalise étape 1 méthodologie Eliot.
+
+2. **N4 ST markets / FedWatch collector** (CME + BoE + ECB + BoJ rate-cut probabilities). NEW `collectors/cme_fedwatch.py` + alembic migration + Pass-3 stress consumption. Effort M, 1-2 sessions. **HIGH** (closes étape 3 misprice verdict).
+
+3. **N2 Range attentes économistes** (`economic_events.actual_min` + `actual_max` columns + ForexFactory enriched scraping). Effort S-M, 1 session. MED-HIGH.
+
+4. **Frontend `<PreviousSessionContextPanel>`** (closes r180 → r181 G5 frontend wave). NEW component + endpoint extension. Effort S-M, 1 session. MED.
+
+5. **G6 GK/RS estimator upgrade OPTIONAL** (Garman-Klass + Rogers-Satchell). Effort M. LOW-MED.
+
+6. **B5 Phase D orphan loops investigation**. Effort S-M. MED.
+
+7. **r181 ⭐ SPF dispersion Born-Dovern-Enders 2023 _EER_** + **r182 ⭐⭐ STIR markets Bauer-Swanson 2023 _AER_ + Nakamura-Steinsson 2018 _QJE_**. HIGH-TRANSFORMATIONAL.
+
+8. **PR #159 6 CI failures + merge to main**. Effort M, 1 session.
+
+Pattern #15 R59 applies to every ⭐ — r181 N1 Theme classifier Phase 0 R59 obligatoire (verify Eliot Fathom transcript 8 drivers list verbatim + verify Pass-1 régime taxonomy ∩ 8 drivers).
+
+### Pre-r181 line preserved (r180 default-sans-pivot)
+
+## §3 — Previous immediate next (r180) — ⭐ G5 CONSUMER WIRING (Pass-2 data-pool injection + frontend `<OriginZoneSnapshot>` panel)
 
 **r179 EXECUTED & SHIPPED (2026-05-28)** : G5 EXECUTION-phase compute logic ships the 5-step classifier per the r174 FOUNDATION docstring. `compute_previous_session_origin_zone()` now returns an `OriginZoneSnapshot` (zone + high + low + direction + bar_count + timestamps) when bars exist + dominant zone `bar_count >= 30` ; returns `None` honestly otherwise. 25/25 tests + 55/55 W90 regression. Doctrine #21 R30 chain 6 rounds RECORD.
 
