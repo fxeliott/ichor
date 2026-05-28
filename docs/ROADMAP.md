@@ -10,6 +10,43 @@
 
 ---
 
+## §1 — Current state (r179 full close — G5 EXECUTION-phase SHIPPED, atomic continuation r176→r179 fresh-session, 2026-05-28)
+
+### Shipped at r179 — **G5 origin_zone EXECUTION-phase compute logic (5-step classifier, closes r174 FOUNDATION → EXECUTION arc)**
+
+**r174 FOUNDATION skeleton (commit `e3f35a9`) → r179 EXECUTION compute (this round)** : `services/previous_session_origin_zone.py:compute_previous_session_origin_zone()` was a skeleton returning None unconditionally — r179 ships the 5-step compute logic per the FOUNDATION docstring contract (signature FROZEN by r174 ship, no breaking change). Pure-compute service per Eliot Fathom §V verbatim practitioner methodology « savoir d'où vient le mouvement de la session précédente ».
+
+**5-step algorithm shipped** :
+
+1. **Window resolution** : `[now_utc - 24h, now_utc)` rolling window over previous 24h `polygon_intraday` 1-min bars. Weekend handling implicit (empty bars → honest absence return None).
+2. **Polygon query** : async `SELECT ... FROM polygon_intraday WHERE asset = :asset AND bar_ts >= :start AND bar_ts < :end ORDER BY bar_ts ASC`. Ascending order ensures `[0].open = session-open`, `[-1].close = session-close`.
+3. **Zone decomposition** : non-overlapping UTC hour buckets via `_classify_zone()` — Asian `[0,7)` + London `[7,13)` + NY `[13,24)` (includes 21-24 late-NY rollover).
+4. **Dominant zone selection** : `argmax(abs(close - open))` with NY > London > Asian tie-breaker via `_ZONE_PRIORITY` per FX desk convention. Skip empty zones (NAS/SPX outside RTH naturally bypass Asian/London).
+5. **Direction classification** : `_classify_direction()` body/range ratio — `body / range < 0.3` → `range` ; else `up` if `close > open` else `down`. The 0.3 threshold is practitioner-grade (Eliot Fathom §V), r180+ Phase D Brier calibration may refine.
+
+**Doctrine #11 calibrated honesty** : returns `None` on (a) empty bars (weekend/holiday) OR (b) dominant zone `bar_count < 30` (Cohen 1988 small-sample threshold, mirror `rolling_corr_low_n` HONEST_SENTINEL). NEVER fabricates a snapshot to fill the void.
+
+**Doctrine #5 pure-module discipline** : 4 helper fns extracted (`_classify_zone`, `_compute_zone_metrics`, `_pick_dominant_zone`, `_classify_direction`) all pure (no I/O), unit-tested in isolation. DB-touching main async fn tested via AsyncMock + fake-bar fixtures.
+
+**ADR-017 boundary preserved** : pure factual snapshot output (high/low/direction/bar_count/timestamps) ; NEVER a directional bias for the CURRENT session. The snapshot is INPUT to Pass-2 narrative (r180+ wiring), NOT an output to the trader. Verbatim from module docstring : « Pure factual snapshot. NEVER a directional bias output for the CURRENT session ».
+
+**Doctrine #2 strict scope** : r179 ships EXECUTION compute logic ONLY ; consumer wiring (Pass-2 data-pool injection + frontend `<OriginZoneSnapshot>` panel) lands r180+ once empirical validation against historical sessions passes. Mirror r160 Dukascopy FOUNDATION → EXECUTION pattern.
+
+**Build gate (LOCAL MEASURED)** :
+
+- `pytest tests/test_previous_session_origin_zone.py -v` → **25/25 PASS** (10 r174 structural-pinning preserved + 15 new r179 : `_classify_zone` 3 + `_classify_direction` 5 + `_pick_dominant_zone` 3 + `_compute_zone_metrics` 2 + EXECUTION end-to-end 4 incl. NAS NY-only equity path)
+- `pytest tests/test_invariants_ichor.py tests/test_invariants_honest_sentinels_lockstep.py` → **55/55 PASS** (ADR-017 + Voie D + Couche-2 Haiku + audit_log immutable + tool_call_audit immutable + W88+W89 watermark + GEPA hard-zero + 7-bucket cap + DSPy stub + CLI presence + W90 honest_sentinels backend↔frontend verbatim lockstep ALL intact)
+
+**Pattern #15 R59 META catch 14ème (this round, on my own prior session)** : prior session 5-turn audit incorrectly concluded that ADR-106 Strand G was unshipped (cargo-cult based on stale ADR-106:175 text « Strides C-G is highest-leverage next move » — TRUE at r161, NOT TRUE post-r167 since Strand G LIVE backend services/session_verdict.py + services/session_verdict_builder.py + routers/verdict.py + frontend SessionVerdictPanel.tsx + lib/sessionVerdict.ts + scenario_invalidation_monitor.py + alerts/scenario_invalidation.py + tradeability_evaluator.py all SHIPPED end-to-end). The default-sans-pivot per ROADMAP §3 r177 (« G5 EXECUTION-phase ⭐ #1 ») was CORRECT all along — this round honors it without manufactured pivot.
+
+**Doctrine #21 R30 HONORED 6 rounds consecutifs RECORD EXTENDED** : §1 + §3 dual-sync chain r171b+r172+r173+r177+r178+r179 = 6 consecutive (was 5 RECORD at r178-close, this round extends to 6).
+
+**Voie D 99 rounds tenus** (zero `import anthropic`, zero `--setting-sources project` Pattern #22). **ZERO Anthropic API spend r179 cycle.**
+
+**Mission centrale axes post-r179** : Axes 1-7 ✅ CLOSED + 8 PARTIAL + 9 ADR-106 Stride 1 + 10 r167 LIVE + +11 G2 DXY end-to-end ✅ + +12 r173 honest_sentinels SSOT ✅ + +13 r174 G5 FOUNDATION ✅ + r175 Pattern #20 ✅ + r176 W90 lockstep ✅ + **+14 r179 G5 EXECUTION-phase compute logic ✅** (r174 FOUNDATION → r179 EXECUTION arc closed ; consumer wiring r180+).
+
+### Pre-r179 line preserved (r176-close)
+
 ## §1 — Current state (r176 full close — 11 atomic rounds session r161→r176, PR #159 OPEN, Pattern #15 R59 = 25 apps + Pattern #20 codified + W90 lockstep mechanical, 2026-05-28)
 
 ### Shipped at r174+r175+r176 — **FOUNDATION + Pattern #20 codification + W90 lockstep mechanical (3 atomic continuations post-r173)**
@@ -308,7 +345,33 @@ See `docs/ROADMAP_2026-05-06.md` for the original 4-layer architecture (DATA FOU
 
 ---
 
-## §3 — Immediate next (r177) — ⭐ G5 EXECUTION-PHASE (Eliot Fathom §V practitioner-stamp, r174 FOUNDATION skeleton already shipped)
+## §3 — Immediate next (r180) — ⭐ G5 CONSUMER WIRING (Pass-2 data-pool injection + frontend `<OriginZoneSnapshot>` panel)
+
+**r179 EXECUTED & SHIPPED (2026-05-28)** : G5 EXECUTION-phase compute logic ships the 5-step classifier per the r174 FOUNDATION docstring. `compute_previous_session_origin_zone()` now returns an `OriginZoneSnapshot` (zone + high + low + direction + bar_count + timestamps) when bars exist + dominant zone `bar_count >= 30` ; returns `None` honestly otherwise. 25/25 tests + 55/55 W90 regression. Doctrine #21 R30 chain 6 rounds RECORD.
+
+**r180 binding-default candidates** (priority order, doctrine #10 default-sans-pivot) :
+
+1. ⭐ **G5 CONSUMER WIRING** : extend Pass-2 data-pool (`services/data_pool.py:_section_previous_session_context` NEW section) to inject the snapshot as plain-FR factual prose (« La session précédente a été dominée par la zone NY avec un mouvement directionnel haussier ; high 1.0875, low 1.0851, 420 barres ») + extend frontend `<SessionVerdictPanel>` OR new `<PreviousSessionContextPanel>` to surface the snapshot. ADR-017 boundary regex-verified ; doctrine #11 honest absence rendered as « Contexte session précédente indisponible (données insuffisantes) ». Effort M, 1-2 sessions. **HIGH leverage** : closes r174→r179 → r180 G5 end-to-end arc.
+
+2. **N1 — Theme sous-jacent classifier (8 drivers)** per Eliot Fathom transcript étape 1 : Pass-1 regime extension OR NEW Pass-1.5 « theme detector » ranking which of {macro / monetary policy / data / fiscal / interconnexions / geopolitics / price-action+flow / supply-demand} drives the market in the current window. Effort M-L. HIGH leverage (direct Eliot methodology operationalization).
+
+3. **N4 — ST markets / FedWatch collector** (CME FedWatch + BoE + ECB + BoJ rate-cut probabilities) per Eliot Fathom transcript étape 3 (misprice vs theme-change verdict). Effort M, 1-2 sessions. HIGH leverage.
+
+4. **N2 — Range attentes économistes** (`economic_events.actual_min` + `actual_max` columns + ForexFactory enriched scraping) per Eliot Fathom transcript étape 2. Effort S-M, 1 session. MED-HIGH leverage.
+
+5. **G6 GK/RS estimator upgrade OPTIONAL** (Garman-Klass + Rogers-Satchell range estimators in `services/hourly_volatility.py`). Effort M. LOW-MED.
+
+6. **B5 Phase D orphan loops investigation** (ADWIN drift / RAG embed / dtw_analogue / prediction_outlier 0 firings 7d audit). Effort S-M. MED.
+
+7. **r181 ⭐ SPF dispersion Born-Dovern-Enders 2023 _EER_** + **r182 ⭐⭐ STIR markets transformational Bauer-Swanson 2023 _AER_ + Nakamura-Steinsson 2018 _QJE_**. Both peer-reviewed backbone. HIGH-TRANSFORMATIONAL impact.
+
+8. **PR #159 6 CI failures investigation + merge to main** (CodeQL + Lighthouse + Node lint/test + Python apps/api + Python claude-runner + axe-core WCAG). Cycle r161→r179 consolidation. Effort M, 1 session.
+
+Pattern #15 R59 applies to every ⭐ — r180 G5 CONSUMER WIRING Phase 0 R59 obligatoire (verify Pass-2 data_pool prose ADR-017 boundary + verify SessionVerdictPanel extension WCAG 2.2 AA + Pattern #20 mechanical R59-pre-commit on any new academic citation).
+
+### Pre-r179 line preserved (r177 default-sans-pivot)
+
+## §3 — Previous immediate next (r177) — ⭐ G5 EXECUTION-PHASE (Eliot Fathom §V practitioner-stamp, r174 FOUNDATION skeleton already shipped)
 
 **r174+r175+r176 EXECUTED & SHIPPED (2026-05-28)** :
 

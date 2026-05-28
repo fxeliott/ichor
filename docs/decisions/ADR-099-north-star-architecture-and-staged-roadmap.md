@@ -5282,6 +5282,40 @@ Pure docs hygiene : ROADMAP §1 mark r174+r175+r176 ✅ shipped + §3 promotion 
 
 Closes the ONLY deferred debt from r177-close. After 12 atomic rounds shipped this session, the immutable-ledger is now in CLEAN state — every shipped round has its corresponding §Impl entry. Doctrine #21 R30 HONORED 5 rounds consecutifs RECORD extended.
 
+## §Impl(r179) — G5 EXECUTION-phase compute logic + Pattern #15 R59 META catch 14ème (on prior-session cargo-cult Strand G pivot) (2026-05-28)
+
+**Default-sans-pivot honored** per ROADMAP §3 r177 (« G5 EXECUTION-phase ⭐ #1 »). r174 FOUNDATION skeleton (`compute_previous_session_origin_zone()` returns None unconditionally) → r179 EXECUTION ships the 5-step classifier compute per the FOUNDATION docstring contract. Signature FROZEN by r174 ; ZERO breaking change ; consumers can integrate incrementally.
+
+**Files modified** :
+
+- `apps/api/src/ichor_api/services/previous_session_origin_zone.py` : skeleton `return None` (line 234 of r174 ship) replaced with 5-step compute. 4 NEW pure helper functions extracted (`_classify_zone` + `_compute_zone_metrics` + `_pick_dominant_zone` + `_classify_direction`) + 1 NEW internal frozen dataclass `_ZoneMetrics`. Module docstring extended with r179 EXECUTION algorithm spec + threshold rationale. ~270 → ~445 LOC.
+- `apps/api/tests/test_previous_session_origin_zone.py` : 2 obsolete `TestComputeSkeletonReturnsNone` tests replaced by 15 NEW r179 tests across 5 NEW test classes (`TestClassifyZonePure` 3 + `TestClassifyDirectionPure` 5 + `TestPickDominantZoneTieBreak` 3 + `TestComputeZoneMetricsPure` 2 + `TestComputeExecutionEndToEnd` 4). AsyncMock session + fake-bar fixtures cover (a) no bars → None, (b) bar_count < 30 → None, (c) NY-dominant up FX, (d) NAS NY-only equity down. ~192 → ~410 LOC.
+
+**Algorithm** (5 steps per module docstring) :
+
+1. Window resolution : `[now_utc - 24h, now_utc)` rolling.
+2. Polygon intraday query : async select ordered ascending.
+3. Zone decomposition : non-overlapping UTC hour buckets — Asian `[0,7)` + London `[7,13)` + NY `[13,24)` (includes 21-24 late-NY rollover).
+4. Dominant zone selection : `argmax(abs(close - open))` with NY > London > Asian tie-breaker per FX desk convention.
+5. Direction classification : `body / range < 0.3` → `range` (practitioner-grade Eliot Fathom §V) ; else `up`/`down` by sign.
+
+**Doctrine #11 calibrated honesty** : returns `None` on empty bars (weekend/holiday) OR dominant zone `bar_count < 30` (Cohen 1988 §3.3). NEVER fabricates a snapshot.
+
+**Build gate (LOCAL MEASURED)** :
+
+- `pytest tests/test_previous_session_origin_zone.py -v` → **25/25 PASS** in 5.05s (10 r174 structural-pinning preserved + 15 r179 NEW)
+- `pytest tests/test_invariants_ichor.py tests/test_invariants_honest_sentinels_lockstep.py` → **55/55 PASS** in 7.85s (ADR-017 + Voie D + Haiku + immutable triggers + watermark + GEPA hard-zero + 7-bucket cap + DSPy stub + CLI presence + W90 honest_sentinels lockstep ALL intact)
+
+**Pattern #15 R59 META catch 14ème (META-self-recursive on my OWN PRIOR SESSION)** : prior 5-turn audit (this session 6499716b-6692-40ac-b57e-677af3cef168) had pivoted away from ROADMAP §3 default G5 EXECUTION toward « ADR-106 Strand G atomic » based on stale ADR-106:175 text. Ground-truth empirical : Strand G IS FULLY SHIPPED post-r161 (services/session_verdict.py + services/session_verdict_builder.py + routers/verdict.py + frontend SessionVerdictPanel.tsx + lib/sessionVerdict.ts + services/scenario_invalidation_monitor.py + alerts/scenario_invalidation.py + services/tradeability_evaluator.py all LIVE end-to-end with pyc proofs). The default-sans-pivot per ROADMAP §3 r177 was CORRECT all along ; this round honors it without manufactured pivot. Pattern #20 codified r175 (« memory cites REQUIRE R59-pre-commit-mandatory ») extends naturally to « roadmap defaults REQUIRE empirical ground-truth before override ».
+
+**Pattern #15 R59 = 26 applications stable** (was 25 at r178-close, this round +1 META on prior-session cargo-cult pivot).
+
+**Doctrine #21 R30 HONORED 6 rounds consecutifs RECORD EXTENDED** : §1 + §3 dual-sync chain r171b + r172 + r173 + r177 + r178 + r179 = 6 consecutive (was 5 RECORD at r178-close, this round extends to 6).
+
+**Voie D 99 rounds tenus**. **ZERO Anthropic API spend r179 cycle.**
+
+**Mission centrale axes post-r179** : Axes 1-7 ✅ CLOSED + 8 PARTIAL + 9 ADR-106 Stride 1 + 10 r167 LIVE + +11 G2 DXY end-to-end ✅ + +12 r173 honest_sentinels SSOT ✅ + +13 r174-r176 FOUNDATION + Pattern #20 + W90 ✅ + **+14 r179 G5 EXECUTION compute logic ✅** (r174 FOUNDATION → r179 EXECUTION arc closed ; r180 CONSUMER WIRING queued).
+
 ### Pattern ledger evolution r161 → r178 (session globale final)
 
 - **Pattern #15 R59 = 25 applications stable** (10/25 = 40% META self-catches across r170/r171b×3/r172/r172c/r173×2/r173-9ème/r174 = discipline self-recursive PROVEN at scale)
