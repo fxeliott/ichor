@@ -5282,6 +5282,38 @@ Pure docs hygiene : ROADMAP §1 mark r174+r175+r176 ✅ shipped + §3 promotion 
 
 Closes the ONLY deferred debt from r177-close. After 12 atomic rounds shipped this session, the immutable-ledger is now in CLEAN state — every shipped round has its corresponding §Impl entry. Doctrine #21 R30 HONORED 5 rounds consecutifs RECORD extended.
 
+## §Impl(r181) — N1 Theme sous-jacent classifier 8 drivers FOUNDATION skeleton (Eliot Fathom transcript étape 1 verbatim) + Doctrine #21 R30 8 rounds RECORD (2026-05-28)
+
+**Default-sans-pivot honored** per ROADMAP §3 r180-close (« N1 Theme classifier 8 drivers ⭐ #1 »). Mirror r160 Dukascopy + r174 G5 FOUNDATION pattern : ship skeleton + Pydantic frozen + Literal taxonomie + structural-pinning tests ; r182+ EXECUTION-phase ships compute logic.
+
+**Files NEW** :
+
+- `apps/api/src/ichor_api/services/theme_classifier.py` ~190 LOC : `ThemeDriverKey` Literal (8 canonical drivers verbatim Eliot Fathom transcript page 1 étape 1) + `THEME_DRIVERS` Final ordered tuple + `ThemeRanking` Pydantic frozen class (top_theme + secondary_themes max_length=3 + driver_strengths dict + computed_at_utc + provenance Literal default `"practitioner_stamp"`) + `classify_dominant_theme(session, *, now_utc) -> ThemeRanking | None` skeleton returning None unconditionally.
+- `apps/api/tests/test_theme_classifier.py` ~180 LOC : 12 tests across 4 NEW test classes (TestThemeRankingShape 6 + TestThemeDriversCanonicalEight 3 + TestThemeDriverKeyLiteral 1 + TestClassifyDominantThemeSkeletonReturnsNone 2).
+
+**8 canonical drivers Eliot Fathom transcript verbatim** :
+`macroeconomic` (grands événements Covid/2008/dotcom) +
+`monetary_policy` (Fed/BCE/BoE/BoJ) +
+`economic_data` (CPI/NFP/PMI/retail/GDP) +
+`fiscal_policy` (Trump tariffs 2026) +
+`market_interconnexions` (cross-asset fixed-income → FX → commodities → equities) +
+`geopolitics` (« parfois littéralement ce qui drive les marchés en ce moment ») +
+`price_action_flow` (positioning + microstructure) +
+`supply_demand` (commodities OPEC/inventory).
+
+**Pattern #20 mechanical R59-pre-commit-mandatory HONORED** : `provenance` field default `"practitioner_stamp"` (NOT `"peer_reviewed"`) — the 8-driver taxonomy itself is practitioner-stamp per Eliot Fathom transcript page 1 ; individual driver-strength computations may cite peer-reviewed backbone (Brave-Butters NFCI / Bekaert-Hoerova-Lo Duca VIX / Engel-West DXY) at r182+ EXECUTION ship time avec R59 sub-agent verification verbatim DOI.
+
+**Build gate (LOCAL MEASURED)** :
+
+- `pytest tests/test_theme_classifier.py tests/test_data_pool_previous_session_context.py tests/test_previous_session_origin_zone.py tests/test_invariants_ichor.py` → **93/93 PASS** in 7.91s (12 r181 NEW + 9 r180 + 25 r179 + 47 W90 invariants ALL intact)
+- ADR-017 source-inspection GREEN ; Voie D + Haiku + immutable + watermark + GEPA hard-zero + 7-bucket cap + DSPy stub + CLI + honest_sentinels lockstep ALL intact
+
+**Doctrine #21 R30 HONORED 8 rounds consecutifs RECORD EXTENDED** : §1+§3 dual-sync chain r171b+r172+r173+r177+r178+r179+r180+r181 = **8 consecutive** (was 7 RECORD r180-close, +1 r181 extension).
+
+**Voie D 101 rounds post-CENTURY MILESTONE**. **ZERO Anthropic API spend r181 cycle.**
+
+**Mission centrale axes post-r181** : Axes 1-7 ✅ + 8 PARTIAL + 9 ADR-106 Stride 1 + 10 r167 LIVE + +11 G2 DXY ✅ + +12 honest_sentinels ✅ + +13 r174-r176 ✅ + +14 r179 G5 EXECUTION ✅ + +15 r180 G5 CONSUMER WIRING ✅ + **+16 r181 N1 Theme classifier FOUNDATION ✅** (mirror r174 → r179 → r180 G5 arc applied to N1 ; r182 EXECUTION queued).
+
 ## §Impl(r180) — G5 CONSUMER WIRING Pass-2 data_pool injection + Voie D 100 rounds CENTURY MILESTONE + Doctrine #21 R30 7 rounds RECORD (2026-05-28)
 
 **Default-sans-pivot honored** per ROADMAP §3 r179-close (« G5 CONSUMER WIRING ⭐ #1 »). Closes the r174 FOUNDATION → r179 EXECUTION → r180 CONSUMER WIRING end-to-end arc on the Pass-2 backend side. Frontend visual surface defers to r181+ per doctrine #2 strict scope.

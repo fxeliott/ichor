@@ -10,6 +10,22 @@
 
 ---
 
+## §1 — Current state (r181 full close — N1 THEME CLASSIFIER FOUNDATION SHIPPED, atomic continuation r180→r181 same-session, 2026-05-28)
+
+### Shipped at r181 — **N1 Theme sous-jacent classifier 8 drivers FOUNDATION skeleton (Eliot Fathom transcript page 1 étape 1 verbatim, mirror r174 G5 FOUNDATION pattern)**
+
+NEW `services/theme_classifier.py` ~190 LOC + NEW `tests/test_theme_classifier.py` 12 tests. `ThemeDriverKey` Literal 8 canonical (`macroeconomic` + `monetary_policy` + `economic_data` + `fiscal_policy` + `market_interconnexions` + `geopolitics` + `price_action_flow` + `supply_demand`) verbatim Eliot Fathom transcript. `ThemeRanking` Pydantic frozen (top_theme + secondary_themes max=3 + driver_strengths + computed_at_utc + provenance default `practitioner_stamp`). `classify_dominant_theme()` returns None unconditionally à r181 (zero behavior change deploy). r182+ EXECUTION-phase ships compute logic.
+
+**Build gate** : **93/93 PASS** in 7.91s (12 r181 + 9 r180 + 25 r179 + 47 W90 invariants intact).
+
+**Doctrine #21 R30 HONORED 8 rounds consecutifs RECORD EXTENDED** : §1+§3 chain r171b+r172+r173+r177+r178+r179+r180+r181 = 8 consecutive (was 7 r180-close).
+
+**Voie D 101 rounds** post-CENTURY MILESTONE.
+
+**Mission centrale axes post-r181** : 1-7 ✅ + 8 PARTIAL + 9 ADR-106 Stride 1 + 10 r167 LIVE + +11 G2 DXY ✅ + +12 honest_sentinels ✅ + +13 r174-r176 ✅ + +14 r179 G5 EXECUTION ✅ + +15 r180 G5 CONSUMER WIRING ✅ + **+16 r181 N1 Theme classifier FOUNDATION ✅**.
+
+### Pre-r181 line preserved (r180-close)
+
 ## §1 — Current state (r180 full close — G5 CONSUMER WIRING SHIPPED, Pass-2 data_pool injection, atomic continuation r179→r180 same-session, 2026-05-28)
 
 ### Shipped at r180 — **G5 CONSUMER WIRING : `_section_previous_session_context` Pass-2 data_pool injection (closes r174 FOUNDATION → r179 EXECUTION → r180 CONSUMER WIRING end-to-end arc)**
@@ -365,7 +381,23 @@ See `docs/ROADMAP_2026-05-06.md` for the original 4-layer architecture (DATA FOU
 
 ---
 
-## §3 — Immediate next (r181) — ⭐ N1 THEME SOUS-JACENT CLASSIFIER 8 DRIVERS (Eliot Fathom transcript étape 1 direct méthodologie operationalization)
+## §3 — Immediate next (r182) — ⭐ N1 THEME CLASSIFIER EXECUTION-PHASE (5-step compute over Pass-1 régime + NFCI + VIX + DXY + 10Y + economic_events + ai_gpr + GDELT)
+
+**r181 EXECUTED & SHIPPED (2026-05-28)** : N1 Theme sous-jacent classifier 8 drivers FOUNDATION skeleton (`services/theme_classifier.py` ~190 LOC + Pydantic frozen ThemeRanking + 8 canonical drivers Literal + skeleton returns None). 93/93 tests. Doctrine #21 R30 8 rounds RECORD. Voie D 101 rounds.
+
+**r182 binding-default candidates** :
+
+1. ⭐ **N1 THEME EXECUTION-PHASE** : implement `classify_dominant_theme()` 5-step compute per FOUNDATION docstring. Effort M-L, 1-2 sessions. **TRANSFORMATIONAL**.
+2. **N4 ST markets / FedWatch collector** (Eliot étape 3 misprice verdict). Effort M. HIGH.
+3. **N2 Range attentes économistes** (Eliot étape 2). Effort S-M. MED-HIGH.
+4. **Frontend `<PreviousSessionContextPanel>`** (closes r180→r181 G5 frontend wave). Effort S-M. MED.
+5. **PR #159 6 CI failures + merge to main**. Effort M.
+
+Pattern #15 R59 applies — r182 N1 EXECUTION Phase 0 R59 obligatoire (Brave-Butters NFCI + Bekaert-Hoerova-Lo Duca VIX + Engel-West DXY per Pattern #20).
+
+### Pre-r182 line preserved (r181 default-sans-pivot)
+
+## §3 — Previous immediate next (r181) — ⭐ N1 THEME SOUS-JACENT CLASSIFIER 8 DRIVERS (Eliot Fathom transcript étape 1 direct méthodologie operationalization)
 
 **r180 EXECUTED & SHIPPED (2026-05-28)** : G5 CONSUMER WIRING Pass-2 data_pool injection ships `_section_previous_session_context` consuming r179 EXECUTION classifier + plain-FR prose with ADR-017 boundary self-affirming line. 81/81 tests + W90 invariants intact. Doctrine #21 R30 7 rounds RECORD. 🎉 **Voie D 100 rounds CENTURY MILESTONE**.
 
