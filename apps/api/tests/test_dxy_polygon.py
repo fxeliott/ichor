@@ -10,9 +10,13 @@ def test_dxy_present_in_asset_map() -> None:
     assert "DXY" in ASSET_TO_TICKER
 
 
-def test_dxy_uses_indices_namespace() -> None:
-    """Polygon convention : I: prefix for indices."""
-    assert ASSET_TO_TICKER["DXY"].startswith("I:")
+def test_dxy_uses_uup_etf_proxy() -> None:
+    """r172 : DXY is aliased to UUP (NYSE Arca ETF), NOT the I: indices
+    namespace — the Polygon Indices plan is unbudgeted, so I:DXY returns
+    403. Mirrors the SPX500_USD -> SPY proxy (ADR-089). Reversible 1-line
+    revert to "I:DXY" when the Indices plan is budgeted."""
+    assert ASSET_TO_TICKER["DXY"] == "UUP"
+    assert not ASSET_TO_TICKER["DXY"].startswith("I:")
 
 
 def test_dxy_in_supported_assets_iter() -> None:
