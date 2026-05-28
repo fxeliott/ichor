@@ -5206,9 +5206,56 @@ Sources verified primary :
 ### r173+ binding-defaults
 
 1. ⭐ G6 hour-of-day vol signature (Andersen-Bollerslev FFF + Rogers-Satchell + Yang-Zhang) — HIGH leverage
-2. G5 origin_zone (Baltussen 2021 _JFE_) — MED
+2. G5 origin*zone (Baltussen 2021 \_JFE*) — MED
 3. Backend `honest_sentinels.py` SSOT (closes r171b RED-2+RED-3 + r172 RED-7 doctrine #4 debt) — MED
 4. DXY alert recalibration to UUP-scale OR `services/uup_to_dxy_proxy.py` layer (closes r172 known limitation) — LOW
 5. NEW issues post-r170 R2 audit (B1-B15)
 6. Polymarket whales + ADR-106 Strides 2-7
 7. r181 ⭐ SPF dispersion + r182 ⭐⭐ STIR markets TRANSFORMATIONAL
+
+## §Impl(r172b) — news_nlp Pydantic vocabulary-drift normalizer (2026-05-28)
+
+Hot-fix R2 audit B1 25.6% 7d fail rate on `ichor-couche2-news_nlp.service`. The schema has TWO sibling sentiment fields with DIFFERENT vocabularies : `Narrative.sentiment ∈ {bullish,bearish,mixed}` (FX-trader directional) vs `AssetSentiment.tone ∈ {positive,neutral,negative}` (news-tone). Haiku low drifts the news-tone vocab into the directional field.
+
+Fix : `_normalize_news_tone_drift_on_sentiment` Pydantic validator mode='before' maps `{positive, negative, neutral} → 'mixed'` (doctrine #11 calibrated honesty — news-tone CANNOT be safely translated to directional bias). Plus SYSTEM_PROMPT VOCABULARY DISCIPLINE section + 6 new tests + retroactive r161 `_normalize_mixed_tone` regression-guard.
+
+Deployed via NEW `scripts/hetzner/redeploy-agents.sh` (Win11-compatible tar+scp+ssh decompose, closes r168 « broken Win11 rsync absent » loose-end). Build gate 28/28 PASS. Voie D 92 rounds tenus.
+
+## §Impl(r172c) — MAX_FRESHNESS_DAYS 45→60 (2026-05-28)
+
+Pattern #15 R59 6ème META : R2 audit reported `data_freshness_days=56` as a problem, BUT empirical SSH (2026-05-28) revealed this is NORMAL observation-date-based publication lag for monthly BLS series (CPI/PAYEMS/UNRATE/INDPRO/UMCSENT/M2SL = 57 days lag, NOT collector silent-skip). The 45-day threshold was TOO TIGHT for inherent monthly lag, causing `cycle="uncertain"` ~50% of every month (last 2 weeks before next-month release).
+
+Fix : bump `MAX_FRESHNESS_DAYS` in `coach_macro_context.py:181` from 45 → 60 (covers normal monthly lag while still catching truly stale data). 26-line docstring documenting empirical evidence + monthly publication lag math. Deployed via NEW `scripts/hetzner/redeploy-brain-tar.sh` (Win11-compatible mirror of redeploy-brain.sh). Build gate 55/55 PASS. Voie D 93 rounds tenus.
+
+## §Impl(r173) — honest_sentinels.py backend SSOT + Pattern #15 R59 7ème/8ème/9ème META (2026-05-28)
+
+Materialises the 5 HONEST_SENTINEL frame conditions as a SINGLE canonical backend source-of-truth (closes r171b RED-2/3 + r172 RED-7 doctrine #4 debt — 3 RED catches in 1 atomic ship).
+
+R59 pre-flight subagent caught 3 META self-catches :
+
+- **RED-1 7ème META** : Rogers-Satchell journal in my ROADMAP §3 cite was _Mathematical Finance_ ; primary source verified = **_Annals of Applied Probability_** 1(4):504-512 DOI 10.1214/aoap/1177005835
+- **RED-2 8ème META** : ROADMAP §3 "Bauer 2024 jump-test" cite was HALLUCINATED — no such paper. Replaced with Lee-Mykland 2008 _RFS_ 21(6):2535-2563 DOI 10.1093/rfs/hhm056
+- **9ème META** : G6 hour-of-day vol signature is ALREADY CLOSED (`services/hourly_volatility.py:1-194` + `<HourlyVolReport>` LIVE on `briefing/[asset]:624`). My ROADMAP §3 candidate #1 "r173 G6" was a planning hallucination — listed without verifying existing state. Pivoted r173 to honest_sentinels backend SSOT (genuinely closes 3 RED debts, not cargo-cult sophistication on already-shipped feature)
+
+Patch (2 NEW files, +387 LOC) :
+
+- NEW `apps/api/src/ichor_api/services/honest_sentinels.py` : `HonestSentinelKey` Literal 5-value + `HONEST_SENTINELS` ordered tuple + 4 Record maps (FR + Hint_FR + Tone + Citation) + import-time `_verify_exhaustive_dispatch()` invariant fail-loud
+- NEW `apps/api/tests/test_honest_sentinels.py` : 13 tests across 5 classes (domain + SSOT exhaustive dispatch + citation provenance + frontend lockstep + import-time invariant)
+
+Peer-reviewed citations per sentinel : Engel-West 2005 _JPE_ DOI 10.1086/429137 + Cohen 1988 §3.3 n=30 + Caballero-Krishnamurthy 2008 _JPE_ DOI 10.1086/591790 + Bekaert-Hoerova-Lo Duca 2013 _JME_ DOI 10.1016/j.jmoneco.2013.06.003 + Whaley 2000 practitioner-stamp + Bertaut FRB IFDP 1063.
+
+Build gate : pytest 13/13 PASS in 4.68s + 15/15 pre-commit hooks PASS. **Pattern #15 R59 = 24 applications stable** (9 META self-catches cumulés = 33% = discipline self-recursive at scale). **Voie D 94 rounds tenus**. **ZERO Anthropic API spend r173 cycle**.
+
+### r174+ updated binding-defaults
+
+1. ⭐ **r174 G5 origin_zone** (Baltussen-Da-Lammers-Martens 2021 _JFE_ DOI 10.1016/j.jfineco.2021.04.029) — NEW Eliot §V capability
+2. Frontend `lib/dxyCorrelation.ts` lift to consume backend `/v1/honest-sentinels` (when wired) — closes lift queue r171b
+3. G6 GK/RS estimator upgrade OPTIONAL (peer-reviewed efficiency gain ~10-15%, MED leverage — NOT new capability)
+4. B5 Phase D loops orphan investigation + B6 throughput
+5. DXY alert recalibration UUP-scale
+6. Polymarket whales + ADR-106 Strides 2-7
+7. r181 ⭐ SPF dispersion + r182 ⭐⭐ STIR markets TRANSFORMATIONAL
+
+## §Impl(r173-close-PR) — PR origin → main (closes r170 loose-end « Open PR pending 11+ jours », 2026-05-28)
+
+Consolidates 78 commits on `claude/amazing-heyrovsky-80df1e` (HEAD `681f612`) → PR vers `main` (since #138 = ~12 jours gap memory r170-detail). Cycle r161 → r173 fully reviewed in single PR for archival + main-branch alignment. Voie D 94 rounds. ZERO Anthropic API spend session globale.
