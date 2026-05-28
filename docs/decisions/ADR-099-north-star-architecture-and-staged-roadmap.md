@@ -5282,6 +5282,41 @@ Pure docs hygiene : ROADMAP §1 mark r174+r175+r176 ✅ shipped + §3 promotion 
 
 Closes the ONLY deferred debt from r177-close. After 12 atomic rounds shipped this session, the immutable-ledger is now in CLEAN state — every shipped round has its corresponding §Impl entry. Doctrine #21 R30 HONORED 5 rounds consecutifs RECORD extended.
 
+## §Impl(r183) — N1 Theme CONSUMER WIRING Pass-2 data_pool injection + Doctrine #21 R30 10 rounds RECORD (2026-05-28)
+
+**Default-sans-pivot honored** per ROADMAP §3 r182-close. Closes r181 FOUNDATION → r182 EXECUTION → r183 CONSUMER WIRING N1 arc end-to-end Pass-2 backend side. Frontend visual surface `<ThemeRankingPanel>` defers r184+.
+
+**Files modified** : `apps/api/src/ichor_api/services/data_pool.py` (3 surgical edits — alphabetical import `from .theme_classifier import classify_dominant_theme` + NEW `_section_theme_dominant(session, asset)` async fn ~95 LOC inserted before `_section_previous_session_context` + `build_data_pool` wire append after `previous_session_origin_zone` section).
+
+**Files NEW** : `apps/api/tests/test_data_pool_theme_dominant.py` ~270 LOC + 15 tests across 4 NEW test classes (TestSectionHonestAbsence 2 + TestSectionPopulatedShape 3 + TestSectionAllDriversFRTranslations 9 [8 parametrized + 1 mapping invariant] + TestSectionWiredIntoBuildDataPool 1).
+
+**FR rendering Eliot Fathom transcript étape 1 vocabulary verbatim** (8 driver labels) :
+
+- `macroeconomic` → « macroéconomique (événements mondiaux, regime-defining) »
+- `monetary_policy` → « politique monétaire (Fed / BCE / BoE / BoJ) »
+- `economic_data` → « données économiques (CPI / NFP / PMI / retail / GDP) »
+- `fiscal_policy` → « politique fiscale (dépenses publiques / tariffs) »
+- `market_interconnexions` → « interconnexions marché (fixed-income → FX → commodities → equities) »
+- `geopolitics` → « géopolitique (conflits / guerres / accords commerciaux) »
+- `price_action_flow` → « price action + flux institutionnel (microstructure) »
+- `supply_demand` → « offre / demande directe (commodities OPEC etc.) »
+
+**Asset-agnostic by design** : the theme dominant is a CROSS-ASSET macro state read inserted at ALL 5 priority assets. Same ranking across assets ; asset-specific blocks downstream (EUR/XAU/NAS/SPX/JPY/AUD/GBP \_specific) interpret the same theme through asset-specific lens.
+
+**Doctrine #11 calibrated honesty** : honest-absence prose verbatim « Aucun thème sous-jacent ne domine clairement le marché à cet instant » + explicit warning Pass-2 to read as mixed-regime no-driver state rather than neutral-by-default.
+
+**ADR-017 boundary 3-layers** : (1) `_FORBIDDEN_VERDICT_TOKENS_RE` regex (services/session_verdict.py:77) + (2) ThemeRanking Pydantic field validators + (3) self-affirming prose line « Frontière ADR-017 : ranking factuel pur, jamais un signal de direction pour la session courante. »
+
+**Source-stamping** : `theme_dominant:{top_theme}@{computed_at_utc.isoformat()}` populated OR `theme_dominant:{asset}:absent` honest absence.
+
+**Build gate (LOCAL MEASURED)** : 117/117 PASS in 6.98s (15 r183 + 21 r182 + 9 r180 + 25 r179 + 47 W90 ALL intact).
+
+**Doctrine #21 R30 HONORED 10 rounds consecutifs RECORD EXTENDED** : §1+§3 dual-sync r171b+r172+r173+r177+r178+r179+r180+r181+r182+r183 = **10 consecutive**.
+
+**Voie D 103 rounds** post-CENTURY. **ZERO Anthropic API spend r183 cycle.**
+
+**Mission centrale axes post-r183** : Axes 1-7 ✅ + 8 PARTIAL + 9 ADR-106 Stride 1 + 10 r167 LIVE + +11 G2 DXY ✅ + +12 honest_sentinels ✅ + +13 r174-r176 ✅ + +14 r179 G5 EXECUTION ✅ + +15 r180 G5 CONSUMER WIRING ✅ + +16 r181 N1 FOUNDATION ✅ + +17 r182 N1 EXECUTION ✅ + **+18 r183 N1 CONSUMER WIRING Pass-2 data_pool ✅** (r181 → r182 → r183 N1 arc CLOSED ; r184+ 3 baseline drivers enrichment + frontend queued).
+
 ## §Impl(r182) — N1 Theme EXECUTION-phase compute logic + Doctrine #21 R30 9 rounds RECORD (2026-05-28)
 
 **Default-sans-pivot honored** per ROADMAP §3 r181-close (« N1 THEME EXECUTION-PHASE ⭐ #1 »). Closes r181 FOUNDATION → r182 EXECUTION arc backend side (consumer wiring r183+). Mirror r174 → r179 G5 progression pattern : skeleton FOUNDATION → compute EXECUTION → Pass-2 CONSUMER WIRING → frontend.

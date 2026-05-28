@@ -139,6 +139,9 @@ from .surprise_index import (
     assess_surprise_index,
     render_surprise_index_block,
 )
+from .theme_classifier import (
+    classify_dominant_theme,
+)
 from .vix_term_structure import (
     assess_vix_term,
     render_vix_term_block,
@@ -2594,6 +2597,96 @@ async def _section_polygon_intraday(session: AsyncSession, asset: str) -> tuple[
     return "\n".join(lines), sources
 
 
+async def _section_theme_dominant(session: AsyncSession, asset: str) -> tuple[str, list[str]]:
+    """## Theme sous-jacent dominant (r183 N1 CONSUMER WIRING).
+
+    Surfaces the r182 N1 EXECUTION classifier output as plain-FR prose
+    for Pass-2 narrative. Eliot Fathom transcript étape 1 verbatim :
+    « identifier le thème sous-jacent du marché ».
+
+    Asset-agnostic by design : the theme dominant is a CROSS-ASSET macro
+    state read. ADR-017 boundary preserved : pure factual ranking,
+    NEVER a directional bias for the CURRENT session. Doctrine #11
+    calibrated honesty : honest-absence prose when classifier returns
+    None (no driver above _DOMINANCE_THRESHOLD = 0.5).
+    """
+    ranking = await classify_dominant_theme(session, now_utc=datetime.now(UTC))
+
+    if ranking is None:
+        lines = [
+            "## Theme sous-jacent dominant (Eliot Fathom transcript étape 1)",
+            "",
+            "Aucun thème sous-jacent ne domine clairement le marché à cet "
+            "instant : aucune force directrice (parmi macroéconomique / "
+            "politique monétaire / données économiques / politique fiscale / "
+            "interconnexions marché / géopolitique / price action+flux / "
+            "offre+demande) n'atteint le seuil de dominance (0.5 sur 1.0). "
+            "Doctrine #11 calibrated honesty : aucune fabrication d'un thème "
+            "par défaut ; le Pass-2 doit lire l'absence comme un régime "
+            "mixte sans driver principal plutôt qu'une lecture neutre.",
+            "",
+            "Frontière ADR-017 : ranking factuel pur, jamais un signal de "
+            "direction pour la session courante.",
+        ]
+        sources = [f"theme_dominant:{asset}:absent"]
+        return "\n".join(lines), sources
+
+    driver_fr = {
+        "macroeconomic": "macroéconomique (événements mondiaux, regime-defining)",
+        "monetary_policy": "politique monétaire (Fed / BCE / BoE / BoJ)",
+        "economic_data": "données économiques (CPI / NFP / PMI / retail / GDP)",
+        "fiscal_policy": "politique fiscale (dépenses publiques / tariffs)",
+        "market_interconnexions": "interconnexions marché (fixed-income → FX → commodities → equities)",
+        "geopolitics": "géopolitique (conflits / guerres / accords commerciaux)",
+        "price_action_flow": "price action + flux institutionnel (microstructure)",
+        "supply_demand": "offre / demande directe (commodities OPEC etc.)",
+    }
+
+    top_fr = driver_fr.get(ranking.top_theme, ranking.top_theme)
+    top_strength = ranking.driver_strengths.get(ranking.top_theme, 0.0)
+    top_pct = round(top_strength * 100)
+
+    lines = [
+        "## Theme sous-jacent dominant (Eliot Fathom transcript étape 1)",
+        "",
+        f"Le thème dominant actuel est **{top_fr}** "
+        f"(force {top_pct}% sur 1.0). Le Pass-2 narrative doit lire les "
+        f"autres signaux dans ce contexte : un développement contraire "
+        f"au thème dominant a moins de portée qu'un développement aligné, "
+        f"toutes choses égales par ailleurs.",
+        "",
+        f"- **Top theme** : `{ranking.top_theme}` ({top_fr})",
+        f"- **Force** : {top_strength:.2f} / 1.00",
+    ]
+
+    if ranking.secondary_themes:
+        for sec in ranking.secondary_themes:
+            sec_strength = ranking.driver_strengths.get(sec, 0.0)
+            sec_fr_label = driver_fr.get(sec, sec)
+            lines.append(f"- **Secondaire** : `{sec}` ({sec_fr_label}) — force {sec_strength:.2f}")
+    else:
+        lines.append(
+            "- **Secondaires** : aucun driver secondaire au-dessus de "
+            "0.40 — un seul thème domine clairement."
+        )
+
+    lines.extend(
+        [
+            "",
+            f"Provenance : `{ranking.provenance}` (Eliot Fathom transcript "
+            f"page 1 étape 1 — la taxonomie 8-drivers est practitioner-stamp, "
+            f"les driver-strength computations citent Bekaert-Hoerova-Lo Duca "
+            f"2013 _JME_ + Caldara-Iacoviello 2022 _AER_ + Nakamura-Steinsson "
+            f"2018 _QJE_ peer-reviewed backbones).",
+            "",
+            "Frontière ADR-017 : ranking factuel pur, jamais un signal de "
+            "direction pour la session courante.",
+        ]
+    )
+    sources = [f"theme_dominant:{ranking.top_theme}@{ranking.computed_at_utc.isoformat()}"]
+    return "\n".join(lines), sources
+
+
 async def _section_previous_session_context(
     session: AsyncSession, asset: str
 ) -> tuple[str, list[str]]:
@@ -4849,6 +4942,17 @@ async def build_data_pool(
     # directional bias for the CURRENT session).
     osz_md, osz_src = await _section_previous_session_context(session, asset)
     sections.append(("previous_session_origin_zone", osz_md, osz_src))
+
+    # r183 — N1 THEME CONSUMER WIRING : theme sous-jacent dominant
+    # (Eliot Fathom transcript étape 1). Surfaces the r182 N1 EXECUTION
+    # classifier output as plain-FR prose for Pass-2 narrative. The
+    # 8-driver ranking is a CROSS-ASSET macro state read inserted at
+    # ALL 5 priority assets (same ranking ; the asset-specific blocks
+    # downstream interpret the same theme through asset-specific lens).
+    # Always-rendered : honest-absence prose when classifier returns
+    # None. ADR-017 boundary preserved (pure factual ranking).
+    theme_md, theme_src = await _section_theme_dominant(session, asset)
+    sections.append(("theme_dominant", theme_md, theme_src))
 
     # ADR-090 P0 step-3 (round-32) — EUR-specific Bund 10Y yield.
     # Asset-gated to EUR_USD ; silent skip otherwise OR if the

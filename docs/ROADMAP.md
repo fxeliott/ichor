@@ -10,6 +10,24 @@
 
 ---
 
+## §1 — Current state (r183 full close — N1 THEME CONSUMER WIRING SHIPPED, atomic continuation r182→r183 same-session, 2026-05-28)
+
+### Shipped at r183 — **N1 Theme CONSUMER WIRING `_section_theme_dominant` Pass-2 data_pool injection (closes r181 → r182 → r183 N1 arc end-to-end Pass-2 backend side)**
+
+NEW `services/data_pool.py:_section_theme_dominant(session, asset)` ~95 LOC consuming r182 `classify_dominant_theme()` + render plain-FR prose 8 driver labels Eliot Fathom transcript étape 1 vocabulary verbatim + always-rendered honest-absence + ADR-017 self-affirming last line. Section wired after `previous_session_origin_zone`. Asset-agnostic ranking (cross-asset macro state).
+
+**FR rendering** : 8 driver labels (macroeconomic→« macroéconomique » / monetary_policy→« politique monétaire » / economic_data→« données économiques » / fiscal_policy→« politique fiscale » / market_interconnexions→« interconnexions marché » / geopolitics→« géopolitique » / price_action_flow→« price action + flux institutionnel » / supply_demand→« offre / demande directe »).
+
+**Build gate** : **117/117 PASS** in 6.98s (15 r183 NEW + 21 r182 + 9 r180 + 25 r179 + 47 W90 invariants).
+
+**Doctrine #21 R30 HONORED 10 rounds consecutifs RECORD EXTENDED** : §1+§3 chain r171b+r172+r173+r177+r178+r179+r180+r181+r182+r183 = 10 consecutive.
+
+**Voie D 103 rounds** post-CENTURY.
+
+**Mission centrale axes post-r183** : 1-7 ✅ + 8 PARTIAL + 9 ADR-106 Stride 1 + 10 r167 LIVE + +11 G2 DXY ✅ + +12 honest_sentinels ✅ + +13 r174-r176 ✅ + +14 r179 G5 EXECUTION ✅ + +15 r180 G5 CONSUMER WIRING ✅ + +16 r181 N1 FOUNDATION ✅ + +17 r182 N1 EXECUTION ✅ + **+18 r183 N1 CONSUMER WIRING ✅**.
+
+### Pre-r183 line preserved (r182-close)
+
 ## §1 — Current state (r182 full close — N1 THEME CLASSIFIER EXECUTION-PHASE SHIPPED, atomic continuation r181→r182 same-session, 2026-05-28)
 
 ### Shipped at r182 — **N1 Theme EXECUTION-phase compute logic (4 hetero inputs + 8-driver strength scoring, closes r181 FOUNDATION → r182 EXECUTION arc)**
