@@ -5064,3 +5064,85 @@ Build gate : 15/15 pre-commit hooks PASS (gitleaks + ruff + prettier + Ichor doc
 Build gate **25/25 PASS** test_correlations_and_vol.py + 15/15 pre-commit hooks PASS (gitleaks + ruff + ruff-format + prettier + Ichor doctrinal invariants ADR-081 GREEN). Voie D **89 rounds** (zero `import anthropic` r171). Pattern #15 R59 = **19 applications stable** (4 NEW catches r171 pre-flight). Pattern #22/#23/#24 codified r170 preserved.
 
 **ZERO Anthropic API spend r171a cycle.**
+
+## §Impl(r171b) — G2 DXY co-mouvement frontend `<DxyCorrelationPanel>` + R-PROC-8 full closure (2026-05-28)
+
+**Closure complète G2** : Eliot Fathom 2026-05-25 §XI verbatim « la corrélation avec le DXY, qui est aussi un pilier de notre analyse » — backend r171a + frontend r171b + R-DEPLOY-6 LIVE Hetzner end-to-end. R-PROC-8 full closing post-r171a partial-close.
+
+### Patch frontend (commit `bd7cc59`, +732 LOC, 5 files)
+
+**NEW** `apps/web2/lib/dxyCorrelation.ts` (~236 LOC, PURE module per doctrine #5) :
+
+- `DxyPairAsset` literal union (8 non-DXY assets, mirror backend `_ASSETS[0:8]`) + `DXY_PAIR_ASSETS` ordered tuple (FX-desk render order)
+- `DXY_PAIR_LABEL_FR: Record<DxyPairAsset, string>` (TradingView-style labels)
+- `DXY_PRIORS: Record<DxyPairAsset, number>` — frontend SSOT mirror of backend `_REFERENCE_CORR:102-109` (8 priors verbatim values) ; r172+ candidate = lift to backend `honest_sentinels.py` SSOT + extended Pydantic schema
+- `HonestSentinel` 5-value literal union (engel_west_random_walk_regime / rolling_corr_low_n / us_active_stress_source / vix_above_30_funding_stress / dxy_dtwexbgs_divergence_em_stress) + `HONEST_SENTINELS` ordered tuple
+- `DXY_CORR_FR` + `DXY_CORR_HINT_FR` + `DXY_CORR_TONE` — 3 SSOT maps mirror r167 `sessionVerdict.ts:152-189` TRADEABILITY pattern (FR labels + one-sentence explainers w/ peer-reviewed citations + Tailwind tone tokens)
+- Pure helpers : `extractDxyRow` (Pydantic CorrelationMatrix consumption), `formatRho` (em-dash honesty placeholder NEVER fabricated zero per doctrine #11), `isDxyColdStart` (Polygon I:DXY 403 detection), `priorDeviation` + `isPriorDeviationUnusual` (threshold 0.30 mirrors backend flag emission at `correlations.py:206-219`)
+
+**NEW** `apps/web2/components/briefing/DxyCorrelationPanel.tsx` (~234 LOC, "use client" thin view) :
+
+- Glassmorphism `rounded-2xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)]/40 backdrop-blur-xl` + `m.section` animation 0.3s easeOut + `role="region"` + `aria-labelledby="dxy-corr-heading"`
+- Header : h3 serif « Co-mouvement vs DXY » + caption « Engel-West 2005 · _JPE_ » + window/freshness sub-line
+- Cold-start disclosure banner `role="status" aria-live="polite"` when Polygon I:DXY 403 returns null row (« Données DXY en attente d'un proxy ETF UUP candidat r172 — mirror ADR-089 r27 SPY proxy »)
+- 8 rows DXY × asset : asset label + trendGlyph + realised ρ tabular-nums + prior ref + delta « inhabituel » pill (when |Δ| ≥ 0.30) + SVG diverging bar (240×8 ; centre line + faded prior bar + realised bar with `divergingStop` OKLCH 7-stop fill) + focus-asset border-l-2 emphasis
+- 5 HONEST_SENTINEL chips in `<details>` collapsible (cadre de lecture · 5 sentinelles d'honnêteté) with Engel-West 2005 _JPE_ + Bekaert-Hoerova-Lo Duca 2013 _JME_ + DTWEXBGS divergence + US-active stress + low-n citations
+- Footer ADR-017 framing verbatim « co-mouvement observé · monitoring · pas un signal (frontière ADR-017) »
+
+**NEW** `apps/web2/__tests__/dxyCorrelation.test.ts` (~255 LOC, vitest mirror `correlationHeat.test.ts` pattern doctrine #5 pin) :
+
+- 26 tests across 7 describe blocks : DXY pair domain back-compat (mirror `_ASSETS[0:8]`) / DXY_PRIORS mirror backend lockstep (EUR -0.95 / JPY-CAD positive convention / XAU -0.75 / NAS-SPX mild inverse / exhaustive dispatch) / HONEST_SENTINELS 3-SSOT exhaustive lockstep (Engel-West citation provenance + Bekaert-Hoerova-Lo Duca match) / formatRho em-dash discipline (null → "—" + NaN → "—" + +0.00 explicit) / extractDxyRow 4 paths (null / pre-r171a back-compat / 9×9 happy / null-cells fallback) / isDxyColdStart detection / priorDeviation threshold 0.30 + edge cases
+
+**MODIFY** `apps/web2/app/briefing/[asset]/page.tsx` : import `DxyCorrelationPanel` + render `<DxyCorrelationPanel correlations={correlations} focusAsset={normalisedAsset} />` inside the existing `<section aria-labelledby="correlations-heading">` BEFORE the `<CorrelationsStrip>` ternary at L633. NO new fetch — reuses existing `correlations` from Promise.all (L172). Backward-compat preserved (panel handles null gracefully via doctrine #11).
+
+**MODIFY** `apps/api/src/ichor_api/services/correlations.py:177-184` : docstring hot-fix « Build the 8×8 → 9×9 correlation matrix » + r171a extension context (UUP r172 candidate cite).
+
+### R-DEPLOY-6 LIVE Hetzner (Pattern #14 SSH-retry resilience)
+
+- **Backend r171a + r171b docstring fix** : `redeploy-api.sh` LIVE ~45s (Pattern #14 retry sleep 15s fired once Step 5 healthz probe) — Result : healthz=200 + sample(/v1/geopolitics/briefing)=200 + backup `ichor_api.20260528-064235`
+- **EMPIRICAL PROOF** `curl /v1/correlations` returns `assets: [..., "DXY"]` 9-element array + matrix 9×9 + DXY row all null (cold-start by construction confirmed) + other cells populated (EUR/GBP 0.79, EUR/AUD 0.77, NAS/SPX 0.68) + `n_returns_used=441` + `flags=[]` (no DXY-prior triggers because realised is null)
+- **Frontend r171b** : `redeploy-web2.sh` LIVE (pnpm install + Next.js build + systemctl restart + cloudflared quick tunnel rotation — public URL captured)
+
+### Pre-flight Pattern #15 R59 (3 RED + 3 YELLOW sub-agent a462a3d6b996f9e43)
+
+- **RED-1** : Engel-West backend comment uses ellipsis acceptable convention BUT frontend panel must cite verbatim full abstract OR explicit `[paraphrased]` stamp ; **resolved** — `lib/dxyCorrelation.ts` module docstring contains full verbatim abstract (« We show analytically that in a rational expectations present-value model, an asset price manifests near-random walk behavior ... fundamental variables such as relative money supplies, outputs, inflation, and interest rates provide little help in predicting changes in floating exchange rates »)
+- **RED-2** : DXY priors NOT exposed via typed API (`_REFERENCE_CORR` lives only in Python dict + markdown render) ; **resolved** — frontend-only SSOT `DXY_PRIORS` annotated with backend cite + r172+ lift candidate documented
+- **RED-3** : 5 HONEST_SENTINEL labels = ZERO backend SSOT (documentation-only) ; **resolved** — frontend-only SSOT for r171b + r172+ backend `honest_sentinels.py` candidate queued
+- **YELLOW-1** : `correlations.py:178` docstring stale "8×8" post-r171a extension ; **resolved this commit** — hot-fixed to "9×9" + UUP cite
+- **YELLOW-2** : spec memory framing copy conflated existing `CorrelationsStrip.tsx:204` ("corrélations observées, pas un ordre") vs panel-target ("co-mouvement observé · monitoring · pas un signal") ; **resolved** — distinct NEW panel-specific copy adopted (ADR-017 regex W90 48/48 PASS)
+- **YELLOW-3** : NBER WP # wrong (memory may have w11128 ; correct = w10723) ; **deferred r172+** — non-blocking, memory-only drift
+
+### Doctrine alignment
+
+- **ADR-017 boundary CI-guarded** (W90 48/48 PASS) — co-mouvement MONITORING framing throughout, never directional prediction ; framing copy + 5 honest-sentinel chips + cold-start disclosure bound interpretation
+- **Doctrine #2 strict scope** — single feat commit + closing-sync (this §Impl(r171b) APPEND only) ; NO new ADR / migration / feature flag / endpoint
+- **Doctrine #4 SSOT** — réutilise `lib/correlationHeat.ts` `divergingStop` + `trendGlyph` + `NEAR_ZERO` ; mirrors `sessionVerdict.ts` 3-maps pattern verbatim ; `DXY_PRIORS` frontend duplicate annotated with backend cite + r172+ lift queued
+- **Doctrine #5 RSC client-boundary** — `lib/dxyCorrelation.ts` PURE module (no React, no JSX, no "use client") tested without importing the `"use client"` panel (r105 lesson)
+- **Doctrine #9 anti-accumulation** — §Impl(r171b) APPEND ADR-099 only ; doctrine-#9 coord-math ledger UNCHANGED
+- **Doctrine #11 calibrated honesty** — em-dash on null (NEVER fabricated zero), dedicated cold-start disclosure when Polygon I:DXY 403, 5 honest-sentinel chips listed (engel_west_random_walk_regime / rolling_corr_low_n / us_active_stress_source / vix_above_30_funding_stress / dxy_dtwexbgs_divergence_em_stress)
+- **Doctrine #12 anti-recidive** — Pattern #15 R59 pre-flight sub-agent obligatoire (R3 a462a3d6b996f9e43 caught 3 RED + 3 YELLOW before commit)
+
+### Build gate (LOCAL MEASURED + EMPIRICAL Hetzner)
+
+- vitest **487/487 PASS** in 2.33s (461 baseline + 26 new r171b)
+- pytest tests/test_correlations_and_vol.py **25/25 PASS** in 6.49s (r171a regression intact)
+- pytest tests/test_invariants_ichor.py W90 **48/48 PASS** in 10.15s (ADR-017 + Voie D + Haiku + immutable + watermark + GEPA hard-zero + 7-bucket cap + DSPy stub + CLI presence)
+- tsc --noEmit on apps/web2 EXIT 0 clean
+- ESLint on 4 modified web2 files EXIT 0 clean
+- ruff format + ruff check on `services/correlations.py` all green
+- **15/15 pre-commit hooks PASS** per commit (gitleaks + ruff + ruff-format + prettier + ADR-081 doctrinal invariants GREEN)
+- **Backend LIVE verified empirical** `/v1/correlations` returns 9 assets + 9×9 matrix + DXY row null (cold-start by construction)
+
+### Mission centrale axes post-r171b
+
+1 ✅ r123 / 2 ✅ r123 / 3 ✅ r132+r133 / 4 ✅ r152+r147→r160 / 5 ✅ r140+r146 / 6 ✅ r142+r143 / 7 🎯 r65+r128 LIVE / 8 🟡 r131 PARTIAL / +9 r161 Autonomy 24/7 ADR-106 / +10 r167 Honest tradeability / +11 **r171a+r171b G2 DXY co-mouvement backend+frontend SHIPPED end-to-end ✅**
+
+**Voie D streak r141 → r171b = 90 rounds tenus** (zero `import anthropic`, zero `--setting-sources project` Pattern #22 violation). **Pattern #15 R59 = 20 applications stable** (6 NEW catches r171b pre-flight : 3 RED + 3 YELLOW + 0 regression). Pattern #22/#23/#24 codified r170 preserved. **ZERO Anthropic API spend r171b cycle.**
+
+### r172+ binding-defaults (next session priority)
+
+1. ⭐ **r172 — DXY ETF proxy UUP** (Invesco DB US Dollar Index Bullish Fund) wired in `polygon.py ASSET_TO_TICKER` mapping → populate matrix cells DXY-row (mirror SPY proxy SPX500 ADR-089 r27). Effort S, HIGH (unblocks empirical DXY corrs).
+2. r172alt — G6 hour-of-day vol signature (Andersen-Bollerslev FFF + Rogers-Satchell FX + Yang-Zhang equity). Effort M, HIGH.
+3. r173 — G5 origin_zone (Baltussen 2021 _JFE_). Effort M, MED.
+4. **NEW r172+** — backend `honest_sentinels.py` SSOT module + extended `CorrelationOut` Pydantic schema → lift frontend `DXY_PRIORS` duplicate + expose 5 HONEST_SENTINEL backend SSOT. Effort S-M, MED (closes RED-2 + RED-3 doctrine #4 debt).
+5. r175-r190 — Polymarket whales / ADR-106 Strides 5/7/2 / G7 / coach explicateur premium / SPF dispersion / STIR markets / 7-engines / newsfeed / forward-looking / 4 cycles / interconnexions / temporalité / /learn feedback / notifications
