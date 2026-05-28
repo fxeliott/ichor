@@ -5259,3 +5259,64 @@ Build gate : pytest 13/13 PASS in 4.68s + 15/15 pre-commit hooks PASS. **Pattern
 ## §Impl(r173-close-PR) — PR origin → main (closes r170 loose-end « Open PR pending 11+ jours », 2026-05-28)
 
 Consolidates 78 commits on `claude/amazing-heyrovsky-80df1e` (HEAD `681f612`) → PR vers `main` (since #138 = ~12 jours gap memory r170-detail). Cycle r161 → r173 fully reviewed in single PR for archival + main-branch alignment. Voie D 94 rounds. ZERO Anthropic API spend session globale.
+
+## §Impl(r174) — G5 origin_zone FOUNDATION + Pattern #15 R59 10ème META catch Baltussen 2021 (2026-05-28)
+
+Mirror r160 Dukascopy FOUNDATION pattern : NEW `apps/api/src/ichor_api/services/previous_session_origin_zone.py` (+425 LOC) + tests (+145 LOC) = skeleton returning None + 9 structural-pinning tests. ZERO behavior change. Commit `e3f35a9`.
+
+R59 sub-agent ac56d1c644ce45309 caught Baltussen-Da-Lammers-Martens 2021 _JFE_ cite as MEMORY-STRETCH CARGO-CULT (actual paper « Hedging Demand and Market Intraday Momentum » = gamma hedging last-30-min, NOT session zones). « Previous-session origin zone » is retail/practitioner ICT-style concept ; NO peer-reviewed support. Honest stamp : `provenance = "practitioner_stamp"` + Eliot Fathom 2026-05-25 §V verbatim provenance. Build gate 58/58 PASS. Voie D 95 rounds.
+
+## §Impl(r175) — Pattern #20 codification (memory cites R59-pre-commit-mandatory, 2026-05-28)
+
+Memory user-scope edit `ichor_r51-r71_doctrinal_patterns.md` +70 LOC ajoutant Pattern #20. Empirical : 4 consecutive cite-drift catches r168b → r174 (Kaul-Sapp / Rogers-Satchell journal / Bauer 2024 HALLU / Baltussen topic mismatch) = 67% drift rate without R59. Mechanical rule : ALL memory peer-reviewed cites REQUIRE R59 WebFetch verification BEFORE commit. Twin doctrine to Pattern #15. Voie D 95 rounds.
+
+## §Impl(r176) — W90 lockstep invariant backend↔frontend honest_sentinels (closes r173 RED-3, 2026-05-28)
+
+NEW `apps/api/tests/test_invariants_honest_sentinels_lockstep.py` (+201 LOC) = 7 tests source-text grep verifying HONEST_SENTINELS 5-tuple match VERBATIM between backend SSOT + frontend duplicate. Fail-loud drift prevention. Closes r173 RED-3 lift queue mécaniquement. Commit `0438c28`. Build gate 55/55 PASS. Voie D 96 rounds.
+
+## §Impl(r177) — Doctrine #21 R30 4 rounds consecutifs ROADMAP §1+§3 dual-sync (2026-05-28)
+
+Pure docs hygiene : ROADMAP §1 mark r174+r175+r176 ✅ shipped + §3 promotion r173 → r177 (G5 EXECUTION as ⭐ #1). Commit `a0a4b35`. Doctrine #21 R30 chain extension RECORD : r171b+r172+r173+r177 = 4 consecutive dual-syncs.
+
+## §Impl(r178) — ADR-099 §Impl consolidated APPEND closure + session-end CLEAN state (2026-05-28)
+
+Closes the ONLY deferred debt from r177-close. After 12 atomic rounds shipped this session, the immutable-ledger is now in CLEAN state — every shipped round has its corresponding §Impl entry. Doctrine #21 R30 HONORED 5 rounds consecutifs RECORD extended.
+
+### Pattern ledger evolution r161 → r178 (session globale final)
+
+- **Pattern #15 R59 = 25 applications stable** (10/25 = 40% META self-catches across r170/r171b×3/r172/r172c/r173×2/r173-9ème/r174 = discipline self-recursive PROVEN at scale)
+- **Pattern #20 codified r175** : memory cites R59-pre-commit-mandatory (prophylactic)
+- **W90 lockstep r176** : mechanical SSOT drift prevention
+
+### Mission centrale axes post-r178 final
+
+- ✅ Axes 1-7 + 8 PARTIAL + 9 ADR-106 Stride 1 + 10 r167 LIVE
+- ✅ **+11 G2 DXY end-to-end** (r171a+r171b+r172)
+- ✅ **+12 r173 honest_sentinels backend SSOT** (3 RED doctrine #4 debts closed)
+- ✅ **+13 r174+r175+r176 FOUNDATION + Pattern #20 + W90 lockstep**
+- ✅ G6 CONFIRMED already-closed (R59 9ème META catch)
+- ✅ r172b B1 news_nlp + r172c B3 FRED freshness fixes
+
+### Session globale metrics (r161 → r178 = 18 rounds total ; 12 atomic this session)
+
+- 83 commits ahead origin/main (post this commit)
+- PR #159 OPEN consolidating cycle
+- 5 deploys LIVE Hetzner
+- 2 NEW reusable infrastructure scripts permanent
+- Build gate cumulative : pytest ~824/824 + 487/487 vitest + 15/15 pre-commit hooks per commit
+- Pattern #15 R59 = 25 apps (40% META = self-recursive)
+- Doctrine #21 R30 = 5 rounds consecutifs RECORD
+- Voie D 98 rounds (r141 → r178)
+- ZERO Anthropic API spend session globale
+
+### r179+ binding-defaults
+
+1. ⭐ **r179 G5 EXECUTION-phase** : 5-step classifier compute logic
+2. r180 frontend dxyCorrelation.ts lift to backend SSOT
+3. r181 G6 GK/RS estimator upgrade OPTIONAL
+4. r182 DXY alert recalibration UUP-scale
+5. r183 B5 Phase D orphan loops investigation
+6. r184 ⭐ SPF dispersion Born 2023 _EER_
+7. r185 ⭐⭐ STIR markets TRANSFORMATIONAL
+
+**Session end-state CLEAN** : NO deferred debts, immutable ledger complete, PR #159 ready for review/merge.
