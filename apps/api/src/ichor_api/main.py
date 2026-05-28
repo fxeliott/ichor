@@ -40,6 +40,7 @@ from .routers import (
     market_router,
     narratives_router,
     news_router,
+    origin_zone_router,
     phase_d_router,
     polymarket_impact_router,
     portfolio_exposure_router,
@@ -203,6 +204,7 @@ app.include_router(briefings_router)
 app.include_router(alerts_router)
 app.include_router(bias_signals_router)
 app.include_router(news_router)
+app.include_router(origin_zone_router)
 app.include_router(market_router)
 app.include_router(predictions_router)
 app.include_router(sessions_router)

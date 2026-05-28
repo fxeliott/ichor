@@ -10,6 +10,28 @@
 
 ---
 
+## §1 — Current state (r184 full close — FRONTEND ENDPOINT `GET /v1/origin-zone/{asset}` SHIPPED, atomic continuation r183→r184 fresh-session, 2026-05-28)
+
+### Shipped at r184 — **Frontend endpoint exposing r179 G5 EXECUTION classifier (mirror r161 verdict + r171a correlations pattern)**
+
+NEW `apps/api/src/ichor_api/routers/origin_zone.py` ~165 LOC : `APIRouter(prefix="/v1/origin-zone", tags=["origin_zone"])` + Pydantic frozen `OriginZoneOut` (extra=forbid, asset + session_zone Literal + direction Literal + high_price + low_price + range_observed pre-computed + bar_count ge=30 + start_utc + end_utc + computed_at_utc + provenance Literal default `practitioner_stamp`) + `_project_snapshot()` pure projector + `GET /{asset}` async endpoint with FastAPI Path regex constraint + 200/404/422 responses + `Cache-Control: private, no-store` LIVE-state header. Wired in `routers/__init__.py` (alphabetical import + `__all__` export) + `main.py` (alphabetical import block + `app.include_router(origin_zone_router)` after news_router).
+
+**Surface contract** : 200 + OriginZoneOut JSON when snapshot present ; 404 honest absence when classifier returns None (no bars OR dominant zone bar_count < 30 per Cohen 1988 §3.3) ; 422 on path param malformed.
+
+**ADR-079 watermark exclusion** : `/v1/origin-zone` is PURE DATA route (no LLM emission) → NOT added to `AIWatermarkMiddleware` tagged prefixes per ADR-079 pure-data exclusion. ADR-017 boundary preserved by construction (direction Literal is geometric/probabilistic label NEVER trade signal for current session).
+
+NEW `apps/api/tests/test_origin_zone_router.py` ~155 LOC : 9 tests across 4 NEW test classes (TestOriginZoneRouterHappyPath 3 incl. cross-asset priority-5 parametrized + TestOriginZoneRouterHonestAbsence 1 + TestOriginZoneRouterValidation 2 + TestOriginZoneOutPydanticSurface 2). FastAPI TestClient + `dependency_overrides[get_session]` AsyncMock + `patch()` on `compute_previous_session_origin_zone` — pure pure-fn router wiring, no DB hit no LLM call.
+
+**Build gate** : `pytest tests/test_origin_zone_router.py tests/test_invariants_ichor.py` → **56/56 PASS** in 6.33s (9 r184 NEW + 47 W90 invariants ALL intact incl. ADR-079 watermark single-source-of-truth defense).
+
+**Doctrine #21 R30 HONORED 11 rounds consecutifs RECORD EXTENDED** : §1+§3 chain r171b+r172+r173+r177+r178+r179+r180+r181+r182+r183+r184 = 11 consecutive (was 10 RECORD r183-close).
+
+**Voie D 104 rounds** post-CENTURY.
+
+**Mission centrale axes post-r184** : Axes 1-7 ✅ + 8 PARTIAL + 9 ADR-106 Stride 1 + 10 r167 LIVE + +11 G2 DXY ✅ + +12 honest_sentinels ✅ + +13 r174-r176 ✅ + +14 r179 G5 EXECUTION ✅ + +15 r180 G5 CONSUMER WIRING ✅ + +16 r181 N1 FOUNDATION ✅ + +17 r182 N1 EXECUTION ✅ + +18 r183 N1 CONSUMER WIRING ✅ + **+19 r184 G5 FRONTEND ENDPOINT ✅** (r179→r180→r184 G5 backend+wiring+endpoint arc CLOSED ; r185 N1 frontend endpoint + r186 React `<PreviousSessionContextPanel>` + `<ThemeRankingPanel>` queued).
+
+### Pre-r184 line preserved (r183-close)
+
 ## §1 — Current state (r183 full close — N1 THEME CONSUMER WIRING SHIPPED, atomic continuation r182→r183 same-session, 2026-05-28)
 
 ### Shipped at r183 — **N1 Theme CONSUMER WIRING `_section_theme_dominant` Pass-2 data_pool injection (closes r181 → r182 → r183 N1 arc end-to-end Pass-2 backend side)**

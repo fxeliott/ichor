@@ -5333,6 +5333,34 @@ Closes the ONLY deferred debt from r177-close. After 12 atomic rounds shipped th
 
 **Mission centrale axes post-r182** : Axes 1-7 ✅ + 8 PARTIAL + 9 ADR-106 Stride 1 + 10 r167 LIVE + +11 G2 DXY ✅ + +12 honest_sentinels ✅ + +13 r174-r176 ✅ + +14 r179 G5 EXECUTION ✅ + +15 r180 G5 CONSUMER WIRING ✅ + +16 r181 N1 FOUNDATION ✅ + **+17 r182 N1 EXECUTION-phase compute ✅** (r181 → r182 N1 arc closed ; r183 CONSUMER WIRING queued).
 
+## §Impl(r184) — Frontend endpoint `GET /v1/origin-zone/{asset}` exposing r179 G5 EXECUTION classifier (mirror r161 verdict + r171a correlations) + Doctrine #21 R30 11 rounds RECORD (2026-05-28)
+
+**Default-sans-pivot honored** post-r183 close : pivot vers frontend visibility wave (closes anti-pattern « shipping in vacuum » identifié Pattern #12 self-challenge — r179-r183 backend LIVE Hetzner mais Eliot ne voit RIEN dans `/briefing/{asset}`). r184 atomic ship = backend endpoint EXPOSANT r179 G5 EXECUTION classifier ; r185+ ships frontend React component.
+
+**Files NEW** :
+
+- `apps/api/src/ichor_api/routers/origin_zone.py` ~165 LOC : `APIRouter(prefix="/v1/origin-zone")` + Pydantic frozen `OriginZoneOut` (10 fields incl. range_observed pre-computed) + `_project_snapshot()` pure projector + `GET /{asset}` async endpoint + 200/404/422 surface + `Cache-Control: private, no-store`.
+- `apps/api/tests/test_origin_zone_router.py` ~155 LOC : 9 tests across 4 NEW test classes mirror r161 + r167 + r161 test patterns (FastAPI TestClient + dependency_overrides AsyncMock + patch on classifier).
+
+**Files MODIFIED** :
+
+- `apps/api/src/ichor_api/routers/__init__.py` : alphabetical import `from .origin_zone import router as origin_zone_router` + `__all__` append `"origin_zone_router"`.
+- `apps/api/src/ichor_api/main.py` : alphabetical import block + `app.include_router(origin_zone_router)` after `news_router`.
+
+**ADR-079 watermark exclusion HONORED** : `/v1/origin-zone` is PURE DATA route (no LLM emission) → deliberately NOT added to `AIWatermarkMiddleware.DEFAULT_WATERMARKED_PREFIXES` per ADR-079 pure-data exclusion contract. W90 invariant test `test_pure_data_routes_excluded_from_watermark` covers this category — adding `/v1/origin-zone` to watermark would break the invariant. Defense-in-depth.
+
+**ADR-017 boundary preserved by construction** : `OriginZoneOut.direction` Literal `["up", "down", "range"]` are GEOMETRIC/PROBABILISTIC labels for the PREVIOUS session, NEVER directional bias for the CURRENT session. The Pydantic class is verifier-friendly (frozen + extra=forbid) ; frontend consumer presents snapshot as INPUT context not OUTPUT signal.
+
+**Build gate (LOCAL MEASURED)** : `pytest tests/test_origin_zone_router.py tests/test_invariants_ichor.py` → **56/56 PASS** in 6.33s (9 r184 NEW + 47 W90 invariants ALL intact incl. ADR-079 watermark single-source-of-truth defense + ADR-017 source-inspection).
+
+**Pattern #15 R59 pre-flight HONORED** : ground-truth grep on `routers/__init__.py` + `main.py` insertion points + `test_coach_macro_context_router.py` test pattern + `verdict.py` r161 endpoint pattern BEFORE any edit. ZERO cargo-cult.
+
+**Doctrine #21 R30 HONORED 11 rounds consecutifs RECORD EXTENDED** : §1+§3 dual-sync chain r171b+r172+r173+r177+r178+r179+r180+r181+r182+r183+r184 = **11 consecutive** (was 10 RECORD r183-close, +1 r184 extension).
+
+**Voie D 104 rounds** post-CENTURY MILESTONE. **ZERO Anthropic API spend r184 cycle.**
+
+**Mission centrale axes post-r184** : Axes 1-7 ✅ + 8 PARTIAL + 9 ADR-106 Stride 1 + 10 r167 LIVE + +11 G2 DXY ✅ + +12 honest_sentinels ✅ + +13 r174-r176 ✅ + +14 r179 G5 EXECUTION ✅ + +15 r180 G5 CONSUMER WIRING ✅ + +16 r181 N1 FOUNDATION ✅ + +17 r182 N1 EXECUTION ✅ + +18 r183 N1 CONSUMER WIRING ✅ + **+19 r184 G5 FRONTEND ENDPOINT ✅** (r179→r180→r184 G5 arc CLOSED frontend-side ; r185 N1 frontend endpoint + r186 React `<PreviousSessionContextPanel>` queued).
+
 ## §Impl(r181) — N1 Theme sous-jacent classifier 8 drivers FOUNDATION skeleton (Eliot Fathom transcript étape 1 verbatim) + Doctrine #21 R30 8 rounds RECORD (2026-05-28)
 
 **Default-sans-pivot honored** per ROADMAP §3 r180-close (« N1 Theme classifier 8 drivers ⭐ #1 »). Mirror r160 Dukascopy + r174 G5 FOUNDATION pattern : ship skeleton + Pydantic frozen + Literal taxonomie + structural-pinning tests ; r182+ EXECUTION-phase ships compute logic.
