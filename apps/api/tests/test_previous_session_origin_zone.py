@@ -1,31 +1,80 @@
-"""r174 FOUNDATION specs for previous_session_origin_zone.py.
+"""r174 FOUNDATION + r179 EXECUTION specs for previous_session_origin_zone.py.
 
-Pins the FOUNDATION-only contract :
+r174 (preserved below) pinned the FOUNDATION-only contract :
 - Pydantic-like dataclass shape (frozen, immutable, fields exhaustive)
 - SessionZoneLabel + OriginDirection Literal types
 - compute_previous_session_origin_zone() returns None unconditionally
-  at r174 (skeleton). r175+ EXECUTION-phase will refine.
+  at r174 (skeleton).
 
-Mirror r160 Dukascopy FOUNDATION test pattern : structural pinning of
-the shell, no compute-logic assertions (compute logic lands r175+).
+r179 (this commit) ships the EXECUTION-phase compute logic :
+- 5-step classifier (window resolution + polygon_intraday query +
+  zone decomposition + dominant zone selection + direction classification)
+- Pure helper functions unit-tested in isolation (_classify_zone,
+  _compute_zone_metrics, _pick_dominant_zone, _classify_direction)
+- DB-touching main async fn tested via AsyncMock session that returns
+  hand-crafted fake bar fixtures
 
-Doctrine #5 pure-module discipline : no I/O, no DB hit (the skeleton
-fn takes a `session` arg but never uses it). CI-gated since r174.
+Mirror r160 Dukascopy FOUNDATION → EXECUTION pattern.
+
+Doctrine #5 pure-module discipline : helper fns are pure (no I/O).
+Doctrine #11 calibrated honesty : EXECUTION returns None on empty bars
+or bar_count < 30 in dominant zone.
 """
 
 from __future__ import annotations
 
 import asyncio
 import dataclasses
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
+from typing import Any
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from ichor_api.services.previous_session_origin_zone import (
     OriginDirection,
     OriginZoneSnapshot,
     SessionZoneLabel,
+    _classify_direction,
+    _classify_zone,
+    _compute_zone_metrics,
+    _pick_dominant_zone,
+    _ZoneMetrics,
     compute_previous_session_origin_zone,
 )
+
+# ─────────────────────────────────── FAKE BAR FIXTURE ─────────────────
+
+
+def _fake_bar(
+    bar_ts: datetime,
+    open_p: float,
+    high: float,
+    low: float,
+    close_p: float,
+) -> Any:
+    """Build a fake PolygonIntradayBar-shaped object for tests. We only
+    duck-type the 5 fields the EXECUTION compute reads."""
+    bar = MagicMock()
+    bar.bar_ts = bar_ts
+    bar.open = open_p
+    bar.high = high
+    bar.low = low
+    bar.close = close_p
+    return bar
+
+
+def _fake_session(bars: list[Any]) -> AsyncMock:
+    """AsyncMock session whose ``execute()`` returns a result whose
+    ``.scalars().all()`` yields ``bars``. Mirrors the SQLAlchemy 2.x
+    async select result shape that ``compute_previous_session_origin_zone``
+    consumes."""
+    scalars_mock = MagicMock()
+    scalars_mock.all.return_value = bars
+    result_mock = MagicMock()
+    result_mock.scalars.return_value = scalars_mock
+    session = AsyncMock()
+    session.execute = AsyncMock(return_value=result_mock)
+    return session
 
 
 class TestOriginZoneSnapshotShape:
@@ -125,21 +174,143 @@ class TestOriginDirectionLiteral:
             assert snap.direction == direction
 
 
-class TestComputeSkeletonReturnsNone:
-    """r174 FOUNDATION : skeleton fn returns None unconditionally.
-    r175+ EXECUTION-phase will refine the contract — but the function
-    signature (session, asset, *, now_utc) is FROZEN by this ship so
-    consumers can integrate incrementally."""
+class TestClassifyZonePure:
+    """r179 EXECUTION : ``_classify_zone()`` non-overlapping UTC decomp."""
 
-    def test_skeleton_returns_none(self) -> None:
-        """r174 FOUNDATION : zero behavior change at deploy. Skeleton
-        returns None regardless of inputs. r175+ EXECUTION-phase will
-        implement the 5-step OHLC-over-session-window compute."""
+    def test_asian_hours_0_to_6(self) -> None:
+        for hour in range(7):
+            ts = datetime(2026, 5, 27, hour, 30, tzinfo=UTC)
+            assert _classify_zone(ts) == "asian", f"hour={hour} should be asian"
+
+    def test_london_hours_7_to_12(self) -> None:
+        for hour in range(7, 13):
+            ts = datetime(2026, 5, 27, hour, 30, tzinfo=UTC)
+            assert _classify_zone(ts) == "london", f"hour={hour} should be london"
+
+    def test_ny_hours_13_to_23_includes_late_ny_rollover(self) -> None:
+        for hour in range(13, 24):
+            ts = datetime(2026, 5, 27, hour, 30, tzinfo=UTC)
+            assert _classify_zone(ts) == "ny", f"hour={hour} should be ny"
+
+
+class TestClassifyDirectionPure:
+    """r179 EXECUTION : ``_classify_direction()`` body/range ratio."""
+
+    def test_up_when_close_above_open_with_high_body_ratio(self) -> None:
+        # body = 0.8, range = 1.0, ratio = 0.8 > 0.3 → directional up
+        assert _classify_direction(open_p=1.0, close_p=1.8, high=2.0, low=1.0) == "up"
+
+    def test_down_when_close_below_open_with_high_body_ratio(self) -> None:
+        # body = 0.8, range = 1.0, ratio = 0.8 > 0.3 → directional down
+        assert _classify_direction(open_p=2.0, close_p=1.2, high=2.0, low=1.0) == "down"
+
+    def test_range_when_body_below_threshold(self) -> None:
+        # body = 0.1, range = 1.0, ratio = 0.1 < 0.3 → range
+        assert _classify_direction(open_p=1.5, close_p=1.6, high=2.0, low=1.0) == "range"
+
+    def test_range_when_session_range_zero_defensive(self) -> None:
+        # range = 0 (all bars identical) → range (no div-by-zero crash)
+        assert _classify_direction(open_p=1.0, close_p=1.0, high=1.0, low=1.0) == "range"
+
+    def test_range_when_close_equals_open_threshold_met(self) -> None:
+        # body = 0, ratio = 0 < 0.3 → range (caught by threshold check first)
+        assert _classify_direction(open_p=1.5, close_p=1.5, high=2.0, low=1.0) == "range"
+
+
+class TestPickDominantZoneTieBreak:
+    """r179 EXECUTION : NY > London > Asian tie-breaker."""
+
+    def test_argmax_abs_return_when_no_tie(self) -> None:
+        london = _ZoneMetrics(
+            zone="london",
+            high=1.10,
+            low=1.05,
+            open=1.06,
+            close=1.09,
+            bar_count=300,
+            start_utc=datetime(2026, 5, 27, 7, 0, tzinfo=UTC),
+            end_utc=datetime(2026, 5, 27, 12, 59, tzinfo=UTC),
+        )
+        ny = _ZoneMetrics(
+            zone="ny",
+            high=1.12,
+            low=1.08,
+            open=1.09,
+            close=1.10,
+            bar_count=400,
+            start_utc=datetime(2026, 5, 27, 13, 0, tzinfo=UTC),
+            end_utc=datetime(2026, 5, 27, 20, 59, tzinfo=UTC),
+        )
+        # London abs_return = 0.03, NY abs_return = 0.01 → London wins.
+        winner = _pick_dominant_zone([london, ny])
+        assert winner is not None
+        assert winner.zone == "london"
+
+    def test_ny_wins_tie_against_london(self) -> None:
+        london = _ZoneMetrics(
+            zone="london",
+            high=1.10,
+            low=1.05,
+            open=1.06,
+            close=1.08,
+            bar_count=300,
+            start_utc=datetime(2026, 5, 27, 7, 0, tzinfo=UTC),
+            end_utc=datetime(2026, 5, 27, 12, 59, tzinfo=UTC),
+        )
+        ny = _ZoneMetrics(
+            zone="ny",
+            high=1.12,
+            low=1.08,
+            open=1.09,
+            close=1.11,
+            bar_count=400,
+            start_utc=datetime(2026, 5, 27, 13, 0, tzinfo=UTC),
+            end_utc=datetime(2026, 5, 27, 20, 59, tzinfo=UTC),
+        )
+        # Both abs_return = 0.02 → NY wins by priority.
+        winner = _pick_dominant_zone([london, ny])
+        assert winner is not None
+        assert winner.zone == "ny"
+
+    def test_returns_none_on_empty_metrics(self) -> None:
+        assert _pick_dominant_zone([]) is None
+
+
+class TestComputeZoneMetricsPure:
+    """r179 EXECUTION : ``_compute_zone_metrics()`` aggregation."""
+
+    def test_returns_none_for_empty_bars(self) -> None:
+        assert _compute_zone_metrics([], "asian") is None
+
+    def test_aggregates_open_close_high_low_from_sorted_bars(self) -> None:
+        bars = [
+            _fake_bar(datetime(2026, 5, 27, 7, 0, tzinfo=UTC), 1.05, 1.06, 1.04, 1.055),
+            _fake_bar(datetime(2026, 5, 27, 7, 1, tzinfo=UTC), 1.055, 1.065, 1.05, 1.06),
+            _fake_bar(datetime(2026, 5, 27, 7, 2, tzinfo=UTC), 1.06, 1.07, 1.058, 1.068),
+        ]
+        m = _compute_zone_metrics(bars, "london")
+        assert m is not None
+        assert m.zone == "london"
+        assert m.open == 1.05  # bars[0].open
+        assert m.close == 1.068  # bars[-1].close
+        assert m.high == 1.07  # max of highs
+        assert m.low == 1.04  # min of lows
+        assert m.bar_count == 3
+        assert abs(m.abs_return - 0.018) < 1e-9
+
+
+class TestComputeExecutionEndToEnd:
+    """r179 EXECUTION : full ``compute_previous_session_origin_zone()``
+    against AsyncMock session + fake bar fixtures."""
+
+    def test_returns_none_when_no_bars_in_window(self) -> None:
+        """Weekend / holiday scenario : polygon_intraday empty for asset.
+        Doctrine #11 calibrated honesty : return None, don't fabricate."""
 
         async def _run() -> None:
-            # Skeleton accepts None for session (it's reserved for r175+)
+            session = _fake_session(bars=[])
             result = await compute_previous_session_origin_zone(
-                session=None,  # type: ignore[arg-type]
+                session=session,
                 asset="EUR_USD",
                 now_utc=datetime(2026, 5, 28, 13, 0, tzinfo=UTC),
             )
@@ -147,26 +318,99 @@ class TestComputeSkeletonReturnsNone:
 
         asyncio.run(_run())
 
-    def test_skeleton_returns_none_for_all_priority_assets(self) -> None:
-        """Cross-asset smoke : skeleton is asset-agnostic at FOUNDATION."""
+    def test_returns_none_when_dominant_zone_below_low_n(self) -> None:
+        """Dominant zone has < 30 bars : honest absence per Cohen 1988."""
 
         async def _run() -> None:
-            for asset in (
-                "EUR_USD",
-                "GBP_USD",
-                "USD_JPY",
-                "AUD_USD",
-                "USD_CAD",
-                "XAU_USD",
-                "NAS100_USD",
-                "SPX500_USD",
-            ):
-                result = await compute_previous_session_origin_zone(
-                    session=None,  # type: ignore[arg-type]
-                    asset=asset,
-                    now_utc=datetime(2026, 5, 28, 13, 0, tzinfo=UTC),
+            # 10 NY bars only — below MIN_BAR_COUNT = 30.
+            base = datetime(2026, 5, 27, 13, 0, tzinfo=UTC)
+            bars = [
+                _fake_bar(base + timedelta(minutes=i), 1.05, 1.06, 1.04, 1.055) for i in range(10)
+            ]
+            session = _fake_session(bars=bars)
+            result = await compute_previous_session_origin_zone(
+                session=session,
+                asset="EUR_USD",
+                now_utc=datetime(2026, 5, 28, 13, 0, tzinfo=UTC),
+            )
+            assert result is None
+
+        asyncio.run(_run())
+
+    def test_classifies_ny_dominant_up_for_fx(self) -> None:
+        """FX EUR_USD : Asian flat, London mild move, NY strong up.
+        NY dominant ; classification up ; bar_count >= 30."""
+
+        async def _run() -> None:
+            base = datetime(2026, 5, 27, 0, 0, tzinfo=UTC)
+            bars: list[Any] = []
+            # Asian: 60 flat bars (range-bound)
+            for i in range(60):
+                bars.append(_fake_bar(base + timedelta(minutes=i), 1.05, 1.0505, 1.0495, 1.0501))
+            # London: 60 bars, mild +0.001 drift
+            ldn_base = datetime(2026, 5, 27, 7, 0, tzinfo=UTC)
+            for i in range(60):
+                bars.append(
+                    _fake_bar(
+                        ldn_base + timedelta(minutes=i),
+                        1.0501 + 0.0001 * i,
+                        1.0506 + 0.0001 * i,
+                        1.0498 + 0.0001 * i,
+                        1.0502 + 0.0001 * i,
+                    )
                 )
-                assert result is None, f"{asset}: skeleton must return None at r174"
+            # NY: 60 bars, strong +0.008 drift (close 1.069 from open 1.061)
+            ny_base = datetime(2026, 5, 27, 13, 0, tzinfo=UTC)
+            for i in range(60):
+                bars.append(
+                    _fake_bar(
+                        ny_base + timedelta(minutes=i),
+                        1.061 + 0.00015 * i,
+                        1.062 + 0.00015 * i,
+                        1.060 + 0.00015 * i,
+                        1.0612 + 0.00015 * i,
+                    )
+                )
+            session = _fake_session(bars=bars)
+            result = await compute_previous_session_origin_zone(
+                session=session,
+                asset="EUR_USD",
+                now_utc=datetime(2026, 5, 28, 13, 0, tzinfo=UTC),
+            )
+            assert result is not None
+            assert result.session_zone == "ny"
+            assert result.direction == "up"
+            assert result.bar_count == 60
+
+        asyncio.run(_run())
+
+    def test_classifies_nas_ny_only_for_equity(self) -> None:
+        """NAS100_USD : NYSE RTH only. Asian / London empty. NY dominant
+        by construction (only zone with bars)."""
+
+        async def _run() -> None:
+            base = datetime(2026, 5, 27, 13, 30, tzinfo=UTC)
+            bars: list[Any] = []
+            # 60 NY RTH bars, slight down move
+            for i in range(60):
+                bars.append(
+                    _fake_bar(
+                        base + timedelta(minutes=i),
+                        18500 - 5 * i,
+                        18510 - 5 * i,
+                        18490 - 5 * i,
+                        18495 - 5 * i,
+                    )
+                )
+            session = _fake_session(bars=bars)
+            result = await compute_previous_session_origin_zone(
+                session=session,
+                asset="NAS100_USD",
+                now_utc=datetime(2026, 5, 28, 13, 0, tzinfo=UTC),
+            )
+            assert result is not None
+            assert result.session_zone == "ny"
+            assert result.direction == "down"
 
         asyncio.run(_run())
 
