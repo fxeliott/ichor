@@ -5086,7 +5086,7 @@ Build gate **25/25 PASS** test_correlations_and_vol.py + 15/15 pre-commit hooks 
 - Header : h3 serif « Co-mouvement vs DXY » + caption « Engel-West 2005 · _JPE_ » + window/freshness sub-line
 - Cold-start disclosure banner `role="status" aria-live="polite"` when Polygon I:DXY 403 returns null row (« Données DXY en attente d'un proxy ETF UUP candidat r172 — mirror ADR-089 r27 SPY proxy »)
 - 8 rows DXY × asset : asset label + trendGlyph + realised ρ tabular-nums + prior ref + delta « inhabituel » pill (when |Δ| ≥ 0.30) + SVG diverging bar (240×8 ; centre line + faded prior bar + realised bar with `divergingStop` OKLCH 7-stop fill) + focus-asset border-l-2 emphasis
-- 5 HONEST_SENTINEL chips in `<details>` collapsible (cadre de lecture · 5 sentinelles d'honnêteté) with Engel-West 2005 _JPE_ + Bekaert-Hoerova-Lo Duca 2013 _JME_ + DTWEXBGS divergence + US-active stress + low-n citations
+- 5 HONEST*SENTINEL chips in `<details>` collapsible (cadre de lecture · 5 sentinelles d'honnêteté) with Engel-West 2005 \_JPE* + Bekaert-Hoerova-Lo Duca 2013 _JME_ + DTWEXBGS divergence + US-active stress + low-n citations
 - Footer ADR-017 framing verbatim « co-mouvement observé · monitoring · pas un signal (frontière ADR-017) »
 
 **NEW** `apps/web2/__tests__/dxyCorrelation.test.ts` (~255 LOC, vitest mirror `correlationHeat.test.ts` pattern doctrine #5 pin) :
@@ -5143,6 +5143,72 @@ Build gate **25/25 PASS** test_correlations_and_vol.py + 15/15 pre-commit hooks 
 
 1. ⭐ **r172 — DXY ETF proxy UUP** (Invesco DB US Dollar Index Bullish Fund) wired in `polygon.py ASSET_TO_TICKER` mapping → populate matrix cells DXY-row (mirror SPY proxy SPX500 ADR-089 r27). Effort S, HIGH (unblocks empirical DXY corrs).
 2. r172alt — G6 hour-of-day vol signature (Andersen-Bollerslev FFF + Rogers-Satchell FX + Yang-Zhang equity). Effort M, HIGH.
-3. r173 — G5 origin_zone (Baltussen 2021 _JFE_). Effort M, MED.
+3. r173 — G5 origin*zone (Baltussen 2021 \_JFE*). Effort M, MED.
 4. **NEW r172+** — backend `honest_sentinels.py` SSOT module + extended `CorrelationOut` Pydantic schema → lift frontend `DXY_PRIORS` duplicate + expose 5 HONEST_SENTINEL backend SSOT. Effort S-M, MED (closes RED-2 + RED-3 doctrine #4 debt).
 5. r175-r190 — Polymarket whales / ADR-106 Strides 5/7/2 / G7 / coach explicateur premium / SPF dispersion / STIR markets / 7-engines / newsfeed / forward-looking / 4 cycles / interconnexions / temporalité / /learn feedback / notifications
+
+## §Impl(r172) — G2 DXY ETF UUP proxy + R-DEPLOY-6 LIVE (closes r171a/b cold-start, 2026-05-28)
+
+**Closure complète G2 cold-start** : r171a backend correlations 8→9 + r171b frontend `<DxyCorrelationPanel>` + r172 UUP proxy = G2 end-to-end + cold-start eliminated. Mirror ADR-089 r27 SPY-for-SPX precedent. R-DEPLOY-6 LIVE Hetzner ~43s. Empirical post-deploy `polygon_intraday` DXY rows = 240 (was 0) within ~5min — UUP bars actively ingesting as `asset="DXY"`.
+
+### Patch r172 (commit `1c09ae7`, +97/-11 LOC, 3 files)
+
+- `collectors/polygon.py:62` : `"DXY": "I:DXY"` → `"DXY": "UUP"` (NYSE Arca ETF Invesco DB US Dollar Index Bullish Fund, CUSIP 46141D203) + 50-line commentary block documenting (a) UUP/DXY tracking rationale (long DX futures on ICE = same DXY USDX® basket), (b) Pattern #15 R59 honest tracking-error stamp ~0.94 practitioner-grade UUP↔DXY log-returns ρ (NOT peer-reviewed magnitude), (c) NYSE RTH-only market-hours caveat ~137 hour-buckets/30d (4.5× above 30 threshold ; NY-session co-movement only), (d) DXY_BREAKOUT alert recalibration deferred r172b+ (UUP-scale $25-30 vs catalog thresholds 105/100 ; alerts stay silent identical to pre-r172 due to opposite cause), (e) reversibility 1-line revert to "I:DXY"
+- `services/correlations.py:43-58` (r171a comment block) : "UUP r172 candidate" → "UUP wired r172" + honest correlation magnitude stamp + NYSE-hours scope caveat
+- `tests/test_polygon_parser.py` : extend `test_asset_to_ticker_uses_correct_namespaces` with DXY ∈ {"UUP", "I:DXY"} + NEW `test_dxy_uses_etf_proxy_or_indices_plan` CI guard (mirror ADR-089 :136-143)
+
+### Pattern #15 R59 = 21 applications stable (4 NEW catches r172, 4ème META-self-application en 3-round span)
+
+Sub-agent abdf1642df9f7bc53 pre-flight caught **3 YELLOW + 1 RED on my own proposal premises** :
+
+- **RED Claim 7** : `_as_*_proxy` stamp convention (e.g. `Polygon:UUP_as_DXY_proxy`) DOES NOT EXIST in codebase (grep 0 matches). Real pattern = `polygon_intraday:{asset}@...` per `correlations.py:225`. False memory removed before commit.
+- **YELLOW-2** : initial claim "0.95-0.98 correlation + Elton-Gruber 2002 _J Business_" was hallucination. Real UUP↔DXY ≈ 0.94 practitioner (Ainvest/etfdb sources) ; NO peer-reviewed academic study surfaced. Honest stamp "~0.94 practitioner, NOT peer-reviewed magnitude" + Pattern #15 reference adopted in polygon.py + correlations.py
+- **YELLOW-3** : Polygon plan support claim needed empirical proof → verified `curl /v2/aggs/ticker/UUP/range/1/day/2026-05-20/2026-05-27` on Hetzner production env = **HTTP 200** ✓
+- **YELLOW-5** : RTH-only data restricts ρ to NY-session co-movement (acknowledged ADR-089 r27:83) — documented explicitly
+
+Sources verified primary :
+
+- SEC Form 424B3 FY2025 UUP prospectus : https://www.sec.gov/Archives/edgar/data/0001371571/000119312525188745/d72681d424b3.htm
+- Polygon ticker types : https://polygon.io/knowledge-base/article/what-are-the-different-types-of-tickers-that-polygon-supports
+- ADR-089 r27 SPY precedent : `docs/decisions/ADR-089-spx500-spy-etf-proxy.md`
+
+### R-DEPLOY-6 LIVE Hetzner (~43s)
+
+- redeploy-api.sh : Step 5 Pattern #14 SSH-retry sleep 15s fired 1× ; healthz=200 + sample(/v1/geopolitics/briefing)=200 ; backup `ichor_api.20260528-070532` (1-line revert < 30s)
+- **EMPIRICAL POST-DEPLOY** : `polygon_intraday` table DXY rows = **240** within ~5min of deploy (was 0 pre-r172, R2 audit empirical) — UUP bars actively ingested as `asset="DXY"` with `ticker="UUP"`. Matrix DXY-row cells remain null in `/v1/correlations` until ~5 NYSE trading days accumulate ≥30 hour-buckets (240 × 1-min bars = 4h elapsed, sub-30-hour threshold)
+- `/v1/correlations` shape unchanged (9 assets, 9×9 matrix) — zero regression
+
+### Doctrine alignment
+
+- **ADR-017** preserved (W90 48/48 PASS — collector mapping is data plumbing layer)
+- **Doctrine #2 strict scope** — 1 atomic feat commit (3 files) ; NO new ADR / migration / feature flag / endpoint
+- **Doctrine #4 SSOT** — `ASSET_TO_TICKER` single source ; downstream stamps read asset code not ticker (opaque to substitution)
+- **Doctrine #9 anti-accumulation** — UUP wire-up materialises r171a comment block's stated r172 candidate (no roadmap drift)
+- **Doctrine #11 calibrated honesty** — explicit ~0.94 practitioner stamp (NOT peer-reviewed), RTH-only scope, alert-recalibration limitation documented
+- **Doctrine #12 anti-recidive** — Pattern #15 R59 pre-flight subagent OBLIGATOIRE caught 4 self-catches before commit
+- **Doctrine #21 R30 HONORED** 2nd consecutive round (§1 + §3 dual-sync, continuation r171b discipline)
+- **ADR-089 mirror discipline** — codebase has 2 ETF-proxy mappings now (SPX500_USD→SPY r27 + DXY→UUP r172) sharing exact doctrinal hygiene
+
+### Build gate (LOCAL + EMPIRICAL)
+
+- pytest test_polygon_parser + test_invariants_ichor = **58/58 PASS** in 6.73s
+- W90 invariants **48/48 PASS**
+- curl UUP Polygon empirical = **HTTP 200** ✓
+- **15/15 pre-commit hooks PASS**
+- post-deploy `polygon_intraday` DXY rows = 240 (was 0) — collector cascade working
+
+### Mission centrale axes post-r172
+
+1 ✅ r123 / 2 ✅ r123 / 3 ✅ r132+r133 / 4 ✅ r152+r147→r160 / 5 ✅ r140+r146 / 6 ✅ r142+r143 / 7 🎯 r65+r128 LIVE / 8 🟡 r131 PARTIAL / +9 r161 Autonomy 24/7 ADR-106 / +10 r167 Honest tradeability / **+11 r171a+r171b+r172 G2 DXY co-mouvement BACKEND + FRONTEND + PROXY SHIPPED end-to-end ✅** (closes Eliot Fathom 2026-05-25 §XI verbatim « pilier de notre analyse » + cold-start eliminated by construction).
+
+**Voie D 91 rounds tenus**. **ZERO Anthropic API spend r172 cycle.**
+
+### r173+ binding-defaults
+
+1. ⭐ G6 hour-of-day vol signature (Andersen-Bollerslev FFF + Rogers-Satchell + Yang-Zhang) — HIGH leverage
+2. G5 origin_zone (Baltussen 2021 _JFE_) — MED
+3. Backend `honest_sentinels.py` SSOT (closes r171b RED-2+RED-3 + r172 RED-7 doctrine #4 debt) — MED
+4. DXY alert recalibration to UUP-scale OR `services/uup_to_dxy_proxy.py` layer (closes r172 known limitation) — LOW
+5. NEW issues post-r170 R2 audit (B1-B15)
+6. Polymarket whales + ADR-106 Strides 2-7
+7. r181 ⭐ SPF dispersion + r182 ⭐⭐ STIR markets TRANSFORMATIONAL

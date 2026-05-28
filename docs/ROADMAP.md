@@ -10,6 +10,24 @@
 
 ---
 
+## §1 — Current state (r172 full close + R-DEPLOY-6 LIVE Hetzner — G2 DXY end-to-end CLOSED, 2026-05-28)
+
+### Shipped at r172 — **G2 DXY ETF UUP proxy + R-DEPLOY-6 LIVE Hetzner — closes r171a/b cold-start**
+
+**Commit** `1c09ae7` `feat(api): r172 G2 DXY ETF UUP proxy (closes r171a/b cold-start ; mirror ADR-089 SPY proxy precedent)` (+97/-11 LOC, 3 files). **72 commits ahead origin/main** `353df68` (was 71 at r171b-close → +1 r172). Stack r170+r171a+r171b+r172 sur branche `claude/amazing-heyrovsky-80df1e` HEAD `1c09ae7`. 1-line semantic change `polygon.py:62 "DXY": "I:DXY"` → `"DXY": "UUP"` + 50-line honest commentary + 2 CI guard tests mirror ADR-089 pattern. ZERO new ADR/migration/feature flag/endpoint.
+
+**Pattern #15 R59 pre-flight subagent abdf1642df9f7bc53 = 4ème META-self-application** (after r170 META + r171b 6 catches) : caught 3 YELLOW + 1 RED on my own proposal premises — RED-7 `_as_*_proxy` stamp DOES NOT EXIST (false memory removed) + YELLOW-2 over-claimed 0.95-0.98 → honest 0.94 practitioner (Elton-Gruber 2002 hallucination) + YELLOW-3 curl UUP empirical HTTP 200 verified + YELLOW-5 RTH-only NY-session scope documented.
+
+**R-DEPLOY-6 LIVE Hetzner ~43s** (Pattern #14 SSH-retry sleep 15s fired 1× Step 5) : redeploy-api.sh healthz=200 + sample=200 + backup `ichor_api.20260528-070532` (1-line revert < 30s). **EMPIRICAL POST-DEPLOY** : `polygon_intraday` DXY rows = **240** within ~5min (was 0 pre-r172) — UUP bars actively ingested as `asset="DXY"` with `ticker="UUP"`. Matrix DXY-row cells will populate after ~5 NYSE trading days. **Cold-start eliminated by construction**.
+
+**Build gate (LOCAL + EMPIRICAL)** : pytest 58/58 PASS + W90 invariants 48/48 PASS + tsc clean + ruff clean + 15/15 pre-commit hooks + curl UUP HTTP 200 empirical.
+
+**Voie D 91 rounds tenus**. **Pattern #15 R59 = 21 applications stable**. **ZERO Anthropic API spend r172 cycle.**
+
+**Mission centrale axes post-r172** : 1 ✅ r123 / 2 ✅ r123 / 3 ✅ r132+r133 / 4 ✅ r152+r147→r160 / 5 ✅ r140+r146 / 6 ✅ r142+r143 / 7 🎯 r65+r128 LIVE / 8 🟡 r131 PARTIAL / +9 r161 Autonomy 24/7 ADR-106 / +10 r167 Honest tradeability / **+11 r171a+r171b+r172 G2 DXY co-mouvement BACKEND + FRONTEND + PROXY SHIPPED end-to-end ✅** (Eliot §XI « pilier » CLOSED + cold-start eliminated by construction).
+
+### Pre-r172 line preserved (r171b-close)
+
 ## §1 — Current state (r171b full close + R-DEPLOY-6 LIVE Hetzner, 2026-05-28)
 
 ### Shipped at r171b — **G2 DXY co-mouvement frontend `<DxyCorrelationPanel>` + R-DEPLOY-6 LIVE Hetzner end-to-end (Eliot §XI « pilier » CLOSED)**
@@ -268,7 +286,34 @@ See `docs/ROADMAP_2026-05-06.md` for the original 4-layer architecture (DATA FOU
 
 ---
 
-## §3 — Immediate next (r172) — ⭐ DXY ETF UUP PROXY (populates DXY matrix cells, closes r171a/b cold-start)
+## §3 — Immediate next (r173) — ⭐ G6 HOUR-OF-DAY VOL SIGNATURE (Andersen-Bollerslev FFF + Rogers-Satchell + Yang-Zhang)
+
+**r172 EXECUTED & SHIPPED + DEPLOYED LIVE Hetzner (2026-05-28)** : 🎯 **G2 DXY ETF UUP proxy** closes r171a+r171b cold-start. Single feat commit `1c09ae7` +97/-11 LOC across 3 files (polygon.py mapping + correlations.py comment update + tests CI guard). R-DEPLOY-6 LIVE ~43s. **Empirical post-deploy** `polygon_intraday` DXY rows = 240 (was 0) within ~5min — UUP bars actively ingesting as `asset="DXY"`. Matrix DXY-row cells will populate empirically after ~5 NYSE trading days. **Voie D 91 rounds tenus**, **Pattern #15 R59 = 21 applications** (4 META self-catches r172 pre-flight : RED-7 stamp + YELLOW-2 magnitude + YELLOW-3 plan + YELLOW-5 scope).
+
+**Doctrine #21 R30 anti-recidive HONORED 2nd consecutive round** : §1 + §3 BOTH refreshed in same closing-sync (continuation r171b discipline). NEW r173 default-sans-pivot enacted.
+
+**Stack r170+r171a+r171b+r172** (4 rounds shipped + 4 deploys LIVE) :
+
+- `814569c` r170 G-fix-Couche2 hooks PS1 conditional bail-out
+- `8e08470` r171a G2 DXY backend correlations 8→9
+- `bd7cc59` r171b G2 DXY frontend `<DxyCorrelationPanel>` + R-DEPLOY-6 LIVE
+- `1c09ae7` r172 G2 DXY UUP proxy + R-DEPLOY-6 LIVE (closes cold-start)
+
+**r173 binding-default candidates** (priority order, doctrine #10 default-sans-pivot) :
+
+1. ⭐ **G6 hour-of-day volatility signature** (Eliot methodology §VI — HIGH leverage) : per-asset 30/60/90-day vol-by-hour signature (Andersen-Bollerslev 1997 _JEF_ DOI 10.1016/S0927-5398(97)00004-2 Flexible Fourier Form + Rogers-Satchell 1991 _MathFin_ range estimator FX + Yang-Zhang 2000 _JBus_ DOI 10.1086/209650 weekend-gap equity). Pure backend service + frontend `<HourlyVolReport>` extension. R59 pre-flight obligatoire (Bauer 2024 + Lee-Mykland 2008 jump-test). Effort M, 1-2 sessions.
+2. **G5 previous-session origin zone** (Eliot §V — MED) : persist `previous_session_origin_zone` ; Baltussen 2021 _JFE_ (NOT Kaul-Sapp r168b R59 catch). Effort M.
+3. **Backend `honest_sentinels.py` SSOT module + extended `CorrelationOut` Pydantic schema** (closes r171b RED-2 + RED-3 + r172 RED-7 doctrine #4 debt) → lift frontend duplicates + expose to Couche-2 + Pass-6. Effort S-M, MED.
+4. **DXY alert recalibration UUP-scale OR `services/uup_to_dxy_proxy.py`** (closes r172 known limitation : DXY_BREAKOUT_UP/DOWN catalog thresholds 105/100 vs UUP $25-30). Effort S, LOW.
+5. **NEW issues post-r170 R2 audit empirical** : B1 `news_nlp` Pydantic sentiment enum drift (25.6% 7d fail) + B3 `data_freshness_days=56` FRED stale + B5 ADWIN/RAG/dtw/outlier 0 firings 7d + B6 49% throughput cards (109/7d vs 224 target). Effort S each.
+6. **Polymarket whales** Δ-YES + Kalshi divergence (G8 + ADR-106 Stride 6 dep) : Wolfers-Zitzewitz 2004 _JEP_ + Ng-Peng-Tao-Zhou 2024. Effort L.
+7. **ADR-106 Strides 2-7** (autonomous 24/7 living-system continuation) : real-time news 5min + cascades + WebSocket SSE. M-XL.
+8. **Honest-gap closures r164 monitor** (Tier 4 hygiene) : Effort S-M.
+9. **r181 ⭐ SPF dispersion** (Born et al 2023 _EER_) + **r182 ⭐⭐ STIR markets TRANSFORMATIONAL** (Bauer-Swanson 2023 _AER_ + Nakamura-Steinsson 2018 _QJE_). Effort M + L.
+
+Pattern #15 R59 applies to every ⭐ — r173 G6 vol Phase 0 R59 obligatoire (Bauer 2024 jump-detection bias + Lee-Mykland 2008 ABDV statistical properties + Andersen-Bollerslev FFF specification verbatim). R-DEPLOY-6 codified deploy procedure validated 4-rounds-consecutive (r168 + r171a + r171b + r172).
+
+## §3 — Previous immediate next (r172, EXECUTED 2026-05-28) — ⭐ DXY ETF UUP PROXY (populates DXY matrix cells, closes r171a/b cold-start)
 
 **r171b EXECUTED & SHIPPED + DEPLOYED LIVE Hetzner (2026-05-28)** : 🎯 **G2 DXY co-mouvement frontend `<DxyCorrelationPanel>` end-to-end** closes Eliot Fathom 2026-05-25 §XI verbatim « pilier de notre analyse ». Single feat commit `bd7cc59` +732 LOC across 5 files (3 NEW : `lib/dxyCorrelation.ts` + `components/briefing/DxyCorrelationPanel.tsx` + `__tests__/dxyCorrelation.test.ts` ; 2 MODIFY : `app/briefing/[asset]/page.tsx` + `services/correlations.py:178` docstring hot-fix). R-DEPLOY-6 LIVE confirmed empirique : backend `/v1/correlations` returns 9 assets + 9×9 matrix + DXY row null (cold-start by construction) ; frontend public https://operations-mail-signals-rubber.trycloudflare.com/briefing http=200.
 
