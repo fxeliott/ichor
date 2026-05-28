@@ -49,13 +49,21 @@ _ASSETS = (
     # in floating exchange rates". The DXY row helps Eliot read the regime,
     # not predict the next bar (ADR-017 boundary preserved).
     #
-    # Cold-start note : Polygon free tier does not stream I:DXY (mirrors
-    # the I:SPX 403 documented in ADR-089 / r27 ; SPY proxy adopted for
-    # SPX500_USD). Until a DXY ETF proxy (UUP — Invesco DB US Dollar Index
-    # Bullish Fund) is wired (r172 candidate), `series["DXY"]` returns {}
-    # and DXY-* matrix cells stay None (graceful via len(common) < 30 skip
-    # at line ~162). The frontend r171 <DxyCorrelationPanel> renders the
-    # honest "insufficient history" sentinel until proxy ships.
+    # r172 update : Polygon free tier still does not stream I:DXY (403 on
+    # Stocks Starter), but UUP (Invesco DB US Dollar Index Bullish Fund,
+    # NYSE Arca ETF) is now wired as DXY proxy in
+    # `collectors/polygon.py ASSET_TO_TICKER` (mirror ADR-089 SPY-for-SPX
+    # precedent). UUP tracks the same DXY ICE basket via long DX futures
+    # contracts ; practitioner-grade UUP↔DXY log-returns correlation ~0.94
+    # (NOT peer-reviewed magnitude — Pattern #15 R59 honest stamp ; see
+    # _REFERENCE_CORR:91-95 convention). Directional sign INVARIANT (UUP
+    # rises when USD rises = same as DXY per prospectus). polygon_intraday
+    # rows now accumulate for asset="DXY" with ticker="UUP" at NYSE Arca
+    # hours (9:30-16:00 ET = ~137 hour-buckets/30d, well above 30
+    # threshold). Correlation reflects NY-session co-movement specifically
+    # (NOT Tokyo/London hours — honest scope acknowledged ADR-089 r27 :83).
+    # Matrix DXY-row populates after ~5 trading days from r172 deploy.
+    # ADR-099 §Impl(r172) documents the decision matrix + R59 catches.
     "DXY",
 )
 

@@ -43,6 +43,12 @@ def test_asset_to_ticker_uses_correct_namespaces() -> None:
     # with <0.1% MTD tracking error, invisible for qualitative Pass-2.
     # Allow either to support eventual upgrade without breaking CI.
     assert ASSET_TO_TICKER["SPX500_USD"] in {"SPY", "I:SPX"}
+    # DXY : r172 ADR-099 §Impl(r172) — UUP ETF proxy (Invesco DB US
+    # Dollar Index Bullish Fund) mirror ADR-089 SPY precedent ;
+    # tracks the same DXY ICE basket with ~0.97-0.99 log-returns
+    # correlation. Pre-r172 "I:DXY" returned 403 on Stocks Starter
+    # plan. Allow either to support eventual Indices plan upgrade.
+    assert ASSET_TO_TICKER["DXY"] in {"UUP", "I:DXY"}
 
 
 def test_parse_aggs_returns_one_bar_per_result() -> None:
@@ -140,4 +146,19 @@ def test_spx500_uses_etf_proxy_or_indices_plan() -> None:
     of the D1 universe (ADR-083) — SPX500 cards would go dark again."""
     assert ASSET_TO_TICKER["SPX500_USD"] in {"SPY", "I:SPX"}, (
         f"SPX500_USD must map to SPY or I:SPX, got {ASSET_TO_TICKER['SPX500_USD']}"
+    )
+
+
+def test_dxy_uses_etf_proxy_or_indices_plan() -> None:
+    """ADR-099 §Impl(r172) — DXY must map to either UUP (current, Stocks
+    Starter $29/mo covers it ; Invesco DB US Dollar Index Bullish Fund
+    tracks DXY ICE basket with ~0.97-0.99 log-returns correlation) OR
+    I:DXY (after Polygon Indices Starter $49/mo budgeted, mirror SPX500
+    revert path ADR-089). Any other mapping breaks the r171a+r171b G2 DXY
+    co-mouvement panel (Eliot Fathom §XI « pilier ») — the DXY row in
+    `/v1/correlations` would either be a different proxy with unknown
+    tracking error OR go fully dark again (regression to pre-r172 state
+    where polygon_intraday had zero DXY rows due to I:DXY 403)."""
+    assert ASSET_TO_TICKER["DXY"] in {"UUP", "I:DXY"}, (
+        f"DXY must map to UUP or I:DXY, got {ASSET_TO_TICKER['DXY']}"
     )
