@@ -246,6 +246,28 @@ parse of forex_factory title format ; r183+ may add ECB/BoE/BoJ."""
 _HIGH_IMPACT_DATA_LOOKBACK_DAYS: Final[int] = 5
 _HIGH_IMPACT_TAG: Final[str] = "high"
 
+_FISCAL_LOOKBACK_DAYS: Final[int] = 7
+"""r188 — fiscal-policy event window. 7 days catches the typical
+budget cycle + tariff announcement cluster Eliot Fathom transcript
+étape 1 identifies (« Trump tariffs 2026 = fiscal-policy-class »)."""
+
+_FISCAL_TITLE_KEYWORDS: Final[tuple[str, ...]] = (
+    "tariff",
+    "fiscal",
+    "budget",
+    "debt ceiling",
+    "deficit",
+    "treasury auction",
+    "treasury refunding",
+    "spending bill",
+    "appropriations",
+)
+"""Title substrings (lowercased ILIKE) that mark fiscal-policy events
+in `economic_events`. Practitioner parse of ForexFactory + treasury
+calendar title patterns. NEW keywords MUST be added via PR with R59
+ground-truth that the substring actually appears in the upstream
+collector data — not invented."""
+
 _BASELINE_STRENGTH: Final[float] = 0.2
 """Driver baseline strength when no positive signal. Doctrine #11
 calibrated honesty : NOT zero (avoids false honest-absence trigger
@@ -322,6 +344,36 @@ async def _fomc_proximity_days(
         return None
     min_days = min(abs((r.scheduled_at - now_utc).days) for r in candidates)
     return min_days
+
+
+async def _count_recent_fiscal_events(
+    session: AsyncSession,
+    *,
+    now_utc: datetime,
+) -> int:
+    """r188 — count fiscal-policy events fired in last
+    ``_FISCAL_LOOKBACK_DAYS`` days. Returns 0 when none.
+
+    Queries ``economic_events`` for any USD-currency event whose
+    title matches any of ``_FISCAL_TITLE_KEYWORDS`` (case-insensitive
+    substring), regardless of impact tag (a treasury auction can
+    move the curve even when ForexFactory marks it medium-impact).
+
+    Eliot Fathom transcript étape 1 verbatim : « Trump tariffs 2026 =
+    fiscal-policy-class ». This helper materialises that detection."""
+    lo = now_utc - timedelta(days=_FISCAL_LOOKBACK_DAYS)
+    stmt = (
+        select(EconomicEvent)
+        .where(EconomicEvent.currency == "USD")
+        .where(EconomicEvent.scheduled_at.is_not(None))
+        .where(EconomicEvent.scheduled_at >= lo)
+        .where(EconomicEvent.scheduled_at <= now_utc)
+    )
+    rows = (await session.execute(stmt)).scalars().all()
+    # Filter in Python for the OR-of-keyword match (small result set
+    # after the time-window filter ; cleaner than OR-chain in SQL).
+    matched = [r for r in rows if any(kw in r.title.lower() for kw in _FISCAL_TITLE_KEYWORDS)]
+    return len(matched)
 
 
 async def _count_recent_high_impact_releases(
@@ -495,8 +547,17 @@ async def classify_dominant_theme(
     else:
         strengths["macroeconomic"] = _BASELINE_STRENGTH
 
-    # r183+ EXECUTION enrichment : these 3 use baseline at r182 ship.
-    strengths["fiscal_policy"] = _BASELINE_STRENGTH
+    # r188 EXECUTION enrichment : fiscal_policy now wired via
+    # `_count_recent_fiscal_events()`. 1 fiscal event in last 7d → 0.6
+    # ; each additional event +0.05 capped at 0.85. Eliot Fathom
+    # transcript étape 1 « Trump tariffs 2026 = fiscal-policy-class ».
+    fiscal_count = await _count_recent_fiscal_events(session, now_utc=now_utc)
+    if fiscal_count >= 1:
+        strengths["fiscal_policy"] = min(0.85, 0.6 + 0.05 * (fiscal_count - 1))
+    else:
+        strengths["fiscal_policy"] = _BASELINE_STRENGTH
+
+    # r189+ EXECUTION enrichment : these 2 still use baseline at r188.
     strengths["price_action_flow"] = _BASELINE_STRENGTH
     strengths["supply_demand"] = _BASELINE_STRENGTH
 

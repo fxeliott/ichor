@@ -231,6 +231,7 @@ class TestClassifyDominantThemeExecution:
                 patch.object(
                     tc_mod, "_count_recent_high_impact_releases", AsyncMock(return_value=0)
                 ),
+                patch.object(tc_mod, "_count_recent_fiscal_events", AsyncMock(return_value=0)),
                 patch.object(tc_mod, "_is_ai_gpr_elevated", AsyncMock(return_value=False)),
             ):
                 result = await classify_dominant_theme(
@@ -251,6 +252,7 @@ class TestClassifyDominantThemeExecution:
                 patch.object(
                     tc_mod, "_count_recent_high_impact_releases", AsyncMock(return_value=0)
                 ),
+                patch.object(tc_mod, "_count_recent_fiscal_events", AsyncMock(return_value=0)),
                 patch.object(tc_mod, "_is_ai_gpr_elevated", AsyncMock(return_value=False)),
             ):
                 result = await classify_dominant_theme(
@@ -273,6 +275,7 @@ class TestClassifyDominantThemeExecution:
                 patch.object(
                     tc_mod, "_count_recent_high_impact_releases", AsyncMock(return_value=0)
                 ),
+                patch.object(tc_mod, "_count_recent_fiscal_events", AsyncMock(return_value=0)),
                 patch.object(tc_mod, "_is_ai_gpr_elevated", AsyncMock(return_value=True)),
             ):
                 result = await classify_dominant_theme(
@@ -301,6 +304,7 @@ class TestClassifyDominantThemeExecution:
                 patch.object(
                     tc_mod, "_count_recent_high_impact_releases", AsyncMock(return_value=0)
                 ),
+                patch.object(tc_mod, "_count_recent_fiscal_events", AsyncMock(return_value=0)),
                 patch.object(tc_mod, "_is_ai_gpr_elevated", AsyncMock(return_value=False)),
             ):
                 result = await classify_dominant_theme(
@@ -323,6 +327,7 @@ class TestClassifyDominantThemeExecution:
                 patch.object(
                     tc_mod, "_count_recent_high_impact_releases", AsyncMock(return_value=3)
                 ),
+                patch.object(tc_mod, "_count_recent_fiscal_events", AsyncMock(return_value=0)),
                 patch.object(tc_mod, "_is_ai_gpr_elevated", AsyncMock(return_value=False)),
             ):
                 result = await classify_dominant_theme(
@@ -356,6 +361,7 @@ class TestClassifyDominantThemeExecution:
                 patch.object(
                     tc_mod, "_count_recent_high_impact_releases", AsyncMock(return_value=0)
                 ),
+                patch.object(tc_mod, "_count_recent_fiscal_events", AsyncMock(return_value=0)),
                 patch.object(tc_mod, "_is_ai_gpr_elevated", AsyncMock(return_value=False)),
             ):
                 result = await classify_dominant_theme(
@@ -385,6 +391,7 @@ class TestClassifyDominantThemeExecution:
                 patch.object(
                     tc_mod, "_count_recent_high_impact_releases", AsyncMock(return_value=0)
                 ),
+                patch.object(tc_mod, "_count_recent_fiscal_events", AsyncMock(return_value=0)),
                 patch.object(tc_mod, "_is_ai_gpr_elevated", AsyncMock(return_value=True)),
             ):
                 result = await classify_dominant_theme(
