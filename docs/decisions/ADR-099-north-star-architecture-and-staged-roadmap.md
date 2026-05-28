@@ -5333,6 +5333,36 @@ Closes the ONLY deferred debt from r177-close. After 12 atomic rounds shipped th
 
 **Mission centrale axes post-r182** : Axes 1-7 ✅ + 8 PARTIAL + 9 ADR-106 Stride 1 + 10 r167 LIVE + +11 G2 DXY ✅ + +12 honest_sentinels ✅ + +13 r174-r176 ✅ + +14 r179 G5 EXECUTION ✅ + +15 r180 G5 CONSUMER WIRING ✅ + +16 r181 N1 FOUNDATION ✅ + **+17 r182 N1 EXECUTION-phase compute ✅** (r181 → r182 N1 arc closed ; r183 CONSUMER WIRING queued).
 
+## §Impl(r185) — Frontend endpoint `GET /v1/theme-dominant` exposing r182 N1 EXECUTION classifier (mirror r184 origin_zone pattern, completes backend→endpoint parity for r179+r182 arcs) + Doctrine #21 R30 12 rounds RECORD (2026-05-28)
+
+**Default-sans-pivot honored** post-r184 close : closes the endpoint-parity gap (r184 exposes r179 G5 origin_zone ; r185 exposes r182 N1 theme classifier). After r185, the frontend has BOTH endpoints needed for r186 React panels.
+
+**Files NEW** :
+
+- `apps/api/src/ichor_api/routers/theme_dominant.py` ~165 LOC : APIRouter(prefix=/v1/theme-dominant) + Pydantic frozen ThemeDominantOut + \_project_ranking() pure projector (exhaustive 8-driver dispatch) + GET endpoint asset-agnostic + 200/404 surface + Cache-Control: private, no-store.
+- `apps/api/tests/test_theme_dominant_router.py` ~165 LOC : 9 tests across 4 NEW test classes.
+
+**Files MODIFIED** :
+
+- `routers/__init__.py` : alphabetical import + **all**.
+- `main.py` : alphabetical import + app.include_router(theme_dominant_router) after tempo_thresholds_router.
+
+**Asset-agnostic design rationale** : the theme dominant the GLOBAL macro regime (not per-asset). Frontend renders « Thème dominant aujourd'hui : geopolitics 75% » as top-banner pane consumed by every `/briefing/X` route. ONE endpoint, multiple consumers. Pre-computed percentage-int fields (top_theme_strength_pct + driver_strengths_pct exhaustive 8-driver dict) for clean UI render without client-side math.
+
+**ADR-079 watermark exclusion HONORED** : `/v1/theme-dominant` is PURE DATA route (no LLM emission) → NOT added to AIWatermarkMiddleware DEFAULT_WATERMARKED_PREFIXES. W90 invariant test `test_pure_data_routes_excluded_from_watermark` covers this category.
+
+**ADR-017 boundary preserved by construction** : ThemeDominantOut.top_theme is Literal of 8 descriptive driver labels for the current macro REGIME, NEVER directional bias for any asset. Pydantic frozen + extra=forbid + 0-100 bounds on strength_pct fields.
+
+**Build gate (LOCAL MEASURED)** : 65/65 PASS in 6.66s (9 r185 NEW + 9 r184 + 47 W90 invariants).
+
+**Pattern #15 R59 pre-flight HONORED** : mirror r184 origin_zone.py pattern verbatim (Pydantic projection + router wiring + tests structure). ZERO cargo-cult.
+
+**Doctrine #21 R30 HONORED 12 rounds consecutifs RECORD EXTENDED** : §1+§3 chain r171b+r172+r173+r177+r178+r179+r180+r181+r182+r183+r184+r185 = **12 consecutive** (was 11 RECORD r184-close, +1 r185 extension).
+
+**Voie D 105 rounds** post-CENTURY MILESTONE. **ZERO Anthropic API spend r185 cycle.**
+
+**Mission centrale axes post-r185** : Axes 1-7 ✅ + 8 PARTIAL + 9 ADR-106 Stride 1 + 10 r167 LIVE + +11 G2 DXY ✅ + +12 honest_sentinels ✅ + +13 r174-r176 ✅ + +14 r179 G5 EXECUTION ✅ + +15 r180 G5 CONSUMER WIRING ✅ + +16 r181 N1 FOUNDATION ✅ + +17 r182 N1 EXECUTION ✅ + +18 r183 N1 CONSUMER WIRING ✅ + +19 r184 G5 FRONTEND ENDPOINT ✅ + **+20 r185 N1 FRONTEND ENDPOINT ✅** (backend→endpoint parity COMPLETE for G5+N1 arcs).
+
 ## §Impl(r184) — Frontend endpoint `GET /v1/origin-zone/{asset}` exposing r179 G5 EXECUTION classifier (mirror r161 verdict + r171a correlations) + Doctrine #21 R30 11 rounds RECORD (2026-05-28)
 
 **Default-sans-pivot honored** post-r183 close : pivot vers frontend visibility wave (closes anti-pattern « shipping in vacuum » identifié Pattern #12 self-challenge — r179-r183 backend LIVE Hetzner mais Eliot ne voit RIEN dans `/briefing/{asset}`). r184 atomic ship = backend endpoint EXPOSANT r179 G5 EXECUTION classifier ; r185+ ships frontend React component.

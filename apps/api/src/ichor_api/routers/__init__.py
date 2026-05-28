@@ -41,6 +41,7 @@ from .scenarios import router as scenarios_router
 from .sessions import router as sessions_router
 from .sources import router as sources_router
 from .tempo_thresholds import router as tempo_thresholds_router
+from .theme_dominant import router as theme_dominant_router
 from .today import router as today_router
 from .tools import router as tools_router
 from .trade_plan import router as trade_plan_router
@@ -87,6 +88,7 @@ __all__ = [
     "sessions_router",
     "sources_router",
     "tempo_thresholds_router",
+    "theme_dominant_router",
     "today_router",
     "tools_router",
     "trade_plan_router",

@@ -10,6 +10,26 @@
 
 ---
 
+## §1 — Current state (r185 full close — FRONTEND ENDPOINT `GET /v1/theme-dominant` SHIPPED, atomic continuation r184→r185 same-session, 2026-05-28)
+
+### Shipped at r185 — **Frontend endpoint exposing r182 N1 EXECUTION classifier (mirror r184 origin_zone pattern, completes backend→endpoint parity for r179+r182 arc)**
+
+NEW `apps/api/src/ichor_api/routers/theme_dominant.py` ~165 LOC : `APIRouter(prefix="/v1/theme-dominant")` + Pydantic frozen `ThemeDominantOut` (top_theme + top_theme_strength_pct ge=0 le=100 + secondary_themes max_length=3 + driver_strengths_pct ALL 8 drivers exhaustive + computed_at_utc + provenance Literal default `practitioner_stamp`) + `_project_ranking()` pure projector (THEME_DRIVERS exhaustive iteration ensures 8-bar frontend rendering predictability) + GET `""` async endpoint (asset-agnostic by construction — theme drives GLOBAL macro regime) + 200/404 surface + `Cache-Control: private, no-store`. Wired routers/**init**.py + main.py alphabetical insertion.
+
+**Asset-agnostic design choice** : NO path param `/{asset}` — the theme dominant the global market via Pass-1 régime + NFCI + VIX + DXY + 10Y + economic_events + ai_gpr inputs (not per-asset context). ONE endpoint serves all 5 priority assets ; frontend shows « le marché est driven by geopolitics aujourd'hui » as top-banner pane on every `/briefing/X`.
+
+NEW `apps/api/tests/test_theme_dominant_router.py` ~165 LOC : 9 tests across 4 NEW test classes (HappyPath 3 incl. asset-agnostic same-response + HonestAbsence 1 + PydanticSurface 3 incl. 0-100 bounds + ProjectRankingHelper 2 incl. 8-driver exhaustive dispatch + rounding consistency).
+
+**Build gate** : `pytest tests/test_theme_dominant_router.py tests/test_origin_zone_router.py tests/test_invariants_ichor.py` → **65/65 PASS** in 6.66s (9 r185 NEW + 9 r184 + 47 W90 invariants ALL intact incl. ADR-079 watermark single-source-of-truth defense).
+
+**Doctrine #21 R30 HONORED 12 rounds consecutifs RECORD EXTENDED** : §1+§3 chain r171b+r172+r173+r177+r178+r179+r180+r181+r182+r183+r184+r185 = 12 consecutive (was 11 RECORD r184-close).
+
+**Voie D 105 rounds** post-CENTURY.
+
+**Mission centrale axes post-r185** : Axes 1-7 ✅ + 8 PARTIAL + 9 ADR-106 Stride 1 + 10 r167 LIVE + +11 G2 DXY ✅ + +12 honest_sentinels ✅ + +13 r174-r176 ✅ + +14 r179 G5 EXECUTION ✅ + +15 r180 G5 CONSUMER WIRING ✅ + +16 r181 N1 FOUNDATION ✅ + +17 r182 N1 EXECUTION ✅ + +18 r183 N1 CONSUMER WIRING ✅ + +19 r184 G5 FRONTEND ENDPOINT ✅ + **+20 r185 N1 FRONTEND ENDPOINT ✅** (backend→endpoint parity G5 + N1 arcs CLOSED ; r186 React panels `<PreviousSessionContextPanel>` + `<ThemeRankingPanel>` queued next default-sans-pivot).
+
+### Pre-r185 line preserved (r184-close)
+
 ## §1 — Current state (r184 full close — FRONTEND ENDPOINT `GET /v1/origin-zone/{asset}` SHIPPED, atomic continuation r183→r184 fresh-session, 2026-05-28)
 
 ### Shipped at r184 — **Frontend endpoint exposing r179 G5 EXECUTION classifier (mirror r161 verdict + r171a correlations pattern)**
