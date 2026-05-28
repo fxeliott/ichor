@@ -121,6 +121,9 @@ from .portfolio_exposure import (
     assess_portfolio_exposure,
     render_portfolio_exposure_block,
 )
+from .previous_session_origin_zone import (
+    compute_previous_session_origin_zone,
+)
 from .regime_classifier import RegimeInputs, classify_master_regime
 from .risk_appetite import (
     assess_risk_appetite,
@@ -2591,6 +2594,90 @@ async def _section_polygon_intraday(session: AsyncSession, asset: str) -> tuple[
     return "\n".join(lines), sources
 
 
+async def _section_previous_session_context(
+    session: AsyncSession, asset: str
+) -> tuple[str, list[str]]:
+    """## Previous-session origin zone (r180 G5 CONSUMER WIRING).
+
+    Surfaces the r179 G5 EXECUTION classifier output as plain-FR prose
+    for Pass-2 narrative. Eliot Fathom §V practitioner methodology :
+    « savoir d'où vient le mouvement de la session précédente, son zone
+    d'origine, son sens, ses hauts et bas ».
+
+    The origin-zone (Asian / London / NY) + high/low/direction stamps
+    inform the « comment se comporte le marché depuis un certain temps »
+    read directive (Eliot Fathom §V context input to NY position-taking).
+
+    ADR-017 boundary preserved : pure factual snapshot output (zone +
+    high + low + direction + bar_count + window UTC). NEVER a directional
+    bias for the CURRENT session. The Pass-2 LLM picks the appropriate
+    framing based on Pass-1 régime label + the snapshot's factual content.
+
+    Doctrine #11 calibrated honesty : when ``compute_previous_session_
+    origin_zone()`` returns None (no bars OR dominant zone bar_count < 30),
+    surface explicit « Contexte session précédente indisponible » prose
+    rather than fabricate a read. Always-rendered (1 honest source stamp
+    emitted whether snapshot present or None) so Pass-2 sees the explicit
+    state instead of a vanishing section.
+    """
+    snapshot = await compute_previous_session_origin_zone(session, asset, now_utc=datetime.now(UTC))
+
+    if snapshot is None:
+        lines = [
+            "## Previous-session origin zone (Eliot Fathom §V)",
+            "",
+            "Contexte session précédente indisponible : données insuffisantes "
+            "dans la fenêtre des dernières 24 heures (week-end / jour férié OU "
+            "moins de 30 barres 1-min dans la zone dominante per Cohen 1988 "
+            "n=30 small-sample threshold). Doctrine #11 calibrated honesty : "
+            "aucune fabrication ; le Pass-2 doit lire l'absence comme un "
+            "manque réel de contexte plutôt qu'une lecture neutre par défaut.",
+        ]
+        sources = [f"origin_zone:{asset}:absent"]
+        return "\n".join(lines), sources
+
+    # Plain-FR rendering for Pass-2 narrative consumption. The FR copy
+    # is intentionally factual + descriptive (per ADR-017 boundary
+    # « explains WHAT happened in the previous session, never WHAT to
+    # do about it »). Mirror of `_section_polygon_intraday` source-
+    # stamping discipline (one source per data point cited).
+    direction_fr = {
+        "up": "haussier",
+        "down": "baissier",
+        "range": "range-bound (consolidation / chop)",
+    }[snapshot.direction]
+
+    zone_fr = {
+        "asian": "asiatique (Tokyo + Sydney + Hong Kong)",
+        "london": "londonienne (London cash open + NY pré-open)",
+        "ny": "new-yorkaise (NYSE RTH + extended FX / late-NY rollover)",
+    }[snapshot.session_zone]
+
+    lines = [
+        "## Previous-session origin zone (Eliot Fathom §V)",
+        "",
+        f"La session précédente a été dominée par la zone {zone_fr} "
+        f"avec un mouvement directionnel {direction_fr}.",
+        "",
+        f"- **Zone dominante** : `{snapshot.session_zone}` ({zone_fr})",
+        f"- **Direction** : `{snapshot.direction}` ({direction_fr})",
+        f"- **High** : {snapshot.high_price:.5f}",
+        f"- **Low** : {snapshot.low_price:.5f}",
+        f"- **Range observé** : {snapshot.high_price - snapshot.low_price:.5f}",
+        f"- **Barres 1-min** : {snapshot.bar_count} (≥ 30 per Cohen 1988 §3.3)",
+        f"- **Fenêtre UTC** : "
+        f"{snapshot.start_utc:%Y-%m-%d %H:%M} → {snapshot.end_utc:%Y-%m-%d %H:%M}",
+        "",
+        "Frontière ADR-017 : snapshot factuel pur, jamais un signal de "
+        "direction pour la session courante.",
+    ]
+    sources = [
+        f"origin_zone:polygon_intraday:{asset}"
+        f"@{snapshot.start_utc.isoformat()}..{snapshot.end_utc.isoformat()}"
+    ]
+    return "\n".join(lines), sources
+
+
 async def _section_tail_risk_skew(session: AsyncSession) -> tuple[str, list[str]]:
     """## Vol surface — CBOE SKEW + sister vol indices (Wave 28).
 
@@ -4751,6 +4838,17 @@ async def build_data_pool(
     diff_md, diff_src = await _section_rate_diff(session, asset)
     if diff_md:
         sections.append(("rate_diff", diff_md, diff_src))
+
+    # r180 — G5 CONSUMER WIRING : previous-session origin zone (Eliot
+    # Fathom §V practitioner context). Surfaces the r179 G5 EXECUTION
+    # classifier output as plain-FR prose for Pass-2 narrative.
+    # Always-rendered : when the snapshot is None (week-end / holiday /
+    # bar_count < 30), the section emits an explicit honest-absence
+    # prose so Pass-2 sees the state instead of a vanishing section.
+    # ADR-017 boundary preserved (pure factual snapshot, never
+    # directional bias for the CURRENT session).
+    osz_md, osz_src = await _section_previous_session_context(session, asset)
+    sections.append(("previous_session_origin_zone", osz_md, osz_src))
 
     # ADR-090 P0 step-3 (round-32) — EUR-specific Bund 10Y yield.
     # Asset-gated to EUR_USD ; silent skip otherwise OR if the
