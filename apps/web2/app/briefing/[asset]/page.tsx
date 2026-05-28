@@ -54,6 +54,7 @@ import { SessionStatus } from "@/components/briefing/SessionStatus";
 // r161 Strand G — ADR-106 SessionVerdict apex panel (Eliot's r161 directive
 // "verdict exact" verbatim). Rendered prominently above EventAnticipationPanel.
 import { SessionVerdictPanel } from "@/components/briefing/SessionVerdictPanel";
+import { ThemeRankingPanel } from "@/components/briefing/ThemeRankingPanel";
 // r162 Stride 8 Phase 2 — ADR-106 §"coach explicateur" apex panel rendered
 // AT THE TOP of the briefing, ABOVE SessionVerdictPanel — the macro narrative
 // frames the per-asset verdict interpretation per D4 ordering directive.
@@ -412,6 +413,16 @@ export default async function BriefingPage({ params }: PageParams) {
           When Pass-6 is dormant in prod, the verdict still renders with
           derived_from_scenarios=false + "mode dormant" badge — doctrine
           #11 calibrated honesty surface. */}
+      {/* r186 N1 — ThemeRankingPanel : GLOBAL macro regime context
+          banner consuming /v1/theme-dominant (LIVE r185). Asset-agnostic
+          — same ranking renders on every priority asset briefing as a
+          context layer Eliot's NY 14h-20h position-taking respects.
+          Polls every 60s while tab visible (Page Visibility API
+          pause/resume mirror DxyCorrelationPanel r171b + FreshDataBanner
+          r140 pattern). Honest absence : explicit "aucun thème ne
+          domine" pane when API returns 404 (doctrine #11). */}
+      <ThemeRankingPanel />
+
       <SessionVerdictPanel data={sessionVerdict} />
 
       <EventAnticipationPanel data={eventAnticipation} />
