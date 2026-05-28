@@ -30,6 +30,12 @@ import { BriefingHeader } from "@/components/briefing/BriefingHeader";
 import { ConvictionGroundingPanel } from "@/components/briefing/ConvictionGroundingPanel";
 import { CorrelationsStrip } from "@/components/briefing/CorrelationsStrip";
 import { DataIntegrityBadge } from "@/components/briefing/DataIntegrityBadge";
+// r171b G2 — DXY co-mouvement panel (Eliot Fathom §XI verbatim « pilier »).
+// Consumes the r171a backend correlations 8→9 extension. Renders DXY row
+// with 8 priors + 5 honest-sentinel chips ; cold-start aware (UUP proxy
+// r172 candidate). Inserted ABOVE <CorrelationsStrip> in the existing
+// correlations section to surface the DXY angle before the cross-strip.
+import { DxyCorrelationPanel } from "@/components/briefing/DxyCorrelationPanel";
 import { EconomicCalendarPanel } from "@/components/briefing/EconomicCalendarPanel";
 import { EventAnticipationPanel } from "@/components/briefing/EventAnticipationPanel";
 import { EventSurpriseGauge } from "@/components/briefing/EventSurpriseGauge";
@@ -629,6 +635,14 @@ export default async function BriefingPage({ params }: PageParams) {
           <span className="text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
             {correlationSource}
           </span>
+        </div>
+        {/* r171b — DXY co-mouvement panel renders BEFORE the cross-strip
+            because DXY is the FX-desk "pilier" (Eliot Fathom §XI verbatim).
+            Cold-start tolerant : panel surfaces honest "—" + UUP-proxy
+            disclosure when /v1/correlations DXY row is null (Polygon
+            free tier I:DXY 403, mirror ADR-089 SPY proxy r27). */}
+        <div className="mb-4">
+          <DxyCorrelationPanel correlations={correlations} focusAsset={normalisedAsset} />
         </div>
         {correlationSnapshot ? (
           <CorrelationsStrip snapshot={correlationSnapshot} />

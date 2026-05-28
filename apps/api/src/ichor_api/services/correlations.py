@@ -175,7 +175,13 @@ async def _hourly_returns(
 
 
 async def assess_correlations(session: AsyncSession, *, window_days: int = 30) -> CorrelationMatrix:
-    """Build the 8×8 correlation matrix over the rolling window."""
+    """Build the 9×9 correlation matrix over the rolling window.
+
+    r171a extension : `_ASSETS` now includes "DXY" (length 9). Cold-start
+    by construction (Polygon free tier blocks I:DXY) — DXY-row cells stay
+    None via the existing ``len(common) < 30`` skip below. UUP ETF proxy
+    is the r172 candidate to populate cells (mirror ADR-089 r27 SPY proxy
+    for I:SPX 403)."""
     series: dict[str, dict[datetime, float]] = {}
     for asset in _ASSETS:
         series[asset] = await _hourly_returns(session, asset, window_days)
