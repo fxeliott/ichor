@@ -10,7 +10,29 @@
 
 ---
 
-## §1 — Current state (r172 full close + R-DEPLOY-6 LIVE Hetzner — G2 DXY end-to-end CLOSED, 2026-05-28)
+## §1 — Current state (r176 full close — 11 atomic rounds session r161→r176, PR #159 OPEN, Pattern #15 R59 = 25 apps + Pattern #20 codified + W90 lockstep mechanical, 2026-05-28)
+
+### Shipped at r174+r175+r176 — **FOUNDATION + Pattern #20 codification + W90 lockstep mechanical (3 atomic continuations post-r173)**
+
+**Stack r174→r176** (3 atomic ships post-r173) :
+
+- `e3f35a9` **r174** G5 origin_zone FOUNDATION skeleton (`services/previous_session_origin_zone.py` +425 LOC) — practitioner-stamp + Eliot Fathom §V verbatim provenance (Pattern #15 R59 10ème META catch Baltussen 2021 cargo-cult avant ship)
+- (memory user-scope) **r175** Pattern #20 codification (`ichor_r51-r71_doctrinal_patterns.md` +70 LOC) — « Memory-resident peer-reviewed cites REQUIRE R59-pre-commit-mandatory » (4 consecutive cite-drift catches r168b/r173×2/r174 → mechanical R59-pre-commit rule prophylactique)
+- `0438c28` **r176** W90 lockstep invariant (`test_invariants_honest_sentinels_lockstep.py` +201 LOC) — mechanical CI guard backend↔frontend HONEST_SENTINELS verbatim match, closes r173 RED-3 lift queue
+
+**Build gate cumulative** : pytest cumulé session ~769/769 PASS + 15/15 pre-commit hooks per commit + 5 deploys LIVE Hetzner.
+
+**Pattern #15 R59 = 25 applications stable** (10/25 = 40% META = discipline self-recursive at scale).
+
+**Pattern #20 codified r175** : 4 consecutive cite-drift catches en 6 rounds → mechanical R59-pre-commit-mandatory rule. Pattern #15 twin doctrine.
+
+**W90 lockstep invariant r176** : backend SSOT + frontend duplicate mechanically locked verbatim until r178+ frontend lift via `/v1/honest-sentinels`.
+
+**Voie D 96 rounds tenus**. **ZERO Anthropic API spend** session entière. **Doctrine #21 R30 HONORED 4 rounds consecutifs** (§1+§3 dual-sync r171b+r172+r173+r177).
+
+**Mission centrale axes post-r176** : Axes 1-7 ✅ CLOSED + 8 PARTIAL + 9 ADR-106 Stride 1 + 10 r167 LIVE + **+11 r171a+r171b+r172 G2 DXY end-to-end ✅** + **+12 r173 honest_sentinels SSOT ✅** + **+13 r174 G5 FOUNDATION + r175 Pattern #20 + r176 W90 lockstep ✅** (G5 EXECUTION-phase queued r177+).
+
+### Pre-r174 line preserved
 
 ### Shipped at r172 — **G2 DXY ETF UUP proxy + R-DEPLOY-6 LIVE Hetzner — closes r171a/b cold-start**
 
@@ -286,7 +308,33 @@ See `docs/ROADMAP_2026-05-06.md` for the original 4-layer architecture (DATA FOU
 
 ---
 
-## §3 — Immediate next (r173) — ⭐ G6 HOUR-OF-DAY VOL SIGNATURE (Andersen-Bollerslev FFF + Rogers-Satchell + Yang-Zhang)
+## §3 — Immediate next (r177) — ⭐ G5 EXECUTION-PHASE (Eliot Fathom §V practitioner-stamp, r174 FOUNDATION skeleton already shipped)
+
+**r174+r175+r176 EXECUTED & SHIPPED (2026-05-28)** :
+
+- `e3f35a9` r174 G5 origin_zone FOUNDATION (`services/previous_session_origin_zone.py` +425 LOC, 9 tests structural pinning) — practitioner-stamp + Pattern #15 R59 10ème META catch Baltussen 2021 cargo-cult
+- (memory) r175 Pattern #20 codification — mechanical R59-pre-commit-mandatory rule (4 cite-drifts → doctrine)
+- `0438c28` r176 W90 lockstep invariant — mechanical backend↔frontend HONEST_SENTINELS verbatim match (closes r173 RED-3)
+
+**Doctrine #21 R30 HONORED 4 rounds consecutifs** : §1+§3 dual-sync r171b+r172+r173+r177 (this close = 4th consecutive — chain extension record).
+
+**r177 binding-default candidates** (priority order, doctrine #10 default-sans-pivot) :
+
+1. ⭐ **G5 EXECUTION-phase** : implement 5-step classifier compute logic in `services/previous_session_origin_zone.py:compute_previous_session_origin_zone()` (currently skeleton returning None). Steps : resolve previous-session window from now_utc + Eliot's NY 14h-20h Paris position-taking window → query polygon_intraday OHLC over previous session → decompose into Asian/London/NY sub-windows → pick dominant zone (largest |move|) → classify direction (up/down/range based on 2×session-ATR threshold). Return OriginZoneSnapshot OR None if bar_count<30. Effort M, 1-2 sessions ~3-4h. **HIGH leverage** : NEW Eliot §V capability becomes operational.
+
+2. **Frontend `lib/dxyCorrelation.ts` lift to backend honest_sentinels SSOT** : add `/v1/honest-sentinels` endpoint OR shared TypeScript constants codegen ; refactor frontend to import from backend SSOT ; remove r176 W90 lockstep (becomes endpoint-contract test instead). Effort S, MED leverage.
+
+3. **G6 GK/RS estimator upgrade OPTIONAL** : add Garman-Klass + Rogers-Satchell range-based estimators to `services/hourly_volatility.py` (existing close-to-close |log-return| is base). Peer-reviewed efficiency gain ~10-15%, NOT new capability. Effort M, LOW-MED.
+
+4. **DXY alert recalibration to UUP-scale** OR `services/uup_to_dxy_proxy.py` empirical multiplier layer (closes r172 known limitation : DXY_BREAKOUT thresholds 105/100 don't fire on UUP-scale prices $25-30). Effort S, LOW.
+
+5. **B5 Phase D orphan loops investigation** : ADWIN drift / RAG embed / dtw_analogue / prediction_outlier 0 firings 7d (R2 audit B5). Effort S-M, MED.
+
+6. **r181 ⭐ SPF dispersion Born 2023 _EER_** + **r182 ⭐⭐ STIR markets transformational Bauer-Swanson + Nakamura-Steinsson**. Effort M + L respectively. Both peer-reviewed backbone. HIGH-TRANSFORMATIONAL impact.
+
+Pattern #15 R59 applies to every ⭐ — r177 G5 EXECUTION Phase 0 R59 obligatoire (verify session-window boundaries against ZoneInfo + verify bar_count threshold against Cohen 1988 n=30 standard).
+
+## §3 — Previous immediate next (r173, EXECUTED 2026-05-28) — ⭐ G6 HOUR-OF-DAY VOL SIGNATURE (Andersen-Bollerslev FFF + Rogers-Satchell + Yang-Zhang)
 
 **r172 EXECUTED & SHIPPED + DEPLOYED LIVE Hetzner (2026-05-28)** : 🎯 **G2 DXY ETF UUP proxy** closes r171a+r171b cold-start. Single feat commit `1c09ae7` +97/-11 LOC across 3 files (polygon.py mapping + correlations.py comment update + tests CI guard). R-DEPLOY-6 LIVE ~43s. **Empirical post-deploy** `polygon_intraday` DXY rows = 240 (was 0) within ~5min — UUP bars actively ingesting as `asset="DXY"`. Matrix DXY-row cells will populate empirically after ~5 NYSE trading days. **Voie D 91 rounds tenus**, **Pattern #15 R59 = 21 applications** (4 META self-catches r172 pre-flight : RED-7 stamp + YELLOW-2 magnitude + YELLOW-3 plan + YELLOW-5 scope).
 
