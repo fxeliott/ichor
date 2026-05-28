@@ -10,6 +10,20 @@
 
 ---
 
+## §1 — Current state (r188 session-wrap — 10 atomic rounds r179→r188 SHIPPED + DEPLOYED LIVE Hetzner, G5+N1 full arcs CLOSED, 2026-05-28 ~17:50)
+
+### Shipped session r179→r188 (consolidated)
+
+**G5 origin_zone arc CLOSED** : r179 EXECUTION 5-step classifier → r180 Pass-2 CONSUMER WIRING → r184 endpoint `/v1/origin-zone/{asset}` → r187 `<PreviousSessionContextPanel>`. **N1 theme_classifier arc CLOSED** : r181 FOUNDATION 8-driver → r182 EXECUTION scoring → r183 Pass-2 WIRING → r185 endpoint `/v1/theme-dominant` → r186 `<ThemeRankingPanel>` → r188 fiscal_policy driver (6/8 drivers wired ; price_action_flow + supply_demand baseline r189+).
+
+**17 commits `451ed87`→`3f66c21`, 97 ahead origin/main** (local-only, unpushed at §1-write — push at session-wrap). **6 R-DEPLOY-6 LIVE Hetzner** (4 api + 2 web2). **2 endpoints + 2 React panels LIVE** on /briefing. Empirical : theme-dominant=monetary_policy 95% FOMC + origin-zone EUR_USD NY-up-46pips. **pytest 126/126** + 15/15 hooks. **Voie D 106 rounds**, ZERO Anthropic spend. **Pattern #15 R59 META catch 14ème** (prior-session cargo-cult Strand G).
+
+**Doctrine #21 R30** : synced through r185, partial-broke r186-r188 during non-stop sprint, RESTORED at session-wrap via consolidated ADR-099 §Impl(r185-r188) backfill + this §1 bump.
+
+**HONEST GAPS** (Doctrine #11) : 3/8 theme drivers baseline (r189+) + PR #159 stale (title r161→r173 vs HEAD r188) + claude_runner_reachable=null Win11 + frontend vitest tests r186/r187 deferred.
+
+### Pre-r188 line preserved (r185-close)
+
 ## §1 — Current state (r185 full close — FRONTEND ENDPOINT `GET /v1/theme-dominant` SHIPPED, atomic continuation r184→r185 same-session, 2026-05-28)
 
 ### Shipped at r185 — **Frontend endpoint exposing r182 N1 EXECUTION classifier (mirror r184 origin_zone pattern, completes backend→endpoint parity for r179+r182 arc)**

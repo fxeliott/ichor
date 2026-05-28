@@ -5363,6 +5363,28 @@ Closes the ONLY deferred debt from r177-close. After 12 atomic rounds shipped th
 
 **Mission centrale axes post-r185** : Axes 1-7 ✅ + 8 PARTIAL + 9 ADR-106 Stride 1 + 10 r167 LIVE + +11 G2 DXY ✅ + +12 honest_sentinels ✅ + +13 r174-r176 ✅ + +14 r179 G5 EXECUTION ✅ + +15 r180 G5 CONSUMER WIRING ✅ + +16 r181 N1 FOUNDATION ✅ + +17 r182 N1 EXECUTION ✅ + +18 r183 N1 CONSUMER WIRING ✅ + +19 r184 G5 FRONTEND ENDPOINT ✅ + **+20 r185 N1 FRONTEND ENDPOINT ✅** (backend→endpoint parity COMPLETE for G5+N1 arcs).
 
+## §Impl(r185-r188) — consolidated APPEND : N1 theme endpoint + 2 React frontend panels + fiscal_policy driver (session-end backfill, restores Doctrine #21 R30 chain) (2026-05-28 ~17:50)
+
+**Consolidated session-end backfill** (Doctrine #11 honest disclosure : r185-r188 shipped + DEPLOYED LIVE before this ledger entry ; the §Impl APPEND was deferred during the non-stop execution sprint and is backfilled here at session-wrap to restore immutable-ledger completeness + Doctrine #21 R30 chain integrity).
+
+**§Impl(r185)** — Frontend endpoint `GET /v1/theme-dominant` (commit `cafc3e0`). NEW `routers/theme_dominant.py` ~165 LOC : `APIRouter(prefix=/v1/theme-dominant)` asset-agnostic + Pydantic frozen `ThemeDominantOut` (top_theme + top_theme_strength_pct 0-100 + secondary_themes max 3 + driver_strengths_pct exhaustive 8-driver + computed_at_utc + provenance) + `_project_ranking()` pure projector + 200/404 + Cache-Control no-store. Exposes r182 N1 EXECUTION classifier. ADR-079 watermark exclusion (pure-data). 9 NEW tests. Mirror r184 origin_zone pattern.
+
+**§Impl(r186)** — `<ThemeRankingPanel>` React top-banner (commit `38d8589`). NEW `apps/web2/components/briefing/ThemeRankingPanel.tsx` + `apps/web2/lib/themeDominant.ts` SSOT (8-driver FR labels + hints + tones). Consumes `/v1/theme-dominant` poll 60s Page Visibility API. Wired `briefing/[asset]/page.tsx` ABOVE SessionVerdictPanel. 4-state disclosure (loading/error/absent/ready). DEPLOYED web2 LIVE local=200 public=200. Doctrine #5 RSC client-boundary (lib pure / panel thin view). ADR-017 descriptive labels never directional.
+
+**§Impl(r187)** — `<PreviousSessionContextPanel>` React (commit `3017e50`). NEW `apps/web2/components/briefing/PreviousSessionContextPanel.tsx` + `apps/web2/lib/originZone.ts` SSOT (3 zones + 3 directions FR + helpers). Asset-specific, consumes `/v1/origin-zone/{asset}` poll 60s. DEPLOYED web2 LIVE. Mirror r186 pattern.
+
+**§Impl(r188)** — N1 theme fiscal_policy driver enrichment (commit `3f66c21`). `services/theme_classifier.py` : NEW `_count_recent_fiscal_events()` helper (economic_events keyword scan tariff/fiscal/budget/debt/deficit/treasury last 7d) + `_FISCAL_TITLE_KEYWORDS` + `_FISCAL_LOOKBACK_DAYS=7`. fiscal_policy strength 0.6 + 0.05×(count-1) capped 0.85 when ≥1 event ; else baseline. Eliot Fathom transcript étape 1 « Trump tariffs 2026 = fiscal-policy-class ». 6/8 theme drivers now wired (price_action_flow + supply_demand baseline r189+). DEPLOYED api LIVE (fiscal_policy=20 empirical = 0 events matched, honest absence). +7 test patches.
+
+**Build gate (LOCAL MEASURED, session-end)** : `pytest` 7 test files (theme_classifier + theme_dominant_router + origin_zone_router + previous_session_origin_zone + data_pool_previous_session_context + invariants_ichor + invariants_honest_sentinels_lockstep) → **126/126 PASS** in 11.88s. 15/15 pre-commit hooks PASS per commit.
+
+**6 R-DEPLOY-6 LIVE Hetzner empirically verified** (r179-r183 stack + r184 + r185 + r186 web2 + r187 web2 + r188). All backups in `/opt/ichor/api/.redeploy-baks` (5-most-recent retention).
+
+**Doctrine #21 R30 RESTORED** : §1+§3 dual-sync chain was synced through r185 then partial-broke r186-r188 during non-stop sprint ; this consolidated backfill + ROADMAP §1 bump r185→r188 + CLAUDE.md last-sync bump restores chain integrity at session-wrap (honest : the chain had a 3-round gap r186-r188, now closed).
+
+**Voie D 106 rounds** post-CENTURY MILESTONE. **ZERO Anthropic API spend** session r179-r188 globale. **Pattern #15 R59 META catch 14ème** : prior-session cargo-cult Strand G pivot (Strand G was already shipped r161, caught empirically before wasted work).
+
+**Mission centrale axes post-r188** : Axes 1-7 ✅ + 8 PARTIAL + 9 ADR-106 Stride 1 + 10 r167 LIVE + +11 G2 DXY ✅ + +12 honest_sentinels ✅ + +13 r174-r176 ✅ + +14 r179 G5 EXECUTION ✅ + +15 r180 G5 CONSUMER WIRING ✅ + +16 r181 N1 FOUNDATION ✅ + +17 r182 N1 EXECUTION ✅ + +18 r183 N1 CONSUMER WIRING ✅ + +19 r184 G5 ENDPOINT ✅ + +20 r185 N1 ENDPOINT ✅ + +21 r186 ThemeRankingPanel ✅ + +22 r187 PreviousSessionContextPanel ✅ + +23 r188 fiscal_policy driver ✅ (G5 + N1 full backend→endpoint→frontend arcs CLOSED ; frontend visibility arc CLOSED).
+
 ## §Impl(r184) — Frontend endpoint `GET /v1/origin-zone/{asset}` exposing r179 G5 EXECUTION classifier (mirror r161 verdict + r171a correlations) + Doctrine #21 R30 11 rounds RECORD (2026-05-28)
 
 **Default-sans-pivot honored** post-r183 close : pivot vers frontend visibility wave (closes anti-pattern « shipping in vacuum » identifié Pattern #12 self-challenge — r179-r183 backend LIVE Hetzner mais Eliot ne voit RIEN dans `/briefing/{asset}`). r184 atomic ship = backend endpoint EXPOSANT r179 G5 EXECUTION classifier ; r185+ ships frontend React component.
