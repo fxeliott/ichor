@@ -207,6 +207,133 @@ def test_news_nlp_rejects_too_many_narratives() -> None:
         )
 
 
+# ── r172b news-tone vocabulary drift normalizer (Narrative.sentiment) ──
+
+
+def test_news_nlp_narrative_sentiment_normalizes_positive_to_mixed() -> None:
+    """r172b — Haiku low has been observed to emit the news-tone vocabulary
+    ('positive'/'negative'/'neutral') in `narratives[*].sentiment` instead
+    of the FX-trader directional vocabulary ('bullish'/'bearish'/'mixed').
+    The `_normalize_news_tone_drift_on_sentiment` validator MUST map the 3
+    drift tokens to 'mixed' (doctrine #11 calibrated honesty — news-tone
+    cannot be safely mapped to direction).
+
+    Witnessed prod failure 2026-05-28 00:47:21 UTC : 25.6% 7d fail rate
+    on news_nlp.service from this exact drift class (R2 audit B1)."""
+    out = NewsNlpAgentOutput(
+        narratives=[
+            {
+                "label": "Hot CPI surprise",
+                "sentiment": "positive",  # ← news-tone drift, should normalize to 'mixed'
+                "intensity": 0.7,
+                "n_articles": 4,
+            }
+        ],
+    )
+    assert out.narratives[0].sentiment == "mixed"
+
+
+def test_news_nlp_narrative_sentiment_normalizes_negative_to_mixed() -> None:
+    """r172b — symmetric case : 'negative' news-tone drift → 'mixed'."""
+    out = NewsNlpAgentOutput(
+        narratives=[
+            {
+                "label": "Dovish Fed surprise",
+                "sentiment": "negative",
+                "intensity": 0.6,
+                "n_articles": 3,
+            }
+        ],
+    )
+    assert out.narratives[0].sentiment == "mixed"
+
+
+def test_news_nlp_narrative_sentiment_normalizes_neutral_to_mixed() -> None:
+    """r172b — third case : 'neutral' news-tone drift → 'mixed' (the
+    semantic closest of the 3 since 'neutral' and 'mixed' both signal
+    absence of strong direction)."""
+    out = NewsNlpAgentOutput(
+        narratives=[
+            {
+                "label": "In-line data",
+                "sentiment": "neutral",
+                "intensity": 0.3,
+                "n_articles": 3,
+            }
+        ],
+    )
+    assert out.narratives[0].sentiment == "mixed"
+
+
+def test_news_nlp_narrative_sentiment_preserves_canonical_vocabulary() -> None:
+    """r172b — non-drift cases ('bullish'/'bearish'/'mixed') MUST pass
+    through unchanged (byte-identical for non-violating outputs ; zero
+    consumer change). This is the precedent r161 `_normalize_mixed_tone`
+    contract — the validator only normalises the drift class."""
+    for canonical in ("bullish", "bearish", "mixed"):
+        out = NewsNlpAgentOutput(
+            narratives=[
+                {
+                    "label": f"narrative {canonical}",
+                    "sentiment": canonical,
+                    "intensity": 0.5,
+                    "n_articles": 3,
+                }
+            ],
+        )
+        assert out.narratives[0].sentiment == canonical
+
+
+def test_news_nlp_narrative_sentiment_case_insensitive_drift() -> None:
+    """r172b — defensive : LLMs occasionally drift on casing too ; the
+    normalizer applies `.strip().lower()` to the input before dispatch
+    (mirror r161 `_normalize_mixed_tone` precedent line ~87)."""
+    out = NewsNlpAgentOutput(
+        narratives=[
+            {
+                "label": "Drift uppercase",
+                "sentiment": "Positive",
+                "intensity": 0.5,
+                "n_articles": 3,
+            },
+            {
+                "label": "Drift whitespace",
+                "sentiment": " negative ",
+                "intensity": 0.5,
+                "n_articles": 3,
+            },
+        ],
+    )
+    assert out.narratives[0].sentiment == "mixed"
+    assert out.narratives[1].sentiment == "mixed"
+
+
+def test_news_nlp_asset_sentiment_normalizes_mixed_to_neutral() -> None:
+    """r161 retroactive coverage — the existing `_normalize_mixed_tone`
+    validator on `AssetSentiment.tone` (line ~88 of news_nlp.py) maps
+    drift 'mixed' → 'neutral'. Pinned here for regression-guard alongside
+    the r172b sibling validator."""
+    out = NewsNlpAgentOutput(
+        narratives=[
+            {
+                "label": "n",
+                "sentiment": "bearish",
+                "intensity": 0.5,
+                "n_articles": 3,
+            }
+        ],
+        asset_sentiment=[
+            {
+                "asset": "EUR_USD",
+                "tone": "mixed",  # ← r161 drift, should normalize to 'neutral'
+                "score": 0.0,
+                "n_articles": 5,
+            }
+        ],
+    )
+    assert out.asset_sentiment[0].tone == "neutral"
+
+
 # ── SentimentAgentOutput schema ─────────────────────────────────────
 
 

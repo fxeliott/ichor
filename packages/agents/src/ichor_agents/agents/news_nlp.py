@@ -43,6 +43,56 @@ class Narrative(BaseModel):
     top_entities: list[Entity] = Field(default_factory=list, max_length=5)
     representative_headlines: list[str] = Field(default_factory=list, max_length=3)
 
+    @field_validator("sentiment", mode="before")
+    @classmethod
+    def _normalize_news_tone_drift_on_sentiment(cls, v: object) -> object:
+        """r172b calibrated-honesty normalizer — MIRROR of the r161
+        ``_normalize_mixed_tone`` precedent at ``AssetSentiment.tone`` (line
+        ~88 below), but in the REVERSE direction : Haiku low has been
+        observed to emit the news-tone vocabulary ``{positive, negative,
+        neutral}`` (which lives on the sibling ``AssetSentiment.tone``
+        Literal) in this ``Narrative.sentiment`` field instead of the
+        FX-trader directional vocabulary ``{bullish, bearish, mixed}``.
+
+        Witnessed prod failure 2026-05-28 00:47:21 UTC on
+        ``ichor-couche2@news_nlp.service`` :
+        ``narratives.3.sentiment='positive'`` violating the Literal narrows
+        to a Pydantic ValidationError that crashed the agent run
+        (``ClaudeRunnerOutputError`` → fallback Cerebras+Groq skipped
+        because credentials absent → ``AllProvidersFailed``). 7d aggregate
+        post-r170 hooks-PS1-unlock = 25.6% news_nlp fail rate (R2 audit
+        finding B1, 2026-05-28).
+
+        Root cause : the LLM sees TWO sibling sentiment fields in the SAME
+        ``NewsNlpAgentOutput`` schema with DIFFERENT vocabularies
+        (``Narrative.sentiment`` directional vs ``AssetSentiment.tone``
+        news-tone). Haiku low generalises the news-tone vocab from one
+        field to the other (same generalisation class as the r161
+        ``'mixed'`` drift, opposite direction). Prompt-only fix has
+        proven insufficient across multiple rounds — structural defense
+        beats prompt engineering (doctrine #12 anti-recidive).
+
+        Doctrine #11 calibrated-honesty mapping policy : news-tone DOES
+        NOT translate directly to directional bias (hot CPI = positive
+        macro tone = bearish equities OR bullish bonds, depending on
+        regime). Therefore we map ``{positive, negative, neutral} →
+        'mixed'`` — honest acknowledgement that the LLM did not commit
+        to a direction we can safely infer. The 'mixed' bucket already
+        exists as a legitimate doctrine-#11 output (no schema surface
+        drift). Information loss is preferred over fabricated direction.
+
+        Fix mechanics (per doctrine #2 strict scope, mirror r161) : a
+        ``mode='before'`` validator that maps the 3 news-tone tokens to
+        ``'mixed'`` BEFORE the Literal narrows. Byte-identical for
+        non-violating outputs (no consumer change). Pre-r172b ~25.6% 7d
+        fail rate ; expected post-fix ~0% on this specific drift class.
+        """
+        if isinstance(v, str):
+            normalized = v.strip().lower()
+            if normalized in {"positive", "negative", "neutral"}:
+                return "mixed"
+        return v
+
 
 class AssetSentiment(BaseModel):
     asset: Literal[
@@ -110,6 +160,22 @@ Hard rules:
   - asset_sentiment.score in [-1, 1] is sentiment-weighted by article volume.
   - Banned: hyperbole, generic advice, signal generation.
   - If a narrative has < 3 articles, skip it entirely (precision > recall).
+
+VOCABULARY DISCIPLINE (r172b — schema-confusion drift fix) :
+  - `narratives[*].sentiment` MUST be one of {"bullish", "bearish", "mixed"}
+    — this is the FX-trader DIRECTIONAL vocabulary. Use "bullish" when the
+    narrative implies upward price pressure on the dominant affected
+    asset(s) ; "bearish" for downward ; "mixed" when the narrative cuts
+    both ways (e.g., hot CPI = bullish USD + bearish risk assets) OR when
+    direction cannot be inferred safely.
+  - `asset_sentiment[*].tone` MUST be one of {"positive", "neutral",
+    "negative"} — this is the NEWS-TONE vocabulary (article corpus
+    qualitative read on the asset). Use "positive" when news flow is
+    constructive ; "negative" when adversarial ; "neutral" when balanced.
+  - DO NOT cross-contaminate the two vocabularies. "positive" is INVALID
+    on `narratives[*].sentiment`. "bullish" is INVALID on
+    `asset_sentiment[*].tone`. Pydantic validators normalise drift but
+    cost an information round-trip.
 """
 
 
