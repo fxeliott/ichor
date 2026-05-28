@@ -174,11 +174,36 @@ RiskRegime = Literal["risk_on", "risk_off", "transitional"]
 
 # Maximum allowed staleness (days) for FRED data feeding the cycle
 # classifier. Past this threshold, the builder forces ``cycle="uncertain"``
-# regardless of raw computation — doctrine #11 calibrated honesty. The
-# 45-day floor accommodates monthly series like ``PAYEMS`` / ``GDP`` /
-# ``INDPRO`` which can be 4-6 weeks late ; a lower threshold would
-# trigger false-uncertain on perfectly normal data.
-MAX_FRESHNESS_DAYS: int = 45
+# regardless of raw computation — doctrine #11 calibrated honesty.
+#
+# r172c calibration fix (2026-05-28, R2 audit B3 follow-up — Pattern #15
+# R59 catch on R2 audit interpretation : R2 reported "FRED stale 56d" as
+# a problem, but verified empirical (SSH `psql` 2026-05-28) confirms
+# this is the NORMAL publication-lag of monthly BLS series, NOT a
+# collector silent-skip). The previous threshold of 45 days was TOO
+# TIGHT for the inherent observation-date-based lag :
+#
+#   - Monthly series `observation_date` = first day of measurement month
+#     (e.g. CPI for April → observation_date=2026-04-01)
+#   - BLS publication delay = 14-21 days AFTER end-of-month
+#   - Worst-case lag from observation_date = 30d (month length) + 21d
+#     (publication delay) ≈ 51-58 days for monthly series
+#
+# Net effect of the 45-day threshold : `cycle="uncertain"` was forced
+# ~50% of every month (the last 2 weeks before next-month release),
+# causing `<CoachMacroContextPanel>` to permanently render
+# `cycle=uncertain / dominant_theme=null / risk_regime_evidence=[]`
+# right when the trader needs it most (mid-month NY position windows).
+#
+# Empirical SSH 2026-05-28 : latest CPIAUCSL = 2026-04-01 = 57 days ago.
+# Threshold 60 days covers this normal lag while still catching truly
+# stale data (e.g. GDPC1 currently 147 days = quarterly normal but
+# would correctly trigger uncertain if it stretched to >60d months,
+# meeting doctrine #11 honest-degradation threshold). Per-series
+# thresholds (daily=7d, monthly=60d, quarterly=120d) deferred r-future
+# if empirically needed ; single-value 60d is the trader-discipline
+# minimal-fix Pareto (doctrine #2 strict scope).
+MAX_FRESHNESS_DAYS: int = 60
 
 
 class CalendarSurprise(BaseModel):
@@ -315,7 +340,7 @@ class CoachMacroContext(BaseModel):
 
     data_freshness_days: int = Field(ge=0, le=365)
     """Number of days since the most-recent FRED observation used by the
-    classifier. Past ``MAX_FRESHNESS_DAYS = 45``, the builder forces
+    classifier. Past ``MAX_FRESHNESS_DAYS = 60``, the builder forces
     ``cycle="uncertain"`` regardless of raw computation. Surfaced to
     the frontend so the user knows how stale the underlying data is."""
 

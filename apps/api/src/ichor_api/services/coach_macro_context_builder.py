@@ -18,7 +18,7 @@ limpide".
        expansion, (weak + rising) = stagflation, (weak + falling) =
        deflation, any uncertain = uncertain
      - Confidence : 75% both signals clean, 50% one mixed, 0% uncertain.
-       Past ``MAX_FRESHNESS_DAYS = 45``, force ``cycle="uncertain"``
+       Past ``MAX_FRESHNESS_DAYS = 60`` (r172c calibration), force ``cycle="uncertain"``
        (doctrine #11 calibrated honesty).
 
   2. **Dominant theme classification (rule-based max |z|)** :
