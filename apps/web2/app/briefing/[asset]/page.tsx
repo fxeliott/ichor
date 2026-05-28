@@ -54,6 +54,7 @@ import { SessionStatus } from "@/components/briefing/SessionStatus";
 // r161 Strand G — ADR-106 SessionVerdict apex panel (Eliot's r161 directive
 // "verdict exact" verbatim). Rendered prominently above EventAnticipationPanel.
 import { SessionVerdictPanel } from "@/components/briefing/SessionVerdictPanel";
+import { PreviousSessionContextPanel } from "@/components/briefing/PreviousSessionContextPanel";
 import { ThemeRankingPanel } from "@/components/briefing/ThemeRankingPanel";
 // r162 Stride 8 Phase 2 — ADR-106 §"coach explicateur" apex panel rendered
 // AT THE TOP of the briefing, ABOVE SessionVerdictPanel — the macro narrative
@@ -422,6 +423,14 @@ export default async function BriefingPage({ params }: PageParams) {
           r140 pattern). Honest absence : explicit "aucun thème ne
           domine" pane when API returns 404 (doctrine #11). */}
       <ThemeRankingPanel />
+
+      {/* r187 G5 — PreviousSessionContextPanel : per-asset previous-
+          session origin zone context consuming /v1/origin-zone/{asset}
+          (LIVE r184). Eliot Fathom §V : « savoir d'où vient le
+          mouvement de la session précédente ». Polls 60s mirror
+          ThemeRankingPanel r186 pattern. Honest absence per
+          doctrine #11 when bar_count < 30 (Cohen 1988 §3.3). */}
+      <PreviousSessionContextPanel asset={normalisedAsset} />
 
       <SessionVerdictPanel data={sessionVerdict} />
 
