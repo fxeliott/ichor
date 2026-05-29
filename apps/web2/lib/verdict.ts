@@ -4,7 +4,7 @@
  * consumed by two presentations :
  *
  *   - VerdictBanner (deep-dive /briefing/[asset]) — full 5-part display
- *   - VerdictRow    (landing /briefing) — compact one-line cockpit
+ *   - VerdictCockpitCard (landing /briefing) — premium cockpit card
  *
  * r71 — extracted verbatim from r70 VerdictBanner.tsx (logic unchanged,
  * the deep-dive must render IDENTICALLY post-refactor — R59 regression
