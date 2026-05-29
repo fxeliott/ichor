@@ -157,7 +157,7 @@ from .yield_curve import (
 # FRED series we surface in the macro trinity + dollar smile blocks.
 # series_id : (display_label, format_spec)
 _MACRO_TRINITY_SERIES: dict[str, tuple[str, str]] = {
-    "DTWEXBGS": ("DXY (broad)", "{:.2f}"),
+    "DTWEXBGS": ("USD broad index (DTWEXBGS)", "{:.2f}"),
     "DGS10": ("US10Y nominal", "{:.2f}%"),
     "VIXCLS": ("VIX", "{:.2f}"),
 }
@@ -771,7 +771,7 @@ async def _section_executive_summary(session: AsyncSession) -> tuple[str, list[s
 
 
 async def _section_macro_trinity(session: AsyncSession) -> tuple[str, list[str]]:
-    """## Macro trinity — DXY / US10Y / VIX, last value with date."""
+    """## Macro trinity — USD broad index / US10Y / VIX, last value with date."""
     lines = ["## Macro trinity (FRED, latest)"]
     sources: list[str] = []
     any_data = False
@@ -786,6 +786,20 @@ async def _section_macro_trinity(session: AsyncSession) -> tuple[str, list[str]]
         sources.append(f"FRED:{series_id}")
     if not any_data:
         lines.append("  _(no FRED data yet — collector hasn't filled the table)_")
+    else:
+        # Dollar-index disambiguation : DTWEXBGS is the Fed broad
+        # trade-weighted dollar index (scale ~115-125), the ONLY daily
+        # free USD index Ichor sources. It is NOT the ICE "DXY" (6-currency
+        # basket, scale ~99-105). The LLM must anchor any USD-strength
+        # invalidation threshold to the DTWEXBGS level shown above (e.g.
+        # "DTWEXBGS > 121"), never to an ICE-DXY level (~99-105) — mixing
+        # the two scales is the cross-card inconsistency this note closes.
+        lines.append(
+            "  _(USD broad index = Fed trade-weighted broad dollar, "
+            "DTWEXBGS, échelle ~115-125 — ce n'est PAS l'ICE « DXY » "
+            "(~99-105). Ancrez tout seuil de force USD sur le niveau "
+            "DTWEXBGS ci-dessus, jamais sur une échelle DXY-ICE.)_"
+        )
     return "\n".join(lines), sources
 
 
@@ -1130,8 +1144,9 @@ async def _section_xau_specific(session: AsyncSession, asset: str) -> tuple[str,
     # ─── DTWEXBGS (USD broad trade-weighted) — counter-driver ──────
     # Dollar smile : in calm regime USD and gold are inverse ; under
     # left-tail crisis (Brunnermeier-Pedersen 2009 funding-liquidity spiral) USD-bid AND gold-bid
-    # co-occur. DTWEXBGS is the broad index FRED publishes daily ; DXY
-    # ICE is a narrower 6-currency basket also tracked in fred.py:49.
+    # co-occur. DTWEXBGS is the broad index FRED publishes daily (scale
+    # ~115-125) ; the ICE "DXY" (6-currency basket, ~99-105) is a DIFFERENT
+    # index Ichor does NOT source — never conflate the two scales.
     dxy_cutoff = datetime.now(UTC).date() - timedelta(days=_max_age_days_for("DTWEXBGS"))
     dxy_stmt = (
         select(FredObservation.observation_date, FredObservation.value)
