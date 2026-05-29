@@ -30,6 +30,7 @@ from ichor_api.services.theme_classifier import (
     ThemeDriverKey,
     ThemeRanking,
     _rank_drivers,
+    _value_above_percentile,
     classify_dominant_theme,
 )
 
@@ -232,6 +233,9 @@ class TestClassifyDominantThemeExecution:
                     tc_mod, "_count_recent_high_impact_releases", AsyncMock(return_value=0)
                 ),
                 patch.object(tc_mod, "_count_recent_fiscal_events", AsyncMock(return_value=0)),
+                patch.object(
+                    tc_mod, "_is_price_action_flow_elevated", AsyncMock(return_value=False)
+                ),
                 patch.object(tc_mod, "_is_ai_gpr_elevated", AsyncMock(return_value=False)),
             ):
                 result = await classify_dominant_theme(
@@ -253,6 +257,9 @@ class TestClassifyDominantThemeExecution:
                     tc_mod, "_count_recent_high_impact_releases", AsyncMock(return_value=0)
                 ),
                 patch.object(tc_mod, "_count_recent_fiscal_events", AsyncMock(return_value=0)),
+                patch.object(
+                    tc_mod, "_is_price_action_flow_elevated", AsyncMock(return_value=False)
+                ),
                 patch.object(tc_mod, "_is_ai_gpr_elevated", AsyncMock(return_value=False)),
             ):
                 result = await classify_dominant_theme(
@@ -276,6 +283,9 @@ class TestClassifyDominantThemeExecution:
                     tc_mod, "_count_recent_high_impact_releases", AsyncMock(return_value=0)
                 ),
                 patch.object(tc_mod, "_count_recent_fiscal_events", AsyncMock(return_value=0)),
+                patch.object(
+                    tc_mod, "_is_price_action_flow_elevated", AsyncMock(return_value=False)
+                ),
                 patch.object(tc_mod, "_is_ai_gpr_elevated", AsyncMock(return_value=True)),
             ):
                 result = await classify_dominant_theme(
@@ -305,6 +315,9 @@ class TestClassifyDominantThemeExecution:
                     tc_mod, "_count_recent_high_impact_releases", AsyncMock(return_value=0)
                 ),
                 patch.object(tc_mod, "_count_recent_fiscal_events", AsyncMock(return_value=0)),
+                patch.object(
+                    tc_mod, "_is_price_action_flow_elevated", AsyncMock(return_value=False)
+                ),
                 patch.object(tc_mod, "_is_ai_gpr_elevated", AsyncMock(return_value=False)),
             ):
                 result = await classify_dominant_theme(
@@ -328,6 +341,9 @@ class TestClassifyDominantThemeExecution:
                     tc_mod, "_count_recent_high_impact_releases", AsyncMock(return_value=3)
                 ),
                 patch.object(tc_mod, "_count_recent_fiscal_events", AsyncMock(return_value=0)),
+                patch.object(
+                    tc_mod, "_is_price_action_flow_elevated", AsyncMock(return_value=False)
+                ),
                 patch.object(tc_mod, "_is_ai_gpr_elevated", AsyncMock(return_value=False)),
             ):
                 result = await classify_dominant_theme(
@@ -362,6 +378,9 @@ class TestClassifyDominantThemeExecution:
                     tc_mod, "_count_recent_high_impact_releases", AsyncMock(return_value=0)
                 ),
                 patch.object(tc_mod, "_count_recent_fiscal_events", AsyncMock(return_value=0)),
+                patch.object(
+                    tc_mod, "_is_price_action_flow_elevated", AsyncMock(return_value=False)
+                ),
                 patch.object(tc_mod, "_is_ai_gpr_elevated", AsyncMock(return_value=False)),
             ):
                 result = await classify_dominant_theme(
@@ -392,6 +411,9 @@ class TestClassifyDominantThemeExecution:
                     tc_mod, "_count_recent_high_impact_releases", AsyncMock(return_value=0)
                 ),
                 patch.object(tc_mod, "_count_recent_fiscal_events", AsyncMock(return_value=0)),
+                patch.object(
+                    tc_mod, "_is_price_action_flow_elevated", AsyncMock(return_value=False)
+                ),
                 patch.object(tc_mod, "_is_ai_gpr_elevated", AsyncMock(return_value=True)),
             ):
                 result = await classify_dominant_theme(
@@ -404,6 +426,93 @@ class TestClassifyDominantThemeExecution:
             assert "geopolitics" in result.secondary_themes
             assert "market_interconnexions" in result.secondary_themes
             assert result.provenance == "practitioner_stamp"
+
+        asyncio.run(_run())
+
+
+class TestValueAbovePercentilePure:
+    """r189 : shared ``_value_above_percentile`` pure helper (Doctrine #4
+    SSOT — used by both the GPR and the VVIX/SKEW drivers)."""
+
+    def test_returns_false_on_insufficient_history(self) -> None:
+        """< 30 observations → honest absence (False), Cohen 1988 floor."""
+        assert _value_above_percentile([100.0] * 29, 0.80) is False
+
+    def test_returns_false_on_empty(self) -> None:
+        assert _value_above_percentile([], 0.80) is False
+
+    def test_today_at_top_is_above_percentile(self) -> None:
+        """Newest value is the max → percentile rank 1.0 ≥ 0.80 → True."""
+        values = [50.0] + [float(i) for i in range(40)]  # newest=50 > all
+        assert _value_above_percentile(values, 0.80) is True
+
+    def test_today_at_bottom_is_below_percentile(self) -> None:
+        """Newest value is the min → low percentile → False."""
+        values = [-1.0] + [float(i) for i in range(40)]  # newest=-1 < all
+        assert _value_above_percentile(values, 0.80) is False
+
+    def test_today_at_median_below_80th(self) -> None:
+        """Newest value near the median (~52nd pct) < 80th → False."""
+        values = [20.0] + [float(i) for i in range(41)]
+        assert _value_above_percentile(values, 0.80) is False
+
+
+class TestPriceActionFlowDriver:
+    """r189 EXECUTION : price_action_flow wired via VVIX/SKEW percentile.
+
+    The DB-touching ``_is_price_action_flow_elevated`` is monkeypatched
+    here (its own percentile logic is covered by
+    ``TestValueAbovePercentilePure``) — same pattern as the GPR driver."""
+
+    def test_price_action_flow_dominates_when_vol_of_vol_elevated(self) -> None:
+        """VVIX OR SKEW above 80th pct → price_action_flow = 0.7 dominates
+        (all other drivers at/below baseline ; VIX absent → market_inter 0.3)."""
+
+        async def _run() -> None:
+            with (
+                patch.object(tc_mod, "_latest_fred_value", AsyncMock(return_value=None)),
+                patch.object(tc_mod, "_fomc_proximity_days", AsyncMock(return_value=None)),
+                patch.object(
+                    tc_mod, "_count_recent_high_impact_releases", AsyncMock(return_value=0)
+                ),
+                patch.object(tc_mod, "_count_recent_fiscal_events", AsyncMock(return_value=0)),
+                patch.object(
+                    tc_mod, "_is_price_action_flow_elevated", AsyncMock(return_value=True)
+                ),
+                patch.object(tc_mod, "_is_ai_gpr_elevated", AsyncMock(return_value=False)),
+            ):
+                result = await classify_dominant_theme(
+                    session=AsyncMock(),
+                    now_utc=datetime(2026, 5, 28, 13, 0, tzinfo=UTC),
+                )
+            assert result is not None
+            assert result.top_theme == "price_action_flow"
+            assert result.driver_strengths["price_action_flow"] == pytest.approx(0.7)
+
+        asyncio.run(_run())
+
+    def test_price_action_flow_baseline_when_not_elevated(self) -> None:
+        """Not elevated + nothing else firing → all baseline → None
+        (honest absence, doctrine #11)."""
+
+        async def _run() -> None:
+            with (
+                patch.object(tc_mod, "_latest_fred_value", AsyncMock(return_value=None)),
+                patch.object(tc_mod, "_fomc_proximity_days", AsyncMock(return_value=None)),
+                patch.object(
+                    tc_mod, "_count_recent_high_impact_releases", AsyncMock(return_value=0)
+                ),
+                patch.object(tc_mod, "_count_recent_fiscal_events", AsyncMock(return_value=0)),
+                patch.object(
+                    tc_mod, "_is_price_action_flow_elevated", AsyncMock(return_value=False)
+                ),
+                patch.object(tc_mod, "_is_ai_gpr_elevated", AsyncMock(return_value=False)),
+            ):
+                result = await classify_dominant_theme(
+                    session=AsyncMock(),
+                    now_utc=datetime(2026, 5, 28, 13, 0, tzinfo=UTC),
+                )
+            assert result is None
 
         asyncio.run(_run())
 

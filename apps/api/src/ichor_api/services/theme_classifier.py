@@ -100,7 +100,13 @@ from pydantic import BaseModel, Field
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..models import EconomicEvent, FredObservation, GprObservation
+from ..models import (
+    CboeSkewObservation,
+    CboeVvixObservation,
+    EconomicEvent,
+    FredObservation,
+    GprObservation,
+)
 
 # ─────────────────────────────────── DOMAIN ─────────────────────────────
 
@@ -228,6 +234,17 @@ informs the GPR construction (which the collector backfills), the
 80th-percentile threshold is an Ichor calibration."""
 
 _GPR_LOOKBACK_DAYS: Final[int] = 90
+
+_PRICE_ACTION_LOOKBACK_DAYS: Final[int] = 90
+"""r189 — rolling window for the VVIX/SKEW percentile rank that feeds the
+``price_action_flow`` driver."""
+
+_PRICE_ACTION_PERCENTILE: Final[float] = 0.80
+"""r189 — VVIX OR SKEW at/above the 80th percentile of its rolling
+``_PRICE_ACTION_LOOKBACK_DAYS`` window marks a positioning/flow-driven
+regime (the market is uncertain about volatility itself / bidding tail
+hedges). Self-calibrating percentile (mirror ``_GPR_HIGH_PERCENTILE``) —
+no fragile hardcoded VVIX/SKEW level, robust + permanent across vol regimes."""
 
 _FOMC_PROXIMITY_LOOKBACK_DAYS: Final[int] = 5
 """±5 business days around FOMC = monetary-policy-driven window
@@ -404,6 +421,29 @@ async def _count_recent_high_impact_releases(
     return len(rows)
 
 
+_MIN_PERCENTILE_HISTORY: Final[int] = 30
+"""Cohen 1988 small-sample floor : < 30 observations → honest absence
+(return False) rather than a low-confidence percentile rank."""
+
+
+def _value_above_percentile(
+    values_newest_first: list[float],
+    pct: float,
+) -> bool:
+    """Pure : True if the most-recent value (``values_newest_first[0]``)
+    sits at/above the ``pct`` percentile of the full set. False when fewer
+    than ``_MIN_PERCENTILE_HISTORY`` observations (doctrine #11 honest
+    absence, Cohen 1988). Shared by the GPR (geopolitics) and VVIX/SKEW
+    (price_action_flow) drivers — Doctrine #4 SSOT / #9 anti-accumulation
+    (single percentile-rank implementation, no duplication)."""
+    if len(values_newest_first) < _MIN_PERCENTILE_HISTORY:
+        return False
+    today = values_newest_first[0]
+    ordered = sorted(values_newest_first)
+    rank = sum(1 for v in ordered if v <= today)
+    return rank / len(ordered) >= pct
+
+
 async def _is_ai_gpr_elevated(
     session: AsyncSession,
     *,
@@ -420,15 +460,56 @@ async def _is_ai_gpr_elevated(
         .order_by(desc(GprObservation.observation_date))
     )
     rows = (await session.execute(stmt)).scalars().all()
-    if len(rows) < 30:
-        return False  # honest absence : insufficient history
-    values = sorted(float(r.ai_gpr) for r in rows)
-    # Percentile rank of today's value (rows[0] = most-recent by
-    # ``order_by desc``).
-    today_value = float(rows[0].ai_gpr)
-    rank = sum(1 for v in values if v <= today_value)
-    percentile = rank / len(values)
-    return percentile >= _GPR_HIGH_PERCENTILE
+    # rows ordered desc → rows[0] = most-recent (today). Shared pure
+    # percentile-rank helper (refactor r189 ; byte-identical to the prior
+    # inline logic — regression-verified by test_theme_classifier).
+    return _value_above_percentile([float(r.ai_gpr) for r in rows], _GPR_HIGH_PERCENTILE)
+
+
+async def _is_price_action_flow_elevated(
+    session: AsyncSession,
+    *,
+    now_utc: datetime,
+) -> bool:
+    """r189 — True if vol-of-vol (VVIX) OR tail-risk (SKEW) sits at/above
+    the 80th percentile of its rolling ``_PRICE_ACTION_LOOKBACK_DAYS``
+    window. Elevated VVIX/SKEW marks a positioning/flow-driven regime —
+    the market is uncertain about volatility itself (VVIX) or bidding tail
+    hedges (SKEW), both microstructure/flow signals rather than macro.
+    Materialises the Eliot Fathom étape 1 ``price_action_flow`` driver
+    (« positionnement, niveaux, surachat/survente, volatilité »).
+
+    Self-calibrating percentile rank (shared ``_value_above_percentile``)
+    — no fragile hardcoded VVIX/SKEW level, robust + permanent across vol
+    regimes. Returns False on insufficient history (doctrine #11)."""
+    cutoff = (now_utc - timedelta(days=_PRICE_ACTION_LOOKBACK_DAYS)).date()
+    vvix_rows = (
+        (
+            await session.execute(
+                select(CboeVvixObservation)
+                .where(CboeVvixObservation.observation_date >= cutoff)
+                .order_by(desc(CboeVvixObservation.observation_date))
+            )
+        )
+        .scalars()
+        .all()
+    )
+    if _value_above_percentile([float(r.vvix_value) for r in vvix_rows], _PRICE_ACTION_PERCENTILE):
+        return True
+    skew_rows = (
+        (
+            await session.execute(
+                select(CboeSkewObservation)
+                .where(CboeSkewObservation.observation_date >= cutoff)
+                .order_by(desc(CboeSkewObservation.observation_date))
+            )
+        )
+        .scalars()
+        .all()
+    )
+    return _value_above_percentile(
+        [float(r.skew_value) for r in skew_rows], _PRICE_ACTION_PERCENTILE
+    )
 
 
 def _rank_drivers(
@@ -479,9 +560,12 @@ async def classify_dominant_theme(
       panic) → 0.7 ; VIX < 15 (complacent) → 0.4 ; else 0.3.
     - ``macroeconomic`` : VIX > 30 AND DXY extreme (>105 OR <95) =
       co-occurrence regime shift → 0.65, else baseline.
-    - ``fiscal_policy`` / ``price_action_flow`` / ``supply_demand`` :
-      baseline 0.2 at r182 EXECUTION (r183+ adds tariff_shock_check
-      / VPIN+gamma_flip / OPEC inputs respectively).
+    - ``fiscal_policy`` : ≥1 fiscal event in last 7d → 0.6 + 0.05×(n-1)
+      capped 0.85 (r188 enrichment), else baseline.
+    - ``price_action_flow`` : VVIX OR SKEW at/above the 80th percentile of
+      rolling 90d → 0.7 (r189 enrichment), else baseline.
+    - ``supply_demand`` : baseline 0.2 (r190+ adds EIA petroleum crude
+      stocks + COMEX gold inventory inputs).
 
     Returns ``ThemeRanking`` when ``top_theme`` strength ≥
     ``_DOMINANCE_THRESHOLD`` (0.5) ; ``None`` otherwise (honest
@@ -557,8 +641,16 @@ async def classify_dominant_theme(
     else:
         strengths["fiscal_policy"] = _BASELINE_STRENGTH
 
-    # r189+ EXECUTION enrichment : these 2 still use baseline at r188.
-    strengths["price_action_flow"] = _BASELINE_STRENGTH
+    # r189 EXECUTION enrichment : price_action_flow now wired via VVIX/SKEW
+    # percentile (`_is_price_action_flow_elevated`). Elevated vol-of-vol OR
+    # tail-risk → 0.7 (positioning/flow-driven regime ; mirrors the
+    # market_interconnexions panic magnitude). supply_demand still baseline
+    # (r190+ : EIA petroleum crude stocks + COMEX gold inventory inputs).
+    strengths["price_action_flow"] = (
+        0.7
+        if await _is_price_action_flow_elevated(session, now_utc=now_utc)
+        else _BASELINE_STRENGTH
+    )
     strengths["supply_demand"] = _BASELINE_STRENGTH
 
     # Doctrine #11 calibrated honesty : if all inputs absent (no FRED,
