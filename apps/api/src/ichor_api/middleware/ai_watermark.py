@@ -85,7 +85,7 @@ DEFAULT_DISCLOSURE_URL = "https://app-ichor.pages.dev/legal/ai-disclosure"
 # Provider tag — bumped in lockstep with model upgrades. ADR-029
 # §Cons notes that model changes already trigger an ADR ; this tag
 # is updated in the same wave.
-DEFAULT_PROVIDER_TAG = "anthropic-claude-opus-4-7"
+DEFAULT_PROVIDER_TAG = "anthropic-claude-opus-4-8"
 
 
 class AIWatermarkMiddleware(BaseHTTPMiddleware):

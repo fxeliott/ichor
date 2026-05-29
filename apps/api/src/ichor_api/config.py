@@ -85,7 +85,7 @@ class Settings(BaseSettings):
     content. Pure-data collector routes (/v1/market, /v1/fred, ...)
     stay OUT. EU AI Act Article 50(2) deadline = 2026-08-02."""
 
-    ai_provider_tag: str = "anthropic-claude-opus-4-7"
+    ai_provider_tag: str = "anthropic-claude-opus-4-8"
     """Identifier surfaced via X-Ichor-AI-Provider. Bumped on model
     upgrade (each upgrade also gets an ADR per ADR-029 §Cons)."""
 
