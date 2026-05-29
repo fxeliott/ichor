@@ -45,6 +45,9 @@ from .cot_position import CotPosition
 from .couche2_output import Couche2Output
 from .economic_event import EconomicEvent
 
+# Phase 2 — EIA weekly petroleum crude stocks (ADR-107, supply_demand driver r190)
+from .eia_crude_stock_observation import EiaCrudeStockObservation
+
 # r160 ADR-099 §Impl — Engine 8 axis-4 +1 LEVEL DEPTH foundation : per-(event_class,
 # instrument) empirical reaction-beta calibration snapshot store. Replaces literature
 # priors when populated ; closes the cold-start caveat that has fired on every
@@ -124,6 +127,8 @@ __all__ = [
     # Phase 2
     "Couche2Output",
     "EconomicEvent",
+    # Phase 2 — EIA weekly petroleum crude stocks (ADR-107, supply_demand r190)
+    "EiaCrudeStockObservation",
     # r160 ADR-099 §Impl — empirical reaction-beta calibration (Engine 8 axis-4 +1)
     "EmpiricalReactionBeta",
     # Phase D ADR-090 P0 step-4 — €STR daily (round-34)

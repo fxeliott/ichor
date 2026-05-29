@@ -104,6 +104,7 @@ from ..models import (
     CboeSkewObservation,
     CboeVvixObservation,
     EconomicEvent,
+    EiaCrudeStockObservation,
     FredObservation,
     GprObservation,
 )
@@ -245,6 +246,24 @@ _PRICE_ACTION_PERCENTILE: Final[float] = 0.80
 regime (the market is uncertain about volatility itself / bidding tail
 hedges). Self-calibrating percentile (mirror ``_GPR_HIGH_PERCENTILE``) —
 no fragile hardcoded VVIX/SKEW level, robust + permanent across vol regimes."""
+
+_SUPPLY_DEMAND_LOOKBACK_DAYS: Final[int] = 365
+"""r190 — rolling window for the EIA crude-stocks weekly-change percentile
+that feeds the ``supply_demand`` driver. 365d ≈ 52 weekly obs → ~51 weekly
+Δ, which clears the shared ``_MIN_PERCENTILE_HISTORY`` = 30 Cohen-1988 floor
+(a 180-day weekly window would yield only ~25 Δ and never trigger)."""
+
+_SUPPLY_DEMAND_PERCENTILE: Final[float] = 0.80
+"""r190 — the most-recent absolute weekly crude-stock change at/above the
+80th percentile of its rolling window marks a supply/demand-driven regime.
+Self-calibrating (shared ``_value_above_percentile``) — no fragile hardcoded
+barrel level. Mirror r189 price_action_flow."""
+
+_SUPPLY_DEMAND_SERIES_ID: Final[str] = "WCESTUS1"
+"""EIA weekly crude-oil ending stocks series (the headline crude inventory
+level). The ``supply_demand`` driver reads this one series' weekly Δ ;
+WCRSTUS1 / WTTSTUS1 are persisted for future multi-series extension but
+not yet read."""
 
 _FOMC_PROXIMITY_LOOKBACK_DAYS: Final[int] = 5
 """±5 business days around FOMC = monetary-policy-driven window
@@ -512,6 +531,47 @@ async def _is_price_action_flow_elevated(
     )
 
 
+async def _is_supply_demand_elevated(
+    session: AsyncSession,
+    *,
+    now_utc: datetime,
+) -> bool:
+    """r190 — True if the most-recent weekly crude-stock CHANGE (build or
+    draw) sits at/above the 80th percentile of |Δ| over the rolling
+    ``_SUPPLY_DEMAND_LOOKBACK_DAYS`` window. A large absolute weekly
+    inventory swing marks a supply/demand-driven regime — the commodity
+    complex (oil, and via the dollar / real-yield channel, gold) being
+    driven by physical balance rather than macro/policy. Materialises the
+    Eliot Fathom étape 1 ``supply_demand`` driver (« offre/demande directe
+    — impact majeur sur commodities »).
+
+    Self-calibrating percentile rank (shared ``_value_above_percentile``)
+    — no fragile hardcoded barrel level. Returns False on insufficient
+    history (< 2 readings, or < 30 weekly Δ per Cohen 1988 ; doctrine #11
+    honest absence). ADR-017 : descriptive regime context, never a signal."""
+    cutoff = (now_utc - timedelta(days=_SUPPLY_DEMAND_LOOKBACK_DAYS)).date()
+    rows = (
+        (
+            await session.execute(
+                select(EiaCrudeStockObservation)
+                .where(EiaCrudeStockObservation.series_id == _SUPPLY_DEMAND_SERIES_ID)
+                .where(EiaCrudeStockObservation.observation_date >= cutoff)
+                .order_by(desc(EiaCrudeStockObservation.observation_date))
+            )
+        )
+        .scalars()
+        .all()
+    )
+    # rows desc → rows[0] most recent. Weekly Δ = value[i] - value[i+1]
+    # (current minus previous week). |Δ| newest-first for the percentile
+    # rank (the helper tests element [0] = the latest weekly swing).
+    values = [float(r.value) for r in rows if r.value is not None]
+    if len(values) < 2:
+        return False
+    deltas_newest_first = [abs(values[i] - values[i + 1]) for i in range(len(values) - 1)]
+    return _value_above_percentile(deltas_newest_first, _SUPPLY_DEMAND_PERCENTILE)
+
+
 def _rank_drivers(
     strengths: dict[ThemeDriverKey, float],
 ) -> tuple[ThemeDriverKey, list[ThemeDriverKey]] | None:
@@ -564,8 +624,8 @@ async def classify_dominant_theme(
       capped 0.85 (r188 enrichment), else baseline.
     - ``price_action_flow`` : VVIX OR SKEW at/above the 80th percentile of
       rolling 90d → 0.7 (r189 enrichment), else baseline.
-    - ``supply_demand`` : baseline 0.2 (r190+ adds EIA petroleum crude
-      stocks + COMEX gold inventory inputs).
+    - ``supply_demand`` : EIA weekly crude-stock |Δ| at/above the 80th
+      percentile of rolling 365d → 0.7 (r190 enrichment), else baseline.
 
     Returns ``ThemeRanking`` when ``top_theme`` strength ≥
     ``_DOMINANCE_THRESHOLD`` (0.5) ; ``None`` otherwise (honest
@@ -644,14 +704,19 @@ async def classify_dominant_theme(
     # r189 EXECUTION enrichment : price_action_flow now wired via VVIX/SKEW
     # percentile (`_is_price_action_flow_elevated`). Elevated vol-of-vol OR
     # tail-risk → 0.7 (positioning/flow-driven regime ; mirrors the
-    # market_interconnexions panic magnitude). supply_demand still baseline
-    # (r190+ : EIA petroleum crude stocks + COMEX gold inventory inputs).
+    # market_interconnexions panic magnitude).
     strengths["price_action_flow"] = (
         0.7
         if await _is_price_action_flow_elevated(session, now_utc=now_utc)
         else _BASELINE_STRENGTH
     )
-    strengths["supply_demand"] = _BASELINE_STRENGTH
+    # r190 EXECUTION enrichment : supply_demand now wired via EIA weekly
+    # crude-stock change percentile (`_is_supply_demand_elevated`). A large
+    # weekly inventory swing → 0.7 (commodity physical-balance-driven
+    # regime). Theme classifier now 8/8 drivers data-driven.
+    strengths["supply_demand"] = (
+        0.7 if await _is_supply_demand_elevated(session, now_utc=now_utc) else _BASELINE_STRENGTH
+    )
 
     # Doctrine #11 calibrated honesty : if all inputs absent (no FRED,
     # no FOMC, no releases, no GPR history), the dominant driver will

@@ -29,6 +29,7 @@ class EiaObservation:
     value: float | None
     unit: str | None
     fetched_at: datetime
+    source_url: str | None = None
 
 
 SERIES_TO_POLL: tuple[str, ...] = (
@@ -52,10 +53,14 @@ async def fetch_weekly_petroleum_stocks(
     series_ids: tuple[str, ...] = ("WCESTUS1", "WCRSTUS1", "WTTSTUS1"),
     timeout_s: float = 30.0,
     last_n_obs: int = 12,
+    client: httpx.AsyncClient | None = None,
 ) -> list[EiaObservation]:
     """Pull weekly petroleum stocks for the listed series.
 
-    Endpoint: /petroleum/stoc/wstk/data with `series` filter.
+    Endpoint: /petroleum/stoc/wstk/data with `series` filter. Pass
+    ``client`` to inject a (mock) AsyncClient for unit tests ; when
+    omitted a short-lived client is created + closed here. The caller
+    owns an injected client's lifecycle (same pattern as ecb_estr).
     """
     if not api_key:
         return []
@@ -69,13 +74,18 @@ async def fetch_weekly_petroleum_stocks(
         "sort[0][direction]": "desc",
         "length": last_n_obs * len(series_ids),
     }
+    owns_client = client is None
+    if client is None:
+        client = httpx.AsyncClient(timeout=timeout_s)
     try:
-        async with httpx.AsyncClient(timeout=timeout_s) as client:
-            r = await client.get(url, params=params)
-            r.raise_for_status()
-            body = r.json()
+        r = await client.get(url, params=params)
+        r.raise_for_status()
+        body = r.json()
     except httpx.HTTPError:
         return []
+    finally:
+        if owns_client:
+            await client.aclose()
 
     response = body.get("response") or {}
     rows = response.get("data") or []
@@ -94,6 +104,7 @@ async def fetch_weekly_petroleum_stocks(
                 value=val,
                 unit=row.get("units"),
                 fetched_at=fetched,
+                source_url=url,
             )
         )
     return out

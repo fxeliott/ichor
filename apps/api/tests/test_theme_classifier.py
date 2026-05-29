@@ -236,6 +236,7 @@ class TestClassifyDominantThemeExecution:
                 patch.object(
                     tc_mod, "_is_price_action_flow_elevated", AsyncMock(return_value=False)
                 ),
+                patch.object(tc_mod, "_is_supply_demand_elevated", AsyncMock(return_value=False)),
                 patch.object(tc_mod, "_is_ai_gpr_elevated", AsyncMock(return_value=False)),
             ):
                 result = await classify_dominant_theme(
@@ -260,6 +261,7 @@ class TestClassifyDominantThemeExecution:
                 patch.object(
                     tc_mod, "_is_price_action_flow_elevated", AsyncMock(return_value=False)
                 ),
+                patch.object(tc_mod, "_is_supply_demand_elevated", AsyncMock(return_value=False)),
                 patch.object(tc_mod, "_is_ai_gpr_elevated", AsyncMock(return_value=False)),
             ):
                 result = await classify_dominant_theme(
@@ -286,6 +288,7 @@ class TestClassifyDominantThemeExecution:
                 patch.object(
                     tc_mod, "_is_price_action_flow_elevated", AsyncMock(return_value=False)
                 ),
+                patch.object(tc_mod, "_is_supply_demand_elevated", AsyncMock(return_value=False)),
                 patch.object(tc_mod, "_is_ai_gpr_elevated", AsyncMock(return_value=True)),
             ):
                 result = await classify_dominant_theme(
@@ -318,6 +321,7 @@ class TestClassifyDominantThemeExecution:
                 patch.object(
                     tc_mod, "_is_price_action_flow_elevated", AsyncMock(return_value=False)
                 ),
+                patch.object(tc_mod, "_is_supply_demand_elevated", AsyncMock(return_value=False)),
                 patch.object(tc_mod, "_is_ai_gpr_elevated", AsyncMock(return_value=False)),
             ):
                 result = await classify_dominant_theme(
@@ -344,6 +348,7 @@ class TestClassifyDominantThemeExecution:
                 patch.object(
                     tc_mod, "_is_price_action_flow_elevated", AsyncMock(return_value=False)
                 ),
+                patch.object(tc_mod, "_is_supply_demand_elevated", AsyncMock(return_value=False)),
                 patch.object(tc_mod, "_is_ai_gpr_elevated", AsyncMock(return_value=False)),
             ):
                 result = await classify_dominant_theme(
@@ -381,6 +386,7 @@ class TestClassifyDominantThemeExecution:
                 patch.object(
                     tc_mod, "_is_price_action_flow_elevated", AsyncMock(return_value=False)
                 ),
+                patch.object(tc_mod, "_is_supply_demand_elevated", AsyncMock(return_value=False)),
                 patch.object(tc_mod, "_is_ai_gpr_elevated", AsyncMock(return_value=False)),
             ):
                 result = await classify_dominant_theme(
@@ -414,6 +420,7 @@ class TestClassifyDominantThemeExecution:
                 patch.object(
                     tc_mod, "_is_price_action_flow_elevated", AsyncMock(return_value=False)
                 ),
+                patch.object(tc_mod, "_is_supply_demand_elevated", AsyncMock(return_value=False)),
                 patch.object(tc_mod, "_is_ai_gpr_elevated", AsyncMock(return_value=True)),
             ):
                 result = await classify_dominant_theme(
@@ -479,6 +486,7 @@ class TestPriceActionFlowDriver:
                 patch.object(
                     tc_mod, "_is_price_action_flow_elevated", AsyncMock(return_value=True)
                 ),
+                patch.object(tc_mod, "_is_supply_demand_elevated", AsyncMock(return_value=False)),
                 patch.object(tc_mod, "_is_ai_gpr_elevated", AsyncMock(return_value=False)),
             ):
                 result = await classify_dominant_theme(
@@ -506,6 +514,68 @@ class TestPriceActionFlowDriver:
                 patch.object(
                     tc_mod, "_is_price_action_flow_elevated", AsyncMock(return_value=False)
                 ),
+                patch.object(tc_mod, "_is_supply_demand_elevated", AsyncMock(return_value=False)),
+                patch.object(tc_mod, "_is_ai_gpr_elevated", AsyncMock(return_value=False)),
+            ):
+                result = await classify_dominant_theme(
+                    session=AsyncMock(),
+                    now_utc=datetime(2026, 5, 28, 13, 0, tzinfo=UTC),
+                )
+            assert result is None
+
+        asyncio.run(_run())
+
+
+class TestSupplyDemandDriver:
+    """r190 EXECUTION : supply_demand wired via EIA weekly crude-stock |Δ|
+    percentile. The DB-touching ``_is_supply_demand_elevated`` is
+    monkeypatched here (its percentile logic is covered by
+    ``TestValueAbovePercentilePure``) — same pattern as the GPR + PAF drivers."""
+
+    def test_supply_demand_dominates_when_crude_swing_elevated(self) -> None:
+        """EIA weekly crude-stock |Δ| above 80th pct → supply_demand = 0.7
+        dominates (all other drivers at/below baseline ; VIX absent → market 0.3)."""
+
+        async def _run() -> None:
+            with (
+                patch.object(tc_mod, "_latest_fred_value", AsyncMock(return_value=None)),
+                patch.object(tc_mod, "_fomc_proximity_days", AsyncMock(return_value=None)),
+                patch.object(
+                    tc_mod, "_count_recent_high_impact_releases", AsyncMock(return_value=0)
+                ),
+                patch.object(tc_mod, "_count_recent_fiscal_events", AsyncMock(return_value=0)),
+                patch.object(
+                    tc_mod, "_is_price_action_flow_elevated", AsyncMock(return_value=False)
+                ),
+                patch.object(tc_mod, "_is_supply_demand_elevated", AsyncMock(return_value=True)),
+                patch.object(tc_mod, "_is_ai_gpr_elevated", AsyncMock(return_value=False)),
+            ):
+                result = await classify_dominant_theme(
+                    session=AsyncMock(),
+                    now_utc=datetime(2026, 5, 28, 13, 0, tzinfo=UTC),
+                )
+            assert result is not None
+            assert result.top_theme == "supply_demand"
+            assert result.driver_strengths["supply_demand"] == pytest.approx(0.7)
+
+        asyncio.run(_run())
+
+    def test_supply_demand_baseline_when_not_elevated(self) -> None:
+        """Not elevated + nothing else firing → all baseline → None
+        (honest absence, doctrine #11)."""
+
+        async def _run() -> None:
+            with (
+                patch.object(tc_mod, "_latest_fred_value", AsyncMock(return_value=None)),
+                patch.object(tc_mod, "_fomc_proximity_days", AsyncMock(return_value=None)),
+                patch.object(
+                    tc_mod, "_count_recent_high_impact_releases", AsyncMock(return_value=0)
+                ),
+                patch.object(tc_mod, "_count_recent_fiscal_events", AsyncMock(return_value=0)),
+                patch.object(
+                    tc_mod, "_is_price_action_flow_elevated", AsyncMock(return_value=False)
+                ),
+                patch.object(tc_mod, "_is_supply_demand_elevated", AsyncMock(return_value=False)),
                 patch.object(tc_mod, "_is_ai_gpr_elevated", AsyncMock(return_value=False)),
             ):
                 result = await classify_dominant_theme(
