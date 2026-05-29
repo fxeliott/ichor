@@ -376,6 +376,13 @@
   --z-debug: 9999;
 }
 
+/* Sticky in-page anchor offset (overwritten at runtime by
+ * BriefingSectionNav from the measured global header + nav height; this is
+ * the pre-hydration fallback so deep-link anchors clear the header). */
+:root {
+  --briefing-anchor-offset: 96px;
+}
+
 /* ── Base ─────────────────────────────────────────────── */
 html,
 body {
