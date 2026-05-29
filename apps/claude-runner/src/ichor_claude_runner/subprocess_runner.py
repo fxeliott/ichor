@@ -95,6 +95,13 @@ async def run_claude(
     # prompt (up to 200 KB by Pydantic contract, typical 15-30 KB) goes
     # through stdin. Without this, briefings + Couche-2 calls on assets
     # with rich data_pool (≥17 KB) crash with `WinError 206`.
+    # §10 (2026-05-29) — Opus 4.8 upgrade. The CLI alias `opus` still resolves
+    # to opus-4-7; pin briefings/session-cards to the released claude-opus-4-8
+    # (verified: local CLI accepts the tag, websearch-confirmed id). Couche-2
+    # stays on `haiku` (ADR-023) untouched; explicit full tags pass through.
+    _model_aliases = {"opus": "claude-opus-4-8"}
+    cli_model = _model_aliases.get(model, model)
+
     cmd = [
         settings.claude_binary,
         "-p",
@@ -104,7 +111,7 @@ async def run_claude(
         "--output-format",
         "json",
         "--model",
-        model,
+        cli_model,
         "--effort",
         effort,
         "--no-session-persistence",
