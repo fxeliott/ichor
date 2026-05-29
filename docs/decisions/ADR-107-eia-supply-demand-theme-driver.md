@@ -66,7 +66,7 @@ anthropic`. (ADR-009.)
 - Theme classifier is **8/8 drivers data-driven**. No change to `THEME_DRIVERS`
   (the key already existed) → no frontend change, W90 lockstep stays green.
 - **Live activation is Eliot-gated** (two one-time manual steps, no code):
-  (1) `EIA_API_KEY` into Hetzner `/etc/ichor/api.env` (free registration,
+  (1) `ICHOR_API_EIA_API_KEY` into Hetzner `/etc/ichor/api.env` (free registration,
   https://www.eia.gov/opendata/register.php — never commit the key) ;
   (2) flip `eia_crude_stocks_collector_enabled` true + register the cron +
   one-shot backfill `--last-n-obs 120`.

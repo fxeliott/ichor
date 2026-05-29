@@ -13,7 +13,7 @@ honest absence, zero behaviour regression — same dormant-until-data
 pattern as the other collectors).
 
 Gated by feature flag ``eia_crude_stocks_collector_enabled`` (default
-False — fail-closed). REQUIRES ``EIA_API_KEY`` in the process env
+False — fail-closed). REQUIRES ``ICHOR_API_EIA_API_KEY`` in the process env
 (systemd ``EnvironmentFile=/etc/ichor/api.env``) — EIA has no
 anonymous tier. Without the key the collector returns [] gracefully.
 
@@ -92,15 +92,15 @@ async def _run(*, dry_run: bool, batch_size: int, last_n_obs: int) -> int:
         print(
             f"feature flag {_FEATURE_FLAG_NAME!r} is OFF — skipping EIA "
             "crude-stocks ingestion (set true via UPDATE feature_flags "
-            "once EIA_API_KEY is provisioned and you're ready)."
+            "once ICHOR_API_EIA_API_KEY is provisioned and you're ready)."
         )
         return 0
 
     settings = get_settings()
     if not settings.eia_api_key:
         print(
-            "EIA_API_KEY is empty — EIA has no anonymous tier, the "
-            "collector returns []. Set EIA_API_KEY in /etc/ichor/api.env.",
+            "ICHOR_API_EIA_API_KEY is empty — EIA has no anonymous tier, the "
+            "collector returns []. Set ICHOR_API_EIA_API_KEY in /etc/ichor/api.env.",
             file=sys.stderr,
         )
         return 0
@@ -187,7 +187,7 @@ def main(argv: list[str]) -> int:
             "ADR-107 — weekly EIA petroleum crude-stocks ingestion. "
             "Fetches weekly stock series from EIA OpenData v2 and upserts "
             f"into eia_crude_stocks. Gated by {_FEATURE_FLAG_NAME!r} + "
-            "requires EIA_API_KEY."
+            "requires ICHOR_API_EIA_API_KEY."
         ),
     )
     parser.add_argument(

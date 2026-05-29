@@ -20,7 +20,7 @@
 #   psql -d ichor -c "SELECT series_id, MAX(observation_date), COUNT(*) FROM eia_crude_stocks GROUP BY series_id;"
 #
 # Prerequisites (Eliot-gated, one-time) :
-#   1. EIA_API_KEY in /etc/ichor/api.env  (EIA has NO anonymous tier ;
+#   1. ICHOR_API_EIA_API_KEY in /etc/ichor/api.env  (EIA has NO anonymous tier ;
 #      free registration at https://www.eia.gov/opendata/register.php).
 #   2. Feature flag : UPDATE feature_flags SET enabled = true,
 #      rollout_pct = 100 WHERE flag_name = 'eia_crude_stocks_collector_enabled';
