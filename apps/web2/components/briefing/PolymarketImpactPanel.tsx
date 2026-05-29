@@ -131,6 +131,9 @@ function formatImpactAge(generatedAtIso: string): string | null {
 interface PolymarketImpactPanelProps {
   asset: string;
   impact: PolymarketImpact | null;
+  /** When true, suppress the component's own top-level header (the page
+   *  already renders a SubHeader with the distinct meta label). */
+  hideHeader?: boolean;
 }
 
 /** Reusable shell wrapper for the 3 panel states (no-data / no-theme /
@@ -140,12 +143,14 @@ function PanelShell({
   headingText,
   subHeading,
   ariaLive,
+  hideHeader,
   children,
 }: {
   headingId: string;
   headingText: string;
   subHeading?: React.ReactNode;
   ariaLive?: "polite" | "off";
+  hideHeader?: boolean | undefined;
   children: React.ReactNode;
 }) {
   return (
@@ -154,17 +159,19 @@ function PanelShell({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
       className="overflow-hidden rounded-2xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)]/40 backdrop-blur-xl"
-      aria-labelledby={headingId}
+      aria-labelledby={hideHeader ? undefined : headingId}
       aria-live={ariaLive}
     >
-      <header className="border-b border-[var(--color-border-subtle)] px-6 py-4">
-        <h3 id={headingId} className="font-serif text-lg text-[var(--color-text-primary)]">
-          {headingText}
-        </h3>
-        {subHeading ? (
-          <p className="mt-1 text-xs text-[var(--color-text-muted)]">{subHeading}</p>
-        ) : null}
-      </header>
+      {!hideHeader && (
+        <header className="border-b border-[var(--color-border-subtle)] px-6 py-4">
+          <h3 id={headingId} className="font-serif text-lg text-[var(--color-text-primary)]">
+            {headingText}
+          </h3>
+          {subHeading ? (
+            <p className="mt-1 text-xs text-[var(--color-text-muted)]">{subHeading}</p>
+          ) : null}
+        </header>
+      )}
       {children}
     </m.section>
   );
@@ -172,7 +179,7 @@ function PanelShell({
 
 const PANEL_HEADING_ID = "polymarket-impact-panel-heading";
 
-export function PolymarketImpactPanel({ asset, impact }: PolymarketImpactPanelProps) {
+export function PolymarketImpactPanel({ asset, impact, hideHeader }: PolymarketImpactPanelProps) {
   const assetLabel = asset.replace("_", "/");
 
   // Empty-state shell — cron not fired OR API down.
@@ -183,6 +190,7 @@ export function PolymarketImpactPanel({ asset, impact }: PolymarketImpactPanelPr
         headingText="Polymarket — paris en cours"
         subHeading={`Thèmes clustered + transmission directionnelle sur ${assetLabel} — non disponible.`}
         ariaLive="polite"
+        hideHeader={hideHeader}
       >
         <p role="status" className="px-6 py-8 text-center text-sm text-[var(--color-text-muted)]">
           Polymarket inactif pour {assetLabel} en ce moment.
@@ -215,6 +223,7 @@ export function PolymarketImpactPanel({ asset, impact }: PolymarketImpactPanelPr
         headingText="Polymarket — paris en cours"
         subHeading={subHeading}
         ariaLive="polite"
+        hideHeader={hideHeader}
       >
         <p role="status" className="px-6 py-8 text-center text-sm text-[var(--color-text-muted)]">
           Les paris en cours n&apos;ont pas de transmission directe vers {assetLabel}{" "}
@@ -231,6 +240,7 @@ export function PolymarketImpactPanel({ asset, impact }: PolymarketImpactPanelPr
       headingId={PANEL_HEADING_ID}
       headingText="Polymarket — paris en cours"
       subHeading={subHeading}
+      hideHeader={hideHeader}
     >
       <ul className="divide-y divide-[var(--color-border-subtle)]">
         {tops.map(({ theme, impact_value }) => {

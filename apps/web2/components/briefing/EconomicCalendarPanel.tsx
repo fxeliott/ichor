@@ -60,9 +60,16 @@ interface EconomicCalendarPanelProps {
   events: CalendarEvent[];
   /** The briefing asset — events touching it are highlighted. */
   highlightAsset: string;
+  /** When true, suppress the component's own top-level header (the page
+   *  already renders a SubHeader with the distinct meta label). */
+  hideHeader?: boolean;
 }
 
-export function EconomicCalendarPanel({ events, highlightAsset }: EconomicCalendarPanelProps) {
+export function EconomicCalendarPanel({
+  events,
+  highlightAsset,
+  hideHeader,
+}: EconomicCalendarPanelProps) {
   if (!events || events.length === 0) {
     return (
       <div className="rounded-2xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)]/40 p-8 text-center backdrop-blur-xl">
@@ -91,15 +98,17 @@ export function EconomicCalendarPanel({ events, highlightAsset }: EconomicCalend
       transition={{ duration: 0.3 }}
       className="overflow-hidden rounded-2xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)]/40 backdrop-blur-xl"
     >
-      <header className="border-b border-[var(--color-border-subtle)] px-6 py-4">
-        <h3 className="font-serif text-lg text-[var(--color-text-primary)]">
-          Calendrier économique
-        </h3>
-        <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-          Événements à venir · impact-codé · ceux touchant {highlightAsset.replace("_", "/")}{" "}
-          surlignés
-        </p>
-      </header>
+      {!hideHeader && (
+        <header className="border-b border-[var(--color-border-subtle)] px-6 py-4">
+          <h3 className="font-serif text-lg text-[var(--color-text-primary)]">
+            Calendrier économique
+          </h3>
+          <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+            Événements à venir · impact-codé · ceux touchant {highlightAsset.replace("_", "/")}{" "}
+            surlignés
+          </p>
+        </header>
+      )}
 
       <div className="divide-y divide-[var(--color-border-subtle)]/60">
         {[...byDay.entries()].map(([day, dayEvents], di) => (

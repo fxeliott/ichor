@@ -481,6 +481,7 @@ export default async function BriefingPage({ params }: PageParams) {
             <EconomicCalendarPanel
               events={calendar?.events ?? []}
               highlightAsset={normalisedAsset}
+              hideHeader
             />
           </div>
           <EventSurpriseGauge data={eventSurprise} assetPair={normalisedAsset.replace("_", "/")} />
@@ -504,7 +505,7 @@ export default async function BriefingPage({ params }: PageParams) {
               meta={correlationSource}
             />
             {correlationSnapshot ? (
-              <CorrelationsStrip snapshot={correlationSnapshot} />
+              <CorrelationsStrip snapshot={correlationSnapshot} hideHeader />
             ) : (
               <div className="rounded-2xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)]/40 px-6 py-8 text-center text-sm text-[var(--color-text-muted)] backdrop-blur-xl">
                 Corrélations indisponibles — ni snapshot carte ni matrice live pour{" "}
@@ -528,7 +529,11 @@ export default async function BriefingPage({ params }: PageParams) {
               title="Positionnement retail"
               meta="MyFXBook retail · contrarian"
             />
-            <SentimentPanel entries={positioning?.entries ?? []} asset={normalisedAsset} />
+            <SentimentPanel
+              entries={positioning?.entries ?? []}
+              asset={normalisedAsset}
+              hideHeader
+            />
           </div>
           <div>
             <SubHeader
@@ -536,7 +541,7 @@ export default async function BriefingPage({ params }: PageParams) {
               title="Acteurs du marché"
               meta="CFTC TFF + COT · smart money"
             />
-            <InstitutionalPositioningPanel data={institutional} />
+            <InstitutionalPositioningPanel data={institutional} hideHeader />
           </div>
           <div>
             <SubHeader
@@ -544,7 +549,7 @@ export default async function BriefingPage({ params }: PageParams) {
               title="Paris agrégés"
               meta="Polymarket · thèmes · transmission directionnelle"
             />
-            <PolymarketImpactPanel asset={normalisedAsset} impact={polymarketImpact} />
+            <PolymarketImpactPanel asset={normalisedAsset} impact={polymarketImpact} hideHeader />
           </div>
           <div>
             <SubHeader id="news-heading" title="Actualités" meta="Flux récent · tonalité" />
@@ -552,6 +557,7 @@ export default async function BriefingPage({ params }: PageParams) {
               news={news?.items ?? []}
               filter={news?.filter ?? null}
               asset={normalisedAsset}
+              hideHeader
             />
           </div>
           <div>
@@ -560,7 +566,7 @@ export default async function BriefingPage({ params }: PageParams) {
               title="Géopolitique"
               meta="AI-GPR · GDELT · risque macro-géopolitique"
             />
-            <GeopoliticsPanel data={geopolitics} />
+            <GeopoliticsPanel data={geopolitics} hideHeader />
           </div>
         </BriefingSection>
 

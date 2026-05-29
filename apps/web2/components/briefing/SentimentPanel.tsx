@@ -65,9 +65,12 @@ function SplitBar({ longPct, shortPct }: { longPct: number; shortPct: number }) 
 interface SentimentPanelProps {
   entries: PositioningEntry[];
   asset: string;
+  /** When true, suppress the component's own top-level header (the page
+   *  already renders a SubHeader with the distinct meta label). */
+  hideHeader?: boolean;
 }
 
-export function SentimentPanel({ entries, asset }: SentimentPanelProps) {
+export function SentimentPanel({ entries, asset, hideHeader }: SentimentPanelProps) {
   const myfxPair = ASSET_TO_MYFXBOOK[asset];
   const isIndex = myfxPair === null && asset in ASSET_TO_MYFXBOOK;
 
@@ -83,15 +86,17 @@ export function SentimentPanel({ entries, asset }: SentimentPanelProps) {
       transition={{ duration: 0.3 }}
       className="overflow-hidden rounded-2xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)]/40 backdrop-blur-xl"
     >
-      <header className="border-b border-[var(--color-border-subtle)] px-6 py-4">
-        <h3 className="font-serif text-lg text-[var(--color-text-primary)]">
-          Positionnement retail
-        </h3>
-        <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-          MyFXBook · la foule retail est structurellement à contre-sens aux extrêmes (biais
-          contrarian) · vert long / rouge short
-        </p>
-      </header>
+      {!hideHeader && (
+        <header className="border-b border-[var(--color-border-subtle)] px-6 py-4">
+          <h3 className="font-serif text-lg text-[var(--color-text-primary)]">
+            Positionnement retail
+          </h3>
+          <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+            MyFXBook · la foule retail est structurellement à contre-sens aux extrêmes (biais
+            contrarian) · vert long / rouge short
+          </p>
+        </header>
+      )}
 
       {isIndex && (
         <div className="border-b border-[var(--color-border-subtle)] px-6 py-4 text-sm text-[var(--color-text-muted)]">

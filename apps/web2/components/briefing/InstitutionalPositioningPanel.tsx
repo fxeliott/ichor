@@ -35,7 +35,15 @@ function deltaLabel(d: number | null): string {
   return d === null ? "" : ` (Δw ${signed(d)})`;
 }
 
-export function InstitutionalPositioningPanel({ data }: { data: InstitutionalPositioning | null }) {
+export function InstitutionalPositioningPanel({
+  data,
+  hideHeader,
+}: {
+  data: InstitutionalPositioning | null;
+  /** When true, suppress the component's own top-level header (the page
+   *  already renders a SubHeader with the distinct meta label). */
+  hideHeader?: boolean;
+}) {
   if (!data || (data.tff === null && data.cot === null)) {
     return (
       <m.section
@@ -44,14 +52,16 @@ export function InstitutionalPositioningPanel({ data }: { data: InstitutionalPos
         transition={{ duration: 0.3 }}
         className="overflow-hidden rounded-2xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)]/40 backdrop-blur-xl"
       >
-        <header className="border-b border-[var(--color-border-subtle)] px-6 py-4">
-          <h3 className="font-serif text-lg text-[var(--color-text-primary)]">
-            Positionnement institutionnel
-          </h3>
-          <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-            CFTC TFF / COT — non disponible pour cet actif.
-          </p>
-        </header>
+        {!hideHeader && (
+          <header className="border-b border-[var(--color-border-subtle)] px-6 py-4">
+            <h3 className="font-serif text-lg text-[var(--color-text-primary)]">
+              Positionnement institutionnel
+            </h3>
+            <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+              CFTC TFF / COT — non disponible pour cet actif.
+            </p>
+          </header>
+        )}
         <p className="px-6 py-8 text-center text-sm text-[var(--color-text-muted)]">
           Pas de données CFTC pour {data?.asset ?? "cet actif"}.
         </p>
@@ -78,14 +88,16 @@ export function InstitutionalPositioningPanel({ data }: { data: InstitutionalPos
       className="overflow-hidden rounded-2xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)]/40 backdrop-blur-xl"
     >
       <header className="flex flex-wrap items-start justify-between gap-2 border-b border-[var(--color-border-subtle)] px-6 py-4">
-        <div>
-          <h3 className="font-serif text-lg text-[var(--color-text-primary)]">
-            Positionnement institutionnel
-          </h3>
-          <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-            CFTC · net long (+) / short (−) en contrats · {data.cadence}
-          </p>
-        </div>
+        {!hideHeader && (
+          <div>
+            <h3 className="font-serif text-lg text-[var(--color-text-primary)]">
+              Positionnement institutionnel
+            </h3>
+            <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+              CFTC · net long (+) / short (−) en contrats · {data.cadence}
+            </p>
+          </div>
+        )}
         <span className="rounded-full border border-[var(--color-border-default)] px-2.5 py-1 text-[10px] font-medium uppercase tracking-widest text-[var(--color-text-muted)]">
           Rapport {tff?.report_date ?? cot?.report_date}
         </span>
