@@ -40,6 +40,7 @@ from .push import router as push_router
 from .scenarios import router as scenarios_router
 from .sessions import router as sessions_router
 from .sources import router as sources_router
+from .stir import router as stir_router
 from .tempo_thresholds import router as tempo_thresholds_router
 from .theme_dominant import router as theme_dominant_router
 from .today import router as today_router
@@ -87,6 +88,7 @@ __all__ = [
     "scenarios_router",
     "sessions_router",
     "sources_router",
+    "stir_router",
     "tempo_thresholds_router",
     "theme_dominant_router",
     "today_router",

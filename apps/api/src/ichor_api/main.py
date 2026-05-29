@@ -51,6 +51,7 @@ from .routers import (
     scenarios_router,
     sessions_router,
     sources_router,
+    stir_router,
     tempo_thresholds_router,
     theme_dominant_router,
     today_router,
@@ -243,6 +244,7 @@ app.include_router(today_router)
 app.include_router(push_router)
 app.include_router(admin_router)
 app.include_router(yield_curve_router)
+app.include_router(stir_router)
 app.include_router(tools_router)
 app.include_router(well_known_router)
 app.include_router(ws_router)
