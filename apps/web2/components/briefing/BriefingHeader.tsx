@@ -18,6 +18,7 @@ import { m } from "motion/react";
 
 import { Sparkline } from "@/components/briefing/Sparkline";
 import type { SessionCard } from "@/lib/api";
+import { deriveFreshness, type FreshnessState } from "@/lib/freshness";
 
 interface BriefingHeaderProps {
   asset: string;
@@ -73,6 +74,14 @@ function relativeTime(iso: string): string {
   return `${d}d ago`;
 }
 
+/** Freshness pill dot colour token per state. `stale` uses the amber
+ *  --color-warn so a non-recalibrated card is prominent, NOT muted. */
+const FRESHNESS_DOT: Record<FreshnessState, string> = {
+  fresh: "bg-[var(--color-bull)] animate-pulse",
+  stale: "bg-[var(--color-warn)]",
+  absent: "bg-[var(--color-text-muted)]",
+};
+
 export function BriefingHeader({
   asset,
   card,
@@ -80,6 +89,15 @@ export function BriefingHeader({
   priceTrend,
   rangeTrend,
 }: BriefingHeaderProps) {
+  // HONEST FRESHNESS GATE — the pill state is driven by the CARD's
+  // freshness (generated_at vs Paris-day + age), NOT by `isLive`
+  // (= API-reachable). A stale card under "LIVE / temps réel" is a lie ;
+  // this surfaces the amber stale state with explicit FR text + dot
+  // (WCAG 1.4.1 : state conveyed by text AND colour, never colour alone).
+  // `isLive` remains in the signature for back-compat but no longer
+  // governs the pill.
+  void isLive;
+  const freshness = deriveFreshness(card?.generated_at ?? null);
   return (
     <m.header
       initial={{ opacity: 0, y: -8 }}
@@ -94,14 +112,23 @@ export function BriefingHeader({
 
       <div className="relative grid gap-6 md:grid-cols-[1fr_auto] md:items-end">
         <div>
-          <div className="flex items-center gap-3 text-[10px] uppercase tracking-[0.2em] text-[var(--color-text-muted)]">
+          <div
+            className={`flex items-center gap-3 text-[10px] uppercase tracking-[0.2em] ${
+              freshness.state === "stale"
+                ? "text-[var(--color-warn)]"
+                : "text-[var(--color-text-muted)]"
+            }`}
+            role="status"
+          >
             <span
-              className={`inline-flex h-2 w-2 rounded-full ${
-                isLive ? "bg-[var(--color-bull)] animate-pulse" : "bg-[var(--color-text-muted)]"
-              }`}
+              className={`inline-flex h-2 w-2 rounded-full ${FRESHNESS_DOT[freshness.state]}`}
               aria-hidden
             />
-            <span>{isLive ? "LIVE" : "OFFLINE"}</span>
+            {freshness.state === "fresh" && <span>À JOUR</span>}
+            {freshness.state === "stale" && (
+              <span className="font-semibold">DONNÉES NON FRAÎCHES · {freshness.ageLabel}</span>
+            )}
+            {freshness.state === "absent" && <span>PAS DE LECTURE</span>}
             {card?.session_type && (
               <>
                 <span className="text-[var(--color-text-muted)]">·</span>

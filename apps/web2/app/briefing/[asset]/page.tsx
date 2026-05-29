@@ -368,7 +368,11 @@ export default async function BriefingPage({ params }: PageParams) {
         rangeTrend={recentBars.map((b) => b.high - b.low)}
       />
 
-      <TodaySessionPulse asset={normalisedAsset} pulse={sessionPulse} />
+      <TodaySessionPulse
+        asset={normalisedAsset}
+        pulse={sessionPulse}
+        cardGeneratedAt={card?.generated_at ?? null}
+      />
 
       {/* Sticky in-page table of contents — pins below the global header,
           scroll-spies the active section, opens collapsed sections on click. */}

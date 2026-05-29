@@ -41,6 +41,7 @@
 //   N-3 — dropped the redundant delta_bp display (delta_pct is sufficient).
 //   N-4 — empty-state mirrors the VolumePanel header+border-b shell.
 
+import { deriveFreshness } from "@/lib/freshness";
 import { linScale, svgCoord, xLinear } from "@/lib/microchart";
 import { getNyWindowStatus, type NyWindowKind } from "@/lib/nyWindow";
 import type { SessionPulse } from "@/lib/sessionPulse";
@@ -215,12 +216,52 @@ function NyWindowBadge({ asset }: { asset?: string }) {
   );
 }
 
+/** HONEST FRESHNESS GATE for the "temps réel / recalibrée" claim.
+ * The unconditional "Lecture en temps réel · recalibrée chaque session ·
+ * pas de carry-over d'hier" wording is a LIE when the session card is
+ * stale (engine down → yesterday's card served). Gate it on the card's
+ * freshness : show the live wording ONLY when `fresh` ; when `stale`
+ * show an honest amber variant ; when `absent` stay neutral-muted.
+ * State is conveyed by TEXT + colour, never colour alone (WCAG 1.4.1). */
+function FreshnessSubtitle({ cardGeneratedAt }: { cardGeneratedAt: string | null }) {
+  const freshness = deriveFreshness(cardGeneratedAt);
+  if (freshness.state === "stale") {
+    return (
+      <p
+        className="mt-1 text-[10px] font-semibold uppercase tracking-widest text-[var(--color-warn)]"
+        role="status"
+      >
+        Lecture de la session précédente · non recalibrée aujourd&apos;hui · {freshness.ageLabel}
+      </p>
+    );
+  }
+  if (freshness.state === "fresh") {
+    return (
+      <p className="mt-1 text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
+        Lecture en temps réel · recalibrée chaque session · pas de carry-over d&apos;hier
+      </p>
+    );
+  }
+  // absent — no card timestamp ; stay honestly neutral (do not claim live).
+  return (
+    <p className="mt-1 text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
+      Pas de lecture de session disponible
+    </p>
+  );
+}
+
 interface TodaySessionPulseProps {
   asset: string;
   pulse: SessionPulse | null;
+  /** r-freshness — the session card's `generated_at` (or null). Gates the
+   * "temps réel / recalibrée" subtitle so a stale card never claims live.
+   * Threaded from the page; the pulse itself has no card-generation
+   * timestamp (its date anchor is the latest intraday bar, a distinct
+   * signal). */
+  cardGeneratedAt: string | null;
 }
 
-export function TodaySessionPulse({ asset, pulse }: TodaySessionPulseProps) {
+export function TodaySessionPulse({ asset, pulse, cardGeneratedAt }: TodaySessionPulseProps) {
   if (!pulse) {
     // N-4 — mirror the sibling glass-panel empty-state shell (header
     // with border-b + body), so the page reads consistently when the
@@ -242,9 +283,7 @@ export function TodaySessionPulse({ asset, pulse }: TodaySessionPulseProps) {
               availability (Eliot still needs the cible marker when the
               intraday API is cold). Same NyWindowBadge in BOTH branches. */}
           <NyWindowBadge asset={asset} />
-          <p className="mt-1 text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
-            Lecture en temps réel · recalibrée chaque session · pas de carry-over d&apos;hier
-          </p>
+          <FreshnessSubtitle cardGeneratedAt={cardGeneratedAt} />
         </header>
         <p className="px-6 py-8 text-center text-sm text-[var(--color-text-muted)]">
           Pas de barres intraday récentes pour {asset.replace("_", "/")} — pulse indisponible.
@@ -341,9 +380,7 @@ export function TodaySessionPulse({ asset, pulse }: TodaySessionPulseProps) {
             FX/XAU → "Férié US · liquidité réduite") per trader R28
             MF-1 honest-scope fix. */}
         <NyWindowBadge asset={asset} />
-        <p className="mt-1 text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
-          Lecture en temps réel · recalibrée chaque session · pas de carry-over d&apos;hier
-        </p>
+        <FreshnessSubtitle cardGeneratedAt={cardGeneratedAt} />
       </header>
 
       <div className="grid grid-cols-2 gap-x-6 gap-y-4 px-6 py-5 sm:grid-cols-4">
