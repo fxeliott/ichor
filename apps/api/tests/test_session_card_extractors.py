@@ -234,7 +234,9 @@ def test_extract_calibration_returns_none_for_invalid_trend() -> None:
 
 def test_from_orm_row_falls_through_when_no_raw_response() -> None:
     out = SessionCardOut.from_orm_row(_row())
-    assert out.thesis is None
+    # mission-1: thesis is now deterministically derived from stored columns
+    # when the LLM raw payload carries none.
+    assert out.thesis is not None and "biais" in out.thesis
     assert out.trade_plan is None
     assert out.ideas is None
     assert out.confluence_drivers is None
@@ -276,7 +278,8 @@ def test_from_orm_row_preserves_base_columns() -> None:
 def test_from_orm_row_silently_skips_corrupt_payload() -> None:
     """A claude_raw_response shaped like none of the candidates returns base."""
     out = SessionCardOut.from_orm_row(_row(claude_raw_response={"random_unrelated_key": [1, 2, 3]}))
-    assert out.thesis is None
+    # mission-1: no extractable thesis in the payload → derived from columns.
+    assert out.thesis is not None and "biais" in out.thesis
     assert out.trade_plan is None
 
 
@@ -437,7 +440,7 @@ def test_from_orm_row_engine_drivers_with_no_raw_response_resolved() -> None:
     assert out.confluence_drivers is not None
     assert out.confluence_drivers[0].factor == "rate_diff"
     assert out.confluence_drivers[0].evidence == "ev"
-    assert out.thesis is None  # no LLM enrichment
+    assert out.thesis is not None and "biais" in out.thesis  # derived (mission-1)
 
 
 def test_from_orm_row_engine_empty_is_honest_absence_no_fallback() -> None:

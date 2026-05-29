@@ -241,6 +241,31 @@ def extract_thesis(claude_raw_response: Any | None) -> str | None:
     return None
 
 
+def _derive_thesis(row: Any) -> str | None:
+    """Deterministically synthesize a thesis from the stored card columns.
+
+    Read-time fallback when the LLM raw payload carries no `thesis` (the
+    historical case — see mission-1). Describes the *stored* bias and
+    surfaces scenario/driver tension without flipping the badge. Failure
+    is non-fatal : a malformed row must never break card serialization.
+    """
+    from .services.card_coherence import synthesize_thesis
+
+    try:
+        return synthesize_thesis(
+            asset=getattr(row, "asset", "") or "",
+            session_type=getattr(row, "session_type", "") or "",
+            bias=getattr(row, "bias_direction", "neutral") or "neutral",
+            conviction=float(getattr(row, "conviction_pct", 0.0) or 0.0),
+            regime=getattr(row, "regime_quadrant", None),
+            scenarios=getattr(row, "scenarios", None),
+            drivers=getattr(row, "drivers", None),
+        )
+    except Exception as exc:  # noqa: BLE001 — thesis is non-critical enrichment
+        _LOG.debug("_derive_thesis: skipping (%s)", exc)
+        return None
+
+
 def extract_trade_plan(claude_raw_response: Any | None) -> TradePlan | None:
     """Best-effort projection of Pass 2 trade-plan onto the typed schema."""
     payload = _candidate_payload(claude_raw_response)
@@ -518,10 +543,15 @@ class SessionCardOut(BaseModel):
         else:
             confluence_drivers = None
         if raw is None:
-            return base.model_copy(update={"confluence_drivers": confluence_drivers})
+            return base.model_copy(
+                update={
+                    "thesis": _derive_thesis(row),
+                    "confluence_drivers": confluence_drivers,
+                }
+            )
         return base.model_copy(
             update={
-                "thesis": extract_thesis(raw),
+                "thesis": extract_thesis(raw) or _derive_thesis(row),
                 "trade_plan": extract_trade_plan(raw),
                 "ideas": extract_ideas(raw),
                 "confluence_drivers": confluence_drivers,

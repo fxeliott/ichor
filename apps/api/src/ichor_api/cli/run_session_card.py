@@ -397,6 +397,43 @@ async def _run(
         # byte-identical : the api↔DataPool cross-cut belongs in the
         # api layer, not the brain package.
         row.degraded_inputs = degraded_inputs_payload
+
+        # === Content-correctness coherence gate (missions 2 + 4) ===
+        # Reconcile the headline bias/conviction with the card's own
+        # 7-bucket scenario distribution + quant confluence drivers. The
+        # gate is demote-only (never promotes/flips) : a directional bias
+        # contradicted by the scenario mass (EUR long-vs-bearish-mass) or a
+        # US-equity directional bias on the cash-closed overnight without a
+        # strong lean (SPX/NAS symmetry) is demoted to neutral ; a weak
+        # edge has its conviction shaved. Persisting the reconciled values
+        # keeps Brier calibration honest. Pure function, no I/O.
+        from ..services.card_coherence import reconcile_coherence
+
+        _coh = reconcile_coherence(
+            asset=row.asset,
+            session_type=row.session_type,
+            bias=row.bias_direction,
+            conviction=row.conviction_pct,
+            scenarios=row.scenarios or [],
+            drivers=row.drivers,
+        )
+        if _coh.adjusted:
+            log.info(
+                "session_card.coherence_adjusted",
+                asset=row.asset,
+                session_type=row.session_type,
+                from_bias=row.bias_direction,
+                to_bias=_coh.bias,
+                from_conviction=round(row.conviction_pct, 1),
+                to_conviction=round(_coh.conviction, 1),
+                scenario_lean=_coh.scenario_lean,
+                driver_lean=_coh.driver_lean,
+                agreement=_coh.agreement,
+                reason=_coh.reason,
+            )
+            row.bias_direction = _coh.bias
+            row.conviction_pct = _coh.conviction
+
         session.add(row)
         await session.commit()
         log.info(
