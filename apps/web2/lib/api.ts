@@ -342,6 +342,38 @@ export async function getCoachMacroContext(): Promise<CoachMacroContext | null> 
   return apiGet<CoachMacroContext>("/v1/coach-macro-context");
 }
 
+/** mission-7 — one point on the market-implied Fed-funds path (ZQ futures). */
+export interface StirPoint {
+  series_id: string;
+  month_label: string;
+  implied_effr: number | null;
+  observation_date: string | null;
+  cum_bps_vs_front: number | null;
+  repricing_bps: number | null;
+  sessions_in_window: number;
+}
+
+/** mission-7 — `/v1/stir` market-implied Fed path + ~5-session repricing
+ *  delta. Pure-data route (not AI-watermarked). Returns null on apiGet
+ *  failure → <StirPanel> renders honest absence (doctrine #11). */
+export interface StirData {
+  as_of: string | null;
+  policy_rate_effr: number | null;
+  front_implied_effr: number | null;
+  points: StirPoint[];
+  horizon_label: string | null;
+  net_bps_to_horizon: number | null;
+  cuts_priced_to_horizon: number | null;
+  tone: string;
+  repricing_bps_horizon: number | null;
+  note: string;
+  sources: string[];
+}
+
+export async function getStir(): Promise<StirData | null> {
+  return apiGet<StirData>("/v1/stir");
+}
+
 /**
  * r69 + r138 — fetch recent news items from `/v1/news`.
  *

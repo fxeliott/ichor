@@ -62,6 +62,7 @@ import { ThemeRankingPanel } from "@/components/briefing/ThemeRankingPanel";
 // AT THE TOP of the briefing, ABOVE SessionVerdictPanel — the macro narrative
 // frames the per-asset verdict interpretation per D4 ordering directive.
 import { CoachMacroContextPanel } from "@/components/briefing/CoachMacroContextPanel";
+import { StirPanel } from "@/components/briefing/StirPanel";
 import { TodaySessionPulse } from "@/components/briefing/TodaySessionPulse";
 import { FreshDataBanner } from "@/components/briefing/FreshDataBanner";
 import { VerdictBanner } from "@/components/briefing/VerdictBanner";
@@ -84,6 +85,7 @@ import {
   getPolymarketImpact,
   getPositioning,
   getSessionStatus,
+  getStir,
   getTempoThresholds,
   isLive,
   type CalendarUpcoming,
@@ -101,6 +103,7 @@ import {
   type SessionCard,
   type SessionCardList,
   type SessionStatusOut,
+  type StirData,
   type TodaySnapshotOut,
 } from "@/lib/api";
 import { derivePulse } from "@/lib/sessionPulse";
@@ -178,6 +181,7 @@ export default async function BriefingPage({ params }: PageParams) {
     eventAnticipation,
     sessionVerdict,
     coachMacroContext,
+    stir,
   ] = await Promise.all([
     fetchSessionCardForAsset(normalisedAsset),
     getKeyLevels() as Promise<KeyLevelsResponse | null>,
@@ -238,6 +242,10 @@ export default async function BriefingPage({ params }: PageParams) {
     // doctrine #11 calibrated-honesty outputs (cycle="uncertain" /
     // dominant_theme=null / empty surprises) surface with explicit chrome.
     getCoachMacroContext() as Promise<CoachMacroContext | null>,
+    // mission-7 — market-implied Fed path (CME ZQ futures) + ~5-session
+    // repricing delta. Pure-data SSR fetch ; <StirPanel> renders honest
+    // absence when null (collector cold / endpoint down).
+    getStir() as Promise<StirData | null>,
   ]);
 
   // r123 — derive today's session pulse from the FULL intraday array
@@ -381,6 +389,7 @@ export default async function BriefingPage({ params }: PageParams) {
           { id: "verdict", label: "Verdict" },
           { id: "theme", label: "Thème & cycle" },
           { id: "macro", label: "Macro du jour" },
+          { id: "rates", label: "Taux & Fed" },
           { id: "correlations", label: "Corrélations" },
           { id: "positioning", label: "Positionnement" },
           { id: "levels", label: "Niveaux" },
@@ -491,6 +500,17 @@ export default async function BriefingPage({ params }: PageParams) {
           <EventSurpriseGauge data={eventSurprise} assetPair={normalisedAsset.replace("_", "/")} />
           <MacroSurprisePanel surpriseIndex={macroPulse?.surprise_index ?? null} />
           <RecentActualsPanel data={recentActuals} />
+        </BriefingSection>
+
+        {/* ── C-bis · Taux & Fed (market-implied policy path) ── */}
+        <BriefingSection
+          id="rates"
+          eyebrow="C · Taux"
+          title="Taux & Fed"
+          intro="Ce que le marché monétaire price pour la trajectoire des taux Fed (futures ZQ) — et surtout ce qu'il a re-pricé sur les ~5 dernières séances. C'est le signal d'anticipation, pas une prévision."
+          defaultOpen={false}
+        >
+          <StirPanel stir={stir} />
         </BriefingSection>
 
         {/* ── D · Corrélations & DXY (real independence of the read) ── */}
