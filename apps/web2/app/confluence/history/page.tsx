@@ -24,7 +24,7 @@ import Link from "next/link";
 import { apiGet, isLive, type ConfluenceHistoryOut } from "@/lib/api";
 import { linScale, svgCoord, xLinear } from "@/lib/microchart";
 
-export const metadata = { title: "Confluence · historique 30j · Ichor" };
+export const metadata = { title: "Confluence · historique 30j" };
 
 export const dynamic = "force-dynamic";
 export const revalidate = 300;

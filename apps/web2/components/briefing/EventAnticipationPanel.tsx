@@ -160,7 +160,7 @@ function EngagedBody({ factor }: { factor: EventProximityFactorOut }): ReactElem
             hierarchy — meta line + "T−" prefix already carry visual
             weight on a monospace font. */}
         <span
-          role="text"
+          role="img"
           className="font-mono text-base tabular-nums whitespace-nowrap text-[var(--color-text-primary)]"
           aria-label={`Délai avant publication : ${countdownText}`}
         >
@@ -317,12 +317,12 @@ function StandbyRow({ event }: { event: UpcomingEventOut }): ReactElement {
           {dateStr} {timeStr} Paris
         </span>
       </div>
-      {/* r152 Phase 2 a11y SHOULD-1 : `<span role="text">` accepts
+      {/* r152 Phase 2 a11y SHOULD-1 : `<span role="img">` accepts
           `aria-label` per ARIA 1.2 (vs `<div>` which is "name-from-author
           prohibited" in some SR engines). The visible `T−` prefix is
           decorative ; aria-label carries the SR-readable form. */}
       <span
-        role="text"
+        role="img"
         className="font-mono text-sm tabular-nums whitespace-nowrap text-[var(--color-text-secondary)]"
         aria-label={`Délai avant publication : ${countdownText}`}
       >

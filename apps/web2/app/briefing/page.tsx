@@ -37,7 +37,7 @@ import {
 import { computeNetExposure, deriveVerdict, type VerdictSummary } from "@/lib/verdict";
 
 export const metadata: Metadata = {
-  title: "Briefings · Ichor",
+  title: "Briefings",
   description:
     "Cockpit pré-session : verdict synthétique des 5 actifs prioritaires (EUR/USD, GBP/USD, XAU/USD, S&P 500, Nasdaq 100).",
 };

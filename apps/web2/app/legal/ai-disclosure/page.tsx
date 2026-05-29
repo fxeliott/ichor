@@ -11,7 +11,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Disclosure IA · Ichor",
+  title: "Disclosure IA",
   description:
     "Disclosure machine-readable et humaine pour Ichor — EU AI Act §50, AMF DOC-2008-23, Anthropic Usage Policy.",
 };

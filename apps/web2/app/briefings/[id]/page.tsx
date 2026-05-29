@@ -19,7 +19,7 @@ export const revalidate = 30;
 
 export async function generateMetadata({ params }: PageProps) {
   const { id } = await params;
-  return { title: `Briefing ${id.slice(0, 8)} · Ichor` };
+  return { title: `Briefing ${id.slice(0, 8)}` };
 }
 
 const fmtAt = (iso: string) =>

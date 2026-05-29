@@ -11,7 +11,7 @@ import { BiasIndicator } from "@/components/ui";
 import { apiGet, isLive, type SessionCardList } from "@/lib/api";
 
 export const metadata = {
-  title: "Cartes de session · Ichor",
+  title: "Cartes de session",
 };
 
 export const dynamic = "force-dynamic";

@@ -113,7 +113,7 @@ interface PageParams {
 export async function generateMetadata({ params }: PageParams): Promise<Metadata> {
   const { asset } = await params;
   return {
-    title: `Briefing ${asset.replace("_", "/")} · Ichor`,
+    title: `Briefing ${asset.replace("_", "/")}`,
     description: `Pré-session briefing : ${asset.replace("_", "/")} — KeyLevels, mécanismes, invalidations.`,
   };
 }

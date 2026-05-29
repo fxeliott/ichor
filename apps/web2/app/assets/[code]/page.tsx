@@ -40,7 +40,7 @@ export const revalidate = 30;
 export async function generateMetadata({ params }: PageProps) {
   const { code } = await params;
   const display = SUPPORTED[code.toUpperCase()];
-  return { title: display ? `${display} · Ichor` : code };
+  return { title: display ?? code };
 }
 
 const fmtAt = (iso: string) =>

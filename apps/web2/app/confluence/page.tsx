@@ -8,7 +8,7 @@ import Link from "next/link";
 
 import { apiGet, isLive, type ConfluenceOut } from "@/lib/api";
 
-export const metadata = { title: "Confluence · Ichor" };
+export const metadata = { title: "Confluence" };
 
 export const dynamic = "force-dynamic";
 export const revalidate = 30;
