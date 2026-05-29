@@ -37,7 +37,7 @@ export default function Chapter() {
         </li>
         <li>
           <strong>Couche 1 — Brain pipeline 4-pass + Pass 5</strong>. Pour chaque session card, lit
-          les outputs des couches 2 et 3 via le data_pool, et synthèse via Claude Opus 4.7 + Sonnet
+          les outputs des couches 2 et 3 via le data_pool, et synthèse via Claude Opus 4.8 + Sonnet
           4.6.
         </li>
       </ul>
@@ -130,7 +130,7 @@ export default function Chapter() {
           projection simplex bornée Duchi 2008.
         </li>
         <li>
-          <strong>Post-mortem hebdo</strong> — chaque dimanche 18h Paris, Claude Opus 4.7 lit les 7
+          <strong>Post-mortem hebdo</strong> — chaque dimanche 18h Paris, Claude Opus 4.8 lit les 7
           jours et produit un rapport 8-section (top hits, top miss, drift, narratives, calibration,
           suggestions). Visible sur{" "}
           <Link
@@ -142,7 +142,7 @@ export default function Chapter() {
           .
         </li>
         <li>
-          <strong>Méta-prompt tuner</strong> — bi-mensuel (1er + 15 du mois), Claude Opus 4.7 lit
+          <strong>Méta-prompt tuner</strong> — bi-mensuel (1er + 15 du mois), Claude Opus 4.8 lit
           les Critic findings des 14 derniers jours et propose des amendments aux system prompts par
           pass. PR GitHub auto, merge manuel par Eliot.
         </li>

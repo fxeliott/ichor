@@ -29,7 +29,7 @@ const MOCK_FALLBACK: BriefingItem[] = [
     kind: "crisis",
     title: "Crisis Mode · VIX +28 % en 90 min",
     excerpt:
-      "VIX spot 24.8. Briefing ad-hoc Opus 4.7 généré. Cross-asset stress en haut du dashboard.",
+      "VIX spot 24.8. Briefing ad-hoc Opus 4.8 généré. Cross-asset stress en haut du dashboard.",
     generated_at: "2026-05-04T13:42:00Z",
   },
   {

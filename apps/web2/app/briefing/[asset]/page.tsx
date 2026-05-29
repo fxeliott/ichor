@@ -423,7 +423,7 @@ export default async function BriefingPage({ params }: PageParams) {
               <SubHeader
                 id="narrative-heading"
                 title="Analyse Pass-2"
-                meta="Claude Opus 4.7 · 4-pass output"
+                meta="Claude Opus 4.8 · 4-pass output"
               />
               <NarrativeBlocks
                 mechanisms={card.mechanisms}

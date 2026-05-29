@@ -78,7 +78,7 @@ export default async function PostMortemsPage() {
           Post-mortems
         </h1>
         <p className="max-w-prose text-[var(--color-text-secondary)]">
-          Réunion auto-générée chaque dimanche 18h Paris par Claude Opus 4.7. Suit le{" "}
+          Réunion auto-générée chaque dimanche 18h Paris par Claude Opus 4.8. Suit le{" "}
           <MetricTooltip
             term="template 8 sections"
             definition="Header, Top hits, Top miss, Drift detected, Narratives émergentes, Calibration, Suggestions amendments, Stats raw. Cf docs/SPEC_V2_AUTOEVO.md §4."
@@ -175,7 +175,7 @@ export default async function PostMortemsPage() {
 
       <p className="mt-6 text-xs text-[var(--color-text-muted)]">
         Cron <code className="font-mono">ichor-post-mortem.timer</code> · dimanche 18h Europe/Paris
-        · Claude Opus 4.7 lit les 7 derniers jours et produit ce rapport. Push iOS quand prêt.
+        · Claude Opus 4.8 lit les 7 derniers jours et produit ce rapport. Push iOS quand prêt.
       </p>
     </div>
   );

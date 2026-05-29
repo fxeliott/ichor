@@ -22,7 +22,7 @@ export function LegalFooter() {
         </p>
         <p className="mb-3 max-w-3xl">
           Ichor produit une <strong>analyse macro générique non-personnalisée</strong> via des
-          modèles de langue (Claude Opus 4.7, Claude Haiku 4.5). Aucune carte ne constitue un
+          modèles de langue (Claude Opus 4.8, Claude Haiku 4.5). Aucune carte ne constitue un
           conseil en investissement au sens de MiFID 2 / AMF DOC-2008-23 (vf4_3, fév 2024) — pas de
           recommandation adaptée à un profil, pas d&apos;ordre BUY/SELL, pas de gestion de
           portefeuille. Les sorties sont marquées AI-generated conformément à l&apos;EU AI Act

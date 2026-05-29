@@ -177,7 +177,7 @@ export default function AIDisclosurePage() {
               X-Ichor-AI-Provider
             </dt>
             <dd className="font-mono text-[12px] text-[var(--color-text-primary)]">
-              anthropic-claude-opus-4-7
+              anthropic-claude-opus-4-8
             </dd>
           </div>
           <div className="grid grid-cols-1 gap-1 sm:grid-cols-[1fr_2fr]">
