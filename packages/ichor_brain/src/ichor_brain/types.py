@@ -146,7 +146,7 @@ class SessionCard(BaseModel):
 
     session_type: SessionType
     asset: str
-    model_id: str = "claude-opus-4-7"
+    model_id: str = "claude-opus-4-8"
     generated_at: datetime
     regime: RegimeReading
     specialization: AssetSpecialization
