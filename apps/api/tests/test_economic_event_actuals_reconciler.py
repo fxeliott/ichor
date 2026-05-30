@@ -22,12 +22,15 @@ from ichor_api.services.economic_event_actuals_reconciler import (
     DEFAULT_SETTLE_MINUTES,
     FRED_BASE,
     INTER_REQUEST_SLEEP_SECONDS,
+    SERIES_DISPLAY_UNIT,
     TITLE_FRAGMENT_BLOCKED,
     TITLE_FRAGMENT_TO_SERIES,
     ReconcilerResult,
     fetch_alfred_actual,
     map_title_to_series,
+    normalize_actual_value,
 )
+from ichor_api.services.economic_event_surprise import classify_surprise
 
 # ────────────────────── Map title → series fragment tests ──────────────────────
 
@@ -84,9 +87,12 @@ class TestMapTitleToSeries:
         assert result is not None
         assert result[0] == "PCEPILFE"
 
-    def test_gdp_quarterly_maps_to_gdpc1_pch(self) -> None:
+    def test_gdp_quarterly_maps_to_gdpc1_pca(self) -> None:
+        # r195 : GDP uses `pca` (compounded annual rate) to match
+        # BEA/FF's annualized SAAR convention. `pch` (non-annualized
+        # quarterly) understated GDP ~80% vs FF's annualized forecast.
         result = map_title_to_series("GDP q/q")
-        assert result == ("GDPC1", "pch")
+        assert result == ("GDPC1", "pca")
 
     def test_initial_claims_maps_to_icsa_level(self) -> None:
         result = map_title_to_series("Unemployment Claims")
@@ -193,7 +199,7 @@ class TestTitleFragmentTableInvariants:
     def test_all_units_are_canonical_or_none(self) -> None:
         # Valid FRED `units` query param values per docs (subset we use).
         # See https://fred.stlouisfed.org/docs/api/fred/series_observations.html
-        allowed_units = {None, "chg", "pch", "pc1"}
+        allowed_units = {None, "chg", "pch", "pc1", "pca"}
         for fragment, series_id, units in TITLE_FRAGMENT_TO_SERIES:
             assert units in allowed_units, (
                 f"Mapping entry ({fragment!r}, {series_id!r}, {units!r}) "
@@ -454,3 +460,130 @@ class TestModuleConstants:
 
     def test_default_settle_minutes(self) -> None:
         assert DEFAULT_SETTLE_MINUTES == 15
+
+
+# ────────────────────── normalize_actual_value (r195) ──────────────────────
+
+
+class TestNormalizeActualValue:
+    """r195 — FRED-native → ForexFactory display-convention normalization.
+
+    The FF collector stores forecast/previous WITH unit suffixes ("65K",
+    "1.40M", "0.3%") but FRED returns bare numerics on its native scale.
+    For level series this made `actual` incomparable to `forecast` (NFP
+    "115" MEANS 115K) and unreadable on the briefing ("0.40284").
+    """
+
+    def test_payems_chg_thousands_to_k(self) -> None:
+        # FRED PAYEMS chg returns thousands-of-persons ; "115" = 115K.
+        assert normalize_actual_value("115", "PAYEMS", "chg") == "115K"
+
+    def test_payems_negative_chg_sign_preserved(self) -> None:
+        assert normalize_actual_value("-12", "PAYEMS", "chg") == "-12K"
+
+    def test_payems_decimal_thousands(self) -> None:
+        assert normalize_actual_value("250.0", "PAYEMS", "chg") == "250K"
+
+    def test_permit_thousands_to_m(self) -> None:
+        # FRED PERMIT is thousands-of-units ; "1400" = 1.40M.
+        assert normalize_actual_value("1400", "PERMIT", None) == "1.40M"
+
+    def test_housing_starts_thousands_to_m(self) -> None:
+        assert normalize_actual_value("1350", "HOUST", None) == "1.35M"
+
+    def test_jolts_thousands_to_m(self) -> None:
+        # The empirical DB anomaly : "6866" was shown raw ; FF says ~6.86M.
+        assert normalize_actual_value("6866", "JTSJOL", None) == "6.87M"
+
+    def test_icsa_persons_to_k(self) -> None:
+        # ICSA is reported in base persons (215000), FF shows "215K".
+        assert normalize_actual_value("215000", "ICSA", None) == "215K"
+
+    def test_unrate_pct_level_gets_suffix(self) -> None:
+        assert normalize_actual_value("4.3", "UNRATE", None) == "4.3%"
+
+    def test_dfedtaru_pct_level_preserves_precision(self) -> None:
+        assert normalize_actual_value("5.50", "DFEDTARU", None) == "5.50%"
+
+    def test_pch_rounds_to_1dp_with_pct(self) -> None:
+        # The empirical DB anomaly : Core CPI m/m "0.37646" → "0.4%".
+        assert normalize_actual_value("0.37646", "CPILFESL", "pch") == "0.4%"
+
+    def test_pc1_rounds_to_1dp_with_pct(self) -> None:
+        assert normalize_actual_value("3.77925", "CPIAUCSL", "pc1") == "3.8%"
+
+    def test_gdp_pca_annualized_rounds(self) -> None:
+        # GDPC1 pca 2026-Q1 = 1.62114 → "1.6%" (comparable to FF "2.0%").
+        assert normalize_actual_value("1.62114", "GDPC1", "pca") == "1.6%"
+
+    def test_negative_pct(self) -> None:
+        assert normalize_actual_value("-0.12", "RSAFS", "pch") == "-0.1%"
+
+    def test_half_up_not_bankers(self) -> None:
+        # 0.25 → "0.3%" (half-up, not banker's 0.2).
+        assert normalize_actual_value("0.25", "CPIAUCSL", "pch") == "0.3%"
+
+    def test_umcsent_index_verbatim(self) -> None:
+        # Consumer-sentiment index level — FF shows it unit-less too.
+        assert normalize_actual_value("52.2", "UMCSENT", None) == "52.2"
+
+    def test_unparseable_returned_stripped(self) -> None:
+        assert normalize_actual_value("  n/a ", "UMCSENT", None) == "n/a"
+
+    def test_series_display_unit_table_is_dict(self) -> None:
+        assert isinstance(SERIES_DISPLAY_UNIT, dict)
+        # The four count-in-thousands level/chg series + the two pct
+        # levels are pinned ; absence (e.g. UMCSENT) means verbatim.
+        assert SERIES_DISPLAY_UNIT["PAYEMS"] == "count_thousands"
+        assert SERIES_DISPLAY_UNIT["ICSA"] == "count_persons"
+        assert SERIES_DISPLAY_UNIT["UNRATE"] == "pct_level"
+        assert "UMCSENT" not in SERIES_DISPLAY_UNIT
+
+
+class TestNormalizeFixesSurpriseComparison:
+    """r195 end-to-end : the normalized actual makes the r141 surprise
+    classifier compare like-for-like, retiring the r146
+    `unit_scale_mismatch` band-aid for level series with a real magnitude.
+    """
+
+    def test_nfp_beat_classifies_cleanly_after_normalization(self) -> None:
+        # BEFORE r195 : "115" vs "65K" → 115 vs 65000 → 100x heuristic
+        # suppressed magnitude_pct + flagged unit_scale_mismatch.
+        # AFTER : "115K" vs "65K" → a clean +76.9% beat.
+        normalized = normalize_actual_value("115", "PAYEMS", "chg")
+        assert normalized == "115K"
+        cls = classify_surprise(
+            actual=normalized,
+            consensus="65K",
+            forecast_min=None,
+            forecast_max=None,
+        )
+        assert cls.magnitude_pct is not None
+        assert cls.magnitude_pct > 0  # a beat
+        assert "unit_scale_mismatch" not in cls.parse_failures
+
+    def test_jolts_no_longer_1000x_mismatch(self) -> None:
+        normalized = normalize_actual_value("6866", "JTSJOL", None)
+        assert normalized == "6.87M"
+        cls = classify_surprise(
+            actual=normalized,
+            consensus="6.86M",
+            forecast_min=None,
+            forecast_max=None,
+        )
+        assert cls.magnitude_pct is not None
+        assert "unit_scale_mismatch" not in cls.parse_failures
+
+    def test_gdp_pca_modest_miss_not_phantom(self) -> None:
+        # GDP actual 1.6% vs forecast 2.0% → a modest miss (~-20%), NOT
+        # the ~-80% phantom from the old non-annualized 0.4%.
+        normalized = normalize_actual_value("1.62114", "GDPC1", "pca")
+        assert normalized == "1.6%"
+        cls = classify_surprise(
+            actual=normalized,
+            consensus="2.0%",
+            forecast_min=None,
+            forecast_max=None,
+        )
+        assert cls.magnitude_pct is not None
+        assert -40.0 < cls.magnitude_pct < 0.0

@@ -29,15 +29,23 @@ Honest scope (lesson #37) :
     deferred r145+.
 
 ADR-017 compliance : this module ONLY writes `actual` String(64) values
-sourced verbatim from FRED. No directional vocabulary, no BUY/SELL
-imperatives. Values are stored as raw strings (e.g. "3.2", "180.5",
-"-0.1") — FRED returns the bare numeric without suffix, whereas the FF
-collector stores e.g. "3.2%" with a percent suffix. The r141
-`parse_economic_value()` parser at `services.economic_event_surprise`
-handles BOTH bare-number AND FF-style `%` / `K` / `M` suffix shapes
-uniformly, so downstream consumers see consistent float values
-regardless of which collector populated the column (r144 code-reviewer
-N8 docstring discipline fix).
+sourced from FRED. No directional vocabulary, no BUY/SELL imperatives.
+
+Unit normalization (r195) : FRED returns bare numerics whose scale/unit
+depends on the series — a pct-change transform (pch/pc1/pca) yields a
+percentage figure, a level/chg query yields native units (e.g. PAYEMS
+Δ in *thousands* of persons → "115" means 115K ; GDPC1 pch gave the
+*non-annualized* quarterly figure ~0.4% against FF's annualized ~2.0%
+forecast). The FF collector stores `forecast`/`previous` as display
+strings WITH the unit suffix ("65K", "1.40M", "0.3%"). Writing the bare
+FRED number made `actual` incomparable to `forecast` for level series
+(NFP "115" vs FF "65K" → only masked by the r146 `unit_scale_mismatch`
+100x band-aid) and unreadable on the briefing ("0.40284" instead of
+"0.4%"). `normalize_actual_value()` now converts each FRED actual to the
+SAME convention as FF (K/M suffix for counts, 1-dp "%" for pct, "pca"
+annualized basis for GDP) BEFORE storage, so the r141
+`parse_economic_value()` parser compares like-for-like and the coach UI
+renders a clean value. Idempotent-safe + pure numeric formatting.
 
 Voie D : `httpx.AsyncClient` only, no paid API, no `anthropic` SDK.
 Mirrors the established `collectors/fred.py` patterns verbatim.
@@ -50,6 +58,7 @@ from __future__ import annotations
 import asyncio
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from decimal import ROUND_HALF_UP, Decimal
 
 import httpx
 import structlog
@@ -90,6 +99,8 @@ DEFAULT_SETTLE_MINUTES = 15
 #   - units="chg" : change from prior period (e.g. NFP = ΔPAYEMS).
 #   - units="pch" : pct change from prior period (e.g. CPI MoM).
 #   - units="pc1" : pct change from year ago (e.g. CPI YoY).
+#   - units="pca" : compounded annual rate of change (e.g. GDP q/q SAAR,
+#     matching BEA/FF's annualized convention — see GDPC1 entry below).
 #
 # Order matters — longer/more-specific fragments come FIRST so
 # "Core CPI" is matched before generic "CPI". Case-insensitive
@@ -190,9 +201,14 @@ TITLE_FRAGMENT_TO_SERIES: tuple[tuple[str, str, str | None], ...] = (
     ("cpi y/y", "CPIAUCSL", "pc1"),
     ("cpi m/m", "CPIAUCSL", "pch"),
     ("cpi yoy", "CPIAUCSL", "pc1"),
-    # GDP — quarterly pct change.
-    ("gdp q/q", "GDPC1", "pch"),
-    ("gdp qoq", "GDPC1", "pch"),
+    # GDP — quarterly ANNUALIZED pct change. FRED `pca` (compounded
+    # annual rate of change) matches BEA/FF's annualized SAAR
+    # convention. `pch` (non-annualized quarterly) mis-stated GDP as
+    # ~0.4% against FF's annualized ~2.0% forecast — an ~80% phantom
+    # miss. Empirically verified 2026-05-30 : GDPC1 2026-Q1
+    # pch=0.40284 vs pca=1.62114 (the latter is comparable to FF "2.0%").
+    ("gdp q/q", "GDPC1", "pca"),
+    ("gdp qoq", "GDPC1", "pca"),
     # PPI — MoM pct change.
     ("ppi m/m", "PPIFID", "pch"),
     # Retail sales — MoM pct change.
@@ -249,6 +265,97 @@ def map_title_to_series(title: str | None) -> tuple[str, str | None] | None:
         if fragment in title_lower:
             return series_id, units
     return None
+
+
+# ── Actual value normalization (r195) ───────────────────────────────
+#
+# Per-series display-unit kind. Only needed where the FRED-native unit
+# differs from the ForexFactory display convention. Percent-change
+# series (pch/pc1/pca) are percentages by construction and handled
+# uniformly by the `units` check in normalize_actual_value() — they
+# need NO entry here.
+#
+#   "count_thousands" : FRED value is in THOUSANDS of the underlying
+#       count — PAYEMS Δ (thousands of persons), PERMIT/HOUST/JTSJOL
+#       (levels in thousands of units). FF shows the base count with a
+#       K/M suffix → multiply by 1000 then format.
+#   "count_persons"   : FRED value is already in base persons (ICSA
+#       initial claims, reported as a raw count e.g. 215000). FF shows
+#       a K/M suffix → format directly.
+#   "pct_level"       : FRED value is a percentage LEVEL (UNRATE,
+#       DFEDTARU). FF appends "%" → append "%", preserving FRED's
+#       native precision (no re-rounding of an already-clean level).
+#
+# A series ABSENT from this map with units=None is stored verbatim
+# (e.g. UMCSENT consumer-sentiment index, which FF also shows unit-less).
+SERIES_DISPLAY_UNIT: dict[str, str] = {
+    "PAYEMS": "count_thousands",
+    "PERMIT": "count_thousands",
+    "HOUST": "count_thousands",
+    "JTSJOL": "count_thousands",
+    "ICSA": "count_persons",
+    "UNRATE": "pct_level",
+    "DFEDTARU": "pct_level",
+}
+
+
+def _actual_to_float(raw: str) -> float | None:
+    """Parse a bare FRED numeric string to float ; None on failure."""
+    try:
+        return float(raw.strip().replace(",", ""))
+    except (ValueError, AttributeError):
+        return None
+
+
+def _fmt_base_count(base: float) -> str:
+    """Format a base-unit count to FF-style K/M string (sign preserved).
+
+    >= 1e6 → "X.XXM" (e.g. 6_866_000 → "6.87M") ; otherwise "XXXK"
+    (e.g. 115_000 → "115K", -12_000 → "-12K").
+    """
+    sign = "-" if base < 0 else ""
+    a = abs(base)
+    if a >= 1_000_000:
+        return f"{sign}{a / 1_000_000:.2f}M"
+    return f"{sign}{a / 1_000:.0f}K"
+
+
+def _fmt_pct_1dp(value: float) -> str:
+    """Format a percentage to 1 decimal place, half-up, with % suffix.
+
+    Half-up (not banker's) to match the BLS/BEA/FF release convention.
+    str(value) avoids float-repr artefacts (the input came straight from
+    float() on a clean FRED decimal string, so the shortest repr is
+    exact, e.g. 0.40284 → "0.4%", 3.77925 → "3.8%", 1.62114 → "1.6%").
+    """
+    q = Decimal(str(value)).quantize(Decimal("0.1"), rounding=ROUND_HALF_UP)
+    return f"{q}%"
+
+
+def normalize_actual_value(raw: str, series_id: str, units: str | None) -> str:
+    """Normalize a FRED-native `actual` to ForexFactory display convention.
+
+    See the module docstring (r195) for the why. Pure numeric formatting,
+    ADR-017 clean, never raises. If `raw` is unparseable it is returned
+    stripped (defensive — FRED always returns a bare numeric).
+    """
+    value = _actual_to_float(raw)
+    if value is None:
+        return raw.strip()
+    # Percent-change transforms are always a percentage figure.
+    if units in ("pch", "pc1", "pca"):
+        return _fmt_pct_1dp(value)
+    kind = SERIES_DISPLAY_UNIT.get(series_id)
+    if kind == "count_thousands":
+        return _fmt_base_count(value * 1000.0)
+    if kind == "count_persons":
+        return _fmt_base_count(value)
+    if kind == "pct_level":
+        # UNRATE/DFEDTARU come back already at release precision —
+        # append the percent suffix FF uses without re-rounding.
+        return f"{raw.strip()}%"
+    # Index level (UMCSENT) or unmapped → store the bare value verbatim.
+    return raw.strip()
 
 
 @dataclass(frozen=True)
@@ -477,6 +584,12 @@ async def reconcile_actuals(
                 await asyncio.sleep(INTER_REQUEST_SLEEP_SECONDS)
                 continue
 
+            # Normalize FRED-native units to the FF display convention
+            # (r195) BEFORE storage so `actual` is comparable to
+            # `forecast` and renders cleanly on the briefing. Raw FRED
+            # value kept for log provenance.
+            normalized = normalize_actual_value(value, series_id, units)
+
             if not dry_run:
                 # Targeted UPDATE — DOES NOT touch forecast_min/max.
                 # WHERE id = event.id avoids any race with FF UPSERTs
@@ -492,7 +605,11 @@ async def reconcile_actuals(
                 # update().values() call. Provenance of the captured
                 # `actual` value is observable via the
                 # `alfred.reconcile.updated` structured log event.
-                upd = update(EconomicEvent).where(EconomicEvent.id == event.id).values(actual=value)
+                upd = (
+                    update(EconomicEvent)
+                    .where(EconomicEvent.id == event.id)
+                    .values(actual=normalized)
+                )
                 await session.execute(upd)
 
             updated += 1
@@ -503,6 +620,7 @@ async def reconcile_actuals(
                 series_id=series_id,
                 release_date=release_date,
                 value=value,
+                normalized=normalized,
                 dry_run=dry_run,
             )
 
@@ -526,10 +644,12 @@ __all__ = [
     "DEFAULT_SETTLE_MINUTES",
     "FRED_BASE",
     "INTER_REQUEST_SLEEP_SECONDS",
+    "SERIES_DISPLAY_UNIT",
     "TITLE_FRAGMENT_BLOCKED",
     "TITLE_FRAGMENT_TO_SERIES",
     "ReconcilerResult",
     "fetch_alfred_actual",
     "map_title_to_series",
+    "normalize_actual_value",
     "reconcile_actuals",
 ]
