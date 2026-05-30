@@ -61,6 +61,7 @@ _FACTOR_NAMES: tuple[str, ...] = (
     "vix_term",
     "risk_appetite",
     "btc_risk_proxy",
+    "event_anticipation",  # r147 — Engine 8 ; lockstep with DEFAULT_FACTOR_NAMES
 )
 
 

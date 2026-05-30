@@ -102,6 +102,7 @@ export function NewsPanel({
   news,
   filter = null,
   asset = null,
+  hideHeader,
 }: {
   news: NewsItem[];
   /** r138 — `null` for back-compat pre-r138 callers (no asset filter). */
@@ -109,6 +110,9 @@ export function NewsPanel({
   /** r138 — informational ; used when filter is null but caller wants
    *  to label the panel with the asset context anyway. */
   asset?: string | null;
+  /** When true, suppress the component's own top-level header (the page
+   *  already renders a SubHeader with the distinct meta label). */
+  hideHeader?: boolean;
 }) {
   const disclosure = filterLabel(filter, asset);
   if (!news || news.length === 0) {
@@ -135,20 +139,22 @@ export function NewsPanel({
       transition={{ duration: 0.3 }}
       className="overflow-hidden rounded-2xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)]/40 backdrop-blur-xl"
     >
-      <header className="border-b border-[var(--color-border-subtle)] px-6 py-4">
-        <h3 className="font-serif text-lg text-[var(--color-text-primary)]">Actualités</h3>
-        <p
-          className={`mt-1 text-xs ${
-            disclosure.tone === "ok"
-              ? "text-[var(--color-text-secondary)]"
-              : disclosure.tone === "scarce"
-                ? "text-[var(--color-text-muted)]"
-                : "text-[var(--color-text-muted)]"
-          }`}
-        >
-          {disclosure.line} · banques centrales surlignées · accent = tonalité
-        </p>
-      </header>
+      {!hideHeader && (
+        <header className="border-b border-[var(--color-border-subtle)] px-6 py-4">
+          <h3 className="font-serif text-lg text-[var(--color-text-primary)]">Actualités</h3>
+          <p
+            className={`mt-1 text-xs ${
+              disclosure.tone === "ok"
+                ? "text-[var(--color-text-secondary)]"
+                : disclosure.tone === "scarce"
+                  ? "text-[var(--color-text-muted)]"
+                  : "text-[var(--color-text-muted)]"
+            }`}
+          >
+            {disclosure.line} · banques centrales surlignées · accent = tonalité
+          </p>
+        </header>
+      )}
 
       <ul className="divide-y divide-[var(--color-border-subtle)]/60">
         {sorted.map((n, i) => {

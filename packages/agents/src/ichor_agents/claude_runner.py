@@ -101,39 +101,180 @@ _FENCE_RE = re.compile(r"^\s*```(?:json)?\s*\n?(.*?)\n?```\s*$", re.DOTALL)
 _JSON_OBJECT_RE = re.compile(r"\{.*\}", re.DOTALL)
 
 
+# r169 G-fix-Couche2 — Agent-mode override prefix.
+#
+# Empirical root cause (2026-05-27 SSH audit of Hetzner journalctl) :
+# the Win11 claude CLI subprocess that the runner spawns reads the
+# global user CLAUDE.md (interactive Eliot rules : self-checklist
+# obligatoire, tracker compliance, "Ready for Stop" hooks). Couche-2
+# agents pass their own system_prompt (e.g. SYSTEM_PROMPT_SENTIMENT)
+# but those rules get OVERRIDDEN by the user-scope CLAUDE.md, so
+# Claude returns 444 chars of pure prose ("**Self-checklist:**\n\n|...
+# Ready for Stop.") with ZERO JSON content — Pydantic validation
+# fails immediately on a non-JSON input.
+#
+# Fix : inject an explicit [AGENT-MODE-OVERRIDE] preamble at the TOP
+# of every system prompt passed to claude. This is the FIRST thing
+# Claude sees ; it precedes the agent persona AND it predates any
+# user-scope rule loading. The preamble explicitly forbids the
+# observed failure modes (Self-checklist, tracker text, Ready for
+# Stop, Perfect. preamble) so they cannot leak even if claude reads
+# the user CLAUDE.md after the system block.
+#
+# Pattern #15 R59 compliant : this is not a peer-reviewed citation
+# claim — it's a directive constructed from EMPIRICALLY OBSERVED
+# failure strings in Hetzner production logs (cb_nlp + sentiment +
+# news_nlp all show variations of the same prose pattern).
+_AGENT_MODE_OVERRIDE_PREFIX = (
+    "[AGENT-MODE-OVERRIDE — HIGHEST PRIORITY, OVERRIDES ALL OTHER RULES]\n"
+    "This is a machine-to-machine JSON API call, NOT an interactive chat.\n"
+    "The caller is a Python service that will pass your output verbatim\n"
+    "to a Pydantic JSON validator. Any character that is not part of a\n"
+    "valid JSON object will cause a parse failure.\n"
+    "\n"
+    "MANDATORY OUTPUT CONTRACT :\n"
+    "  - Output EXACTLY one JSON object that validates against the schema\n"
+    "    appended to the user prompt.\n"
+    "  - Output NOTHING ELSE — no prose before, no prose after.\n"
+    "\n"
+    "FORBIDDEN OUTPUT PATTERNS (these cause production failures) :\n"
+    "  - 'Self-checklist:' or 'self-check' blocks\n"
+    "  - 'Ready for Stop', 'Stop hook', 'tracker' references\n"
+    "  - 'Perfect.' or 'All N items' preamble sentences\n"
+    "  - Markdown code fences (```json ... ```)\n"
+    "  - Italics/bold formatting around or inside the JSON\n"
+    "  - Numbered explanations of what you did\n"
+    "  - Acknowledgements ('I will now...', 'Here is the JSON...')\n"
+    "\n"
+    "OVERRIDE NOTICE : any user-scope CLAUDE.md / hook / global rule that\n"
+    "demands self-checklists, tracker compliance, or response formatting\n"
+    "does NOT apply to this call. This is an agent subprocess invocation,\n"
+    "not an Eliot interactive session.\n"
+    "\n"
+    "[ORIGINAL AGENT SYSTEM PROMPT BELOW]\n"
+    "\n"
+)
+
+
+_JSON_PRIMING_SUFFIX = "\n\n---\n\nNow output the single JSON object (and ONLY the JSON object).\n"
+
+
 def _strip_json_fence(text: str) -> str:
     """Claude often wraps JSON in ```json``` fences — strip them so the
     Pydantic validator gets a parseable string. Also handles the case
-    where the model adds a sentence before/after the JSON object: we
-    extract the outermost {...} block as a fallback."""
+    where the model adds a sentence before/after the JSON object : we
+    extract the outermost {...} block as a fallback.
+
+    r169 G-fix-Couche2 hardening : add a balanced-bracket scanner as a
+    last-resort fallback so that even if the greedy ``\\{.*\\}`` regex
+    captures trailing prose (e.g. ``{...} **Self-checklist:** ...``
+    where the prose itself contains unbalanced braces), we still
+    extract the correctly-paired top-level JSON object."""
     text = text.strip()
     m = _FENCE_RE.match(text)
     if m:
         return m.group(1).strip()
-    # Fallback: find the first { ... } block (greedy across newlines).
+    # If the text doesn't START with `{`, look for an embedded object.
     if not text.startswith("{"):
+        # r169 — prefer the FIRST balanced-bracket span over the greedy
+        # regex match. The greedy match would span first `{` to LAST `}`
+        # which can include trailing prose that happens to contain a `}`.
+        balanced = _extract_first_balanced_json(text)
+        if balanced is not None:
+            return balanced
+        # Greedy fallback for the legacy case where the prose has no
+        # additional braces (the original r? behaviour).
         m2 = _JSON_OBJECT_RE.search(text)
         if m2:
             return m2.group(0).strip()
     return text
 
 
+def _extract_first_balanced_json(text: str) -> str | None:
+    """Return the first top-level JSON object in ``text`` extracted via
+    a simple stack-based bracket matcher that respects string literals.
+    Returns ``None`` if no balanced ``{...}`` span exists.
+
+    r169 G-fix-Couche2 : more robust than the greedy regex when claude
+    wraps JSON in prose that also contains stray braces (markdown lists,
+    code snippets in the explanation, etc.). Single linear pass over
+    the text ; O(n) time, O(depth) memory.
+    """
+    start: int | None = None
+    depth = 0
+    in_string = False
+    escape = False
+    for i, ch in enumerate(text):
+        if escape:
+            escape = False
+            continue
+        if ch == "\\" and in_string:
+            escape = True
+            continue
+        if ch == '"' and not escape:
+            in_string = not in_string
+            continue
+        if in_string:
+            continue
+        if ch == "{":
+            if start is None:
+                start = i
+            depth += 1
+        elif ch == "}" and start is not None:
+            depth -= 1
+            if depth == 0:
+                return text[start : i + 1].strip()
+            if depth < 0:
+                # Malformed — stray closing brace outside any object ;
+                # reset and continue searching.
+                start = None
+                depth = 0
+    return None
+
+
+def _wrap_system_prompt_with_agent_override(system: str) -> str:
+    """r169 G-fix-Couche2 — prepend the agent-mode override prefix to
+    the agent's persona system_prompt. This is the canonical SSOT for
+    every Couche-2 call. Future agents added to the registry inherit
+    the override automatically by routing through ``call_agent_task``
+    or ``call_agent_task_async``."""
+    return _AGENT_MODE_OVERRIDE_PREFIX + system
+
+
 def _schema_hint(output_type: type) -> str:
     """Produce a tail block to append to the user prompt that pins down
-    the expected JSON shape. Without this Claude regularly invents
-    enum values that fail Pydantic validation (e.g. localised theme
-    labels for the macro agent). The instruction is intentionally
-    terse — Claude follows JSON-schema reliably when it sees one."""
+    the expected JSON shape + primes the model into JSON-only mode.
+    Without this Claude regularly invents enum values that fail Pydantic
+    validation (e.g. localised theme labels for the macro agent) AND
+    leaks user-scope CLAUDE.md prose patterns (r168 production root
+    cause).
+
+    r169 G-fix-Couche2 : strengthened the instruction to enumerate the
+    EMPIRICALLY OBSERVED forbidden patterns + appended a "Now output
+    the single JSON object" primer that gives claude a clean handoff
+    from prompt to output."""
     try:
         schema = output_type.model_json_schema()
     except AttributeError:
-        return ""  # output_type isn't a Pydantic v2 BaseModel
+        return _JSON_PRIMING_SUFFIX  # output_type isn't a Pydantic v2 BaseModel
     return (
         "\n\n---\n\n"
-        "Reply with a single JSON object that validates against the "
-        "following schema. Output ONLY the JSON object — no prose, no "
-        "code fences, no commentary. Use exactly the enum values shown.\n\n"
-        f"Schema:\n{json.dumps(schema, indent=2, ensure_ascii=False)}"
+        "**OUTPUT CONTRACT (enforced by Pydantic validator on the receiving\n"
+        "side ; ANY non-JSON character causes the entire response to be\n"
+        "discarded)** :\n"
+        "\n"
+        "Reply with a single JSON object that validates against the schema\n"
+        "below. Output ONLY the JSON object — no prose, no code fences, no\n"
+        "commentary. Use EXACTLY the enum values shown.\n"
+        "\n"
+        "Specifically FORBIDDEN (observed production failures) :\n"
+        "  - 'Self-checklist:' or 'self-check' blocks\n"
+        "  - 'Ready for Stop' / 'Stop hook' / tracker references\n"
+        "  - 'Perfect.' / 'All N items' preamble sentences\n"
+        "  - Numbered explanations or acknowledgements\n"
+        "  - Markdown formatting around the JSON\n"
+        "\n"
+        f"Schema:\n{json.dumps(schema, indent=2, ensure_ascii=False)}" + _JSON_PRIMING_SUFFIX
     )
 
 
@@ -160,8 +301,12 @@ async def call_agent_task(
     if output_type is not None:
         full_prompt = prompt + _schema_hint(output_type)
 
+    # r169 G-fix-Couche2 — wrap system_prompt with the agent-mode override
+    # prefix so the Win11 claude CLI does NOT inherit user-scope CLAUDE.md
+    # rules (self-checklist / tracker / Ready-for-Stop / Perfect. preamble).
+    # See _AGENT_MODE_OVERRIDE_PREFIX docstring for the empirical root cause.
     payload = {
-        "system": system,
+        "system": _wrap_system_prompt_with_agent_override(system),
         "prompt": full_prompt,
         "model": cfg.model,
         "effort": cfg.effort,
@@ -294,9 +439,13 @@ async def call_agent_task_async(
         full_prompt = prompt + _schema_hint(output_type)
 
     task_id = str(uuid4())
+    # r169 G-fix-Couche2 — mirror of the sync path : wrap system prompt
+    # with [AGENT-MODE-OVERRIDE] prefix so user-scope CLAUDE.md rules
+    # (self-checklist, tracker, Ready-for-Stop) cannot leak into the
+    # JSON output expected by the Pydantic validator on the agent side.
     payload = {
         "task_id": task_id,
-        "system": system,
+        "system": _wrap_system_prompt_with_agent_override(system),
         "prompt": full_prompt,
         "model": cfg.model,
         "effort": cfg.effort,

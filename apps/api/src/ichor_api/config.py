@@ -64,6 +64,20 @@ class Settings(BaseSettings):
             "/v1/post-mortems",
             "/v1/today",
             "/v1/scenarios",
+            # r161 Strand G — ADR-106 D5 SessionVerdict endpoint. The verdict
+            # is LLM-derived (via Pass-6 7-bucket scenarios) even when the
+            # fallback path returns derived_from_scenarios=False (the fallback
+            # is itself a probabilistic-research-output, not raw data).
+            "/v1/verdict",
+            # r162 Stride 8 Phase 2 — ADR-106 §"coach explicateur" surface.
+            # The CoachMacroContext.coach_paragraph + CalendarSurprise.why_
+            # it_matters strings are AI-derived narrative synthesis (rule-
+            # based aggregation of FRED + EconomicEvent, but the output
+            # IS probabilistic-research-output text per EU AI Act §50.2
+            # definitional scope). MUST stay byte-identical to middleware
+            # DEFAULT_WATERMARKED_PREFIXES per W90 invariant
+            # `test_ai_watermark_default_prefixes_match_settings`.
+            "/v1/coach-macro-context",
         ]
     )
     """Path prefixes whose responses get the X-Ichor-AI-* watermark
@@ -71,7 +85,7 @@ class Settings(BaseSettings):
     content. Pure-data collector routes (/v1/market, /v1/fred, ...)
     stay OUT. EU AI Act Article 50(2) deadline = 2026-08-02."""
 
-    ai_provider_tag: str = "anthropic-claude-opus-4-7"
+    ai_provider_tag: str = "anthropic-claude-opus-4-8"
     """Identifier surfaced via X-Ichor-AI-Provider. Bumped on model
     upgrade (each upgrade also gets an ADR per ADR-029 §Cons)."""
 

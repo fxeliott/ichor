@@ -121,6 +121,9 @@ from .portfolio_exposure import (
     assess_portfolio_exposure,
     render_portfolio_exposure_block,
 )
+from .previous_session_origin_zone import (
+    compute_previous_session_origin_zone,
+)
 from .regime_classifier import RegimeInputs, classify_master_regime
 from .risk_appetite import (
     assess_risk_appetite,
@@ -135,6 +138,9 @@ from .session_scenarios import (
 from .surprise_index import (
     assess_surprise_index,
     render_surprise_index_block,
+)
+from .theme_classifier import (
+    classify_dominant_theme,
 )
 from .vix_term_structure import (
     assess_vix_term,
@@ -151,7 +157,7 @@ from .yield_curve import (
 # FRED series we surface in the macro trinity + dollar smile blocks.
 # series_id : (display_label, format_spec)
 _MACRO_TRINITY_SERIES: dict[str, tuple[str, str]] = {
-    "DTWEXBGS": ("DXY (broad)", "{:.2f}"),
+    "DTWEXBGS": ("USD broad index (DTWEXBGS)", "{:.2f}"),
     "DGS10": ("US10Y nominal", "{:.2f}%"),
     "VIXCLS": ("VIX", "{:.2f}"),
 }
@@ -765,7 +771,7 @@ async def _section_executive_summary(session: AsyncSession) -> tuple[str, list[s
 
 
 async def _section_macro_trinity(session: AsyncSession) -> tuple[str, list[str]]:
-    """## Macro trinity — DXY / US10Y / VIX, last value with date."""
+    """## Macro trinity — USD broad index / US10Y / VIX, last value with date."""
     lines = ["## Macro trinity (FRED, latest)"]
     sources: list[str] = []
     any_data = False
@@ -780,6 +786,20 @@ async def _section_macro_trinity(session: AsyncSession) -> tuple[str, list[str]]
         sources.append(f"FRED:{series_id}")
     if not any_data:
         lines.append("  _(no FRED data yet — collector hasn't filled the table)_")
+    else:
+        # Dollar-index disambiguation : DTWEXBGS is the Fed broad
+        # trade-weighted dollar index (scale ~115-125), the ONLY daily
+        # free USD index Ichor sources. It is NOT the ICE "DXY" (6-currency
+        # basket, scale ~99-105). The LLM must anchor any USD-strength
+        # invalidation threshold to the DTWEXBGS level shown above (e.g.
+        # "DTWEXBGS > 121"), never to an ICE-DXY level (~99-105) — mixing
+        # the two scales is the cross-card inconsistency this note closes.
+        lines.append(
+            "  _(USD broad index = Fed trade-weighted broad dollar, "
+            "DTWEXBGS, échelle ~115-125 — ce n'est PAS l'ICE « DXY » "
+            "(~99-105). Ancrez tout seuil de force USD sur le niveau "
+            "DTWEXBGS ci-dessus, jamais sur une échelle DXY-ICE.)_"
+        )
     return "\n".join(lines), sources
 
 
@@ -1124,8 +1144,9 @@ async def _section_xau_specific(session: AsyncSession, asset: str) -> tuple[str,
     # ─── DTWEXBGS (USD broad trade-weighted) — counter-driver ──────
     # Dollar smile : in calm regime USD and gold are inverse ; under
     # left-tail crisis (Brunnermeier-Pedersen 2009 funding-liquidity spiral) USD-bid AND gold-bid
-    # co-occur. DTWEXBGS is the broad index FRED publishes daily ; DXY
-    # ICE is a narrower 6-currency basket also tracked in fred.py:49.
+    # co-occur. DTWEXBGS is the broad index FRED publishes daily (scale
+    # ~115-125) ; the ICE "DXY" (6-currency basket, ~99-105) is a DIFFERENT
+    # index Ichor does NOT source — never conflate the two scales.
     dxy_cutoff = datetime.now(UTC).date() - timedelta(days=_max_age_days_for("DTWEXBGS"))
     dxy_stmt = (
         select(FredObservation.observation_date, FredObservation.value)
@@ -2588,6 +2609,180 @@ async def _section_polygon_intraday(session: AsyncSession, asset: str) -> tuple[
             f"polygon:{row.ticker}){marker}"
         )
         sources.append(f"polygon:{row.ticker}@{row.bar_ts.isoformat()}")
+    return "\n".join(lines), sources
+
+
+async def _section_theme_dominant(session: AsyncSession, asset: str) -> tuple[str, list[str]]:
+    """## Theme sous-jacent dominant (r183 N1 CONSUMER WIRING).
+
+    Surfaces the r182 N1 EXECUTION classifier output as plain-FR prose
+    for Pass-2 narrative. Eliot Fathom transcript étape 1 verbatim :
+    « identifier le thème sous-jacent du marché ».
+
+    Asset-agnostic by design : the theme dominant is a CROSS-ASSET macro
+    state read. ADR-017 boundary preserved : pure factual ranking,
+    NEVER a directional bias for the CURRENT session. Doctrine #11
+    calibrated honesty : honest-absence prose when classifier returns
+    None (no driver above _DOMINANCE_THRESHOLD = 0.5).
+    """
+    ranking = await classify_dominant_theme(session, now_utc=datetime.now(UTC))
+
+    if ranking is None:
+        lines = [
+            "## Theme sous-jacent dominant (Eliot Fathom transcript étape 1)",
+            "",
+            "Aucun thème sous-jacent ne domine clairement le marché à cet "
+            "instant : aucune force directrice (parmi macroéconomique / "
+            "politique monétaire / données économiques / politique fiscale / "
+            "interconnexions marché / géopolitique / price action+flux / "
+            "offre+demande) n'atteint le seuil de dominance (0.5 sur 1.0). "
+            "Doctrine #11 calibrated honesty : aucune fabrication d'un thème "
+            "par défaut ; le Pass-2 doit lire l'absence comme un régime "
+            "mixte sans driver principal plutôt qu'une lecture neutre.",
+            "",
+            "Frontière ADR-017 : ranking factuel pur, jamais un signal de "
+            "direction pour la session courante.",
+        ]
+        sources = [f"theme_dominant:{asset}:absent"]
+        return "\n".join(lines), sources
+
+    driver_fr = {
+        "macroeconomic": "macroéconomique (événements mondiaux, regime-defining)",
+        "monetary_policy": "politique monétaire (Fed / BCE / BoE / BoJ)",
+        "economic_data": "données économiques (CPI / NFP / PMI / retail / GDP)",
+        "fiscal_policy": "politique fiscale (dépenses publiques / tariffs)",
+        "market_interconnexions": "interconnexions marché (fixed-income → FX → commodities → equities)",
+        "geopolitics": "géopolitique (conflits / guerres / accords commerciaux)",
+        "price_action_flow": "price action + flux institutionnel (microstructure)",
+        "supply_demand": "offre / demande directe (commodities OPEC etc.)",
+    }
+
+    top_fr = driver_fr.get(ranking.top_theme, ranking.top_theme)
+    top_strength = ranking.driver_strengths.get(ranking.top_theme, 0.0)
+    top_pct = round(top_strength * 100)
+
+    lines = [
+        "## Theme sous-jacent dominant (Eliot Fathom transcript étape 1)",
+        "",
+        f"Le thème dominant actuel est **{top_fr}** "
+        f"(force {top_pct}% sur 1.0). Le Pass-2 narrative doit lire les "
+        f"autres signaux dans ce contexte : un développement contraire "
+        f"au thème dominant a moins de portée qu'un développement aligné, "
+        f"toutes choses égales par ailleurs.",
+        "",
+        f"- **Top theme** : `{ranking.top_theme}` ({top_fr})",
+        f"- **Force** : {top_strength:.2f} / 1.00",
+    ]
+
+    if ranking.secondary_themes:
+        for sec in ranking.secondary_themes:
+            sec_strength = ranking.driver_strengths.get(sec, 0.0)
+            sec_fr_label = driver_fr.get(sec, sec)
+            lines.append(f"- **Secondaire** : `{sec}` ({sec_fr_label}) — force {sec_strength:.2f}")
+    else:
+        lines.append(
+            "- **Secondaires** : aucun driver secondaire au-dessus de "
+            "0.40 — un seul thème domine clairement."
+        )
+
+    lines.extend(
+        [
+            "",
+            f"Provenance : `{ranking.provenance}` (Eliot Fathom transcript "
+            f"page 1 étape 1 — la taxonomie 8-drivers est practitioner-stamp, "
+            f"les driver-strength computations citent Bekaert-Hoerova-Lo Duca "
+            f"2013 _JME_ + Caldara-Iacoviello 2022 _AER_ + Nakamura-Steinsson "
+            f"2018 _QJE_ peer-reviewed backbones).",
+            "",
+            "Frontière ADR-017 : ranking factuel pur, jamais un signal de "
+            "direction pour la session courante.",
+        ]
+    )
+    sources = [f"theme_dominant:{ranking.top_theme}@{ranking.computed_at_utc.isoformat()}"]
+    return "\n".join(lines), sources
+
+
+async def _section_previous_session_context(
+    session: AsyncSession, asset: str
+) -> tuple[str, list[str]]:
+    """## Previous-session origin zone (r180 G5 CONSUMER WIRING).
+
+    Surfaces the r179 G5 EXECUTION classifier output as plain-FR prose
+    for Pass-2 narrative. Eliot Fathom §V practitioner methodology :
+    « savoir d'où vient le mouvement de la session précédente, son zone
+    d'origine, son sens, ses hauts et bas ».
+
+    The origin-zone (Asian / London / NY) + high/low/direction stamps
+    inform the « comment se comporte le marché depuis un certain temps »
+    read directive (Eliot Fathom §V context input to NY position-taking).
+
+    ADR-017 boundary preserved : pure factual snapshot output (zone +
+    high + low + direction + bar_count + window UTC). NEVER a directional
+    bias for the CURRENT session. The Pass-2 LLM picks the appropriate
+    framing based on Pass-1 régime label + the snapshot's factual content.
+
+    Doctrine #11 calibrated honesty : when ``compute_previous_session_
+    origin_zone()`` returns None (no bars OR dominant zone bar_count < 30),
+    surface explicit « Contexte session précédente indisponible » prose
+    rather than fabricate a read. Always-rendered (1 honest source stamp
+    emitted whether snapshot present or None) so Pass-2 sees the explicit
+    state instead of a vanishing section.
+    """
+    snapshot = await compute_previous_session_origin_zone(session, asset, now_utc=datetime.now(UTC))
+
+    if snapshot is None:
+        lines = [
+            "## Previous-session origin zone (Eliot Fathom §V)",
+            "",
+            "Contexte session précédente indisponible : données insuffisantes "
+            "dans la fenêtre des dernières 24 heures (week-end / jour férié OU "
+            "moins de 30 barres 1-min dans la zone dominante per Cohen 1988 "
+            "n=30 small-sample threshold). Doctrine #11 calibrated honesty : "
+            "aucune fabrication ; le Pass-2 doit lire l'absence comme un "
+            "manque réel de contexte plutôt qu'une lecture neutre par défaut.",
+        ]
+        sources = [f"origin_zone:{asset}:absent"]
+        return "\n".join(lines), sources
+
+    # Plain-FR rendering for Pass-2 narrative consumption. The FR copy
+    # is intentionally factual + descriptive (per ADR-017 boundary
+    # « explains WHAT happened in the previous session, never WHAT to
+    # do about it »). Mirror of `_section_polygon_intraday` source-
+    # stamping discipline (one source per data point cited).
+    direction_fr = {
+        "up": "haussier",
+        "down": "baissier",
+        "range": "range-bound (consolidation / chop)",
+    }[snapshot.direction]
+
+    zone_fr = {
+        "asian": "asiatique (Tokyo + Sydney + Hong Kong)",
+        "london": "londonienne (London cash open + NY pré-open)",
+        "ny": "new-yorkaise (NYSE RTH + extended FX / late-NY rollover)",
+    }[snapshot.session_zone]
+
+    lines = [
+        "## Previous-session origin zone (Eliot Fathom §V)",
+        "",
+        f"La session précédente a été dominée par la zone {zone_fr} "
+        f"avec un mouvement directionnel {direction_fr}.",
+        "",
+        f"- **Zone dominante** : `{snapshot.session_zone}` ({zone_fr})",
+        f"- **Direction** : `{snapshot.direction}` ({direction_fr})",
+        f"- **High** : {snapshot.high_price:.5f}",
+        f"- **Low** : {snapshot.low_price:.5f}",
+        f"- **Range observé** : {snapshot.high_price - snapshot.low_price:.5f}",
+        f"- **Barres 1-min** : {snapshot.bar_count} (≥ 30 per Cohen 1988 §3.3)",
+        f"- **Fenêtre UTC** : "
+        f"{snapshot.start_utc:%Y-%m-%d %H:%M} → {snapshot.end_utc:%Y-%m-%d %H:%M}",
+        "",
+        "Frontière ADR-017 : snapshot factuel pur, jamais un signal de "
+        "direction pour la session courante.",
+    ]
+    sources = [
+        f"origin_zone:polygon_intraday:{asset}"
+        f"@{snapshot.start_utc.isoformat()}..{snapshot.end_utc.isoformat()}"
+    ]
     return "\n".join(lines), sources
 
 
@@ -4456,6 +4651,142 @@ async def _section_yield_curve(
     return render_yield_curve_block(reading)
 
 
+_RECENT_ACTUAL_STATE_FR: dict[str, str] = {
+    "above_range": "au-dessus du consensus",
+    "below_range": "sous le consensus",
+    "in_range": "dans la fourchette consensus",
+    "exact_consensus": "pile sur le consensus",
+    "unavailable": "écart vs consensus",
+}
+
+
+async def _section_recent_actuals(session: AsyncSession) -> tuple[str, list[str]]:
+    """## Résultats économiques publiés (72h) — réactivité temps réel (§6.4).
+
+    Surfaces the high/medium-impact economic releases of the last 72 h with
+    their published `actual` vs consensus + the surprise magnitude, so the
+    Pass-2 LLM can REACT when a print beats/misses expectations (e.g. an
+    inflation print below consensus → USD-soft into the NY session). This is
+    the structural real-time-reactivity layer the card was missing : the
+    `recent_actuals` service was computed for the frontend only and never fed
+    into the LLM prompt. Descriptive only (ADR-017) — magnitude/direction
+    labels, never BUY/SELL. Honest empty state outside publication windows
+    (e.g. weekend).
+    """
+    from .recent_actuals import fetch_recent_actuals
+
+    rows = await fetch_recent_actuals(session, lookback_days=3, currency=None, limit=25)
+    relevant = [
+        r for r in rows if r.currency in {"USD", "EUR", "GBP"} and r.impact in {"high", "medium"}
+    ]
+    lines = ["## Résultats économiques publiés (72h — actual vs consensus + surprise)"]
+    if not relevant:
+        lines.append(
+            "- (aucun résultat à fort/moyen impact publié sur USD/EUR/GBP dans les 72h — "
+            "hors fenêtre de publication, p. ex. week-end ; surveiller le calendrier ci-dessus)"
+        )
+        return "\n".join(lines), []
+
+    sources: list[str] = []
+    for r in relevant[:12]:
+        cls = r.classification
+        surprise = ""
+        if cls.magnitude_pct is not None:
+            surprise = (
+                f" → surprise {cls.magnitude_pct:+.1f}% "
+                f"({_RECENT_ACTUAL_STATE_FR.get(cls.state, cls.state)})"
+            )
+        cons = f", cons. {r.forecast}" if r.forecast else ""
+        prev = f", préc. {r.previous}" if r.previous else ""
+        lines.append(
+            f"- {r.scheduled_at:%m-%d %H:%M}Z {r.currency} [{r.impact}] "
+            f"{r.title[:60]} : actual {r.actual}{cons}{prev}{surprise}"
+        )
+        sources.append("ForexFactory:economic_events")
+    lines.append(
+        "- _Réactivité : un actual qui s'écarte nettement du consensus recalibre la lecture "
+        "(la surprise, pas le chiffre brut, déplace le marché) — intègre-la dans la direction NY._"
+    )
+    return "\n".join(lines), list(dict.fromkeys(sources))
+
+
+def _fmt_px(p: float) -> str:
+    """Price formatter : 5 dp for FX (<10), 2 dp for indices/gold."""
+    return f"{p:.5f}" if abs(p) < 10 else f"{p:.2f}"
+
+
+async def _section_london_session(session: AsyncSession, asset: str) -> tuple[str, list[str]]:
+    """## Session de Londres — lecture pour calibrer la session NY (§6.2).
+
+    Surfaces how the asset traded during the London MORNING window (the
+    session running before/into the NY open) — range, direction, and whether
+    it was unusually active vs the typical London morning — so the Pass-2 LLM
+    calibrates the NY-session view on the live London behaviour (owner §6.2
+    CAPITAL point). Reuses `compute_london_session` (pure, DST-correct via
+    ZoneInfo) ; honest empty when no London bars. Descriptive (ADR-017).
+    """
+    from ..models import PolygonIntradayBar
+    from .london_session import Bar, compute_london_session
+
+    now = datetime.now(UTC)
+    rows = (
+        await session.execute(
+            select(
+                PolygonIntradayBar.bar_ts,
+                PolygonIntradayBar.open,
+                PolygonIntradayBar.high,
+                PolygonIntradayBar.low,
+                PolygonIntradayBar.close,
+            )
+            .where(PolygonIntradayBar.asset == asset)
+            .where(PolygonIntradayBar.bar_ts >= now - timedelta(days=7))
+            .order_by(PolygonIntradayBar.bar_ts.asc())
+        )
+    ).all()
+    bars = [
+        Bar(ts=r[0], open=float(r[1]), high=float(r[2]), low=float(r[3]), close=float(r[4]))
+        for r in rows
+        if r[1] is not None and r[4] is not None
+    ]
+    read = compute_london_session(bars, now_utc=now)
+    lines = ["## Session de Londres — lecture pour calibrer la session NY"]
+    if read is None:
+        lines.append(
+            "- (pas de bars Londres exploitables — fenêtre pas encore ouverte ou intraday indisponible)"
+        )
+        return "\n".join(lines), []
+
+    freshness = (
+        "ce matin (en direct)"
+        if read.is_today
+        else f"dernière séance du {read.session_date:%Y-%m-%d}"
+    )
+    dir_fr = {"up": "haussière", "down": "baissière", "range": "en range (indécise)"}[
+        read.direction
+    ]
+    activity = ""
+    if read.range_ratio is not None:
+        tag = (
+            "séance ACTIVE"
+            if read.range_ratio >= 1.4
+            else "séance CALME"
+            if read.range_ratio <= 0.6
+            else "normale"
+        )
+        activity = f" — range {read.range_ratio:.1f}× la moyenne 5 j ({tag})"
+    net_sign = "+" if read.net_change >= 0 else "−"
+    lines.append(
+        f"- {freshness} : ouverture {_fmt_px(read.open_price)} → clôture {_fmt_px(read.close)} "
+        f"(var {net_sign}{_fmt_px(abs(read.net_change))} ; H {_fmt_px(read.high)} / "
+        f"B {_fmt_px(read.low)}), direction {dir_fr}{activity} ({read.bar_count} min)."
+    )
+    lines.append(
+        "- _Calibration NY : une matinée Londres directionnelle ET active prolonge souvent le "
+        "momentum à l'open NY ; une matinée en range/calme suggère l'attente d'un catalyseur NY._"
+    )
+    return "\n".join(lines), [f"polygon_intraday:{asset}@london_morning"]
+
+
 async def _section_calendar(session: AsyncSession, asset: str) -> tuple[str, list[str]]:
     """## Economic calendar — next 14 days affecting `asset`."""
     report = await assess_calendar(session, horizon_days=14)
@@ -4748,9 +5079,37 @@ async def build_data_pool(
     cal_md, cal_src = await _section_calendar(session, asset)
     sections.append(("calendar", cal_md, cal_src))
 
+    ra_md, ra_src = await _section_recent_actuals(session)
+    sections.append(("recent_actuals", ra_md, ra_src))
+
+    london_md, london_src = await _section_london_session(session, asset)
+    sections.append(("london_session", london_md, london_src))
+
     diff_md, diff_src = await _section_rate_diff(session, asset)
     if diff_md:
         sections.append(("rate_diff", diff_md, diff_src))
+
+    # r180 — G5 CONSUMER WIRING : previous-session origin zone (Eliot
+    # Fathom §V practitioner context). Surfaces the r179 G5 EXECUTION
+    # classifier output as plain-FR prose for Pass-2 narrative.
+    # Always-rendered : when the snapshot is None (week-end / holiday /
+    # bar_count < 30), the section emits an explicit honest-absence
+    # prose so Pass-2 sees the state instead of a vanishing section.
+    # ADR-017 boundary preserved (pure factual snapshot, never
+    # directional bias for the CURRENT session).
+    osz_md, osz_src = await _section_previous_session_context(session, asset)
+    sections.append(("previous_session_origin_zone", osz_md, osz_src))
+
+    # r183 — N1 THEME CONSUMER WIRING : theme sous-jacent dominant
+    # (Eliot Fathom transcript étape 1). Surfaces the r182 N1 EXECUTION
+    # classifier output as plain-FR prose for Pass-2 narrative. The
+    # 8-driver ranking is a CROSS-ASSET macro state read inserted at
+    # ALL 5 priority assets (same ranking ; the asset-specific blocks
+    # downstream interpret the same theme through asset-specific lens).
+    # Always-rendered : honest-absence prose when classifier returns
+    # None. ADR-017 boundary preserved (pure factual ranking).
+    theme_md, theme_src = await _section_theme_dominant(session, asset)
+    sections.append(("theme_dominant", theme_md, theme_src))
 
     # ADR-090 P0 step-3 (round-32) — EUR-specific Bund 10Y yield.
     # Asset-gated to EUR_USD ; silent skip otherwise OR if the

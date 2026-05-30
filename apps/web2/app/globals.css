@@ -154,6 +154,12 @@
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-jetbrains-mono);
   --font-serif: var(--font-fraunces);
+  /* Editorial display utility (`font-display`) — the r186-r189 panels
+   * (ThemeRankingPanel / PreviousSessionContextPanel) reference it but the
+   * token was never bound, so the headings silently fell back to font-sans.
+   * Maps to Fraunces so display headings match the briefing's `font-serif`
+   * editorial surface (single editorial type voice). */
+  --font-display: var(--font-fraunces);
 }
 
 /* Colors are a PLAIN `@theme` block — the exact pre-r104 structural
@@ -248,6 +254,9 @@
   /* `text-tertiary` is referenced by loading.tsx / error.tsx /
    * not-found.tsx as the lightest-weight info color (7.01:1 vs bg-base). */
   --color-text-tertiary: var(--p-slate-450); /* was #93999E */
+  /* Danger text alias (= bear red) — referenced by lib/originZone.ts
+   * "down" direction tone (r190 drift repair). */
+  --color-text-danger: var(--color-bear);
 
   /* Bull/Bear (override §14). NB depth-variants (`-deep`) and accent
    * brightness-variants (`-bright`/`-deep`) are added on demand, not
@@ -271,6 +280,23 @@
   --color-accent-cobalt-deep: var(--p-cobalt-800); /* was #1E40AF */
   --color-accent-warm: var(--p-sienna-600); /* was #C15F3C */
   --color-accent-violet: var(--p-violet-600); /* was #785EF0 */
+
+  /* Theme / coach accent ramp (r190 — repairs the r186-r189 token drift:
+   * lib/themeDominant.ts, lib/originZone.ts, lib/coachMacroContext.ts,
+   * lib/sessionVerdict.ts referenced --color-accent-1/-2/-bull/-bear but the
+   * tokens were never defined, so every label fell back to inherited color —
+   * a real cause of the flat / washed-out look on the newest panels).
+   *   accent-1 = primary vivid (cobalt-bright) for strong regime drivers
+   *             (macro / monetary / geopolitics) + origin "up".
+   *   accent-2 = secondary (amber) for the data / fiscal drivers.
+   *   accent-bull / -bear alias the bull / bear semantics so a future
+   *             palette re-tune tracks automatically (the --color-border
+   *             alias pattern). Used by the coach cycle / risk chips +
+   *             SessionVerdict direction. */
+  --color-accent-1: var(--p-cobalt-500);
+  --color-accent-2: var(--p-amber-500);
+  --color-accent-bull: var(--color-bull);
+  --color-accent-bear: var(--color-bear);
 
   /* Chart diverging ramp — semantic names the correlation heat-strip
    * consumes (r106). Layer-2 over the --p-chartdiv-* ordinal slots, the
@@ -348,6 +374,13 @@
   --z-toast: 600;
   --z-command: 700;
   --z-debug: 9999;
+}
+
+/* Sticky in-page anchor offset (overwritten at runtime by
+ * BriefingSectionNav from the measured global header + nav height; this is
+ * the pre-hydration fallback so deep-link anchors clear the header). */
+:root {
+  --briefing-anchor-offset: 96px;
 }
 
 /* ── Base ─────────────────────────────────────────────── */

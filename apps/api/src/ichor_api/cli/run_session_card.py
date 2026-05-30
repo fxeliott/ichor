@@ -25,6 +25,7 @@ import structlog
 from ..config import get_settings
 from ..db import get_engine, get_sessionmaker
 from ..schemas import DegradedInputOut
+from ..services.confluence_engine import assess_confluence
 
 log = structlog.get_logger(__name__)
 
@@ -339,7 +340,55 @@ async def _run(
             log.warning("key_levels_snapshot.fallback", asset=asset, error=str(e))
             key_levels_snapshot = []
 
-        card_with_levels = result.card.model_copy(update={"key_levels": key_levels_snapshot})
+        # r142 (Mission centrale axis-6 closure) — engine-computed
+        # confluence drivers persisted alongside the LLM-narrative
+        # output so the frontend can surface the deterministic engine
+        # read on `<ConvictionGroundingPanel>` 4th tile (lib JSDoc
+        # rationale : the drivers ARE legitimate per doctrine #11 —
+        # they're computed from sourced data, NOT a fabricated split
+        # of conviction_pct). Best-effort : if assess() fails (DB
+        # transient / factor exception) we fall back to None so the
+        # card persists without drivers — same graceful-degradation
+        # pattern as key_levels above.
+        #
+        # `regime` arg = "all" (the assess_confluence default) — we
+        # deliberately MATCH the `_section_confluence` data_pool call
+        # at `data_pool.py:4439` which also defaults to "all" (it
+        # runs PRE-Pass-1 so the regime quadrant isn't known yet).
+        # Using `result.card.regime.quadrant` here (only known POST-
+        # Pass-4) would create a regime-mismatch between the engine
+        # snapshot the LLM read in Pass-2 and the engine snapshot
+        # persisted — r142 code-reviewer R1 fix. Regime-keyed weight
+        # divergence between data_pool and persistence is a r143+
+        # candidate (requires Pass-1-then-replay-data_pool refactor).
+        #
+        # `engine_drivers = [...]` (no `or None` collapse) — r142 S1+S5
+        # fix : an engine that fires and produces 0 drivers above the
+        # |0.2| threshold is an HONEST EMPTY state (drivers all below
+        # threshold = no strong confluence). Persisting [] preserves
+        # that signal ; `extract_engine_drivers` returns [] so the API
+        # surfaces "engine ran, no significant drivers" rather than
+        # falling back to fabricated LLM-narrative confluence_drivers.
+        # `None` is reserved for legacy pre-r142 cards (orchestrator
+        # hook never ran).
+        try:
+            confluence_report = await assess_confluence(session, asset)
+            engine_drivers: list[dict[str, Any]] | None = [
+                {
+                    "factor": d.factor,
+                    "contribution": d.contribution,
+                    "evidence": d.evidence,
+                    "source": d.source,
+                }
+                for d in confluence_report.drivers
+            ]
+        except Exception as e:  # noqa: BLE001 — never fail the persist on engine error
+            log.warning("engine_drivers.fallback", asset=asset, error=str(e))
+            engine_drivers = None
+
+        card_with_levels = result.card.model_copy(
+            update={"key_levels": key_levels_snapshot, "drivers": engine_drivers}
+        )
         row = to_audit_row(card_with_levels)
         # r95 (ADR-104) : thread the ADR-103 degraded-input manifest
         # (captured from the DataPool in live mode / None in dry-run)
@@ -348,6 +397,43 @@ async def _run(
         # byte-identical : the api↔DataPool cross-cut belongs in the
         # api layer, not the brain package.
         row.degraded_inputs = degraded_inputs_payload
+
+        # === Content-correctness coherence gate (missions 2 + 4) ===
+        # Reconcile the headline bias/conviction with the card's own
+        # 7-bucket scenario distribution + quant confluence drivers. The
+        # gate is demote-only (never promotes/flips) : a directional bias
+        # contradicted by the scenario mass (EUR long-vs-bearish-mass) or a
+        # US-equity directional bias on the cash-closed overnight without a
+        # strong lean (SPX/NAS symmetry) is demoted to neutral ; a weak
+        # edge has its conviction shaved. Persisting the reconciled values
+        # keeps Brier calibration honest. Pure function, no I/O.
+        from ..services.card_coherence import reconcile_coherence
+
+        _coh = reconcile_coherence(
+            asset=row.asset,
+            session_type=row.session_type,
+            bias=row.bias_direction,
+            conviction=row.conviction_pct,
+            scenarios=row.scenarios or [],
+            drivers=row.drivers,
+        )
+        if _coh.adjusted:
+            log.info(
+                "session_card.coherence_adjusted",
+                asset=row.asset,
+                session_type=row.session_type,
+                from_bias=row.bias_direction,
+                to_bias=_coh.bias,
+                from_conviction=round(row.conviction_pct, 1),
+                to_conviction=round(_coh.conviction, 1),
+                scenario_lean=_coh.scenario_lean,
+                driver_lean=_coh.driver_lean,
+                agreement=_coh.agreement,
+                reason=_coh.reason,
+            )
+            row.bias_direction = _coh.bias
+            row.conviction_pct = _coh.conviction
+
         session.add(row)
         await session.commit()
         log.info(

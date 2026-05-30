@@ -1,4 +1,4 @@
-"""post_mortems table — weekly Claude Opus 4.7 post-mortems (8-section template).
+"""post_mortems table — weekly Claude Opus 4.8 post-mortems (8-section template).
 
 Mirrors the schema created in migration 0010. The actual markdown is on disk
 under `docs/post_mortem/{YYYY-Www}.md`; this row indexes the structured-data

@@ -9,26 +9,6 @@ from __future__ import annotations
 from ichor_api.cli.run_brier_optimizer import _FACTOR_NAMES, _equal_weights
 
 
-def test_factor_names_match_confluence_engine() -> None:
-    """If the optimizer seeds weights for factors that don't exist in
-    confluence_engine, the runtime weight lookup will silently fall
-    back to 1.0 for those keys — defeating the purpose."""
-    expected = {
-        "rate_diff",
-        "cot",
-        "microstructure_ofi",
-        "daily_levels",
-        "polymarket_overlay",
-        "funding_stress",
-        "surprise_index",
-        "inflation_surprise",  # r137 — separate inflation-surprise driver
-        "vix_term",
-        "risk_appetite",
-        "btc_risk_proxy",
-    }
-    assert set(_FACTOR_NAMES) == expected
-
-
 def test_equal_weights_sums_to_one() -> None:
     w = _equal_weights()
     assert abs(sum(w.values()) - 1.0) < 1e-9

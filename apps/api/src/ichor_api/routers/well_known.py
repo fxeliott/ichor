@@ -53,7 +53,7 @@ async def get_ai_content_inventory(
         "schema_version": 1,
         "spec": "EU AI Act Article 50(2)",
         "host_role": "deployer",
-        "provider": "anthropic-claude-opus-4-7",
+        "provider": "anthropic-claude-opus-4-8",
         "disclosure_url": "https://app-ichor.pages.dev/legal/ai-disclosure",
         "watermarked_prefixes": ["/v1/briefings", ...],
         "watermark_headers": ["X-Ichor-AI-Generated", ...],

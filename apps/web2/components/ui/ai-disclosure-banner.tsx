@@ -12,7 +12,7 @@
 // block input. Compliant with §5 "clear and distinguishable" without being
 // modal-trapping.
 //
-// Persona Claude Opus 4.7 named explicitly per §50 deployer disclosure
+// Persona Claude Opus 4.8 named explicitly per §50 deployer disclosure
 // patterns (see EU Code of Practice on marking & labelling, Dec 2025 draft).
 //
 // Reference: ADR-029 (EU AI Act §50 + AMF DOC-2008-23 disclosure), researcher report 2026-05-06.
@@ -34,7 +34,7 @@ export function AIDisclosureBanner() {
             style={{ backgroundColor: "var(--color-accent-cobalt)" }}
           />
           <span className="uppercase tracking-widest text-[var(--color-text-muted)]">
-            AI · Claude Opus 4.7
+            AI · Claude Opus 4.8
           </span>
           <span className="hidden sm:inline">
             sortie générée automatiquement, jamais un conseil humain.

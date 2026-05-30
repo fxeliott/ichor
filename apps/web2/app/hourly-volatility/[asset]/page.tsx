@@ -34,7 +34,7 @@ export const revalidate = 300;
 
 export async function generateMetadata({ params }: PageProps) {
   const { asset } = await params;
-  return { title: `Vol horaire · ${asset.replace(/_/g, "/")} · Ichor` };
+  return { title: `Vol horaire · ${asset.replace(/_/g, "/")}` };
 }
 
 export default async function HourlyVolPage({ params }: PageProps) {

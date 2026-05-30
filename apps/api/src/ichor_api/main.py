@@ -22,6 +22,7 @@ from .routers import (
     brier_feedback_router,
     calendar_router,
     calibration_router,
+    coach_macro_context_router,
     confluence_router,
     correlations_router,
     counterfactual_router,
@@ -29,6 +30,7 @@ from .routers import (
     data_pool_router,
     divergence_router,
     economic_events_router,
+    event_anticipation_router,
     geopolitics_router,
     graph_router,
     hourly_volatility_router,
@@ -38,6 +40,7 @@ from .routers import (
     market_router,
     narratives_router,
     news_router,
+    origin_zone_router,
     phase_d_router,
     polymarket_impact_router,
     portfolio_exposure_router,
@@ -48,10 +51,13 @@ from .routers import (
     scenarios_router,
     sessions_router,
     sources_router,
+    stir_router,
     tempo_thresholds_router,
+    theme_dominant_router,
     today_router,
     tools_router,
     trade_plan_router,
+    verdict_router,
     well_known_router,
     ws_router,
     yield_curve_router,
@@ -200,6 +206,7 @@ app.include_router(briefings_router)
 app.include_router(alerts_router)
 app.include_router(bias_signals_router)
 app.include_router(news_router)
+app.include_router(origin_zone_router)
 app.include_router(market_router)
 app.include_router(predictions_router)
 app.include_router(sessions_router)
@@ -215,6 +222,9 @@ app.include_router(confluence_router)
 app.include_router(currency_strength_router)
 app.include_router(calendar_router)
 app.include_router(economic_events_router)
+app.include_router(event_anticipation_router)
+app.include_router(verdict_router)
+app.include_router(coach_macro_context_router)
 app.include_router(correlations_router)
 app.include_router(hourly_volatility_router)
 app.include_router(journal_router)
@@ -229,10 +239,12 @@ app.include_router(positioning_router)
 app.include_router(scenarios_router)
 app.include_router(sources_router)
 app.include_router(tempo_thresholds_router)
+app.include_router(theme_dominant_router)
 app.include_router(today_router)
 app.include_router(push_router)
 app.include_router(admin_router)
 app.include_router(yield_curve_router)
+app.include_router(stir_router)
 app.include_router(tools_router)
 app.include_router(well_known_router)
 app.include_router(ws_router)

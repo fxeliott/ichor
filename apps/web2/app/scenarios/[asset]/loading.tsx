@@ -5,7 +5,10 @@
  * skeleton matches the tree silhouette so the user knows what's coming.
  */
 
-export default function ScenariosLoading() {
+import type { ReactElement } from "react";
+
+// r143 — explicit ReactElement annotation (TS2742 portability fix).
+export default function ScenariosLoading(): ReactElement {
   return (
     <main
       aria-busy="true"

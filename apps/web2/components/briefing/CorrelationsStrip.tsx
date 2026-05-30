@@ -66,7 +66,15 @@ function parsePairLabel(key: string): string {
 const STRIP_W = 1000;
 const STRIP_H = 44;
 
-export function CorrelationsStrip({ snapshot }: { snapshot: unknown }) {
+export function CorrelationsStrip({
+  snapshot,
+  hideHeader,
+}: {
+  snapshot: unknown;
+  /** When true, suppress the component's own top-level header (the page
+   *  already renders a SubHeader with the distinct meta label). */
+  hideHeader?: boolean;
+}) {
   if (!snapshot || typeof snapshot !== "object" || Array.isArray(snapshot)) {
     return null;
   }
@@ -85,23 +93,25 @@ export function CorrelationsStrip({ snapshot }: { snapshot: unknown }) {
       transition={{ duration: 0.3 }}
       className="overflow-hidden rounded-2xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)]/40 backdrop-blur-xl"
     >
-      <header className="border-b border-[var(--color-border-subtle)] px-6 py-4">
-        <h3 className="font-serif text-lg text-[var(--color-text-primary)]">Corrélations</h3>
-        {/* Colour via inline `style` var() — the natural idiom for the SVG
-            rect `fill` and the decorative glyph overlay (rect fill / bar
-            backgroundColor resolve to the exact OKLCH live, empirically
-            proven r106). The app-wide Tailwind v4 `text-[--color-*]`
-            v3-bracket defect this heat-strip surfaced in r106 was fixed
-            codebase-wide in r107 (ADR-099 §Implementation(r107) — migrated
-            to the explicit `[var(--*)]` form). */}
-        <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-          Co-mouvement avec le complexe ·{" "}
-          <span style={{ color: "var(--color-chart-div-neg-strong)" }}>−1 inverse</span> ↔{" "}
-          <span style={{ color: "var(--color-chart-div-neutral)" }}>neutre</span> ↔{" "}
-          <span style={{ color: "var(--color-chart-div-pos-strong)" }}>+1 ensemble</span> · trié par
-          |ρ|
-        </p>
-      </header>
+      {!hideHeader && (
+        <header className="border-b border-[var(--color-border-subtle)] px-6 py-4">
+          <h3 className="font-serif text-lg text-[var(--color-text-primary)]">Corrélations</h3>
+          {/* Colour via inline `style` var() — the natural idiom for the SVG
+              rect `fill` and the decorative glyph overlay (rect fill / bar
+              backgroundColor resolve to the exact OKLCH live, empirically
+              proven r106). The app-wide Tailwind v4 `text-[--color-*]`
+              v3-bracket defect this heat-strip surfaced in r106 was fixed
+              codebase-wide in r107 (ADR-099 §Implementation(r107) — migrated
+              to the explicit `[var(--*)]` form). */}
+          <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+            Co-mouvement avec le complexe ·{" "}
+            <span style={{ color: "var(--color-chart-div-neg-strong)" }}>−1 inverse</span> ↔{" "}
+            <span style={{ color: "var(--color-chart-div-neutral)" }}>neutre</span> ↔{" "}
+            <span style={{ color: "var(--color-chart-div-pos-strong)" }}>+1 ensemble</span> · trié
+            par |ρ|
+          </p>
+        </header>
+      )}
 
       {/* Heat-strip gestalt : DECORATIVE (aria-hidden) — the <ul> below is
           the single authoritative accessible source (ADV-1/ADV-2). SVG =

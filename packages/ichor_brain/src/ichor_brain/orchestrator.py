@@ -108,7 +108,7 @@ class Orchestrator:
         invalidation_pass: Pass[InvalidationConditions] | None = None,
         scenarios_pass: Pass[Any] | None = None,
         critic_fn: CriticFn | None = None,
-        model_id: str = "claude-opus-4-7",
+        model_id: str = "claude-opus-4-8",
         scenarios_model: str = "sonnet",
         scenarios_effort: str = "medium",
         enable_scenarios: bool = False,

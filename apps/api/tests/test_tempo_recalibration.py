@@ -329,13 +329,27 @@ def test_daily_ranges_bp_sql_pins_paris_tz_and_safety_filters() -> None:
     `_StubSession` (which raises on .execute()), so a regression in the
     Paris TZ cast or the `day_open > 0` safety filter would slip past CI.
     String-match guard pins the load-bearing fragments — a future
-    refactor that drops them must update this test in the same commit."""
-    import re
+    refactor that drops them must update this test in the same commit.
 
-    src = open(
-        "src/ichor_api/services/tempo_recalibration.py",
-        encoding="utf-8",
-    ).read()
+    r156 hygiene fix : path resolution switched from CWD-relative
+    `open("src/...")` to `Path(__file__).parent`-relative resolution
+    for CWD-independence. The prior code failed when pytest was invoked
+    from worktree root (resolved to `D:\\Ichor\\...\\src\\...` which
+    doesn't exist) ; only worked when invoked from `apps/api/` directory.
+    Generalizable lesson : EVERY test that opens a source file MUST use
+    `Path(__file__).parent`-relative resolution, NEVER bare relative paths.
+    """
+    import re
+    from pathlib import Path
+
+    src_path = (
+        Path(__file__).resolve().parent.parent
+        / "src"
+        / "ichor_api"
+        / "services"
+        / "tempo_recalibration.py"
+    )
+    src = src_path.read_text(encoding="utf-8")
     # Paris TZ cast — the semantic alignment with frontend sessionPulse.ts.
     assert re.search(r"bar_ts\s+AT\s+TIME\s+ZONE\s+'Europe/Paris'", src, flags=re.IGNORECASE), (
         "_daily_ranges_bp must group by Paris-date (semantic match with sessionPulse.ts)"

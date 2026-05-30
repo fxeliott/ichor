@@ -26,6 +26,7 @@ from ichor_api.schemas import (
     TradePlan,
     extract_calibration_stat,
     extract_confluence_drivers,
+    extract_engine_drivers,
     extract_ideas,
     extract_thesis,
     extract_trade_plan,
@@ -233,7 +234,9 @@ def test_extract_calibration_returns_none_for_invalid_trend() -> None:
 
 def test_from_orm_row_falls_through_when_no_raw_response() -> None:
     out = SessionCardOut.from_orm_row(_row())
-    assert out.thesis is None
+    # mission-1: thesis is now deterministically derived from stored columns
+    # when the LLM raw payload carries none.
+    assert out.thesis is not None and "biais" in out.thesis
     assert out.trade_plan is None
     assert out.ideas is None
     assert out.confluence_drivers is None
@@ -275,8 +278,183 @@ def test_from_orm_row_preserves_base_columns() -> None:
 def test_from_orm_row_silently_skips_corrupt_payload() -> None:
     """A claude_raw_response shaped like none of the candidates returns base."""
     out = SessionCardOut.from_orm_row(_row(claude_raw_response={"random_unrelated_key": [1, 2, 3]}))
-    assert out.thesis is None
+    # mission-1: no extractable thesis in the payload → derived from columns.
+    assert out.thesis is not None and "biais" in out.thesis
     assert out.trade_plan is None
+
+
+# ──────────────────── extract_engine_drivers (r142) ────────────────────
+# r142 — engine-computed drivers from session_card_audit.drivers JSONB.
+# Distinct from extract_confluence_drivers (LLM-narrative). Tests the
+# canonical Driver shape (factor + contribution + evidence + source).
+
+
+def test_extract_engine_drivers_returns_typed_with_evidence_and_source() -> None:
+    """Happy path : engine-computed drivers from row.drivers JSONB
+    project to typed ConfluenceDriver with evidence + source populated."""
+    raw_jsonb = [
+        {
+            "factor": "rate_diff",
+            "contribution": 0.45,
+            "evidence": "US10Y - DE10Y = 1.18 pp (DGS10 - IRLTLT01DEM156N)",
+            "source": "fred:DGS10,IRLTLT01DEM156N",
+        },
+        {
+            "factor": "cot",
+            "contribution": -0.32,
+            "evidence": "Managed money net EUR z = -1.85 (short positioning extreme)",
+            "source": "cftc:CFTC_EUR",
+        },
+    ]
+    drivers = extract_engine_drivers(raw_jsonb)
+    assert drivers is not None
+    assert len(drivers) == 2
+    assert drivers[0].factor == "rate_diff"
+    assert drivers[0].contribution == 0.45
+    assert drivers[0].evidence is not None and "US10Y" in drivers[0].evidence
+    assert drivers[0].source == "fred:DGS10,IRLTLT01DEM156N"
+    assert drivers[1].contribution == -0.32
+
+
+def test_extract_engine_drivers_returns_none_for_none_input() -> None:
+    """Pre-r142 cards : row.drivers is NULL → None projection."""
+    assert extract_engine_drivers(None) is None
+
+
+def test_extract_engine_drivers_returns_empty_list_for_empty_list() -> None:
+    """r142 S1+S5 code-reviewer fix : post-r142 card where engine ran
+    and produced zero drivers above threshold returns [] (honest
+    silent absence), NOT None. None is reserved for legacy pre-r142
+    (orchestrator hook never ran) so the fallback path stays clean."""
+    assert extract_engine_drivers([]) == []
+
+
+def test_extract_engine_drivers_returns_none_for_non_list() -> None:
+    """Defensive : a dict / string / int in the JSONB column must not crash."""
+    assert extract_engine_drivers({"factor": "x"}) is None
+    assert extract_engine_drivers("string") is None
+    assert extract_engine_drivers(42) is None
+
+
+def test_extract_engine_drivers_skips_malformed_items() -> None:
+    """Permissive : malformed items dropped, valid items kept, never raises."""
+    raw_jsonb = [
+        {"factor": "ok", "contribution": 0.1, "evidence": "ev-1"},
+        {"factor": "missing-contribution"},  # malformed
+        "not-a-dict",
+        42,
+        {
+            "factor": "ok-2",
+            "contribution": -0.05,
+            "evidence": "ev-2",
+            "source": "src:test",
+        },
+    ]
+    out = extract_engine_drivers(raw_jsonb)
+    assert out is not None
+    assert len(out) == 2
+    assert [d.factor for d in out] == ["ok", "ok-2"]
+
+
+def test_confluence_driver_back_compat_without_evidence_and_source() -> None:
+    """r142 — legacy LLM-narrative shape (no evidence/source) still validates
+    against the extended ConfluenceDriver model (both fields default None)."""
+    d = ConfluenceDriver.model_validate({"factor": "x", "contribution": 0.3})
+    assert d.evidence is None
+    assert d.source is None
+
+
+def test_confluence_driver_accepts_full_engine_shape() -> None:
+    """r142 — full engine shape with evidence + source validates cleanly."""
+    d = ConfluenceDriver.model_validate(
+        {
+            "factor": "rate_diff",
+            "contribution": 0.45,
+            "evidence": "1-line citation",
+            "source": "fred:DGS10",
+        }
+    )
+    assert d.factor == "rate_diff"
+    assert d.contribution == 0.45
+    assert d.evidence == "1-line citation"
+    assert d.source == "fred:DGS10"
+
+
+# ─── SessionCardOut.from_orm_row engine vs LLM resolution (r142) ──────
+
+
+def test_from_orm_row_prefers_engine_drivers_over_llm_narrative() -> None:
+    """r142 — when BOTH row.drivers (engine) and claude_raw_response
+    (LLM narrative) carry drivers, the engine layer wins. The engine
+    has sourced evidence ; the LLM might fabricate factor names."""
+    llm_payload = {
+        "confluence_drivers": [
+            {"factor": "llm-side", "contribution": 0.9},
+        ]
+    }
+    engine_jsonb = [
+        {
+            "factor": "engine-side",
+            "contribution": 0.5,
+            "evidence": "computed",
+            "source": "src:test",
+        }
+    ]
+    out = SessionCardOut.from_orm_row(
+        _row(claude_raw_response=llm_payload, drivers=engine_jsonb),
+    )
+    assert out.confluence_drivers is not None
+    assert len(out.confluence_drivers) == 1
+    assert out.confluence_drivers[0].factor == "engine-side"
+    assert out.confluence_drivers[0].evidence == "computed"
+
+
+def test_from_orm_row_falls_back_to_llm_when_engine_drivers_none() -> None:
+    """r142 — legacy pre-r142 card : row.drivers is NULL ; LLM payload
+    still provides confluence_drivers — fallback path activates so we
+    don't lose data on cards generated before the orchestrator hook
+    was wired."""
+    out = SessionCardOut.from_orm_row(
+        _row(claude_raw_response=_full_payload(), drivers=None),
+    )
+    assert out.confluence_drivers is not None
+    # _full_payload has 2 LLM-narrative drivers
+    assert len(out.confluence_drivers) == 2
+    factors = {d.factor for d in out.confluence_drivers}
+    assert factors == {"DXY directional alignment", "Real yields differential"}
+
+
+def test_from_orm_row_engine_drivers_with_no_raw_response_resolved() -> None:
+    """r142 — row.drivers populated + claude_raw_response is None : engine
+    layer resolves, base.model_copy attaches confluence_drivers even
+    when no LLM enrichment is available (defensive)."""
+    engine_jsonb = [
+        {
+            "factor": "rate_diff",
+            "contribution": 0.4,
+            "evidence": "ev",
+            "source": "src",
+        }
+    ]
+    out = SessionCardOut.from_orm_row(_row(drivers=engine_jsonb))
+    assert out.confluence_drivers is not None
+    assert out.confluence_drivers[0].factor == "rate_diff"
+    assert out.confluence_drivers[0].evidence == "ev"
+    assert out.thesis is not None and "biais" in out.thesis  # derived (mission-1)
+
+
+def test_from_orm_row_engine_empty_is_honest_absence_no_fallback() -> None:
+    """r142 S1+S5 code-reviewer fix : row.drivers == [] (post-r142
+    card where assess_confluence ran but produced zero drivers above
+    threshold) is HONEST SILENT ABSENCE. The LLM-narrative fallback
+    must NOT activate ; persisting [] AND projecting [] preserves the
+    legitimate "engine ran, no significant drivers" signal. Otherwise
+    a fabricated LLM-narrative entry would mask the empty truth."""
+    out = SessionCardOut.from_orm_row(
+        _row(claude_raw_response=_full_payload(), drivers=[]),
+    )
+    # Honest empty — NOT the 2 LLM-narrative drivers from _full_payload.
+    assert out.confluence_drivers == []
 
 
 # ───────── SessionCardOut.degraded_inputs tri-state (ADR-104) ─────────

@@ -16,7 +16,7 @@ export default function Chapter() {
         Counterfactual Pass 5
       </h1>
       <p className="mb-8 text-lg leading-relaxed">
-        « Et si Powell surprend hawkish ce matin ? » — comment Claude Opus 4.7 pré-teste un trade
+        « Et si Powell surprend hawkish ce matin ? » — comment Claude Opus 4.8 pré-teste un trade
         plan alternatif sur demande, en 30-60 secondes.
       </p>
 
@@ -61,7 +61,7 @@ export default function Chapter() {
 }`}
       </pre>
       <p className="leading-relaxed">
-        Le backend lance un <strong>nouveau pass Opus 4.7</strong> avec un prompt qui dit en
+        Le backend lance un <strong>nouveau pass Opus 4.8</strong> avec un prompt qui dit en
         substance : « Voici toute la lecture de base produite par les Pass 1-4. Maintenant, suppose
         que le scénario s4 (Powell hawkish surprise) se réalise. Reformule la lecture macro,
         l&apos;impact attendu sur EUR/USD, et le trade plan correspondant. »
@@ -93,7 +93,7 @@ export default function Chapter() {
         Pourquoi seulement 2-3 scénarios par card
       </h2>
       <p className="mb-4 leading-relaxed">
-        Pass 5 coûte ~$0.12 par invocation (Opus 4.7 input + output). Les rendre tous accessibles
+        Pass 5 coûte ~$0.12 par invocation (Opus 4.8 input + output). Les rendre tous accessibles
         sur les 7 scénarios serait dispendieux et donnerait l&apos;illusion de scenarios « tous
         également importants ». Les flags{" "}
         <code className="font-mono text-xs">counterfactual_anchor</code> sont posés par Pass 4 selon

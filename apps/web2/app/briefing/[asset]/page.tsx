@@ -27,15 +27,25 @@ import { Suspense } from "react";
 import { AssetSwitcher } from "@/components/briefing/AssetSwitcher";
 import { PRIORITY_ASSET_CODES } from "@/components/briefing/assets";
 import { BriefingHeader } from "@/components/briefing/BriefingHeader";
+import { BriefingSection } from "@/components/briefing/BriefingSection";
+import { BriefingSectionNav } from "@/components/briefing/BriefingSectionNav";
 import { ConvictionGroundingPanel } from "@/components/briefing/ConvictionGroundingPanel";
 import { CorrelationsStrip } from "@/components/briefing/CorrelationsStrip";
 import { DataIntegrityBadge } from "@/components/briefing/DataIntegrityBadge";
+// r171b G2 — DXY co-mouvement panel (Eliot Fathom §XI verbatim « pilier »).
+// Consumes the r171a backend correlations 8→9 extension. Renders DXY row
+// with 8 priors + 5 honest-sentinel chips ; cold-start aware (UUP proxy
+// r172 candidate). Inserted ABOVE <CorrelationsStrip> in the existing
+// correlations section to surface the DXY angle before the cross-strip.
+import { DxyCorrelationPanel } from "@/components/briefing/DxyCorrelationPanel";
 import { EconomicCalendarPanel } from "@/components/briefing/EconomicCalendarPanel";
+import { EventAnticipationPanel } from "@/components/briefing/EventAnticipationPanel";
 import { EventSurpriseGauge } from "@/components/briefing/EventSurpriseGauge";
 import { GeopoliticsPanel } from "@/components/briefing/GeopoliticsPanel";
 import { InstitutionalPositioningPanel } from "@/components/briefing/InstitutionalPositioningPanel";
 import { MacroSurprisePanel } from "@/components/briefing/MacroSurprisePanel";
 import { PolymarketImpactPanel } from "@/components/briefing/PolymarketImpactPanel";
+import { RecentActualsPanel } from "@/components/briefing/RecentActualsPanel";
 import { KeyLevelsPanel } from "@/components/briefing/KeyLevelsPanel";
 import { NarrativeBlocks } from "@/components/briefing/NarrativeBlocks";
 import { NewsPanel } from "@/components/briefing/NewsPanel";
@@ -43,6 +53,16 @@ import { PocketSkillBadge } from "@/components/briefing/PocketSkillBadge";
 import { ScenariosPanel } from "@/components/briefing/ScenariosPanel";
 import { SentimentPanel } from "@/components/briefing/SentimentPanel";
 import { SessionStatus } from "@/components/briefing/SessionStatus";
+// r161 Strand G — ADR-106 SessionVerdict apex panel (Eliot's r161 directive
+// "verdict exact" verbatim). Rendered prominently above EventAnticipationPanel.
+import { SessionVerdictPanel } from "@/components/briefing/SessionVerdictPanel";
+import { PreviousSessionContextPanel } from "@/components/briefing/PreviousSessionContextPanel";
+import { ThemeRankingPanel } from "@/components/briefing/ThemeRankingPanel";
+// r162 Stride 8 Phase 2 — ADR-106 §"coach explicateur" apex panel rendered
+// AT THE TOP of the briefing, ABOVE SessionVerdictPanel — the macro narrative
+// frames the per-asset verdict interpretation per D4 ordering directive.
+import { CoachMacroContextPanel } from "@/components/briefing/CoachMacroContextPanel";
+import { StirPanel } from "@/components/briefing/StirPanel";
 import { TodaySessionPulse } from "@/components/briefing/TodaySessionPulse";
 import { FreshDataBanner } from "@/components/briefing/FreshDataBanner";
 import { VerdictBanner } from "@/components/briefing/VerdictBanner";
@@ -51,9 +71,12 @@ import { HourlyVolReport } from "@/components/hourly-vol/HourlyVolReport";
 import {
   apiGet,
   getCalendarUpcoming,
+  getCoachMacroContext,
   getCorrelations,
+  getEventAnticipation,
   getInstitutionalPositioning,
   getHourlyVol,
+  getSessionVerdict,
   getIntradayBars,
   getKeyLevels,
   getGeopoliticsBriefing,
@@ -62,10 +85,13 @@ import {
   getPolymarketImpact,
   getPositioning,
   getSessionStatus,
+  getStir,
   getTempoThresholds,
   isLive,
   type CalendarUpcoming,
+  type CoachMacroContext,
   type CorrelationMatrix,
+  type EventAnticipationOut,
   type InstitutionalPositioning,
   type IntradayBarOut,
   type PocketSummaryList,
@@ -73,23 +99,42 @@ import {
   type MacroPulse,
   type PolymarketImpact,
   type PositioningOut,
+  type RecentActuals,
   type SessionCard,
   type SessionCardList,
   type SessionStatusOut,
+  type StirData,
   type TodaySnapshotOut,
 } from "@/lib/api";
 import { derivePulse } from "@/lib/sessionPulse";
 import { deriveDataIntegrity } from "@/lib/dataIntegrity";
 import { deriveEventSurprise } from "@/lib/eventSurprise";
+import { pickPocketForRegime } from "@/lib/pocketSkill";
 
 interface PageParams {
   params: Promise<{ asset: string }>;
 }
 
+/** Sub-section header inside a BriefingSection group (h3 under the
+ * section's h2) — preserves each panel's original title + data-source
+ * meta label while nesting it under the new A-F grouping. */
+function SubHeader({ id, title, meta }: { id: string; title: string; meta: string }) {
+  return (
+    <div className="mb-3 flex items-baseline justify-between gap-4">
+      <h3 id={id} className="font-serif text-lg text-[var(--color-text-primary)]">
+        {title}
+      </h3>
+      <span className="text-right text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
+        {meta}
+      </span>
+    </div>
+  );
+}
+
 export async function generateMetadata({ params }: PageParams): Promise<Metadata> {
   const { asset } = await params;
   return {
-    title: `Briefing ${asset.replace("_", "/")} · Ichor`,
+    title: `Briefing ${asset.replace("_", "/")}`,
     description: `Pré-session briefing : ${asset.replace("_", "/")} — KeyLevels, mécanismes, invalidations.`,
   };
 }
@@ -132,6 +177,11 @@ export default async function BriefingPage({ params }: PageParams) {
     sessionStatusSsr,
     tempoBundle,
     macroPulse,
+    recentActuals,
+    eventAnticipation,
+    sessionVerdict,
+    coachMacroContext,
+    stir,
   ] = await Promise.all([
     fetchSessionCardForAsset(normalisedAsset),
     getKeyLevels() as Promise<KeyLevelsResponse | null>,
@@ -163,6 +213,39 @@ export default async function BriefingPage({ params }: PageParams) {
     // = always fresh per request, reliable on the first visitor.
     // apiGet returns null on failure (graceful, never rejects Promise.all).
     apiGet<MacroPulse>("/v1/macro-pulse"),
+    // r145 — recent published economic event actuals + r141 surprise
+    // classifier (Mission centrale axis-5 visible surface). 30-day USD
+    // window matches the r144 reconciler cadence ; the panel renders
+    // honest silent absence (returns null) when the slice is dark.
+    apiGet<RecentActuals>("/v1/calendar/recent-actuals?lookback_days=30&currency=USD&limit=15"),
+    // r152 — Engine 8 forward-looking surface for this asset
+    // (Mission centrale axis-4 +1 LEVEL extension). The endpoint
+    // composes ENGAGED / STANDBY / SILENT modes : ENGAGED when a
+    // mapped event sits inside the 48h window, STANDBY when the
+    // 14d horizon has 1-3 high/medium-impact events for the asset's
+    // currencies, SILENT otherwise. The dedicated <EventAnticipationPanel>
+    // renders null in SILENT mode (honest absence per doctrine #11).
+    getEventAnticipation(normalisedAsset) as Promise<EventAnticipationOut | null>,
+    // r161 Strand G — ADR-106 D5 SessionVerdict apex endpoint. Returns
+    // null on 404 (no session_card_audit today yet) OR any apiGet
+    // failure (graceful per apiGet contract). <SessionVerdictPanel>
+    // renders null when data===null (honest absence). Pass-6 dormant
+    // → builder returns downgraded verdict (derived_from_scenarios=
+    // false) and the panel surfaces a "mode dormant" badge.
+    getSessionVerdict(normalisedAsset),
+    // r162 Stride 8 Phase 2 — ADR-106 §"coach explicateur" surface.
+    // Asset-agnostic by design (the macro narrative is the SAME across
+    // the 5-asset priority universe) — the call is repeated identically
+    // for every /briefing/[asset] visit. <CoachMacroContextPanel>
+    // renders null when data===null (honest absence per apiGet contract).
+    // The builder always returns a fully-populated CoachMacroContext —
+    // doctrine #11 calibrated-honesty outputs (cycle="uncertain" /
+    // dominant_theme=null / empty surprises) surface with explicit chrome.
+    getCoachMacroContext() as Promise<CoachMacroContext | null>,
+    // mission-7 — market-implied Fed path (CME ZQ futures) + ~5-session
+    // repricing delta. Pure-data SSR fetch ; <StirPanel> renders honest
+    // absence when null (collector cold / endpoint down).
+    getStir() as Promise<StirData | null>,
   ]);
 
   // r123 — derive today's session pulse from the FULL intraday array
@@ -278,7 +361,7 @@ export default async function BriefingPage({ params }: PageParams) {
   const previews = isLive(today) ? today.top_sessions : [];
 
   return (
-    <main className="mx-auto max-w-6xl space-y-8 px-4 py-10 md:px-8 md:py-14">
+    <main className="mx-auto max-w-6xl space-y-6 px-4 py-10 md:px-8 md:py-14">
       <Suspense>
         <SessionStatus />
       </Suspense>
@@ -293,247 +376,259 @@ export default async function BriefingPage({ params }: PageParams) {
         rangeTrend={recentBars.map((b) => b.high - b.low)}
       />
 
-      <TodaySessionPulse asset={normalisedAsset} pulse={sessionPulse} />
+      <TodaySessionPulse
+        asset={normalisedAsset}
+        pulse={sessionPulse}
+        cardGeneratedAt={card?.generated_at ?? null}
+      />
 
-      {card && (
-        <VerdictBanner
-          asset={normalisedAsset}
-          card={card}
-          keyLevels={renderedKeyLevels}
-          positioning={positioning?.entries ?? []}
-          calendar={calendar?.events ?? []}
-        />
-      )}
+      {/* Sticky in-page table of contents — pins below the global header,
+          scroll-spies the active section, opens collapsed sections on click. */}
+      <BriefingSectionNav
+        sections={[
+          { id: "verdict", label: "Verdict" },
+          { id: "theme", label: "Thème & cycle" },
+          { id: "macro", label: "Macro du jour" },
+          { id: "rates", label: "Taux & Fed" },
+          { id: "correlations", label: "Corrélations" },
+          { id: "positioning", label: "Positionnement" },
+          { id: "levels", label: "Niveaux" },
+        ]}
+      />
 
-      <PocketSkillBadge data={pocketSummary} regime={card?.regime_quadrant ?? null} />
+      <div className="space-y-6">
+        {/* ── A · Verdict & conviction (the primary read + its grounding) ── */}
+        <BriefingSection
+          id="verdict"
+          eyebrow="A · Verdict"
+          title="Verdict & conviction"
+          intro="Le verdict du jour et à quel point on peut s'y fier : le sens du biais, le niveau de conviction et les scénarios qui le sous-tendent. C'est ta lecture principale — tout le reste l'explique."
+          defaultOpen
+        >
+          {card && (
+            <VerdictBanner
+              asset={normalisedAsset}
+              card={card}
+              keyLevels={renderedKeyLevels}
+              positioning={positioning?.entries ?? []}
+              calendar={calendar?.events ?? []}
+            />
+          )}
 
-      <DataIntegrityBadge data={dataIntegrity} />
+          <SessionVerdictPanel data={sessionVerdict} />
 
-      {/* r140 — Mission centrale axis-5 réactivité temps réel (TIGHT-SCOPE).
-          Placed RIGHT AFTER DataIntegrityBadge (sibling-class : data-honesty
-          contextual integrity) per ui-designer Y1 + trader RED-2 risk-balance :
-          banner can false-positive on holiday/cancelled events (no `actual`
-          column in economic_events), and `router.refresh()` is contingent on
-          FRED cron tick post-fire (HOURS of lag for PAYEMS/CPI/PCE). Placing
-          above VerdictBanner would amplify a known-false-positive-prone signal
-          into the most premium slot. Sibling-of-DataIntegrity is the honest
-          semantic position. Silent absence (sr-only role=status) when no fire ;
-          neutral-chrome demoted framing ("Catalyst horaire écoulé · données
-          panel inchangées tant que la collecte cron n'a pas tourné") avoids
-          the "garbage-with-decoration" false-confidence read (trader RED-3). */}
-      <FreshDataBanner asset={normalisedAsset} briefingGeneratedAt={card?.generated_at ?? null} />
+          {card ? (
+            <ConvictionGroundingPanel
+              card={card}
+              pocketSkill={pickPocketForRegime(
+                pocketSummary?.rows ?? null,
+                card.regime_quadrant ?? null,
+              )}
+            />
+          ) : null}
 
-      {/* r134 — ConvictionGroundingPanel (Mission centrale axis 6) : the
-          QUALITATIVE grounding behind conviction_pct (confluence depth +
-          scenario clarity + critic verdict), NOT a fabricated numeric
-          split (R59 proved conviction_pct is a single opaque LLM scalar).
-          Placed adjacent to the VerdictBanner conviction gauge, before
-          the granular data panels. Honest silent absence when the card
-          carries no grounding dimensions. */}
-      {card ? <ConvictionGroundingPanel card={card} /> : null}
+          {card && (
+            <div>
+              <SubHeader
+                id="narrative-heading"
+                title="Analyse Pass-2"
+                meta="Claude Opus 4.8 · 4-pass output"
+              />
+              <NarrativeBlocks
+                mechanisms={card.mechanisms}
+                invalidations={card.invalidations}
+                catalysts={card.catalysts}
+              />
+            </div>
+          )}
 
-      <section aria-labelledby="key-levels-heading">
-        <div className="mb-4 flex items-baseline justify-between gap-4">
-          <h2
-            id="key-levels-heading"
-            className="font-serif text-2xl text-[var(--color-text-primary)]"
-          >
-            Niveaux clés
-          </h2>
-          <span className="text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
-            ADR-083 D3 · Microstructure + macro switches
-          </span>
-        </div>
-        <KeyLevelsPanel items={renderedKeyLevels} />
-      </section>
+          {card && (
+            <div>
+              <SubHeader
+                id="scenarios-heading"
+                title="Scénarios"
+                meta="ADR-085 · Pass-6 · distribution de probabilité"
+              />
+              <ScenariosPanel scenarios={card.scenarios} />
+            </div>
+          )}
 
-      {card && (
-        <section aria-labelledby="narrative-heading">
-          <div className="mb-4 flex items-baseline justify-between gap-4">
-            <h2
-              id="narrative-heading"
-              className="font-serif text-2xl text-[var(--color-text-primary)]"
-            >
-              Analyse Pass-2
-            </h2>
-            <span className="text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
-              Claude Opus 4.7 · 4-pass output
-            </span>
+          {/* Calibration / data-health footnotes to the verdict. */}
+          <div className="grid gap-4 sm:grid-cols-2">
+            <PocketSkillBadge data={pocketSummary} regime={card?.regime_quadrant ?? null} />
+            <DataIntegrityBadge data={dataIntegrity} />
           </div>
-          <NarrativeBlocks
-            mechanisms={card.mechanisms}
-            invalidations={card.invalidations}
-            catalysts={card.catalysts}
+        </BriefingSection>
+
+        {/* ── B · Thème & cycle (the underlying macro current) ── */}
+        <BriefingSection
+          id="theme"
+          eyebrow="B · Contexte"
+          title="Thème & cycle"
+          intro="Le moteur de fond du marché : quel thème macro domine aujourd'hui (politique monétaire, géopolitique…) et où l'on se situe dans le cycle économique. Le courant dans lequel l'actif nage."
+          defaultOpen
+        >
+          <CoachMacroContextPanel data={coachMacroContext} />
+          <ThemeRankingPanel />
+        </BriefingSection>
+
+        {/* ── C · Macro & événements du jour (what can move prices now) ── */}
+        <BriefingSection
+          id="macro"
+          eyebrow="C · Aujourd'hui"
+          title="Macro & événements du jour"
+          intro="Ce qui peut faire bouger les prix maintenant : le prochain catalyseur à l'horizon, le calendrier économique, et à quel point les dernières données ont surpris par rapport aux attentes."
+          defaultOpen
+        >
+          <EventAnticipationPanel data={eventAnticipation} />
+          <FreshDataBanner
+            asset={normalisedAsset}
+            briefingGeneratedAt={card?.generated_at ?? null}
           />
-        </section>
-      )}
-
-      {card && (
-        <section aria-labelledby="scenarios-heading">
-          <div className="mb-4 flex items-baseline justify-between gap-4">
-            <h2
-              id="scenarios-heading"
-              className="font-serif text-2xl text-[var(--color-text-primary)]"
-            >
-              Scénarios
-            </h2>
-            <span className="text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
-              ADR-085 · Pass-6 · distribution de probabilité
-            </span>
+          <div>
+            <SubHeader
+              id="calendar-heading"
+              title="Calendrier"
+              meta={`Événements macro · ${calendar?.horizon_days ?? "—"} j horizon`}
+            />
+            <EconomicCalendarPanel
+              events={calendar?.events ?? []}
+              highlightAsset={normalisedAsset}
+              hideHeader
+            />
           </div>
-          <ScenariosPanel scenarios={card.scenarios} />
-        </section>
-      )}
+          <EventSurpriseGauge data={eventSurprise} assetPair={normalisedAsset.replace("_", "/")} />
+          <MacroSurprisePanel surpriseIndex={macroPulse?.surprise_index ?? null} />
+          <RecentActualsPanel data={recentActuals} />
+        </BriefingSection>
 
-      <section aria-labelledby="calendar-heading">
-        <div className="mb-4 flex items-baseline justify-between gap-4">
-          <h2
-            id="calendar-heading"
-            className="font-serif text-2xl text-[var(--color-text-primary)]"
-          >
-            Calendrier
-          </h2>
-          <span className="text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
-            Événements macro · {calendar?.horizon_days ?? "—"} j horizon
-          </span>
-        </div>
-        <EconomicCalendarPanel events={calendar?.events ?? []} highlightAsset={normalisedAsset} />
-      </section>
+        {/* ── C-bis · Taux & Fed (market-implied policy path) ── */}
+        <BriefingSection
+          id="rates"
+          eyebrow="C · Taux"
+          title="Taux & Fed"
+          intro="Ce que le marché monétaire price pour la trajectoire des taux Fed (futures ZQ) — et surtout ce qu'il a re-pricé sur les ~5 dernières séances. C'est le signal d'anticipation, pas une prévision."
+          defaultOpen={false}
+        >
+          <StirPanel stir={stir} />
+        </BriefingSection>
 
-      <EventSurpriseGauge data={eventSurprise} assetPair={normalisedAsset.replace("_", "/")} />
-
-      {/* r136 — US Economic Surprise Index (lit up r135). Backward-looking
-          "how has recent data surprised vs trend" — complements the
-          forward-looking EventSurpriseGauge above (next-catalyst surprise
-          potential). Honest silent absence when the slice is dark. */}
-      <MacroSurprisePanel surpriseIndex={macroPulse?.surprise_index ?? null} />
-
-      <section aria-labelledby="geopolitics-heading">
-        <div className="mb-4 flex items-baseline justify-between gap-4">
-          <h2
-            id="geopolitics-heading"
-            className="font-serif text-2xl text-[var(--color-text-primary)]"
-          >
-            Géopolitique
-          </h2>
-          <span className="text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
-            AI-GPR · GDELT · risque macro-géopolitique
-          </span>
-        </div>
-        <GeopoliticsPanel data={geopolitics} />
-      </section>
-
-      <section aria-labelledby="sentiment-heading">
-        <div className="mb-4 flex items-baseline justify-between gap-4">
-          <h2
-            id="sentiment-heading"
-            className="font-serif text-2xl text-[var(--color-text-primary)]"
-          >
-            Positionnement
-          </h2>
-          <span className="text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
-            MyFXBook retail · contrarian
-          </span>
-        </div>
-        <SentimentPanel entries={positioning?.entries ?? []} asset={normalisedAsset} />
-      </section>
-
-      <section aria-labelledby="institutional-heading">
-        <div className="mb-4 flex items-baseline justify-between gap-4">
-          <h2
-            id="institutional-heading"
-            className="font-serif text-2xl text-[var(--color-text-primary)]"
-          >
-            Acteurs du marché
-          </h2>
-          <span className="text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
-            CFTC TFF + COT · smart money
-          </span>
-        </div>
-        <InstitutionalPositioningPanel data={institutional} />
-      </section>
-
-      <section aria-labelledby="polymarket-impact-section-heading">
-        <div className="mb-4 flex items-baseline justify-between gap-4">
-          <h2
-            id="polymarket-impact-section-heading"
-            className="font-serif text-2xl text-[var(--color-text-primary)]"
-          >
-            Paris agrégés
-          </h2>
-          <span
-            aria-hidden="true"
-            className="text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]"
-          >
-            Polymarket · thèmes · transmission directionnelle
-          </span>
-        </div>
-        <PolymarketImpactPanel asset={normalisedAsset} impact={polymarketImpact} />
-      </section>
-
-      <section aria-labelledby="news-heading">
-        <div className="mb-4 flex items-baseline justify-between gap-4">
-          <h2 id="news-heading" className="font-serif text-2xl text-[var(--color-text-primary)]">
-            Actualités
-          </h2>
-          <span className="text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
-            Flux récent · tonalité
-          </span>
-        </div>
-        {/* r138 — envelope { items, filter } : pass both so the panel can
-            render the per-asset disclosure (matched / scarce-fallback /
-            global) per lesson #11 calibrated honesty. */}
-        <NewsPanel news={news?.items ?? []} filter={news?.filter ?? null} asset={normalisedAsset} />
-      </section>
-
-      <section aria-labelledby="volume-heading">
-        <div className="mb-4 flex items-baseline justify-between gap-4">
-          <h2 id="volume-heading" className="font-serif text-2xl text-[var(--color-text-primary)]">
-            Volume
-          </h2>
-          <span className="text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
-            Activité intraday · proxy tick Polygon
-          </span>
-        </div>
-        <VolumePanel asset={normalisedAsset} bars={recentBars} />
-      </section>
-
-      <section aria-labelledby="hourly-vol-heading">
-        <div className="mb-4 flex items-baseline justify-between gap-4">
-          <h2
-            id="hourly-vol-heading"
-            className="font-serif text-2xl text-[var(--color-text-primary)]"
-          >
-            Volatilité horaire
-          </h2>
-          <span className="text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
-            Saisonnalité intraday · médian + p75 · 30 j UTC
-          </span>
-        </div>
-        <HourlyVolReport report={hourlyVol} headingLevel={3} chrome="glass" />
-      </section>
-
-      <section aria-labelledby="correlations-heading">
-        <div className="mb-4 flex items-baseline justify-between gap-4">
-          <h2
-            id="correlations-heading"
-            className="font-serif text-2xl text-[var(--color-text-primary)]"
-          >
-            Corrélations
-          </h2>
-          <span className="text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
-            {correlationSource}
-          </span>
-        </div>
-        {correlationSnapshot ? (
-          <CorrelationsStrip snapshot={correlationSnapshot} />
-        ) : (
-          <div className="rounded-2xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)]/40 px-6 py-8 text-center text-sm text-[var(--color-text-muted)] backdrop-blur-xl">
-            Corrélations indisponibles — ni snapshot carte ni matrice live pour{" "}
-            {normalisedAsset.replace("_", "/")}.
+        {/* ── D · Corrélations & DXY (real independence of the read) ── */}
+        <BriefingSection
+          id="correlations"
+          eyebrow="D · Marché"
+          title="Corrélations & DXY"
+          intro="Comment cet actif bouge par rapport au dollar (DXY, le pilier) et aux autres marchés — pour voir si tes lectures sont vraiment indépendantes ou la même idée répétée plusieurs fois."
+          defaultOpen={false}
+        >
+          <DxyCorrelationPanel correlations={correlations} focusAsset={normalisedAsset} />
+          <div>
+            <SubHeader
+              id="correlations-heading"
+              title="Corrélations croisées"
+              meta={correlationSource}
+            />
+            {correlationSnapshot ? (
+              <CorrelationsStrip snapshot={correlationSnapshot} hideHeader />
+            ) : (
+              <div className="rounded-2xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)]/40 px-6 py-8 text-center text-sm text-[var(--color-text-muted)] backdrop-blur-xl">
+                Corrélations indisponibles — ni snapshot carte ni matrice live pour{" "}
+                {normalisedAsset.replace("_", "/")}.
+              </div>
+            )}
           </div>
-        )}
-      </section>
+        </BriefingSection>
+
+        {/* ── E · Positionnement & sentiment (who is positioned how) ── */}
+        <BriefingSection
+          id="positioning"
+          eyebrow="E · Acteurs"
+          title="Positionnement & sentiment"
+          intro="Qui est positionné comment : les particuliers (souvent à contre-courant), les institutionnels (smart money), les paris agrégés, l'actualité récente et la géopolitique."
+          defaultOpen={false}
+        >
+          <div>
+            <SubHeader
+              id="sentiment-heading"
+              title="Positionnement retail"
+              meta="MyFXBook retail · contrarian"
+            />
+            <SentimentPanel
+              entries={positioning?.entries ?? []}
+              asset={normalisedAsset}
+              hideHeader
+            />
+          </div>
+          <div>
+            <SubHeader
+              id="institutional-heading"
+              title="Acteurs du marché"
+              meta="CFTC TFF + COT · smart money"
+            />
+            <InstitutionalPositioningPanel data={institutional} hideHeader />
+          </div>
+          <div>
+            <SubHeader
+              id="polymarket-impact-section-heading"
+              title="Paris agrégés"
+              meta="Polymarket · thèmes · transmission directionnelle"
+            />
+            <PolymarketImpactPanel asset={normalisedAsset} impact={polymarketImpact} hideHeader />
+          </div>
+          <div>
+            <SubHeader id="news-heading" title="Actualités" meta="Flux récent · tonalité" />
+            <NewsPanel
+              news={news?.items ?? []}
+              filter={news?.filter ?? null}
+              asset={normalisedAsset}
+              hideHeader
+            />
+          </div>
+          <div>
+            <SubHeader
+              id="geopolitics-heading"
+              title="Géopolitique"
+              meta="AI-GPR · GDELT · risque macro-géopolitique"
+            />
+            <GeopoliticsPanel data={geopolitics} hideHeader />
+          </div>
+        </BriefingSection>
+
+        {/* ── F · Niveaux & contexte (price structure + history) ── */}
+        <BriefingSection
+          id="levels"
+          eyebrow="F · Structure"
+          title="Niveaux & contexte"
+          intro="La structure de prix : les niveaux clés à surveiller, d'où venait le mouvement de la session précédente, l'activité de volume et la volatilité typique heure par heure."
+          defaultOpen={false}
+        >
+          <div>
+            <SubHeader
+              id="key-levels-heading"
+              title="Niveaux clés"
+              meta="ADR-083 D3 · Microstructure + macro switches"
+            />
+            <KeyLevelsPanel items={renderedKeyLevels} focusAsset={normalisedAsset} />
+          </div>
+          <PreviousSessionContextPanel asset={normalisedAsset} />
+          <div>
+            <SubHeader
+              id="volume-heading"
+              title="Volume"
+              meta="Activité intraday · proxy tick Polygon"
+            />
+            <VolumePanel asset={normalisedAsset} bars={recentBars} />
+          </div>
+          <div>
+            <SubHeader
+              id="hourly-vol-heading"
+              title="Volatilité horaire"
+              meta="Saisonnalité intraday · médian + p75 · 30 j UTC"
+            />
+            <HourlyVolReport report={hourlyVol} headingLevel={3} chrome="glass" />
+          </div>
+        </BriefingSection>
+      </div>
 
       <footer className="pt-6 text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
         Ichor v2 · Pre-trade context only · No BUY/SELL signals (ADR-017 boundary)

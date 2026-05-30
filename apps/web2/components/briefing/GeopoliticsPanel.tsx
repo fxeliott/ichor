@@ -49,7 +49,15 @@ function gdeltFilterLabel(filter: GeopoliticsFilterMeta | null | undefined): str
   return `ranking global · ${matchedTxt} spécifique${filter.matched > 1 ? "s" : ""} à ${filter.asset} sur la fenêtre (seuil ${filter.min_required} — pas un signal)`;
 }
 
-export function GeopoliticsPanel({ data }: { data: GeopoliticsBriefing | null }) {
+export function GeopoliticsPanel({
+  data,
+  hideHeader,
+}: {
+  data: GeopoliticsBriefing | null;
+  /** When true, suppress the component's own top-level header (the page
+   *  already renders a SubHeader with the distinct meta label). */
+  hideHeader?: boolean;
+}) {
   if (!data || (data.gpr === null && data.gdelt_negatives.length === 0)) {
     return (
       <m.section
@@ -58,12 +66,14 @@ export function GeopoliticsPanel({ data }: { data: GeopoliticsBriefing | null })
         transition={{ duration: 0.3 }}
         className="overflow-hidden rounded-2xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)]/40 backdrop-blur-xl"
       >
-        <header className="border-b border-[var(--color-border-subtle)] px-6 py-4">
-          <h3 className="font-serif text-lg text-[var(--color-text-primary)]">Géopolitique</h3>
-          <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-            AI-GPR + GDELT — données indisponibles pour l&apos;instant.
-          </p>
-        </header>
+        {!hideHeader && (
+          <header className="border-b border-[var(--color-border-subtle)] px-6 py-4">
+            <h3 className="font-serif text-lg text-[var(--color-text-primary)]">Géopolitique</h3>
+            <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+              AI-GPR + GDELT — données indisponibles pour l&apos;instant.
+            </p>
+          </header>
+        )}
         <p className="px-6 py-8 text-center text-sm text-[var(--color-text-muted)]">
           Pas de lecture géopolitique disponible.
         </p>
@@ -87,12 +97,14 @@ export function GeopoliticsPanel({ data }: { data: GeopoliticsBriefing | null })
       className="overflow-hidden rounded-2xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)]/40 backdrop-blur-xl"
     >
       <header className="flex flex-wrap items-start justify-between gap-2 border-b border-[var(--color-border-subtle)] px-6 py-4">
-        <div>
-          <h3 className="font-serif text-lg text-[var(--color-text-primary)]">Géopolitique</h3>
-          <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-            AI-GPR (Caldara-Iacoviello · base 100 = moyenne 1985-2019) · tonalité GDELT
-          </p>
-        </div>
+        {!hideHeader && (
+          <div>
+            <h3 className="font-serif text-lg text-[var(--color-text-primary)]">Géopolitique</h3>
+            <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+              AI-GPR (Caldara-Iacoviello · base 100 = moyenne 1985-2019) · tonalité GDELT
+            </p>
+          </div>
+        )}
         {gpr ? (
           <span className="rounded-full border border-[var(--color-border-default)] px-2.5 py-1 text-[10px] font-medium uppercase tracking-widest text-[var(--color-text-muted)]">
             Observé {gpr.observation_date}

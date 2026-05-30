@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactElement } from "react";
 import { useEffect } from "react";
 
 interface Props {
@@ -7,7 +8,14 @@ interface Props {
   reset: () => void;
 }
 
-export default function AdminError({ error, reset }: Props) {
+// r143 — explicit ReactElement return type annotation : Next.js
+// production build (--noEmit off) emits .d.ts files for client components
+// and the inferred JSX.Element type for AdminError cannot be named without
+// referencing `.pnpm/@types+react@19.2.14/...` which TypeScript refuses
+// as non-portable. The explicit annotation unblocks Hetzner web2 deploy
+// (the r142 frontend deploy was BLOCKED on this pre-existing tech debt,
+// file dated 2026-05-07). Added r143.
+export default function AdminError({ error, reset }: Props): ReactElement {
   useEffect(() => {
     if (typeof window !== "undefined") {
       console.error("ichor.web2.admin.error", {

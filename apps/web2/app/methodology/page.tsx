@@ -10,7 +10,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Méthodologie · Ichor",
+  title: "Méthodologie",
   description:
     "Pipeline 4-pass + Pass 5 counterfactual, agents Couche-2 (Haiku low), calibration Brier, sources data-pool, frontière contractuelle ADR-017.",
 };

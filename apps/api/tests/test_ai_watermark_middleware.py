@@ -96,13 +96,27 @@ def test_watermark_timestamp_is_rfc3339_utc() -> None:
 
 def test_watermark_default_prefixes_cover_adr029_surface() -> None:
     """Regression guard : the default prefix tuple matches the
-    ADR-029 inventory of LLM-derived routes."""
+    ADR-029 inventory of LLM-derived routes.
+
+    History :
+      - Original r? : 5 prefixes (briefings, sessions, post-mortems,
+        today, scenarios).
+      - r161 added `/v1/verdict` (SessionVerdict apex, ADR-106 D1+D4,
+        deterministic builder but Pass-6 LLM-derived bucket basis ⇒
+        ADR-029 §50 covered).
+      - r162 added `/v1/coach-macro-context` (CoachMacroContext FR
+        coach paragraph LLM-template-derived ⇒ ADR-029 §50 covered).
+      - r167-close round-2 audit caught this expectation set drift
+        and re-aligned with empirical DEFAULT_WATERMARKED_PREFIXES.
+    """
     expected = {
         "/v1/briefings",
         "/v1/sessions",
         "/v1/post-mortems",
         "/v1/today",
         "/v1/scenarios",
+        "/v1/verdict",
+        "/v1/coach-macro-context",
     }
     assert set(DEFAULT_WATERMARKED_PREFIXES) == expected
 

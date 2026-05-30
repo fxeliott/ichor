@@ -8,7 +8,10 @@
  * overload during data fetches that can take 5-30 s on cold ISR
  * misses for the macro-pulse / sessions pages.
  */
-export default function RootLoading() {
+import type { ReactElement } from "react";
+
+// r143 — explicit ReactElement annotation (TS2742 portability fix).
+export default function RootLoading(): ReactElement {
   return (
     <div
       role="status"

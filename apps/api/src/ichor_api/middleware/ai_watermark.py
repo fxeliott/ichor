@@ -60,6 +60,22 @@ DEFAULT_WATERMARKED_PREFIXES: tuple[str, ...] = (
     "/v1/post-mortems",
     "/v1/today",
     "/v1/scenarios",
+    # r161 Strand G — ADR-106 D5 SessionVerdict endpoint. The verdict is
+    # LLM-derived (aggregated from Pass-6 7-bucket scenarios) even when
+    # the fallback path returns derived_from_scenarios=False (the
+    # fallback is itself a probabilistic-research-output requiring AI
+    # disclosure per ADR-079 + EU AI Act §50.2). MUST stay byte-identical
+    # to Settings.ai_watermarked_route_prefixes default per W90 invariant
+    # `test_ai_watermark_default_prefixes_match_settings`.
+    "/v1/verdict",
+    # r162 Stride 8 Phase 2 — ADR-106 §"coach explicateur" surface.
+    # CoachMacroContext.coach_paragraph + CalendarSurprise.why_it_matters
+    # are AI-derived narrative synthesis (rule-based aggregation of FRED +
+    # EconomicEvent rows, but the rendered output IS probabilistic-
+    # research-output text per EU AI Act §50.2 definitional scope). MUST
+    # stay byte-identical to Settings.ai_watermarked_route_prefixes
+    # default per W90 invariant lockstep.
+    "/v1/coach-macro-context",
 )
 
 # Disclosure URL surfaced via `X-Ichor-AI-Disclosure`. Must resolve
@@ -69,7 +85,7 @@ DEFAULT_DISCLOSURE_URL = "https://app-ichor.pages.dev/legal/ai-disclosure"
 # Provider tag — bumped in lockstep with model upgrades. ADR-029
 # §Cons notes that model changes already trigger an ADR ; this tag
 # is updated in the same wave.
-DEFAULT_PROVIDER_TAG = "anthropic-claude-opus-4-7"
+DEFAULT_PROVIDER_TAG = "anthropic-claude-opus-4-8"
 
 
 class AIWatermarkMiddleware(BaseHTTPMiddleware):

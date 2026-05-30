@@ -18,7 +18,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from ..claude_runner import ClaudeRunnerConfig
 from ..fallback import FallbackChain
@@ -68,6 +68,30 @@ class CbAssetImpact(BaseModel):
     confidence: float = Field(ge=0.0, le=1.0)
     primary_driver_cb: CentralBank
     rationale: str = Field(max_length=400)
+
+    @field_validator("bias", mode="before")
+    @classmethod
+    def _normalize_mixed_bias(cls, v: object) -> object:
+        """r161 calibrated-honesty normalizer — preventive twin of the
+        ``news_nlp.AssetSentiment.tone`` validator. Same tri-state
+        Literal shape as the field that crashed prod 2026-05-25 20:47:41
+        CEST ; Haiku low has demonstrated drift emitting ``'mixed'``
+        in adjacent NLP agent schemas (root cause : the sibling
+        ``Narrative.sentiment`` Literal in ``news_nlp.py:38`` exposes
+        ``'mixed'`` as a valid token, which Haiku generalises across
+        agents).
+
+        Mechanics : ``mode="before"`` validator maps ``'mixed' →
+        'neutral'`` BEFORE the Literal narrows. Byte-identical for
+        non-violating outputs ; no contract surface drift ; ADR-023
+        tri-state semantics preserved. Defensive sibling fix per
+        Agent L r161 R59 (no witnessed cb_nlp failure yet, but the
+        contamination vector is structurally identical — applying the
+        fix pre-emptively per doctrine #11 calibrated honesty).
+        """
+        if isinstance(v, str) and v.strip().lower() == "mixed":
+            return "neutral"
+        return v
 
 
 class CbNlpAgentOutput(BaseModel):

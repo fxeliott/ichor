@@ -11,7 +11,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Disclosure IA · Ichor",
+  title: "Disclosure IA",
   description:
     "Disclosure machine-readable et humaine pour Ichor — EU AI Act §50, AMF DOC-2008-23, Anthropic Usage Policy.",
 };
@@ -177,7 +177,7 @@ export default function AIDisclosurePage() {
               X-Ichor-AI-Provider
             </dt>
             <dd className="font-mono text-[12px] text-[var(--color-text-primary)]">
-              anthropic-claude-opus-4-7
+              anthropic-claude-opus-4-8
             </dd>
           </div>
           <div className="grid grid-cols-1 gap-1 sm:grid-cols-[1fr_2fr]">

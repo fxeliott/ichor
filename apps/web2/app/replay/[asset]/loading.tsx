@@ -5,7 +5,10 @@
  * we skeleton both so the layout doesn't reflow when SSR completes.
  */
 
-export default function ReplayLoading() {
+import type { ReactElement } from "react";
+
+// r143 — explicit ReactElement annotation (TS2742 portability fix).
+export default function ReplayLoading(): ReactElement {
   return (
     <main
       aria-busy="true"

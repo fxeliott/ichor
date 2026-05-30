@@ -13,13 +13,49 @@
 
 import { describe, expect, it } from "vitest";
 
-import type { Scenario } from "@/lib/api";
+import type { ConfluenceDriverSchema, PocketSummary, Scenario } from "@/lib/api";
 import {
+  ENGINE_DRIVER_MIN_ABS_CONTRIBUTION,
+  ENGINE_DRIVER_TOP_N,
   SCENARIO_HHI_CONCENTRATED,
   SCENARIO_HHI_MODERATE,
   concentrationBand,
   deriveConvictionGrounding,
 } from "@/lib/convictionGrounding";
+
+/** Build a ConfluenceDriverSchema with engine-layer evidence (so the
+ *  `evidence != null` engine-only filter accepts it). */
+function engineDriver(
+  factor: string,
+  contribution: number,
+  source = `src:${factor}`,
+): ConfluenceDriverSchema {
+  return {
+    factor,
+    contribution,
+    evidence: `engine evidence for ${factor}`,
+    source,
+  };
+}
+
+/** Build a PocketSummary fixture for r143 YELLOW-2 tests. */
+function buildPocketSummary(overrides: Partial<PocketSummary> = {}): PocketSummary {
+  return {
+    asset: "EUR_USD",
+    regime: "usd_complacency",
+    pocket_version: 1,
+    prod_predictor_weight: 0.3,
+    climatology_weight: 0.35,
+    equal_weight_weight: 0.35,
+    n_observations: 13,
+    has_skill_vs_baseline: false,
+    skill_delta: -0.0497,
+    latest_drift_event_at: null,
+    active_addenda_count: 0,
+    pocket_updated_at: "2026-05-22T00:00:00Z",
+    ...overrides,
+  };
+}
 
 /** Build a 7-bucket scenario distribution from a probability map. Any
  * omitted bucket is 0. The canonical 7 labels are filled in order. */
@@ -279,6 +315,290 @@ describe("deriveConvictionGrounding — empty detection (honest silent absence)"
     expect(onlyMech.empty).toBe(false);
     expect(onlyScen.empty).toBe(false);
     expect(onlyVerdict.empty).toBe(false);
+  });
+});
+
+describe("deriveConvictionGrounding — engine drivers (r142)", () => {
+  it("counts drivers above |0.2| threshold + returns top-N sorted by |contribution|", () => {
+    const g = deriveConvictionGrounding({
+      mechanisms: [],
+      scenarios: [],
+      critic_verdict: null,
+      confluence_drivers: [
+        engineDriver("rate_diff", 0.45), // meaningful
+        engineDriver("cot", -0.32), // meaningful
+        engineDriver("vix_term", 0.55), // meaningful, largest
+        engineDriver("microstructure_ofi", 0.1), // below threshold
+        engineDriver("daily_levels", -0.05), // below threshold
+        engineDriver("funding_stress", 0.25), // meaningful, smaller
+      ],
+    });
+    expect(g.meaningfulDriverCount).toBe(4);
+    expect(g.topDrivers).toHaveLength(3);
+    expect(g.topDrivers.map((d) => d.factor)).toEqual(["vix_term", "rate_diff", "cot"]);
+    // Largest |contribution| first.
+    expect(g.topDrivers.map((d) => d.contribution)).toEqual([0.55, 0.45, -0.32]);
+  });
+
+  it("respects ENGINE_DRIVER_TOP_N cap (top-3 only even when more meaningful)", () => {
+    const g = deriveConvictionGrounding({
+      mechanisms: [],
+      scenarios: [],
+      critic_verdict: null,
+      confluence_drivers: [
+        engineDriver("a", 0.9),
+        engineDriver("b", 0.8),
+        engineDriver("c", 0.7),
+        engineDriver("d", 0.6),
+        engineDriver("e", 0.5),
+      ],
+    });
+    expect(g.meaningfulDriverCount).toBe(5);
+    expect(g.topDrivers).toHaveLength(ENGINE_DRIVER_TOP_N);
+    expect(g.topDrivers.map((d) => d.factor)).toEqual(["a", "b", "c"]);
+  });
+
+  it("returns 0 / [] for null confluence_drivers", () => {
+    const g = deriveConvictionGrounding({
+      mechanisms: [],
+      scenarios: [],
+      critic_verdict: null,
+      confluence_drivers: null,
+    });
+    expect(g.meaningfulDriverCount).toBe(0);
+    expect(g.topDrivers).toEqual([]);
+  });
+
+  it("returns 0 / [] for missing confluence_drivers (legacy pre-r142 callers)", () => {
+    const g = deriveConvictionGrounding({
+      mechanisms: [],
+      scenarios: [],
+      critic_verdict: null,
+      // confluence_drivers intentionally absent (legacy).
+    });
+    expect(g.meaningfulDriverCount).toBe(0);
+    expect(g.topDrivers).toEqual([]);
+  });
+
+  it("returns 0 / [] for empty list", () => {
+    const g = deriveConvictionGrounding({
+      mechanisms: [],
+      scenarios: [],
+      critic_verdict: null,
+      confluence_drivers: [],
+    });
+    expect(g.meaningfulDriverCount).toBe(0);
+    expect(g.topDrivers).toEqual([]);
+  });
+
+  it("filters LLM-narrative entries (no evidence) so the tile stays engine-only", () => {
+    const g = deriveConvictionGrounding({
+      mechanisms: [],
+      scenarios: [],
+      critic_verdict: null,
+      confluence_drivers: [
+        engineDriver("rate_diff", 0.5), // engine — kept
+        // LLM-narrative (evidence absent / null) — skipped per r142 engine-only filter.
+        { factor: "llm_only", contribution: 0.9 },
+        { factor: "llm_with_null_evidence", contribution: 0.8, evidence: null },
+      ],
+    });
+    expect(g.meaningfulDriverCount).toBe(1);
+    expect(g.topDrivers.map((d) => d.factor)).toEqual(["rate_diff"]);
+  });
+
+  it("treats non-finite contribution defensively (skipped)", () => {
+    const g = deriveConvictionGrounding({
+      mechanisms: [],
+      scenarios: [],
+      critic_verdict: null,
+      confluence_drivers: [
+        engineDriver("ok", 0.5),
+        { factor: "nan", contribution: Number.NaN, evidence: "ev" },
+        { factor: "inf", contribution: Number.POSITIVE_INFINITY, evidence: "ev" },
+      ],
+    });
+    // NaN passes the Number.isFinite guard? POSITIVE_INFINITY also fails Number.isFinite.
+    // Both skipped → only "ok" counted (and it's >0.2 → meaningful).
+    expect(g.meaningfulDriverCount).toBe(1);
+    expect(g.topDrivers.map((d) => d.factor)).toEqual(["ok"]);
+  });
+
+  it("respects exclusive |contribution| > 0.2 threshold (exactly 0.2 is BELOW)", () => {
+    // Boundary contract : the confluence_engine docstring says ">|0.2|".
+    // 0.2 itself is NOT meaningful (matches the engine's exclusive
+    // threshold semantic — if the engine considers 0.2 as not strong,
+    // the panel must mirror that).
+    const g = deriveConvictionGrounding({
+      mechanisms: [],
+      scenarios: [],
+      critic_verdict: null,
+      confluence_drivers: [
+        engineDriver("just_above", 0.21),
+        engineDriver("just_below", 0.2),
+        engineDriver("neg_just_above", -0.201),
+        engineDriver("neg_just_below", -0.2),
+      ],
+    });
+    expect(g.meaningfulDriverCount).toBe(2);
+    // Top sort by |contribution| desc : |0.21| = 0.21 > |0.201| = 0.201
+    // → just_above first, neg_just_above second. just_below (0.2) and
+    // neg_just_below (-0.2) excluded by exclusive `>` threshold.
+    expect(g.topDrivers.map((d) => d.factor)).toEqual(["just_above", "neg_just_above"]);
+  });
+
+  it("ENGINE_DRIVER_MIN_ABS_CONTRIBUTION matches the engine '>|0.2|' rule + TOP_N is 3", () => {
+    expect(ENGINE_DRIVER_MIN_ABS_CONTRIBUTION).toBe(0.2);
+    expect(ENGINE_DRIVER_TOP_N).toBe(3);
+  });
+
+  it("empty:true requires ALL dimensions absent INCLUDING engine drivers (r142)", () => {
+    // Engine drivers ALONE keep the panel visible.
+    const onlyEngine = deriveConvictionGrounding({
+      mechanisms: [],
+      scenarios: [],
+      critic_verdict: null,
+      confluence_drivers: [engineDriver("rate_diff", 0.5)],
+    });
+    expect(onlyEngine.empty).toBe(false);
+
+    // Engine drivers all below threshold + no other dimension → empty:true.
+    const allBelowThreshold = deriveConvictionGrounding({
+      mechanisms: [],
+      scenarios: [],
+      critic_verdict: null,
+      confluence_drivers: [engineDriver("a", 0.1), engineDriver("b", -0.1)],
+    });
+    expect(allBelowThreshold.empty).toBe(true);
+  });
+
+  it("does NOT regress r134 3-tile silent-absence behaviour when confluence_drivers absent", () => {
+    // The r134 contract : a legacy card with no engine drivers still
+    // surfaces the 3 original tiles when their data is present.
+    const g = deriveConvictionGrounding({
+      mechanisms: [{ claim: "x", sources: ["A"] }],
+      scenarios: [],
+      critic_verdict: "approved",
+      // confluence_drivers intentionally absent (legacy).
+    });
+    expect(g.mechanismCount).toBe(1);
+    expect(g.criticVerdict).toBe("approved");
+    expect(g.meaningfulDriverCount).toBe(0);
+    expect(g.topDrivers).toEqual([]);
+    expect(g.empty).toBe(false); // r134 dimensions populated → visible
+  });
+});
+
+describe("deriveConvictionGrounding — pocket-skill caveat (r143 YELLOW-2)", () => {
+  it("triggers 'soft_calibration' caveat on EUR_USD/usd_complacency n=13 sd=-0.0497", () => {
+    const g = deriveConvictionGrounding({
+      mechanisms: [],
+      scenarios: [],
+      critic_verdict: null,
+      confluence_drivers: [engineDriver("rate_diff", 0.45)],
+      pocketSkill: buildPocketSummary({ n_observations: 13, skill_delta: -0.0497 }),
+    });
+    expect(g.pocketSkillCaveat).toBe("soft_calibration");
+    expect(g.pocketSkillNObservations).toBe(13);
+  });
+
+  it("triggers 'anti_skill' caveat on n >= 30 + sd <= -0.02", () => {
+    const g = deriveConvictionGrounding({
+      mechanisms: [],
+      scenarios: [],
+      critic_verdict: null,
+      confluence_drivers: [engineDriver("rate_diff", 0.45)],
+      pocketSkill: buildPocketSummary({ n_observations: 50, skill_delta: -0.1 }),
+    });
+    expect(g.pocketSkillCaveat).toBe("anti_skill");
+    expect(g.pocketSkillNObservations).toBe(50);
+  });
+
+  it("returns null caveat for high_skill pockets (sd >= +0.02 with n >= 30)", () => {
+    const g = deriveConvictionGrounding({
+      mechanisms: [],
+      scenarios: [],
+      critic_verdict: null,
+      confluence_drivers: [engineDriver("rate_diff", 0.45)],
+      pocketSkill: buildPocketSummary({ n_observations: 100, skill_delta: 0.1 }),
+    });
+    expect(g.pocketSkillCaveat).toBeNull();
+    expect(g.pocketSkillNObservations).toBeNull();
+  });
+
+  it("returns null caveat for neutral pockets (|sd| < 0.02 with n >= 30)", () => {
+    const g = deriveConvictionGrounding({
+      mechanisms: [],
+      scenarios: [],
+      critic_verdict: null,
+      confluence_drivers: [engineDriver("rate_diff", 0.45)],
+      pocketSkill: buildPocketSummary({ n_observations: 100, skill_delta: 0.01 }),
+    });
+    expect(g.pocketSkillCaveat).toBeNull();
+  });
+
+  it("returns null caveat for non-conclusive POSITIVE-tilt (n<30, sd>0)", () => {
+    const g = deriveConvictionGrounding({
+      mechanisms: [],
+      scenarios: [],
+      critic_verdict: null,
+      confluence_drivers: [engineDriver("rate_diff", 0.45)],
+      pocketSkill: buildPocketSummary({ n_observations: 13, skill_delta: 0.05 }),
+    });
+    expect(g.pocketSkillCaveat).toBeNull();
+  });
+
+  it("returns null caveat when pocketSkill is null / undefined / missing", () => {
+    const gNull = deriveConvictionGrounding({
+      mechanisms: [],
+      scenarios: [],
+      critic_verdict: null,
+      confluence_drivers: [engineDriver("rate_diff", 0.45)],
+      pocketSkill: null,
+    });
+    const gMissing = deriveConvictionGrounding({
+      mechanisms: [],
+      scenarios: [],
+      critic_verdict: null,
+      confluence_drivers: [engineDriver("rate_diff", 0.45)],
+    });
+    expect(gNull.pocketSkillCaveat).toBeNull();
+    expect(gMissing.pocketSkillCaveat).toBeNull();
+  });
+
+  it("caveat does NOT influence the empty flag (meta-context, not a grounding dimension)", () => {
+    // Empty card EXCEPT pocketSkill — empty should still be true so the
+    // panel renders nothing (honest silent absence). The caveat field
+    // is STILL populated in the derivation (consumer decides render based
+    // on `empty`) — this guarantees a future panel could choose to render
+    // the caveat differently without re-running the classification.
+    const g = deriveConvictionGrounding({
+      mechanisms: [],
+      scenarios: [],
+      critic_verdict: null,
+      pocketSkill: buildPocketSummary({ n_observations: 13, skill_delta: -0.0497 }),
+    });
+    expect(g.empty).toBe(true); // caveat does NOT make panel visible alone
+    expect(g.pocketSkillCaveat).toBe("soft_calibration"); // pure-fn computes regardless
+  });
+
+  it("caveat surfaces ONLY when topDrivers are present (tile-attached meta)", () => {
+    // When topDrivers is empty (no engine drivers), the 4th tile is
+    // hidden ; the caveat is meta-context ON that tile so it MUST also
+    // not surface ; but the derivation still COMPUTES the caveat field
+    // for completeness — the panel component decides not to render it.
+    // This test pins the derivation behaviour : caveat field is computed
+    // independently of whether the tile renders.
+    const g = deriveConvictionGrounding({
+      mechanisms: [{ claim: "x", sources: ["A"] }], // keep panel non-empty
+      scenarios: [],
+      critic_verdict: null,
+      confluence_drivers: [], // no engine drivers — tile hidden
+      pocketSkill: buildPocketSummary({ n_observations: 13, skill_delta: -0.0497 }),
+    });
+    // Derivation still computes the caveat field (consumer decides render).
+    expect(g.pocketSkillCaveat).toBe("soft_calibration");
+    expect(g.topDrivers).toEqual([]);
   });
 });
 

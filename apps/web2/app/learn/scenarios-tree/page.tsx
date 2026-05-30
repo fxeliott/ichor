@@ -97,7 +97,7 @@ export default function Chapter() {
       </h2>
       <p className="mb-4 leading-relaxed">
         Sur la page <code className="font-mono text-xs">/scenarios/[asset]</code>, un bouton «
-        Counterfactual Pass 5 » permet de demander à Claude Opus 4.7 : « génère la lecture macro et
+        Counterfactual Pass 5 » permet de demander à Claude Opus 4.8 : « génère la lecture macro et
         le trade plan <em>sous l&apos;hypothèse</em> que le scénario s4 (Lagarde dovish surprise) se
         réalise ». La réponse arrive en 30-60 secondes et s&apos;affiche en overlay sur la session
         card courante.

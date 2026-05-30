@@ -29,6 +29,13 @@ class EconomicEvent(Base):
     title: Mapped[str] = mapped_column(String(256), nullable=False)
     impact: Mapped[str] = mapped_column(String(16), nullable=False, index=True)
     forecast: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    # r141 (migration 0052) -- forecast range envelope + published actual.
+    # Classifier `services/economic_event_surprise.py` distinguishes within-
+    # range (no repricing) from outside-range (material catalyst). NULL until
+    # r142 reconciler populates from free-tier provider.
+    forecast_min: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    forecast_max: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    actual: Mapped[str | None] = mapped_column(String(64), nullable=True)
     previous: Mapped[str | None] = mapped_column(String(64), nullable=True)
     url: Mapped[str | None] = mapped_column(String(512), nullable=True)
     source: Mapped[str] = mapped_column(String(32), nullable=False, default="forex_factory")

@@ -40,6 +40,31 @@ _ASSETS = (
     "XAU_USD",
     "NAS100_USD",
     "SPX500_USD",
+    # r171 G2 — DXY added to surface co-mouvement vs USD broad strength,
+    # honoring Eliot's verbatim "DXY = pilier de notre analyse" (Fathom
+    # transcript 2026-05-25 §XI). The correlation surface stays a
+    # co-mouvement MONITORING tool, not a directional prediction — per
+    # Engel-West 2005 *JPE* 113(3):485-517 DOI 10.1086/429137 abstract :
+    # "fundamental variables ... provide little help in predicting changes
+    # in floating exchange rates". The DXY row helps Eliot read the regime,
+    # not predict the next bar (ADR-017 boundary preserved).
+    #
+    # r172 update : Polygon free tier still does not stream I:DXY (403 on
+    # Stocks Starter), but UUP (Invesco DB US Dollar Index Bullish Fund,
+    # NYSE Arca ETF) is now wired as DXY proxy in
+    # `collectors/polygon.py ASSET_TO_TICKER` (mirror ADR-089 SPY-for-SPX
+    # precedent). UUP tracks the same DXY ICE basket via long DX futures
+    # contracts ; practitioner-grade UUP↔DXY log-returns correlation ~0.94
+    # (NOT peer-reviewed magnitude — Pattern #15 R59 honest stamp ; see
+    # _REFERENCE_CORR:91-95 convention). Directional sign INVARIANT (UUP
+    # rises when USD rises = same as DXY per prospectus). polygon_intraday
+    # rows now accumulate for asset="DXY" with ticker="UUP" at NYSE Arca
+    # hours (9:30-16:00 ET = ~137 hour-buckets/30d, well above 30
+    # threshold). Correlation reflects NY-session co-movement specifically
+    # (NOT Tokyo/London hours — honest scope acknowledged ADR-089 r27 :83).
+    # Matrix DXY-row populates after ~5 trading days from r172 deploy.
+    # ADR-099 §Impl(r172) documents the decision matrix + R59 catches.
+    "DXY",
 )
 
 
@@ -71,6 +96,25 @@ _REFERENCE_CORR: dict[tuple[str, str], float] = {
     ("NAS100_USD", "SPX500_USD"): +0.92,
     ("NAS100_USD", "XAU_USD"): +0.20,
     ("USD_JPY", "USD_CAD"): +0.30,
+    # r171 G2 — DXY co-mouvement priors (trader-heuristic, FX desk
+    # standard ; NOT peer-reviewed values per se — Engel-West 2005 is
+    # the FRAMING backbone, individual prior magnitudes are calibrated
+    # against the published DXY ICE basket weights and classic textbook
+    # FX inversions). Stamped as such for Pattern #15 R59 honesty.
+    #
+    # DXY ICE basket weights (per Federal Reserve H.10 / FactSet methodology) :
+    # EUR 57.6% / JPY 13.6% / GBP 11.9% / CAD 9.1% / SEK 4.2% / CHF 3.6%
+    # → EUR/USD is the near-perfect inverse, JPY/CAD pairs inverted by
+    # quoting convention (USD/JPY = positive corr with DXY, USD/CAD = same).
+    # XAU = classic dollar inverse. NAS/SPX = mild headwind via multinationals.
+    ("DXY", "EUR_USD"): -0.95,  # 57.6% of basket, near-perfect inverse
+    ("DXY", "GBP_USD"): -0.85,  # 11.9% of basket, inverse
+    ("DXY", "USD_JPY"): +0.55,  # 13.6% of basket, USD/JPY quoting convention
+    ("DXY", "AUD_USD"): -0.65,  # commodity FX, USD-driven risk
+    ("DXY", "USD_CAD"): +0.55,  # 9.1% of basket, USD/CAD quoting convention
+    ("DXY", "XAU_USD"): -0.75,  # gold-dollar classic inverse
+    ("DXY", "NAS100_USD"): -0.30,  # USD strength = multinational earnings headwind
+    ("DXY", "SPX500_USD"): -0.25,  # similar transmission, smaller magnitude
 }
 
 
@@ -139,7 +183,13 @@ async def _hourly_returns(
 
 
 async def assess_correlations(session: AsyncSession, *, window_days: int = 30) -> CorrelationMatrix:
-    """Build the 8×8 correlation matrix over the rolling window."""
+    """Build the 9×9 correlation matrix over the rolling window.
+
+    r171a extension : `_ASSETS` now includes "DXY" (length 9). Cold-start
+    by construction (Polygon free tier blocks I:DXY) — DXY-row cells stay
+    None via the existing ``len(common) < 30`` skip below. UUP ETF proxy
+    is the r172 candidate to populate cells (mirror ADR-089 r27 SPY proxy
+    for I:SPX 403)."""
     series: dict[str, dict[datetime, float]] = {}
     for asset in _ASSETS:
         series[asset] = await _hourly_returns(session, asset, window_days)

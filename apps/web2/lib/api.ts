@@ -119,6 +119,13 @@ export interface ConfluenceDriverSchema {
   factor: string;
   /** Signed in [-1, +1] — positive = supports the bias_direction. */
   contribution: number;
+  /** r142 — 1-line explanation citing values + source. Populated by the
+   *  engine layer (`assess_confluence()` Driver dataclass) ; null for
+   *  legacy LLM-narrative entries (pre-r142 cards). */
+  evidence?: string | null;
+  /** r142 — Provenance tag (e.g. `fred:DGS10`, `cot:CFTC_EUR`). Engine
+   *  layer only ; null for LLM-narrative. */
+  source?: string | null;
 }
 
 export interface IdeaSetSchema {
@@ -290,6 +297,93 @@ export async function getCalendarUpcoming(
  *  query params ; the briefing wants the default themed view. */
 export async function getPolymarketImpact(): Promise<PolymarketImpact | null> {
   return apiGet<PolymarketImpact>("/v1/polymarket-impact");
+}
+
+/** r152 — Engine 8 forward-looking surface from
+ *  `/v1/event-anticipation/{asset}`. Returns the composed
+ *  `EventAnticipationOut` with mode "engaged" / "standby" / "silent" so
+ *  the dedicated `<EventAnticipationPanel>` can dispatch off `data.mode`.
+ *
+ *  Pure server-side fetch (no signal needed — briefing SSR Promise.all). */
+export async function getEventAnticipation(asset: string): Promise<EventAnticipationOut | null> {
+  // Normalise EUR-USD / eur_usd → EUR_USD to match the router path
+  // pattern `^[A-Z]{3,8}_[A-Z]{3,8}$|^[A-Z]{3,8}$`.
+  const normalised = asset.toUpperCase().replace(/-/g, "_");
+  return apiGet<EventAnticipationOut>(`/v1/event-anticipation/${encodeURIComponent(normalised)}`);
+}
+
+/** r161 Strand G — fetch ADR-106 SessionVerdict for the asset's current-day
+ *  NY-session window. Returns null on 404 (no card today yet OR Pass-6 dormant
+ *  → builder returns downgraded verdict, but apiGet would surface a 404 if no
+ *  card exists at all) OR any apiGet failure (network, 5xx). Frontend renders
+ *  honest absence when null — doctrine #11 calibrated honesty mirror of
+ *  EventAnticipationPanel's shouldRenderPanel pattern.
+ *
+ *  Endpoint contract per ADR-106 D5 : GET /v1/verdict/session-ny/{asset}
+ *  Path-param regex mirrors event_anticipation (CRIT-1 fix accepts digit
+ *  prefixes for NAS100/SPX500). */
+export async function getSessionVerdict(asset: string): Promise<SessionVerdict | null> {
+  const normalised = asset.toUpperCase().replace(/-/g, "_");
+  return apiGet<SessionVerdict>(`/v1/verdict/session-ny/${encodeURIComponent(normalised)}`);
+}
+
+/** r162 Stride 8 Phase 2 — fetch ADR-106 CoachMacroContext (asset-agnostic).
+ *  Returns null on any apiGet failure (network / 5xx) — the panel renders
+ *  honest absence in that case (doctrine #11 calibrated-honesty surface).
+ *
+ *  The backend builder always returns a fully-populated CoachMacroContext
+ *  even when classifiers are inconclusive (`cycle="uncertain"` /
+ *  `dominant_theme=null` / `top_next_surprises=[]` are LEGITIMATE doctrine
+ *  #11 outputs — the panel surfaces them with explicit honest-uncertainty
+ *  chrome rather than hiding the section). Pure server-side fetch (SSR
+ *  Promise.all). LIVE state — backend sets `Cache-Control: private,
+ *  no-store`. */
+export async function getCoachMacroContext(): Promise<CoachMacroContext | null> {
+  return apiGet<CoachMacroContext>("/v1/coach-macro-context");
+}
+
+/** mission-7 — one point on the market-implied Fed-funds path (ZQ futures). */
+export interface StirPoint {
+  series_id: string;
+  month_label: string;
+  implied_effr: number | null;
+  observation_date: string | null;
+  cum_bps_vs_front: number | null;
+  repricing_bps: number | null;
+  sessions_in_window: number;
+}
+
+/** mission-7 — per-FOMC-meeting market-implied outcome (CME FedWatch). */
+export interface StirMeeting {
+  label: string;
+  decision_date: string;
+  implied_change_bps: number | null;
+  p_cut: number | null;
+  p_hold: number | null;
+  p_hike: number | null;
+}
+
+/** mission-7 — `/v1/stir` market-implied Fed path + ~5-session repricing
+ *  delta + per-meeting FedWatch probabilities. Pure-data route (not
+ *  AI-watermarked). Returns null on apiGet failure → <StirPanel> renders
+ *  honest absence (doctrine #11). */
+export interface StirData {
+  as_of: string | null;
+  policy_rate_effr: number | null;
+  front_implied_effr: number | null;
+  points: StirPoint[];
+  meetings: StirMeeting[];
+  horizon_label: string | null;
+  net_bps_to_horizon: number | null;
+  cuts_priced_to_horizon: number | null;
+  tone: string;
+  repricing_bps_horizon: number | null;
+  note: string;
+  sources: string[];
+}
+
+export async function getStir(): Promise<StirData | null> {
+  return apiGet<StirData>("/v1/stir");
 }
 
 /**
@@ -990,6 +1084,267 @@ export interface CalendarUpcoming {
   generated_at: string;
   horizon_days: number;
   events: CalendarEvent[];
+}
+
+// r145 — recent published economic event actuals + r141 surprise classifier
+// projection. Mission centrale axis-5 user-surface visibility (was infra-
+// only since r141 schema + r144 reconciler).
+//
+// ADR-017 boundary : 5-state geometric vocabulary, signed magnitude in % of
+// |consensus|. NEVER directional. Per-asset transmission left to the
+// verdict/confluence layers (parity with MacroSurprisePanel doctrine).
+//
+// r145 reality : state is `unavailable` for all rows today because the
+// analyst range envelope provider is not yet wired (r146+). `magnitude_pct`
+// IS populated from the FF consensus point. When the range provider lands,
+// state badges auto-light up without UI changes.
+export type SurpriseState =
+  | "unavailable"
+  | "in_range"
+  | "above_range"
+  | "below_range"
+  | "exact_consensus";
+
+export interface SurpriseClassificationOut {
+  state: SurpriseState;
+  actual_value: number | null;
+  consensus_value: number | null;
+  forecast_min_value: number | null;
+  forecast_max_value: number | null;
+  magnitude_pct: number | null;
+  range_breach: number | null;
+  parse_failures: string[];
+}
+
+export interface RecentActualRow {
+  event_id: string;
+  currency: string;
+  scheduled_at_utc: string;
+  title: string;
+  impact: "high" | "medium" | "low";
+  actual: string;
+  forecast: string | null;
+  forecast_min: string | null;
+  forecast_max: string | null;
+  previous: string | null;
+  url: string | null;
+  classification: SurpriseClassificationOut;
+}
+
+export interface RecentActuals {
+  generated_at: string;
+  lookback_days: number;
+  currency: string | null;
+  rows: RecentActualRow[];
+}
+
+/**
+ * r152 — Engine 8 Event-Driven anticipation wire shape, mirrors the
+ * backend `EventAnticipationView` / `EventProximityFactor` dataclasses.
+ *
+ * Three modes :
+ *   - "engaged"  : Engine 8 fires (event in 48h window, mapped class).
+ *                  `engaged` populated with full factor projection.
+ *   - "standby"  : Engine 8 silent (no event in 48h), but next 1-3
+ *                  high/medium-impact events exist in the next 14d.
+ *                  `standby_events` populated.
+ *   - "silent"   : nothing in 14d window. Honest empty state — panel
+ *                  may still render explanatory chrome OR return null.
+ *
+ * ADR-017 boundary : DESCRIPTIVE drift expectation (geometric direction
+ * + signed magnitude_bp + literature-anchored caveat) ; NEVER imperative.
+ * Sign is stripped at the UI boundary per r142 trader RED-1 doctrine —
+ * the engine internal sign is an INTERNAL aggregation convention.
+ */
+export type EventAnticipationMode = "engaged" | "standby" | "silent";
+
+export type DriftDirection = "up" | "down" | "unknown";
+
+export type EventConfidence = "high" | "medium" | "low" | "unavailable";
+
+export type VixRegimeGate = "above_p75" | "p50_to_p75" | "below_p50" | "unavailable";
+
+export interface EventProximityFactorOut {
+  next_event_id: string | null;
+  next_event_title: string | null;
+  next_event_currency: string | null;
+  next_event_minutes_until: number | null;
+  next_event_impact: "high" | "medium" | "low" | null;
+  next_event_class: string | null;
+  expected_drift_direction: DriftDirection;
+  expected_drift_magnitude_bp: number | null;
+  confidence: EventConfidence;
+  vix_regime_gate: VixRegimeGate;
+  caveat: string;
+  literature_anchor: string;
+  parse_failures: string[];
+}
+
+export interface UpcomingEventOut {
+  event_id: string;
+  currency: string;
+  scheduled_at_utc: string;
+  title: string;
+  impact: "high" | "medium";
+  event_class: string | null;
+  minutes_until: number;
+}
+
+export interface EventAnticipationOut {
+  generated_at: string;
+  asset: string;
+  mode: EventAnticipationMode;
+  engaged: EventProximityFactorOut | null;
+  standby_events: UpcomingEventOut[];
+  parse_failures: string[];
+}
+
+/* ─────────────────────────── r161 Strand G — ADR-106 SessionVerdict ── */
+
+export type VerdictDirection = "up" | "down" | "neutral";
+export type VerdictNature = "structured" | "momentum" | "range_bound" | "uncertain";
+/** r167 G1 — TradeabilityFlag : closes Eliot's #1 CRITICAL gap from
+ *  his trading methodology transcript (Fathom 2026-05-25 §VIII).
+ *  Surfaces a HONEST DISCLOSURE when the day is structurally unsuitable
+ *  for taking a NY-session position (bank holiday / pending event /
+ *  abnormally low volatility / market range / no strong setup).
+ *  Mirror of ``packages/ichor_brain/.../session_verdict.py:TradeabilityFlag``. */
+export type TradeabilityFlag =
+  | "tradeable"
+  | "no_setup"
+  | "holiday"
+  | "event_freeze"
+  | "low_volatility"
+  | "range";
+export type LiveTriggerType =
+  | "economic_release"
+  | "central_bank_speech"
+  | "news_headline"
+  | "polymarket_shift"
+  | "cross_asset_breakout"
+  | "scenario_invalidation"
+  | "scenario_confirmation";
+export type LiveTriggerImpact = "confirms_verdict" | "tests_verdict" | "invalidates_verdict";
+export type PriorityAsset = "EUR_USD" | "GBP_USD" | "XAU_USD" | "SPX500_USD" | "NAS100_USD";
+export type BucketLabel =
+  | "crash_flush"
+  | "strong_bear"
+  | "mild_bear"
+  | "base"
+  | "mild_bull"
+  | "strong_bull"
+  | "melt_up";
+
+export interface LiveTrigger {
+  trigger_type: LiveTriggerType;
+  description: string;
+  fired_at_utc: string;
+  impact: LiveTriggerImpact;
+  source: string;
+}
+
+export interface ScenarioInvalidationState {
+  scenarios_invalidated_hard: BucketLabel[];
+  scenarios_invalidated_soft: BucketLabel[];
+  scenarios_with_notes: BucketLabel[];
+  last_check_utc: string;
+}
+
+export interface SessionVerdict {
+  asset: PriorityAsset;
+  session_window: "ny_14h_to_20h_paris";
+  direction: VerdictDirection;
+  conviction_pct: number;
+  nature: VerdictNature;
+  derived_from_scenarios: boolean;
+  scenario_decomposition_id: string | null;
+  invalidation_state: ScenarioInvalidationState | null;
+  live_triggers: LiveTrigger[];
+  coach_explanation: string;
+  ne_pas_actionner_avant_paris: string;
+  couper_au_plus_tard_paris: string;
+  last_updated_utc: string;
+  expires_at_utc: string;
+  /** r167 G1 — TradeabilityFlag derived from tradeability_evaluator
+   *  composite rule (priority : holiday > event_freeze > low_volatility >
+   *  range > no_setup > tradeable). Default ``"tradeable"`` preserves
+   *  backward-compat with pre-r167 emissions. */
+  tradeability: TradeabilityFlag;
+}
+
+/* ─────────────────────── r162 Stride 8 Phase 2 — ADR-106 CoachMacroContext ── */
+
+/** 4-phase business-cycle classification per the Hewi Capital trader transcript
+ *  framework (growth × inflation 2×2 matrix). `uncertain` is a legitimate
+ *  doctrine #11 calibrated-honesty output when FRED data is stale (>= 45 days)
+ *  OR one axis is genuinely ambiguous (mirror of `coach_macro_context.py:101`). */
+export type BusinessCycle = "expansion" | "reflation" | "deflation" | "stagflation" | "uncertain";
+
+/** Coarse growth axis label — surfaced standalone as a frontend chip
+ *  ("Croissance: forte"). Sourced from PAYEMS m/m trend over last 90d. */
+export type GrowthSignal = "strong" | "weak" | "uncertain";
+
+/** Coarse inflation axis label — surfaced standalone as a frontend chip
+ *  ("Inflation: en hausse"). Sourced from CPIAUCSL 3-month direction. */
+export type InflationSignal = "rising" | "falling" | "uncertain";
+
+/** Canonical 8-driver macro theme literal (single source of truth :
+ *  `packages/agents/.../macro.py:24-33` ; mirrored in
+ *  `packages/ichor_brain/.../coach_macro_context.py:65-74` for the Pydantic
+ *  Literal). The dominant theme is classified by rule-based max |z-score|
+ *  over the 18 FRED series mapped in `coach_macro_context_builder.py:_SERIES_TO_THEME`. */
+export type MacroTheme =
+  | "monetary_policy"
+  | "growth_data"
+  | "inflation_data"
+  | "labor_market"
+  | "fiscal_policy"
+  | "geopolitics"
+  | "credit_conditions"
+  | "commodity_supply";
+
+/** Surprise priority tier — drives UI emphasis on the upcoming-events list.
+ *  Sourced from `_surprise_priority(title, impact, cycle)` cycle-aware rule. */
+export type SurprisePriority = "high" | "medium" | "low";
+
+/** r168 G3 — Risk-on / risk-off / transitional ambient regime label.
+ *  Eliot's §X verbatim pillar ("régime risk on ou risk off"). Self-calibrating
+ *  z-score classifier in backend `coach_macro_context_builder._classify_risk_regime`
+ *  over VIXCLS + BAMLH0A0HYM2 FRED series (252d rolling window). Pattern #15 R59
+ *  immune by design (sigma-based thresholds, no peer-reviewed citation claim).
+ *  Mirror of `packages/ichor_brain/.../coach_macro_context.py` RiskRegime Literal. */
+export type RiskRegime = "risk_on" | "risk_off" | "transitional";
+
+/** One upcoming high/medium-impact event surfaced for the coach narrative.
+ *  Mirror of `CalendarSurprise` Pydantic (frozen, extra=forbid). */
+export interface CalendarSurprise {
+  event_label: string;
+  scheduled_at_paris: string;
+  priority: SurprisePriority;
+  why_it_matters: string;
+}
+
+/** Canonical Ichor coach macro narrative — rendered at the TOP of
+ *  `/briefing/[asset]` ABOVE `<SessionVerdictPanel>` per ADR-106 §"coach
+ *  explicateur". Materialises Eliot's r161 directive verbatim ("coach de
+ *  compréhension", "guide lumineux qui rend chaque élément limpide"). */
+export interface CoachMacroContext {
+  cycle: BusinessCycle;
+  cycle_confidence_pct: number;
+  growth_signal: GrowthSignal;
+  inflation_signal: InflationSignal;
+  dominant_theme: MacroTheme | null;
+  dominant_theme_strength_z: number | null;
+  /** r168 G3 — Eliot's §X risk-on/off pillar. Default `"transitional"` for
+   *  backward-compat with pre-r168 wire responses. */
+  risk_regime: RiskRegime;
+  /** r168 G3 — Up to 3 mechanical evidence strings (e.g. `"VIXCLS z=+1.23σ"`).
+   *  Empty when `risk_regime === "transitional"` and no signal crossed ±0.7σ. */
+  risk_regime_evidence: string[];
+  top_next_surprises: CalendarSurprise[];
+  coach_paragraph: string;
+  data_freshness_days: number;
+  generated_at_utc: string;
 }
 
 export interface AlertItem {

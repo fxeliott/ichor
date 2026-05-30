@@ -11,6 +11,7 @@ from .briefings import router as briefings_router
 from .brier_feedback import router as brier_feedback_router
 from .calendar import router as calendar_router
 from .calibration import router as calibration_router
+from .coach_macro_context import router as coach_macro_context_router
 from .confluence import router as confluence_router
 from .correlations import router as correlations_router
 from .counterfactual import router as counterfactual_router
@@ -18,6 +19,7 @@ from .currency_strength import router as currency_strength_router
 from .data_pool import router as data_pool_router
 from .divergence import router as divergence_router
 from .economic_events import router as economic_events_router
+from .event_anticipation import router as event_anticipation_router
 from .geopolitics import router as geopolitics_router
 from .graph import router as graph_router
 from .hourly_volatility import router as hourly_volatility_router
@@ -27,6 +29,7 @@ from .macro_pulse import router as macro_pulse_router
 from .market import router as market_router
 from .narratives import router as narratives_router
 from .news import router as news_router
+from .origin_zone import router as origin_zone_router
 from .phase_d import router as phase_d_router
 from .polymarket_impact import router as polymarket_impact_router
 from .portfolio_exposure import router as portfolio_exposure_router
@@ -37,10 +40,13 @@ from .push import router as push_router
 from .scenarios import router as scenarios_router
 from .sessions import router as sessions_router
 from .sources import router as sources_router
+from .stir import router as stir_router
 from .tempo_thresholds import router as tempo_thresholds_router
+from .theme_dominant import router as theme_dominant_router
 from .today import router as today_router
 from .tools import router as tools_router
 from .trade_plan import router as trade_plan_router
+from .verdict import router as verdict_router
 from .well_known import router as well_known_router
 from .ws import router as ws_router
 from .yield_curve import router as yield_curve_router
@@ -53,6 +59,7 @@ __all__ = [
     "brier_feedback_router",
     "calendar_router",
     "calibration_router",
+    "coach_macro_context_router",
     "confluence_router",
     "correlations_router",
     "counterfactual_router",
@@ -60,6 +67,7 @@ __all__ = [
     "data_pool_router",
     "divergence_router",
     "economic_events_router",
+    "event_anticipation_router",
     "geopolitics_router",
     "graph_router",
     "hourly_volatility_router",
@@ -69,6 +77,7 @@ __all__ = [
     "market_router",
     "narratives_router",
     "news_router",
+    "origin_zone_router",
     "phase_d_router",
     "polymarket_impact_router",
     "portfolio_exposure_router",
@@ -79,10 +88,13 @@ __all__ = [
     "scenarios_router",
     "sessions_router",
     "sources_router",
+    "stir_router",
     "tempo_thresholds_router",
+    "theme_dominant_router",
     "today_router",
     "tools_router",
     "trade_plan_router",
+    "verdict_router",
     "well_known_router",
     "ws_router",
     "yield_curve_router",

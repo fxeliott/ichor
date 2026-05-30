@@ -70,27 +70,62 @@ cmd_deploy() {
   local skip_build="${1:-false}"
 
   if [[ "${skip_build}" != "true" ]]; then
-    log "Step 1: tar-over-ssh curated monorepo subset -> ${STAGING}"
-    # rsync is absent from the Win11 Git-Bash env; tar|ssh is the
-    # portable house equivalent (Step 1b still rsyncs server-side).
-    ${SSH} "rm -rf ${STAGING} && mkdir -p ${STAGING}"
-    tar czf - -C "${REPO_ROOT}" \
+    # r153 — Pattern #16 R-DEPLOY-6 Step-3 SSH-pipe decompose rule (codifies
+    # the manual r142+r145+r152 workaround into the script itself). Same
+    # failure-class as r150 pattern #14 (Step 4 SSH restart) but applied to
+    # the long-lived `tar | ssh` pipe. Decompose into 3 short retryable calls.
+    log "Step 1a: local-tar monorepo subset -> /tmp"
+    local local_tarball
+    local_tarball="/tmp/ichor_web2_redeploy_$$.tar.gz"
+    tar czf "${local_tarball}" -C "${REPO_ROOT}" \
       --exclude=node_modules --exclude=.next --exclude=.git \
       --exclude=.turbo --exclude=out --exclude=.claude \
       --exclude='*.pyc' --exclude=__pycache__ \
       package.json pnpm-workspace.yaml pnpm-lock.yaml \
       tsconfig.base.json turbo.json apps/web2 packages \
-      | ${SSH} "tar xzf - -C ${STAGING}"
+      || fail "Step 1a local-tar failed" 8
 
-    log "Step 1b: promote staging -> ${DEPLOY_DIR} (chown ichor)"
-    ${SSH} "
-      sudo mkdir -p ${DEPLOY_DIR} &&
-      sudo rsync -a --delete \
-        --exclude node_modules --exclude .next \
-        ${STAGING}/ ${DEPLOY_DIR}/ &&
-      sudo chown -R ichor:ichor ${DEPLOY_DIR} &&
-      sudo rm -rf ${STAGING}
-    "
+    log "Step 1b: scp tarball -> remote /tmp"
+    local scp_ok=0
+    for attempt in 1 2 3; do
+      if scp -o ConnectTimeout=15 "${local_tarball}" \
+           ichor-hetzner:/tmp/ichor_web2_redeploy.tar.gz; then
+        scp_ok=1
+        log "Step 1b attempt ${attempt}: scp OK"
+        break
+      fi
+      log "Step 1b attempt ${attempt}/3 failed, sleep 15s + retry"
+      sleep 15
+    done
+    rm -f "${local_tarball}"
+    if [[ ${scp_ok} -eq 0 ]]; then
+      fail "Step 1b scp failed 3 attempts (lesson #24 cluster) — manual intervention required" 8
+    fi
+
+    log "Step 1c: ssh-extract + rsync + chown (short single call, retried)"
+    local extract_ok=0
+    for attempt in 1 2 3; do
+      if ${SSH} -o ConnectTimeout=15 "
+        set -e
+        mkdir -p ${STAGING}
+        tar xzf /tmp/ichor_web2_redeploy.tar.gz -C ${STAGING}
+        sudo mkdir -p ${DEPLOY_DIR}
+        sudo rsync -a --delete \
+          --exclude node_modules --exclude .next \
+          ${STAGING}/ ${DEPLOY_DIR}/
+        sudo chown -R ichor:ichor ${DEPLOY_DIR}
+        rm -f /tmp/ichor_web2_redeploy.tar.gz
+      "; then
+        extract_ok=1
+        log "Step 1c attempt ${attempt}: extract+rsync OK"
+        break
+      fi
+      log "Step 1c attempt ${attempt}/3 failed, sleep 15s + retry"
+      sleep 15
+    done
+    if [[ ${extract_ok} -eq 0 ]]; then
+      fail "Step 1c extract+rsync failed 3 attempts (lesson #24) — manual intervention required" 8
+    fi
 
     log "Step 2: pnpm install (focused @ichor/web2) + build (user ichor)"
     ${SSH} "sudo -u ichor bash -lc '
@@ -161,18 +196,40 @@ sudo systemctl daemon-reload"
   # quick tunnel mints a NEW *.trycloudflare.com URL on every restart,
   # so we never restart it on an app-only redeploy (URL stays stable
   # within the tunnel's lifetime; named tunnel = RUNBOOK-019 Tier 0.2).
-  ${SSH} "
-    sudo systemctl enable ${SVC}.service >/dev/null 2>&1 || true
-    sudo systemctl restart ${SVC}.service
-    sudo systemctl enable ${TUN}.service >/dev/null 2>&1 || true
-    sudo systemctl is-active --quiet ${TUN}.service || sudo systemctl start ${TUN}.service
-    for i in \$(seq 1 30); do
-      code=\$(curl -fsS -o /dev/null -w '%{http_code}' http://127.0.0.1:${PORT}/briefing 2>/dev/null || echo 000)
-      [ \"\$code\" = 200 ] && break
-      sleep 2
-    done
-    echo \"local /briefing http=\$code\"
-  "
+  #
+  # r151 — R-DEPLOY-6 Step-4 SSH-timeout decompose rule mirrored from
+  # redeploy-api.sh (lesson #24 + doctrinal pattern #14, codified r150).
+  # The single SSH-systemctl-restart call has been a stable failure
+  # point on redeploy-api.sh (r147→r150 4 consecutive rounds) ;
+  # redeploy-web2.sh shares the same SSH transport so the same
+  # mitigation applies. 3-attempt retry + 15s sleep + ConnectTimeout=15
+  # + fail-loud with lesson #24 ref. Stderr NOT swallowed per r150
+  # code-reviewer SHOULD-FIX so legitimate non-timeout failures
+  # (sudoers, unit-not-found, OOM) are visible to operator.
+  local restart_ok=0
+  for attempt in 1 2 3; do
+    if ${SSH} -o ConnectTimeout=15 "
+      sudo systemctl enable ${SVC}.service >/dev/null 2>&1 || true
+      sudo systemctl restart ${SVC}.service
+      sudo systemctl enable ${TUN}.service >/dev/null 2>&1 || true
+      sudo systemctl is-active --quiet ${TUN}.service || sudo systemctl start ${TUN}.service
+      for i in \$(seq 1 30); do
+        code=\$(curl -fsS -o /dev/null -w '%{http_code}' http://127.0.0.1:${PORT}/briefing 2>/dev/null || echo 000)
+        [ \"\$code\" = 200 ] && break
+        sleep 2
+      done
+      echo \"local /briefing http=\$code\"
+    "; then
+      restart_ok=1
+      log "Step 4 attempt ${attempt}: SSH restart OK"
+      break
+    fi
+    log "Step 4 attempt ${attempt}/3 failed (timeout OR non-zero exit, see stderr above), sleep 15s + retry"
+    sleep 15
+  done
+  if [[ ${restart_ok} -eq 0 ]]; then
+    fail "Step 4 SSH restart failed 3 attempts (lesson #24 SSH-instability cluster) — manual intervention required" 9
+  fi
 
   log "Step 5: capture public quick-tunnel URL + verify"
   local url

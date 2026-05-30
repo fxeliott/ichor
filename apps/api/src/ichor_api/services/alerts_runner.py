@@ -269,3 +269,64 @@ async def check_gex_alerts(
         asset=asset,
     )
     return persisted
+
+
+# ── r165 Strand E — Scenario invalidation alerts ─────────────────────────
+
+
+async def check_scenario_invalidations(
+    session: AsyncSession,
+    *,
+    now_utc: datetime | None = None,
+    lookback_hours: int = 24,
+) -> list[AlertHit]:
+    """r165 Strand E — Wrap the scenario-invalidation evaluator into the
+    canonical Ichor alerts pipeline (dedup + persist + structlog).
+
+    Calls ``alerts.scenario_invalidation.evaluate_scenario_invalidation_hits()``
+    to read recent ``session_card_audit`` rows + evaluate per-card
+    invalidation state via the r164 monitor, then de-dups per
+    (alert_code, asset) pair within the recent window and persists each
+    surviving hit via the existing ``_persist_hit`` machinery.
+
+    Returns the AlertHits actually persisted (post-dedup). Caller MUST
+    ``await session.commit()`` for the writes to land — same contract
+    as ``check_metric()``.
+
+    Doctrine #11 calibrated honesty : returns ``[]`` when no card has
+    populated invalidations OR no condition has fired ; the pipeline
+    silently no-ops, no fabricated "no alerts" alert.
+    """
+    from ..alerts.scenario_invalidation import (
+        evaluate_scenario_invalidation_hits,
+    )
+
+    hit_pairs = await evaluate_scenario_invalidation_hits(
+        session,
+        now_utc=now_utc,
+        lookback_hours=lookback_hours,
+    )
+    if not hit_pairs:
+        return []
+
+    persisted: list[AlertHit] = []
+    for hit, asset in hit_pairs:
+        if await _is_recent_duplicate(session, alert_code=hit.alert_def.code, asset=asset):
+            log.debug(
+                "alert.dedup_skip",
+                code=hit.alert_def.code,
+                asset=asset,
+            )
+            continue
+        _persist_hit(session, hit, asset=asset)
+        persisted.append(hit)
+        log.info(
+            "scenario_invalidation_alert.triggered",
+            code=hit.alert_def.code,
+            severity=hit.alert_def.severity,
+            asset=asset,
+            buckets=hit.source_payload.get("buckets"),
+            n_buckets=hit.source_payload.get("n_buckets"),
+            card_id=hit.source_payload.get("card_id"),
+        )
+    return persisted

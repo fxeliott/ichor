@@ -49,7 +49,27 @@ REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 LOCAL_PKG="${REPO_ROOT}/apps/api/src/ichor_api"
 [[ -d "${LOCAL_PKG}" ]] || fail "local package not found: ${LOCAL_PKG}" 3
 
-probe() { ${SSH} "curl -fsS -o /dev/null -w '%{http_code}' '$1' 2>/dev/null || echo 000"; }
+probe() {
+  # r158 fix : the inner `|| echo 000` only handles curl-failure WITHIN the
+  # SSH session. If SSH ITSELF times out (the lesson #24 SSH-instability class
+  # documented in Pattern #14), the entire ${SSH} "..." command exits non-zero
+  # and bash strict-mode `set -e` trips BEFORE the function returns. r157
+  # Strand C Step 5 hardening assumed probe() returns "000" on SSH-timeout to
+  # trigger the 15s SSH-recovery sleep — but the assumption was wrong : SSH-
+  # itself-timeout bypassed the inner fallback. r155+r156+r157 all hit Step 5
+  # SSH timeout for this exact reason.
+  #
+  # Fix : OUTER `|| echo 000` catches SSH-itself-timeout/disconnect/auth-fail
+  # at the bash level. Stderr also swallowed at outer level so set -e doesn't
+  # trip on SSH stderr lines that aren't real failures (e.g., banner). The
+  # function now ALWAYS returns a 3-digit string + exit 0 :
+  #   - SSH OK + curl 200    → "200"
+  #   - SSH OK + curl failure → "000" (inner fallback)
+  #   - SSH timeout/disconnect → "000" (outer fallback, r158 hardening)
+  # Strand C 15s SSH-recovery retry loop now correctly observes "000" on
+  # SSH-itself-timeout and applies the retry-with-sleep discipline.
+  ${SSH} "curl -fsS -o /dev/null -w '%{http_code}' '$1' 2>/dev/null || echo 000" 2>/dev/null || echo 000
+}
 
 cmd_verify_only() {
   local h s
@@ -92,25 +112,120 @@ cmd_deploy() {
     ls -1dt ${BAK_ROOT}/ichor_api.* | tail -n +6 | xargs -r sudo rm -rf
   "
 
-  log "Step 3: tar-over-ssh local package -> staging -> ${STABLE}"
-  ${SSH} "rm -rf ${STAGING} && mkdir -p ${STAGING}"
-  tar czf - -C "${REPO_ROOT}/apps/api/src" \
+  # r153 — Pattern #16 R-DEPLOY-6 Step-3 SSH-pipe decompose rule (codifies
+  # the manual r142+r152 workaround into the script itself). The original
+  # `tar czf - ... | ${SSH} "tar xzf - ..."` is a long-lived SSH pipe that
+  # has empirically timed out (r152 — same failure-class as Step 4 SSH
+  # restart hardened r150 as pattern #14, but different step). Decompose
+  # into 3 short retryable calls : local-tar to disk → scp → ssh-extract+
+  # rsync. Each call is short enough that SSH transient instability
+  # doesn't kill the deploy mid-pipe. Same lesson #24 stop-loss applies
+  # if ANY of the 3 short calls fails after 3 retries.
+  log "Step 3a: local-tar package -> /tmp/ichor_api_redeploy.tar.gz"
+  local local_tarball
+  local_tarball="/tmp/ichor_api_redeploy_$$.tar.gz"
+  tar czf "${local_tarball}" -C "${REPO_ROOT}/apps/api/src" \
     --exclude='__pycache__' --exclude='*.pyc' --exclude='.pytest_cache' \
     ichor_api \
-    | ${SSH} "tar xzf - -C ${STAGING}"
-  ${SSH} "
-    sudo rsync -a --delete ${STAGING}/ichor_api/ ${STABLE}/ &&
-    sudo chown -R ichor:ichor ${STABLE} &&
-    sudo rm -rf ${STAGING}
-  "
+    || fail "Step 3a local-tar failed" 8
+
+  log "Step 3b: scp tarball -> remote /tmp"
+  local scp_ok=0
+  for attempt in 1 2 3; do
+    if scp -o ConnectTimeout=15 "${local_tarball}" \
+         ichor-hetzner:/tmp/ichor_api_redeploy.tar.gz; then
+      scp_ok=1
+      log "Step 3b attempt ${attempt}: scp OK"
+      break
+    fi
+    log "Step 3b attempt ${attempt}/3 failed, sleep 15s + retry"
+    sleep 15
+  done
+  rm -f "${local_tarball}"
+  if [[ ${scp_ok} -eq 0 ]]; then
+    fail "Step 3b scp failed 3 attempts (lesson #24 SSH-instability cluster) — manual intervention required" 8
+  fi
+
+  log "Step 3c: ssh-extract + rsync + chown (short single call)"
+  local extract_ok=0
+  for attempt in 1 2 3; do
+    if ${SSH} -o ConnectTimeout=15 "
+      set -e
+      mkdir -p ${STAGING}
+      tar xzf /tmp/ichor_api_redeploy.tar.gz -C ${STAGING}
+      sudo rsync -a --delete ${STAGING}/ichor_api/ ${STABLE}/
+      sudo chown -R ichor:ichor ${STABLE}
+      rm -f /tmp/ichor_api_redeploy.tar.gz
+    "; then
+      extract_ok=1
+      log "Step 3c attempt ${attempt}: extract+rsync OK"
+      break
+    fi
+    log "Step 3c attempt ${attempt}/3 failed, sleep 15s + retry"
+    sleep 15
+  done
+  if [[ ${extract_ok} -eq 0 ]]; then
+    fail "Step 3c extract+rsync failed 3 attempts (lesson #24) — manual intervention required" 8
+  fi
 
   log "Step 4: restart ${SVC}; wait /healthz"
-  ${SSH} "sudo systemctl restart ${SVC}"
+  # r150 — R-DEPLOY-6 Step-4 SSH-timeout decompose rule (lesson #24 explicit
+  # codification, doctrinal pattern #14). The single `${SSH} "systemctl
+  # restart"` call has timed out r147→r148→r149 consecutively — stable
+  # failure pattern, not transient. Decompose into 3 retryable short calls
+  # with sleep-then-retry instead of failing the whole deploy on first
+  # timeout. Manual recovery from past rounds is now baked in.
+  local restart_ok=0
+  # r150 code-reviewer SHOULD-FIX : DO NOT `2>/dev/null` here — stderr must
+  # leak through so legitimate non-timeout failures (sudoers / unit-not-
+  # found / OOM) are visible to the operator instead of hidden behind a
+  # misleading "SSH timed out" log. The retry-on-any-error semantics stay
+  # correct (we retry regardless of which failure mode hit).
+  for attempt in 1 2 3; do
+    if ${SSH} -o ConnectTimeout=15 "sudo systemctl restart ${SVC}"; then
+      restart_ok=1
+      log "Step 4 attempt ${attempt}: SSH restart OK"
+      break
+    fi
+    log "Step 4 attempt ${attempt}/3 failed (timeout OR non-zero exit, see stderr above), sleep 15s + retry"
+    sleep 15
+  done
+  if [[ ${restart_ok} -eq 0 ]]; then
+    fail "Step 4 SSH restart failed 3 attempts (lesson #24 SSH-instability cluster) — manual intervention required" 9
+  fi
+  # r157 Step 5 SSH retry hardening — r155+r156 deploys both hit SSH timeout
+  # on the post-restart endpoint-verify probe (Step 5 internal SSH calls).
+  # Extends Pattern #14 retry-with-sleep + ConnectTimeout=15 + fail-loud-with-
+  # lesson-#24-ref discipline to the Step 5 probe loop. The probe() helper
+  # already uses ${SSH} (which carries ConnectTimeout=15), but the 30×2s
+  # polling loop above had no retry-on-SSH-timeout — a single connection
+  # timeout would silently report h=000 for that probe and the loop would
+  # continue, eventually exhausting the 30 attempts on h!=200 alone.
+  #
+  # r157 hardening (code-reviewer SF-3 comment-vs-code aligned) : if probe
+  # returns 000 (SSH-timeout signature per probe() fallback, OR ANY curl
+  # failure including TCP RST during normal cold-start per code-reviewer
+  # SF-4 false-positive note), invoke a 15s SSH-recovery sleep instead of
+  # the bare 2s polling sleep. Capped at 3 SSH-recovery waits per 30-attempt
+  # loop so the total wallclock stays ≤ ~110s vs ~60s baseline. The
+  # `ssh_recovery_count` bound is the ONLY guard (no poll_idx threshold —
+  # prior comment claimed "after 10 polls" but code never enforced it).
+  # False-positive cost (h=000 fires on cold-start TCP RST not just SSH
+  # timeout) is acceptable : the 3-recovery cap bounds the cost at +45s
+  # wallclock even in worst-case false-positive scenario.
   local h="000"
-  for _ in $(seq 1 30); do
+  local ssh_recovery_count=0
+  local poll_idx
+  for poll_idx in $(seq 1 30); do
     h="$(probe "${HEALTH}")"
     [[ "${h}" == 200 ]] && break
-    sleep 2
+    if [[ "${h}" == 000 && ${ssh_recovery_count} -lt 3 ]]; then
+      log "Step 5 healthz probe ${poll_idx}/30 returned 000 (SSH-timeout signature) — Pattern #14 retry sleep 15s (recovery ${ssh_recovery_count}/3 lesson #24 cluster)"
+      ssh_recovery_count=$((ssh_recovery_count + 1))
+      sleep 15
+    else
+      sleep 2
+    fi
   done
 
   log "Step 5: verify health + sample endpoint"

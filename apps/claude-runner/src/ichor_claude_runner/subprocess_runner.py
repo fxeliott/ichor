@@ -95,6 +95,13 @@ async def run_claude(
     # prompt (up to 200 KB by Pydantic contract, typical 15-30 KB) goes
     # through stdin. Without this, briefings + Couche-2 calls on assets
     # with rich data_pool (≥17 KB) crash with `WinError 206`.
+    # §10 (2026-05-29) — Opus 4.8 upgrade. The CLI alias `opus` still resolves
+    # to opus-4-7; pin briefings/session-cards to the released claude-opus-4-8
+    # (verified: local CLI accepts the tag, websearch-confirmed id). Couche-2
+    # stays on `haiku` (ADR-023) untouched; explicit full tags pass through.
+    _model_aliases = {"opus": "claude-opus-4-8"}
+    cli_model = _model_aliases.get(model, model)
+
     cmd = [
         settings.claude_binary,
         "-p",
@@ -104,7 +111,7 @@ async def run_claude(
         "--output-format",
         "json",
         "--model",
-        model,
+        cli_model,
         "--effort",
         effort,
         "--no-session-persistence",
@@ -147,6 +154,17 @@ async def run_claude(
     )
     start = time.monotonic()
 
+    # r170 G-fix-Couche2 (2026-05-27) — inject CLAUDE_AGENT_MODE_OVERRIDE=1 env var
+    # so user-level PowerShell hooks (~/.claude/hooks/{userpromptsubmit-chain,tracker_init,
+    # tracker_gate}.ps1) bail out early and do NOT inject compliance prose into the agent
+    # subprocess. Without this, Couche-2 agents (cb_nlp/news_nlp/sentiment/positioning/macro)
+    # crash with HTTP 500 because the JSON validator on packages/agents side cannot parse
+    # "**Self-checklist:** ... Ready for Stop." prose. See Pattern #22 (Voie D vs
+    # --setting-sources project incompat) + Pattern #23 (OAuth + clean agent subprocess
+    # mutually exclusive in Claude Code v2.1.146). Empirical root cause documented in
+    # packages/agents/src/ichor_agents/claude_runner.py _AGENT_MODE_OVERRIDE_PREFIX (r169).
+    subprocess_env = {**os.environ, "CLAUDE_AGENT_MODE_OVERRIDE": "1"}
+
     try:
         proc = await asyncio.create_subprocess_exec(
             *cmd,
@@ -154,6 +172,7 @@ async def run_claude(
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
             cwd=str(workdir),
+            env=subprocess_env,
         )
         try:
             stdout, stderr = await asyncio.wait_for(
