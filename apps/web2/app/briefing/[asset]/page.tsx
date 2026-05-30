@@ -63,6 +63,7 @@ import { ThemeRankingPanel } from "@/components/briefing/ThemeRankingPanel";
 // frames the per-asset verdict interpretation per D4 ordering directive.
 import { CoachMacroContextPanel } from "@/components/briefing/CoachMacroContextPanel";
 import { StirPanel } from "@/components/briefing/StirPanel";
+import { LondonSessionPanel } from "@/components/briefing/LondonSessionPanel";
 import { TodaySessionPulse } from "@/components/briefing/TodaySessionPulse";
 import { FreshDataBanner } from "@/components/briefing/FreshDataBanner";
 import { VerdictBanner } from "@/components/briefing/VerdictBanner";
@@ -79,6 +80,7 @@ import {
   getSessionVerdict,
   getIntradayBars,
   getKeyLevels,
+  getLondonSession,
   getGeopoliticsBriefing,
   getNews,
   getPocketSummary,
@@ -96,6 +98,7 @@ import {
   type IntradayBarOut,
   type PocketSummaryList,
   type KeyLevelsResponse,
+  type LondonSessionData,
   type MacroPulse,
   type PolymarketImpact,
   type PositioningOut,
@@ -182,6 +185,7 @@ export default async function BriefingPage({ params }: PageParams) {
     sessionVerdict,
     coachMacroContext,
     stir,
+    londonSession,
   ] = await Promise.all([
     fetchSessionCardForAsset(normalisedAsset),
     getKeyLevels() as Promise<KeyLevelsResponse | null>,
@@ -246,6 +250,10 @@ export default async function BriefingPage({ params }: PageParams) {
     // repricing delta. Pure-data SSR fetch ; <StirPanel> renders honest
     // absence when null (collector cold / endpoint down).
     getStir() as Promise<StirData | null>,
+    // §6.2 — London-morning read for NY calibration. Pure-data SSR fetch ;
+    // <LondonSessionPanel> renders honest absence when null (no usable London
+    // window — FX-centric, equity-index windows can be thin → 404).
+    getLondonSession(normalisedAsset) as Promise<LondonSessionData | null>,
   ]);
 
   // r123 — derive today's session pulse from the FULL intraday array
@@ -390,6 +398,7 @@ export default async function BriefingPage({ params }: PageParams) {
           { id: "theme", label: "Thème & cycle" },
           { id: "macro", label: "Macro du jour" },
           { id: "rates", label: "Taux & Fed" },
+          { id: "london-session", label: "Séance de Londres" },
           { id: "correlations", label: "Corrélations" },
           { id: "positioning", label: "Positionnement" },
           { id: "levels", label: "Niveaux" },
@@ -511,6 +520,17 @@ export default async function BriefingPage({ params }: PageParams) {
           defaultOpen={false}
         >
           <StirPanel stir={stir} />
+        </BriefingSection>
+
+        {/* ── C-ter · Séance de Londres (London-morning read for NY calibration, §6.2) ── */}
+        <BriefingSection
+          id="london-session"
+          eyebrow="C · Londres"
+          title="Séance de Londres"
+          intro="Comment cet actif a bougé pendant la matinée de Londres — la séance juste avant l'open de New York. Le sens (haussier / baissier / range) et l'amplitude vs sa moyenne 5 jours : une matinée directionnelle ET active se prolonge souvent à l'open NY, une matinée en range suggère l'attente d'un catalyseur."
+          defaultOpen={false}
+        >
+          <LondonSessionPanel londonSession={londonSession} />
         </BriefingSection>
 
         {/* ── D · Corrélations & DXY (real independence of the read) ── */}

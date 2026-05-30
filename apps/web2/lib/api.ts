@@ -386,6 +386,34 @@ export async function getStir(): Promise<StirData | null> {
   return apiGet<StirData>("/v1/stir");
 }
 
+/** §6.2 — `/v1/london-session/{asset}` London-morning read : OHLC + net move +
+ *  direction (up/down/range) + range-ratio-vs-5d-baseline + is_today freshness.
+ *  Pure-data route (not AI-watermarked). Returns null on 404 (no usable
+ *  08:00-12:00 window — FX-centric, equity-index London windows can be thin)
+ *  OR apiGet failure → <LondonSessionPanel> renders honest absence (doctrine #11). */
+export interface LondonSessionData {
+  asset: string;
+  session_date: string;
+  is_today: boolean;
+  open_price: number;
+  high: number;
+  low: number;
+  close: number;
+  range_abs: number;
+  net_change: number;
+  direction: string;
+  bar_count: number;
+  avg_range: number | null;
+  range_ratio: number | null;
+  computed_at_utc: string;
+  provenance: string;
+}
+
+export async function getLondonSession(asset: string): Promise<LondonSessionData | null> {
+  const normalised = asset.toUpperCase().replace(/-/g, "_");
+  return apiGet<LondonSessionData>(`/v1/london-session/${encodeURIComponent(normalised)}`);
+}
+
 /**
  * r69 + r138 — fetch recent news items from `/v1/news`.
  *
