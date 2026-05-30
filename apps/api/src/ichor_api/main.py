@@ -36,6 +36,7 @@ from .routers import (
     hourly_volatility_router,
     journal_router,
     key_levels_router,
+    london_session_router,
     macro_pulse_router,
     market_router,
     narratives_router,
@@ -230,6 +231,7 @@ app.include_router(hourly_volatility_router)
 app.include_router(journal_router)
 app.include_router(brier_feedback_router)
 app.include_router(key_levels_router)
+app.include_router(london_session_router)
 app.include_router(macro_pulse_router)
 app.include_router(polymarket_impact_router)
 app.include_router(portfolio_exposure_router)

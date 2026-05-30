@@ -7,8 +7,11 @@ answers "which of the 3 UTC zones drove the prior 24h"): here we summarise the
 London-morning window specifically — its range, direction, and whether it was
 unusually active vs the typical London morning.
 
-Pure compute (no I/O) so it is fully unit-testable with synthetic bars; the
-data_pool renderer does the `polygon_intraday` fetch. Timezone is handled with
+The core `compute_london_session` is pure (no I/O) so it is fully unit-testable
+with synthetic bars; `load_london_session` is a thin async DB loader (shared by
+the data_pool Pass-2 renderer AND the `/v1/london-session/{asset}` endpoint, so
+the `polygon_intraday` fetch lives in ONE place — mirror of the
+`previous_session_origin_zone` sibling). Timezone is handled with
 `ZoneInfo("Europe/London")` so the London local window maps to the correct UTC
 bounds across DST (London is UTC+1 in summer / BST, UTC in winter) — more
 correct than a fixed UTC-hour band.
@@ -21,8 +24,11 @@ ADR-017 : descriptive price-action read, never BUY/SELL.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import UTC, date, datetime, time
+from datetime import UTC, date, datetime, time, timedelta
 from zoneinfo import ZoneInfo
+
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from .previous_session_origin_zone import _classify_direction
 
@@ -130,3 +136,40 @@ def compute_london_session(bars: list[Bar], *, now_utc: datetime) -> LondonSessi
         range_ratio=ratio,
         is_today=(latest_date == today_london),
     )
+
+
+async def load_london_session(
+    session: AsyncSession, asset: str, *, now_utc: datetime
+) -> LondonSessionRead | None:
+    """Fetch the asset's last-7-days 1-min bars and compute the London read.
+
+    Thin async DB loader around the pure `compute_london_session` — the single
+    `polygon_intraday` fetch shared by the data_pool Pass-2 renderer AND the
+    `/v1/london-session/{asset}` endpoint (mirror of
+    `previous_session_origin_zone.compute_previous_session_origin_zone`, no
+    duplicate query). Returns None on no usable London-morning window (honest
+    absence, doctrine #11). `PolygonIntradayBar` is imported lazily to avoid a
+    models↔services import cycle (same pattern as the data_pool sections).
+    """
+    from ..models import PolygonIntradayBar
+
+    rows = (
+        await session.execute(
+            select(
+                PolygonIntradayBar.bar_ts,
+                PolygonIntradayBar.open,
+                PolygonIntradayBar.high,
+                PolygonIntradayBar.low,
+                PolygonIntradayBar.close,
+            )
+            .where(PolygonIntradayBar.asset == asset)
+            .where(PolygonIntradayBar.bar_ts >= now_utc - timedelta(days=7))
+            .order_by(PolygonIntradayBar.bar_ts.asc())
+        )
+    ).all()
+    bars = [
+        Bar(ts=r[0], open=float(r[1]), high=float(r[2]), low=float(r[3]), close=float(r[4]))
+        for r in rows
+        if r[1] is not None and r[4] is not None
+    ]
+    return compute_london_session(bars, now_utc=now_utc)
