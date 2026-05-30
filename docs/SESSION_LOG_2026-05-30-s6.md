@@ -1,8 +1,8 @@
 # SESSION LOG — 2026-05-30 (SESSION 6) — content data-quality + London panel + weekend honesty
 
 Branch `claude/ichor-s6-consensus` (branched fresh from `origin/main` `c528561`,
-which holds the merged PR #159 / SESSION-4+5 work). **5 commits `3528aa7 →
-ca08f56`, all pushed, 5 ahead of `origin/main` — NOT yet a PR** (Eliot merges).
+which holds the merged PR #159 / SESSION-4+5 work). **5 work commits `3528aa7 →
+ca08f56`** (+ this session-log commit), all pushed — NOT yet a PR (Eliot merges).
 
 Invariants held all session: **Voie D** (zero `import anthropic`), **ADR-017**
 (no BUY/SELL — every new surface is descriptive + test-guarded), **ADR-023**
@@ -151,8 +151,9 @@ had **fresh cards today**, verdicts coherent (low conviction = weekend).
 
 ## Re-verification at session close (RE-checked, not asserted)
 
-- **git** : 5 commits `3528aa7..ca08f56`, all pushed to `origin/claude/ichor-s6-consensus`,
-  working tree clean (only untracked screenshots).
+- **git** : the 5 work commits `3528aa7..ca08f56` + this session-log commit, all
+  pushed to `origin/claude/ichor-s6-consensus`, working tree clean (only untracked
+  screenshots).
 - **tests** : backend **174 pass** (reconciler 56 + surprise + invariants + london
   compute + london router); frontend **14 pass** (freshness). NB: the FULL apps/api
   ~2900-suite was NOT re-run this session — only the touched surfaces (prior-session
@@ -171,7 +172,7 @@ had **fresh cards today**, verdicts coherent (low conviction = weekend).
 - **#4** ADR-108 formal docs : the 5 prior-session arch additions (coherence gate,
   STIR, FedWatch, reactivity, London read) + this session's (actuals-normalization,
   london-session-endpoint, FF→FRED mapping corrections, weekend-honesty gate).
-- **Open the PR** to `main` for the 5 commits (Eliot merges).
+- **Open the PR** to `main` for the session's commits (Eliot merges).
 
 ## Honest gaps / notes
 
