@@ -4710,6 +4710,83 @@ async def _section_recent_actuals(session: AsyncSession) -> tuple[str, list[str]
     return "\n".join(lines), list(dict.fromkeys(sources))
 
 
+def _fmt_px(p: float) -> str:
+    """Price formatter : 5 dp for FX (<10), 2 dp for indices/gold."""
+    return f"{p:.5f}" if abs(p) < 10 else f"{p:.2f}"
+
+
+async def _section_london_session(session: AsyncSession, asset: str) -> tuple[str, list[str]]:
+    """## Session de Londres — lecture pour calibrer la session NY (§6.2).
+
+    Surfaces how the asset traded during the London MORNING window (the
+    session running before/into the NY open) — range, direction, and whether
+    it was unusually active vs the typical London morning — so the Pass-2 LLM
+    calibrates the NY-session view on the live London behaviour (owner §6.2
+    CAPITAL point). Reuses `compute_london_session` (pure, DST-correct via
+    ZoneInfo) ; honest empty when no London bars. Descriptive (ADR-017).
+    """
+    from ..models import PolygonIntradayBar
+    from .london_session import Bar, compute_london_session
+
+    now = datetime.now(UTC)
+    rows = (
+        await session.execute(
+            select(
+                PolygonIntradayBar.bar_ts,
+                PolygonIntradayBar.open,
+                PolygonIntradayBar.high,
+                PolygonIntradayBar.low,
+                PolygonIntradayBar.close,
+            )
+            .where(PolygonIntradayBar.asset == asset)
+            .where(PolygonIntradayBar.bar_ts >= now - timedelta(days=7))
+            .order_by(PolygonIntradayBar.bar_ts.asc())
+        )
+    ).all()
+    bars = [
+        Bar(ts=r[0], open=float(r[1]), high=float(r[2]), low=float(r[3]), close=float(r[4]))
+        for r in rows
+        if r[1] is not None and r[4] is not None
+    ]
+    read = compute_london_session(bars, now_utc=now)
+    lines = ["## Session de Londres — lecture pour calibrer la session NY"]
+    if read is None:
+        lines.append(
+            "- (pas de bars Londres exploitables — fenêtre pas encore ouverte ou intraday indisponible)"
+        )
+        return "\n".join(lines), []
+
+    freshness = (
+        "ce matin (en direct)"
+        if read.is_today
+        else f"dernière séance du {read.session_date:%Y-%m-%d}"
+    )
+    dir_fr = {"up": "haussière", "down": "baissière", "range": "en range (indécise)"}[
+        read.direction
+    ]
+    activity = ""
+    if read.range_ratio is not None:
+        tag = (
+            "séance ACTIVE"
+            if read.range_ratio >= 1.4
+            else "séance CALME"
+            if read.range_ratio <= 0.6
+            else "normale"
+        )
+        activity = f" — range {read.range_ratio:.1f}× la moyenne 5 j ({tag})"
+    net_sign = "+" if read.net_change >= 0 else "−"
+    lines.append(
+        f"- {freshness} : ouverture {_fmt_px(read.open_price)} → clôture {_fmt_px(read.close)} "
+        f"(var {net_sign}{_fmt_px(abs(read.net_change))} ; H {_fmt_px(read.high)} / "
+        f"B {_fmt_px(read.low)}), direction {dir_fr}{activity} ({read.bar_count} min)."
+    )
+    lines.append(
+        "- _Calibration NY : une matinée Londres directionnelle ET active prolonge souvent le "
+        "momentum à l'open NY ; une matinée en range/calme suggère l'attente d'un catalyseur NY._"
+    )
+    return "\n".join(lines), [f"polygon_intraday:{asset}@london_morning"]
+
+
 async def _section_calendar(session: AsyncSession, asset: str) -> tuple[str, list[str]]:
     """## Economic calendar — next 14 days affecting `asset`."""
     report = await assess_calendar(session, horizon_days=14)
@@ -5004,6 +5081,9 @@ async def build_data_pool(
 
     ra_md, ra_src = await _section_recent_actuals(session)
     sections.append(("recent_actuals", ra_md, ra_src))
+
+    london_md, london_src = await _section_london_session(session, asset)
+    sections.append(("london_session", london_md, london_src))
 
     diff_md, diff_src = await _section_rate_diff(session, asset)
     if diff_md:
