@@ -149,15 +149,24 @@ had **fresh cards today**, verdicts coherent (low conviction = weekend).
   local pytest uses a `PYTHONPATH=<naughty>/apps/api/src;…packages/…` override
   (proven). Deploy scripts are path-relative (deploy the cwd worktree's source).
 
+## Owner gotchas honored (pickup directives a–f)
+
+- (a) did NOT `git checkout` in the live runner checkout (`D:\Ichor\apps\claude-runner`) ;
+  (b) SSH to Hetzner with retries (lesson #24 instability) ; (c) the PR CI reds are
+  PRE-EXISTING (orphan `packages/ui` lockfile + `apps/claude-runner` `effort="ultra"`
+  test + Lighthouse/axe/CodeQL infra), NOT from this session ; (d) did NOT touch the
+  EIA+FRED keys ("laisse tomber, on garde") ; (e) web2 redeploy kept the trycloudflare
+  URL stable ; (f) wrote to `auto_session_resume.md`, NOT the over-cap `MEMORY.md`.
+
 ## Re-verification at session close (RE-checked, not asserted)
 
 - **git** : the 5 work commits `3528aa7..ca08f56` + this session-log commit, all
   pushed to `origin/claude/ichor-s6-consensus`, working tree clean (only untracked
   screenshots).
-- **tests** : backend **174 pass** (reconciler 56 + surprise + invariants + london
-  compute + london router); frontend **14 pass** (freshness). NB: the FULL apps/api
-  ~2900-suite was NOT re-run this session — only the touched surfaces (prior-session
-  baseline was 2952/0).
+- **tests** : FULL apps/api suite RE-RUN at close = **2982 passed / 34 skipped
+  (DB-smoke, no local DB) / 0 failed** (12m02s) — no regression from the 5 changes
+  (baseline 2952 → +30 new tests). FULL web2 vitest = **501 passed / 0 fail** (20
+  files). (In-session spot-checks: backend touched-174, freshness-14.)
 - **live** (Hetzner) : `/healthz`, `/v1/london-session/EUR_USD`, `/v1/stir`,
   public `/briefing` all **200**; `/v1/calendar/recent-actuals` shows the corrected
   values (GDP 1.6%, Core PPI 1.0%, AHE 0.2%); the weekend subtitle is live.
