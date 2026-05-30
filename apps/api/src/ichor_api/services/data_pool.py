@@ -4651,6 +4651,65 @@ async def _section_yield_curve(
     return render_yield_curve_block(reading)
 
 
+_RECENT_ACTUAL_STATE_FR: dict[str, str] = {
+    "above_range": "au-dessus du consensus",
+    "below_range": "sous le consensus",
+    "in_range": "dans la fourchette consensus",
+    "exact_consensus": "pile sur le consensus",
+    "unavailable": "écart vs consensus",
+}
+
+
+async def _section_recent_actuals(session: AsyncSession) -> tuple[str, list[str]]:
+    """## Résultats économiques publiés (72h) — réactivité temps réel (§6.4).
+
+    Surfaces the high/medium-impact economic releases of the last 72 h with
+    their published `actual` vs consensus + the surprise magnitude, so the
+    Pass-2 LLM can REACT when a print beats/misses expectations (e.g. an
+    inflation print below consensus → USD-soft into the NY session). This is
+    the structural real-time-reactivity layer the card was missing : the
+    `recent_actuals` service was computed for the frontend only and never fed
+    into the LLM prompt. Descriptive only (ADR-017) — magnitude/direction
+    labels, never BUY/SELL. Honest empty state outside publication windows
+    (e.g. weekend).
+    """
+    from .recent_actuals import fetch_recent_actuals
+
+    rows = await fetch_recent_actuals(session, lookback_days=3, currency=None, limit=25)
+    relevant = [
+        r for r in rows if r.currency in {"USD", "EUR", "GBP"} and r.impact in {"high", "medium"}
+    ]
+    lines = ["## Résultats économiques publiés (72h — actual vs consensus + surprise)"]
+    if not relevant:
+        lines.append(
+            "- (aucun résultat à fort/moyen impact publié sur USD/EUR/GBP dans les 72h — "
+            "hors fenêtre de publication, p. ex. week-end ; surveiller le calendrier ci-dessus)"
+        )
+        return "\n".join(lines), []
+
+    sources: list[str] = []
+    for r in relevant[:12]:
+        cls = r.classification
+        surprise = ""
+        if cls.magnitude_pct is not None:
+            surprise = (
+                f" → surprise {cls.magnitude_pct:+.1f}% "
+                f"({_RECENT_ACTUAL_STATE_FR.get(cls.state, cls.state)})"
+            )
+        cons = f", cons. {r.forecast}" if r.forecast else ""
+        prev = f", préc. {r.previous}" if r.previous else ""
+        lines.append(
+            f"- {r.scheduled_at:%m-%d %H:%M}Z {r.currency} [{r.impact}] "
+            f"{r.title[:60]} : actual {r.actual}{cons}{prev}{surprise}"
+        )
+        sources.append("ForexFactory:economic_events")
+    lines.append(
+        "- _Réactivité : un actual qui s'écarte nettement du consensus recalibre la lecture "
+        "(la surprise, pas le chiffre brut, déplace le marché) — intègre-la dans la direction NY._"
+    )
+    return "\n".join(lines), list(dict.fromkeys(sources))
+
+
 async def _section_calendar(session: AsyncSession, asset: str) -> tuple[str, list[str]]:
     """## Economic calendar — next 14 days affecting `asset`."""
     report = await assess_calendar(session, horizon_days=14)
@@ -4942,6 +5001,9 @@ async def build_data_pool(
 
     cal_md, cal_src = await _section_calendar(session, asset)
     sections.append(("calendar", cal_md, cal_src))
+
+    ra_md, ra_src = await _section_recent_actuals(session)
+    sections.append(("recent_actuals", ra_md, ra_src))
 
     diff_md, diff_src = await _section_rate_diff(session, asset)
     if diff_md:
