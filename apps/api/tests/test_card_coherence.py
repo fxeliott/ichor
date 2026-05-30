@@ -140,6 +140,53 @@ def test_spx_and_nas_both_neutral_on_overnight() -> None:
     assert spx.bias == nas.bias  # symmetric treatment
 
 
+def test_equity_clamp_applies_to_pre_londres() -> None:
+    """pre_londres is cash-closed for US equity (≈00:00 ET) → same overnight
+    clamp as ny_close: a weak lean (< 0.12) demotes a directional bias."""
+    weak_bull = _scen(
+        crash_flush=0.02,
+        strong_bear=0.08,
+        mild_bear=0.20,
+        base=0.32,
+        mild_bull=0.22,
+        strong_bull=0.12,
+        melt_up=0.04,
+    )  # bull 0.38 vs bear 0.30 → lean +0.08 < 0.12 equity dead-band
+    spx = reconcile_coherence(
+        asset="SPX500_USD",
+        session_type="pre_londres",
+        bias="long",
+        conviction=29.3,
+        scenarios=weak_bull,
+        drivers=None,
+    )
+    assert spx.bias == "neutral"
+    assert spx.agreement == "equity_overnight_clamp"
+
+
+def test_pre_ny_does_not_clamp_equity() -> None:
+    """pre_ny forecasts the imminent NY cash open → a directional equity call
+    IS legitimate; the FX dead-band (0.05) applies, not the overnight clamp."""
+    weak_bull = _scen(
+        crash_flush=0.02,
+        strong_bear=0.08,
+        mild_bear=0.20,
+        base=0.32,
+        mild_bull=0.22,
+        strong_bull=0.12,
+        melt_up=0.04,
+    )  # same +0.08 lean → above the 0.05 FX dead-band → kept long
+    spx = reconcile_coherence(
+        asset="SPX500_USD",
+        session_type="pre_ny",
+        bias="long",
+        conviction=40.0,
+        scenarios=weak_bull,
+        drivers=None,
+    )
+    assert spx.bias == "long"
+
+
 def test_fx_balanced_keeps_direction_shaves_conviction() -> None:
     """GBP/XAU long on a balanced distribution: kept, conviction reduced."""
     gbp = reconcile_coherence(

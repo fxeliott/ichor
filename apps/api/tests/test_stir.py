@@ -59,7 +59,9 @@ def test_build_note_is_adr017_clean_and_informative() -> None:
         reprice_horizon=2.0,
     )
     assert "resserrement" in note
-    assert "12 pb" in note
+    # 12.5 rounds half-up to 13 (matches frontend fmtBps toFixed) — note and
+    # the header badge can never disagree at a .5 boundary (code-review Y-1).
+    assert "13 pb" in note
     assert "Jan 2027" in note
     assert "pas une prévision" in note
     assert is_adr017_clean(note)

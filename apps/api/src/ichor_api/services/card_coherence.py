@@ -53,7 +53,14 @@ NEUTRAL_BUCKETS: frozenset[str] = frozenset({"base"})
 # US cash-equity indices — treated more strictly on the closed overnight
 # than 24h-traded FX (mission-4 SPX/NAS symmetry).
 US_EQUITY_ASSETS: frozenset[str] = frozenset({"SPX500_USD", "NAS100_USD"})
-EQUITY_OVERNIGHT_SESSIONS: frozenset[str] = frozenset({"ny_close"})
+# Sessions where US cash equity is CLOSED with no imminent cash session, so an
+# index directional bias rests on thin overnight index-futures only and needs
+# a stronger scenario lean. Both ny_close (post-close drift) AND pre_londres
+# (≈00:00 ET, London = US deep-overnight) qualify — uniform "même traitement
+# session-fermée" (mission-4). DELIBERATELY EXCLUDED : pre_ny (forecasts the
+# imminent NY cash open → a directional equity call IS legitimate there) and
+# ny_mid (US cash is open).
+EQUITY_OVERNIGHT_SESSIONS: frozenset[str] = frozenset({"pre_londres", "ny_close"})
 
 # Dead-band on |bull_mass - bear_mass| below which the scenario distribution
 # is judged directionless. FX trades ~24h so a modest lean still counts ;

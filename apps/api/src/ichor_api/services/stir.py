@@ -206,17 +206,22 @@ def _build_note(
         "tightening_priced": "resserrement",
         "flat": "statu quo",
     }[tone]
+    # Round half-up on the magnitude to match the frontend fmtBps()
+    # (`Math.abs(bps).toFixed(0)`) so the note and the header badge can never
+    # disagree at a .5 boundary (e.g. 12.5 → both "13 pb").
     parts = [
         f"Trajectoire implicite du marché monétaire (futures Fed-funds ZQ) : "
-        f"{tone_word} de {abs(net_bps):.0f} pb pricé du mois courant à {horizon_label}"
+        f"{tone_word} de {int(abs(net_bps) + 0.5)} pb pricé du mois courant à {horizon_label}"
     ]
     if cuts is not None and abs(cuts) >= 0.2:
         direction = "baisses" if cuts > 0 else "hausses"
         parts.append(f"≈ {abs(cuts):.1f} {direction} de 25 pb")
     if reprice_horizon is not None and abs(reprice_horizon) >= 1.0:
         moved = "davantage d'assouplissement" if reprice_horizon < 0 else "moins d'assouplissement"
+        sign = "+" if reprice_horizon >= 0 else "−"
         parts.append(
-            f"sur ~5 séances le marché a pricé {moved} ({reprice_horizon:+.0f} pb sur {horizon_label})"
+            f"sur ~5 séances le marché a pricé {moved} "
+            f"({sign}{int(abs(reprice_horizon) + 0.5)} pb sur {horizon_label})"
         )
     note = " ; ".join(parts) + "."
     note += " Trajectoire pricée par le marché, pas une prévision ni un signal."

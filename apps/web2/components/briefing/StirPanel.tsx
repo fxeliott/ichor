@@ -18,9 +18,11 @@ import type { StirData } from "@/lib/api";
 
 const BAR_W = 240;
 const BAR_H = 8;
-// Display scale : a full 25 bp move reaches ~60% of the half-bar so a ±40 bp
-// path still fits without clipping.
-const BAR_BP_FULLSCALE = 40;
+// Minimum full-scale (bp). The ACTUAL scale grows to the curve's widest |cum|
+// (computed per-render), so a deep easing cycle (e.g. −150 bp by the horizon)
+// never clips to the bar edge — the floor only stops a tiny curve from looking
+// exaggerated.
+const BAR_BP_MIN_FULLSCALE = 40;
 
 const TONE_FR: Record<string, string> = {
   easing_priced: "Assouplissement pricé",
@@ -33,10 +35,13 @@ const TONE_TOKEN: Record<string, string> = {
   flat: "var(--color-text-muted)",
 };
 
-function bpBar(bps: number | null): { x: number; w: number; token: string } | null {
+function bpBar(
+  bps: number | null,
+  fullscale: number,
+): { x: number; w: number; token: string } | null {
   if (bps === null || Number.isNaN(bps)) return null;
   const half = BAR_W / 2;
-  const frac = Math.max(-1, Math.min(1, bps / BAR_BP_FULLSCALE));
+  const frac = Math.max(-1, Math.min(1, bps / fullscale));
   const w = Math.abs(frac) * half;
   // Negative bps = easing priced (rates lower) → extend LEFT (bull token).
   const x = frac >= 0 ? half : half - w;
@@ -76,6 +81,12 @@ export function StirPanel({ stir }: Props) {
     cuts !== null && Math.abs(cuts) >= 0.2
       ? `${Math.abs(cuts).toFixed(1)} ${cuts > 0 ? "baisses" : "hausses"} de 25 pb`
       : "trajectoire quasi-plate";
+  // Dynamic bar scale = widest |cum bp| in the curve (floored), so the bars
+  // never clip on a deep easing/tightening cycle (code-review RED-2).
+  const barScale = Math.max(
+    BAR_BP_MIN_FULLSCALE,
+    ...stir.points.map((p) => Math.abs(p.cum_bps_vs_front ?? 0)),
+  );
 
   return (
     <m.section
@@ -120,7 +131,7 @@ export function StirPanel({ stir }: Props) {
 
       <ul className="divide-y divide-[var(--color-border-subtle)]">
         {stir.points.map((p) => {
-          const bar = bpBar(p.cum_bps_vs_front);
+          const bar = bpBar(p.cum_bps_vs_front, barScale);
           const reprice = p.repricing_bps;
           const showReprice = reprice !== null && Math.abs(reprice) >= 0.5;
           const repriceDown = reprice !== null && reprice < 0;

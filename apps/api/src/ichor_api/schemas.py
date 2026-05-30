@@ -262,7 +262,10 @@ def _derive_thesis(row: Any) -> str | None:
             drivers=getattr(row, "drivers", None),
         )
     except Exception as exc:  # noqa: BLE001 — thesis is non-critical enrichment
-        _LOG.debug("_derive_thesis: skipping (%s)", exc)
+        # WARNING not debug : the thesis is now a primary UI element, so a
+        # systematic synthesize_thesis regression (throwing on every card)
+        # must be visible to the operator, not silently null every thesis.
+        _LOG.warning("_derive_thesis failed, thesis null for this card (%s)", exc)
         return None
 
 
