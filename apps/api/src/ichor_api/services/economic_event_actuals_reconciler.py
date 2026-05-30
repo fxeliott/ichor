@@ -191,10 +191,13 @@ TITLE_FRAGMENT_TO_SERIES: tuple[tuple[str, str, str | None], ...] = (
     ("non-farm employment change", "PAYEMS", "chg"),
     ("non-farm payrolls", "PAYEMS", "chg"),
     ("nonfarm payrolls", "PAYEMS", "chg"),
-    # Average Hourly Earnings — NFP-day wage-growth complement
-    # (r144 trader Y2(c) — high-impact USD tier-1, was unmapped pre-fix).
-    ("average hourly earnings y/y", "AHETPI", "pc1"),
-    ("average hourly earnings m/m", "AHETPI", "pch"),
+    # Average Hourly Earnings — NFP-day wage-growth complement. FF reports
+    # the ALL-EMPLOYEES measure (CES0500000003) ; AHETPI (production &
+    # nonsupervisory only) is a different, materially-divergent series
+    # (r195b fix : AHETPI pch 0.34% vs CES0500000003 0.16% on the same
+    # print — verified via FRED series titles 2026-05-30).
+    ("average hourly earnings y/y", "CES0500000003", "pc1"),
+    ("average hourly earnings m/m", "CES0500000003", "pch"),
     # Unemployment rate (level pct).
     ("unemployment rate", "UNRATE", None),
     # Headline CPI — must come AFTER Core CPI fragments.
@@ -209,8 +212,17 @@ TITLE_FRAGMENT_TO_SERIES: tuple[tuple[str, str, str | None], ...] = (
     # pch=0.40284 vs pca=1.62114 (the latter is comparable to FF "2.0%").
     ("gdp q/q", "GDPC1", "pca"),
     ("gdp qoq", "GDPC1", "pca"),
-    # PPI — MoM pct change.
+    # Core PPI (Final Demand less foods & energy = PPIFES) — MUST precede the
+    # headline "ppi m/m"/"ppi y/y" fragments (substring-order discipline,
+    # mirror Core CPI). r195b : "Core PPI m/m" previously substring-matched
+    # "ppi m/m" → headline PPIFID (wrong : both PPI and Core PPI showed the
+    # same value). PPIFES = "Final Demand: Final Demand Less Foods and Energy"
+    # verified via FRED title 2026-05-30 (PPILFE is DISCONTINUED — avoided).
+    ("core ppi m/m", "PPIFES", "pch"),
+    ("core ppi y/y", "PPIFES", "pc1"),
+    # PPI headline (Final Demand) — MoM + YoY pct change.
     ("ppi m/m", "PPIFID", "pch"),
+    ("ppi y/y", "PPIFID", "pc1"),
     # Retail sales — MoM pct change.
     ("retail sales m/m", "RSAFS", "pch"),
     # Weekly initial jobless claims (level thousands SA).

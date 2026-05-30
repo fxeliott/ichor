@@ -155,12 +155,24 @@ class TestMapTitleToSeries:
                 "data correctness regression guard (r144 S1+S2+round-2 fix)."
             )
 
-    def test_average_hourly_earnings_maps_to_ahetpi(self) -> None:
-        # r144 trader Y2(c) — added in fix-cluster.
+    def test_average_hourly_earnings_maps_to_all_employees(self) -> None:
+        # r195b — FF "Average Hourly Earnings m/m" is the ALL-EMPLOYEES series
+        # (CES0500000003), NOT AHETPI (production/nonsupervisory — a divergent
+        # measure, ~2x different value on the same print).
         yoy = map_title_to_series("Average Hourly Earnings y/y")
         mom = map_title_to_series("Average Hourly Earnings m/m")
-        assert yoy == ("AHETPI", "pc1")
-        assert mom == ("AHETPI", "pch")
+        assert yoy == ("CES0500000003", "pc1")
+        assert mom == ("CES0500000003", "pch")
+
+    def test_core_ppi_matched_before_headline_ppi(self) -> None:
+        # r195b — "Core PPI" MUST resolve to PPIFES (Final Demand less foods &
+        # energy), NOT substring-match "ppi m/m" → headline PPIFID. Order
+        # discipline mirror of Core CPI.
+        assert map_title_to_series("Core PPI m/m") == ("PPIFES", "pch")
+        assert map_title_to_series("Core PPI y/y") == ("PPIFES", "pc1")
+        # headline PPI still resolves to PPIFID (m/m + new y/y coverage)
+        assert map_title_to_series("PPI m/m") == ("PPIFID", "pch")
+        assert map_title_to_series("PPI y/y") == ("PPIFID", "pc1")
 
     def test_fragment_substring_match_handles_impact_suffix(self) -> None:
         # FF event titles sometimes include impact-tier suffixes ;
