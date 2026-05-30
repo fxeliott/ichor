@@ -41,7 +41,7 @@
 //   N-3 — dropped the redundant delta_bp display (delta_pct is sufficient).
 //   N-4 — empty-state mirrors the VolumePanel header+border-b shell.
 
-import { deriveFreshness } from "@/lib/freshness";
+import { freshnessSubtitleVariant } from "@/lib/freshness";
 import { linScale, svgCoord, xLinear } from "@/lib/microchart";
 import { getNyWindowStatus, type NyWindowKind } from "@/lib/nyWindow";
 import type { SessionPulse } from "@/lib/sessionPulse";
@@ -223,19 +223,46 @@ function NyWindowBadge({ asset }: { asset?: string }) {
  * freshness : show the live wording ONLY when `fresh` ; when `stale`
  * show an honest amber variant ; when `absent` stay neutral-muted.
  * State is conveyed by TEXT + colour, never colour alone (WCAG 1.4.1). */
-function FreshnessSubtitle({ cardGeneratedAt }: { cardGeneratedAt: string | null }) {
-  const freshness = deriveFreshness(cardGeneratedAt);
-  if (freshness.state === "stale") {
+function FreshnessSubtitle({
+  asset,
+  cardGeneratedAt,
+}: {
+  asset?: string;
+  cardGeneratedAt: string | null;
+}) {
+  // Compose card-freshness with the market-open state — same getNyWindowStatus
+  // source as the NyWindowBadge above, so the two NEVER contradict. Weekend
+  // closes all assets ; a US holiday closes only equity index (SPX/NAS) —
+  // FX/XAU keep trading globally so they stay on the freshness-only gate.
+  // Fixes the "Lecture en temps réel" claim showing over "Marchés fermés ·
+  // week-end" on a fresh weekend card (the 2026-05-29 contradiction class).
+  const ny = getNyWindowStatus(new Date(), asset);
+  const isEquity = asset === "SPX500_USD" || asset === "NAS100_USD";
+  const marketClosed = ny.kind === "weekend" || (ny.kind === "holiday" && isEquity);
+  const { variant, ageLabel } = freshnessSubtitleVariant(cardGeneratedAt, marketClosed);
+
+  if (variant === "market_closed") {
+    const closedLabel = ny.kind === "weekend" ? "Week-end · marchés fermés" : "Marché US fermé";
+    return (
+      <p
+        className="mt-1 text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]"
+        role="status"
+      >
+        {closedLabel} · dernière lecture {ageLabel} · recalibrée à la réouverture
+      </p>
+    );
+  }
+  if (variant === "stale") {
     return (
       <p
         className="mt-1 text-[10px] font-semibold uppercase tracking-widest text-[var(--color-warn)]"
         role="status"
       >
-        Lecture de la session précédente · non recalibrée aujourd&apos;hui · {freshness.ageLabel}
+        Lecture de la session précédente · non recalibrée aujourd&apos;hui · {ageLabel}
       </p>
     );
   }
-  if (freshness.state === "fresh") {
+  if (variant === "live") {
     return (
       <p className="mt-1 text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
         Lecture en temps réel · recalibrée chaque session · pas de carry-over d&apos;hier
@@ -283,7 +310,7 @@ export function TodaySessionPulse({ asset, pulse, cardGeneratedAt }: TodaySessio
               availability (Eliot still needs the cible marker when the
               intraday API is cold). Same NyWindowBadge in BOTH branches. */}
           <NyWindowBadge asset={asset} />
-          <FreshnessSubtitle cardGeneratedAt={cardGeneratedAt} />
+          <FreshnessSubtitle asset={asset} cardGeneratedAt={cardGeneratedAt} />
         </header>
         <p className="px-6 py-8 text-center text-sm text-[var(--color-text-muted)]">
           Pas de barres intraday récentes pour {asset.replace("_", "/")} — pulse indisponible.
@@ -380,7 +407,7 @@ export function TodaySessionPulse({ asset, pulse, cardGeneratedAt }: TodaySessio
             FX/XAU → "Férié US · liquidité réduite") per trader R28
             MF-1 honest-scope fix. */}
         <NyWindowBadge asset={asset} />
-        <FreshnessSubtitle cardGeneratedAt={cardGeneratedAt} />
+        <FreshnessSubtitle asset={asset} cardGeneratedAt={cardGeneratedAt} />
       </header>
 
       <div className="grid grid-cols-2 gap-x-6 gap-y-4 px-6 py-5 sm:grid-cols-4">

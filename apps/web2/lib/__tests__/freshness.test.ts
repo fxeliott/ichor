@@ -12,7 +12,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { deriveFreshness, FRESH_MAX_MINUTES } from "@/lib/freshness";
+import { deriveFreshness, FRESH_MAX_MINUTES, freshnessSubtitleVariant } from "@/lib/freshness";
 
 describe("deriveFreshness", () => {
   it("absent — null timestamp", () => {
@@ -81,5 +81,38 @@ describe("deriveFreshness", () => {
 
   it("FRESH_MAX_MINUTES is 18 h", () => {
     expect(FRESH_MAX_MINUTES).toBe(1080);
+  });
+});
+
+describe("freshnessSubtitleVariant — weekend/holiday-aware 'temps réel' gate", () => {
+  // Saturday 2026-05-30 19:00 Paris (markets closed).
+  const sat = new Date("2026-05-30T19:00:00+02:00");
+
+  it("market_closed wins over fresh — a FRESH weekend card never claims temps réel", () => {
+    const r = freshnessSubtitleVariant("2026-05-30T17:00:00+02:00", true, sat);
+    expect(r.variant).toBe("market_closed");
+    expect(r.ageLabel).toBe("il y a 2 h");
+  });
+
+  it("live — fresh card while the market is open", () => {
+    const r = freshnessSubtitleVariant("2026-05-30T17:00:00+02:00", false, sat);
+    expect(r.variant).toBe("live");
+  });
+
+  it("absent wins over market_closed — no card timestamp", () => {
+    const r = freshnessSubtitleVariant(null, true, sat);
+    expect(r.variant).toBe("absent");
+    expect(r.ageLabel).toBe("");
+  });
+
+  it("stale — stale card while the market is open", () => {
+    const r = freshnessSubtitleVariant("2026-05-28T12:00:00+02:00", false, sat);
+    expect(r.variant).toBe("stale");
+  });
+
+  it("market_closed — a STALE card on a closed market still reads market_closed (with honest age)", () => {
+    const r = freshnessSubtitleVariant("2026-05-27T12:00:00+02:00", true, sat);
+    expect(r.variant).toBe("market_closed");
+    expect(r.ageLabel).toBe("il y a 3 j");
   });
 });
