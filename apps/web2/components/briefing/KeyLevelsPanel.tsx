@@ -72,6 +72,29 @@ const KIND_LABEL: Record<KeyLevelKind, string> = {
   polymarket_decision: "Polymarket",
 };
 
+// Priority tradeable assets. A KeyLevel whose `asset` is one of these is
+// asset-SPECIFIC (e.g. the SqueezeMetrics gamma_flip / call_wall / put_wall
+// tagged SPX500_USD or NAS100_USD via the SPY/QQQ proxies) and is only
+// relevant on its own card — showing S&P call walls on an EUR/USD card is
+// incoherent noise. Macro tags (USD, USDHKD, …) are NOT in this set, so
+// TGA / SKEW / VIX / HY-OAS / HKMA / Polymarket stay visible on every card.
+const ASSET_SPECIFIC = new Set([
+  "EUR_USD",
+  "GBP_USD",
+  "USD_CAD",
+  "XAU_USD",
+  "SPX500_USD",
+  "NAS100_USD",
+]);
+
+const normAsset = (a: string): string => a.toUpperCase().replace(/-/g, "_");
+
+/** Keep a level if it is macro/cross-asset OR tagged for the focused asset. */
+function isRelevantTo(kl: KeyLevel, focusAsset: string): boolean {
+  const a = normAsset(kl.asset ?? "");
+  return !ASSET_SPECIFIC.has(a) || a === normAsset(focusAsset);
+}
+
 function sideToTone(side: string): "bull" | "bear" | "neutral" {
   // Encoded sides like "above_long_below_short" or "above_risk_off_below_risk_on"
   // — we don't know which direction is currently firing without spot price,
@@ -95,10 +118,13 @@ function formatLevel(value: number, kind: KeyLevelKind): string {
   return value.toFixed(4);
 }
 
-export function KeyLevelsPanel({ items }: { items: KeyLevel[] }) {
+export function KeyLevelsPanel({ items, focusAsset }: { items: KeyLevel[]; focusAsset: string }) {
+  // Asset-relevance filter : drop other assets' asset-specific levels (e.g.
+  // S&P/Nasdaq gamma on an FX card) while keeping all macro/cross-asset ones.
+  const relevant = items.filter((kl) => isRelevantTo(kl, focusAsset));
   const groups = GROUPS.map((g) => ({
     ...g,
-    levels: items.filter((kl) => g.kinds.includes(kl.kind)),
+    levels: relevant.filter((kl) => g.kinds.includes(kl.kind)),
   })).filter((g) => g.levels.length > 0);
 
   if (groups.length === 0) {

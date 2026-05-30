@@ -608,7 +608,7 @@ export default async function BriefingPage({ params }: PageParams) {
               title="Niveaux clés"
               meta="ADR-083 D3 · Microstructure + macro switches"
             />
-            <KeyLevelsPanel items={renderedKeyLevels} />
+            <KeyLevelsPanel items={renderedKeyLevels} focusAsset={normalisedAsset} />
           </div>
           <PreviousSessionContextPanel asset={normalisedAsset} />
           <div>
