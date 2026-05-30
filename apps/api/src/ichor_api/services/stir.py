@@ -48,6 +48,61 @@ _REPRICING_WINDOW_SESSIONS = 5
 
 
 @dataclass(frozen=True)
+class _FomcMeeting:
+    """One FOMC meeting in the ZQ-contract horizon, with the inputs needed to
+    back out the meeting's implied rate change CME-FedWatch-style.
+
+    `start_series` = the implied EFFR feeding the pre-meeting rate (a no-meeting
+    "clean" prior month). When None, the pre-meeting rate is chained from the
+    previous meeting's solved post-meeting rate.
+
+    `end_anchor_series` = a no-meeting month AFTER the meeting whose monthly
+    average IS the post-meeting rate — used for LATE-month meetings where the
+    in-month day-weight denominator (N − pre_days) is tiny and numerically
+    unstable. When None, the post-meeting rate is solved from `month_series` by
+    day-weighting : R_month = (pre_days·r_start + (N−pre_days)·r_end)/N.
+    `pre_days` = decision day-of-month (the Fed's new target is effective the
+    next business day, so the decision day itself runs at the old rate).
+    """
+
+    label: str
+    decision_date: str
+    month_series: str
+    days_in_month: int
+    pre_days: int
+    start_series: str | None
+    end_anchor_series: str | None
+
+
+# 2026 FOMC schedule — decision dates verified 2026-05-30 against the Federal
+# Reserve primary calendar (federalreserve.gov/monetarypolicy/fomccalendars.htm)
+# + cross-checked via a second fetch. Methodology : CME FedWatch
+# (cmegroup.com "Understanding the CME Group FedWatch Tool Methodology").
+# REFRESH ANNUALLY (mirror cme_zq_futures.ZQ_FORWARD_TICKERS rolling refresh).
+# Only meetings inside the persisted ZQ horizon (May-2026 → Jan-2027) are
+# listed. Mid-month meetings use the in-month day-weight (stable denominator) ;
+# late-month meetings (Jul-29, Oct-28) use the next clean month as the
+# post-meeting anchor to avoid the ÷3 instability.
+_FOMC_2026: tuple[_FomcMeeting, ...] = (
+    _FomcMeeting(
+        "Jun 2026", "2026-06-17", "ZQ_M26_IMPLIED_EFFR", 30, 17, "ZQ_K26_IMPLIED_EFFR", None
+    ),
+    _FomcMeeting(
+        "Jul 2026", "2026-07-29", "ZQ_N26_IMPLIED_EFFR", 31, 29, None, "ZQ_Q26_IMPLIED_EFFR"
+    ),
+    _FomcMeeting(
+        "Sep 2026", "2026-09-16", "ZQ_U26_IMPLIED_EFFR", 30, 16, "ZQ_Q26_IMPLIED_EFFR", None
+    ),
+    _FomcMeeting(
+        "Oct 2026", "2026-10-28", "ZQ_V26_IMPLIED_EFFR", 31, 28, None, "ZQ_X26_IMPLIED_EFFR"
+    ),
+    _FomcMeeting(
+        "Dec 2026", "2026-12-09", "ZQ_Z26_IMPLIED_EFFR", 31, 9, "ZQ_X26_IMPLIED_EFFR", None
+    ),
+)
+
+
+@dataclass(frozen=True)
 class StirPoint:
     """One ZQ contract month on the implied-path curve."""
 
@@ -64,12 +119,31 @@ class StirPoint:
 
 
 @dataclass(frozen=True)
+class StirMeeting:
+    """Per-FOMC-meeting market-implied outcome (CME FedWatch-style).
+
+    `implied_change_bps` = post-meeting minus pre-meeting implied rate (× 100).
+    Probabilities assume 25 bp increments ; p_hold + p_cut + p_hike sum to ~1
+    for a single-step meeting (|Δ| ≤ 25). For |Δ| > 25 the move-direction
+    probability is capped at 1 (a second move is being priced — surfaced via
+    the magnitude). Market-implied, NOT a forecast (ADR-017)."""
+
+    label: str
+    decision_date: str
+    implied_change_bps: float | None
+    p_cut: float | None
+    p_hold: float | None
+    p_hike: float | None
+
+
+@dataclass(frozen=True)
 class StirReading:
     as_of: datetime | None
     policy_rate_effr: float | None
     """Actual effective fed funds (FRED EFFR) — the anchor the path moves from."""
     front_implied_effr: float | None
     points: list[StirPoint]
+    meetings: list[StirMeeting]
     horizon_label: str | None
     net_bps_to_horizon: float | None
     """Cumulative front→far implied move in bp. Negative = net easing priced."""
@@ -140,6 +214,67 @@ def _tone(net_bps: float | None) -> str:
     return "flat"
 
 
+def _move_probabilities(
+    change_bps: float | None,
+) -> tuple[float | None, float | None, float | None]:
+    """(p_cut, p_hold, p_hike) for a single FOMC meeting, 25 bp increments.
+
+    P(move) = min(1, |Δ|/25) ; P(hold) = max(0, 1 − |Δ|/25). Δ's sign routes
+    the move probability to cut (Δ<0) or hike (Δ>0). When |Δ| > 25 a second
+    move is priced — the direction probability caps at 1 and the magnitude
+    (the bp change) carries the rest."""
+    if change_bps is None:
+        return (None, None, None)
+    n = abs(change_bps) / _BP_PER_MOVE
+    p_dir = min(1.0, n)
+    p_hold = max(0.0, 1.0 - n)
+    if change_bps < 0:
+        return (p_dir, p_hold, 0.0)
+    if change_bps > 0:
+        return (0.0, p_hold, p_dir)
+    return (0.0, 1.0, 0.0)
+
+
+def _compute_meetings(implied_by_series: dict[str, float]) -> list[StirMeeting]:
+    """Back out each FOMC meeting's market-implied rate change (CME FedWatch).
+
+    Chains the 2026 meetings : mid-month meetings solve the post-meeting rate
+    from the meeting-month contract by day-weighting against a clean prior
+    month ; late-month meetings read it directly from the next clean month
+    (anchor). The pre-meeting rate is the prior clean month or the previous
+    meeting's solved post-meeting rate. Pure — no I/O."""
+    out: list[StirMeeting] = []
+    prev_end: float | None = None
+    for m in _FOMC_2026:
+        r_start = implied_by_series.get(m.start_series) if m.start_series else prev_end
+        if m.end_anchor_series is not None:
+            r_end = implied_by_series.get(m.end_anchor_series)
+        else:
+            r_month = implied_by_series.get(m.month_series)
+            post_days = m.days_in_month - m.pre_days
+            if r_month is not None and r_start is not None and post_days > 0:
+                r_end = (m.days_in_month * r_month - m.pre_days * r_start) / post_days
+            else:
+                r_end = None
+        change_bps = (
+            (r_end - r_start) * 100.0 if (r_end is not None and r_start is not None) else None
+        )
+        p_cut, p_hold, p_hike = _move_probabilities(change_bps)
+        out.append(
+            StirMeeting(
+                label=m.label,
+                decision_date=m.decision_date,
+                implied_change_bps=change_bps,
+                p_cut=p_cut,
+                p_hold=p_hold,
+                p_hike=p_hike,
+            )
+        )
+        if r_end is not None:
+            prev_end = r_end
+    return out
+
+
 async def assess_stir(session: AsyncSession) -> StirReading:
     """Reconstruct the market-implied Fed path + repricing delta from ZQ futures."""
     sources: list[str] = []
@@ -169,6 +304,13 @@ async def assess_stir(session: AsyncSession) -> StirReading:
     cuts = (-net_bps / _BP_PER_MOVE) if net_bps is not None else None
     tone = _tone(net_bps)
 
+    # Per-FOMC-meeting probabilities reuse the implied rates already read into
+    # `points` (+ front) — no extra DB round-trip.
+    implied_by_series = {p.series_id: p.implied_effr for p in points if p.implied_effr is not None}
+    if front_implied is not None:
+        implied_by_series[_FRONT_SERIES] = front_implied
+    meetings = _compute_meetings(implied_by_series)
+
     note = _build_note(
         policy_rate, front_implied, horizon_label, net_bps, cuts, tone, reprice_horizon
     )
@@ -178,6 +320,7 @@ async def assess_stir(session: AsyncSession) -> StirReading:
         policy_rate_effr=policy_rate,
         front_implied_effr=front_implied,
         points=points,
+        meetings=meetings,
         horizon_label=horizon_label,
         net_bps_to_horizon=net_bps,
         cuts_priced_to_horizon=cuts,

@@ -184,6 +184,52 @@ export function StirPanel({ stir }: Props) {
         })}
       </ul>
 
+      {stir.meetings.some((mt) => mt.implied_change_bps !== null) && (
+        <div className="border-t border-[var(--color-border-subtle)] px-6 py-4">
+          <h4 className="mb-3 text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
+            Par réunion FOMC · probabilités implicites (CME FedWatch)
+          </h4>
+          <ul className="space-y-2.5">
+            {stir.meetings.map((mt) => {
+              const chg = mt.implied_change_bps;
+              if (chg === null) return null;
+              const pCut = Math.round((mt.p_cut ?? 0) * 100);
+              const pHold = Math.round((mt.p_hold ?? 0) * 100);
+              const pHike = Math.round((mt.p_hike ?? 0) * 100);
+              const verdict =
+                pCut >= 50
+                  ? `baisse ${pCut} %`
+                  : pHike >= 50
+                    ? `hausse ${pHike} %`
+                    : `maintien ${pHold} %`;
+              return (
+                <li key={mt.label} className="flex items-center gap-3">
+                  <span className="w-20 font-mono text-xs text-[var(--color-text-secondary)]">
+                    {mt.label}
+                  </span>
+                  <div
+                    className="flex h-2 flex-1 overflow-hidden rounded-full bg-[var(--color-bg-base)]"
+                    role="img"
+                    aria-label={`${mt.label} : baisse ${pCut} %, maintien ${pHold} %, hausse ${pHike} %`}
+                  >
+                    <div style={{ width: `${pCut}%`, background: "var(--color-accent-bull)" }} />
+                    <div style={{ width: `${pHold}%`, background: "var(--color-text-muted)" }} />
+                    <div style={{ width: `${pHike}%`, background: "var(--color-accent-bear)" }} />
+                  </div>
+                  <span className="w-32 text-right font-mono text-[11px] tabular-nums text-[var(--color-text-secondary)]">
+                    {fmtBps(chg)} · {verdict}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+          <p className="mt-3 text-[10px] leading-relaxed text-[var(--color-text-muted)]">
+            Baisse (vert) / maintien (gris) / hausse (rouge), pricées par les futures Fed-funds ZQ —
+            pas une prévision.
+          </p>
+        </div>
+      )}
+
       {stir.note && (
         <p className="border-t border-[var(--color-border-subtle)] px-6 py-3 text-xs leading-relaxed text-[var(--color-text-secondary)]">
           {stir.note}

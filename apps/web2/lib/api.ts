@@ -353,14 +353,26 @@ export interface StirPoint {
   sessions_in_window: number;
 }
 
+/** mission-7 — per-FOMC-meeting market-implied outcome (CME FedWatch). */
+export interface StirMeeting {
+  label: string;
+  decision_date: string;
+  implied_change_bps: number | null;
+  p_cut: number | null;
+  p_hold: number | null;
+  p_hike: number | null;
+}
+
 /** mission-7 — `/v1/stir` market-implied Fed path + ~5-session repricing
- *  delta. Pure-data route (not AI-watermarked). Returns null on apiGet
- *  failure → <StirPanel> renders honest absence (doctrine #11). */
+ *  delta + per-meeting FedWatch probabilities. Pure-data route (not
+ *  AI-watermarked). Returns null on apiGet failure → <StirPanel> renders
+ *  honest absence (doctrine #11). */
 export interface StirData {
   as_of: string | null;
   policy_rate_effr: number | null;
   front_implied_effr: number | null;
   points: StirPoint[];
+  meetings: StirMeeting[];
   horizon_label: string | null;
   net_bps_to_horizon: number | null;
   cuts_priced_to_horizon: number | null;

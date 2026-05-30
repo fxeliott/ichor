@@ -34,11 +34,21 @@ class StirPointOut(BaseModel):
     sessions_in_window: int
 
 
+class StirMeetingOut(BaseModel):
+    label: str
+    decision_date: str
+    implied_change_bps: float | None
+    p_cut: float | None
+    p_hold: float | None
+    p_hike: float | None
+
+
 class StirOut(BaseModel):
     as_of: datetime | None
     policy_rate_effr: float | None
     front_implied_effr: float | None
     points: list[StirPointOut]
+    meetings: list[StirMeetingOut]
     horizon_label: str | None
     net_bps_to_horizon: float | None
     cuts_priced_to_horizon: float | None
@@ -68,6 +78,17 @@ async def get_stir(
                 sessions_in_window=p.sessions_in_window,
             )
             for p in reading.points
+        ],
+        meetings=[
+            StirMeetingOut(
+                label=m.label,
+                decision_date=m.decision_date,
+                implied_change_bps=m.implied_change_bps,
+                p_cut=m.p_cut,
+                p_hold=m.p_hold,
+                p_hike=m.p_hike,
+            )
+            for m in reading.meetings
         ],
         horizon_label=reading.horizon_label,
         net_bps_to_horizon=reading.net_bps_to_horizon,
