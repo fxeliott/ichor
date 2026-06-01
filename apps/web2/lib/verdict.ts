@@ -235,25 +235,25 @@ export function deriveVerdict(
   } else if (indepAvailable && indepVote !== "neutral" && indepVote === claudeVote) {
     confluence = {
       label: "signaux alignés",
-      detail: `lecture Claude ${claudeWord} (Pass-2 + Pass-6) confirmée par une source indépendante (${posTxt}) — confluence inter-sources`,
+      detail: `lecture du jour ${claudeWord} confirmée par une source indépendante (${posTxt}) — confluence inter-sources`,
       tone: claudeVote === "bull" ? "bull" : "bear",
     };
   } else if (indepAvailable && indepVote !== "neutral" && indepVote !== claudeVote) {
     confluence = {
       label: "signaux en conflit",
-      detail: `lecture Claude ${claudeWord} contredite par une source indépendante (${posTxt}) — divergence inter-sources, prudence interprétative`,
+      detail: `lecture du jour ${claudeWord} contredite par une source indépendante (${posTxt}) — divergence inter-sources, prudence interprétative`,
       tone: "warn",
     };
   } else if (!claudeCoherent) {
     confluence = {
-      label: "source unique (Claude seule)",
-      detail: `biais Pass-2 et asymétrie scénarios Pass-6 divergent (incohérence interne) ; ${posTxt} — confluence faible, lecture mono-source non corroborée`,
+      label: "source unique",
+      detail: `le biais et l'asymétrie des scénarios divergent (incohérence interne) ; ${posTxt} — confluence faible, lecture mono-source non corroborée`,
       tone: "neutral",
     };
   } else {
     confluence = {
-      label: "source unique (Claude seule)",
-      detail: `lecture Claude ${claudeWord} (Pass-2 + Pass-6 cohérents) sans source indépendante confirmante (${posTxt}) — confluence non-indépendante : Pass-2 et Pass-6 partagent la même origine analytique, pas une corroboration croisée`,
+      label: "source unique",
+      detail: `lecture du jour ${claudeWord} cohérente sans source indépendante confirmante (${posTxt}) — confluence non-indépendante : le biais et l'asymétrie des scénarios partagent la même origine analytique, pas une corroboration croisée`,
       tone: "neutral",
     };
   }

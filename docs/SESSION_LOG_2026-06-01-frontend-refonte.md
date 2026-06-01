@@ -100,17 +100,28 @@ indigo/magenta/emerald/amber/rose` (OKLCH, L≈0.72/C≤0.17) + `--section-accen
   dropped. **Bringing the API back up is a backend/infra task** (out of frontend scope).
 - Work is **committed on this branch** but the populated colour experience + bespoke
   coloured charts are the next wave.
+- **§6.9 scrub is INCOMPLETE (honest correction):** the first scrub covered ~26 briefing
+  components, but an exhaustive audit (2026-06-01) found **~70 rendered model/version/jargon
+  violations still remaining across 22 files** — `/legal`, `/post-mortems`, `/admin`,
+  `/briefings`, the `/learn` family, `lib/verdict.ts`→VerdictBanner, and data routes
+  (`Claude Opus 4.8`, `Couche-2`, `GDELT`, `ZQ`, `TGA`, `Brier`…). The product + legal
+  surfaces (`lib/verdict.ts`, `VerdictBanner`, `StirPanel`, `KeyLevelsPanel`, `/legal`)
+  are fixed in this commit ; the rest is the documented #1 next task. Full list: memory
+  `ichor_frontend_6.9_audit_2026-06-01.md`.
 
 ---
 
 ## 5 · Next steps (priority)
 
-1. **Bespoke coloured data-viz** per dimension: conviction gauge (gradient + glow),
+1. **Finish the §6.9 scrub** — ~65 remaining rendered model/version/jargon violations
+   across the secondary routes (see memory `ichor_frontend_6.9_audit_2026-06-01.md`).
+   Strict reading applies to `/legal` & `/learn` too (soften vendor to generic IA).
+2. **Bespoke coloured data-viz** per dimension: conviction gauge (gradient + glow),
    diverging **correlation heatmap**, scenario probability bars, area charts (dark→bright)
    — this is where the colour fully lands (needs API up to populate).
-2. **London-session → NY read** component (§6.2) — needs a backend endpoint
+3. **London-session → NY read** component (§6.2) — needs a backend endpoint
    (`/v1/london-session/{asset}`) absent on this branch.
-3. Cascade the coach voice + colour to the remaining data routes; deeper woven pedagogy
+4. Cascade the coach voice + colour to the remaining data routes; deeper woven pedagogy
    ("ce que ça veut dire / pourquoi ça compte") inside each panel.
-4. Purge now-unreferenced legacy components; final full build + desktop/mobile sweep.
-5. Open a PR from `claude/awesome-shirley-2d5062` → `main` when ready.
+5. Purge now-unreferenced legacy components; final full build + desktop/mobile sweep.
+6. Open a PR from `claude/awesome-shirley-2d5062` → `main` when ready.

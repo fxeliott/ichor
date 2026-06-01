@@ -63,11 +63,11 @@ const GROUPS: KeyLevelGroup[] = [
 ];
 
 const KIND_LABEL: Record<KeyLevelKind, string> = {
-  tga_liquidity_gate: "TGA",
-  rrp_liquidity_gate: "RRP",
-  gamma_flip: "Gamma flip",
-  gex_call_wall: "Call wall",
-  gex_put_wall: "Put wall",
+  tga_liquidity_gate: "Liquidité du Trésor (TGA)",
+  rrp_liquidity_gate: "Réserve de liquidités (RRP)",
+  gamma_flip: "Bascule de volatilité (gamma flip)",
+  gex_call_wall: "Mur d'achats d'options (call wall)",
+  gex_put_wall: "Mur de ventes d'options (put wall)",
   peg_break_hkma: "HKMA peg",
   peg_break_pboc_fix: "PBOC fix",
   vix_regime_switch: "VIX",

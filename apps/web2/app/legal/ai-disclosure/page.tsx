@@ -1,4 +1,4 @@
-// /legal/ai-disclosure — public AI disclosure surface (EU AI Act §50 + AMF DOC-2008-23 + Anthropic Usage Policy).
+// /legal/ai-disclosure — public AI disclosure surface (EU AI Act §50 + AMF DOC-2008-23 + politique d'usage du fournisseur du modèle d'IA).
 //
 // Destination of the X-Ichor-AI-Disclosure response header (W88, ADR-079)
 // AND of the "méthodo →" link in the AIDisclosureBanner. Must stay
@@ -18,7 +18,7 @@ import { Reveal } from "@/components/ui/reveal";
 export const metadata: Metadata = {
   title: "Disclosure IA",
   description:
-    "Disclosure machine-readable et humaine pour Ichor — EU AI Act §50, AMF DOC-2008-23, Anthropic Usage Policy.",
+    "Disclosure machine-readable et humaine pour Ichor — EU AI Act §50, AMF DOC-2008-23, politique d'usage du fournisseur du modèle d'IA.",
 };
 
 // Static rendering — never reads from the runtime, pre-rendered at build.
@@ -74,7 +74,7 @@ export default function AIDisclosurePage() {
       <div className="space-y-5 pt-2">
         <Section id="canonical" title="Avis canonique" delay={0}>
           <blockquote className="border-l-2 border-[var(--accent)] pl-5 font-serif text-base leading-relaxed text-[var(--color-text-primary)]">
-            Contenu généré par intelligence artificielle (Claude, Anthropic), assemblé par la chaîne
+            Contenu généré par un système d&apos;intelligence artificielle, assemblé par la chaîne
             Ichor. Analyse non personnalisée à but informatif uniquement. Ne constitue pas un
             conseil en investissement personnalisé au sens de la position AMF DOC-2008-23. Vérifiez
             les sources avant toute décision.
@@ -139,7 +139,7 @@ export default function AIDisclosurePage() {
                 reste hors périmètre analytique (cf ADR-078).
               </li>
               <li>Pas de relation client/prestataire (usage privé monoutilisateur).</li>
-              <li>Pas de canal de distribution publique (Phase 2 single-user).</li>
+              <li>Pas de canal de distribution publique (usage mono-utilisateur).</li>
             </ol>
             <p className="mt-3">
               <span className="font-mono text-[11px] uppercase tracking-widest text-[var(--color-text-muted)]">
@@ -151,22 +151,22 @@ export default function AIDisclosurePage() {
 
           <article className="border-t border-[var(--glass-border)] pt-4">
             <h3 className="font-display text-base font-semibold text-[var(--color-text-primary)]">
-              Anthropic Usage Policy (sept 2025+)
+              Politique d&apos;usage du fournisseur du modèle d&apos;IA
             </h3>
             <p className="mt-2">
-              Le conseil financier personnalisé est classé high-risk. Ichor produit de
-              l&apos;analyse macro non personnalisée — ne tombe pas dans la classification
-              high-risk. Le subprocess <code className={codeCls}>claude -p</code> tourne sur le plan
-              Claude Max 20x (Consumer ToS, conforme cf{" "}
+              Le conseil financier personnalisé y est classé à haut risque. Ichor produit de
+              l&apos;analyse macro non personnalisée — ne tombe pas dans cette classification à haut
+              risque. Le modèle d&apos;IA est utilisé dans le cadre d&apos;un abonnement grand
+              public, conformément à la{" "}
               <Link
                 href="https://www.anthropic.com/legal/aup"
                 className={linkCls}
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                AUP officielle
+                politique d&apos;usage officielle
               </Link>
-              ).
+              .
             </p>
           </article>
         </Section>
@@ -179,7 +179,7 @@ export default function AIDisclosurePage() {
           <dl className="space-y-2 rounded-xl border border-[var(--glass-border)] bg-white/[0.02] p-4">
             {[
               ["X-Ichor-AI-Generated", "true"],
-              ["X-Ichor-AI-Provider", "anthropic-claude-opus-4-8"],
+              ["X-Ichor-AI-Provider", "système d'IA génératif"],
               ["X-Ichor-AI-Generated-At", "RFC3339 UTC, second precision"],
               ["X-Ichor-AI-Disclosure", "URL de cette page"],
             ].map(([k, v]) => (
@@ -217,8 +217,8 @@ export default function AIDisclosurePage() {
               management.
             </li>
             <li>
-              Pas de SDK Anthropic en consommation API (Voie D, ADR-009) — le subprocess{" "}
-              <code className={codeCls}>claude -p</code> route via le plan Max 20x flat.
+              Pas de consommation d&apos;API facturée à l&apos;usage (Voie D, ADR-009) — le modèle
+              d&apos;IA est appelé via un abonnement à tarif fixe.
             </li>
             <li>
               Le{" "}
@@ -234,7 +234,7 @@ export default function AIDisclosurePage() {
 
       <footer className="border-t border-[var(--glass-border)] pt-6 text-[11px] text-[var(--color-text-muted)]">
         <p className="font-mono uppercase tracking-widest">
-          Ichor · Living Macro Entity Phase 2 · ADR-029 / 077 / 078 / 079 / 080
+          Ichor · Living Macro Entity · ADR-029 / 077 / 078 / 079 / 080
         </p>
         <nav className="mt-3 flex flex-wrap gap-4 font-mono uppercase tracking-widest">
           <Link href="/methodology" className="underline hover:text-[var(--accent)]">

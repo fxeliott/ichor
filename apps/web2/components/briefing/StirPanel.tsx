@@ -69,8 +69,8 @@ export function StirPanel({ stir }: Props) {
         role="region"
         aria-label="Trajectoire Fed implicite"
       >
-        Courbe ZQ indisponible — le collecteur CME (futures Fed-funds) n'a pas encore de données
-        fraîches.
+        Trajectoire des taux Fed indisponible — le collecteur des futures sur les taux Fed n'a pas
+        encore de données fraîches.
       </m.section>
     );
   }
@@ -106,7 +106,7 @@ export function StirPanel({ stir }: Props) {
             Trajectoire Fed implicite
           </h3>
           <span className="text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
-            CME ZQ · futures Fed-funds
+            marché des taux Fed · futures sur les taux Fed
           </span>
         </div>
         <div className="mt-2 flex flex-wrap items-baseline gap-x-4 gap-y-1">
@@ -224,8 +224,8 @@ export function StirPanel({ stir }: Props) {
             })}
           </ul>
           <p className="mt-3 text-[10px] leading-relaxed text-[var(--color-text-muted)]">
-            Baisse (vert) / maintien (gris) / hausse (rouge), pricées par les futures Fed-funds ZQ —
-            pas une prévision.
+            Baisse (vert) / maintien (gris) / hausse (rouge), pricées par les futures sur les taux
+            Fed — pas une prévision.
           </p>
         </div>
       )}
