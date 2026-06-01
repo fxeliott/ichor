@@ -67,6 +67,7 @@ import { StirPanel } from "@/components/briefing/StirPanel";
 import { TodaySessionPulse } from "@/components/briefing/TodaySessionPulse";
 import { FreshDataBanner } from "@/components/briefing/FreshDataBanner";
 import { VerdictBanner } from "@/components/briefing/VerdictBanner";
+import { VerdictFreshnessBanner } from "@/components/briefing/VerdictFreshnessBanner";
 import { VolumePanel } from "@/components/briefing/VolumePanel";
 import { HourlyVolReport } from "@/components/hourly-vol/HourlyVolReport";
 import {
@@ -109,6 +110,7 @@ import {
 } from "@/lib/api";
 import { derivePulse } from "@/lib/sessionPulse";
 import { deriveDataIntegrity } from "@/lib/dataIntegrity";
+import { deriveFreshness } from "@/lib/freshness";
 import { deriveEventSurprise } from "@/lib/eventSurprise";
 import { pickPocketForRegime } from "@/lib/pocketSkill";
 
@@ -359,6 +361,13 @@ export default async function BriefingPage({ params }: PageParams) {
   // elsewhere) ; given a card it always renders the honest tri-state.
   const dataIntegrity = card ? deriveDataIntegrity(card.degraded_inputs) : null;
 
+  // Honest freshness gate at the APEX VERDICT (the centerpiece a trader reads
+  // as "today's call"). The header pill flags staleness as a small eyebrow,
+  // but a stale card's big "HAUSSE 85 %" still reads as live without this.
+  // Gated on the card's `generated_at` (the analytical source the whole
+  // verdict section derives from). 2026-05-29 stale-as-real lesson.
+  const verdictFreshness = deriveFreshness(card?.generated_at ?? null);
+
   const previews = isLive(today) ? today.top_sessions : [];
 
   return (
@@ -407,6 +416,16 @@ export default async function BriefingPage({ params }: PageParams) {
           intro="Le verdict du jour et à quel point on peut s'y fier : le sens du biais, le niveau de conviction et les scénarios qui le sous-tendent. C'est ta lecture principale — tout le reste l'explique."
           defaultOpen
         >
+          {/* Honest freshness gate (2026-05-29 stale-as-real lesson) : when the
+              card is stale (or none today), say so LOUDLY above the verdict so
+              its big direction + conviction never read as today's fresh call. */}
+          {verdictFreshness.state === "stale" && (
+            <VerdictFreshnessBanner state="stale" ageLabel={verdictFreshness.ageLabel} />
+          )}
+          {verdictFreshness.state === "absent" && sessionVerdict === null && (
+            <VerdictFreshnessBanner state="absent" ageLabel="" />
+          )}
+
           {/* The session verdict is THE apex — one read, first. The
               deterministic banner is only a fallback when no live verdict. */}
           <SessionVerdictPanel data={sessionVerdict} />
