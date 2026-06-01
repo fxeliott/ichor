@@ -202,3 +202,35 @@ export function deriveFreshness(generatedAtIso: string | null, now: Date = new D
 
   return { state, ageMinutes, ageLabel };
 }
+
+/**
+ * Coach-clear copy for the apex VERDICT-section freshness banner — the loud,
+ * honest disclosure shown ABOVE the verdict centerpiece when the read is not
+ * fresh. Returns `null` when fresh (no banner).
+ *
+ *   stale  → an analysis exists but is from a prior Paris day / > 18 h. Frame
+ *            EVERYTHING below as dated context, not today's call (the
+ *            2026-05-29 "stale-as-real / tout est faux" lesson — the header
+ *            pill is a small eyebrow ; the verdict centerpiece needs its own
+ *            prominent warning so a stale "HAUSSE 85 %" never reads as live).
+ *   absent → no analysis has been generated yet.
+ *
+ * ADR-017 : context about the read's own freshness, never an order / sizing /
+ * BUY-SELL vocabulary. Voie D : pure deterministic copy, zero LLM.
+ */
+export function verdictFreshnessNotice(
+  state: FreshnessState,
+  ageLabel: string,
+): { title: string; body: string } | null {
+  if (state === "fresh") return null;
+  if (state === "stale") {
+    return {
+      title: "Pas de lecture fraîche aujourd'hui",
+      body: `La dernière analyse complète date de ${ageLabel}. Ce qui suit n'a pas été recalibré pour la session de New York d'aujourd'hui — lis-le comme un contexte daté, pas comme le verdict du jour.`,
+    };
+  }
+  return {
+    title: "Aucune lecture disponible pour le moment",
+    body: "Aucune analyse n'a encore été générée pour cet actif. La lecture se construit à l'approche des sessions de Londres et de New York — reviens un peu plus tard.",
+  };
+}

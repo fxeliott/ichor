@@ -12,7 +12,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { deriveFreshness, FRESH_MAX_MINUTES } from "@/lib/freshness";
+import { deriveFreshness, FRESH_MAX_MINUTES, verdictFreshnessNotice } from "@/lib/freshness";
 
 describe("deriveFreshness", () => {
   it("absent — null timestamp", () => {
@@ -81,5 +81,27 @@ describe("deriveFreshness", () => {
 
   it("FRESH_MAX_MINUTES is 18 h", () => {
     expect(FRESH_MAX_MINUTES).toBe(1080);
+  });
+});
+
+describe("verdictFreshnessNotice (apex stale-gate copy)", () => {
+  it("fresh → null (no banner)", () => {
+    expect(verdictFreshnessNotice("fresh", "il y a 5 min")).toBeNull();
+  });
+
+  it("stale → dated-context copy embedding the age, ADR-017-safe", () => {
+    const n = verdictFreshnessNotice("stale", "il y a 2 j");
+    expect(n).not.toBeNull();
+    expect(n!.title).toContain("Pas de lecture fraîche");
+    expect(n!.body).toContain("il y a 2 j");
+    expect(n!.body).toContain("contexte daté");
+    // never an imperative buy/sell — it's a freshness disclosure, not a signal.
+    expect(`${n!.title} ${n!.body}`.toLowerCase()).not.toMatch(/acheter|vendre|achat|vente/);
+  });
+
+  it("absent → none-generated copy", () => {
+    const n = verdictFreshnessNotice("absent", "");
+    expect(n).not.toBeNull();
+    expect(n!.title).toContain("Aucune lecture");
   });
 });
