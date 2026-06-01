@@ -9,6 +9,7 @@ import {
   isEquityIndex,
   londonAbsenceCopy,
   londonCalibrationHint,
+  shouldShowLondonRead,
 } from "@/lib/londonSession";
 
 describe("londonSession pure helpers (§6.2)", () => {
@@ -62,5 +63,16 @@ describe("londonSession pure helpers (§6.2)", () => {
     expect(idx.body).not.toContain("jour férié");
     const fx = londonAbsenceCopy("EUR_USD");
     expect(fx.body).toContain("week-end");
+  });
+
+  it("shouldShowLondonRead suppresses STALE index reads but keeps FX 'dernière séance'", () => {
+    // FX/metals: show the read whether it's today or the last session.
+    expect(shouldShowLondonRead("EUR_USD", true)).toBe(true);
+    expect(shouldShowLondonRead("EUR_USD", false)).toBe(true);
+    expect(shouldShowLondonRead("XAU_USD", false)).toBe(true);
+    // Equity index: show only a TODAY read; a stale one becomes structural absence.
+    expect(shouldShowLondonRead("SPX500_USD", true)).toBe(true);
+    expect(shouldShowLondonRead("SPX500_USD", false)).toBe(false);
+    expect(shouldShowLondonRead("NAS100_USD", false)).toBe(false);
   });
 });

@@ -169,6 +169,17 @@ export function isEquityIndex(asset: string): boolean {
   return _EQUITY_INDEX_ASSETS.has(asset);
 }
 
+/** For equity indices, a NON-today read is stale noise (they don't trade the
+ *  London morning meaningfully — at best some ETF/futures pre-market overlap),
+ *  so a 3-day-old read dressed as "calibration for NY" misleads. Show the
+ *  structural absence instead. FX/metals keep a clearly-labelled « dernière
+ *  séance » read, which is genuinely useful pre-open. Coherence discipline :
+ *  never present a stale index read as live calibration (the 2026-05-29
+ *  stale-as-real lesson). */
+export function shouldShowLondonRead(asset: string, isToday: boolean): boolean {
+  return !(isEquityIndex(asset) && !isToday);
+}
+
 /** Asset-aware honest-absence copy. For equity indices the absence is
  *  structural (no London-morning equity session) — never a fabricated
  *  « week-end / jour férié ». Coherence discipline (no stale-as-real). */

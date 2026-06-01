@@ -39,6 +39,7 @@ import {
   freshnessLabel,
   londonAbsenceCopy,
   londonCalibrationHint,
+  shouldShowLondonRead,
   type LondonDirectionKey,
 } from "@/lib/londonSession";
 
@@ -156,20 +157,30 @@ export function LondonSessionPanel({ asset }: Props) {
           </p>
         )}
 
-        {state.status === "absent" && (
-          <div>
-            <p className="text-sm text-[var(--color-text-secondary)]">
-              <span className="font-semibold text-[var(--color-text-primary)]">
-                {londonAbsenceCopy(asset).title}
-              </span>{" "}
-              — {londonAbsenceCopy(asset).body}
-            </p>
-          </div>
-        )}
+        {state.status === "absent" && <LondonAbsence asset={asset} />}
 
-        {state.status === "ready" && <LondonReady data={state.data} />}
+        {state.status === "ready" &&
+          (shouldShowLondonRead(asset, state.data.is_today) ? (
+            <LondonReady data={state.data} />
+          ) : (
+            // equity index with only a stale (non-today) read → structural
+            // absence, never a 3-day-old read dressed as live calibration.
+            <LondonAbsence asset={asset} />
+          ))}
       </div>
     </m.section>
+  );
+}
+
+function LondonAbsence({ asset }: { asset: string }) {
+  const copy = londonAbsenceCopy(asset);
+  return (
+    <div>
+      <p className="text-sm text-[var(--color-text-secondary)]">
+        <span className="font-semibold text-[var(--color-text-primary)]">{copy.title}</span> —{" "}
+        {copy.body}
+      </p>
+    </div>
   );
 }
 
