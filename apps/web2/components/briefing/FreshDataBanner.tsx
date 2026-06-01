@@ -216,7 +216,7 @@ export function FreshDataBanner({
         role="status"
         aria-live="polite"
         aria-atomic="true"
-        aria-label="Surveillance des catalysts économiques"
+        aria-label="Surveillance des événements économiques"
         className="sr-only"
       >
         {/* Empty — banner is silent when no catalyst has elapsed since briefing. */}
@@ -261,10 +261,11 @@ export function FreshDataBanner({
             id="fresh-data-banner-heading"
             className="font-serif text-lg text-[var(--color-text-primary)]"
           >
-            Catalyst horaire écoulé
+            Heure d&apos;un événement clé passée
           </h3>
           <p className="mt-1 text-[10px] uppercase tracking-widest text-[var(--color-warn)]">
-            Auto-rafraîchi · données panel inchangées tant que la collecte cron n&apos;a pas tourné
+            Page rafraîchie automatiquement · les données ne changent qu&apos;une fois la collecte
+            effectuée
           </p>
         </div>
         {/* a11y SC 2.5.8 + 2.4.7 + 4.1.2 fix : ≥24×24 target, focus-visible
@@ -288,10 +289,10 @@ export function FreshDataBanner({
           impact {latestElapsed.impact}
         </p>
         <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
-          Prévu <span className="font-mono tabular-nums">{eventTimeLabel}</span> · briefing généré{" "}
+          Prévu <span className="font-mono tabular-nums">{eventTimeLabel}</span> · lecture générée{" "}
           <span className="font-mono tabular-nums">{briefingTimeLabel}</span> · écart{" "}
-          <span className="font-mono tabular-nums">{minutesSinceBriefing}</span> min · catalyst il y
-          a <span className="font-mono tabular-nums">{minutesSinceFire}</span> min
+          <span className="font-mono tabular-nums">{minutesSinceBriefing}</span> min · événement il
+          y a <span className="font-mono tabular-nums">{minutesSinceFire}</span> min
         </p>
       </div>
 
@@ -301,8 +302,9 @@ export function FreshDataBanner({
           risk + cron-lag reality + actuals source-verification. */}
       <div className="border-t border-[var(--color-border-subtle)]/60 px-6 py-3">
         <p className="text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
-          Événement programmé · peut être annulé/décalé · les actuals (FRED, BLS, Bloomberg) peuvent
-          prendre des heures à atteindre la base · Pass-2 LLM non rerun · pas un signal
+          Événement programmé · peut être annulé ou décalé · les valeurs officielles peuvent prendre
+          des heures à arriver · l&apos;analyse n&apos;est pas recalculée · contexte d&apos;aide à
+          la décision, pas un signal d&apos;achat ou de vente
         </p>
       </div>
 

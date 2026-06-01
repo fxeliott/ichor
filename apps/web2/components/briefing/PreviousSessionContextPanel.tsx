@@ -135,8 +135,7 @@ export function PreviousSessionContextPanel({ asset }: Props) {
           )}
         </div>
         <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
-          D&apos;où vient le mouvement dominant des dernières 24 h sur {asset} — Eliot Fathom
-          méthodologie §V.
+          D&apos;où vient le mouvement dominant des dernières 24 h sur {asset}.
         </p>
       </header>
 
@@ -159,12 +158,12 @@ export function PreviousSessionContextPanel({ asset }: Props) {
               <span className="font-semibold text-[var(--color-text-primary)]">
                 Contexte session précédente indisponible
               </span>{" "}
-              — pas assez de barres 1-min dans la fenêtre des dernières 24 h (week-end / jour férié
-              OU moins de 30 barres dans la zone dominante, seuil Cohen 1988 §3.3).
+              — pas assez de données dans la fenêtre des dernières 24 h (week-end / jour férié OU
+              trop peu d&apos;activité dans la zone dominante).
             </p>
             <p className="mt-2 text-xs text-[var(--color-text-muted)]">
-              Doctrine #11 calibrated honesty : aucune fabrication. Lis l&apos;absence comme un
-              manque réel de contexte.
+              Aucune donnée n&apos;est inventée. Lis l&apos;absence comme un manque réel de
+              contexte.
             </p>
           </div>
         )}
@@ -217,7 +216,7 @@ export function PreviousSessionContextPanel({ asset }: Props) {
               </div>
               <div>
                 <dt className="text-xs uppercase tracking-wider text-[var(--color-text-muted)]">
-                  Barres 1-min
+                  Points de données
                 </dt>
                 <dd className="font-mono tabular-nums text-[var(--color-text-primary)]">
                   {state.data.bar_count}
@@ -235,8 +234,8 @@ export function PreviousSessionContextPanel({ asset }: Props) {
             </dl>
 
             <p className="text-xs text-[var(--color-text-muted)]">
-              Frontière ADR-017 : snapshot factuel pur, jamais un signal de direction pour la
-              session courante. Provenance : practitioner-stamp (Eliot Fathom §V).
+              Photo factuelle de la session passée, jamais un signal de direction pour la session en
+              cours · contexte d&apos;aide à la décision, pas un signal d&apos;achat ou de vente.
             </p>
           </div>
         )}

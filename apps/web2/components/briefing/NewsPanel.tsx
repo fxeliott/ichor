@@ -73,7 +73,7 @@ function filterLabel(
   }
   if (!filter.known_asset) {
     return {
-      line: `Actif "${filter.asset}" hors carte de mots-clés · flux global`,
+      line: `Actif "${filter.asset}" non reconnu · flux global`,
       tone: "global",
     };
   }

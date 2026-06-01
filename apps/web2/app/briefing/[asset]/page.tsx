@@ -400,12 +400,17 @@ export default async function BriefingPage({ params }: PageParams) {
         {/* ── A · Verdict & conviction (the primary read + its grounding) ── */}
         <BriefingSection
           id="verdict"
+          hue="var(--c-cobalt)"
           eyebrow="A · Verdict"
           title="Verdict & conviction"
           intro="Le verdict du jour et à quel point on peut s'y fier : le sens du biais, le niveau de conviction et les scénarios qui le sous-tendent. C'est ta lecture principale — tout le reste l'explique."
           defaultOpen
         >
-          {card && (
+          {/* The session verdict is THE apex — one read, first. The
+              deterministic banner is only a fallback when no live verdict. */}
+          <SessionVerdictPanel data={sessionVerdict} />
+
+          {card && !sessionVerdict && (
             <VerdictBanner
               asset={normalisedAsset}
               card={card}
@@ -414,8 +419,6 @@ export default async function BriefingPage({ params }: PageParams) {
               calendar={calendar?.events ?? []}
             />
           )}
-
-          <SessionVerdictPanel data={sessionVerdict} />
 
           {card ? (
             <ConvictionGroundingPanel
@@ -431,8 +434,8 @@ export default async function BriefingPage({ params }: PageParams) {
             <div>
               <SubHeader
                 id="narrative-heading"
-                title="Analyse Pass-2"
-                meta="Claude Opus 4.8 · 4-pass output"
+                title="Pourquoi ce verdict"
+                meta="Mécanismes · ce qui l'invaliderait · catalyseurs"
               />
               <NarrativeBlocks
                 mechanisms={card.mechanisms}
@@ -446,8 +449,8 @@ export default async function BriefingPage({ params }: PageParams) {
             <div>
               <SubHeader
                 id="scenarios-heading"
-                title="Scénarios"
-                meta="ADR-085 · Pass-6 · distribution de probabilité"
+                title="Scénarios possibles"
+                meta="Probabilité de chaque issue"
               />
               <ScenariosPanel scenarios={card.scenarios} />
             </div>
@@ -463,6 +466,7 @@ export default async function BriefingPage({ params }: PageParams) {
         {/* ── B · Thème & cycle (the underlying macro current) ── */}
         <BriefingSection
           id="theme"
+          hue="var(--c-violet)"
           eyebrow="B · Contexte"
           title="Thème & cycle"
           intro="Le moteur de fond du marché : quel thème macro domine aujourd'hui (politique monétaire, géopolitique…) et où l'on se situe dans le cycle économique. Le courant dans lequel l'actif nage."
@@ -475,6 +479,7 @@ export default async function BriefingPage({ params }: PageParams) {
         {/* ── C · Macro & événements du jour (what can move prices now) ── */}
         <BriefingSection
           id="macro"
+          hue="var(--c-amber)"
           eyebrow="C · Aujourd'hui"
           title="Macro & événements du jour"
           intro="Ce qui peut faire bouger les prix maintenant : le prochain catalyseur à l'horizon, le calendrier économique, et à quel point les dernières données ont surpris par rapport aux attentes."
@@ -505,6 +510,7 @@ export default async function BriefingPage({ params }: PageParams) {
         {/* ── C-bis · Taux & Fed (market-implied policy path) ── */}
         <BriefingSection
           id="rates"
+          hue="var(--c-teal)"
           eyebrow="C · Taux"
           title="Taux & Fed"
           intro="Ce que le marché monétaire price pour la trajectoire des taux Fed (futures ZQ) — et surtout ce qu'il a re-pricé sur les ~5 dernières séances. C'est le signal d'anticipation, pas une prévision."
@@ -516,6 +522,7 @@ export default async function BriefingPage({ params }: PageParams) {
         {/* ── D · Corrélations & DXY (real independence of the read) ── */}
         <BriefingSection
           id="correlations"
+          hue="var(--c-azure)"
           eyebrow="D · Marché"
           title="Corrélations & DXY"
           intro="Comment cet actif bouge par rapport au dollar (DXY, le pilier) et aux autres marchés — pour voir si tes lectures sont vraiment indépendantes ou la même idée répétée plusieurs fois."
@@ -542,6 +549,7 @@ export default async function BriefingPage({ params }: PageParams) {
         {/* ── E · Positionnement & sentiment (who is positioned how) ── */}
         <BriefingSection
           id="positioning"
+          hue="var(--c-magenta)"
           eyebrow="E · Acteurs"
           title="Positionnement & sentiment"
           intro="Qui est positionné comment : les particuliers (souvent à contre-courant), les institutionnels (smart money), les paris agrégés, l'actualité récente et la géopolitique."
@@ -551,7 +559,7 @@ export default async function BriefingPage({ params }: PageParams) {
             <SubHeader
               id="sentiment-heading"
               title="Positionnement retail"
-              meta="MyFXBook retail · contrarian"
+              meta="Particuliers · souvent à contre-courant"
             />
             <SentimentPanel
               entries={positioning?.entries ?? []}
@@ -563,7 +571,7 @@ export default async function BriefingPage({ params }: PageParams) {
             <SubHeader
               id="institutional-heading"
               title="Acteurs du marché"
-              meta="CFTC TFF + COT · smart money"
+              meta="Gros acteurs · smart money"
             />
             <InstitutionalPositioningPanel data={institutional} hideHeader />
           </div>
@@ -571,7 +579,7 @@ export default async function BriefingPage({ params }: PageParams) {
             <SubHeader
               id="polymarket-impact-section-heading"
               title="Paris agrégés"
-              meta="Polymarket · thèmes · transmission directionnelle"
+              meta="Paris de marché · par thème"
             />
             <PolymarketImpactPanel asset={normalisedAsset} impact={polymarketImpact} hideHeader />
           </div>
@@ -585,11 +593,7 @@ export default async function BriefingPage({ params }: PageParams) {
             />
           </div>
           <div>
-            <SubHeader
-              id="geopolitics-heading"
-              title="Géopolitique"
-              meta="AI-GPR · GDELT · risque macro-géopolitique"
-            />
+            <SubHeader id="geopolitics-heading" title="Géopolitique" meta="Tension géopolitique" />
             <GeopoliticsPanel data={geopolitics} hideHeader />
           </div>
         </BriefingSection>
@@ -597,6 +601,7 @@ export default async function BriefingPage({ params }: PageParams) {
         {/* ── F · Niveaux & contexte (price structure + history) ── */}
         <BriefingSection
           id="levels"
+          hue="var(--c-cyan)"
           eyebrow="F · Structure"
           title="Niveaux & contexte"
           intro="La structure de prix : les niveaux clés à surveiller, d'où venait le mouvement de la session précédente, l'activité de volume et la volatilité typique heure par heure."
@@ -606,24 +611,20 @@ export default async function BriefingPage({ params }: PageParams) {
             <SubHeader
               id="key-levels-heading"
               title="Niveaux clés"
-              meta="ADR-083 D3 · Microstructure + macro switches"
+              meta="Microstructure + bascules macro"
             />
             <KeyLevelsPanel items={renderedKeyLevels} focusAsset={normalisedAsset} />
           </div>
           <PreviousSessionContextPanel asset={normalisedAsset} />
           <div>
-            <SubHeader
-              id="volume-heading"
-              title="Volume"
-              meta="Activité intraday · proxy tick Polygon"
-            />
+            <SubHeader id="volume-heading" title="Volume" meta="Activité d'échange intraday" />
             <VolumePanel asset={normalisedAsset} bars={recentBars} />
           </div>
           <div>
             <SubHeader
               id="hourly-vol-heading"
               title="Volatilité horaire"
-              meta="Saisonnalité intraday · médian + p75 · 30 j UTC"
+              meta="Volatilité typique heure par heure · 30 j"
             />
             <HourlyVolReport report={hourlyVol} headingLevel={3} chrome="glass" />
           </div>
@@ -631,7 +632,7 @@ export default async function BriefingPage({ params }: PageParams) {
       </div>
 
       <footer className="pt-6 text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
-        Ichor v2 · Pre-trade context only · No BUY/SELL signals (ADR-017 boundary)
+        Ichor · Aide à la décision pré-séance — jamais un signal d&apos;achat ou de vente
       </footer>
     </main>
   );

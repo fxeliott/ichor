@@ -237,7 +237,8 @@ export function StirPanel({ stir }: Props) {
       )}
 
       <p className="border-t border-[var(--color-border-subtle)] px-6 py-3 text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
-        trajectoire pricée par le marché monétaire · pas un signal (frontière ADR-017)
+        trajectoire anticipée par le marché monétaire · contexte d&apos;aide à la décision, pas un
+        signal d&apos;achat ou de vente
       </p>
     </m.section>
   );

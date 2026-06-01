@@ -1,10 +1,19 @@
 // /learn — index of 12+ pedagogical chapters (SPEC §3.5).
 //
-// Each chapter is a server-rendered MDX-light page targeting Eliot's
-// trader-débutant profile: progression débutant→avancé, analogies,
-// exemples chiffrés, anti-FUD, anti-overpromising.
+// Refonte 2026 (Aurora cobalt) — premium learning hub : a luminous PageHeader,
+// a staged grid of GlowCard links (one per chapter), each carrying its number,
+// title, subtitle, family tone-chip and a read-level / read-time meta row, plus
+// a dedicated card for the glossary. Server-rendered, entrance via <Reveal>.
+//
+// Each chapter is a server-rendered page targeting Eliot's trader-débutant
+// profile: progression débutant→avancé, analogies, exemples chiffrés, anti-FUD,
+// anti-overpromising. ADR-017 : pedagogy + context only, never a signal.
 
 import Link from "next/link";
+
+import { GlowCard } from "@/components/ui/glow-card";
+import { Chip, PageHeader, type Tone } from "@/components/ui/primitives";
+import { Reveal } from "@/components/ui/reveal";
 
 interface Chapter {
   slug: string;
@@ -136,12 +145,12 @@ const CHAPTERS: Chapter[] = [
   },
 ];
 
-const FAMILY_BADGE: Record<Chapter["family"], { label: string; color: string }> = {
-  trader: { label: "Trader UX", color: "var(--color-bull)" },
-  calibration: { label: "Calibration", color: "var(--color-accent-cobalt-bright)" },
-  macro: { label: "Macro", color: "var(--color-warn)" },
-  structure: { label: "Structure", color: "var(--color-accent-violet)" },
-  technique: { label: "Technique", color: "var(--color-accent-warm)" },
+const FAMILY_META: Record<Chapter["family"], { label: string; tone: Tone }> = {
+  trader: { label: "Trader UX", tone: "bull" },
+  calibration: { label: "Calibration", tone: "accent" },
+  macro: { label: "Macro", tone: "warn" },
+  structure: { label: "Structure", tone: "neutral" },
+  technique: { label: "Technique", tone: "neutral" },
 };
 
 const LEVEL_DOTS: Record<Chapter["level"], number> = {
@@ -150,82 +159,142 @@ const LEVEL_DOTS: Record<Chapter["level"], number> = {
   avancé: 3,
 };
 
+const FAMILY_GLOW: Record<Chapter["family"], "accent" | "bull"> = {
+  trader: "bull",
+  calibration: "accent",
+  macro: "accent",
+  structure: "accent",
+  technique: "accent",
+};
+
 export default function LearnPage() {
   return (
-    <div className="container mx-auto max-w-4xl px-6 py-12">
-      <header className="mb-10 space-y-3">
-        <p className="font-mono text-xs uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
-          Apprendre · {CHAPTERS.length} chapitres
-        </p>
-        <h1 data-editorial className="text-5xl tracking-tight text-[var(--color-text-primary)]">
-          Apprendre
-        </h1>
-        <p className="max-w-prose text-[var(--color-text-secondary)]">
-          {CHAPTERS.length} chapitres pédagogiques pour comprendre comment Ichor pense le marché.
-          Progression débutant → avancé. Pas de jargon gratuit, pas de FUD, pas de promesse de
-          gains. Si un terme est inconnu, le{" "}
-          <Link
-            href="/learn/glossary"
-            className="text-[var(--color-accent-cobalt-bright)] underline-offset-2 hover:underline"
-          >
-            glossaire
-          </Link>{" "}
-          le couvre.
-        </p>
-      </header>
+    <main className="mx-auto max-w-5xl space-y-12 px-4 py-16 md:px-8 md:py-20">
+      <PageHeader
+        eyebrow={`Learn · ${CHAPTERS.length} chapitres`}
+        title={
+          <>
+            Apprendre à lire
+            <span className="mt-1 block accent-gradient">comme Ichor pense.</span>
+          </>
+        }
+        description={
+          <>
+            {CHAPTERS.length} chapitres pédagogiques pour comprendre comment Ichor lit le marché.
+            Progression débutant → avancé, sans jargon gratuit, sans FUD, sans promesse de gains. Un
+            terme inconnu ? Le{" "}
+            <Link
+              href="/learn/glossary"
+              className="text-[var(--accent)] underline-offset-2 transition-colors hover:text-[var(--accent-soft)] hover:underline"
+            >
+              glossaire
+            </Link>{" "}
+            le couvre.
+          </>
+        }
+      />
 
-      <ol className="space-y-3">
-        {CHAPTERS.map((c) => {
-          const badge = FAMILY_BADGE[c.family];
-          const dots = LEVEL_DOTS[c.level];
-          return (
-            <li key={c.slug}>
-              <Link
-                href={`/learn/${c.slug}`}
-                className="block rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-5 transition-colors hover:border-[var(--color-border-strong)]"
-              >
-                <header className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
-                  <div className="flex items-baseline gap-3">
-                    <span className="font-mono text-sm tabular-nums text-[var(--color-text-muted)]">
-                      #{c.number}
-                    </span>
-                    <h2 className="text-lg font-semibold text-[var(--color-text-primary)]">
-                      {c.title}
-                    </h2>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span
-                      className="rounded border px-2 py-0.5 font-mono text-[10px] uppercase tracking-widest"
-                      style={{ color: badge.color, borderColor: badge.color }}
+      <Reveal delay={0.05}>
+        <Link href="/learn/glossary" className="block">
+          <GlowCard className="flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between sm:p-7">
+            <div className="space-y-1.5">
+              <p className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.28em] text-[var(--color-text-muted)]">
+                <span
+                  aria-hidden
+                  className="inline-flex h-1.5 w-1.5 rounded-full bg-[var(--accent)] shadow-[0_0_10px_var(--accent)]"
+                />
+                Référence
+              </p>
+              <h2 className="font-display text-xl font-semibold text-[var(--color-text-primary)]">
+                Glossaire complet
+              </h2>
+              <p className="text-sm text-[var(--color-text-secondary)]">
+                Chaque terme technique défini et ancrable. Recherche + filtres par famille.
+              </p>
+            </div>
+            <span
+              aria-hidden
+              className="font-mono text-2xl text-[var(--accent)] transition-transform group-hover:translate-x-1"
+            >
+              →
+            </span>
+          </GlowCard>
+        </Link>
+      </Reveal>
+
+      <section aria-labelledby="chapters-heading" className="space-y-5">
+        <div className="flex items-baseline justify-between gap-4">
+          <h2
+            id="chapters-heading"
+            className="font-display text-2xl font-semibold text-[var(--color-text-primary)]"
+          >
+            Les chapitres
+          </h2>
+          <span className="text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
+            débutant → avancé
+          </span>
+        </div>
+
+        <ol className="grid gap-4 sm:grid-cols-2">
+          {CHAPTERS.map((c, i) => {
+            const family = FAMILY_META[c.family];
+            const dots = LEVEL_DOTS[c.level];
+            return (
+              <li key={c.slug}>
+                <Reveal delay={0.04 * (i % 4)}>
+                  <Link href={`/learn/${c.slug}`} className="block h-full">
+                    <GlowCard
+                      glow={FAMILY_GLOW[c.family]}
+                      className="flex h-full flex-col gap-3 p-6"
                     >
-                      {badge.label}
-                    </span>
-                    <span aria-label={`Niveau: ${c.level}`} className="flex gap-0.5">
-                      {[1, 2, 3].map((d) => (
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="font-mono text-sm tabular-nums text-[var(--color-text-muted)]">
+                          {String(c.number).padStart(2, "0")}
+                        </span>
+                        <Chip tone={family.tone}>{family.label}</Chip>
+                      </div>
+                      <h3 className="font-display text-lg font-semibold leading-snug text-[var(--color-text-primary)]">
+                        {c.title}
+                      </h3>
+                      <p className="flex-1 text-sm leading-relaxed text-[var(--color-text-secondary)]">
+                        {c.subtitle}
+                      </p>
+                      <div className="flex items-center justify-between pt-1">
                         <span
-                          key={d}
-                          aria-hidden="true"
-                          className="h-1.5 w-1.5 rounded-full"
-                          style={{
-                            background:
-                              d <= dots
-                                ? "var(--color-text-secondary)"
-                                : "var(--color-border-default)",
-                          }}
-                        />
-                      ))}
-                    </span>
-                    <span className="font-mono text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
-                      {c.read_minutes} min
-                    </span>
-                  </div>
-                </header>
-                <p className="text-sm text-[var(--color-text-secondary)]">{c.subtitle}</p>
-              </Link>
-            </li>
-          );
-        })}
-      </ol>
-    </div>
+                          aria-label={`Niveau : ${c.level}`}
+                          className="flex items-center gap-1"
+                        >
+                          {[1, 2, 3].map((d) => (
+                            <span
+                              key={d}
+                              aria-hidden="true"
+                              className={`h-1.5 w-1.5 rounded-full ${
+                                d <= dots
+                                  ? "bg-[var(--accent)] shadow-[0_0_8px_var(--accent)]"
+                                  : "bg-[var(--glass-border)]"
+                              }`}
+                            />
+                          ))}
+                          <span className="ml-1.5 text-[10px] uppercase tracking-wider text-[var(--color-text-muted)]">
+                            {c.level}
+                          </span>
+                        </span>
+                        <span className="font-mono text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
+                          {c.read_minutes} min
+                        </span>
+                      </div>
+                    </GlowCard>
+                  </Link>
+                </Reveal>
+              </li>
+            );
+          })}
+        </ol>
+      </section>
+
+      <footer className="pt-4 text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
+        Ichor v2 · Pédagogie · Pre-trade context only · No BUY/SELL signals (ADR-017 boundary)
+      </footer>
+    </main>
   );
 }

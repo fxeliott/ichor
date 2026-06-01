@@ -154,12 +154,12 @@
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-jetbrains-mono);
   --font-serif: var(--font-fraunces);
-  /* Editorial display utility (`font-display`) — the r186-r189 panels
-   * (ThemeRankingPanel / PreviousSessionContextPanel) reference it but the
-   * token was never bound, so the headings silently fell back to font-sans.
-   * Maps to Fraunces so display headings match the briefing's `font-serif`
-   * editorial surface (single editorial type voice). */
-  --font-display: var(--font-fraunces);
+  /* Display utility (`font-display`) — refonte 2026 §typo hybride : the
+   * tech/cockpit voice. Bound to Space Grotesk (geometric grotesk) so titles
+   * and big-number framing read as a modern luminous-tech product. Fraunces
+   * stays on `font-serif` for the narrative/editorial surfaces (coach prose,
+   * /learn). Self-hosted via next/font in app/layout.tsx. */
+  --font-display: var(--font-space-grotesk);
 }
 
 /* Colors are a PLAIN `@theme` block — the exact pre-r104 structural
@@ -518,4 +518,253 @@ samp,
 * {
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.08) transparent;
+}
+
+/* ════════════════════════════════════════════════════════════════
+ * AURORA-COBALT PREMIUM LAYER — refonte frontend 2026
+ * ----------------------------------------------------------------
+ * Additive over the existing OKLCH semantic contract. The WCAG-tuned
+ * text/border tokens above are untouched (no contrast regression on
+ * the existing routes). The redesigned surfaces consume the tokens,
+ * keyframes and utilities below. Reduced-motion is honoured by the
+ * global rule above (animation-duration → 0.01ms) + explicit guards.
+ * ════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* — Luminous cobalt signature ("noir + bleu lumineux") — */
+  --p-cobalt-450: oklch(0.762 0.158 256); /* electric luminous blue */
+  --p-cobalt-350: oklch(0.82 0.13 252); /* soft luminous tint */
+  --p-azure-500: oklch(0.74 0.142 232); /* cyan-leaning aurora pole */
+  --p-indigo-700: oklch(0.45 0.17 276); /* deep aurora pole */
+
+  /* Brand accent (the luminous blue) consumed via [var(--accent)] */
+  --accent: var(--p-cobalt-450);
+  --accent-strong: var(--p-cobalt-600);
+  --accent-soft: var(--p-cobalt-350);
+  --accent-contrast: oklch(0.16 0.02 260); /* ink glyph on a luminous fill */
+
+  /* — Glass surfaces — */
+  --glass-bg: oklch(0.183 0.031 263 / 0.5);
+  --glass-bg-strong: oklch(0.209 0.035 261 / 0.66);
+  --glass-border: oklch(1 0 0 / 0.08);
+  --glass-border-hover: oklch(0.762 0.158 256 / 0.5);
+  --glass-blur: 16px;
+
+  /* — Glow shadows (consume via shadow-[var(--glow-*)]) — */
+  --glow-accent: 0 0 22px -6px oklch(0.762 0.158 256 / 0.55);
+  --glow-accent-strong: 0 10px 44px -12px oklch(0.762 0.158 256 / 0.7);
+  --glow-bull: 0 0 26px -8px oklch(0.773 0.154 163 / 0.55);
+  --glow-bear: 0 0 26px -8px oklch(0.711 0.166 22 / 0.55);
+  --glow-card: 0 1px 0 0 oklch(1 0 0 / 0.05) inset, 0 24px 48px -28px oklch(0 0 0 / 0.85);
+
+  /* — Gradients — */
+  --grad-accent: linear-gradient(135deg, var(--p-cobalt-450), var(--p-azure-500));
+  --grad-accent-deep: linear-gradient(135deg, var(--p-cobalt-600), var(--p-indigo-700));
+  --grad-text: linear-gradient(180deg, oklch(0.98 0.01 250), oklch(0.74 0.05 250));
+  --grad-edge: linear-gradient(90deg, transparent, oklch(1 0 0 / 0.12), transparent);
+}
+
+/* — Aurora ambient backdrop (mounted once in the layout shell) — */
+.aurora-field {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+.aurora-blob {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(76px);
+  opacity: 0.74;
+  will-change: transform;
+  mix-blend-mode: screen;
+}
+.aurora-blob--1 {
+  width: 52vw;
+  height: 52vw;
+  left: -12vw;
+  top: -14vw;
+  background: radial-gradient(circle at 50% 50%, var(--p-cobalt-450), transparent 64%);
+  animation: aurora-drift-1 26s ease-in-out infinite;
+}
+.aurora-blob--2 {
+  width: 46vw;
+  height: 46vw;
+  right: -12vw;
+  top: 4vh;
+  opacity: 0.5;
+  background: radial-gradient(circle at 50% 50%, var(--p-azure-500), transparent 64%);
+  animation: aurora-drift-2 32s ease-in-out infinite;
+}
+.aurora-blob--3 {
+  width: 42vw;
+  height: 42vw;
+  left: 22vw;
+  bottom: -18vw;
+  opacity: 0.48;
+  background: radial-gradient(circle at 50% 50%, var(--p-indigo-700), transparent 66%);
+  animation: aurora-drift-3 38s ease-in-out infinite;
+}
+.aurora-grid {
+  position: absolute;
+  inset: 0;
+  opacity: 0.05;
+  background-image:
+    linear-gradient(oklch(1 0 0) 1px, transparent 1px),
+    linear-gradient(90deg, oklch(1 0 0) 1px, transparent 1px);
+  background-size: 64px 64px;
+  -webkit-mask-image: radial-gradient(ellipse 85% 55% at 50% 0%, black, transparent 75%);
+  mask-image: radial-gradient(ellipse 85% 55% at 50% 0%, black, transparent 75%);
+}
+.aurora-vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    ellipse 130% 95% at 50% -5%,
+    transparent 55%,
+    var(--color-bg-base) 100%
+  );
+}
+/* Fine grain (feTurbulence) — breaks gradient banding + the sterile "AI
+ * template" digital flatness ; very low opacity, soft-light blend. */
+.aurora-grain {
+  position: absolute;
+  inset: 0;
+  opacity: 0.04;
+  mix-blend-mode: soft-light;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 180px 180px;
+}
+
+/* ════════════════════════════════════════════════════════════════
+ * VIBRANT MULTI-HUE LAYER — refonte 2026 « beaucoup plus de couleur »
+ * A luminous accent ramp on the near-black base + a SIGNATURE hue per
+ * dimension (--section-accent), so the product reads colourful AND
+ * meaningful — not monochrome, not a rainbow mess. Lightness kept high
+ * enough to stay legible on dark.
+ * ════════════════════════════════════════════════════════════════ */
+:root {
+  --c-cobalt: oklch(0.72 0.17 256);
+  --c-azure: oklch(0.78 0.145 232);
+  --c-cyan: oklch(0.84 0.13 200);
+  --c-teal: oklch(0.81 0.13 182);
+  --c-violet: oklch(0.67 0.21 286);
+  --c-indigo: oklch(0.62 0.2 272);
+  --c-magenta: oklch(0.72 0.22 330);
+  --c-emerald: oklch(0.79 0.16 158);
+  --c-amber: oklch(0.83 0.15 80);
+  --c-rose: oklch(0.71 0.2 18);
+
+  /* per-section signature hue (overridden inline per BriefingSection) */
+  --section-accent: var(--c-cobalt);
+
+  /* vivid gradients */
+  --grad-vivid: linear-gradient(110deg, var(--c-cobalt), var(--c-violet) 48%, var(--c-magenta));
+  --grad-aurora: linear-gradient(120deg, var(--c-cobalt), var(--c-teal) 40%, var(--c-violet) 82%);
+}
+
+/* colourful gradient text */
+.grad-vivid {
+  background: var(--grad-vivid);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.grad-aurora-text {
+  background: var(--grad-aurora);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* richer, more colourful aurora — cobalt + violet + teal, not all-blue */
+.aurora-blob--2 {
+  opacity: 0.66;
+  background: radial-gradient(circle at 50% 50%, var(--c-violet), transparent 64%);
+}
+.aurora-blob--3 {
+  opacity: 0.62;
+  background: radial-gradient(circle at 50% 50%, var(--c-teal), transparent 66%);
+}
+
+@keyframes aurora-drift-1 {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(6vw, 4vh, 0) scale(1.12);
+  }
+}
+@keyframes aurora-drift-2 {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1.05);
+  }
+  50% {
+    transform: translate3d(-5vw, 5vh, 0) scale(0.95);
+  }
+}
+@keyframes aurora-drift-3 {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(4vw, -5vh, 0) scale(1.1);
+  }
+}
+
+/* — Helper utilities — */
+.text-gradient {
+  background: var(--grad-text);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.accent-gradient {
+  background: var(--grad-accent);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.glass {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  backdrop-filter: blur(var(--glass-blur));
+}
+.hairline-top::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 1px;
+  background: var(--grad-edge);
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    oklch(1 0 0 / 0.03) 25%,
+    oklch(1 0 0 / 0.08) 37%,
+    oklch(1 0 0 / 0.03) 63%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aurora-blob,
+  .skeleton-shimmer {
+    animation: none !important;
+  }
 }

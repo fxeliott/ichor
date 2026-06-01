@@ -63,7 +63,7 @@ export function HourlyVolReport({
   if (!isLive(report)) {
     return (
       <p className="text-sm text-[var(--color-text-muted)]">
-        API indisponible — données intraday non récupérables.
+        Service indisponible — données intraday momentanément inaccessibles.
       </p>
     );
   }
@@ -90,7 +90,7 @@ function HeatmapBars({
   if (populated.length === 0) {
     return (
       <p className="text-sm text-[var(--color-text-muted)]">
-        Historique polygon insuffisant pour calculer.
+        Pas assez d&apos;historique pour calculer.
       </p>
     );
   }
@@ -125,7 +125,7 @@ function HeatmapBars({
         id="heatmap-heading"
         className="mb-4 font-mono text-xs uppercase tracking-widest text-[var(--color-text-muted)]"
       >
-        Heatmap 24h · UTC
+        Volatilité heure par heure · UTC
       </H>
       <BarSeries
         values={values}
@@ -157,20 +157,20 @@ function HeatmapBars({
       <div className="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-xs text-[var(--color-text-muted)]">
         {report.best_hour_utc !== null && report.entries[report.best_hour_utc] ? (
           <p>
-            <span style={{ color: "var(--color-bull)" }}>●</span> Best ·{" "}
+            <span style={{ color: "var(--color-bull)" }}>●</span> Heure la plus active ·{" "}
             <span className="font-mono">
               {report.best_hour_utc.toString().padStart(2, "0")}:00 UTC
             </span>{" "}
-            ({report.entries[report.best_hour_utc]!.median_bp.toFixed(1)} bp median)
+            ({report.entries[report.best_hour_utc]!.median_bp.toFixed(1)} bp médian)
           </p>
         ) : null}
         {report.worst_hour_utc !== null && report.entries[report.worst_hour_utc] ? (
           <p>
-            <span style={{ color: "var(--color-bear)" }}>●</span> Worst ·{" "}
+            <span style={{ color: "var(--color-bear)" }}>●</span> Heure la plus calme ·{" "}
             <span className="font-mono">
               {report.worst_hour_utc.toString().padStart(2, "0")}:00 UTC
             </span>{" "}
-            ({report.entries[report.worst_hour_utc]!.median_bp.toFixed(1)} bp median)
+            ({report.entries[report.worst_hour_utc]!.median_bp.toFixed(1)} bp médian)
           </p>
         ) : null}
       </div>
@@ -206,17 +206,17 @@ function Percentile75Bars({
         id="p75-heading"
         className="mb-3 font-mono text-xs uppercase tracking-widest text-[var(--color-text-muted)]"
       >
-        Enveloppe p75 · 24h UTC
+        Pics de volatilité · 24h UTC
       </H>
       <p className="mb-4 text-sm text-[var(--color-text-secondary)]">
-        75ᵉ centile du |log-rendement| par heure — le haut de fourchette intra-horaire, vs le rythme
-        typique de la heatmap médiane ci-dessus.
+        Le haut de fourchette de volatilité par heure — les pics, à comparer au rythme typique
+        affiché ci-dessus.
       </p>
       <BarSeries
         values={valuesP75}
         max={maxP75}
         titles={titlesP75}
-        ariaLabel={`Volatilité 75e centile (enveloppe) par heure UTC — ${report.entries.length} heures`}
+        ariaLabel={`Pics de volatilité par heure UTC — ${report.entries.length} heures`}
         width={480}
         height={128}
         className="block w-full"

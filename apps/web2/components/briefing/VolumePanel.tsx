@@ -50,7 +50,7 @@ export function VolumePanel({ asset, bars }: { asset: string; bars: IntradayBarO
       >
         <header className="border-b border-[var(--color-border-subtle)] px-6 py-4">
           <h3 className="font-serif text-lg text-[var(--color-text-primary)]">
-            Activité (volume proxy)
+            Activité (estimation)
           </h3>
           <p className="mt-1 text-xs text-[var(--color-text-muted)]">
             Aucune barre intraday disponible — marché fermé ou source en attente.
@@ -86,7 +86,7 @@ export function VolumePanel({ asset, bars }: { asset: string; bars: IntradayBarO
 
   const pricePts = bandSeriesPolyline(closes, slot, volH);
 
-  const desc = `Activité intraday ${asset.replace("_", "/")} : ${n} barres, volume proxy moyen ${avgVol.toFixed(0)}, max ${maxVol.toFixed(0)}, dernière ${parisLabel(last.time, true)} (heure de Paris).`;
+  const desc = `Activité intraday ${asset.replace("_", "/")} : ${n} barres, activité moyenne ${avgVol.toFixed(0)}, max ${maxVol.toFixed(0)}, dernière ${parisLabel(last.time, true)} (heure de Paris).`;
 
   return (
     <m.section
@@ -98,11 +98,11 @@ export function VolumePanel({ asset, bars }: { asset: string; bars: IntradayBarO
       <header className="flex flex-wrap items-start justify-between gap-2 border-b border-[var(--color-border-subtle)] px-6 py-4">
         <div>
           <h3 className="font-serif text-lg text-[var(--color-text-primary)]">
-            Activité (volume proxy)
+            Activité (estimation)
           </h3>
           <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-            Agrégat tick Polygon · le volume réel FX n&apos;existe pas (marché décentralisé) · ligne
-            = prix de clôture
+            Estimation de l&apos;activité · le vrai volume n&apos;existe pas en devises (marché
+            décentralisé) · ligne = prix de clôture
           </p>
         </div>
         {closed ? (

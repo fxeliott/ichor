@@ -55,15 +55,15 @@ export function InstitutionalPositioningPanel({
         {!hideHeader && (
           <header className="border-b border-[var(--color-border-subtle)] px-6 py-4">
             <h3 className="font-serif text-lg text-[var(--color-text-primary)]">
-              Positionnement institutionnel
+              Positions des gros acteurs (smart money)
             </h3>
             <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-              CFTC TFF / COT — non disponible pour cet actif.
+              Données officielles — non disponibles pour cet actif.
             </p>
           </header>
         )}
         <p className="px-6 py-8 text-center text-sm text-[var(--color-text-muted)]">
-          Pas de données CFTC pour {data?.asset ?? "cet actif"}.
+          Pas de données de positionnement pour {data?.asset ?? "cet actif"}.
         </p>
       </m.section>
     );
@@ -91,10 +91,10 @@ export function InstitutionalPositioningPanel({
         {!hideHeader && (
           <div>
             <h3 className="font-serif text-lg text-[var(--color-text-primary)]">
-              Positionnement institutionnel
+              Positions des gros acteurs (smart money)
             </h3>
             <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-              CFTC · net long (+) / short (−) en contrats · {data.cadence}
+              Données officielles · net acheteur (+) / vendeur (−) en contrats · {data.cadence}
             </p>
           </div>
         )}
@@ -106,7 +106,7 @@ export function InstitutionalPositioningPanel({
       {tff ? (
         <div className="border-b border-[var(--color-border-subtle)]/60 px-6 py-4">
           <p className="mb-3 text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
-            TFF 4 classes · OI {NF.format(tff.open_interest)}
+            4 types d&apos;acteurs · positions ouvertes {NF.format(tff.open_interest)}
           </p>
           <ul className="space-y-2.5">
             {tffRows.map(([label, net, dw], i) => {
@@ -148,8 +148,9 @@ export function InstitutionalPositioningPanel({
           </ul>
           {tff.smart_money_divergence ? (
             <p className="mt-3 rounded-lg border border-[var(--color-bear)]/40 px-3 py-2 text-xs text-[var(--color-bear)]">
-              ⚠ Divergence smart-money : Lev Funds et Asset Mgr à contre-sens — lecture
-              institutionnelle non consensuelle (contexte, pas un ordre).
+              ⚠ Désaccord entre gros acteurs : les fonds spéculatifs et les gérants d&apos;actifs
+              sont à contre-sens — les pros ne sont pas d&apos;accord entre eux · contexte
+              d&apos;aide à la décision, pas un signal d&apos;achat ou de vente.
             </p>
           ) : null}
         </div>
@@ -158,7 +159,7 @@ export function InstitutionalPositioningPanel({
       {cot ? (
         <div className="px-6 py-4">
           <p className="mb-2 text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
-            COT Disaggregated · pattern&nbsp;
+            Détail par acteur · tendance&nbsp;
             <span
               className={
                 cot.pattern === "reversal"
@@ -191,8 +192,8 @@ export function InstitutionalPositioningPanel({
         </div>
       ) : (
         <p className="px-6 py-3 text-xs text-[var(--color-text-muted)]">
-          COT Disaggregated : non couvert pour cet actif (TFF ci-dessus reste la lecture
-          institutionnelle de référence).
+          Détail par acteur : non couvert pour cet actif (les positions ci-dessus restent la lecture
+          de référence).
         </p>
       )}
     </m.section>

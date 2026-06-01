@@ -42,7 +42,7 @@ export function DataIntegrityBadge({ data }: { data: DataIntegritySummary | null
           Intégrité des données
         </h3>
         <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-          Fraîcheur des ancres FRED critiques · figée à la génération de la carte
+          Fraîcheur des données économiques clés · figée au moment de la lecture
         </p>
       </header>
 
@@ -75,8 +75,8 @@ export function DataIntegrityBadge({ data }: { data: DataIntegritySummary | null
                   </div>
                   <p className="mt-0.5 font-mono text-[11px] tabular-nums text-[var(--color-text-muted)]">
                     {r.lastObs
-                      ? `dernière obs ${r.lastObs} · ${r.ageDays} j (seuil ${r.maxAgeDays} j)`
-                      : `aucune observation ingérée (seuil ${r.maxAgeDays} j)`}
+                      ? `dernière mise à jour ${r.lastObs} · ${r.ageDays} j (seuil ${r.maxAgeDays} j)`
+                      : `aucune donnée disponible (seuil ${r.maxAgeDays} j)`}
                   </p>
                   <p className="mt-0.5 text-xs text-[var(--color-text-secondary)]">{r.impacted}</p>
                 </div>
@@ -111,7 +111,8 @@ export function DataIntegrityBadge({ data }: { data: DataIntegritySummary | null
       )}
 
       <p className="border-t border-[var(--color-border-subtle)]/60 px-6 py-3 text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
-        Contexte d&apos;intégrité des données — pas un ordre, pas un conseil personnalisé (ADR-017)
+        Fiabilité des données — contexte d&apos;aide à la décision, pas un signal d&apos;achat ou de
+        vente
       </p>
     </m.section>
   );

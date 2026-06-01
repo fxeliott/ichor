@@ -34,9 +34,9 @@ const BAND_TONE: Record<string, string> = {
  * (single index) — the disclosure only describes the negatives ranking.
  */
 function gdeltFilterLabel(filter: GeopoliticsFilterMeta | null | undefined): string {
-  if (!filter) return "ranking global (24h)";
+  if (!filter) return "classement global (24h)";
   if (!filter.known_asset) {
-    return `actif "${filter.asset}" hors carte de mots-clés · ranking global`;
+    return `actif "${filter.asset}" non reconnu · classement global`;
   }
   if (filter.applied) {
     return `filtré · ${filter.matched} événement${filter.matched > 1 ? "s" : ""} liés à ${filter.asset}`;
@@ -46,7 +46,7 @@ function gdeltFilterLabel(filter: GeopoliticsFilterMeta | null | undefined): str
     filter.matched === 0
       ? "aucun événement"
       : `${filter.matched} événement${filter.matched > 1 ? "s" : ""}`;
-  return `ranking global · ${matchedTxt} spécifique${filter.matched > 1 ? "s" : ""} à ${filter.asset} sur la fenêtre (seuil ${filter.min_required} — pas un signal)`;
+  return `classement global · ${matchedTxt} spécifique${filter.matched > 1 ? "s" : ""} à ${filter.asset} sur la fenêtre (peut refléter un creux d'actualité, pas un signal)`;
 }
 
 export function GeopoliticsPanel({
@@ -70,7 +70,7 @@ export function GeopoliticsPanel({
           <header className="border-b border-[var(--color-border-subtle)] px-6 py-4">
             <h3 className="font-serif text-lg text-[var(--color-text-primary)]">Géopolitique</h3>
             <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-              AI-GPR + GDELT — données indisponibles pour l&apos;instant.
+              Tension géopolitique — données indisponibles pour l&apos;instant.
             </p>
           </header>
         )}
@@ -101,7 +101,8 @@ export function GeopoliticsPanel({
           <div>
             <h3 className="font-serif text-lg text-[var(--color-text-primary)]">Géopolitique</h3>
             <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-              AI-GPR (Caldara-Iacoviello · base 100 = moyenne 1985-2019) · tonalité GDELT
+              Indice de tension géopolitique (base 100 = moyenne 1985-2019) · tonalité des
+              actualités
             </p>
           </div>
         )}
@@ -145,9 +146,9 @@ export function GeopoliticsPanel({
 
       <div className="px-6 py-4">
         <p className="mb-3 text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
-          GDELT · {n_events_window} events / {gdelt_window_hours} h ·{" "}
+          Actualités · {n_events_window} événements / {gdelt_window_hours} h ·{" "}
           {gdeltFilterLabel(data.filter)}
-          {allFlat ? " — tonalité ≈ neutre (pas de cluster fortement négatif)" : ""}
+          {allFlat ? " — tonalité ≈ neutre (rien de fortement négatif)" : ""}
         </p>
         <ul className="space-y-2">
           {negs.map((e, i) => (

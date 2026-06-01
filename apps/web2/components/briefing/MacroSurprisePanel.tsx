@@ -183,10 +183,10 @@ export function MacroSurprisePanel({ surpriseIndex }: MacroSurprisePanelProps) {
 
       <div className="border-t border-[var(--color-border-subtle)] px-6 py-3">
         <p className="text-[10px] text-[var(--color-text-muted)]">
-          z = surprise du dernier changement vs sa distribution (proxy Citi-style, pas de flux
-          consensus) · « fort » = changement inhabituel en ampleur, pas un jugement bon/mauvais ·
-          inflation surfacée à part pour ne pas la confondre avec la croissance · pas un signal
-          (ADR-017)
+          σ = écart du dernier changement par rapport à son comportement habituel · « fort » =
+          changement inhabituel en ampleur, pas un jugement bon/mauvais · inflation affichée à part
+          pour ne pas la confondre avec la croissance · contexte d&apos;aide à la décision, pas un
+          signal d&apos;achat ou de vente
         </p>
       </div>
     </m.section>
