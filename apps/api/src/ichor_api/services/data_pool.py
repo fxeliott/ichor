@@ -4725,30 +4725,13 @@ async def _section_london_session(session: AsyncSession, asset: str) -> tuple[st
     CAPITAL point). Reuses `compute_london_session` (pure, DST-correct via
     ZoneInfo) ; honest empty when no London bars. Descriptive (ADR-017).
     """
-    from ..models import PolygonIntradayBar
-    from .london_session import Bar, compute_london_session
+    from .london_session import compute_london_session_for_asset
 
     now = datetime.now(UTC)
-    rows = (
-        await session.execute(
-            select(
-                PolygonIntradayBar.bar_ts,
-                PolygonIntradayBar.open,
-                PolygonIntradayBar.high,
-                PolygonIntradayBar.low,
-                PolygonIntradayBar.close,
-            )
-            .where(PolygonIntradayBar.asset == asset)
-            .where(PolygonIntradayBar.bar_ts >= now - timedelta(days=7))
-            .order_by(PolygonIntradayBar.bar_ts.asc())
-        )
-    ).all()
-    bars = [
-        Bar(ts=r[0], open=float(r[1]), high=float(r[2]), low=float(r[3]), close=float(r[4]))
-        for r in rows
-        if r[1] is not None and r[4] is not None
-    ]
-    read = compute_london_session(bars, now_utc=now)
+    # Shared SSOT async wrapper — same bar fetch + compute the
+    # `/v1/london-session/{asset}` endpoint uses, so the Pass-2 prose and the
+    # frontend `<LondonSessionPanel>` can never diverge on the read.
+    read = await compute_london_session_for_asset(session, asset, now_utc=now)
     lines = ["## Session de Londres — lecture pour calibrer la session NY"]
     if read is None:
         lines.append(

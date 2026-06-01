@@ -6,11 +6,14 @@ on card regen. Includes a DST check on the London→UTC window mapping.
 
 from __future__ import annotations
 
+import asyncio
 from datetime import UTC, date, datetime, timedelta
+from unittest.mock import AsyncMock, MagicMock
 
 from ichor_api.services.london_session import (
     Bar,
     compute_london_session,
+    compute_london_session_for_asset,
     london_window_utc,
 )
 
@@ -87,3 +90,51 @@ def test_compute_london_empty_and_too_few() -> None:
     assert compute_london_session([], now_utc=datetime(2026, 5, 30, 9, 0, tzinfo=UTC)) is None
     few = _win_bars(date(2026, 5, 29), n=10, open_p=1.16, close_p=1.161, high_p=1.162, low_p=1.159)
     assert compute_london_session(few, now_utc=datetime(2026, 5, 30, 9, 0, tzinfo=UTC)) is None
+
+
+def _rows_from_bars(bars: list[Bar]) -> list[tuple]:
+    """Project synthetic Bars to the (bar_ts, open, high, low, close) row tuples
+    the async wrapper reads from `session.execute(...).all()`."""
+    return [(b.ts, b.open, b.high, b.low, b.close) for b in bars]
+
+
+def test_compute_london_session_for_asset_fetches_maps_and_computes() -> None:
+    """The async DB wrapper fetches polygon_intraday rows, maps NULL-safe to
+    Bar, and delegates to the pure compute — the one shared SSOT path the
+    data_pool section AND the /v1/london-session endpoint both use."""
+    bars = _win_bars(
+        date(2026, 5, 29), n=40, open_p=1.1600, close_p=1.1640, high_p=1.1645, low_p=1.1595
+    )
+    result = MagicMock()
+    result.all.return_value = _rows_from_bars(bars)
+    session = MagicMock()
+    session.execute = AsyncMock(return_value=result)
+    now = datetime(2026, 5, 30, 9, 0, tzinfo=UTC)  # Saturday → latest window is Friday
+
+    read = asyncio.run(compute_london_session_for_asset(session, "EUR_USD", now_utc=now))
+
+    assert read is not None
+    assert read.session_date == date(2026, 5, 29)
+    assert read.direction == "up"
+    assert read.bar_count == 40
+    session.execute.assert_awaited_once()
+
+
+def test_compute_london_session_for_asset_skips_null_rows() -> None:
+    """Rows with NULL open/close (broken bars) are dropped before compute."""
+    bars = _win_bars(
+        date(2026, 5, 29), n=40, open_p=1.1600, close_p=1.1640, high_p=1.1645, low_p=1.1595
+    )
+    rows = _rows_from_bars(bars)
+    rows.append((bars[-1].ts + timedelta(minutes=1), None, 1.16, 1.16, 1.16))
+    rows.append((bars[-1].ts + timedelta(minutes=2), 1.16, 1.16, 1.16, None))
+    result = MagicMock()
+    result.all.return_value = rows
+    session = MagicMock()
+    session.execute = AsyncMock(return_value=result)
+    now = datetime(2026, 5, 30, 9, 0, tzinfo=UTC)
+
+    read = asyncio.run(compute_london_session_for_asset(session, "EUR_USD", now_utc=now))
+
+    assert read is not None
+    assert read.bar_count == 40  # the 2 NULL rows dropped, not counted

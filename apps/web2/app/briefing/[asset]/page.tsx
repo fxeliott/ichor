@@ -56,6 +56,7 @@ import { SessionStatus } from "@/components/briefing/SessionStatus";
 // r161 Strand G — ADR-106 SessionVerdict apex panel (Eliot's r161 directive
 // "verdict exact" verbatim). Rendered prominently above EventAnticipationPanel.
 import { SessionVerdictPanel } from "@/components/briefing/SessionVerdictPanel";
+import { LondonSessionPanel } from "@/components/briefing/LondonSessionPanel";
 import { PreviousSessionContextPanel } from "@/components/briefing/PreviousSessionContextPanel";
 import { ThemeRankingPanel } from "@/components/briefing/ThemeRankingPanel";
 // r162 Stride 8 Phase 2 — ADR-106 §"coach explicateur" apex panel rendered
@@ -604,7 +605,7 @@ export default async function BriefingPage({ params }: PageParams) {
           hue="var(--c-cyan)"
           eyebrow="F · Structure"
           title="Niveaux & contexte"
-          intro="La structure de prix : les niveaux clés à surveiller, d'où venait le mouvement de la session précédente, l'activité de volume et la volatilité typique heure par heure."
+          intro="La structure de prix : les niveaux clés à surveiller, d'où venait le mouvement de la session précédente, comment Londres a tradé ce matin pour calibrer New York, l'activité de volume et la volatilité typique heure par heure."
           defaultOpen={false}
         >
           <div>
@@ -616,6 +617,7 @@ export default async function BriefingPage({ params }: PageParams) {
             <KeyLevelsPanel items={renderedKeyLevels} focusAsset={normalisedAsset} />
           </div>
           <PreviousSessionContextPanel asset={normalisedAsset} />
+          <LondonSessionPanel asset={normalisedAsset} />
           <div>
             <SubHeader id="volume-heading" title="Volume" meta="Activité d'échange intraday" />
             <VolumePanel asset={normalisedAsset} bars={recentBars} />
