@@ -7,12 +7,10 @@
  * derived server-side at SSR (pure / no client deps), zero client
  * round-trips.
  *
- * r190 — premium cockpit redesign : the flat one-line verdict LIST is
- * replaced by a depth-bearing 5-card grid (<VerdictCockpitCard>) with a
- * conviction gauge + direction + regime/caractère chips + neutral intraday
- * sparkline. A dominant-theme banner (<ThemeRankingPanel>) frames the macro
- * regime above the grid ; a slim fresh-data strip carries the snapshot
- * freshness. The text-wall is gone.
+ * Refonte 2026 (Aurora cobalt) — premium cockpit : a luminous display hero,
+ * a staged 5-card grid (<VerdictCockpitCard> = GlowCard + animated conviction
+ * gauge + neutral sparkline), a dominant-theme banner and glass macro tiles,
+ * all entering on scroll (<Reveal>). Fully responsive, zero overlap.
  *
  * ADR-017 : pre-trade context only, deterministic, zero LLM. No BUY/SELL.
  */
@@ -26,6 +24,8 @@ import { NetExposureLens } from "@/components/briefing/NetExposureLens";
 import { SessionStatus } from "@/components/briefing/SessionStatus";
 import { ThemeRankingPanel } from "@/components/briefing/ThemeRankingPanel";
 import { VerdictCockpitCard } from "@/components/briefing/VerdictCockpitCard";
+import { GlowCard } from "@/components/ui/glow-card";
+import { Reveal } from "@/components/ui/reveal";
 import {
   apiGet,
   getCalendarUpcoming,
@@ -145,60 +145,75 @@ export default async function BriefingIndexPage() {
     : null;
 
   return (
-    <main className="mx-auto max-w-6xl space-y-10 px-4 py-10 md:px-8 md:py-14">
+    <main className="mx-auto max-w-6xl space-y-12 px-4 py-10 md:px-8 md:py-16">
       <Suspense>
         <SessionStatus />
       </Suspense>
 
-      <section className="space-y-4">
-        <p className="text-[10px] uppercase tracking-[0.3em] text-[var(--color-text-muted)]">
-          Ichor · Cockpit pré-session
-        </p>
-        <h1 className="font-serif text-5xl tracking-tight text-[var(--color-text-primary)] md:text-6xl">
-          Comprends le marché
-          <span className="block text-[var(--color-text-secondary)]">avant qu&apos;il ouvre.</span>
-        </h1>
-        <p className="max-w-2xl text-base leading-relaxed text-[var(--color-text-secondary)]">
-          Le verdict de chaque actif en une carte : dans quel sens penche le biais, à quel point
-          c&apos;est convaincant, le caractère du marché et le prochain catalyseur à surveiller.
-          Clique une carte pour la lecture complète.
-        </p>
-      </section>
+      {/* ── Hero ── */}
+      <Reveal>
+        <section className="space-y-5">
+          <p className="flex items-center gap-2.5 font-mono text-[11px] uppercase tracking-[0.32em] text-[var(--color-text-muted)]">
+            <span
+              aria-hidden
+              className="inline-flex h-1.5 w-1.5 rounded-full bg-[var(--accent)] shadow-[0_0_10px_var(--accent)]"
+            />
+            Ichor · Cockpit pré-session
+          </p>
+          <h1 className="font-display text-5xl font-semibold leading-[1.04] tracking-tight text-[var(--color-text-primary)] md:text-7xl">
+            Comprends le marché
+            <span className="mt-1 block grad-vivid">avant qu&apos;il ouvre.</span>
+          </h1>
+          <p className="max-w-2xl text-base leading-relaxed text-[var(--color-text-secondary)] md:text-lg">
+            Le verdict de chaque actif en une carte : dans quel sens penche le biais, à quel point
+            c&apos;est convaincant, le caractère du marché et le prochain catalyseur à surveiller.
+            Clique une carte pour la lecture complète.
+          </p>
+        </section>
+      </Reveal>
 
       {/* Fresh-data strip — snapshot freshness + live-read count. */}
-      <div className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-2xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)]/30 px-5 py-3 text-xs backdrop-blur-md">
-        <span className="flex items-center gap-2">
-          <span
-            aria-hidden
-            className={`inline-flex h-2 w-2 rounded-full ${liveCount > 0 ? "animate-pulse bg-[var(--color-bull)]" : "bg-[var(--color-text-muted)]"}`}
-          />
-          <span className="uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
-            {liveCount > 0 ? "Données live" : "Hors-ligne"}
+      <Reveal delay={0.05}>
+        <div className="glass flex flex-wrap items-center gap-x-6 gap-y-2 rounded-2xl px-5 py-3 text-xs">
+          <span className="flex items-center gap-2">
+            <span
+              aria-hidden
+              className={`inline-flex h-2 w-2 rounded-full ${liveCount > 0 ? "animate-pulse bg-[var(--color-bull)] shadow-[0_0_10px_var(--color-bull)]" : "bg-[var(--color-text-muted)]"}`}
+            />
+            <span className="uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
+              {liveCount > 0 ? "Données live" : "Hors-ligne"}
+            </span>
           </span>
-        </span>
-        <span className="text-[var(--color-text-secondary)]">
-          <span className="font-mono tabular-nums text-[var(--color-text-primary)]">
-            {liveCount}/5
-          </span>{" "}
-          actifs avec carte
-        </span>
-        {latestGeneratedLabel && (
           <span className="text-[var(--color-text-secondary)]">
-            Carte la plus récente ·{" "}
             <span className="font-mono tabular-nums text-[var(--color-text-primary)]">
-              {latestGeneratedLabel}
+              {liveCount}/5
             </span>{" "}
-            Paris
+            actifs avec carte
           </span>
-        )}
-      </div>
+          {latestGeneratedLabel && (
+            <span className="text-[var(--color-text-secondary)]">
+              Carte la plus récente ·{" "}
+              <span className="font-mono tabular-nums text-[var(--color-text-primary)]">
+                {latestGeneratedLabel}
+              </span>{" "}
+              Paris
+            </span>
+          )}
+        </div>
+      </Reveal>
 
       {/* Dominant macro theme banner (live-polling). */}
-      <ThemeRankingPanel />
+      <Reveal delay={0.1}>
+        <ThemeRankingPanel />
+      </Reveal>
 
-      <section aria-labelledby="cockpit-heading" className="space-y-4">
+      {/* ── Cockpit grid ── */}
+      <section aria-labelledby="cockpit-heading" className="space-y-5">
         <div className="flex items-baseline justify-between gap-4">
-          <h2 id="cockpit-heading" className="font-serif text-2xl text-[var(--color-text-primary)]">
+          <h2
+            id="cockpit-heading"
+            className="font-display text-2xl font-semibold text-[var(--color-text-primary)]"
+          >
             Lecture du jour · 5 actifs
           </h2>
           <span className="text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
@@ -219,14 +234,16 @@ export default async function BriefingIndexPage() {
         </div>
       </section>
 
-      <NetExposureLens data={netExposure} labels={assetLabels} />
+      <Reveal>
+        <NetExposureLens data={netExposure} labels={assetLabels} />
+      </Reveal>
 
       {isLive(today) && (
-        <section aria-labelledby="macro-pulse-heading" className="space-y-3">
+        <section aria-labelledby="macro-pulse-heading" className="space-y-4">
           <div className="flex items-baseline justify-between gap-4">
             <h2
               id="macro-pulse-heading"
-              className="font-serif text-2xl text-[var(--color-text-primary)]"
+              className="font-display text-2xl font-semibold text-[var(--color-text-primary)]"
             >
               Pouls macro
             </h2>
@@ -235,48 +252,56 @@ export default async function BriefingIndexPage() {
             </span>
           </div>
           <div className="grid gap-4 md:grid-cols-3">
-            <div className="rounded-2xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)]/40 p-6 shadow-[var(--shadow-sm)] backdrop-blur-xl">
-              <p className="text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
-                Appétit pour le risque
-              </p>
-              <p
-                className={`mt-2 font-mono text-3xl tabular-nums ${RISK_BAND_TONE[today.macro.risk_band] ?? "text-[var(--color-text-primary)]"}`}
-              >
-                {today.macro.risk_composite.toFixed(2)}
-              </p>
-              <p className="mt-1 text-xs uppercase tracking-wider text-[var(--color-text-secondary)]">
-                {today.macro.risk_band}
-              </p>
-            </div>
+            <Reveal delay={0}>
+              <GlowCard className="h-full p-6">
+                <p className="text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
+                  Appétit pour le risque
+                </p>
+                <p
+                  className={`mt-2 font-mono text-4xl tabular-nums ${RISK_BAND_TONE[today.macro.risk_band] ?? "text-[var(--color-text-primary)]"}`}
+                >
+                  {today.macro.risk_composite.toFixed(2)}
+                </p>
+                <p className="mt-1 text-xs uppercase tracking-wider text-[var(--color-text-secondary)]">
+                  {today.macro.risk_band}
+                </p>
+              </GlowCard>
+            </Reveal>
 
-            <div className="rounded-2xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)]/40 p-6 shadow-[var(--shadow-sm)] backdrop-blur-xl">
-              <p className="text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
-                Stress de financement
-              </p>
-              <p className="mt-2 font-mono text-3xl tabular-nums text-[var(--color-text-primary)]">
-                {today.macro.funding_stress.toFixed(2)}
-              </p>
-              <p className="mt-1 text-xs uppercase tracking-wider text-[var(--color-text-secondary)]">
-                SOFR-IORB · RRP · HY OAS
-              </p>
-            </div>
+            <Reveal delay={0.06}>
+              <GlowCard className="h-full p-6">
+                <p className="text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
+                  Stress de financement
+                </p>
+                <p className="mt-2 font-mono text-4xl tabular-nums text-[var(--color-text-primary)]">
+                  {today.macro.funding_stress.toFixed(2)}
+                </p>
+                <p className="mt-1 text-xs uppercase tracking-wider text-[var(--color-text-secondary)]">
+                  SOFR-IORB · RRP · HY OAS
+                </p>
+              </GlowCard>
+            </Reveal>
 
-            <div className="rounded-2xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)]/40 p-6 shadow-[var(--shadow-sm)] backdrop-blur-xl">
-              <p className="text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
-                Régime VIX
-              </p>
-              <p className="mt-2 font-mono text-3xl tabular-nums text-[var(--color-text-primary)]">
-                {today.macro.vix_1m?.toFixed(1) ?? "—"}
-              </p>
-              <p className="mt-1 text-xs uppercase tracking-wider text-[var(--color-text-secondary)]">
-                {VIX_REGIME_LABEL[today.macro.vix_regime] ?? today.macro.vix_regime}
-              </p>
-            </div>
+            <Reveal delay={0.12}>
+              <GlowCard className="h-full p-6">
+                <p className="text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
+                  Régime VIX
+                </p>
+                <p className="mt-2 font-mono text-4xl tabular-nums text-[var(--color-text-primary)]">
+                  {today.macro.vix_1m?.toFixed(1) ?? "—"}
+                </p>
+                <p className="mt-1 text-xs uppercase tracking-wider text-[var(--color-text-secondary)]">
+                  {VIX_REGIME_LABEL[today.macro.vix_regime] ?? today.macro.vix_regime}
+                </p>
+              </GlowCard>
+            </Reveal>
           </div>
         </section>
       )}
 
-      <AssetSwitcher previews={isLive(today) ? today.top_sessions : []} />
+      <Reveal>
+        <AssetSwitcher previews={isLive(today) ? today.top_sessions : []} />
+      </Reveal>
 
       <footer className="pt-8 text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
         Ichor v2 · Pre-trade context only · No BUY/SELL signals (ADR-017 boundary)

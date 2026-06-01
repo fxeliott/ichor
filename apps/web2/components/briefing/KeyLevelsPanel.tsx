@@ -32,44 +32,48 @@ interface KeyLevelGroup {
 
 const GROUPS: KeyLevelGroup[] = [
   {
-    family: "Liquidity gates",
-    blurb: "Fed Treasury cash + reverse-repo balance — when full, USD-bid via reserves drain.",
+    family: "Liquidité",
+    blurb:
+      "Trésorerie de la Fed et réserves de cash — quand elles se vident, le dollar a tendance à se renforcer.",
     kinds: ["tga_liquidity_gate", "rrp_liquidity_gate"],
   },
   {
-    family: "Peg breaks",
-    blurb: "Hard-peg (HKMA 7.85) + soft-peg (PBOC fix ±2σ) — discontinuity risk.",
+    family: "Ancrages de devises",
+    blurb:
+      "Taux de change fixés ou encadrés (Hong Kong, Chine) — risque de rupture si la barre est touchée.",
     kinds: ["peg_break_hkma", "peg_break_pboc_fix"],
   },
   {
-    family: "Dealer GEX",
-    blurb: "SqueezeMetrics flip / call-wall / put-wall — vol-dampening vs amplification regime.",
+    family: "Niveaux des options",
+    blurb:
+      "Bascule de volatilité, mur d'achats, mur de ventes — zones qui calment ou amplifient les mouvements.",
     kinds: ["gamma_flip", "gex_call_wall", "gex_put_wall"],
   },
   {
-    family: "Vol regime",
-    blurb: "VIX / SKEW / HY OAS — risk-on/off macro pulse + tail-fear pricing.",
+    family: "Climat de volatilité",
+    blurb:
+      "Indices de peur (VIX, SKEW) et stress du crédit — humeur risque-on / risque-off du marché.",
     kinds: ["vix_regime_switch", "skew_regime_switch", "hy_oas_percentile"],
   },
   {
-    family: "Polymarket",
-    blurb: "Decision-imminent prediction markets ≥85% consensus — narrative resolution risk.",
+    family: "Paris de marché",
+    blurb: "Marchés de paris dont l'issue est quasi décidée (≥ 85 %) — risque de bascule du récit.",
     kinds: ["polymarket_decision"],
   },
 ];
 
 const KIND_LABEL: Record<KeyLevelKind, string> = {
-  tga_liquidity_gate: "TGA",
-  rrp_liquidity_gate: "RRP",
-  gamma_flip: "Gamma flip",
-  gex_call_wall: "Call wall",
-  gex_put_wall: "Put wall",
+  tga_liquidity_gate: "Liquidité du Trésor (TGA)",
+  rrp_liquidity_gate: "Réserve de liquidités (RRP)",
+  gamma_flip: "Bascule de volatilité (gamma flip)",
+  gex_call_wall: "Mur d'achats d'options (call wall)",
+  gex_put_wall: "Mur de ventes d'options (put wall)",
   peg_break_hkma: "HKMA peg",
   peg_break_pboc_fix: "PBOC fix",
   vix_regime_switch: "VIX",
   skew_regime_switch: "SKEW",
-  hy_oas_percentile: "HY OAS",
-  polymarket_decision: "Polymarket",
+  hy_oas_percentile: "Crédit HY",
+  polymarket_decision: "Paris marché",
 };
 
 // Priority tradeable assets. A KeyLevel whose `asset` is one of these is
@@ -131,10 +135,10 @@ export function KeyLevelsPanel({ items, focusAsset }: { items: KeyLevel[]; focus
     return (
       <div className="rounded-2xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)]/40 p-8 text-center backdrop-blur-xl">
         <p className="font-serif text-lg text-[var(--color-text-secondary)]">
-          All key levels in NORMAL bands.
+          Tous les niveaux clés sont dans la zone normale.
         </p>
         <p className="mt-2 text-xs text-[var(--color-text-muted)]">
-          No microstructure or macro thresholds firing right now.
+          Aucun seuil important n&apos;est franchi en ce moment.
         </p>
       </div>
     );
@@ -156,7 +160,7 @@ export function KeyLevelsPanel({ items, focusAsset }: { items: KeyLevel[]; focus
                 {group.family}
               </h3>
               <span className="text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
-                {group.levels.length} firing
+                {group.levels.length} actif{group.levels.length > 1 ? "s" : ""}
               </span>
             </div>
             <p className="mt-1 text-xs text-[var(--color-text-muted)]">{group.blurb}</p>

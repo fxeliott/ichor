@@ -92,8 +92,8 @@ export function SentimentPanel({ entries, asset, hideHeader }: SentimentPanelPro
             Positionnement retail
           </h3>
           <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-            MyFXBook · la foule retail est structurellement à contre-sens aux extrêmes (biais
-            contrarian) · vert long / rouge short
+            Ce que fait la foule des petits traders · elle a souvent tort aux extrêmes (lecture à
+            contre-courant) · vert acheteur / rouge vendeur
           </p>
         </header>
       )}
@@ -103,8 +103,8 @@ export function SentimentPanel({ entries, asset, hideHeader }: SentimentPanelPro
           <span className="font-medium text-[var(--color-text-secondary)]">
             {asset.replace("_", "/")}
           </span>{" "}
-          — MyFXBook ne couvre pas les indices actions (FX / métaux uniquement). Pas de donnée de
-          positionnement retail pour cet actif.
+          — le positionnement des petits traders n&apos;est pas suivi sur les indices actions
+          (devises et métaux uniquement). Pas de donnée pour cet actif.
         </div>
       )}
 
@@ -115,7 +115,7 @@ export function SentimentPanel({ entries, asset, hideHeader }: SentimentPanelPro
               {asset.replace("_", "/")}
             </span>
             <span className={`font-serif text-lg ${TILT_TONE[focus.contrarian_tilt]}`}>
-              {TILT_GLYPH[focus.contrarian_tilt]} contrarian {focus.contrarian_tilt}
+              {TILT_GLYPH[focus.contrarian_tilt]} à contre-courant · {focus.contrarian_tilt}
             </span>
           </div>
           <div className="mt-3">
@@ -168,7 +168,7 @@ export function SentimentPanel({ entries, asset, hideHeader }: SentimentPanelPro
 
       {!focus && !isIndex && others.length === 0 && (
         <div className="px-6 py-6 text-sm italic text-[var(--color-text-muted)]">
-          Positionnement retail indisponible (collecteur MyFXBook non encore exécuté).
+          Positionnement des petits traders indisponible pour le moment.
         </div>
       )}
     </m.section>

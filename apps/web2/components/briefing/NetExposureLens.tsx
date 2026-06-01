@@ -55,7 +55,7 @@ export function NetExposureLens({
       <header className="border-b border-[var(--color-border-subtle)] px-6 py-4">
         <h3 className="font-serif text-lg text-[var(--color-text-primary)]">Exposition nette</h3>
         <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-          Corrélations live · structure réelle des paris (|ρ| ≥ 0,60)
+          Corrélations en direct · combien de paris vraiment distincts (|ρ| ≥ 0,60)
         </p>
       </header>
 
@@ -101,15 +101,16 @@ export function NetExposureLens({
           {conflict.map((p) => (
             <li key={`c-${p.a}-${p.b}`} className="text-xs text-[var(--color-bear)]">
               <span className="font-mono">{rhoStr(p.rho)}</span> <strong>{lab(p.a)}</strong>{" "}
-              {TONE_WORD[p.aTone]} vs <strong>{lab(p.b)}</strong> {TONE_WORD[p.bTone]} → lecture
-              cross-asset incohérente, à surveiller.
+              {TONE_WORD[p.aTone]} vs <strong>{lab(p.b)}</strong> {TONE_WORD[p.bTone]} → lectures
+              incohérentes entre actifs, à surveiller.
             </li>
           ))}
         </ul>
       ) : null}
 
       <p className="border-t border-[var(--color-border-subtle)]/60 px-6 py-3 text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
-        Contexte d&apos;exposition agrégée — pas un dimensionnement (ADR-017)
+        Structure d&apos;exposition — contexte d&apos;aide à la décision, pas un signal d&apos;achat
+        ou de vente
       </p>
     </m.section>
   );

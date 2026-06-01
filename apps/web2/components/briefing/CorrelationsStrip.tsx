@@ -211,7 +211,8 @@ export function CorrelationsStrip({
       </ul>
 
       <p className="border-t border-[var(--color-border-subtle)] px-6 py-3 text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
-        Contexte pré-trade — corrélations observées, pas un ordre (frontière ADR-017)
+        Corrélations observées — contexte d&apos;aide à la décision, pas un signal d&apos;achat ou
+        de vente
       </p>
     </m.section>
   );

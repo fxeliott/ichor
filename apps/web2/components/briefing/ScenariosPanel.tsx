@@ -92,10 +92,10 @@ export function ScenariosPanel({ scenarios }: { scenarios: Scenario[] }) {
     return (
       <div className="rounded-2xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)]/40 p-8 text-center backdrop-blur-xl">
         <p className="font-serif text-lg text-[var(--color-text-secondary)]">
-          Pas de décomposition scénarios pour cette carte.
+          Pas de scénarios chiffrés pour cette lecture.
         </p>
         <p className="mt-2 text-xs text-[var(--color-text-muted)]">
-          Pass-6 n&apos;a pas produit de distribution (carte pré-Pass-6 ou window non couverte).
+          L&apos;éventail des scénarios n&apos;a pas pu être calculé pour cette session.
         </p>
       </div>
     );
@@ -129,11 +129,10 @@ export function ScenariosPanel({ scenarios }: { scenarios: Scenario[] }) {
         <div className="flex flex-wrap items-baseline justify-between gap-4">
           <div>
             <h3 className="font-serif text-lg text-[var(--color-text-primary)]">
-              Distribution des scénarios
+              Les scénarios possibles et leur probabilité
             </h3>
             <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-              Pass-6 · 7 buckets · ADR-085 · masse de probabilité sur le spectre des résultats
-              réalisés
+              Où pourrait aller le prix, et avec quelles chances pour chaque issue
             </p>
           </div>
           <div className="flex items-baseline gap-4 text-xs">

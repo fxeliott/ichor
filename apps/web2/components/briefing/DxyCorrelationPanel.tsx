@@ -82,15 +82,12 @@ export function DxyCorrelationPanel({ correlations, focusAsset }: Props) {
             id="dxy-corr-heading"
             className="font-serif text-lg tracking-tight text-[var(--color-text-primary)]"
           >
-            Co-mouvement vs DXY
+            Co-mouvement avec le dollar (DXY)
           </h3>
-          <span className="text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
-            Engel-West 2005 · <i>JPE</i>
-          </span>
         </div>
         {windowDays !== null && generatedAt !== null && (
           <p className="mt-1 text-[10px] uppercase tracking-wide text-[var(--color-text-muted)]">
-            Fenêtre {windowDays} j · ρ Pearson horaire · backend snapshot
+            Sur {windowDays} derniers jours · corrélation observée
           </p>
         )}
       </header>
@@ -101,10 +98,9 @@ export function DxyCorrelationPanel({ correlations, focusAsset }: Props) {
           aria-live="polite"
           className="border-b border-[var(--color-border-subtle)] bg-[var(--color-bg-base)]/40 px-6 py-3 text-xs text-[var(--color-text-muted)]"
         >
-          Données DXY en attente d'un proxy ETF (UUP candidat r172) — Polygon free tier ne diffuse
-          pas <code>I:DXY</code>, mirror ADR-089 r27 SPY proxy. Les cellules restent à{" "}
-          <span className="font-mono">—</span> jusqu'à branchement du proxy ; les priors
-          trader-heuristic restent affichés à titre de cadre de lecture.
+          Données du dollar en cours de branchement — les cellules restent à{" "}
+          <span className="font-mono">—</span> en attendant. Les valeurs de référence habituelles
+          restent affichées comme cadre de lecture.
         </div>
       )}
 
@@ -206,7 +202,7 @@ export function DxyCorrelationPanel({ correlations, focusAsset }: Props) {
 
       <details className="border-t border-[var(--color-border-subtle)] px-6 py-3">
         <summary className="cursor-pointer text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
-          Cadre de lecture · 5 sentinelles d'honnêteté
+          Cadre de lecture · points de vigilance
         </summary>
         <ul className="mt-3 space-y-2">
           {HONEST_SENTINELS.map((sentinel) => (
@@ -221,7 +217,8 @@ export function DxyCorrelationPanel({ correlations, focusAsset }: Props) {
       </details>
 
       <p className="border-t border-[var(--color-border-subtle)] px-6 py-3 text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
-        co-mouvement observé · monitoring · pas un signal (frontière ADR-017)
+        co-mouvement observé · contexte d&apos;aide à la décision, pas un signal d&apos;achat ou de
+        vente
       </p>
     </m.section>
   );

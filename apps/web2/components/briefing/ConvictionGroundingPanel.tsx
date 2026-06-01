@@ -82,8 +82,6 @@ export function ConvictionGroundingPanel({
   // #11). Never render a fabricated "grounded" state for a legacy card.
   if (g.empty) return null;
 
-  const convictionLabel = `Conviction ${Math.round(card.conviction_pct)}%`;
-
   return (
     <m.section
       initial={{ opacity: 0, y: 8 }}
@@ -101,7 +99,7 @@ export function ConvictionGroundingPanel({
             subheading just states the framing ; the single ADR-017 stamp
             lives in the footer (no double-stamp). */}
         <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-          {convictionLabel} — ce qui fonde la lecture du jour.
+          Conviction {Math.round(card.conviction_pct)}% — ce qui fonde la lecture du jour.
         </p>
       </header>
 
@@ -212,25 +210,22 @@ export function ConvictionGroundingPanel({
               // (semantic reading order, matches the "discount what
               // follows" intent). Visual layer keeps the post-data
               // placement (trader UI convention).
-              const regime = pocketSkill?.regime ?? "";
-              const ref = regime
-                ? `voir bloc Calibration du système pocket ${regime} plus haut`
-                : "voir bloc Calibration du système plus haut";
+              const ref = "voir le bloc « À quel point se fier à ce verdict » plus haut";
               const caveatTxt =
                 g.pocketSkillCaveat === "anti_skill"
-                  ? `Avertissement : anti-skill historique sur ce régime, n=${g.pocketSkillNObservations}, ${ref}. `
+                  ? `Avertissement : ce type de lecture s'est souvent trompé dans ce contexte, ${g.pocketSkillNObservations} cas observés, ${ref}. `
                   : g.pocketSkillCaveat === "soft_calibration"
-                    ? `Calibration insuffisante, n=${g.pocketSkillNObservations}, tendance défavorable, ${ref}. `
+                    ? `Pas encore assez de recul, ${g.pocketSkillNObservations} cas observés, tendance défavorable, ${ref}. `
                     : "";
-              return `Drivers explicites : ${caveatTxt}${count} driver${plural} significatif${plural}, ${ariaList}`;
+              return `Facteurs clés : ${caveatTxt}${count} facteur${plural} marquant${plural}, ${ariaList}`;
             })()}
             className="flex flex-col gap-1"
           >
             <p className="text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
-              Drivers explicites
+              Facteurs clés
             </p>
             <p className="font-mono text-2xl tabular-nums text-[var(--color-text-primary)]">
-              {g.meaningfulDriverCount} drv.
+              {g.meaningfulDriverCount} fact.
             </p>
             <p className="font-mono text-xs tabular-nums text-[var(--color-text-secondary)]">
               {g.topDrivers.map((d, i) => (
@@ -272,17 +267,17 @@ export function ConvictionGroundingPanel({
                     `n=N` count for visual alignment under driver list. */}
             {g.pocketSkillCaveat === "anti_skill" ? (
               <p className="mt-2 border-t border-[var(--color-border-subtle)]/40 pt-2 text-[10px] text-[var(--color-text-secondary)]">
-                <span aria-hidden="true">⚠ </span>Anti-skill historique sur ce régime (n=
-                <span className="font-mono tabular-nums">{g.pocketSkillNObservations}</span>) — voir
-                bloc Calibration du système
-                {pocketSkill?.regime ? ` · pocket ${pocketSkill.regime}` : ""} plus haut
+                <span aria-hidden="true">⚠ </span>Ce type de lecture s&apos;est souvent trompé dans
+                ce contexte (
+                <span className="font-mono tabular-nums">{g.pocketSkillNObservations}</span> cas
+                observés) — voir le bloc « À quel point se fier à ce verdict » plus haut
               </p>
             ) : g.pocketSkillCaveat === "soft_calibration" ? (
               <p className="mt-2 border-t border-[var(--color-border-subtle)]/40 pt-2 text-[10px] text-[var(--color-text-muted)]">
-                Calibration insuffisante (n=
-                <span className="font-mono tabular-nums">{g.pocketSkillNObservations}</span>,
-                tendance défavorable) — voir bloc Calibration du système
-                {pocketSkill?.regime ? ` · pocket ${pocketSkill.regime}` : ""} plus haut
+                Pas encore assez de recul (
+                <span className="font-mono tabular-nums">{g.pocketSkillNObservations}</span> cas
+                observés, tendance défavorable) — voir le bloc « À quel point se fier à ce verdict »
+                plus haut
               </p>
             ) : null}
           </div>
@@ -296,9 +291,8 @@ export function ConvictionGroundingPanel({
             desk anchors, not empirically calibrated (r134 trader
             YELLOW-2). */}
         <p className="text-[10px] text-[var(--color-text-muted)]">
-          Ancrage qualitatif — la conviction reste un scalaire global ; ce panneau montre ce qui la
-          fonde (bandes de concentration heuristiques, non calibrées), jamais une décomposition
-          chiffrée fabriquée · pas un signal (ADR-017)
+          Ce panneau montre ce qui fonde la lecture du jour, jamais un pourcentage inventé ·
+          contexte d&apos;aide à la décision, pas un signal d&apos;achat ou de vente
         </p>
       </div>
     </m.section>

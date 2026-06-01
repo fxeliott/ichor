@@ -1,26 +1,15 @@
 /**
- * BriefingSection — a collapsible, anchored group wrapper for the
- * /briefing/[asset] deep-dive (r190 frontend redesign).
- *
- * The deep-dive used to be a flat ~20-panel vertical wall. This wraps the
- * panels into 6 labelled, anchored, collapsible sections (A-F) so the page
- * reads as a navigable structure, not an undifferentiated stack. Each
- * section carries an editorial coach-voice intro (Fraunces) that explains —
- * in beginner terms — what the group means, woven into the header (NOT a
- * separate "méthodologie" section, per the redesign directive).
- *
- * Progressive disclosure : `defaultOpen={false}` sections render only their
- * header until expanded (display:none body → the page is short by default).
- * Opens automatically when its anchor is the URL hash (sticky-nav click),
- * and is user-collapsible via the header button (WCAG disclosure pattern :
- * button + aria-expanded + aria-controls).
- *
- * ADR-017 : pure presentation chrome, carries no bias / signal.
+ * BriefingSection — collapsible, anchored group for the deep-dive (refonte
+ * 2026). Each section carries a SIGNATURE COLOUR (`hue`) — a coloured eyebrow,
+ * top hairline, soft corner glow and chevron — so the page reads colourful and
+ * colour-coded by meaning (Verdict=cobalt, Thème=violet, Macro=ambre…), never
+ * monochrome. Progressive disclosure (button + aria-expanded + aria-controls),
+ * opens on URL-hash deep-link.
  */
 
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 
 interface BriefingSectionProps {
   /** Anchor id (must match the BriefingSectionNav entry). */
@@ -31,6 +20,8 @@ interface BriefingSectionProps {
   /** Beginner-level coach intro woven into the header. */
   intro?: string;
   defaultOpen?: boolean;
+  /** CSS colour for this section's signature accent (a --c-* token). */
+  hue?: string;
   children: ReactNode;
 }
 
@@ -40,14 +31,12 @@ export function BriefingSection({
   title,
   intro,
   defaultOpen = true,
+  hue = "var(--c-cobalt)",
   children,
 }: BriefingSectionProps) {
   const [open, setOpen] = useState(defaultOpen);
   const ref = useRef<HTMLElement>(null);
 
-  // Open + scroll into view when this section is the URL hash target
-  // (a sticky-nav anchor click). Runs on mount (deep-link) + on every
-  // subsequent hashchange.
   useEffect(() => {
     const openIfTargeted = () => {
       if (window.location.hash === `#${id}`) {
@@ -67,22 +56,40 @@ export function BriefingSection({
       ref={ref}
       id={id}
       aria-labelledby={`${id}-heading`}
-      className="scroll-mt-[var(--briefing-anchor-offset)] overflow-hidden rounded-3xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)]/25 shadow-[var(--shadow-sm)] backdrop-blur-md"
+      style={{ "--section-accent": hue } as CSSProperties}
+      className="relative scroll-mt-[var(--briefing-anchor-offset)] overflow-hidden rounded-3xl border border-[var(--glass-border)] bg-[var(--glass-bg)] shadow-[var(--glow-card)] backdrop-blur-xl"
     >
+      {/* coloured top hairline */}
+      <span
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 top-0 h-px"
+        style={{
+          background: "linear-gradient(90deg, transparent, var(--section-accent), transparent)",
+        }}
+      />
+      {/* soft coloured corner glow */}
+      <span
+        aria-hidden
+        className="pointer-events-none absolute -left-20 -top-20 h-44 w-44 rounded-full opacity-40 blur-3xl"
+        style={{ background: "var(--section-accent)" }}
+      />
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
         aria-controls={`${id}-body`}
-        className="flex w-full items-start justify-between gap-4 px-5 py-5 text-left transition-colors hover:bg-[var(--color-bg-surface)]/40 md:px-7"
+        className="relative flex w-full items-start justify-between gap-4 px-5 py-5 text-left transition-colors hover:bg-white/[0.025] md:px-7"
       >
         <div>
-          <p className="text-[10px] font-medium uppercase tracking-[0.3em] text-[var(--color-text-muted)]">
+          <p
+            className="text-[10px] font-semibold uppercase tracking-[0.3em]"
+            style={{ color: "var(--section-accent)" }}
+          >
             {eyebrow}
           </p>
           <h2
             id={`${id}-heading`}
-            className="mt-1.5 font-serif text-2xl tracking-tight text-[var(--color-text-primary)] md:text-3xl"
+            className="mt-2 font-display text-2xl font-semibold tracking-tight text-[var(--color-text-primary)] md:text-3xl"
           >
             {title}
           </h2>
@@ -94,9 +101,17 @@ export function BriefingSection({
         </div>
         <span
           aria-hidden
-          className={`mt-1 shrink-0 text-[var(--color-text-muted)] transition-transform duration-[var(--duration-base)] ease-[var(--ease-respond)] ${open ? "rotate-180" : ""}`}
+          className={`mt-1 grid h-8 w-8 shrink-0 place-items-center rounded-full border transition-all duration-[var(--duration-base)] ease-[var(--ease-respond)] ${open ? "rotate-180" : ""}`}
+          style={
+            open
+              ? {
+                  borderColor: "color-mix(in oklab, var(--section-accent) 50%, transparent)",
+                  color: "var(--section-accent)",
+                }
+              : { borderColor: "var(--glass-border)", color: "var(--color-text-muted)" }
+          }
         >
-          <svg width="22" height="22" viewBox="0 0 20 20" fill="none">
+          <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
             <path
               d="M5 8l5 5 5-5"
               stroke="currentColor"
@@ -108,7 +123,7 @@ export function BriefingSection({
         </span>
       </button>
       <div id={`${id}-body`} role="region" aria-labelledby={`${id}-heading`} hidden={!open}>
-        <div className="space-y-6 border-t border-[var(--color-border-subtle)] px-4 py-6 sm:px-5 md:px-7">
+        <div className="space-y-6 border-t border-[var(--glass-border)] px-4 py-6 sm:px-5 md:px-7">
           {children}
         </div>
       </div>

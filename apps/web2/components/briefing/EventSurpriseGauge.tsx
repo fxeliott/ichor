@@ -97,8 +97,8 @@ export function EventSurpriseGauge({
 
   const marketLine =
     data.market.source === "none"
-      ? `Aucun thème de marché de prédiction matériel pour ${assetPair}`
-      : `Backdrop prédiction : ${data.market.label} · ${
+      ? `Aucun pari de marché significatif pour ${assetPair}`
+      : `Climat des paris de marché : ${data.market.label} · ${
           data.market.nMarkets ?? 0
         } marché${(data.market.nMarkets ?? 0) > 1 ? "s" : ""} · issue dominante ~${dom}%${
           data.market.impactOnAsset !== null
@@ -120,7 +120,7 @@ export function EventSurpriseGauge({
           Anticipation vs surprise
         </h3>
         <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-          Catalyseur calendrier × backdrop marché de prédiction · potentiel de surprise résiduel
+          Prochain événement clé × climat des paris de marché · marge de surprise restante
         </p>
       </header>
 
@@ -187,7 +187,8 @@ export function EventSurpriseGauge({
       </p>
 
       <p className="border-t border-[var(--color-border-subtle)]/60 px-6 py-3 text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
-        Lecture anticipation vs surprise — contexte pré-trade, pas un ordre (ADR-017)
+        Anticipation vs surprise — contexte d&apos;aide à la décision, pas un signal d&apos;achat ou
+        de vente
       </p>
     </m.section>
   );

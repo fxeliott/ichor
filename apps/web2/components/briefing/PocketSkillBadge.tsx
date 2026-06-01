@@ -45,16 +45,16 @@ export function PocketSkillBadge({
   let verdict: string;
   let tone: string;
   if (skillVerdict === "non_conclusive") {
-    verdict = `Calibration en cours · n=${pocket.n_observations} — non concluant`;
+    verdict = `Pas encore assez de recul · ${pocket.n_observations} cas observés — à confirmer`;
     tone = "text-[var(--color-text-muted)]";
   } else if (skillVerdict === "anti_skill") {
-    verdict = "Anti-skill historique — pondère ce biais à la baisse";
+    verdict = "Ce type de lecture s'est souvent trompé par le passé — à prendre avec prudence";
     tone = "text-[var(--color-bear)]";
   } else if (skillVerdict === "high_skill") {
-    verdict = "Skill historique confirmé sur ce pocket";
+    verdict = "Ce type de lecture a fait ses preuves dans ce contexte";
     tone = "text-[var(--color-bull)]";
   } else {
-    verdict = "Skill neutre — pas d'edge historique mesurable";
+    verdict = "Fiabilité moyenne — pas d'avantage historique mesurable";
     tone = "text-[var(--color-text-secondary)]";
   }
 
@@ -76,16 +76,16 @@ export function PocketSkillBadge({
       <header className="flex flex-wrap items-start justify-between gap-2 border-b border-[var(--color-border-subtle)] px-6 py-4">
         <div>
           <h3 className="font-serif text-lg text-[var(--color-text-primary)]">
-            Calibration du système · pocket {pocket.regime}
+            À quel point se fier à ce verdict
           </h3>
           <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-            Vovk-AA · skill historique du forecaster vs baseline equal-weight
-            {exactRegime ? "" : " · (régime courant non calibré — pocket le plus observé)"}
+            Fiabilité historique de ce type de lecture dans ce contexte
+            {exactRegime ? "" : " · (contexte du jour peu observé — référence la plus proche)"}
           </p>
         </div>
         {drift ? (
           <span className="rounded-full border border-[var(--color-bear)]/40 px-2.5 py-1 text-[10px] font-medium uppercase tracking-widest text-[var(--color-bear)]">
-            ⚠ drift régime · {drift}
+            ⚠ changement de contexte · {drift}
           </span>
         ) : null}
       </header>
@@ -101,7 +101,7 @@ export function PocketSkillBadge({
             {Math.abs(sd).toFixed(3)}
           </span>
           <span className="pb-1 font-mono text-xs tabular-nums text-[var(--color-text-muted)]">
-            skill_delta · n={pocket.n_observations}
+            avantage historique · {pocket.n_observations} cas observés
           </span>
         </div>
         <p className={`mt-2 text-sm ${tone}`}>{verdict}</p>
@@ -109,9 +109,9 @@ export function PocketSkillBadge({
 
       <dl className="grid grid-cols-3 gap-x-6 gap-y-2 border-t border-[var(--color-border-subtle)]/60 px-6 py-4 text-sm">
         {[
-          ["Predictor", pocket.prod_predictor_weight],
-          ["Climatology", pocket.climatology_weight],
-          ["Equal-weight", pocket.equal_weight_weight],
+          ["Analyse du jour", pocket.prod_predictor_weight],
+          ["Historique moyen", pocket.climatology_weight],
+          ["Hasard (référence)", pocket.equal_weight_weight],
         ].map(([k, v]) => (
           <div key={k as string} className="flex flex-col">
             <dt className="text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
@@ -125,7 +125,8 @@ export function PocketSkillBadge({
       </dl>
 
       <p className="border-t border-[var(--color-border-subtle)]/60 px-6 py-3 text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
-        Auto-évaluation de calibration (Vovk-AA) — contexte d&apos;honnêteté, pas un ordre (ADR-017)
+        Fiabilité historique en toute transparence — contexte d&apos;aide à la décision, pas un
+        signal d&apos;achat ou de vente
       </p>
     </m.section>
   );

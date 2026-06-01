@@ -122,7 +122,7 @@ export function ThemeRankingPanel() {
           )}
         </div>
         <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
-          Quel moteur du marché driver le régime macro actuel — Eliot Fathom méthodologie étape 1.
+          Quel grand moteur dirige le marché en ce moment.
         </p>
       </header>
 
@@ -143,12 +143,12 @@ export function ThemeRankingPanel() {
               <span className="font-semibold text-[var(--color-text-primary)]">
                 Aucun thème ne domine clairement
               </span>{" "}
-              le régime macro actuel. Tous les drivers sont sous le seuil de dominance — entrées
-              mixtes ou insuffisantes.
+              le marché en ce moment. Tous les moteurs restent faibles — signaux mitigés ou
+              insuffisants.
             </p>
             <p className="mt-2 text-xs text-[var(--color-text-muted)]">
-              Doctrine #11 calibrated honesty : le classifier refuse de fabriquer un ranking forcé.
-              Calibre ta prise de risque sans biais thème dominant aujourd&apos;hui.
+              Aucun classement n&apos;est forcé quand rien ne ressort vraiment. Calibre ta prise de
+              risque sans miser sur un thème dominant aujourd&apos;hui.
             </p>
           </div>
         )}
@@ -174,7 +174,7 @@ export function ThemeRankingPanel() {
             {state.data.secondary_themes.length > 0 && (
               <div>
                 <p className="text-xs uppercase tracking-wider text-[var(--color-text-muted)]">
-                  Drivers secondaires
+                  Moteurs secondaires
                 </p>
                 <ul className="mt-2 flex flex-wrap gap-2">
                   {state.data.secondary_themes.map((key) => (
@@ -196,7 +196,7 @@ export function ThemeRankingPanel() {
 
             <details className="rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)]/30 p-3">
               <summary className="cursor-pointer text-xs uppercase tracking-wider text-[var(--color-text-muted)]">
-                Détail des 8 drivers
+                Détail des 8 moteurs
               </summary>
               <ul className="mt-3 space-y-1">
                 {THEME_DRIVER_KEYS.map((key) => (
@@ -211,8 +211,8 @@ export function ThemeRankingPanel() {
             </details>
 
             <p className="text-xs text-[var(--color-text-muted)]">
-              Frontière ADR-017 : description régime macro globale, jamais un signal directionnel
-              pour un actif. Provenance : practitioner-stamp (taxonomie Eliot Fathom transcript).
+              Description du décor de marché global, jamais un signal de direction pour un actif ·
+              contexte d&apos;aide à la décision, pas un signal d&apos;achat ou de vente.
             </p>
           </div>
         )}

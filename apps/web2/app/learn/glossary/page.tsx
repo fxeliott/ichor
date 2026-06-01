@@ -2,10 +2,20 @@
 //
 // Cf SPEC.md §3.5 (pédagogie ultra-explicative). Each entry is anchorable
 // via #<slug> from MetricTooltip components elsewhere.
+//
+// Refonte 2026 (Aurora cobalt) — premium client glossary : PageHeader,
+// glass search input, tone-chip family filters, and a staged grid of GlowCard
+// entries. The #<slug> anchors + scroll-margin are preserved so MetricTooltip
+// deep-links still land. Every entry kept verbatim.
 
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
+
+import { GlowCard } from "@/components/ui/glow-card";
+import { PageHeader } from "@/components/ui/primitives";
+import { Reveal } from "@/components/ui/reveal";
 
 interface GlossaryEntry {
   slug: string;
@@ -233,81 +243,96 @@ export default function GlossaryPage() {
   const families = ["all", ...Object.keys(FAMILY_LABEL)] as const;
 
   return (
-    <div className="container mx-auto max-w-4xl px-6 py-12">
-      <header className="mb-8 space-y-3">
-        <p className="font-mono text-xs uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
-          Glossaire · {GLOSSARY.length} termes
-        </p>
-        <h1 data-editorial className="text-5xl tracking-tight text-[var(--color-text-primary)]">
-          Glossaire
-        </h1>
-        <p className="max-w-prose text-[var(--color-text-secondary)]">
-          Définitions de chaque terme technique utilisé par Ichor. Chaque entrée est ancrable via{" "}
-          <code className="rounded bg-[var(--color-bg-elevated)] px-1.5 py-0.5 font-mono text-sm">
-            #&lt;slug&gt;
-          </code>{" "}
-          et accessible depuis n&apos;importe quel{" "}
-          <code className="rounded bg-[var(--color-bg-elevated)] px-1.5 py-0.5 font-mono text-sm">
-            &lt;MetricTooltip&gt;
-          </code>{" "}
-          via le bouton « Voir le glossaire → ».
-        </p>
-      </header>
+    <main className="mx-auto max-w-4xl space-y-12 px-4 py-16 md:px-8 md:py-20">
+      <div>
+        <Link
+          href="/learn"
+          className="inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.2em] text-[var(--color-text-muted)] transition-colors hover:text-[var(--accent)]"
+        >
+          <span aria-hidden>←</span> Tous les chapitres
+        </Link>
+      </div>
 
-      <section className="mb-8 space-y-3">
-        <input
-          type="search"
-          placeholder="Recherche…"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          className="w-full rounded-md border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-4 py-2 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-bull)]"
-          aria-label="Rechercher dans le glossaire"
-        />
-        <div className="flex flex-wrap gap-2">
-          {families.map((f) => (
-            <button
-              key={f}
-              type="button"
-              onClick={() => setActiveFamily(f)}
-              className="rounded border border-[var(--color-border-default)] px-3 py-1 font-mono text-[10px] uppercase tracking-widest"
-              style={{
-                background: activeFamily === f ? "var(--color-bg-elevated)" : "transparent",
-                color: activeFamily === f ? "var(--color-text-primary)" : "var(--color-text-muted)",
-              }}
-              aria-pressed={activeFamily === f}
-            >
-              {f === "all" ? "Toutes familles" : FAMILY_LABEL[f as GlossaryEntry["family"]]}
-            </button>
+      <PageHeader
+        eyebrow={`Learn · Glossaire · ${GLOSSARY.length} termes`}
+        title="Glossaire"
+        description={
+          <>
+            Définitions de chaque terme technique utilisé par Ichor. Chaque entrée est ancrable via{" "}
+            <code className="rounded bg-[var(--glass-bg)] px-1.5 py-0.5 font-mono text-sm text-[var(--accent)]">
+              #&lt;slug&gt;
+            </code>{" "}
+            et accessible depuis n&apos;importe quel{" "}
+            <code className="rounded bg-[var(--glass-bg)] px-1.5 py-0.5 font-mono text-sm text-[var(--accent)]">
+              &lt;MetricTooltip&gt;
+            </code>{" "}
+            via le bouton « Voir le glossaire → ».
+          </>
+        }
+      />
+
+      <Reveal delay={0.05}>
+        <section className="space-y-4">
+          <input
+            type="search"
+            placeholder="Recherche…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className="w-full rounded-xl border border-[var(--glass-border)] bg-[var(--glass-bg)] px-4 py-3 text-sm text-[var(--color-text-primary)] backdrop-blur-xl transition-colors placeholder:text-[var(--color-text-muted)] focus-visible:border-[var(--glass-border-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
+            aria-label="Rechercher dans le glossaire"
+          />
+          <div className="flex flex-wrap gap-2">
+            {families.map((f) => {
+              const active = activeFamily === f;
+              return (
+                <button
+                  key={f}
+                  type="button"
+                  onClick={() => setActiveFamily(f)}
+                  aria-pressed={active}
+                  className={`rounded-full border px-3 py-1 font-mono text-[10px] uppercase tracking-widest transition-colors ${
+                    active
+                      ? "border-[var(--accent)]/50 bg-[var(--accent)]/10 text-[var(--accent)]"
+                      : "border-[var(--glass-border)] text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]"
+                  }`}
+                >
+                  {f === "all" ? "Toutes familles" : FAMILY_LABEL[f as GlossaryEntry["family"]]}
+                </button>
+              );
+            })}
+          </div>
+          <p className="font-mono text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
+            {filtered.length} entrée{filtered.length > 1 ? "s" : ""}
+          </p>
+        </section>
+      </Reveal>
+
+      {filtered.length > 0 ? (
+        <ul className="grid gap-4 sm:grid-cols-2">
+          {filtered.map((e) => (
+            <li key={e.slug} id={e.slug} className="scroll-mt-24">
+              <GlowCard interactive={false} className="h-full space-y-2 p-6">
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                  <h2 className="font-display text-base font-semibold text-[var(--color-text-primary)]">
+                    {e.term}
+                  </h2>
+                  <span className="font-mono text-[10px] uppercase tracking-widest text-[var(--accent)]">
+                    {FAMILY_LABEL[e.family]} · #{e.slug}
+                  </span>
+                </div>
+                <p className="text-sm text-[var(--color-text-secondary)]">{e.short}</p>
+                <p className="text-xs leading-relaxed text-[var(--color-text-muted)]">{e.long}</p>
+              </GlowCard>
+            </li>
           ))}
+        </ul>
+      ) : (
+        <div className="rounded-2xl border border-[var(--glass-border)] bg-[var(--glass-bg)] px-6 py-10 text-center backdrop-blur-xl">
+          <p className="text-sm text-[var(--color-text-secondary)]">
+            Aucune entrée — essaie un autre terme ou retire le filtre famille.
+          </p>
         </div>
-        <p className="font-mono text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
-          {filtered.length} entrée{filtered.length > 1 ? "s" : ""}
-        </p>
-      </section>
-
-      <ul className="space-y-4">
-        {filtered.map((e) => (
-          <li
-            key={e.slug}
-            id={e.slug}
-            className="scroll-mt-24 rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-5"
-          >
-            <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
-              <h2 className="font-semibold text-[var(--color-text-primary)]">{e.term}</h2>
-              <span className="font-mono text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
-                {FAMILY_LABEL[e.family]} · #{e.slug}
-              </span>
-            </div>
-            <p className="mb-2 text-sm text-[var(--color-text-secondary)]">{e.short}</p>
-            <p className="text-xs text-[var(--color-text-muted)]">{e.long}</p>
-          </li>
-        ))}
-      </ul>
-      {filtered.length === 0 && (
-        <p className="rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-8 text-center text-sm text-[var(--color-text-muted)]">
-          Aucune entrée — essaie un autre terme ou retire le filtre famille.
-        </p>
       )}
-    </div>
+    </main>
   );
 }

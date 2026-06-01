@@ -1,11 +1,11 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, JetBrains_Mono, Fraunces } from "next/font/google";
+import { Geist, JetBrains_Mono, Fraunces, Space_Grotesk } from "next/font/google";
 
+import { AuroraBackground } from "@/components/ambient/aurora-background";
 import { RegimeAmbientProvider } from "@/components/ambient/regime-ambient-provider";
 import { CommandPalette } from "@/components/cmdk/command-palette";
 import { MotionProvider } from "@/components/motion/motion-provider";
 import { TopNav } from "@/components/nav/top-nav";
-import { AIDisclosureBanner } from "@/components/ui/ai-disclosure-banner";
 import { LegalFooter } from "@/components/ui/legal-footer";
 import { Toaster } from "@/components/ui/toaster";
 
@@ -15,14 +15,22 @@ import "./globals.css";
 // from the browser. CSS variables are bound into Tailwind v4 utilities via
 // `@theme inline` in app/globals.css.
 //
-// Decisions (cf SPEC.md §14):
-//   - Geist Sans for UI density
-//   - JetBrains Mono for data + tickers (tabular-nums via font-feature-settings)
-//   - Fraunces for editorial surfaces (briefings, /learn) — variable axes
-//     opsz/SOFT/WONK enabled for optical-size adjustments at large sizes.
+// Decisions (cf SPEC.md §14 + refonte 2026 §typo hybride) :
+//   - Space Grotesk for the tech/display voice (cockpit titles, big numbers
+//     framing) — bound to `--font-display`.
+//   - Geist Sans for UI density (body, controls).
+//   - JetBrains Mono for data + tickers (tabular-nums via font-feature-settings).
+//   - Fraunces for the editorial/narrative voice (coach prose, /learn) — kept
+//     as `font-serif` so the storytelling surfaces stay warm.
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
+  subsets: ["latin"],
+  display: "swap",
+});
+
+const spaceGrotesk = Space_Grotesk({
+  variable: "--font-space-grotesk",
   subsets: ["latin"],
   display: "swap",
 });
@@ -36,11 +44,11 @@ const jetbrainsMono = JetBrains_Mono({
 const fraunces = Fraunces({
   variable: "--font-fraunces",
   subsets: ["latin"],
-  // `display: 'optional'` — Fraunces is editorial-only (briefings, /learn).
+  // `display: 'optional'` — Fraunces is editorial-only (coach prose, /learn).
   // If the WOFF2 isn't cached within 100ms, the browser falls back without
-  // ever swapping in. Trade-off : first-time visitors see Geist on editorial
-  // copy until cached on a subsequent navigation. Net : zero FOIT/FOUT,
-  // tighter LCP on dashboard routes that don't actually use Fraunces.
+  // ever swapping in. Trade-off : first-time visitors see the fallback on
+  // editorial copy until cached on a subsequent navigation. Net : zero
+  // FOIT/FOUT, tighter LCP on dashboard routes that don't use Fraunces.
   // Source: nextjs.org/docs/app/api-reference/components/font#display
   display: "optional",
   axes: ["opsz", "SOFT", "WONK"],
@@ -69,9 +77,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html
       lang="fr"
-      className={`${geistSans.variable} ${jetbrainsMono.variable} ${fraunces.variable}`}
+      className={`${geistSans.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable} ${fraunces.variable}`}
     >
       <body className="min-h-screen antialiased">
+        {/* Aurora-cobalt ambient backdrop — behind all content (z-index:-1). */}
+        <AuroraBackground />
         {/* WCAG 2.4.1 — skip link */}
         <a
           href="#main"
@@ -84,10 +94,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               (data-regime attribute set on <html> from a zustand store
               persisted in localStorage). */}
           <RegimeAmbientProvider>
-            {/* EU AI Act Article 50 §1 + §5 — permanent AI disclosure (not dismissible). */}
-            <AIDisclosureBanner />
-            {/* Phase A.9.4 — global navigation between 41 routes (was previously
-              missing entirely — only the WCAG skip link bridged routes). */}
+            {/* Global navigation. (The top AI banner was removed ; the AI-
+                generation disclosure lives in the legal footer per EU AI Act §50.) */}
             <TopNav />
             <main id="main" className="relative">
               {children}

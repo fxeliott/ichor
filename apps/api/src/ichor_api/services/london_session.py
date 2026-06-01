@@ -7,11 +7,13 @@ answers "which of the 3 UTC zones drove the prior 24h"): here we summarise the
 London-morning window specifically — its range, direction, and whether it was
 unusually active vs the typical London morning.
 
-Pure compute (no I/O) so it is fully unit-testable with synthetic bars; the
-data_pool renderer does the `polygon_intraday` fetch. Timezone is handled with
-`ZoneInfo("Europe/London")` so the London local window maps to the correct UTC
-bounds across DST (London is UTC+1 in summer / BST, UTC in winter) — more
-correct than a fixed UTC-hour band.
+The core `compute_london_session` is pure (no I/O) so it is fully unit-testable
+with synthetic bars; `compute_london_session_for_asset` is the thin async DB
+wrapper — the single source of truth shared by the data_pool Pass-2 section AND
+the `/v1/london-session` endpoint, so the two can never drift on which bars feed
+the read. Timezone is handled with `ZoneInfo("Europe/London")` so the London
+local window maps to the correct UTC bounds across DST (London is UTC+1 in
+summer / BST, UTC in winter) — more correct than a fixed UTC-hour band.
 
 Reuses `_classify_direction` (body/range ≥ 0.3) from the origin-zone module so
 the directional read is consistent across the codebase (no duplicate logic).
@@ -21,8 +23,12 @@ ADR-017 : descriptive price-action read, never BUY/SELL.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import UTC, date, datetime, time
+from datetime import UTC, date, datetime, time, timedelta
+from typing import Final
 from zoneinfo import ZoneInfo
+
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from .previous_session_origin_zone import _classify_direction
 
@@ -35,6 +41,10 @@ _LONDON_MORNING_CLOSE = time(12, 0)
 _MIN_BARS = 30
 # Prior London windows averaged for the "today vs typical" activity ratio.
 _BASELINE_DAYS = 5
+# Lookback for the polygon_intraday fetch — 7 days covers the latest
+# London-morning window plus up to `_BASELINE_DAYS` prior windows for the
+# activity ratio (weekends / holidays are naturally skipped by the date scan).
+_LONDON_LOOKBACK_DAYS: Final[int] = 7
 
 
 @dataclass(frozen=True)
@@ -130,3 +140,41 @@ def compute_london_session(bars: list[Bar], *, now_utc: datetime) -> LondonSessi
         range_ratio=ratio,
         is_today=(latest_date == today_london),
     )
+
+
+async def compute_london_session_for_asset(
+    session: AsyncSession, asset: str, *, now_utc: datetime
+) -> LondonSessionRead | None:
+    """Async DB wrapper around the pure `compute_london_session`.
+
+    Fetches the last `_LONDON_LOOKBACK_DAYS` of `polygon_intraday` 1-min bars
+    for `asset` (ascending so `bars[0]` is the oldest), maps the NULL-safe rows
+    to `Bar`, and computes the most-recent London-morning read. This is the
+    single source of truth shared by the data_pool Pass-2 section AND the
+    `/v1/london-session/{asset}` endpoint, so neither can drift on the bar set.
+    Returns None on honest absence (no usable London window) — doctrine #11.
+    """
+    # Lazy import: avoid a circular dep with the ORM models package and keep
+    # the pure helpers importable without the ORM at test-collection time.
+    from ..models import PolygonIntradayBar
+
+    rows = (
+        await session.execute(
+            select(
+                PolygonIntradayBar.bar_ts,
+                PolygonIntradayBar.open,
+                PolygonIntradayBar.high,
+                PolygonIntradayBar.low,
+                PolygonIntradayBar.close,
+            )
+            .where(PolygonIntradayBar.asset == asset)
+            .where(PolygonIntradayBar.bar_ts >= now_utc - timedelta(days=_LONDON_LOOKBACK_DAYS))
+            .order_by(PolygonIntradayBar.bar_ts.asc())
+        )
+    ).all()
+    bars = [
+        Bar(ts=r[0], open=float(r[1]), high=float(r[2]), low=float(r[3]), close=float(r[4]))
+        for r in rows
+        if r[1] is not None and r[4] is not None
+    ]
+    return compute_london_session(bars, now_utc=now_utc)

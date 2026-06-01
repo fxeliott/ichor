@@ -107,15 +107,15 @@ export function CoachMacroContextPanel({ data }: Props): ReactElement | null {
               id="coach-macro-heading"
               className="font-serif text-xl tracking-tight text-[var(--color-text-primary)]"
             >
-              Contexte macro coach
+              Le décor macro, expliqué simplement
             </h2>
             <p className="mt-1 text-xs uppercase tracking-wide text-[var(--color-text-muted)]">
-              synthétisé {updatedLabel} · fraîcheur FRED : {data.data_freshness_days} j
+              mis à jour {updatedLabel} · fraîcheur des données : {data.data_freshness_days} j
             </p>
           </div>
           {stale && (
             <span className="rounded-full border border-[var(--color-accent-bear)]/30 bg-[var(--color-accent-bear)]/10 px-3 py-1 text-xs uppercase tracking-wide text-[var(--color-accent-bear)]">
-              données FRED stales
+              données un peu anciennes
             </span>
           )}
         </div>
@@ -157,7 +157,7 @@ export function CoachMacroContextPanel({ data }: Props): ReactElement | null {
         </div>
         {data.risk_regime_evidence.length > 0 && (
           <p className="text-[10px] font-mono text-[var(--color-text-muted)]">
-            Évidence : {data.risk_regime_evidence.join(" · ")}
+            Indices : {data.risk_regime_evidence.join(" · ")}
           </p>
         )}
 
@@ -174,7 +174,7 @@ export function CoachMacroContextPanel({ data }: Props): ReactElement | null {
         {/* Dominant theme block — bar + intensity hint. */}
         <div className="space-y-2">
           <h3 className="text-xs font-medium uppercase tracking-wide text-[var(--color-text-muted)]">
-            Driver dominant
+            Moteur dominant du marché
           </h3>
           <div className="flex items-baseline justify-between gap-3">
             <span className="text-base font-medium text-[var(--color-text-primary)]">
@@ -198,7 +198,7 @@ export function CoachMacroContextPanel({ data }: Props): ReactElement | null {
         {/* Top-3 next surprises list — honest empty state when none. */}
         <div className="space-y-2">
           <h3 className="text-xs font-medium uppercase tracking-wide text-[var(--color-text-muted)]">
-            Prochaines surprises calendrier (top {data.top_next_surprises.length})
+            Prochains rendez-vous à surveiller ({data.top_next_surprises.length})
           </h3>
           {data.top_next_surprises.length === 0 ? (
             <p className="text-xs italic text-[var(--color-text-muted)]">

@@ -187,13 +187,13 @@ export function PolymarketImpactPanel({ asset, impact, hideHeader }: PolymarketI
     return (
       <PanelShell
         headingId={PANEL_HEADING_ID}
-        headingText="Polymarket — paris en cours"
-        subHeading={`Thèmes clustered + transmission directionnelle sur ${assetLabel} — non disponible.`}
+        headingText="Paris de marché en cours"
+        subHeading={`Thèmes regroupés + transmission sur ${assetLabel} — non disponible.`}
         ariaLive="polite"
         hideHeader={hideHeader}
       >
         <p role="status" className="px-6 py-8 text-center text-sm text-[var(--color-text-muted)]">
-          Polymarket inactif pour {assetLabel} en ce moment.
+          Aucun pari de marché actif pour {assetLabel} en ce moment.
         </p>
       </PanelShell>
     );
@@ -207,9 +207,9 @@ export function PolymarketImpactPanel({ asset, impact, hideHeader }: PolymarketI
   // Header sub-text — provenance-stamped per r129 doctrine #11.
   const subHeading = (
     <>
-      {impact.n_markets_scanned} marchés scannés ·{" "}
+      {impact.n_markets_scanned} marchés analysés ·{" "}
       <span style={{ color: TONE_COLOR[aggregateTone] }}>
-        agrégat {TONE_LABEL[aggregateTone]} pour {assetLabel}
+        ensemble {TONE_LABEL[aggregateTone]} pour {assetLabel}
       </span>
       {age ? <> · données {age}</> : null}
     </>
@@ -220,7 +220,7 @@ export function PolymarketImpactPanel({ asset, impact, hideHeader }: PolymarketI
     return (
       <PanelShell
         headingId={PANEL_HEADING_ID}
-        headingText="Polymarket — paris en cours"
+        headingText="Paris de marché en cours"
         subHeading={subHeading}
         ariaLive="polite"
         hideHeader={hideHeader}
@@ -238,7 +238,7 @@ export function PolymarketImpactPanel({ asset, impact, hideHeader }: PolymarketI
   return (
     <PanelShell
       headingId={PANEL_HEADING_ID}
-      headingText="Polymarket — paris en cours"
+      headingText="Paris de marché en cours"
       subHeading={subHeading}
       hideHeader={hideHeader}
     >
@@ -360,7 +360,8 @@ export function PolymarketImpactPanel({ asset, impact, hideHeader }: PolymarketI
       </ul>
 
       <p className="border-t border-[var(--color-border-subtle)] px-6 py-3 text-[11px] text-[var(--color-text-muted)]">
-        Pas un signal — contexte de paris agrégés (ADR-017)
+        Ce que parient les marchés — contexte d&apos;aide à la décision, pas un signal d&apos;achat
+        ou de vente
       </p>
     </PanelShell>
   );

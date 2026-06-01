@@ -89,14 +89,12 @@ export function EventAnticipationPanel({ data }: EventAnticipationPanelProps): R
     >
       <header className="border-b border-[var(--color-border-subtle)] px-6 py-4">
         <h3 id={HEADING_ID} className="font-serif text-lg text-[var(--color-text-primary)]">
-          {data.mode === "engaged"
-            ? "Catalyseur imminent · ancrage littérature"
-            : "Prochains catalyseurs surveillés"}
+          {data.mode === "engaged" ? "Catalyseur imminent" : "Prochains catalyseurs surveillés"}
         </h3>
         <p className="mt-1 text-xs text-[var(--color-text-muted)]">
           {data.mode === "engaged"
-            ? "Biais de dérive géométrique attendu avant l'événement (prior littérature, jamais un ordre). Le moteur s'engage dès qu'un événement classé entre dans la fenêtre 48h."
-            : "Aucun événement dans la fenêtre 48h. Le moteur d'anticipation est silencieux ; voici les 1–3 prochains événements à impact élevé/moyen sur l'horizon 14j (il s'engagera T-48h avant chacun)."}
+            ? "Mouvement de fond souvent observé avant ce type d'événement (d'après les études de marché, jamais un ordre). Le suivi démarre dès qu'un événement entre dans la fenêtre des 48 h."
+            : "Aucun événement dans les 48 h à venir. Voici les 1 à 3 prochains événements à fort/moyen impact sur les 14 prochains jours (le suivi démarrera 48 h avant chacun)."}
         </p>
       </header>
 
@@ -108,10 +106,10 @@ export function EventAnticipationPanel({ data }: EventAnticipationPanelProps): R
 
       <footer className="border-t border-[var(--color-border-subtle)] px-6 py-3">
         <p className="text-[10px] text-[var(--color-text-muted)]">
-          Moteur d&apos;anticipation événementiel · magnitude prior issue de la littérature
-          (Lucca-Moench 2015, Kurov 2021, Vojtko-Dujava 2025) · non encore calibré sur
-          l&apos;historique Ichor · pas un signal (ADR-017) · interprétation par actif laissée aux
-          couches verdict et confluence
+          Anticipation des catalyseurs à venir · l&apos;ampleur attendue s&apos;appuie sur des
+          études de marché, pas encore sur notre propre historique · contexte d&apos;aide à la
+          décision, pas un signal d&apos;achat ou de vente · l&apos;interprétation par actif est
+          donnée plus loin dans le verdict
         </p>
       </footer>
     </m.section>

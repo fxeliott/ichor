@@ -116,7 +116,7 @@ export function VerdictBanner({
       </div>
 
       <p className="mt-4 text-[10px] leading-relaxed text-[var(--color-text-muted)]">
-        Synthèse déterministe des signaux ci-dessous (biais Pass-2, distribution scénarios Pass-6,
+        Synthèse déterministe des signaux ci-dessous (le biais et la distribution des scénarios,
         régime gamma, positionnement retail, calendrier). Contexte pré-trade — pas un ordre, pas un
         conseil personnalisé (frontière ADR-017). Les panneaux ci-dessous sont l&apos;évidence
         détaillée.

@@ -166,7 +166,7 @@ describe("deriveVerdict — confluence by source independence (ADR-102)", () => 
 
   it("KEY DOWNGRADE: Pass-2+Pass-6 aligned but retail neutral → source unique (NOT signaux alignés)", () => {
     const v = deriveVerdict("EUR_USD", bullCard, NO_KL, pos("EURUSD", "neutral"), NO_CAL);
-    expect(v.confluence.label).toBe("source unique (Claude seule)");
+    expect(v.confluence.label).toBe("source unique");
     expect(v.confluence.tone).toBe("neutral");
     expect(v.confluence.detail).toContain("même origine analytique");
     // The overconfidence trap is gone: this is no longer "signaux alignés".
@@ -185,7 +185,7 @@ describe("deriveVerdict — confluence by source independence (ADR-102)", () => 
       [],
       NO_CAL,
     );
-    expect(v.confluence.label).toBe("source unique (Claude seule)");
+    expect(v.confluence.label).toBe("source unique");
     expect(v.confluence.label).not.toBe("signaux alignés");
     expect(v.confluence.detail).toContain("indice");
   });
@@ -198,7 +198,7 @@ describe("deriveVerdict — confluence by source independence (ADR-102)", () => 
       pos("EURUSD", "neutral"),
       NO_CAL,
     );
-    expect(v.confluence.label).toBe("source unique (Claude seule)");
+    expect(v.confluence.label).toBe("source unique");
     expect(v.confluence.detail).toContain("incohérence interne");
   });
 

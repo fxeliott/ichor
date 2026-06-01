@@ -96,9 +96,9 @@ export function RecentActualsPanel({ data }: RecentActualsPanelProps): React.Rea
         {/* trader r145 Y2 : `unavailable` universal disclosure surfaced in
             subtitle (was buried in footer band, easy to miss). */}
         <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-          Valeur publiée vs consensus analyste — écart géométrique, jamais un signal directionnel.
-          Badges « dans/au-dessus/en-dessous de la fourchette » silencieux à ce stade : le provider
-          fourchette analyste n&apos;est pas encore branché (r146+).
+          Valeur publiée comparée aux attentes des analystes — écart brut, jamais un signal de
+          direction. Les badges « dans/au-dessus/en-dessous de la fourchette » restent silencieux
+          pour l&apos;instant : la fourchette d&apos;attentes n&apos;est pas encore disponible.
         </p>
       </header>
 
@@ -110,10 +110,11 @@ export function RecentActualsPanel({ data }: RecentActualsPanelProps): React.Rea
 
       <div className="border-t border-[var(--color-border-subtle)] px-6 py-3">
         <p className="text-[10px] text-[var(--color-text-muted)]">
-          actual = première publication (first-vintage FRED ALFRED) · consensus = analyste FF ·
-          magnitude = écart en % du consensus · +/− = position vs consensus, sans préjuger du sens
-          marché · pas un signal (ADR-017) · interprétation directionnelle laissée aux couches
-          verdict et confluence
+          valeur = première publication officielle · consensus = attente moyenne des analystes ·
+          écart = différence en % par rapport au consensus · +/− = au-dessus/en-dessous des
+          attentes, sans préjuger du sens du marché · contexte d&apos;aide à la décision, pas un
+          signal d&apos;achat ou de vente · l&apos;interprétation par actif est donnée plus loin
+          dans le verdict
         </p>
       </div>
     </m.section>

@@ -66,12 +66,12 @@ function relativeTime(iso: string): string {
   const then = new Date(iso).getTime();
   const now = Date.now();
   const min = Math.floor((now - then) / 60000);
-  if (min < 1) return "just now";
-  if (min < 60) return `${min}m ago`;
+  if (min < 1) return "à l'instant";
+  if (min < 60) return `il y a ${min} min`;
   const h = Math.floor(min / 60);
-  if (h < 24) return `${h}h ago`;
+  if (h < 24) return `il y a ${h} h`;
   const d = Math.floor(h / 24);
-  return `${d}d ago`;
+  return `il y a ${d} j`;
 }
 
 /** Freshness pill dot colour token per state. `stale` uses the amber
@@ -242,7 +242,7 @@ export function BriefingHeader({
                 />
               </div>
               <p className="text-[10px] text-[var(--color-text-muted)]">
-                ADR-022 cap : 95 % maximum
+                Plafond de conviction : 95 % maximum
               </p>
             </div>
 
@@ -258,15 +258,15 @@ export function BriefingHeader({
             )}
 
             <p className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)]">
-              Generated {relativeTime(card.generated_at)} · {card.model_id}
+              Généré {relativeTime(card.generated_at)}
             </p>
           </div>
         )}
 
         {!card && (
           <div className="rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-base)]/40 p-6 text-sm text-[var(--color-text-muted)]">
-            No live session card for {asset.replace("_", "/")} yet. Check back at next pre-session
-            cron fire.
+            Pas encore de lecture pour {asset.replace("_", "/")}. Reviens à la prochaine
+            pré-session.
           </div>
         )}
       </div>
