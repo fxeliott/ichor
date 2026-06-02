@@ -40,7 +40,8 @@ from datetime import UTC, datetime, time, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import select
+import structlog
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models import SessionCardAudit
@@ -51,6 +52,8 @@ from .session_verdict import (
     VerdictDirection,
     VerdictNature,
 )
+
+log = structlog.get_logger(__name__)
 
 # ADR-106 D2 dead-zone thresholds. Anchored to ADR-022 (cap-95) + ADR-085
 # (§"The 7 buckets" stratification). Intentionally non-configurable at
@@ -254,6 +257,194 @@ async def _safe_evaluate_tradeability(
         return "tradeable"
 
 
+# ── Phase 1 A1 (2026-06-02) — real live_triggers feed (ADR-106 Strand E) ──
+#
+# Per-asset currencies whose macro releases are relevant to the verdict.
+# All priority assets are USD-driven; the two non-USD-base FX pairs also
+# react to their cross leg. `.get(asset, ("USD",))` keeps any future asset
+# safe by defaulting to the dominant USD macro driver.
+_ASSET_TRIGGER_CURRENCIES: dict[str, tuple[str, ...]] = {
+    "EUR_USD": ("USD", "EUR"),
+    "GBP_USD": ("USD", "GBP"),
+    "USD_CAD": ("USD", "CAD"),
+    "XAU_USD": ("USD",),
+    "SPX500_USD": ("USD",),
+    "NAS100_USD": ("USD",),
+}
+
+# FinBERT signed-confidence threshold for a "strong" news tone burst.
+# news_items.tone_score ∈ [-1, 1] (+conf positive / -conf negative / 0
+# neutral, see cli/run_news_tone_scorer._signed_score). 0.85 keeps only
+# high-confidence headlines out of the firehose.
+_STRONG_TONE_ABS = 0.85
+
+# FR labels for the tone burst surfaced in the trigger description.
+_TONE_LABEL_FR: dict[str, str] = {"positive": "positive", "negative": "négative"}
+
+
+def _clip_trigger_description(text: str, *, minimum: int = 10, maximum: int = 200) -> str | None:
+    """Clamp a free-text description to the LiveTrigger 10..200 contract.
+
+    Returns ``None`` (= skip the trigger) when the cleaned text is shorter
+    than ``minimum`` — we never pad with filler to satisfy the floor.
+    """
+    cleaned = " ".join(text.split()).strip()
+    if len(cleaned) < minimum:
+        return None
+    return cleaned[:maximum]
+
+
+def _try_build_live_trigger(
+    *,
+    trigger_type: str,
+    description: str,
+    fired_at_utc: datetime,
+    impact: str,
+    source: str,
+) -> LiveTrigger | None:
+    """Construct one ``LiveTrigger``, returning ``None`` (skip) on ANY
+    validation failure rather than raising.
+
+    The single biggest risk is the ADR-017 regex on ``description`` : a
+    real headline can legitimately contain BUY/SELL ("sell-off",
+    "buy-to-let"), which would raise ``ValidationError``. We skip that row
+    instead of fabricating or crashing (doctrine #11 calibrated honesty).
+    ``fired_at_utc`` is normalised to UTC-aware so the cross-source sort
+    can never mix naive and aware datetimes.
+    """
+    desc = _clip_trigger_description(description)
+    if desc is None:
+        return None
+    fired = fired_at_utc if fired_at_utc.tzinfo is not None else fired_at_utc.replace(tzinfo=UTC)
+    try:
+        return LiveTrigger(
+            trigger_type=trigger_type,  # validated against the Literal
+            description=desc,
+            fired_at_utc=fired,
+            impact=impact,
+            source=source[:64],
+        )
+    except Exception:
+        return None
+
+
+async def _assemble_live_triggers(
+    session: AsyncSession,
+    *,
+    asset: PriorityAsset,
+    now_utc: datetime,
+) -> list[LiveTrigger]:
+    """Build the live-trigger feed from REAL recent data (read-only, no LLM).
+
+    ADR-106 Strand E. Three honest sources :
+      • economic releases with a published ``actual`` in the last 12 h
+        (high/medium impact, asset-relevant currency) → ``economic_release``
+      • central-bank speeches in the last 12 h → ``central_bank_speech``
+      • strong-tone news headlines in the last 6 h → ``news_headline``
+
+    Every trigger reports that a real event has FIRED and ``tests`` the
+    verdict. We never fabricate a directional ``confirms``/``invalidates``
+    without reasoning (doctrine #11). Scenario invalidations are
+    deliberately NOT re-emitted here — the frontend already renders them
+    as their own block (avoids the doublon).
+
+    Fail-open by construction : each source is independently ``try/except``'d
+    and any single bad row is skipped, so this helper never raises. Returns
+    most-recent-first, capped at 10 (the ``SessionVerdict.live_triggers``
+    contract enforces ``max_length=10``).
+    """
+    from ..models import CbSpeech, EconomicEvent, NewsItem
+
+    triggers: list[LiveTrigger] = []
+    currencies = _ASSET_TRIGGER_CURRENCIES.get(asset, ("USD",))
+
+    # 1 — Economic releases (<12 h, actual published, high/medium impact).
+    try:
+        cutoff = now_utc - timedelta(hours=12)
+        stmt = (
+            select(EconomicEvent)
+            .where(
+                EconomicEvent.scheduled_at.is_not(None),
+                EconomicEvent.scheduled_at >= cutoff,
+                EconomicEvent.scheduled_at <= now_utc,
+                EconomicEvent.actual.is_not(None),
+                EconomicEvent.currency.in_(currencies),
+                EconomicEvent.impact.in_(("high", "medium")),
+            )
+            .order_by(EconomicEvent.scheduled_at.desc())
+            .limit(8)
+        )
+        for row in (await session.execute(stmt)).scalars().all():
+            consensus = row.forecast if row.forecast not in (None, "") else "n/d"
+            trigger = _try_build_live_trigger(
+                trigger_type="economic_release",
+                description=f"{row.title} — résultat {row.actual} (consensus {consensus})",
+                fired_at_utc=row.scheduled_at,
+                impact="tests_verdict",
+                source=f"economic_events:{row.currency}",
+            )
+            if trigger is not None:
+                triggers.append(trigger)
+    except Exception:
+        log.warning("verdict.live_triggers.economic_failed", asset=asset, exc_info=True)
+
+    # 2 — Central-bank speeches (<12 h).
+    try:
+        cutoff = now_utc - timedelta(hours=12)
+        stmt = (
+            select(CbSpeech)
+            .where(CbSpeech.published_at >= cutoff, CbSpeech.published_at <= now_utc)
+            .order_by(CbSpeech.published_at.desc())
+            .limit(5)
+        )
+        for row in (await session.execute(stmt)).scalars().all():
+            speaker = (row.speaker or "").strip()
+            lede = f"{row.central_bank} · {speaker} : " if speaker else f"{row.central_bank} : "
+            trigger = _try_build_live_trigger(
+                trigger_type="central_bank_speech",
+                description=f"{lede}{row.title}",
+                fired_at_utc=row.published_at,
+                impact="tests_verdict",
+                source=f"cb_speeches:{row.central_bank}",
+            )
+            if trigger is not None:
+                triggers.append(trigger)
+    except Exception:
+        log.warning("verdict.live_triggers.cb_failed", asset=asset, exc_info=True)
+
+    # 3 — Strong-tone news headlines (<6 h).
+    try:
+        cutoff = now_utc - timedelta(hours=6)
+        stmt = (
+            select(NewsItem)
+            .where(
+                NewsItem.published_at.is_not(None),
+                NewsItem.published_at >= cutoff,
+                NewsItem.tone_label.is_not(None),
+                NewsItem.tone_score.is_not(None),
+                func.abs(NewsItem.tone_score) >= _STRONG_TONE_ABS,
+            )
+            .order_by(NewsItem.published_at.desc())
+            .limit(4)
+        )
+        for row in (await session.execute(stmt)).scalars().all():
+            tone_fr = _TONE_LABEL_FR.get(row.tone_label or "", row.tone_label or "")
+            trigger = _try_build_live_trigger(
+                trigger_type="news_headline",
+                description=f"{row.title} (tonalité {tone_fr})",
+                fired_at_utc=row.published_at,
+                impact="tests_verdict",
+                source=f"news:{row.source}",
+            )
+            if trigger is not None:
+                triggers.append(trigger)
+    except Exception:
+        log.warning("verdict.live_triggers.news_failed", asset=asset, exc_info=True)
+
+    triggers.sort(key=lambda t: t.fired_at_utc, reverse=True)
+    return triggers[:10]
+
+
 async def build_session_verdict(
     session: AsyncSession,
     *,
@@ -319,6 +510,12 @@ async def build_session_verdict(
         now_utc=now_utc,
     )
 
+    # Phase 1 A1 — assemble the real live-trigger feed ONCE; both the
+    # dormant fallback and the populated verdict surface it (recent
+    # economic releases / CB speeches / strong-tone news still fired even
+    # when Pass-6 is dormant). Fail-open by construction: never raises.
+    live_triggers = await _assemble_live_triggers(session, asset=asset, now_utc=now_utc)
+
     # Fallback path : Pass-6 dormant OR malformed JSONB.
     if len(scenarios_raw) != 7 or not all(
         isinstance(s, dict) and "label" in s and "p" in s for s in scenarios_raw
@@ -331,7 +528,7 @@ async def build_session_verdict(
             derived_from_scenarios=False,
             scenario_decomposition_id=None,
             invalidation_state=None,
-            live_triggers=[],
+            live_triggers=live_triggers,
             coach_explanation=_build_coach_explanation_fallback(asset),
             ne_pas_actionner_avant_paris=window_open,
             couper_au_plus_tard_paris=window_close,
@@ -371,10 +568,10 @@ async def build_session_verdict(
     # hard-invalidation fire ALSO emits an Ichor alert via the canonical
     # `check_metric()` quadruplet. Strand F (r165) wires the CRON.
     #
-    # live_triggers stays empty here — populated by Strand E (the
-    # alerts_runner integration converts hard fires + news/economic
-    # release / polymarket shift triggers into LiveTrigger entries
-    # that bump conviction proportionally).
+    # Phase 1 A1 (2026-06-02) — live_triggers is assembled ABOVE by
+    # `_assemble_live_triggers` (economic releases / CB speeches /
+    # strong-tone news) and shared by both paths. It is NOT re-emitted from
+    # invalidations — the frontend already renders those as their own block.
     try:
         from .scenario_invalidation_monitor import evaluate_scenario_invalidations
 
@@ -388,8 +585,6 @@ async def build_session_verdict(
         # Frontend interprets `invalidation_state=None` as "no data" per
         # doctrine #11 (vs hard "all clear" when non-None with empty lists).
         invalidation_state = None
-
-    live_triggers: list[LiveTrigger] = []
 
     # r167 G1 — evaluate TradeabilityFlag for the populated path. Uses the
     # derived conviction_pct so the `no_setup` gate (last priority before
