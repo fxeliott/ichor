@@ -1,9 +1,9 @@
 # Session log — 2026-06-02 · Quantum-leap (make Ichor truly _alive_)
 
-> Eliot re-read his full vision (Prompt_Ichor v3), had it challenged hard → evidence-based
+> Eliot re-read his full vision (Prompt*Ichor v3), had it challenged hard → evidence-based
 > audits → **9 gaps** → a sequenced **7-phase master plan** (`ichor_quantum_leap_plan.md`,
 > audit `ichor_audit_2026-06-02.md`). Méta-read: Ichor is built ~85% but "one flag-flip /
-> one cable / one page away from being genuinely _alive_" at the spot Eliot looks. Eliot
+> one cable / one page away from being genuinely \_alive*" at the spot Eliot looks. Eliot
 > **authorized everything** (Tier A + all Tier B + "do even more"). This log records the
 > execution, phase by phase. Voie D + ADR-017 held throughout; ZERO Anthropic spend.
 
@@ -68,5 +68,48 @@ suite **108 passed**, ruff clean.
 ---
 
 ## Phases 1–7 (appended as each lands)
+
+### Phase 1 — The apex verdict is alive (gaps 1, 2, 7) — SHIPPED + DEPLOYED + WITNESSED
+
+The NY-session verdict is the most-looked-at surface, yet it was inert. Three fixes (PR #165 → main):
+
+- **A1 real live_triggers** (was hardcoded `[]`). New async `_assemble_live_triggers` in
+  `session_verdict_builder.py` sources REAL recent data (read-only, no LLM): economic releases
+  with a published actual under 12h → `economic_release`; central-bank speeches under 12h →
+  `central_bank_speech`; strong-tone news (FinBERT score magnitude ≥ 0.85) under 6h →
+  `news_headline`. Every trigger `tests` the verdict (honest — no fabricated directional
+  confirms/invalidates, doctrine #11). Scenario invalidations are NOT re-emitted (the panel
+  already renders them). Wired into both verdict paths; fail-open per source; each trigger built
+  in try/except so an ADR-017-tripping headline is skipped not raised; sorted desc, cap-10.
+- **A2 60s live-refresh**: `<SessionVerdictPanel>` client-polls the verdict every 60s (Page
+  Visibility + AbortController), seeded from SSR, keeps last-good on null so the apex never blanks.
+- **A4 conviction gauge on the apex**: the radial `<ConvictionGauge>` is wired into the apex chip
+  (direction → tone), giving the text-only verdict a visual anchor.
+
+Validation: new `test_session_verdict_live_triggers.py` (12) + backend targeted 82 passed; web2
+tsc 0 / eslint 0 / vitest 506 / next build OK. Witness: `/v1/verdict/session-ny/EUR_USD` returns
+**8 real triggers** (news + CB speeches, all `tests_verdict`, source-stamped, ADR-017-clean); the
+public `/briefing/EUR_USD` SSR HTML renders the "Déclencheurs en direct" block + the gauge SVG, 0
+error boundary.
+
+### Phase 2 — Real-time trader notifications (gap 5) — SHIPPED + DEPLOYED + WITNESSED
+
+The 33-entry alert catalog persisted hits to the DB and stopped; nothing reached the trader.
+Web-push existed server-side (VAPID + pywebpush + Redis) but was only fired for cartes-prêtes and
+web2 had no way to subscribe. Now (PR #166 → main):
+
+- **Backend**: `alerts_runner` calls `_maybe_notify` after persisting each hit (both
+  `check_metric` and `check_scenario_invalidations`). Only `critical` fires (hard scenario
+  invalidations + crisis-level macro alerts) so the existing 2h per-code dedup bounds spam.
+  ADR-017: the copy is the curated catalog text, re-checked with `is_adr017_clean`; fail-soft so a
+  push failure never breaks alert persistence.
+- **Frontend**: new `public/sw.js` (push + notificationclick), `lib/push.ts` (register SW, request
+  permission, subscribe with the VAPID key, POST `/v1/push/subscribe`), and a `<NotificationToggle>`
+  on the `/briefing` landing (hidden when push is unsupported).
+
+Validation: `test_alerts_runner_notify.py` (5); web2 tsc 0 / eslint 0 / vitest 506 / build OK.
+Witness: `/sw.js` served 200, `/v1/push/public-key` returns the VAPID key, `/v1/push/test` →
+`{"delivered":0}` (clean no-op until a browser subscribes). **Manual step for Eliot**: click
+"Activer les alertes" on `/briefing` and accept the browser prompt to start receiving alerts.
 
 <!-- phase sections appended here as they ship + deploy + witness -->
