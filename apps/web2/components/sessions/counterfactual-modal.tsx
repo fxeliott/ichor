@@ -72,7 +72,7 @@ const MOCK_BRANCHES: CounterfactualBranch[] = [
   {
     label: "If ECB had stayed neutral",
     thesis:
-      "Le mécanisme 3 (CB-NLP hawkish) tombe ; le setup garde un biais long mais la conviction tombe à 55% (sous le seuil de 60% pour signal fort).",
+      "Le mécanisme 3 (ton hawkish des banques centrales) tombe ; le setup garde un biais long mais la conviction tombe à 55% (sous le seuil de 60% pour signal fort).",
     conviction: 55,
     delta_pp: -17,
   },
@@ -102,9 +102,7 @@ export function CounterfactualModal({ sessionCardId, asset, session, actualThesi
         { scrubbed_event: scrubInput.trim() },
       );
       if (!result) {
-        setErrorMsg(
-          "API offline ou Pass 5 indisponible — affichage des branches mock à titre indicatif.",
-        );
+        setErrorMsg("Service indisponible — affichage de branches indicatives.");
         return;
       }
       const branch: CounterfactualBranch = {
@@ -141,7 +139,7 @@ export function CounterfactualModal({ sessionCardId, asset, session, actualThesi
         <Dialog.Overlay className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
         <Dialog.Content className="fixed left-1/2 top-1/2 z-50 max-h-[85vh] w-[min(90vw,720px)] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-6 shadow-2xl focus:outline-none">
           <Dialog.Title className="font-mono text-xs uppercase tracking-widest text-[var(--color-text-muted)]">
-            Counterfactual · Pass 5
+            Test « et si ? »
           </Dialog.Title>
           <Dialog.Description className="mb-4 mt-1 text-sm text-[var(--color-text-secondary)]">
             Branches alternatives pour <span className="font-mono">{asset}</span> ·{" "}
@@ -152,7 +150,7 @@ export function CounterfactualModal({ sessionCardId, asset, session, actualThesi
               </span>
             ) : (
               <span className="ml-2 font-mono text-[10px] text-[var(--color-text-muted)]">
-                (carte mock — Pass 5 désactivé)
+                (carte indicative — test désactivé)
               </span>
             )}
           </Dialog.Description>
@@ -166,7 +164,7 @@ export function CounterfactualModal({ sessionCardId, asset, session, actualThesi
                 htmlFor="scrub-event"
                 className="mb-1 block font-mono text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]"
               >
-                Évènement à retirer (scrub) — Claude raisonnera sans
+                Évènement à retirer — l'analyse raisonnera sans
               </label>
               <textarea
                 id="scrub-event"
@@ -184,7 +182,7 @@ export function CounterfactualModal({ sessionCardId, asset, session, actualThesi
                   disabled={!scrubInput.trim() || busy}
                   className="rounded border border-[var(--color-border-default)] bg-[var(--color-bg-elevated)] px-3 py-1 font-mono text-[11px] uppercase tracking-widest text-[var(--color-text-primary)] transition-colors hover:border-[var(--color-accent-cobalt)] hover:text-[var(--color-accent-cobalt)] disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {busy ? "Pass 5 en cours…" : "Compute (Pass 5)"}
+                  {busy ? "Calcul en cours…" : "Lancer le test « et si ? »"}
                 </button>
                 {PROMPT_SUGGESTIONS.map((s) => (
                   <button
@@ -259,8 +257,8 @@ export function CounterfactualModal({ sessionCardId, asset, session, actualThesi
 
           <p className="mt-4 font-mono text-[10px] text-[var(--color-text-muted)]">
             {isMock
-              ? "Branches mock affichées — saisis un scrubbed_event ci-dessus pour déclencher Pass 5 réel."
-              : `${computed.length} branche(s) computed via Pass 5 (Voie D, model=haiku low).`}
+              ? "Branches indicatives — saisis un évènement ci-dessus pour lancer le test réel."
+              : `${computed.length} branche(s) calculées.`}
           </p>
 
           <Dialog.Close asChild>

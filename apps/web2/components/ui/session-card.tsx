@@ -233,7 +233,7 @@ export function SessionCard({
       {/* Bloc 8 — Calibration footer */}
       <footer className="flex items-center justify-between border-t border-[var(--color-border-subtle)] pt-3 font-mono text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
         <span>
-          Brier{" "}
+          Fiabilité{" "}
           <span className="tabular-nums text-[var(--color-text-secondary)]">
             {calibration.brier.toFixed(3)}
           </span>{" "}
@@ -248,7 +248,7 @@ export function SessionCard({
           unit="%"
           variant="compact"
           size="xs"
-          ariaLabel={`Tendance Brier: ${calibration.trend}`}
+          ariaLabel={`Tendance fiabilité : ${calibration.trend}`}
         />
       </footer>
 
