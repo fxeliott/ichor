@@ -428,7 +428,7 @@ export default async function BriefingPage({ params }: PageParams) {
 
           {/* The session verdict is THE apex — one read, first. The
               deterministic banner is only a fallback when no live verdict. */}
-          <SessionVerdictPanel data={sessionVerdict} />
+          <SessionVerdictPanel data={sessionVerdict} asset={normalisedAsset} />
 
           {card && !sessionVerdict && (
             <VerdictBanner

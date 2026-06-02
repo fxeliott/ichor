@@ -39,7 +39,7 @@
  */
 
 import { m } from "motion/react";
-import type { ReactElement } from "react";
+import { type ReactElement, useEffect, useState } from "react";
 
 import type { SessionVerdict } from "@/lib/api";
 import {
@@ -61,12 +61,78 @@ import {
   isVerdictExpired,
 } from "@/lib/sessionVerdict";
 
-interface Props {
-  data: SessionVerdict | null;
+import { ConvictionGauge } from "./ConvictionGauge";
+
+const POLL_INTERVAL_MS = 60_000;
+
+// Map the verdict direction to the gauge's tone vocabulary
+// (bull/bear/neutral/warn). The gauge re-expresses conviction_pct
+// visually — never an order (ADR-017 boundary).
+const GAUGE_TONE: Record<string, "bull" | "bear" | "neutral"> = {
+  up: "bull",
+  down: "bear",
+  neutral: "neutral",
+};
+
+/**
+ * Poll the canonical verdict. Returns null on 404 (no card yet) or any
+ * transient/abort — the caller keeps the last-good value so the apex
+ * never flickers to empty on a momentary blip.
+ */
+async function fetchVerdict(asset: string, signal: AbortSignal): Promise<SessionVerdict | null> {
+  try {
+    const res = await fetch(`/v1/verdict/session-ny/${encodeURIComponent(asset)}`, {
+      signal,
+      cache: "no-store",
+    });
+    if (!res.ok) return null;
+    return (await res.json()) as SessionVerdict;
+  } catch {
+    return null;
+  }
 }
 
-export function SessionVerdictPanel({ data }: Props): ReactElement | null {
-  if (data === null) return null;
+interface Props {
+  data: SessionVerdict | null;
+  asset: string;
+}
+
+export function SessionVerdictPanel({ data: initialData, asset }: Props): ReactElement | null {
+  const [verdict, setVerdict] = useState<SessionVerdict | null>(initialData);
+
+  // Re-seed when the SSR prop changes (e.g. asset switch / page nav).
+  useEffect(() => {
+    setVerdict(initialData);
+  }, [initialData]);
+
+  // A2 — live-refresh the apex verdict every 60s while the tab is visible
+  // (mirror PreviousSessionContextPanel). Keep the last-good value on null
+  // so a transient blip or momentarily-missing card never blanks the apex.
+  useEffect(() => {
+    let alive = true;
+    const controller = new AbortController();
+    const tick = async () => {
+      const next = await fetchVerdict(asset, controller.signal);
+      if (alive && next !== null) setVerdict(next);
+    };
+    void tick();
+    const id = setInterval(() => {
+      if (document.visibilityState === "visible") void tick();
+    }, POLL_INTERVAL_MS);
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") void tick();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      alive = false;
+      controller.abort();
+      clearInterval(id);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [asset]);
+
+  if (verdict === null) return null;
+  const data = verdict;
 
   const dormant = isVerdictDormant(data);
   const expired = isVerdictExpired(data);
@@ -139,20 +205,33 @@ export function SessionVerdictPanel({ data }: Props): ReactElement | null {
           </div>
         )}
 
-        {/* Prominent direction chip — the apex of the panel per ADR-106 D4. */}
-        <div className="flex items-baseline gap-4">
-          <span className={`text-4xl font-light leading-none ${directionTone}`} aria-hidden="true">
-            {directionGlyph}
-          </span>
-          <div className="flex flex-col gap-1">
-            <span className={`text-2xl font-medium tracking-tight ${directionTone}`}>
-              {directionLabel}
+        {/* Prominent direction chip + conviction gauge — the apex per ADR-106 D4.
+            The radial gauge gives the text-only verdict a visual anchor (it
+            re-expresses conviction_pct, never an order — ADR-017). */}
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-baseline gap-4">
+            <span
+              className={`text-4xl font-light leading-none ${directionTone}`}
+              aria-hidden="true"
+            >
+              {directionGlyph}
             </span>
-            <span className="text-sm text-[var(--color-text-secondary)]">
-              {data.conviction_pct.toFixed(0)} % conviction ({tier}) · {natureLabel}
-            </span>
-            <span className="text-xs italic text-[var(--color-text-muted)]">{natureHint}</span>
+            <div className="flex flex-col gap-1">
+              <span className={`text-2xl font-medium tracking-tight ${directionTone}`}>
+                {directionLabel}
+              </span>
+              <span className="text-sm text-[var(--color-text-secondary)]">
+                {data.conviction_pct.toFixed(0)} % conviction ({tier}) · {natureLabel}
+              </span>
+              <span className="text-xs italic text-[var(--color-text-muted)]">{natureHint}</span>
+            </div>
           </div>
+          <ConvictionGauge
+            pct={data.conviction_pct}
+            tone={GAUGE_TONE[data.direction] ?? "neutral"}
+            size={92}
+            label="conviction"
+          />
         </div>
 
         {/* Coach explanation paragraph — beginner-friendly WHY. */}
