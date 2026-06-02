@@ -10,6 +10,16 @@
 
 ---
 
+## §1 — Current state (2026-06-02 QUANTUM-LEAP — pipeline rescued, 7-phase "make Ichor alive" plan in flight)
+
+The active plan is `ichor_quantum_leap_plan.md` (memory): 9 evidence-based gaps → 7 sequenced phases to make Ichor genuinely _alive_ where Eliot looks (live verdict + notify + Opus-everywhere + live web research). Eliot authorized everything (Tier A + all Tier B).
+
+**Phase 0 SHIPPED** : (a) doc-debt closed — 2026-06-01 evening refonte/London/freshness (`PR #162 → d683e3b`) recorded ; (b) **pipeline rescue** (`PR #163 → ffd2ba8`) — Win11 runner was DOWN (stale `claude.exe` path → 0 fresh cards) → repointed to npm-bundled native binary + durable Startup `.bat` + `--timeout-keep-alive 75` (fixes the 502/EOF keepalive↔poll race) + client poll-loop transient tolerance. Witnessed: full 4-pass+Pass-6 EUR_USD card, 0× 502, persisted (bias=long, conv=27, 7 scenarios, 11 key levels). ichor_brain 108 pass, brain deployed Hetzner.
+
+**NEXT (Phases 1→7)** : ⭐ Phase 1 verdict alive (real `live_triggers` + 60s live-refresh + `ConvictionGauge` on apex) → Phase 2 notify push → Phase 3 finish §6.9 scrub → Phase 4 auto-improvement ON → Phase 5 Opus 4.8 everywhere (staged) → Phase 6 SearXNG live web research → Phase 7 streaming cadence. Detail : [`SESSION_LOG_2026-06-02-quantum-leap.md`](SESSION_LOG_2026-06-02-quantum-leap.md). Voie D + ADR-017 held ; ZERO Anthropic spend.
+
+### Pre-2026-06-02 line preserved (r188 session-wrap)
+
 ## §1 — Current state (r188 session-wrap — 10 atomic rounds r179→r188 SHIPPED + DEPLOYED LIVE Hetzner, G5+N1 full arcs CLOSED, 2026-05-28 ~17:50)
 
 ### Shipped session r179→r188 (consolidated)
