@@ -1,0 +1,49 @@
+# Ichor SearXNG — self-hosted metasearch for Couche-2 / data_pool web research
+# (ADR-084, Prompt_Ichor §6 #1). Loopback-only (127.0.0.1:8081), never public:
+# the API surface is reached only by apps/api services on the same host.
+# Voie D : $0 marginal (CPX21 already paid), no metered LLM, no API spend.
+#
+# secret_key is injected at deploy time (scripts/hetzner/register-searxng.sh)
+# from `openssl rand -hex 32` into settings.yml — never committed.
+services:
+  searxng:
+    image: searxng/searxng:latest
+    container_name: ichor-searxng
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8081:8080"
+    volumes:
+      - ./settings.yml:/etc/searxng/settings.yml:ro
+    environment:
+      - SEARXNG_BASE_URL=http://localhost:8081/
+      - UWSGI_WORKERS=2
+      - UWSGI_THREADS=4
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    healthcheck:
+      test:
+        ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:8080/healthz"]
+      interval: 60s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+# Explicit subnet: the daemon auto-pool (172.20.0.0/16) is fully consumed by
+# the ichor-n8n network, so a new auto-network can't be allocated ("all
+# predefined address pools have been fully subnetted"). 172.21.0.0/24 is free
+# (172.17 bridge / 172.19 langfuse / 172.20 n8n are taken) and avoids a
+# disruptive dockerd restart.
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: 172.21.0.0/24
