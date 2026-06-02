@@ -187,20 +187,22 @@ def test_no_anthropic_sdk_imports() -> None:
     )
 
 
-# ────────────────────────── ADR-023 ──────────────────────────
+# ────────────────────────── ADR-023 → ADR-108 ──────────────────────────
 
-# Couche-2 agents must default to Claude Haiku low. Sonnet medium
-# was the original mapping (ADR-021) but it hit Cloudflare Free 100s
-# edge timeout 60% of the time. ADR-023 supersedes ADR-021 with Haiku.
+# Couche-2 agents run on Opus 4.8 low (ADR-108 §11 full-Opus, 2026-06-02,
+# supersedes ADR-023). ADR-023 pinned Haiku because Sonnet medium hit the
+# Cloudflare Free 100s edge timeout on the LEGACY SYNC endpoint ; Wave 67
+# moved Couche-2 to the async-polling path (CF-edge-immune), so Opus's
+# longer wall-time no longer trips the cap. `sonnet` remains forbidden
+# (it is the one model that breaches the cap AND is no better than Opus).
 
 _COUCHE2_AGENTS_DIR = _REPO_ROOT / "packages" / "agents" / "src" / "ichor_agents" / "agents"
 
-# We look for hard-coded `"sonnet"` / `'sonnet'` / `model="sonnet"` /
-# `model: "sonnet"` patterns in agent files. The default in
-# ClaudeRunnerProvider is acceptable to be `"haiku"` ; agents that
-# override are flagged.
+# We forbid hard-coded `"sonnet"` literals in agent files, and positively
+# assert the model wiring still references `"opus"` (catches accidental
+# deletion of the model selection logic).
 _SONNET_LITERAL_RE = re.compile(r"""['"]sonnet['"]""")
-_HAIKU_LITERAL_RE = re.compile(r"""['"]haiku['"]""")
+_OPUS_LITERAL_RE = re.compile(r"""['"]opus['"]""")
 
 
 def test_couche2_agents_do_not_default_to_sonnet() -> None:
@@ -236,30 +238,30 @@ def test_couche2_agents_do_not_default_to_sonnet() -> None:
             rel = path.relative_to(_REPO_ROOT)
             offenders.append(f"{rel}:{tok.start[0]} — {line_text.strip()[:80]!r}")
     assert offenders == [], (
-        "ADR-023 violated : Couche-2 agent code hard-codes `sonnet`. "
-        "Use `haiku` (low effort). "
+        "ADR-023/ADR-108 violated : Couche-2 agent code hard-codes `sonnet`. "
+        "Use `opus` (low effort) on the async path. "
         f"Offenders ({len(offenders)}) :\n" + "\n".join(offenders)
     )
 
 
-def test_couche2_agents_reference_haiku() -> None:
-    """ADR-023 positive guard : at least one Couche-2 agent module
-    references `haiku` in code or strings. Catches accidental wholesale
-    deletion of the model selection logic."""
+def test_couche2_agents_reference_opus() -> None:
+    """ADR-108 positive guard : at least one Couche-2 agent module
+    references `"opus"` in code or strings. Catches accidental wholesale
+    deletion of the model selection logic (§11 full-Opus)."""
     if not _COUCHE2_AGENTS_DIR.exists():
         pytest.skip("ichor_agents package not yet installed in this checkout")
 
-    found_haiku = False
+    found_opus = False
     for path in _iter_python_sources([_COUCHE2_AGENTS_DIR]):
         try:
             text = path.read_text(encoding="utf-8")
         except UnicodeDecodeError:
             continue
-        if _HAIKU_LITERAL_RE.search(text):
-            found_haiku = True
+        if _OPUS_LITERAL_RE.search(text):
+            found_opus = True
             break
-    assert found_haiku, (
-        "ADR-023 sanity : no Couche-2 agent module references 'haiku' anywhere. "
+    assert found_opus, (
+        "ADR-108 sanity : no Couche-2 agent module references 'opus' anywhere. "
         "The model selection wiring may have been deleted accidentally."
     )
 

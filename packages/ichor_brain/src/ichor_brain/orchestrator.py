@@ -109,8 +109,8 @@ class Orchestrator:
         scenarios_pass: Pass[Any] | None = None,
         critic_fn: CriticFn | None = None,
         model_id: str = "claude-opus-4-8",
-        scenarios_model: str = "sonnet",
-        scenarios_effort: str = "medium",
+        scenarios_model: str = "opus",
+        scenarios_effort: str = "high",
         enable_scenarios: bool = False,
         tool_config: ToolConfig | None = None,
     ):

@@ -65,11 +65,16 @@ class ClaudeRunnerConfig:
     runner_url: str
     cf_access_client_id: str | None = None
     cf_access_client_secret: str | None = None
-    model: str = "haiku"
-    """ADR-023 mapping (supersedes ADR-021): Haiku 4.5 effort=low for the
-    5 Couche-2 agents (CB-NLP, News-NLP, Macro, Sentiment, Positioning).
-    Sonnet medium was the original ADR-021 mapping but exceeds the
-    Cloudflare Free tunnel 100 s edge cap (60-130 s observed)."""
+    model: str = "opus"
+    """§11 full-Opus (ADR-108, 2026-06-02, supersedes ADR-023): Opus 4.8
+    effort=low for the 5 Couche-2 agents (CB-NLP, News-NLP, Macro, Sentiment,
+    Positioning). ADR-023 pinned Haiku because Sonnet medium exceeded the
+    Cloudflare Free tunnel 100 s edge cap on the LEGACY SYNC endpoint — but
+    Wave 67 moved Couche-2 to the async-polling path (`call_agent_task_async`,
+    FallbackChain.use_async_endpoint=True), which is CF-edge-immune, so the
+    longer Opus wall-time no longer trips the cap. effort stays `low` because
+    these are structured-extraction agents (tone/themes/positioning JSON),
+    not deep reasoning. Voie D unchanged (Max 20x, no API spend)."""
 
     effort: str = "medium"
     timeout_sec: float = 300.0

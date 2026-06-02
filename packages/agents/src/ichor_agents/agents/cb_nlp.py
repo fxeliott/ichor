@@ -5,7 +5,7 @@ and produces hawkish/dovish scores per CB + key shifts identified +
 projected impact per rate-sensitive asset.
 
 Routing per ADR-023 (which supersedes ADR-021's mapping table) :
-Claude Haiku 4.5 effort=low (primary) → Cerebras Llama 3.3-70B →
+Claude Opus 4.8 effort=low (primary) → Cerebras Llama 3.3-70B →
 Groq Llama 3.3-70B-versatile (last-resort). ADR-021 originally
 prescribed Sonnet medium but the Free-tier Cloudflare Tunnel caps
 requests at ~100 s and Sonnet medium routinely exceeds that on a
@@ -159,5 +159,5 @@ def make_cb_nlp_chain() -> FallbackChain:
         # Tunnel times out at ~100 s and Sonnet medium often exceeds
         # that on the 5 KB CB-speeches context. Haiku 4.5 stays under
         # the budget and produces well-structured rhetoric scoring.
-        claude=ClaudeRunnerConfig.from_env(model="haiku", effort="low"),
+        claude=ClaudeRunnerConfig.from_env(model="opus", effort="low"),
     )

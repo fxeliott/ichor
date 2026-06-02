@@ -35,10 +35,11 @@ live canonically in `ichor_brain.scenarios` (sibling module) — `apps/api`
 re-exports for the ORM + tests + CI guards. Pass-6 imports natively, no
 lazy indirection needed.
 
-Pass-6 default model = `sonnet`, effort `medium` (Couche-1 path). Haiku
-quality is acceptable but Sonnet 4.6 is materially better on structured
-probability emissions with cap-95 awareness (researcher 2026-05-12 web
-review : Pydantic-AI NativeOutput pattern + ModelRetry on ValidationError).
+Pass-6 default model = `opus`, effort `high` (Couche-1 path, 2026-06-02 —
+§11 full-Opus). Pass-6 feeds the SessionVerdict scenario decomposition
+(the apex read), so it runs on the top model like the 4-pass. Voie D : same
+Max 20x subscription, no API spend. Degrades gracefully under contention
+(parse-retry then honest stale card).
 
 r163 Strand C delivery (this commit) : the `_SYSTEM` prompt is extended
 to instruct the LLM to populate the `invalidations` field per bucket.
