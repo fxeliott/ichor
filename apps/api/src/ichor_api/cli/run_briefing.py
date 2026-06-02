@@ -405,8 +405,12 @@ async def _post_to_claude_runner(
         "briefing_type": briefing_type,
         "assets": assets,
         "context_markdown": context,
-        "model": "opus" if briefing_type in {"weekly", "crisis"} else "sonnet",
-        "effort": "high" if briefing_type in {"weekly", "crisis", "ny_close"} else "medium",
+        # §11 full-Opus (2026-06-02) — every briefing runs on Opus 4.8 high,
+        # not just weekly/crisis. The async-polling path is CF-edge-immune so
+        # the longer Opus wall-time is fine; Voie D unchanged (Max 20x, no API
+        # spend). Degrades gracefully under shared-budget contention.
+        "model": "opus",
+        "effort": "high",
     }
     max_total_sec = 600.0
     async with httpx.AsyncClient(timeout=30.0) as client:

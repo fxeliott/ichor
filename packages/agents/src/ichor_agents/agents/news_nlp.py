@@ -186,5 +186,5 @@ def make_news_nlp_chain() -> FallbackChain:
         output_type=NewsNlpAgentOutput,
         # Haiku low to stay under the Free-tier CF Tunnel 100 s cap
         # (cf macro.py for the rationale).
-        claude=ClaudeRunnerConfig.from_env(model="haiku", effort="low"),
+        claude=ClaudeRunnerConfig.from_env(model="opus", effort="low"),
     )

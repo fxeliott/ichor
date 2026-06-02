@@ -104,5 +104,5 @@ def make_positioning_chain() -> FallbackChain:
         providers=(CEREBRAS, GROQ_HIGH_VOLUME),
         system_prompt=SYSTEM_PROMPT_POSITIONING,
         output_type=PositioningAgentOutput,
-        claude=ClaudeRunnerConfig.from_env(model="haiku", effort="low"),
+        claude=ClaudeRunnerConfig.from_env(model="opus", effort="low"),
     )

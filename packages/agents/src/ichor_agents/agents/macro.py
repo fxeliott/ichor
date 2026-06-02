@@ -4,7 +4,7 @@ Produces structured output with directional bias + confidence per major
 macro driver. Consumed by the Bias Aggregator (Couche 3 ML).
 
 Routing per ADR-023 (supersedes ADR-021's Sonnet mapping): Claude
-Haiku 4.5 effort=low (primary, via Win11 runner) → Cerebras Llama
+Opus 4.8 effort=low (primary, via Win11 runner) → Cerebras Llama
 3.3-70B → Groq Llama 3.3-70B-versatile (last resort). ADR-023 chose
 Haiku low because Sonnet medium hits the CF Free tunnel 100 s cap
 on FRED/ECB/BoJ-heavy macro prompts (60-130 s observed, frequent 524).
@@ -77,5 +77,5 @@ def make_macro_chain() -> FallbackChain:
         # 60-120 s on a 5 KB prompt. Haiku 4.5 is well under the budget
         # (~30-40 s) and quality is sufficient for Couche-2 batch
         # analysis. Revisit once the tunnel runs on a paid plan.
-        claude=ClaudeRunnerConfig.from_env(model="haiku", effort="low"),
+        claude=ClaudeRunnerConfig.from_env(model="opus", effort="low"),
     )

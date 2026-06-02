@@ -87,5 +87,5 @@ def make_sentiment_chain() -> FallbackChain:
         providers=(CEREBRAS, GROQ_HIGH_VOLUME),
         system_prompt=SYSTEM_PROMPT_SENTIMENT,
         output_type=SentimentAgentOutput,
-        claude=ClaudeRunnerConfig.from_env(model="haiku", effort="low"),
+        claude=ClaudeRunnerConfig.from_env(model="opus", effort="low"),
     )
