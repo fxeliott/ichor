@@ -115,7 +115,12 @@ const ACTIONS: PaletteAction[] = [
     href: "/polymarket",
   },
   // Calibration
-  { id: "calibration", label: "Brier calibration", group: "Calibration", href: "/calibration" },
+  {
+    id: "calibration",
+    label: "Calibration · fiabilité",
+    group: "Calibration",
+    href: "/calibration",
+  },
   { id: "post-mortems", label: "Post-mortems", group: "Calibration", href: "/post-mortems" },
   { id: "sources", label: "Sources health", group: "Calibration", href: "/sources" },
   { id: "admin", label: "Admin pipeline-health", group: "Calibration", href: "/admin" },

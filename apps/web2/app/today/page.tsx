@@ -405,7 +405,7 @@ function BestOppsSection({
           <MetricTooltip
             term="conviction × régime fit × confluence"
             title="Best-opp score"
-            definition="Multiplie 3 scalaires en [0,1]: conviction du Pass-2 asset, régime fit (corrobore le quadrant macro courant), score de confluence (poids du factor mix). Range [0, 1]."
+            definition="Multiplie 3 scalaires en [0,1]: conviction de l'analyse par actif, régime fit (corrobore le quadrant macro courant), score de confluence. Range [0, 1]."
             glossaryAnchor="best-opp-score"
             density="compact"
           >

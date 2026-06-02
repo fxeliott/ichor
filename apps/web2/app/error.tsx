@@ -54,9 +54,9 @@ export default function RootError({ error, reset }: Props): ReactElement {
 
       <p className="max-w-prose text-[var(--color-text-secondary)]">
         Une erreur côté serveur a interrompu le rendu de cette page. Tu peux réessayer
-        immédiatement, ou attendre le prochain rafraîchissement ISR (30-60 s selon la route). Si le
-        problème persiste, vérifie que <code>ichor-api</code> et le tunnel
-        <code>claude-runner.fxmilyapp.com</code> répondent.
+        immédiatement, ou attendre le prochain rafraîchissement (30-60 s selon la route). Si le
+        problème persiste, le service est temporairement indisponible — réessaie dans quelques
+        instants.
       </p>
 
       {error.digest ? (

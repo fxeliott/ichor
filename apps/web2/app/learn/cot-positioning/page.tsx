@@ -126,11 +126,10 @@ export default function Chapter() {
             Comment Ichor utilise ça
           </h2>
           <p className="font-serif leading-relaxed text-[var(--color-text-secondary)]">
-            Le collector <code className={codeCls}>cot.py</code> ingère le rapport chaque vendredi
-            et persiste dans la table <code className={codeCls}>cot_positions</code>. L&apos;agent{" "}
-            <strong className="text-[var(--color-text-primary)]">Positioning</strong> de Couche-2
-            (Haiku 4.5, cron 6h) lit cette table + GEX + Polymarket whales + IV skew, et produit
-            pour chaque actif :
+            Un collecteur ingère le rapport chaque vendredi et l&apos;archive. La{" "}
+            <strong className="text-[var(--color-text-primary)]">veille du positionnement</strong>{" "}
+            (toutes les 6h) lit ces données + GEX + Polymarket whales + IV skew, et produit pour
+            chaque actif :
           </p>
           <pre className="overflow-x-auto rounded-xl border border-[var(--glass-border)] bg-[var(--color-bg-base)]/60 p-4 font-mono text-xs leading-relaxed text-[var(--color-text-primary)]">
             {`asset: EUR_USD

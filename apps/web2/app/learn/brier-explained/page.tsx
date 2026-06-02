@@ -28,7 +28,7 @@ export default function Chapter() {
 
       <PageHeader
         eyebrow="Learn · Calibration · #7 · 5 min · débutant"
-        title="Le score de Brier en 5 minutes"
+        title="La fiabilité d'une prévision, en 5 minutes"
         description="Pourquoi la calibration vaut plus que la précision moyenne, et comment Ichor mesure publiquement sa fiabilité."
       />
 
@@ -47,7 +47,7 @@ export default function Chapter() {
             je suis <em className="text-[var(--color-text-primary)]">sous-confiant</em>.
           </p>
           <p className="font-serif leading-relaxed text-[var(--color-text-secondary)]">
-            Le score de Brier mesure exactement ça, en un nombre.
+            Le score de fiabilité mesure exactement ça, en un nombre.
           </p>
         </GlowCard>
       </Reveal>
@@ -63,13 +63,13 @@ export default function Chapter() {
             binaire <code className="font-mono text-[var(--accent)]">o</code> (0 ou 1) :
           </p>
           <pre className="rounded-xl border border-[var(--glass-border)] bg-[var(--color-bg-base)]/60 p-4 font-mono text-sm text-[var(--color-text-primary)]">
-            Brier = (p − o)²
+            Fiabilité = (p − o)²
           </pre>
           <p className="font-serif leading-relaxed text-[var(--color-text-secondary)]">
             Le score moyen sur N prédictions :
           </p>
           <pre className="rounded-xl border border-[var(--glass-border)] bg-[var(--color-bg-base)]/60 p-4 font-mono text-sm text-[var(--color-text-primary)]">
-            Brier_avg = (1/N) × Σ (pᵢ − oᵢ)²
+            Fiabilité_moyenne = (1/N) × Σ (pᵢ − oᵢ)²
           </pre>
         </GlowCard>
       </Reveal>
@@ -99,7 +99,7 @@ export default function Chapter() {
           <p className="font-serif leading-relaxed text-[var(--color-text-secondary)]">
             Cible Ichor :{" "}
             <strong className="text-[var(--color-text-primary)]">
-              Brier &lt; 0.15 sur 30 jours glissants
+              fiabilité &lt; 0.15 sur 30 jours glissants
             </strong>
             . En dessous, l&apos;outil bat clairement le hasard. Au-dessus de 0.20, il faut
             s&apos;inquiéter.
@@ -116,11 +116,11 @@ export default function Chapter() {
             Pour exprimer en pourcentage à quel point Ichor bat la baseline :
           </p>
           <pre className="rounded-xl border border-[var(--glass-border)] bg-[var(--color-bg-base)]/60 p-4 font-mono text-sm text-[var(--color-text-primary)]">
-            Skill = (1 − Brier_ichor / Brier_naive) × 100
+            Skill = (1 − fiabilité_ichor / fiabilité_neutre) × 100
           </pre>
           <p className="font-serif leading-relaxed text-[var(--color-text-secondary)]">
-            Avec Brier_naive = 0.25 et Brier_ichor = 0.15, skill = 40 %. Au-delà de 10 % de skill,
-            l&apos;outil est statistiquement utile en pratique.
+            Avec fiabilité_neutre = 0.25 et fiabilité_ichor = 0.15, skill = 40 %. Au-delà de 10 % de
+            skill, l&apos;outil est statistiquement utile en pratique.
           </p>
         </GlowCard>
       </Reveal>
@@ -137,9 +137,10 @@ export default function Chapter() {
             distinction.
           </p>
           <p className="font-serif leading-relaxed text-[var(--color-text-secondary)]">
-            Le Brier la conserve : une prédiction confiante qui rate compte plus que une prédiction
-            tiède qui rate. C&apos;est ça qu&apos;on veut mesurer en trading, parce qu&apos;une
-            fausse conviction forte est bien plus coûteuse qu&apos;une hésitation correcte.
+            La fiabilité la conserve : une prédiction confiante qui rate compte plus que une
+            prédiction tiède qui rate. C&apos;est ça qu&apos;on veut mesurer en trading, parce
+            qu&apos;une fausse conviction forte est bien plus coûteuse qu&apos;une hésitation
+            correcte.
           </p>
         </GlowCard>
       </Reveal>
@@ -150,13 +151,13 @@ export default function Chapter() {
             Ce qui rendrait Ichor plus calibré
           </h2>
           <p className="font-serif leading-relaxed text-[var(--color-text-secondary)]">
-            Le pipeline backend{" "}
+            L&apos;{" "}
             <Link href="/learn/ml-stack" className={learnLink}>
-              Brier optimizer
+              auto-réglage nocturne
             </Link>{" "}
             ré-entraîne les poids du moteur de confluence chaque nuit en faisant descendre la perte
-            de Brier sur les outcomes des 30 derniers jours. C&apos;est de l&apos;auto-amélioration
-            mesurable. La page{" "}
+            de fiabilité sur les outcomes des 30 derniers jours. C&apos;est de
+            l&apos;auto-amélioration mesurable. La page{" "}
             <Link href="/calibration" className={learnLink}>
               /calibration
             </Link>{" "}

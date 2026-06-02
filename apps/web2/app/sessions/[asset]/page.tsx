@@ -206,7 +206,7 @@ export default async function SessionAssetPage({ params }: PageProps) {
             }}
             thesis={
               liveThesis ??
-              "Live thesis pending — first session card will populate this slot once produced by the 4-pass orchestrator."
+              "Thèse en attente — la première carte de session remplira ce bloc dès qu'elle sera produite."
             }
             triggers={
               liveTriggers ?? [
@@ -221,14 +221,14 @@ export default async function SessionAssetPage({ params }: PageProps) {
             invalidation={
               liveInvalidation ?? {
                 level: 0,
-                condition: "Pending live invalidation (populated by 4-pass orchestrator).",
+                condition: "Invalidation en attente.",
               }
             }
             crossAsset={CROSS_FALLBACK}
             ideas={
               liveIdeas ?? {
                 top: "Pending live trade idea",
-                supporting: ["Drivers will populate once Claude produces structured output"],
+                supporting: ["Les facteurs s'afficheront dès la première carte produite."],
                 risks: ["Pending live risks"],
               }
             }
@@ -257,7 +257,7 @@ export default async function SessionAssetPage({ params }: PageProps) {
                     entryLow: 0,
                     entryHigh: 0,
                     invalidationLevel: 0,
-                    invalidationCondition: "Pending live trade plan from 4-pass orchestrator",
+                    invalidationCondition: "Plan en attente.",
                     tpRR3: 0,
                     tpRR15: 0,
                     partialScheme:
@@ -347,9 +347,9 @@ function MechanismsSection() {
       sources: ["FRED:DFII10@2026-05-03", "FRED:IRLTLT01EZM156N@2026-05-03"],
     },
     {
-      title: "Mécanisme 3 · ECB rhetoric (CB-NLP)",
-      body: "Le CB-NLP agent flag Lagarde + Schnabel comme « more hawkish » sur les dernières 72h, vs OIS implied path qui pricing 25bps cuts en juin.",
-      sources: ["couche2:cb_nlp@2026-05-04T06:00Z"],
+      title: "Mécanisme 3 · rhétorique ECB",
+      body: "La veille banques centrales flag Lagarde + Schnabel comme « more hawkish » sur les dernières 72h, vs OIS implied path qui pricing 25bps cuts en juin.",
+      sources: ["veille banques centrales · 2026-05-04 06:00"],
     },
   ];
   return (
@@ -416,8 +416,8 @@ function CalibrationStrip({
           Calibration track-record · this asset
         </h2>
         <MetricTooltip
-          term="Brier"
-          definition="Score de Brier = (prédiction - outcome)². Range [0, 1], plus bas = mieux. Cible <0.15 sur 30j."
+          term="Fiabilité"
+          definition="Score de fiabilité = (prédiction - outcome)². Range [0, 1], plus bas = mieux. Cible <0.15 sur 30j."
           glossaryAnchor="brier-score"
           density="compact"
         >
@@ -426,17 +426,17 @@ function CalibrationStrip({
       </div>
       <dl className="grid grid-cols-3 gap-4 text-sm">
         <CalibStat
-          label={labelOf("Brier 7d", liveBrier7d, liveSample7d)}
+          label={labelOf("Fiabilité 7j", liveBrier7d, liveSample7d)}
           value={liveBrier7d !== null ? liveBrier7d.toFixed(3) : "—"}
           trend={trendOf(liveBrier7d)}
         />
         <CalibStat
-          label={labelOf("Brier 30d", liveBrier, liveSampleSize)}
+          label={labelOf("Fiabilité 30j", liveBrier, liveSampleSize)}
           value={liveBrier !== null ? liveBrier.toFixed(3) : "—"}
           trend={trendOf(liveBrier)}
         />
         <CalibStat
-          label={labelOf("Brier 90d", liveBrier90d, liveSample90d)}
+          label={labelOf("Fiabilité 90j", liveBrier90d, liveSample90d)}
           value={liveBrier90d !== null ? liveBrier90d.toFixed(3) : "—"}
           trend={trendOf(liveBrier90d)}
         />
@@ -487,20 +487,26 @@ function AnaloguesPreview() {
   return (
     <div className="rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-4">
       <p className="mb-2 font-mono text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
-        DTW analogues · top 3
+        Situations historiques similaires · top 3
       </p>
       <ol className="space-y-2 text-xs">
         <li className="border-l-2 border-[var(--color-bull)] pl-2">
           <span className="font-mono">2024-11-12 → 2024-12-02</span>
-          <span className="ml-2 text-[var(--color-text-muted)]">DTW 0.84 · forward+1.18%</span>
+          <span className="ml-2 text-[var(--color-text-muted)]">
+            Similarité 0,84 · +1,18% ensuite
+          </span>
         </li>
         <li className="border-l-2 border-[var(--color-bull)] pl-2">
           <span className="font-mono">2023-03-06 → 2023-03-26</span>
-          <span className="ml-2 text-[var(--color-text-muted)]">DTW 0.91 · forward+0.42%</span>
+          <span className="ml-2 text-[var(--color-text-muted)]">
+            Similarité 0,91 · +0,42% ensuite
+          </span>
         </li>
         <li className="border-l-2 border-[var(--color-bear)] pl-2">
           <span className="font-mono">2022-09-19 → 2022-10-09</span>
-          <span className="ml-2 text-[var(--color-text-muted)]">DTW 0.94 · forward−0.83%</span>
+          <span className="ml-2 text-[var(--color-text-muted)]">
+            Similarité 0,94 · −0,83% ensuite
+          </span>
         </li>
       </ol>
     </div>

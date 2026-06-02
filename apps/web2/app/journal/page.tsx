@@ -46,10 +46,9 @@ export default function JournalPage() {
           Journal
         </h1>
         <p className="mt-3 max-w-prose text-sm text-[var(--color-text-secondary)]">
-          Espace personnel. Hors contrat ADR-017 (ne nourrit pas le pipeline ML/Brier). Brouillons
-          sauvegardés en localStorage tant que le backend{" "}
-          <code className="font-mono text-xs">trader_notes</code> n&apos;est pas câblé (Phase B.5d
-          v2).
+          Espace personnel. Hors contrat ADR-017 (ne nourrit pas l&apos;analyse ni la mesure de
+          fiabilité). Brouillons sauvegardés en local tant que la prise de notes côté serveur
+          n&apos;est pas câblée.
         </p>
       </header>
       <Suspense

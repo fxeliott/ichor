@@ -94,9 +94,9 @@ Et P(les 3 vrais simultanément) = 0.6 × 0.6 × 0.6 = 21.6%`}
             <strong className="text-[var(--color-text-primary)]">
               structurellement décorrélés
             </strong>{" "}
-            : un signal de régime macro (HMM), un signal de flux (Polymarket whale bet), un signal
-            de positionnement (COT extrême). Ces 3 sources sont presque indépendantes — leur
-            corrélation empirique sur 5 ans est &lt; 0.15.
+            : un signal de régime macro (détection automatique du régime), un signal de flux
+            (Polymarket whale bet), un signal de positionnement (COT extrême). Ces 3 sources sont
+            presque indépendantes — leur corrélation empirique sur 5 ans est &lt; 0.15.
           </p>
         </GlowCard>
       </Reveal>
@@ -129,7 +129,7 @@ Et P(les 3 vrais simultanément) = 0.6 × 0.6 × 0.6 = 21.6%`}
             </li>
             <li>
               <strong className="text-[var(--color-text-primary)]">sentiment</strong> — agrégat news
-              (FinBERT) + social (Bluesky/Twitter scrape).
+              (analyse du ton des actualités) + social (Bluesky/Twitter scrape).
             </li>
             <li>
               <strong className="text-[var(--color-text-primary)]">vix_regime</strong> — risk-on /
@@ -141,7 +141,7 @@ Et P(les 3 vrais simultanément) = 0.6 × 0.6 × 0.6 = 21.6%`}
             </li>
             <li>
               <strong className="text-[var(--color-text-primary)]">analogues</strong> — outcome
-              moyen des 3 fenêtres historiques DTW les plus similaires.
+              moyen des 3 situations historiques les plus similaires.
             </li>
           </ol>
         </GlowCard>
@@ -159,7 +159,7 @@ Et P(les 3 vrais simultanément) = 0.6 × 0.6 × 0.6 = 21.6%`}
           <pre className="overflow-x-auto rounded-xl border border-[var(--glass-border)] bg-[var(--color-bg-base)]/60 p-4 font-mono text-xs leading-relaxed text-[var(--color-text-primary)]">
             {`confluence = Σ w_i × s_i  où Σ w_i = 1
 # w_i optimisé chaque nuit par SGD projeté simplex bornée [0.05, 0.5]
-# pour minimiser le Brier sur les 30 derniers jours (cf chapitre 7)
+# pour minimiser la perte de fiabilité sur les 30 derniers jours (cf chapitre 7)
 
 # Mapping vers 0-100 :
 score_pct = 50 + 50 * confluence`}

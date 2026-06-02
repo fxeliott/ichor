@@ -28,8 +28,7 @@ const MOCK_FALLBACK: BriefingItem[] = [
     id: "b3",
     kind: "crisis",
     title: "Crisis Mode · VIX +28 % en 90 min",
-    excerpt:
-      "VIX spot 24.8. Briefing ad-hoc Opus 4.8 généré. Cross-asset stress en haut du dashboard.",
+    excerpt: "VIX spot 24.8. Briefing ad-hoc généré. Cross-asset stress en haut du dashboard.",
     generated_at: "2026-05-04T13:42:00Z",
   },
   {
@@ -37,7 +36,7 @@ const MOCK_FALLBACK: BriefingItem[] = [
     kind: "post_mortem",
     title: "Post-mortem semaine ISO 2026-W18",
     excerpt:
-      "Top hits 5 (EUR/USD bull 67% hit). Top miss 5 (NAS100 bear 41% miss). Drift ADWIN détecté sur USD/JPY.",
+      "Top hits 5 (EUR/USD bull 67% hit). Top miss 5 (NAS100 bear 41% miss). Dérive détectée sur USD/JPY.",
     generated_at: "2026-05-04T18:00:00Z",
   },
 ];
@@ -129,7 +128,7 @@ export default async function BriefingsPage() {
           Toutes les{" "}
           <MetricTooltip
             term="cards persistées"
-            definition="Chaque session card (Pré-Londres / Pré-NY) est stockée dans la table briefings + indexée RAG pour rétroaction. Le Brier est annoté par le reconciler nightly."
+            definition="Chaque session card (Pré-Londres / Pré-NY) est archivée pour rétroaction. La fiabilité est annotée automatiquement chaque nuit."
             glossaryAnchor="cards-persistees"
             density="compact"
           >

@@ -56,8 +56,8 @@ const MOCK_ALERTS: AlertItem[] = [
     id: "a3",
     code: "BIAS_BRIER_DEGRADATION",
     severity: "warning",
-    title: "Brier 7d EUR/USD à 0.187",
-    detail: "Score Brier 7j sur EUR/USD a dégradé > 15% vs baseline 30j",
+    title: "Fiabilité 7j EUR/USD à 0.187",
+    detail: "Score de fiabilité 7j sur EUR/USD a dégradé > 15% vs référence 30j",
     asset: "EUR_USD",
     triggered_at: "2026-05-04T03:15:00Z",
     acknowledged: true,
@@ -84,8 +84,8 @@ const MOCK_ALERTS: AlertItem[] = [
     id: "a6",
     code: "CONCEPT_DRIFT_DETECTED",
     severity: "info",
-    title: "ADWIN drift NAS100 régime",
-    detail: "Drift detected on NAS100 régime classification rolling 30j",
+    title: "Dérive détectée NAS100 régime",
+    detail: "Dérive détectée sur la classification de régime NAS100 sur 30j",
     asset: "NAS100_USD",
     triggered_at: "2026-05-03T22:08:00Z",
     acknowledged: true,
@@ -133,7 +133,7 @@ export default async function AlertsPage() {
           Feed unifié des{" "}
           <MetricTooltip
             term="33 alert codes"
-            definition="Chaque alerte a un code stable (e.g. VIX_PANIC, BIAS_BRIER_DEGRADATION). Le mapping code → règle est persisté dans services/alerts.py et le composite trigger Crisis Mode lit ces codes."
+            definition="Chaque alerte a un code stable (e.g. VIX_PANIC, dégradation de fiabilité). Le déclencheur composite Crisis Mode lit ces codes."
             glossaryAnchor="alert-codes"
             density="compact"
           >

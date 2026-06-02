@@ -93,16 +93,16 @@ export default async function NarrativesPage() {
           Narratives
         </h1>
         <p className="max-w-prose text-[var(--color-text-secondary)]">
-          Top keywords extraits de cb_speeches + news_items via{" "}
+          Top keywords extraits des discours de banques centrales + actualités via le{" "}
           <MetricTooltip
-            term="services.narrative_tracker"
-            definition="Tokenisation simple + filtre stopwords + comptage. Pondérée par fenêtre temporelle. Pas encore clustering NLP — la Couche-2 News-NLP enrichira intensity + sentiment + entities."
+            term="suivi des narratifs"
+            definition="Tokenisation simple + filtre stopwords + comptage. Pondérée par fenêtre temporelle. La veille des actualités enrichira intensité + sentiment + entités."
             glossaryAnchor="narrative-tracker"
             density="compact"
           >
-            services.narrative_tracker
+            suivi des narratifs
           </MetricTooltip>
-          . Intensité ∝ part du keyword dans le pool. Sentiment/entities en attente Couche-2.
+          . Intensité ∝ part du keyword dans le pool. Sentiment/entités en attente.
         </p>
       </header>
 
@@ -147,9 +147,8 @@ export default async function NarrativesPage() {
       </ol>
 
       <p className="mt-6 text-xs text-[var(--color-text-muted)]">
-        Note : la Couche-2 News-NLP enrichira chaque narrative avec sentiment FinBERT-tone-weighted,
-        entités nommées, et trend 24h. Endpoint <code className="font-mono">/v1/narratives</code>{" "}
-        sera étendu en conséquence.
+        Note : la veille des actualités enrichira chaque narrative avec un sentiment pondéré par le
+        ton, des entités nommées, et une tendance 24h.
       </p>
     </div>
   );

@@ -85,7 +85,7 @@ export const THEME_DRIVER_HINT_FR: Record<ThemeDriverKey, string> = {
   geopolitics:
     "Conflits, guerres, accords commerciaux, sanctions. ai_gpr au-dessus du 80ème percentile = régime géopolitique-driven. Caldara-Iacoviello 2022 AER.",
   price_action_flow:
-    "Positioning institutionnel + retail, microstructure (VPIN, gamma flip, niveaux clés). Régime fast-moving au sens horaire/minute.",
+    "Positionnement institutionnel + particuliers, microstructure (pression de flux, gamma, niveaux clés). Régime rapide à l'échelle horaire/minute.",
   supply_demand:
     "Offre / demande directe sur l'actif (impact majeur sur commodities — OPEC, inventaires, agricultural). Régime asset-class-dépendant.",
 };

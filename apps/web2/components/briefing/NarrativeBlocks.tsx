@@ -134,7 +134,7 @@ export function NarrativeBlocks({ mechanisms, invalidations, catalysts }: Narrat
       {/* ── Mécanismes : {claim, sources[]} ── */}
       <PanelShell
         title="Mécanismes"
-        blurb="Chaînes de causalité Pass-2 — pourquoi le bias devrait se matérialiser."
+        blurb="Chaînes de causalité — pourquoi le biais devrait se matérialiser."
         delay={0}
         count={mechs.length}
       >
@@ -172,7 +172,7 @@ export function NarrativeBlocks({ mechanisms, invalidations, catalysts }: Narrat
       {/* ── Invalidations : {source, condition, threshold} ── */}
       <PanelShell
         title="Invalidations"
-        blurb="Conditions Pass-4 qui cassent la thèse — niveaux + événements à surveiller."
+        blurb="Conditions qui cassent la thèse — niveaux + événements à surveiller."
         delay={0.08}
         count={invals.length}
       >
@@ -209,7 +209,7 @@ export function NarrativeBlocks({ mechanisms, invalidations, catalysts }: Narrat
       {/* ── Catalystes : {time, event, expected_impact} ── */}
       <PanelShell
         title="Catalystes"
-        blurb="Événements à venir Pass-2 — ce qui peut accélérer ou freiner la thèse."
+        blurb="Événements à venir — ce qui peut accélérer ou freiner la thèse."
         delay={0.16}
         count={cats.length}
       >

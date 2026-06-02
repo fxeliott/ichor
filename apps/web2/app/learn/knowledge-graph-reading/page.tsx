@@ -177,7 +177,7 @@ export default function Chapter() {
             Propager un choc
           </h2>
           <p className="font-serif leading-relaxed text-[var(--color-text-secondary)]">
-            Quand Pass 5 (counterfactual) demande « si Powell hawkish + 50bp + dots up », le service{" "}
+            Quand le test « et si ? » demande « si Powell hawkish + 50bp + dots up », le service{" "}
             <code className={codeCls}>graph_propagator.py</code> fait :
           </p>
           <ol className="space-y-2 text-sm text-[var(--color-text-secondary)]">

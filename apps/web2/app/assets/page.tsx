@@ -179,9 +179,9 @@ export default async function AssetsPage() {
           <code className="rounded bg-[var(--color-bg-elevated)] px-1.5 py-0.5 font-mono text-sm">
             /sessions/[asset]
           </code>
-          . Conviction = moyenne sur cards persistées (admin/status) ; Brier 30d = mean_brier
-          calibration/by-asset. Bias dérivé tier (≥60 bull / &lt;40 bear / else neutral) en
-          attendant l&apos;exposition directionnelle des BiasSignal aggregates.
+          . Conviction = moyenne sur cards persistées ; Fiabilité 30j = fiabilité moyenne par actif.
+          Bias dérivé tier (≥60 bull / &lt;40 bear / else neutral) en attendant l&apos;exposition
+          directionnelle des agrégats.
         </p>
       </header>
 
@@ -211,7 +211,7 @@ export default async function AssetsPage() {
               </div>
               <div className="mt-2 flex flex-wrap items-baseline gap-3 font-mono text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
                 <span>
-                  Brier 30d{" "}
+                  Fiabilité 30j{" "}
                   <span className="tabular-nums text-[var(--color-text-secondary)]">
                     {a.brier_30d !== null ? a.brier_30d.toFixed(3) : "—"}
                   </span>

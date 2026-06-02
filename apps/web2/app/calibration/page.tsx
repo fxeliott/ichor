@@ -223,16 +223,16 @@ function Header({
       <p className="max-w-prose text-[var(--color-text-secondary)]">
         Suivi public du{" "}
         <MetricTooltip
-          term="score de Brier"
-          definition="Mesure de qualité d'une prédiction probabiliste : (prédiction - outcome)². Plus bas = mieux. La référence naïve = 0.25 (toujours prédire 0.5)."
+          term="score de fiabilité"
+          definition="Mesure de qualité d'une prédiction probabiliste : (prédiction - outcome)². Plus bas = mieux. La référence neutre = 0.25 (toujours prédire 0.5)."
           glossaryAnchor="brier-score"
         >
-          score de Brier
+          score de fiabilité
         </MetricTooltip>{" "}
         par actif, du{" "}
         <MetricTooltip
           term="skill score"
-          definition="Skill = (1 - Brier / naive) × 100. Mesure de combien Ichor bat la baseline naïve. >0 = mieux que random ; >10 = utile en pratique."
+          definition="Skill = 1 comparé à une référence neutre, en %. Mesure de combien Ichor bat la référence neutre. >0 = mieux que le hasard ; >10 = utile en pratique."
           glossaryAnchor="skill-score"
         >
           skill score
@@ -248,7 +248,7 @@ function Header({
         .
       </p>
       <div className="flex flex-wrap gap-6 pt-2">
-        <Stat label="Brier global" value={overallBrier.toFixed(3)} sub="lower = better" />
+        <Stat label="Fiabilité globale" value={overallBrier.toFixed(3)} sub="lower = better" />
         <Stat label="Naïve baseline" value="0.250" sub="0.25 (50/50)" />
         <Stat
           label="Skill score"
@@ -374,7 +374,7 @@ function PerAssetTable({ assets }: { assets: AssetView[] }) {
   return (
     <section className="mb-12 rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-6">
       <h2 className="mb-4 font-mono text-xs uppercase tracking-widest text-[var(--color-text-muted)]">
-        Brier par actif · {assets.length} actifs
+        Fiabilité par actif · {assets.length} actifs
       </h2>
       <table className="w-full text-sm">
         <thead>
@@ -383,7 +383,7 @@ function PerAssetTable({ assets }: { assets: AssetView[] }) {
               Asset
             </th>
             <th className="py-2 font-mono text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
-              Brier
+              Fiabilité
             </th>
             <th className="py-2 font-mono text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
               n
@@ -409,7 +409,7 @@ function PerAssetTable({ assets }: { assets: AssetView[] }) {
                   unit="%"
                   variant="compact"
                   size="xs"
-                  ariaLabel={`Tendance Brier ${a.asset}: ${a.trend}`}
+                  ariaLabel={`Tendance fiabilité ${a.asset}: ${a.trend}`}
                 />
               </td>
             </tr>
@@ -488,8 +488,9 @@ function ScoreboardHeatmap({ data, live }: { data: CalibrationScoreboard; live: 
 
       <p className="mb-4 max-w-prose text-xs text-[var(--color-text-muted)]">
         Matrix de calibration par actif × session × fenêtre roulante. Chaque cellule = 3 mini-blocs
-        (30 j / 90 j / total). Vert = Brier &lt; 0,20 (skill utile). Jaune = 0,20-0,25 (marginal).
-        Rouge = &gt; 0,25 (pire que naïf 0,5). Pointillé = pas de carte réconciliée sur la fenêtre.
+        (30 j / 90 j / total). Vert = fiabilité &lt; 0,20 (skill utile). Jaune = 0,20-0,25
+        (marginal). Rouge = &gt; 0,25 (pire que neutre 0,5). Pointillé = pas de carte réconciliée
+        sur la fenêtre.
       </p>
 
       <div className="overflow-x-auto">
@@ -560,7 +561,7 @@ function ScoreboardTrioCell({
         const cell = cells[`${asset}|${session}`];
         const band = cell ? brierBand(cell.mean_brier) : "empty";
         const tooltip = cell
-          ? `${label} · n=${cell.n_cards} · Brier=${cell.mean_brier.toFixed(3)} · skill=${(
+          ? `${label} · n=${cell.n_cards} · fiabilité=${cell.mean_brier.toFixed(3)} · skill=${(
               cell.skill_vs_naive * 100
             ).toFixed(1)}% · ${cell.hits}/${cell.n_cards} hits`
           : `${label} · no data`;
@@ -609,7 +610,7 @@ function ScoreboardLegend() {
           className="inline-block h-3 w-3 rounded-sm"
           style={{ background: "var(--color-bull)" }}
         />
-        Brier &lt; 0,20 · skill
+        fiabilité &lt; 0,20 · skill
       </span>
       <span className="flex items-center gap-2">
         <span
@@ -664,8 +665,8 @@ function Pedagogy() {
           <strong>sur</strong> la diagonale.
         </p>
         <p>
-          Le score de Brier global agrège tous les deciles ; le skill score le ramène à une
-          référence naïve. Skill &gt; 10 % = Ichor bat significativement le hasard sur 30 jours.
+          Le score de fiabilité global agrège tous les deciles ; le skill score le ramène à une
+          référence neutre. Skill &gt; 10 % = Ichor bat significativement le hasard sur 30 jours.
         </p>
       </div>
     </section>

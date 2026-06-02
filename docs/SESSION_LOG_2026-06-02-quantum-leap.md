@@ -112,4 +112,45 @@ Witness: `/sw.js` served 200, `/v1/push/public-key` returns the VAPID key, `/v1/
 `{"delivered":0}` (clean no-op until a browser subscribes). **Manual step for Eliot**: click
 "Activer les alertes" on `/briefing` and accept the browser prompt to start receiving alerts.
 
-<!-- phase sections appended here as they ship + deploy + witness -->
+### Phase 3 — Finish the §6.9 scrub (no model/version/jargon in rendered text) — SHIPPED
+
+The product must read like a plain-French trading coach, not an engineering doc. The `/learn/*`,
+`/calibration`, `/sessions/[asset]` and several dashboard pages still rendered internal names
+(model/vendor names, ML technique acronyms, internal architecture terms). Scrubbed **28 page
+files** of rendered occurrences → plain coach FR (PR #167 → main):
+
+- Vendor/model names ("Claude", "Opus 4.8", "Sonnet 4.6", "Max 20x") → "le moteur d'analyse".
+- ML acronyms surfaced to the user (HMM / FinBERT / VPIN / HAR-RV / DTW / SABR-SVI / ADWIN /
+  Brier) → plain descriptions ("détection automatique du régime", "analyse du ton des
+  actualités", "fiabilité", "situations historiques similaires", …).
+- Internal architecture ("Couche-2", "Pass-1..6", "4-pass orchestrator", "data_pool") → "la
+  veille", "l'analyse du régime / le test « et si ? »", "le contexte rassemblé".
+- `error.tsx`: removed the exposed `ichor-api` / runner hostname → neutral outage copy.
+
+EXCEPTION kept: `/legal/ai-disclosure` still names the provider (EU AI Act §50 obligation).
+
+Guard against regression: new `__tests__/noModelNames.test.ts` source-inspects every page .tsx
+(via `import.meta.glob`) and fails on any "Claude/Anthropic/Opus/Sonnet/Haiku" — 61 tests, all
+green. Validation: tsc 0 / eslint 0 / vitest 506 + 61 / next build OK. Witness: source grep for
+model names in rendered context = 0 (residuals are only code identifiers like `liveBrier` /
+`Pass4ScenarioTree`, never user-visible).
+
+### Phase 4 — Auto-improvement loop armed (gap 3) — DONE (DB flags, no code)
+
+The learning loops measure (Vovk / drift / post-mortem fire nightly + Sunday) but the return into
+the analysis was gated OFF by two fail-closed feature flags that did not even exist as rows.
+Armed both (reversible):
+
+- `INSERT feature_flags … w116c_llm_addendum_enabled = true` — the Sunday LLM addendum generator
+  is now allowed to run. Dry-run validated the path (gate passes, runs clean).
+- `INSERT feature_flags … pass3_addenda_injection_enabled = true` — stored addenda now inject
+  into Pass-3. A fresh EUR_USD card generated cleanly with injection ON (`verdict=approved`), so
+  the 17:01 batch is de-risked.
+
+Honest caveat: there are currently **0 anti-skill pockets** (16 recent post-mortems all show the
+model skilled vs baseline — the system is well-calibrated), so the generator has nothing to
+correct yet and the `pass3_addenda` store is empty. The loop is **armed**: the first time the
+model underperforms on a pocket, the Sunday generator will produce a corrective addendum (ADR-017
+re-checked) and cards will inject it. The content witness is therefore event-conditional.
+
+<!-- next phase sections appended here -->

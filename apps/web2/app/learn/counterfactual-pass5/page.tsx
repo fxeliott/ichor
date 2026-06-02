@@ -13,7 +13,6 @@ import { Reveal } from "@/components/ui/reveal";
 
 const learnLink =
   "text-[var(--accent)] underline-offset-2 transition-colors hover:text-[var(--accent-soft)] hover:underline";
-const codeCls = "font-mono text-xs text-[var(--accent)]";
 const preCls =
   "overflow-x-auto rounded-xl border border-[var(--glass-border)] bg-[var(--color-bg-base)]/60 p-4 font-mono text-xs leading-relaxed text-[var(--color-text-primary)]";
 
@@ -31,8 +30,8 @@ export default function Chapter() {
 
       <PageHeader
         eyebrow="Learn · Trader UX · #12 · 7 min · intermédiaire"
-        title="Counterfactual Pass 5"
-        description="« Et si Powell surprend hawkish ce matin ? » — comment Claude Opus 4.8 pré-teste un trade plan alternatif sur demande, en 30-60 secondes."
+        title="Le test « et si ? »"
+        description="« Et si Powell surprend hawkish ce matin ? » — comment le moteur d'analyse pré-teste un trade plan alternatif sur demande, en 30-60 secondes."
       />
 
       <Reveal delay={0.04}>
@@ -56,7 +55,7 @@ export default function Chapter() {
             </li>
           </ul>
           <p className="font-serif leading-relaxed text-[var(--color-text-secondary)]">
-            Pass 5 résout ces deux problèmes : on simule mentalement{" "}
+            Le test « et si ? » résout ces deux problèmes : on simule mentalement{" "}
             <em className="text-[var(--color-text-primary)]">avant</em> que le scénario improbable
             se produise.
           </p>
@@ -69,10 +68,8 @@ export default function Chapter() {
             Le workflow
           </h2>
           <p className="font-serif leading-relaxed text-[var(--color-text-secondary)]">
-            Sur la session card de l&apos;actif, à côté de chaque scénario flaggé{" "}
-            <code className={codeCls}>counterfactual_anchor: true</code>, un bouton « Pass 5 »
-            apparaît. Le clic envoie une requête à{" "}
-            <code className={codeCls}>/api/brain/counterfactual</code> avec :
+            Sur la session card de l&apos;actif, à côté de chaque scénario désigné comme ancre, un
+            bouton « Et si ? » apparaît. Le clic envoie une requête au moteur d&apos;analyse avec :
           </p>
           <pre className={preCls}>
             {`POST /api/brain/counterfactual
@@ -83,12 +80,13 @@ export default function Chapter() {
 }`}
           </pre>
           <p className="font-serif leading-relaxed text-[var(--color-text-secondary)]">
-            Le backend lance un{" "}
-            <strong className="text-[var(--color-text-primary)]">nouveau pass Opus 4.8</strong> avec
-            un prompt qui dit en substance : « Voici toute la lecture de base produite par les Pass
-            1-4. Maintenant, suppose que le scénario s4 (Powell hawkish surprise) se réalise.
-            Reformule la lecture macro, l&apos;impact attendu sur EUR/USD, et le trade plan
-            correspondant. »
+            Le backend lance une{" "}
+            <strong className="text-[var(--color-text-primary)]">
+              nouvelle passe d&apos;analyse
+            </strong>{" "}
+            avec un prompt qui dit en substance : « Voici toute la lecture de base produite.
+            Maintenant, suppose que le scénario s4 (Powell hawkish surprise) se réalise. Reformule
+            la lecture macro, l&apos;impact attendu sur EUR/USD, et le trade plan correspondant. »
           </p>
         </GlowCard>
       </Reveal>
@@ -96,7 +94,7 @@ export default function Chapter() {
       <Reveal delay={0.04}>
         <GlowCard className="space-y-4 p-7 md:p-8">
           <h2 className="font-display text-xl font-semibold text-[var(--color-text-primary)]">
-            Ce que retourne Pass 5
+            Ce que retourne le test « et si ? »
           </h2>
           <pre className={preCls}>
             {`{
@@ -125,11 +123,9 @@ export default function Chapter() {
             Pourquoi seulement 2-3 scénarios par card
           </h2>
           <p className="font-serif leading-relaxed text-[var(--color-text-secondary)]">
-            Pass 5 coûte ~$0.12 par invocation (Opus 4.8 input + output). Les rendre tous
-            accessibles sur les 7 scénarios serait dispendieux et donnerait l&apos;illusion de
-            scenarios « tous également importants ». Les flags{" "}
-            <code className={codeCls}>counterfactual_anchor</code> sont posés par Pass 4 selon 2
-            critères :
+            Le test « et si ? » coûte ~$0.12 par invocation. Les rendre tous accessibles sur les 7
+            scénarios serait dispendieux et donnerait l&apos;illusion de scenarios « tous également
+            importants ». Les scénarios-ancres sont désignés par l&apos;analyse selon 2 critères :
           </p>
           <ol className="space-y-2 text-sm text-[var(--color-text-secondary)]">
             <li>
@@ -145,8 +141,8 @@ export default function Chapter() {
             </li>
           </ol>
           <p className="font-serif leading-relaxed text-[var(--color-text-secondary)]">
-            Typiquement 2-3 scenarios par card portent ce flag. Pass 5 est donc un outil ciblé, pas
-            un gadget.
+            Typiquement 2-3 scenarios par card portent ce marquage. Le test « et si ? » est donc un
+            outil ciblé, pas un gadget.
           </p>
         </GlowCard>
       </Reveal>
@@ -161,14 +157,14 @@ export default function Chapter() {
               <strong className="text-[var(--color-text-primary)]">
                 C&apos;est de la simulation, pas une prédiction
               </strong>
-              . Si Powell surprend hawkish, la réaction réelle peut différer du scénario simulé.
-              Pass 5 fournit un <em className="text-[var(--color-text-primary)]">cadre</em>, pas une
-              recette.
+              . Si Powell surprend hawkish, la réaction réelle peut différer du scénario simulé. Le
+              test « et si ? » fournit un{" "}
+              <em className="text-[var(--color-text-primary)]">cadre</em>, pas une recette.
             </li>
             <li>
               <strong className="text-[var(--color-text-primary)]">Latence 30-60s</strong>. Si
-              l&apos;événement se produit pendant que Pass 5 charge, c&apos;est trop tard. Le but
-              est d&apos;être pré-préparé, pas de réagir live.
+              l&apos;événement se produit pendant que le test « et si ? » charge, c&apos;est trop
+              tard. Le but est d&apos;être pré-préparé, pas de réagir live.
             </li>
             <li>
               <strong className="text-[var(--color-text-primary)]">Biais de prompt</strong> — la
@@ -186,22 +182,22 @@ export default function Chapter() {
           </h2>
           <ul className="space-y-2 text-sm text-[var(--color-text-secondary)]">
             <li>
-              <strong className="text-[var(--color-text-primary)]">Avant FOMC</strong> — Pass 5 sur
-              les 2 surprises possibles (dovish 25bp + dots cut / hawkish hold + dots up).
-              Pré-préparation.
+              <strong className="text-[var(--color-text-primary)]">Avant FOMC</strong> — le test «
+              et si ? » sur les 2 surprises possibles (dovish 25bp + dots cut / hawkish hold + dots
+              up). Pré-préparation.
             </li>
             <li>
-              <strong className="text-[var(--color-text-primary)]">Avant CPI</strong> — Pass 5 sur
-              surprise &gt; 0.4 % vs consensus.
+              <strong className="text-[var(--color-text-primary)]">Avant CPI</strong> — le test « et
+              si ? » sur surprise &gt; 0.4 % vs consensus.
             </li>
             <li>
               <strong className="text-[var(--color-text-primary)]">Géopolitique en cours</strong> —
-              Pass 5 sur escalade (frappe directe) vs désescalade (trêve annoncée).
+              le test « et si ? » sur escalade (frappe directe) vs désescalade (trêve annoncée).
             </li>
             <li>
               <strong className="text-[var(--color-text-primary)]">Earnings semaine tech</strong> —
-              Pass 5 sur miss NVDA / beat NVDA pour anticiper l&apos;impact sur Nasdaq + USD/JPY
-              (corrélation tech-yen).
+              le test « et si ? » sur miss NVDA / beat NVDA pour anticiper l&apos;impact sur Nasdaq
+              + USD/JPY (corrélation tech-yen).
             </li>
           </ul>
         </GlowCard>
@@ -213,8 +209,7 @@ export default function Chapter() {
             L&apos;archivage
           </h2>
           <p className="font-serif leading-relaxed text-[var(--color-text-secondary)]">
-            Toutes les invocations Pass 5 sont persistées dans{" "}
-            <code className={codeCls}>counterfactual_runs</code>. Ça permet :
+            Toutes les invocations du test « et si ? » sont archivées. Ça permet :
           </p>
           <ul className="space-y-2 text-sm text-[var(--color-text-secondary)]">
             <li>
@@ -224,7 +219,7 @@ export default function Chapter() {
             </li>
             <li>
               <strong className="text-[var(--color-text-primary)]">Analyse de biais</strong> — quels
-              hypothèses tendent à biaiser Claude ? Le post-mortem hebdo lit ces logs.
+              hypothèses tendent à biaiser l&apos;analyse ? Le post-mortem hebdo lit ces logs.
             </li>
             <li>
               <strong className="text-[var(--color-text-primary)]">Replay éducatif</strong> — relire
@@ -240,7 +235,7 @@ export default function Chapter() {
         <Link href="/scenarios/EUR_USD" className={learnLink}>
           session card
         </Link>
-        , bouton « Pass 5 » à côté des scénarios anchor. Suite :{" "}
+        , bouton « Et si ? » à côté des scénarios-ancres. Suite :{" "}
         <Link href="/learn/knowledge-graph-reading" className={learnLink}>
           chapitre 13 — knowledge graph
         </Link>
