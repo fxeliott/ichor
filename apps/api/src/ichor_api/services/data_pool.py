@@ -4914,6 +4914,114 @@ async def _section_news(
     return "\n".join(lines), sources
 
 
+# Per-asset live-web-research queries (SSOT). 2-3 targeted queries each,
+# asset-relevant, so SearXNG returns the macro/driver headlines that
+# matter for that pair / index. Plain search strings — NO directional
+# imperatives (the service also ADR-017-DROPs dirty snippets ; this map
+# is the framing layer and must stay clean).
+_WEB_RESEARCH_QUERIES: dict[str, tuple[str, ...]] = {
+    "EUR_USD": (
+        "EUR USD ECB Fed monetary policy today",
+        "eurozone economic news today",
+    ),
+    "GBP_USD": (
+        "GBP USD BoE UK economy news today",
+        "pound sterling drivers today",
+    ),
+    "USD_CAD": (
+        "USD CAD Bank of Canada oil news today",
+        "Canadian dollar drivers today",
+    ),
+    "XAU_USD": (
+        "gold price drivers today",
+        "XAU USD safe haven real yields news today",
+    ),
+    "NAS100_USD": (
+        "Nasdaq US equity market news today",
+        "US tech stocks macro risk sentiment today",
+    ),
+    "SPX500_USD": (
+        "S&P 500 US equity market news today",
+        "US macro risk sentiment today",
+    ),
+    # Tracked-no-card pairs kept for explicit --assets queries.
+    "USD_JPY": (
+        "USD JPY Bank of Japan intervention news today",
+        "Japanese yen drivers today",
+    ),
+    "AUD_USD": (
+        "AUD USD RBA commodity China news today",
+        "Australian dollar drivers today",
+    ),
+}
+
+# Total clean snapshots surfaced into the section (across all queries).
+_WEB_RESEARCH_TOTAL_CAP = 10
+# Clean results requested per individual query before the merge.
+_WEB_RESEARCH_PER_QUERY = 6
+
+
+async def _section_web_research(session: AsyncSession, asset: str) -> tuple[str, list[str]]:
+    """## Recherche web en direct (SearXNG) — actualité live (§6, ADR-084).
+
+    Runs 2-3 asset-targeted web queries against the self-hosted SearXNG
+    instance (loopback, ADR-084) and surfaces the deduped, ADR-017-safe
+    headlines so the Pass-2 LLM sees what is happening RIGHT NOW (ECB/Fed
+    headlines, geopolitical shocks, commodity moves) beyond the ingested
+    collectors. The `web_research` service already sanitizes (DROP policy
+    on any trade-signal token) ; this section only adds clean factual
+    framing. Always-rendered honest-absence when 0 results (SearXNG down
+    / no hits) so Pass-2 sees the explicit state, never a missing
+    section. `session` is accepted for signature parity with the other
+    sections (this read is HTTP-only, no DB). Descriptive only (ADR-017).
+    """
+    from .web_research import fetch_web_research
+
+    queries = _WEB_RESEARCH_QUERIES.get(asset.upper(), ())
+    lines = ["## Recherche web en direct (SearXNG — actualité live, pas un signal)"]
+    if not queries:
+        lines.append(
+            "- (pas de requêtes de recherche définies pour cet actif — section non applicable)"
+        )
+        return "\n".join(lines), []
+
+    # Merge + dedup across queries (by URL ; keep first-seen).
+    seen_urls: set[str] = set()
+    merged: list = []
+    for q in queries:
+        for r in await fetch_web_research(q, limit=_WEB_RESEARCH_PER_QUERY):
+            if r.url in seen_urls:
+                continue
+            seen_urls.add(r.url)
+            merged.append(r)
+            if len(merged) >= _WEB_RESEARCH_TOTAL_CAP:
+                break
+        if len(merged) >= _WEB_RESEARCH_TOTAL_CAP:
+            break
+
+    if not merged:
+        lines.append(
+            "- (recherche web indisponible — SearXNG injoignable ou aucun résultat exploitable ; "
+            "s'appuyer sur les collecteurs ci-dessus)"
+        )
+        return "\n".join(lines), []
+
+    sources: list[str] = []
+    for r in merged:
+        when = f" ({r.published_at})" if r.published_at else ""
+        domain = r.source_domain or "web"
+        snippet = (r.snippet[:200] + "…") if len(r.snippet) > 200 else r.snippet
+        lines.append(f"- [{domain}]{when} {r.title[:120]} — {snippet}")
+        sources.append(r.url)
+    lines.append(
+        "- _Recherche web en direct : contexte d'actualité brut à recouper avec les sources "
+        "ci-dessus ; descriptif, pas un signal de trading._"
+    )
+    stamp = f"web_research:searxng@{datetime.now(UTC):%Y-%m-%dT%H:%M:%SZ}"
+    sources.append(stamp)
+    return "\n".join(lines), list(dict.fromkeys(sources))
+
+
 # ────────────────────────── Orchestrator ──────────────────────────────
 
 
@@ -5263,6 +5371,21 @@ async def build_data_pool(
     # Phase 2 — news now ticker-filtered
     news_md, news_src = await _section_news(session, asset)
     sections.append(("news", news_md, news_src))
+
+    # W103 (ADR-084) — live web research via self-hosted SearXNG. Placed
+    # next to `news` (both are real-time external-actuality surfaces).
+    # Fail-open by construction (the service returns [] on any error) ;
+    # wrapped here too so a section-level bug can never break card
+    # generation — Pass-2 sees the honest-absence prose instead.
+    try:
+        web_md, web_src = await _section_web_research(session, asset)
+    except Exception:  # noqa: BLE001 — web research must never block a card
+        web_md, web_src = (
+            "## Recherche web en direct (SearXNG — actualité live, pas un signal)\n"
+            "- (recherche web indisponible — erreur interne ; s'appuyer sur les collecteurs ci-dessus)",
+            [],
+        )
+    sections.append(("web_research", web_md, web_src))
 
     body = "\n\n".join(md for _, md, _ in sections)
     all_sources: list[str] = []

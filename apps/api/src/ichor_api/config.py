@@ -193,6 +193,14 @@ class Settings(BaseSettings):
     Read by `cli.run_mastodon_collector` to enumerate the feeds to fetch.
     """
 
+    # --- Live web research (W103, ADR-084) ---
+    web_research_searxng_url: str = "http://127.0.0.1:8081"
+    """Base URL of the self-hosted SearXNG instance (loopback by
+    default — ratified ADR-084 over metered Perplexity). Consumed by
+    `services.web_research.fetch_web_research` which appends `/search`
+    + `?format=json`. Empty or unreachable = web research fails open
+    (returns []), card generation is never blocked."""
+
     @model_validator(mode="after")
     def validate_claude_runner_url(self) -> Settings:
         """Warn (or raise in production) when the Claude runner URL is unset.
