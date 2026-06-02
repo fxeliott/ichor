@@ -227,3 +227,53 @@ the existing 4×/day batch (additive only). Full pickup detail in
 `~/.claude/projects/D--Ichor/memory/auto_session_resume.md`.
 
 **Open with Eliot**: the "ichor-beta" reference URL (his calibration standard) — still to provide.
+
+---
+
+## Phase 7 — Streaming-cadence verdict refresh (2026-06-02 evening, ADR-109) — SHIPPED (code) + DEPLOYED + PARTIALLY WITNESSED ; happy-path witness infra-blocked
+
+The last unbuilt piece. A light, **additive, flag-gated (`streaming_refresh_enabled`,
+fail-closed), reversible** watcher (~every 12 min) that, between the 4×/day batches,
+detects a NEW strong event since each asset's last card and regenerates **only that
+asset's** card (full 4-pass + Pass-6 Opus) + pushes. **Never touches the 4×/day batch.**
+PR [#171](https://github.com/fxeliott/ichor/pull/171) (branch `claude/phase7-streaming-cadence`, off `origin/main 984dac5`).
+
+- **`services/streaming_refresh.py`** — detection reuses `_assemble_live_triggers`
+  verbatim (3 sources + thresholds + currency map + ADR-017 validation), post-filtered
+  `fired_at_utc > last_card.generated_at`; orchestration reuses `run_session_card._run`
+  (`run_one_card`) verbatim for the regen + an event-keyed push mirroring `_maybe_notify`;
+  stateless bounding (per-asset 45-min cooldown via `generated_at` + per-fire cap, every
+  drop logged — no silent cap; derived ceiling ≤ ~8 regens/h).
+- **`cli/run_streaming_refresh.py`** — flag-gated (exit 0/1/3), `--dry-run` / `--asset`.
+- **`register-cron-streaming-refresh.sh`** — systemd timer `OnCalendar=*-*-* *:0/12:00
+Europe/Paris`, `SuccessExitStatus=0 1`, `TimeoutStartSec=600`. Installed on Hetzner
+  (inert, flag OFF).
+- **ADR-109** + **13 tests** (`test_streaming_refresh.py`).
+
+**Validation**: 13 unit tests + 60 regression (ADR-081 invariants + live_triggers) green,
+ruff clean, 15/15 pre-commit hooks; commit `5d5aa2e`. Deployed to Hetzner api via
+R-DEPLOY-6 (healthz 200). **Witnessed on prod**: (1) detection against real data — a
+manual `--asset EUR_USD` against an injected fake EUR release detected the candidate +
+built the 227-source data_pool + started the regen; (2) failure-isolation — the regen hit
+a runner error → `regen_raised` → `failed=1`, exit 0, no crash, no bad push; (3) **flag-off
+= zero-diff via systemd** (`systemctl start` → `Result=success`, `ExecMainStatus=1`, journal
+"flag OFF — skipping", clean). Fake event + flag reset to false afterward; no spurious card
+persisted (latest EUR_USD card unchanged = ny_mid 17:01).
+
+**🔴 Live-pipeline blocker discovered (root cause of the regen 501)**: the Win11
+`claude-runner` had **died** (sometime 17:22→20:00) and a separate static server
+`python -m http.server 8766 --directory IchorBeta` (Eliot's other project, started 20:00)
+now occupies port **8766** — the dashboard-managed `claude-runner.fxmilyapp.com` tunnel
+target. So the tunnel hits the static server, which returns **501 on POST** (http.server
+only does GET) → every live regen 501s, AND the live batch pipeline is down (next batch
+ny_close 22:00 would fail). Eliot's directive: **leave IchorBeta on 8766**. The tunnel is
+dashboard-managed (local `~/.cloudflared/config.yml` ingress→8765 is ignored; effective
+→8766) and the repo's CF API token is Pages-scoped only → **cannot re-point autonomously**.
+**Eliot action needed (either)**: (a) free port 8766 → restart the claude-runner there (the
+existing tunnel→8766 works again), or (b) run the runner on another port + re-point the
+`claude-runner` tunnel ingress in the Cloudflare Zero-Trust dashboard. Once the runner is
+reachable, the Phase 7 **happy-path witness** (1 card regenerated + 1 push) + flag
+activation (`UPDATE feature_flags SET enabled=true WHERE key='streaming_refresh_enabled'`)
+follow. The regen reuses the proven batch path, so confidence is high — only the live
+infra blocks the final proof. **Do not merge PR #171 / activate the flag until that
+happy-path witness lands.** Voie D + ADR-017 held; ZERO Anthropic spend.
