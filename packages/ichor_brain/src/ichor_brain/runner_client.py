@@ -53,6 +53,18 @@ log = structlog.get_logger(__name__)
 # 524 is deliberately excluded (see module docstring).
 _TRANSIENT_STATUSES = frozenset({429, 502, 503, 504, 520, 521, 522, 523, 525, 530})
 
+# Poll-loop resilience (2026-06-02) — while a task runs, the orchestrator
+# polls GET /v1/.../async/{id} every poll_interval_sec. A single transient
+# tunnel blip on a poll (cloudflared keep-alive race after an origin
+# restart, DNS resolver refresh, CF edge hiccup, or a dropped connection)
+# must NOT abort a 200s card mid-generation. The poll loop tolerates these
+# (and httpx.TransportError) up to _MAX_CONSECUTIVE_POLL_ERRORS in a row —
+# a successful poll resets the counter, and poll_max_total_sec still bounds
+# the total wait. 524 (edge timeout on one poll) is retryable here, unlike
+# on submit, because the task keeps running on the runner regardless.
+_POLL_RETRY_STATUSES = _TRANSIENT_STATUSES | frozenset({524})
+_MAX_CONSECUTIVE_POLL_ERRORS = 12
+
 
 @dataclass(frozen=True)
 class RunnerCall:
@@ -282,8 +294,15 @@ class HttpRunnerClient(RunnerClient):
             log.info("runner_client.async.submitted", task_id=task_id)
 
             # Poll loop — short interval, bounded by poll_max_total_sec.
+            # Transient tunnel blips (5xx/52x or a dropped connection) are
+            # tolerated: the runner is up, cloudflared just briefly couldn't
+            # reach it. Keep polling and only give up after
+            # _MAX_CONSECUTIVE_POLL_ERRORS in a row (a successful poll resets
+            # the counter). A 4xx (404 expired / 401 auth) is a real failure
+            # and still aborts immediately.
             poll_started = asyncio.get_event_loop().time()
             poll_count = 0
+            consecutive_poll_errors = 0
             while True:
                 poll_count += 1
                 if asyncio.get_event_loop().time() - poll_started > self._poll_max_total_sec:
@@ -292,8 +311,32 @@ class HttpRunnerClient(RunnerClient):
                         f"{self._poll_max_total_sec}s (poll_count={poll_count})"
                     )
                 await asyncio.sleep(self._poll_interval_sec)
-                pr = await client.get(poll_url, headers=self._headers)
-                pr.raise_for_status()
+                try:
+                    pr = await client.get(poll_url, headers=self._headers)
+                    if pr.status_code in _POLL_RETRY_STATUSES:
+                        consecutive_poll_errors += 1
+                        if consecutive_poll_errors > _MAX_CONSECUTIVE_POLL_ERRORS:
+                            pr.raise_for_status()
+                        log.info(
+                            "runner_client.async.poll_transient",
+                            status=pr.status_code,
+                            consecutive=consecutive_poll_errors,
+                            task_id=task_id,
+                        )
+                        continue
+                    pr.raise_for_status()
+                except httpx.TransportError as exc:
+                    consecutive_poll_errors += 1
+                    if consecutive_poll_errors > _MAX_CONSECUTIVE_POLL_ERRORS:
+                        raise
+                    log.info(
+                        "runner_client.async.poll_transport_retry",
+                        error=type(exc).__name__,
+                        consecutive=consecutive_poll_errors,
+                        task_id=task_id,
+                    )
+                    continue
+                consecutive_poll_errors = 0
                 status_body = pr.json()
                 task_status = status_body.get("status")
                 if task_status in ("done", "error"):
