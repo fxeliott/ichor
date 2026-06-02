@@ -150,6 +150,51 @@ def _persist_hit(session: AsyncSession, hit: AlertHit, *, asset: str | None) -> 
     )
 
 
+# Phase 2 (2026-06-02) — push trader-relevant alerts to the browser.
+# Only `critical` fires: hard scenario invalidations ("your thesis just
+# broke") + crisis-level macro alerts (VIX/GEX/HY-OAS extremes). The 2h
+# per-(code, asset) dedup upstream already bounds spam, so critical-only
+# needs no extra rate-limit. Broaden by adding "warning" here if desired.
+_NOTIFY_SEVERITIES: frozenset[str] = frozenset({"critical"})
+
+
+async def _maybe_notify(hit: AlertHit, *, asset: str | None) -> None:
+    """Send a web-push notification for a trader-relevant alert.
+
+    ADR-017 boundary : the notification DESCRIBES the event (curated
+    catalog copy — `title_template` + `description`), never an order. The
+    copy is re-checked with `is_adr017_clean` defensively before sending.
+    Fail-soft : a push failure (or no subscriptions / no VAPID keys) must
+    never break alert persistence — `send_to_all` is a no-op when nobody
+    is subscribed, and any exception here is swallowed.
+    """
+    if hit.alert_def.severity not in _NOTIFY_SEVERITIES:
+        return
+    try:
+        from .adr017_filter import is_adr017_clean
+        from .push import send_to_all
+
+        title = _format_title_safe(
+            hit.alert_def.title_template,
+            value=hit.metric_value,
+            payload=hit.source_payload,
+        )
+        body = (hit.alert_def.description or "Évènement de marché à surveiller.").strip()
+        if not (is_adr017_clean(title) and is_adr017_clean(body)):
+            log.warning("alert.notify_adr017_skip", code=hit.alert_def.code)
+            return
+        url = f"/briefing/{asset}" if asset else "/"
+        delivered = await send_to_all(title[:120], body[:240], url=url)
+        log.info(
+            "alert.notify_sent",
+            code=hit.alert_def.code,
+            asset=asset,
+            delivered=delivered,
+        )
+    except Exception:
+        log.warning("alert.notify_failed", code=hit.alert_def.code, exc_info=True)
+
+
 async def check_metric(
     session: AsyncSession,
     *,
@@ -181,6 +226,7 @@ async def check_metric(
             continue
         _persist_hit(session, hit, asset=asset)
         persisted.append(hit)
+        await _maybe_notify(hit, asset=asset)
         log.info(
             "alert.triggered",
             code=hit.alert_def.code,
@@ -320,6 +366,7 @@ async def check_scenario_invalidations(
             continue
         _persist_hit(session, hit, asset=asset)
         persisted.append(hit)
+        await _maybe_notify(hit, asset=asset)
         log.info(
             "scenario_invalidation_alert.triggered",
             code=hit.alert_def.code,
