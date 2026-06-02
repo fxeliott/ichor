@@ -10,7 +10,7 @@ from __future__ import annotations
 from typing import Any
 
 from ..types import AssetSpecialization, StressTest
-from .base import Pass, PassError, extract_json_block
+from .base import FRENCH_COACH_DIRECTIVE, Pass, PassError, extract_json_block
 
 _SYSTEM = """\
 You are Ichor's adversarial reviewer. You receive an asset-specialization
@@ -38,7 +38,7 @@ class StressPass(Pass[StressTest]):
 
     @property
     def system_prompt(self) -> str:
-        return _SYSTEM
+        return _SYSTEM + FRENCH_COACH_DIRECTIVE
 
     def build_prompt(
         self,

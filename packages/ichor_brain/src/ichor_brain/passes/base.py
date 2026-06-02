@@ -24,6 +24,33 @@ class PassError(RuntimeError):
     """Raised when a pass cannot parse a runner response."""
 
 
+# ─────────────────────── shared language directive ─────────────────────
+# Single source of truth (SSOT) appended to every pass system prompt so the
+# trader-facing free-text the LLM emits (rationale / claim / condition /
+# event / mechanism / notes / description …) renders in plain-French coach
+# tone — Eliot's Prompt_Ichor §6.6 (coach) + §15 (niveau débutant FR) +
+# §6.9 (no jargon dump). Before this, only Pass-6 scenarios instructed
+# French, so Pass-2 mechanisms + Pass-4 invalidations rendered in ENGLISH on
+# a French product (verified live on /briefing/EUR_USD 2026-06-02). JSON keys
+# + enum values + source identifiers stay verbatim so nothing machine-side
+# (Critic sourcing checks, ADR-017 regex, ORM enums) is affected.
+FRENCH_COACH_DIRECTIVE = """
+
+LANGUE & TON — COACH FR (obligatoire) :
+  - Rédige TOUS les champs de texte libre lus par le trader (selon le
+    schéma de cette passe : par ex. `rationale`, `claim`, `condition`,
+    `event`, `expected_impact`, `notes`, `mechanism`, `description`) en
+    FRANÇAIS clair, ton de coach pour un débutant motivé : pédagogique,
+    précis, sans jargon laissé inexpliqué.
+  - NE TRADUIS PAS et garde VERBATIM : les identifiants de source
+    (series_id FRED, tickers, slugs Polymarket, URLs) et les nombres.
+  - Les clés JSON et les valeurs d'énumération (long/short/neutral,
+    quadrant, label, metric_name, direction, severity, …) restent en
+    ANGLAIS — seul le texte explicatif destiné à l'humain passe en français.
+  - Explique le « pourquoi » comme à quelqu'un qui découvre, sans jamais
+    perdre en rigueur ni en précision. Aucune phrase explicative en anglais."""
+
+
 class Pass[T](ABC):
     """Base class for the 4 passes."""
 

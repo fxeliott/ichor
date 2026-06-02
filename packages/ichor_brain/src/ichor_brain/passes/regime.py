@@ -12,7 +12,7 @@ from __future__ import annotations
 from typing import Any
 
 from ..types import RegimeReading
-from .base import Pass, PassError, extract_json_block
+from .base import FRENCH_COACH_DIRECTIVE, Pass, PassError, extract_json_block
 
 _SYSTEM = """\
 You are Ichor's macro régime analyst. You read the macro trinity (DXY,
@@ -45,7 +45,7 @@ class RegimePass(Pass[RegimeReading]):
 
     @property
     def system_prompt(self) -> str:
-        return _SYSTEM
+        return _SYSTEM + FRENCH_COACH_DIRECTIVE
 
     def build_prompt(self, *, data_pool: str, analogues_section: str = "", **_: Any) -> str:
         """Build the Pass-1 user prompt.

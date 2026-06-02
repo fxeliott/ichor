@@ -11,7 +11,7 @@ from __future__ import annotations
 from typing import Any
 
 from ..types import AssetSpecialization, InvalidationConditions, StressTest
-from .base import Pass, PassError, extract_json_block
+from .base import FRENCH_COACH_DIRECTIVE, Pass, PassError, extract_json_block
 
 _SYSTEM = """\
 You are Ichor's invalidation-pre-commitment author. You receive the
@@ -42,7 +42,7 @@ class InvalidationPass(Pass[InvalidationConditions]):
 
     @property
     def system_prompt(self) -> str:
-        return _SYSTEM
+        return _SYSTEM + FRENCH_COACH_DIRECTIVE
 
     def build_prompt(
         self,
