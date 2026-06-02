@@ -29,7 +29,7 @@ from __future__ import annotations
 from typing import Any
 
 from ..types import AssetSpecialization
-from .base import Pass, PassError, extract_json_block
+from .base import FRENCH_COACH_DIRECTIVE, Pass, PassError, extract_json_block
 
 _SYSTEM_BASE = """\
 You are Ichor's per-asset session strategist. You receive :
@@ -207,7 +207,7 @@ class AssetPass(Pass[AssetSpecialization]):
 
     @property
     def system_prompt(self) -> str:
-        return _SYSTEM_BASE
+        return _SYSTEM_BASE + FRENCH_COACH_DIRECTIVE
 
     def build_prompt(
         self,

@@ -37,6 +37,20 @@ def test_regime_system_prompt_lists_quadrants() -> None:
         assert quadrant in sys
 
 
+@pytest.mark.parametrize("pass_cls", [RegimePass, AssetPass, StressPass, InvalidationPass])
+def test_pass_system_prompt_carries_french_coach_directive(pass_cls) -> None:
+    """Pass-1/2/3/4 trader-facing free-text (rationale / claim / condition /
+    mechanism / notes) must render in plain-French coach tone (Prompt_Ichor
+    §6.6 + §15). The shared ``FRENCH_COACH_DIRECTIVE`` is appended to every
+    system prompt so it can never silently drop back to English — verified
+    live 2026-06-02 that the pre-fix Pass-2 mechanisms + Pass-4 invalidations
+    rendered in ENGLISH on /briefing/EUR_USD. Lockstep guard against
+    regression."""
+    sys = pass_cls().system_prompt
+    assert "COACH FR" in sys
+    assert "Aucune phrase explicative en anglais" in sys
+
+
 def test_regime_build_prompt_inlines_data_pool() -> None:
     p = RegimePass()
     prompt = p.build_prompt(data_pool="DXY=105.3 VIX=18.2")
