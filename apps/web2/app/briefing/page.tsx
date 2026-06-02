@@ -18,6 +18,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 
+import { NotificationToggle } from "@/components/NotificationToggle";
 import { AssetSwitcher } from "@/components/briefing/AssetSwitcher";
 import { PRIORITY_ASSETS } from "@/components/briefing/assets";
 import { NetExposureLens } from "@/components/briefing/NetExposureLens";
@@ -199,6 +200,9 @@ export default async function BriefingIndexPage() {
               Paris
             </span>
           )}
+          <span className="ml-auto">
+            <NotificationToggle />
+          </span>
         </div>
       </Reveal>
 
