@@ -78,7 +78,7 @@ export default async function PostMortemsPage() {
           Post-mortems
         </h1>
         <p className="max-w-prose text-[var(--color-text-secondary)]">
-          Réunion auto-générée chaque dimanche 18h Paris par Claude Opus 4.8. Suit le{" "}
+          Réunion auto-générée chaque dimanche 18h Paris par le moteur d&apos;analyse. Suit le{" "}
           <MetricTooltip
             term="template 8 sections"
             definition="Header, Top hits, Top miss, Drift detected, Narratives émergentes, Calibration, Suggestions amendments, Stats raw. Cf docs/SPEC_V2_AUTOEVO.md §4."
@@ -119,7 +119,7 @@ export default async function PostMortemsPage() {
                   <Stat label="Top hits" value={String(p.n_top_hits)} />
                   <Stat label="Top miss" value={String(p.n_top_miss)} />
                   <Stat
-                    label="Brier 30d"
+                    label="Fiabilité 30j"
                     value={p.brier_30d !== null ? p.brier_30d.toFixed(3) : "—"}
                   />
                   <Stat label="Drift" value={String(p.n_drift_flags)} />
@@ -174,8 +174,8 @@ export default async function PostMortemsPage() {
       </ol>
 
       <p className="mt-6 text-xs text-[var(--color-text-muted)]">
-        Cron <code className="font-mono">ichor-post-mortem.timer</code> · dimanche 18h Europe/Paris
-        · Claude Opus 4.8 lit les 7 derniers jours et produit ce rapport. Push iOS quand prêt.
+        Chaque dimanche 18h Europe/Paris · le moteur d&apos;analyse lit les 7 derniers jours et
+        produit ce rapport. Push iOS quand prêt.
       </p>
     </div>
   );

@@ -13,7 +13,6 @@ import { Reveal } from "@/components/ui/reveal";
 
 const learnLink =
   "text-[var(--accent)] underline-offset-2 transition-colors hover:text-[var(--accent-soft)] hover:underline";
-const codeCls = "font-mono text-xs text-[var(--accent)]";
 const bull = "text-[var(--color-bull)]";
 const bear = "text-[var(--color-bear)]";
 
@@ -142,8 +141,7 @@ export default function Chapter() {
             Comment Ichor le détermine
           </h2>
           <p className="font-serif leading-relaxed text-[var(--color-text-secondary)]">
-            L&apos;agent <code className={codeCls}>macro</code> de la Couche-2 produit toutes les 4h
-            un objet <code className={codeCls}>regime_quadrant</code> avec :
+            La veille macro produit toutes les 4h une lecture du régime avec :
           </p>
           <pre className="overflow-x-auto rounded-xl border border-[var(--glass-border)] bg-[var(--color-bg-base)]/60 p-4 font-mono text-xs leading-relaxed text-[var(--color-text-primary)]">
             {`{
@@ -184,10 +182,9 @@ export default function Chapter() {
             et le S&amp;P prend −20 %).
           </p>
           <p className="font-serif leading-relaxed text-[var(--color-text-secondary)]">
-            Ichor expose la matrice de transition explicitement. Si{" "}
-            <code className={codeCls}>transition_probability.stagflation</code> &gt; 0.25, le Critic
-            Pass 3 lève un flag et force Pass 1 à explorer ce scénario même s&apos;il n&apos;était
-            pas son base case.
+            Ichor expose la matrice de transition explicitement. Si la probabilité de bascule en
+            stagflation &gt; 0.25, le relecteur lève un flag et force l&apos;analyse à explorer ce
+            scénario même s&apos;il n&apos;était pas son base case.
           </p>
         </GlowCard>
       </Reveal>

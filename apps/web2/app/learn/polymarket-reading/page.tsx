@@ -153,10 +153,8 @@ export default function Chapter() {
             Comment Ichor utilise ça
           </h2>
           <p className="font-serif leading-relaxed text-[var(--color-text-secondary)]">
-            Le service <code className={codeCls}>services/divergence.py</code> scanne en permanence
-            les 3 venues et produit la section <code className={codeCls}>divergence</code> du
-            data_pool. Le brain Pass 1 voit donc, pour chaque session card, les divergences vivantes
-            &gt; 5pp.
+            Un service scanne en permanence les 3 venues et alimente le contexte rassemblé.
+            L&apos;analyse voit donc, pour chaque session card, les divergences vivantes &gt; 5pp.
           </p>
           <p className="font-serif leading-relaxed text-[var(--color-text-secondary)]">
             Trade-relevance : si le marché « Fed cut en juillet » diverge +6pp Polymarket vs Kalshi,

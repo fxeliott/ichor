@@ -229,9 +229,9 @@ export default function Chapter() {
           </p>
           <ol className="space-y-2 text-sm text-[var(--color-text-secondary)]">
             <li>
-              <strong className="text-[var(--color-text-primary)]">Pass 4 magnitude</strong> — la
-              prochaine zone d&apos;origine définit la magnitude attendue d&apos;un scénario (ex :
-              si le prix est à 1.0855 et BEZ à 1.0945, magnitude haute ~90 pips).
+              <strong className="text-[var(--color-text-primary)]">Magnitude</strong> — la prochaine
+              zone d&apos;origine définit la magnitude attendue d&apos;un scénario (ex : si le prix
+              est à 1.0855 et BEZ à 1.0945, magnitude haute ~90 pips).
             </li>
             <li>
               <strong className="text-[var(--color-text-primary)]">Trade plan</strong> — la zone
@@ -243,7 +243,7 @@ export default function Chapter() {
               ).
             </li>
             <li>
-              <strong className="text-[var(--color-text-primary)]">Invalidation Pass 4</strong> — un
+              <strong className="text-[var(--color-text-primary)]">Invalidation</strong> — un
               scénario bull est invalidé si le prix close H1 sous la BOZ active.
             </li>
           </ol>

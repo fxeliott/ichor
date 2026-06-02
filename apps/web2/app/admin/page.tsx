@@ -44,9 +44,9 @@ const SERVICES: ServiceHealth[] = [
     detail: "last 03:00 Paris, R2 EU, 4.2 GB compressed",
   },
   {
-    name: "11 systemd timers",
+    name: "11 tâches planifiées",
     state: "active",
-    detail: "5 briefings + 4 collectors + walg + +4 Couche-2 templated",
+    detail: "5 briefings + 4 collecteurs + walg + 4 veilleurs",
   },
 ];
 
@@ -210,11 +210,11 @@ export default async function AdminPage() {
               Data freshness ·{" "}
               <MetricTooltip
                 term="freshness budget"
-                definition="Chaque table a un budget de fraîcheur (delta max attendu entre 2 writes du cron). 'Warn' = 1×→2× budget (cron qui prend du retard). 'Stale' = au-delà de 2× budget — cron probablement cassé, action requise."
+                definition="Chaque table a un budget de fraîcheur (delta max attendu entre 2 mises à jour planifiées). 'Warn' = 1×→2× budget (mise à jour en retard). 'Stale' = au-delà de 2× budget — collecte probablement cassée, action requise."
                 glossaryAnchor="freshness-budget"
                 density="compact"
               >
-                budgets calibrés sur cron timers
+                budgets calibrés sur la cadence planifiée
               </MetricTooltip>
             </span>
             <span className="flex flex-wrap gap-2 normal-case tracking-normal">
@@ -233,7 +233,7 @@ export default async function AdminPage() {
               style={{ color: nStale > 0 ? "var(--color-bear)" : "var(--color-warn)" }}
             >
               {nStale > 0
-                ? `⚠ ${nStale} table${nStale > 1 ? "s" : ""} stale (cron probablement cassé) · ${nWarn} en warn`
+                ? `⚠ ${nStale} table${nStale > 1 ? "s" : ""} stale (collecte probablement cassée) · ${nWarn} en warn`
                 : `${nWarn} table${nWarn > 1 ? "s" : ""} en lag — surveiller`}
             </p>
           )}

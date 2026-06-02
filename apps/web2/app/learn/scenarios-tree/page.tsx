@@ -45,8 +45,7 @@ export default function Chapter() {
             est juste un mauvais trade.
           </p>
           <p className="font-serif leading-relaxed text-[var(--color-text-secondary)]">
-            Ichor ne donne jamais de prédiction unique. Pass 4 du brain pipeline énumère
-            systématiquement{" "}
+            Ichor ne donne jamais de prédiction unique. L&apos;analyse énumère systématiquement{" "}
             <strong className="text-[var(--color-text-primary)]">
               7 scénarios mutuellement exclusifs
             </strong>{" "}
@@ -98,11 +97,10 @@ export default function Chapter() {
               doit lire la card avant la session. Plus de 7 = surcharge cognitive.
             </li>
             <li>
-              <strong className="text-[var(--color-text-primary)]">Pass 5 counterfactual</strong> —
-              sur les 7, généralement 2 ou 3 ont l&apos;attribut{" "}
-              <code className={codeCls}>counterfactual_anchor</code> : ce sont les scénarios à fort
-              impact mais faible probabilité que Pass 5 peut « tester » à la demande d&apos;Eliot
-              via le bouton counterfactual.
+              <strong className="text-[var(--color-text-primary)]">Le test « et si ? »</strong> —
+              sur les 7, généralement 2 ou 3 sont des scénarios-ancres : ce sont les scénarios à
+              fort impact mais faible probabilité que le test « et si ? » peut tester à la demande
+              d&apos;Eliot.
             </li>
           </ol>
         </GlowCard>
@@ -123,8 +121,7 @@ export default function Chapter() {
           <p className="font-serif leading-relaxed text-[var(--color-text-secondary)]">
             En pratique, ces scénarios sont rares mais quand ils tapent, ils font les pires pertes
             ou les meilleurs gains. Les avoir explicités avant l&apos;ouverture aide à éviter la
-            sidération. Et c&apos;est précisément ces scénarios que Pass 5 explore en
-            counterfactual.
+            sidération. Et c&apos;est précisément ces scénarios que le test « et si ? » explore.
           </p>
         </GlowCard>
       </Reveal>
@@ -132,12 +129,11 @@ export default function Chapter() {
       <Reveal delay={0.04}>
         <GlowCard className="space-y-4 p-7 md:p-8">
           <h2 className="font-display text-xl font-semibold text-[var(--color-text-primary)]">
-            Pass 5 : « what if »
+            Le test « et si ? »
           </h2>
           <p className="font-serif leading-relaxed text-[var(--color-text-secondary)]">
-            Sur la page <code className={codeCls}>/scenarios/[asset]</code>, un bouton «
-            Counterfactual Pass 5 » permet de demander à Claude Opus 4.8 : « génère la lecture macro
-            et le trade plan{" "}
+            Sur la page <code className={codeCls}>/scenarios/[asset]</code>, un bouton « Et si ? »
+            permet de demander au moteur d&apos;analyse : « génère la lecture macro et le trade plan{" "}
             <em className="text-[var(--color-text-primary)]">sous l&apos;hypothèse</em> que le
             scénario s4 (Lagarde dovish surprise) se réalise ». La réponse arrive en 30-60 secondes
             et s&apos;affiche en overlay sur la session card courante.

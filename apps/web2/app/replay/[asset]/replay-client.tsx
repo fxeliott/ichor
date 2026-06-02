@@ -72,13 +72,13 @@ export function ReplayClient({ snapshots }: { snapshots: ReplaySnapshot[] }) {
           {snap.realized_outcome !== null && snap.brier_contribution !== null && (
             <div className="text-right">
               <p className="font-mono text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
-                Outcome réalisé · Brier
+                Outcome réalisé · fiabilité
               </p>
               <p className="font-mono text-2xl tabular-nums text-[var(--color-text-primary)]">
                 {snap.realized_outcome === 1 ? "✓ hit" : "✗ miss"}
               </p>
               <p className="font-mono text-xs tabular-nums text-[var(--color-text-muted)]">
-                Brier {snap.brier_contribution.toFixed(3)}
+                Fiabilité {snap.brier_contribution.toFixed(3)}
               </p>
             </div>
           )}

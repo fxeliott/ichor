@@ -81,7 +81,7 @@ export default async function BriefingDetailPage({ params }: PageProps) {
         </ul>
         {briefing.claude_duration_ms !== null ? (
           <p className="mt-3 font-mono text-[11px] text-[var(--color-text-muted)]">
-            claude duration · {(briefing.claude_duration_ms / 1000).toFixed(1)}s
+            durée d&apos;analyse · {(briefing.claude_duration_ms / 1000).toFixed(1)}s
           </p>
         ) : null}
         {briefing.audio_mp3_url ? (

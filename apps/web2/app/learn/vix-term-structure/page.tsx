@@ -12,7 +12,6 @@ import { Reveal } from "@/components/ui/reveal";
 
 const learnLink =
   "text-[var(--accent)] underline-offset-2 transition-colors hover:text-[var(--accent-soft)] hover:underline";
-const codeCls = "font-mono text-xs text-[var(--accent)]";
 
 export default function Chapter() {
   return (
@@ -226,9 +225,9 @@ export default function Chapter() {
             Comment Ichor utilise ça
           </h2>
           <p className="font-serif leading-relaxed text-[var(--color-text-secondary)]">
-            Le collecteur <code className={codeCls}>vix_live.py</code> tourne toutes les 5 minutes
-            en heures de marché US et persiste 9 points + ratio + percentile. Pass 1 du brain
-            injecte la lecture courante au contexte, et Pass 3 (Critic) flag automatiquement si :
+            Un collecteur tourne toutes les 5 minutes en heures de marché US et persiste 9 points +
+            ratio + percentile. L&apos;analyse injecte la lecture courante au contexte, et le
+            relecteur flag automatiquement si :
           </p>
           <ul className="space-y-2 text-sm text-[var(--color-text-secondary)]">
             <li>Backwardation détectée → tous les scénarios bullish doivent expliquer pourquoi.</li>

@@ -12,7 +12,6 @@ import { Reveal } from "@/components/ui/reveal";
 
 const learnLink =
   "text-[var(--accent)] underline-offset-2 transition-colors hover:text-[var(--accent-soft)] hover:underline";
-const codeCls = "font-mono text-xs text-[var(--accent)]";
 
 export default function Chapter() {
   return (
@@ -29,7 +28,7 @@ export default function Chapter() {
       <PageHeader
         eyebrow="Learn · Macro · #10 · 11 min · avancé"
         title="Pipeline central banks"
-        description="Comment la rhétorique des banques centrales (Fed, ECB, BoE, BoJ, SNB, PBoC) se transmet en prix sur les actifs Ichor, et où l'agent Couche-2 CB-NLP s'insère dans la chaîne."
+        description="Comment la rhétorique des banques centrales (Fed, ECB, BoE, BoJ, SNB, PBoC) se transmet en prix sur les actifs Ichor, et où la veille banques centrales s'insère dans la chaîne."
       />
 
       <Reveal delay={0.04}>
@@ -58,7 +57,7 @@ export default function Chapter() {
               </strong>{" "}
               : speeches des members, interviews TV, conférences académiques. C&apos;est ici que se
               joue le repricing tactique en sessions Pré-Londres et Pré-NY. Et c&apos;est exactement
-              ce que CB-NLP de Couche-2 ingère en temps réel.
+              ce que la veille banques centrales ingère en temps réel.
             </li>
           </ul>
         </GlowCard>
@@ -71,17 +70,15 @@ export default function Chapter() {
           </h2>
           <ol className="space-y-3 text-sm text-[var(--color-text-secondary)]">
             <li>
-              <strong className="text-[var(--color-text-primary)]">Collecte</strong> — Le scraper{" "}
-              <code className={codeCls}>central_bank_speeches.py</code> poll les sites officiels
-              (federalreserve.gov, ecb.europa.eu, bankofengland.co.uk, boj.or.jp, snb.ch,
-              pbc.gov.cn) toutes les heures. Stockage dans la table{" "}
-              <code className={codeCls}>cb_speeches</code>.
+              <strong className="text-[var(--color-text-primary)]">Collecte</strong> — un collecteur
+              interroge les sites officiels (federalreserve.gov, ecb.europa.eu, bankofengland.co.uk,
+              boj.or.jp, snb.ch, pbc.gov.cn) toutes les heures et archive chaque discours.
             </li>
             <li>
-              <strong className="text-[var(--color-text-primary)]">Classification fine</strong> —
-              L&apos;agent <strong className="text-[var(--color-text-primary)]">CB-NLP</strong> de
-              Couche-2 (Sonnet 4.6, cron 4h) lit les discours des 7 derniers jours et produit pour
-              chaque banque centrale : (a) un score hawkish/dovish ∈ [-1, +1], (b) les{" "}
+              <strong className="text-[var(--color-text-primary)]">Classification fine</strong> — La{" "}
+              <strong className="text-[var(--color-text-primary)]">veille banques centrales</strong>{" "}
+              (toutes les 4h) lit les discours des 7 derniers jours et produit pour chaque banque
+              centrale : (a) un score hawkish/dovish ∈ [-1, +1], (b) les{" "}
               <em className="text-[var(--color-text-primary)]">shifts</em> identifiés (e.g. Lagarde
               plus dovish vendredi vs mercredi), (c) un OIS implied path skew (le marché pricing-il
               les cuts plus tôt que la rhétorique ne l&apos;indique ?).
@@ -93,10 +90,12 @@ export default function Chapter() {
               indices européens via la transmission taux.
             </li>
             <li>
-              <strong className="text-[var(--color-text-primary)]">Injection Pass 1</strong> — La
-              sortie de CB-NLP est consommée par Pass 1 (régime macro) et Pass 2 (asset framework)
-              du pipeline brain. C&apos;est la 4ᵉ source d&apos;information à côté de FRED, GDELT et
-              le pricing intraday.
+              <strong className="text-[var(--color-text-primary)]">
+                Injection dans l&apos;analyse
+              </strong>{" "}
+              — La sortie de la veille banques centrales nourrit l&apos;analyse du régime macro puis
+              du cadre par actif. C&apos;est la 4ᵉ source d&apos;information à côté de FRED, GDELT
+              et le pricing intraday.
             </li>
           </ol>
         </GlowCard>
@@ -108,11 +107,10 @@ export default function Chapter() {
             Pourquoi pas juste un score sentiment ?
           </h2>
           <p className="font-serif leading-relaxed text-[var(--color-text-secondary)]">
-            Un score sentiment naïf (FinBERT-tone par exemple) sur un discours Fed te dira « tone
-            +0.3 ». Mais ça ne te dit pas{" "}
+            Un score de ton naïf sur un discours Fed te dira « tone +0.3 ». Mais ça ne te dit pas{" "}
             <em className="text-[var(--color-text-primary)]">pourquoi</em> c&apos;est plus hawkish
-            que la veille, ni quels mots ont changé, ni quel asset est touché. CB-NLP via Claude
-            Sonnet 4.6 est un agent structuré qui produit des champs explicites :
+            que la veille, ni quels mots ont changé, ni quel asset est touché. La veille banques
+            centrales produit des champs explicites :
           </p>
           <pre className="overflow-x-auto rounded-xl border border-[var(--glass-border)] bg-[var(--color-bg-base)]/60 p-4 font-mono text-xs leading-relaxed text-[var(--color-text-primary)]">
             {`{
@@ -134,7 +132,7 @@ export default function Chapter() {
 }`}
           </pre>
           <p className="font-serif leading-relaxed text-[var(--color-text-secondary)]">
-            Ce format permet au pipeline brain de raisonner sur la structure (« tiens, ECB hawkish +
+            Ce format permet à l&apos;analyse de raisonner sur la structure (« tiens, ECB hawkish +
             Fed hawkish → impact net mineur sur EUR/USD »), pas juste sur un scalaire global.
           </p>
         </GlowCard>
@@ -176,13 +174,13 @@ export default function Chapter() {
             Cadencement
           </h2>
           <p className="font-serif leading-relaxed text-[var(--color-text-secondary)]">
-            CB-NLP tourne toutes les 4 heures (00h15, 04h15, 08h15, 12h15, 16h15, 20h15 Paris).
-            C&apos;est dimensionné pour qu&apos;une nouvelle speech soit ingérée et reflétée dans la
-            prochaine session card sous 4 heures maximum. Cf{" "}
+            La veille banques centrales tourne toutes les 4 heures (00h15, 04h15, 08h15, 12h15,
+            16h15, 20h15 Paris). C&apos;est dimensionné pour qu&apos;une nouvelle speech soit
+            ingérée et reflétée dans la prochaine session card sous 4 heures maximum. Cf{" "}
             <Link href="/learn/ml-stack" className={learnLink}>
               chapitre 11
             </Link>{" "}
-            pour la cadence complète des 4 agents Couche-2.
+            pour la cadence complète des veilleurs.
           </p>
         </GlowCard>
       </Reveal>

@@ -12,7 +12,6 @@ import { Reveal } from "@/components/ui/reveal";
 
 const learnLink =
   "text-[var(--accent)] underline-offset-2 transition-colors hover:text-[var(--accent-soft)] hover:underline";
-const codeCls = "font-mono text-xs text-[var(--accent)]";
 
 export default function Chapter() {
   return (
@@ -29,7 +28,7 @@ export default function Chapter() {
       <PageHeader
         eyebrow="Learn · Calibration · #11 · 10 min · avancé"
         title="La stack ML d'Ichor"
-        description="8 modèles scaffoldés pour différentes facettes du marché, et comment ils convergent vers une session card calibrée. Aucun des modèles ne prédit le prix — ils enrichissent le contexte fourni à Claude."
+        description="8 modèles scaffoldés pour différentes facettes du marché, et comment ils convergent vers une session card calibrée. Aucun des modèles ne prédit le prix — ils enrichissent le contexte fourni au moteur d'analyse."
       />
 
       <Reveal delay={0.04}>
@@ -39,24 +38,25 @@ export default function Chapter() {
           </h2>
           <ul className="space-y-3 text-sm text-[var(--color-text-secondary)]">
             <li>
-              <strong className="text-[var(--color-text-primary)]">Couche 3 — ML pur Python</strong>{" "}
-              (Hetzner CPU). Pas de LLM, pas de réseau. 8 modèles aux scopes très spécifiques :
-              régime, microstructure, vol, NLP self-host, analogues.
-            </li>
-            <li>
               <strong className="text-[var(--color-text-primary)]">
-                Couche 2 — Agents LLM continus
+                Niveau 3 — modèles statistiques locaux
               </strong>{" "}
-              (Claude Max 20x). 5 agents (Macro, CB-NLP, News-NLP, Sentiment, Positioning) qui
-              consomment Couche 3 + sources publiques + persistent leur output structuré dans{" "}
-              <code className={codeCls}>couche2_outputs</code>.
+              . Pas de moteur d&apos;analyse, pas de réseau. 8 modèles aux scopes très spécifiques :
+              régime, microstructure, volatilité, ton des actualités, analogues.
             </li>
             <li>
               <strong className="text-[var(--color-text-primary)]">
-                Couche 1 — Brain pipeline 4-pass + Pass 5
+                Niveau 2 — Veille de marché en continu
+              </strong>{" "}
+              . 5 veilleurs spécialisés (macro, banques centrales, actualités, sentiment,
+              positionnement) qui lisent les sources publiques en continu et consomment le niveau 3.
+            </li>
+            <li>
+              <strong className="text-[var(--color-text-primary)]">
+                Niveau 1 — Le cœur d&apos;analyse
               </strong>
-              . Pour chaque session card, lit les outputs des couches 2 et 3 via le data_pool, et
-              synthèse via Claude Opus 4.8 + Sonnet 4.6.
+              . Pour chaque session card, il rassemble toutes ces lectures et en fait une synthèse
+              pour chaque carte de session.
             </li>
           </ul>
         </GlowCard>
@@ -69,47 +69,56 @@ export default function Chapter() {
           </h2>
           <ol className="space-y-3 text-sm text-[var(--color-text-secondary)]">
             <li>
-              <strong className="text-[var(--color-text-primary)]">HMM régime 3 états</strong> —
-              Hidden Markov Model sur les rendements daily. États : low-vol trending, high-vol
-              trending, mean-reverting noise. Donne la probabilité courante de chaque régime +
-              matrice de transition.
+              <strong className="text-[var(--color-text-primary)]">
+                Détection automatique du régime de marché (3 états)
+              </strong>{" "}
+              — sur les rendements daily. États : low-vol trending, high-vol trending,
+              mean-reverting noise. Donne la probabilité courante de chaque régime + matrice de
+              transition.
             </li>
             <li>
-              <strong className="text-[var(--color-text-primary)]">FOMC-RoBERTa</strong> — modèle
-              BERT fine-tuné sur les minutes Fed (gtfintechlab). Score hawkish/dovish précis sur les
-              discours Fed. Self-host CPU, pas d&apos;API key.
+              <strong className="text-[var(--color-text-primary)]">
+                Lecture du ton des discours de la Fed
+              </strong>{" "}
+              — score hawkish/dovish précis sur les discours Fed, en local. Pas d&apos;API key.
             </li>
             <li>
-              <strong className="text-[var(--color-text-primary)]">FinBERT-tone</strong> —
-              yiyanghkust/finbert-tone, BERT fine-tuné sur les news financières. Tone aggregate ∈
-              [-1, +1] sur les headlines récentes.
+              <strong className="text-[var(--color-text-primary)]">
+                Analyse du ton des actualités financières
+              </strong>{" "}
+              — score −1 à +1 sur les titres récents.
             </li>
             <li>
-              <strong className="text-[var(--color-text-primary)]">VPIN microstructure</strong> —
-              Easley-LdP-O&apos;Hara 2012, Volume-Synchronized Probability of Informed Trading.
-              Bucketing 1/50ᵉ ADV puis ratio |Buy − Sell| / V. Élevé = présence d&apos;informed
-              traders, signal de timing window.
+              <strong className="text-[var(--color-text-primary)]">
+                Pression acheteur/vendeur dans le carnet (microstructure)
+              </strong>{" "}
+              — Easley-LdP-O&apos;Hara 2012. Bucketing 1/50ᵉ ADV puis ratio |Buy − Sell| / V. Élevé
+              = présence d&apos;informed traders, signal de timing window.
             </li>
             <li>
-              <strong className="text-[var(--color-text-primary)]">HAR-RV</strong> — Corsi 2009, vol
-              forecast J+1 / J+5 / J+22 sur la realized vol. Régression simple sur 3 horizons (D, W,
-              M) qui capte le long-memory des vols.
+              <strong className="text-[var(--color-text-primary)]">
+                Prévision de volatilité à 1 / 5 / 22 jours
+              </strong>{" "}
+              — Corsi 2009. Régression simple sur 3 horizons (D, W, M) qui capte le long-memory des
+              vols.
             </li>
             <li>
-              <strong className="text-[var(--color-text-primary)]">DTW analogues</strong> — Dynamic
-              Time Warping sur les 20 derniers jours de returns. Top-3 fenêtres historiques les plus
-              similaires + leur outcome forward 5 jours. Donne au LLM un prior « what happened next
-              ».
+              <strong className="text-[var(--color-text-primary)]">
+                Situations historiques les plus ressemblantes
+              </strong>{" "}
+              — les 3 fenêtres passées les plus proches et ce qui s&apos;est passé 5 jours après.
             </li>
             <li>
-              <strong className="text-[var(--color-text-primary)]">ADWIN</strong> — Adaptive Window
-              concept drift detector (river). Surveille la série Brier 30j ; détection drift → alert{" "}
-              <code className={codeCls}>CONCEPT_DRIFT_DETECTED</code> + trigger ré-calibration HMM.
+              <strong className="text-[var(--color-text-primary)]">Détecteur de dérive</strong> —
+              surveille si la fiabilité se dégrade sur 30 jours et déclenche une recalibration
+              automatique.
             </li>
             <li>
-              <strong className="text-[var(--color-text-primary)]">SABR-SVI</strong> — calibration
-              de la vol implicite sur les options chains XAU + indices US. Affiche le skew (+ risk
-              reversal 25-delta) en cas d&apos;anomalie. Phase 2 utilise vollib (à finaliser).
+              <strong className="text-[var(--color-text-primary)]">
+                Lecture de la volatilité implicite des options
+              </strong>{" "}
+              — sur les options chains XAU + indices US. Affiche le skew (+ risk reversal 25-delta)
+              en cas d&apos;anomalie.
             </li>
           </ol>
         </GlowCard>
@@ -137,8 +146,9 @@ export default function Chapter() {
             </li>
             <li>
               <strong className="text-[var(--color-text-primary)]">Interprétabilité</strong> — quand
-              HMM dit « régime 1 à 0.78 », FinBERT dit « tone -0.4 », VPIN dit « 0.55 », un humain
-              peut suivre. Un super-modèle sortant 0.62 reste opaque.
+              la détection de régime dit « régime 1 à 0,78 », l&apos;analyse de ton dit « −0,4 » et
+              la pression de flux dit « 0,55 », un humain peut suivre. Un super-modèle sortant 0.62
+              reste opaque.
             </li>
           </ul>
         </GlowCard>
@@ -155,19 +165,19 @@ export default function Chapter() {
           </p>
           <ul className="space-y-2 text-sm text-[var(--color-text-secondary)]">
             <li>
-              <strong className="text-[var(--color-text-primary)]">Brier optimizer</strong> — chaque
-              nuit, descente de gradient projetée sur les poids du{" "}
+              <strong className="text-[var(--color-text-primary)]">Auto-réglage nocturne</strong> —
+              chaque nuit, les poids du{" "}
               <Link href="/learn/confluence-reading" className={learnLink}>
-                confluence engine
+                moteur de confluence
               </Link>{" "}
-              pour minimiser le Brier sur les 30 derniers jours. Bornes [0.05, 0.5] par poids,
-              projection simplex bornée Duchi 2008.
+              sont réajustés pour coller au plus près de ce qui s&apos;est réellement produit sur 30
+              jours. Bornes [0.05, 0.5] par poids, projection simplex bornée Duchi 2008.
             </li>
             <li>
               <strong className="text-[var(--color-text-primary)]">Post-mortem hebdo</strong> —
-              chaque dimanche 18h Paris, Claude Opus 4.8 lit les 7 jours et produit un rapport
-              8-section (top hits, top miss, drift, narratives, calibration, suggestions). Visible
-              sur{" "}
+              chaque dimanche 18h Paris, le moteur d&apos;analyse lit les 7 jours et produit un
+              rapport 8-section (top hits, top miss, drift, narratives, calibration, suggestions).
+              Visible sur{" "}
               <Link href="/post-mortems" className={learnLink}>
                 /post-mortems
               </Link>
@@ -175,15 +185,15 @@ export default function Chapter() {
             </li>
             <li>
               <strong className="text-[var(--color-text-primary)]">Méta-prompt tuner</strong> —
-              bi-mensuel (1er + 15 du mois), Claude Opus 4.8 lit les Critic findings des 14 derniers
-              jours et propose des amendments aux system prompts par pass. PR GitHub auto, merge
-              manuel par Eliot.
+              bi-mensuel (1er + 15 du mois), le moteur d&apos;analyse relit les remarques du
+              relecteur des 14 derniers jours et propose des ajustements de consignes. PR GitHub
+              auto, merge manuel par Eliot.
             </li>
             <li>
-              <strong className="text-[var(--color-text-primary)]">RAG 5 ans</strong> — toutes les
-              cards persistées sont embedded (BGE-small 384d) dans{" "}
-              <code className={codeCls}>rag_chunks_index</code> avec HNSW + tsvector. Pass 1
-              retrieve les 5 cards similaires historiquement et les injecte au contexte.
+              <strong className="text-[var(--color-text-primary)]">
+                Mémoire des cartes passées
+              </strong>{" "}
+              — les 5 situations historiques les plus proches sont réinjectées dans l&apos;analyse.
             </li>
           </ul>
         </GlowCard>
@@ -192,21 +202,21 @@ export default function Chapter() {
       <Reveal delay={0.04}>
         <GlowCard className="space-y-4 p-7 md:p-8">
           <h2 className="font-display text-xl font-semibold text-[var(--color-text-primary)]">
-            Cadencement Couche-2
+            Cadence des veilleurs
           </h2>
           <pre className="overflow-x-auto rounded-xl border border-[var(--glass-border)] bg-[var(--color-bg-base)]/60 p-4 font-mono text-xs leading-relaxed text-[var(--color-text-primary)]">
-            {`CB-NLP      toutes les 4h (00h15 / 04h15 / 08h15 / ...)
-News-NLP    toutes les 4h (offset +30min)
-Sentiment   toutes les 6h
-Positioning toutes les 6h (offset +60min)
-Macro       toutes les 4h (Phase 1, conservé)`}
+            {`Banques centrales  toutes les 4h (00h15 / 04h15 / 08h15 / ...)
+Actualités         toutes les 4h (décalage +30min)
+Sentiment          toutes les 6h
+Positionnement     toutes les 6h (décalage +60min)
+Macro              toutes les 4h`}
           </pre>
           <p className="font-serif leading-relaxed text-[var(--color-text-secondary)]">
             Cf{" "}
             <Link href="/learn/cb-pipeline" className={learnLink}>
               chapitre 10
             </Link>{" "}
-            pour le détail du pipeline CB-NLP.
+            pour le détail de la veille banques centrales.
           </p>
         </GlowCard>
       </Reveal>

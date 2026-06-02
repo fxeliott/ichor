@@ -158,8 +158,8 @@ export default async function ScenariosPage({ params }: PageProps) {
               {apiOnline
                 ? pass4Live
                   ? cardsCount !== null
-                    ? `live · ${cardsCount} cards · Pass 4 tree`
-                    : "live · Pass 4 tree"
+                    ? `live · ${cardsCount} cards · arbre de scénarios`
+                    : "live · arbre de scénarios"
                   : cardsCount !== null
                     ? `live · ${cardsCount} cards · scenario tree mock`
                     : "live · scenario tree mock"
@@ -177,15 +177,15 @@ export default async function ScenariosPage({ params }: PageProps) {
       </header>
 
       <p className="mb-6 max-w-prose text-sm text-[var(--color-text-secondary)]">
-        Le pipeline brain Pass 4 énumère 7 scénarios mutuellement exclusifs + leurs probabilités
-        calibrées (somme ≈ 100%). Pass 5 (counterfactual) permet d&apos;injecter un scénario {""}
+        L&apos;analyse énumère 7 scénarios mutuellement exclusifs + leurs probabilités calibrées
+        (somme ≈ 100%). Le test « et si ? » permet d&apos;injecter un scénario {""}
         <MetricTooltip
-          term="anchor"
+          term="ancre"
           definition="Hypothèse alternative à tester : un scénario faiblement probable mais à fort impact (queue de distribution)."
           glossaryAnchor="counterfactual-anchor"
           density="compact"
         >
-          anchor
+          ancre
         </MetricTooltip>{" "}
         et de générer une lecture sous cette hypothèse.
       </p>
@@ -201,9 +201,9 @@ export default async function ScenariosPage({ params }: PageProps) {
       </div>
 
       <p className="mt-8 text-xs text-[var(--color-text-muted)]">
-        Probabilités calibrées par Pass 4 · invalidation = condition qui élimine le scénario. Si
-        Pass 4 produit moins de 7 scénarios significatifs, un placeholder « low-probability tail »
-        est ajouté pour somme ≈ 100%.
+        Probabilités calibrées par l&apos;analyse · invalidation = condition qui élimine le
+        scénario. Si l&apos;analyse produit moins de 7 scénarios significatifs, un placeholder «
+        low-probability tail » est ajouté pour somme ≈ 100%.
       </p>
     </div>
   );
@@ -278,8 +278,8 @@ function Live3ScenarioModel({ data }: { data: ScenariosResponse }) {
         </ul>
       )}
       <p className="mt-3 text-[10px] text-[var(--color-text-muted)]">
-        Modèle empirique 3 scénarios (SMC + régime + conviction). Le 7-arbre Pass 4 ci-dessous reste
-        mock — son schéma backend est en attente.
+        Modèle empirique 3 scénarios (SMC + régime + conviction). L&apos;arbre à 7 scénarios
+        ci-dessous reste mock — son schéma backend est en attente.
       </p>
     </section>
   );
@@ -292,7 +292,7 @@ function CounterfactualButton() {
       className="inline-flex items-center gap-2 rounded-md bg-[var(--color-accent-cobalt-deep)] px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-bull)]"
     >
       <span aria-hidden="true">⟁</span>
-      Counterfactual Pass 5
+      Test « et si ? »
     </button>
   );
 }
@@ -377,7 +377,7 @@ function ScenarioCard({ scenario }: { scenario: Scenario }) {
             className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--color-accent-cobalt-bright)]"
           />
           <span className="font-mono text-[10px] uppercase tracking-widest text-[var(--color-accent-cobalt-bright)]">
-            Pass 5 anchor: {scenario.counterfactual_anchor}
+            Scénario-ancre : {scenario.counterfactual_anchor}
           </span>
         </div>
       )}

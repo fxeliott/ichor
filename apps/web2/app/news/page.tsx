@@ -121,12 +121,12 @@ export default async function NewsPage() {
           Headlines aggregées RSS + Polygon News (ticker-linked) + GDELT 2.0 events. Tone enrichi
           par{" "}
           <MetricTooltip
-            term="FinBERT-tone"
-            definition="HuggingFace `yiyanghkust/finbert-tone` — modèle BERT fine-tuné sur les sentiments financiers. Score ∈ [-1, +1] : positif/neutral/négatif."
+            term="analyse du ton des actualités"
+            definition="Analyse du ton des actualités financières. Score ∈ [-1, +1] : positif/neutre/négatif."
             glossaryAnchor="finbert-tone"
             density="compact"
           >
-            FinBERT-tone
+            analyse du ton des actualités
           </MetricTooltip>{" "}
           en post-traitement. Filtre ticker-linked sur la page asset drill-down.
         </p>

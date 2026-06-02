@@ -36,17 +36,17 @@ interface GlossaryEntry {
 const GLOSSARY: GlossaryEntry[] = [
   {
     slug: "brier-score",
-    term: "Brier score",
+    term: "Score de fiabilité",
     family: "calibration",
     short: "Mesure de calibration d'une prédiction probabiliste.",
-    long: "Brier = (prédiction - outcome)². Range [0, 1], plus bas = mieux. La référence naïve = 0.25 (toujours prédire 0.5). Cible Ichor < 0.15 sur 30j.",
+    long: "Fiabilité = (prédiction - outcome)². Range [0, 1], plus bas = mieux. La référence neutre = 0.25 (toujours prédire 0.5). Cible Ichor < 0.15 sur 30j.",
   },
   {
     slug: "skill-score",
     term: "Skill score",
     family: "calibration",
-    short: "Combien Ichor bat la baseline naïve.",
-    long: "Skill = (1 - Brier / Brier_naive) × 100. > 0 = mieux que random ; > 10 = utile en pratique. Calculé glissant 30j.",
+    short: "Combien Ichor bat la référence neutre.",
+    long: "Skill = (1 - fiabilité / fiabilité_neutre) × 100. > 0 = mieux que le hasard ; > 10 = utile en pratique. Calculé glissant 30j.",
   },
   {
     slug: "reliability-diagram",
@@ -57,9 +57,9 @@ const GLOSSARY: GlossaryEntry[] = [
   },
   {
     slug: "vpin",
-    term: "VPIN",
+    term: "Pression acheteur/vendeur",
     family: "microstructure",
-    short: "Volume-Synchronized Probability of Informed Trading.",
+    short: "Déséquilibre acheteur/vendeur dans le carnet.",
     long: "Easley-LdP-O'Hara 2012. Mesure le déséquilibre buy/sell par bucket de volume constant. Élevé (>0.4) = présence d'informed traders, signal de timing window pour entry précise.",
   },
   {
@@ -165,14 +165,14 @@ const GLOSSARY: GlossaryEntry[] = [
     term: "Best-opp score",
     family: "calibration",
     short: "Conviction × régime fit × confluence, ∈ [0, 1].",
-    long: "Score de ranking pour /today. Multiplie 3 scalaires en [0,1]: conviction Pass-2 × régime fit (corrobore le quadrant) × confluence (poids du factor mix).",
+    long: "Score de ranking pour /today. Multiplie 3 scalaires en [0,1]: conviction de l'analyse × régime fit (corrobore le quadrant) × confluence (poids du factor mix).",
   },
   {
     slug: "counterfactual-anchor",
-    term: "Counterfactual anchor",
+    term: "Scénario-ancre",
     family: "regime",
-    short: "Hypothèse alternative à tester en Pass 5.",
-    long: "Scénario faiblement probable mais à fort impact (queue de distribution). Pass 5 génère une lecture sous l'hypothèse anchor plutôt que la mode.",
+    short: "Hypothèse alternative à tester avec le test « et si ? ».",
+    long: "Scénario faiblement probable mais à fort impact (queue de distribution). Le test « et si ? » génère une lecture sous l'hypothèse ancre plutôt que la mode.",
   },
   {
     slug: "anti-leakage",
