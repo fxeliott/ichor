@@ -153,4 +153,77 @@ correct yet and the `pass3_addenda` store is empty. The loop is **armed**: the f
 model underperforms on a pocket, the Sunday generator will produce a corrective addendum (ADR-017
 re-checked) and cards will inject it. The content witness is therefore event-conditional.
 
-<!-- next phase sections appended here -->
+### Phase 5 — Opus 4.8 everywhere (§11, non-negotiable) — SHIPPED + DEPLOYED + VALIDATED (ADR-108)
+
+Every local Claude call now runs on Opus 4.8 (the 4-pass core was already Opus). PR #168 → main,
+plus **ADR-108** superseding ADR-023's model choice:
+
+- **Pass-6 scenario decomposition**: sonnet medium → opus high (orchestrator default). LIVE; the
+  17:01 ny_mid cron produced fresh cards with it.
+- **Macro briefings** (`run_briefing`): all sonnet → opus high. LIVE.
+- **Couche-2 agents** (cb_nlp/news_nlp/macro/sentiment/positioning): haiku low → opus low.
+  ADR-023 had pinned Haiku only for the legacy SYNC 100s Cloudflare cap; Wave 67 moved Couche-2
+  to the CF-edge-immune async-polling path, so Opus is now safe. effort stays low (structured
+  extraction). Deployed via a single-connection tar-pipe (the multi-step deploy scripts kept
+  hitting a transient Hetzner SSH-instability window). **Witness**: the `sentiment` agent ran on
+  Opus low via async in 71s, success.
+
+Validation: invariants 48 / brain 108 / agents 106 pass, ruff clean. Note: a mid-session Opus
+throttle (slow + empty responses) was traced to Eliot's _parallel_ interactive Claude Code use
+on the shared Max 20x account — NOT the Ichor pipeline — so full-Opus is the chosen config
+(graceful degradation + Voie D as the safety net). Voie D unchanged (Max 20x, zero API spend).
+
+### Phase 6 — Live web research via self-hosted SearXNG (§6 #1 non-negotiable, W103, ADR-084) — SHIPPED + DEPLOYED + WITNESSED
+
+Ichor now does live web search at card-build time, beyond the ingested collectors. PR #169 → main:
+
+- **Infra**: SearXNG Docker container on Hetzner (loopback 127.0.0.1:8081, JSON API on, limiter
+  off since loopback-only, explicit `172.21.0.0/24` subnet to dodge the exhausted daemon
+  address-pool, restart=unless-stopped, healthcheck). `infra/ansible/roles/searxng/files/` +
+  idempotent `scripts/hetzner/register-searxng.sh`. Voie D: $0 marginal, no metered LLM.
+- **`services/web_research.py`**: async SearXNG client, frozen `WebResultSnapshot`, URL +
+  near-dup-title dedup, 24h in-process TTL cache, guarded Serper fallback (dormant w/o key),
+  fail-open ([] on any error). **ADR-017: DROP** any result whose title/snippet trips
+  `is_adr017_clean` — a trade-call snippet never reaches the LLM prompt; the cache stores only
+  clean snapshots.
+- **data_pool**: `_WEB_RESEARCH_QUERIES` per-asset SSOT + `_section_web_research` (merge/dedup,
+  honest-absence, FR coach framing "actualité live, pas un signal", source-stamp
+  `web_research:searxng@<ts>`) wired into `build_data_pool` next to `news`, fail-open.
+- **config**: `web_research_searxng_url` (env `ICHOR_API_WEB_RESEARCH_SEARXNG_URL`).
+
+Validation: SearXNG LIVE (healthy, JSON 14 results). test_web_research 18 pass + invariants 51 +
+recent_actuals regression; ruff clean. **Witness**: `_section_web_research("EUR_USD")` on prod
+renders 11 real live sources (ECB reference rates, Euro-Area rate, Trading Economics, …).
+
+### §10 — Premium bespoke data-viz — ALREADY DONE (anti-doublon, verified, NOT rebuilt)
+
+The §10 data-viz was already delivered by the 2026-06-01 refonte + Phase 1: `ScenariosPanel`
+(7-bucket diverging coloured probability ladder, bar width ∝ p, bear/neutral/bull tints),
+`CorrelationsStrip` (diverging heatmap via `lib/correlationHeat`), `ConvictionGauge` (radial SVG,
+now on the apex via Phase 1), `EventSurpriseGauge`, area charts (`Sparkline`/`VolumePanel`/
+`TodaySessionPulse` via `lib/microchart`) — all on the briefing deep-dive with the OKLCH dark+blue
+design system + glassmorphism + motion. Verified present + wired (page.tsx:475/525/559); nothing
+to rebuild (anti-doublon).
+
+---
+
+## Session wrap (2026-06-02)
+
+**Delivered + on `main` (4c8dcbc), 9 PRs #163-#169, ZERO Anthropic spend, Voie D + ADR-017 held**:
+pipeline rescue + Phase 0 (docs) + Phase 1 (verdict alive) + Phase 2 (notify) + Phase 3 (scrub) +
+Phase 4 (auto-improvement armed) + Phase 5/§11 (Opus everywhere, ADR-108) + Phase 6/§6 (SearXNG
+web research) + §10 (already done). Pipeline verified live: Win11 runner ok/cli=true, Hetzner api
+200, SearXNG healthy, 7 fresh Opus cards in the last 6h.
+
+**Remaining — §7 streaming cadence** (the only big unbuilt piece): react the instant a strong
+event drops (economic release published / hard scenario invalidation / news burst) → targeted
+verdict regen for that asset + push, instead of waiting for the next 4×/day batch. It touches the
+LIVE pipeline + is Opus-budget-sensitive, so it is deferred to a fresh context. **Recommended
+design**: a NEW additive, flag-gated, reversible cron (mirror
+`register-cron-scenario-invalidation-check`, ~6×/day) that detects a NEW strong event since the
+asset's last card and regenerates ONLY that asset's card + pushes (reuse `_assemble_live_triggers`
+sources + recent `economic_events.actual`); budget guard (cap N regens/day + dedup); NEVER touch
+the existing 4×/day batch (additive only). Full pickup detail in
+`~/.claude/projects/D--Ichor/memory/auto_session_resume.md`.
+
+**Open with Eliot**: the "ichor-beta" reference URL (his calibration standard) — still to provide.
