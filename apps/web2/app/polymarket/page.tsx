@@ -10,7 +10,6 @@
 //                         history from Polymarket which isn't ingested)
 
 import { BiasIndicator, MetricTooltip } from "@/components/ui";
-import { humanizeEnum } from "@/lib/coachLabels";
 import { apiGet, isLive, type DivergenceList, type PolymarketImpact } from "@/lib/api";
 
 interface PolyMarketView {
@@ -252,7 +251,7 @@ function TopMoversSection({ markets }: { markets: PolyMarketView[] }) {
                   size="sm"
                 />
                 <span className="ml-auto font-mono text-[var(--color-text-muted)]">
-                  thème : {humanizeEnum(m.theme_label)} · poids {m.weight.toFixed(2)}
+                  thème : {m.theme_label} · poids {m.weight.toFixed(2)}
                 </span>
               </div>
             </li>

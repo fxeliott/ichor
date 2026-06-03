@@ -18,6 +18,7 @@ import { m } from "motion/react";
 
 import { Sparkline } from "@/components/briefing/Sparkline";
 import type { SessionCard, SessionVerdict } from "@/lib/api";
+import { biasFr, regimeLabel, sessionTypeFr } from "@/lib/coachLabels";
 import { deriveFreshness, type FreshnessState } from "@/lib/freshness";
 
 interface BriefingHeaderProps {
@@ -50,30 +51,11 @@ const VERDICT_DIR_TO_BIAS: Record<string, SessionCard["bias_direction"]> = {
   neutral: "neutral",
 };
 
-const SESSION_LABEL: Record<SessionCard["session_type"], string> = {
-  pre_londres: "Pré-session Londres",
-  pre_ny: "Pré-session New York",
-  ny_mid: "Mi-session New York",
-  ny_close: "Clôture New York",
-  event_driven: "Event-driven",
-};
-
-const REGIME_LABEL: Record<string, string> = {
-  haven_bid: "Recherche de valeurs refuges",
-  funding_stress: "Tensions de financement",
-  goldilocks: "Conjoncture idéale (Goldilocks)",
-  usd_complacency: "Complaisance sur le dollar",
-};
-
-// Bias direction → plain-FR coach word. The apex verdict reads
-// "Hausse/Baisse/Neutre"; the header used the raw English "LONG/SHORT/NEUTRAL"
-// — incoherent for a French coach product. ▲/▼ glyph + word + tone colour give
-// the WCAG 1.4.1 triple redundancy (no separate sign needed).
-const BIAS_FR: Record<string, string> = {
-  long: "Haussier",
-  short: "Baissier",
-  neutral: "Neutre",
-};
+// Session window / regime / bias FR labels come from the single SSOT
+// (lib/coachLabels) — no local maps here, so this primary surface can never
+// drift from the secondary routes (it once carried 3 divergent copies, incl.
+// an English "Event-driven"). ▲/▼ glyph + word + tone colour keep the WCAG
+// 1.4.1 triple redundancy for bias (no separate sign needed).
 
 function biasGlyph(direction: SessionCard["bias_direction"]): { glyph: string; sign: string } {
   if (direction === "long") return { glyph: "▲", sign: "+" };
@@ -165,7 +147,7 @@ export function BriefingHeader({
             {card?.session_type && (
               <>
                 <span className="text-[var(--color-text-muted)]">·</span>
-                <span>{SESSION_LABEL[card.session_type]}</span>
+                <span>{sessionTypeFr(card.session_type)}</span>
               </>
             )}
           </div>
@@ -222,7 +204,7 @@ export function BriefingHeader({
                 Régime
               </span>
               <span className="text-sm font-medium text-[var(--color-text-primary)]">
-                {REGIME_LABEL[card.regime_quadrant] ?? card.regime_quadrant}
+                {regimeLabel(card.regime_quadrant)}
               </span>
             </div>
           )}
@@ -233,7 +215,7 @@ export function BriefingHeader({
             <div className="flex items-baseline gap-3">
               {(() => {
                 const { glyph } = biasGlyph(headDir);
-                const label = BIAS_FR[headDir] ?? headDir;
+                const label = biasFr(headDir);
                 return (
                   <span
                     className={`font-serif text-4xl ${biasTone(headDir)}`}

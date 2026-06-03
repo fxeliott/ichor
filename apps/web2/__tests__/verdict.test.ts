@@ -106,7 +106,7 @@ describe("deriveVerdict — non-confluence fields locked (r71 invariant)", () =>
     );
     expect(v.bias).toEqual({ glyph: "▲ +", tone: "bull", word: "HAUSSIER" });
     expect(v.conviction).toEqual({ pct: 72, band: "forte", weak: false });
-    expect(v.regimeLabel).toBe("usd complacency");
+    expect(v.regimeLabel).toBe("Complaisance sur le dollar");
     expect(v.caractere).toEqual({
       label: "structuré (indicatif)",
       detail: "régime calme, gamma indisponible — tendance mean-reversion sous réserve",
@@ -133,7 +133,7 @@ describe("deriveVerdict — non-confluence fields locked (r71 invariant)", () =>
     for (const v of [a, b, c]) {
       expect(v.bias).toEqual({ glyph: "▼ −", tone: "bear", word: "BAISSIER" });
       expect(v.conviction).toEqual({ pct: 28, band: "faible", weak: true });
-      expect(v.regimeLabel).toBe("funding stress");
+      expect(v.regimeLabel).toBe("Tensions de financement");
       expect(v.caractere.label).toBe("momentum (indicatif)");
     }
     // confiance: conv.weak=true AND asymCoherent (bear==bear) true → the
