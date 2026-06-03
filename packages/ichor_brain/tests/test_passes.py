@@ -51,6 +51,23 @@ def test_pass_system_prompt_carries_french_coach_directive(pass_cls) -> None:
     assert "Aucune phrase explicative en anglais" in sys
 
 
+@pytest.mark.parametrize("pass_cls", [RegimePass, AssetPass, StressPass, InvalidationPass])
+def test_pass_system_prompt_forbids_raw_codes_and_pipeline_refs_in_prose(pass_cls) -> None:
+    """The coach directive must explicitly forbid raw machine codes (snake_case
+    enum identifiers like ``usd_complacency``) AND internal pipeline references
+    (« Pass 1 / Pass-6 », agent / module names) from leaking into the
+    trader-facing PROSE — witnessed live on /briefing 2026-06-03 that the LLM
+    wrote ``usd_complacency`` and « Pass 1 » into the French text. Source-
+    inspection lockstep so the prohibition can never silently drop."""
+    sys = pass_cls().system_prompt
+    # forbids raw snake_case enum codes in prose + pins the humanised form
+    assert "snake_case" in sys
+    assert "complaisance sur le dollar" in sys  # the humanised example (directive-only)
+    # forbids internal pipeline-structure refs in prose
+    assert "Pass 1 / Pass 2" in sys
+    assert "plomberie" in sys
+
+
 def test_regime_build_prompt_inlines_data_pool() -> None:
     p = RegimePass()
     prompt = p.build_prompt(data_pool="DXY=105.3 VIX=18.2")
