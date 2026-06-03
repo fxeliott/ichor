@@ -24,6 +24,8 @@
 import { m } from "motion/react";
 import { type ReactNode } from "react";
 
+import { humanizeMetrics, humanizeSource } from "@/lib/fredLabels";
+
 // ── Real Pass-2 shapes (verified r66 against /v1/sessions/EUR_USD prod) ──
 
 interface Mechanism {
@@ -45,16 +47,6 @@ interface Catalyst {
 
 function asArray<T>(items: unknown): T[] {
   return Array.isArray(items) ? (items as T[]) : [];
-}
-
-function shortSource(s: string): string {
-  // "FRED:DGS10" → "DGS10" ; "polymarket:will-the-fed-..." → "polymarket"
-  if (s.includes(":")) {
-    const [prefix, rest] = s.split(":", 2);
-    if (prefix === "polymarket" || prefix === "polygon") return prefix;
-    return rest ?? s;
-  }
-  return s;
 }
 
 function fmtTime(iso: string): string {
@@ -155,10 +147,10 @@ export function NarrativeBlocks({ mechanisms, invalidations, catalysts }: Narrat
                     {mech.sources.map((s, si) => (
                       <span
                         key={si}
-                        className="rounded-full border border-[var(--color-border-default)] px-2 py-0.5 font-mono text-[10px] text-[var(--color-text-muted)]"
+                        className="rounded-full border border-[var(--color-border-default)] px-2 py-0.5 text-[11px] text-[var(--color-text-muted)]"
                         title={s}
                       >
-                        {shortSource(s)}
+                        {humanizeSource(s)}
                       </span>
                     ))}
                   </div>
@@ -190,14 +182,17 @@ export function NarrativeBlocks({ mechanisms, invalidations, catalysts }: Narrat
                     {inv.condition ?? JSON.stringify(inv)}
                   </p>
                   {inv.threshold && (
-                    <span className="shrink-0 rounded-md bg-[var(--color-warn)]/10 px-2 py-1 font-mono text-sm font-medium tabular-nums text-[var(--color-warn)]">
-                      {inv.threshold}
+                    <span
+                      className="max-w-[48%] shrink-0 whitespace-normal break-words rounded-md bg-[var(--color-warn)]/10 px-2 py-1 text-right text-sm font-medium text-[var(--color-warn)]"
+                      title={inv.threshold}
+                    >
+                      {humanizeMetrics(inv.threshold)}
                     </span>
                   )}
                 </div>
                 {inv.source && (
-                  <p className="mt-2 font-mono text-[10px] uppercase tracking-wider text-[var(--color-text-muted)]">
-                    {shortSource(inv.source)}
+                  <p className="mt-2 text-[11px] text-[var(--color-text-muted)]" title={inv.source}>
+                    {humanizeSource(inv.source)}
                   </p>
                 )}
               </li>

@@ -44,10 +44,20 @@ const SESSION_LABEL: Record<SessionCard["session_type"], string> = {
 };
 
 const REGIME_LABEL: Record<string, string> = {
-  haven_bid: "Haven bid",
-  funding_stress: "Funding stress",
-  goldilocks: "Goldilocks",
-  usd_complacency: "USD complacency",
+  haven_bid: "Recherche de valeurs refuges",
+  funding_stress: "Tensions de financement",
+  goldilocks: "Conjoncture idéale (Goldilocks)",
+  usd_complacency: "Complaisance sur le dollar",
+};
+
+// Bias direction → plain-FR coach word. The apex verdict reads
+// "Hausse/Baisse/Neutre"; the header used the raw English "LONG/SHORT/NEUTRAL"
+// — incoherent for a French coach product. ▲/▼ glyph + word + tone colour give
+// the WCAG 1.4.1 triple redundancy (no separate sign needed).
+const BIAS_FR: Record<string, string> = {
+  long: "Haussier",
+  short: "Baissier",
+  neutral: "Neutre",
 };
 
 function biasGlyph(direction: SessionCard["bias_direction"]): { glyph: string; sign: string } {
@@ -199,14 +209,14 @@ export function BriefingHeader({
           <div className="space-y-4">
             <div className="flex items-baseline gap-3">
               {(() => {
-                const { glyph, sign } = biasGlyph(card.bias_direction);
+                const { glyph } = biasGlyph(card.bias_direction);
+                const label = BIAS_FR[card.bias_direction] ?? card.bias_direction;
                 return (
                   <span
                     className={`font-serif text-4xl ${biasTone(card.bias_direction)}`}
-                    aria-label={`Bias ${card.bias_direction}`}
+                    aria-label={`Biais ${label}`}
                   >
-                    {glyph} {sign}
-                    {card.bias_direction.toUpperCase()}
+                    {glyph} {label}
                   </span>
                 );
               })()}
