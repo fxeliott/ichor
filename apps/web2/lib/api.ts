@@ -342,6 +342,37 @@ export async function getCoachMacroContext(): Promise<CoachMacroContext | null> 
   return apiGet<CoachMacroContext>("/v1/coach-macro-context");
 }
 
+/** Cross-asset USD coherence — one asset's contribution to the dollar read. */
+export interface DollarCoherenceView {
+  asset: string;
+  bias: string;
+  conviction: number;
+  stance: string; // usd_up | usd_down | neutral
+  weight: number;
+}
+
+/** Cross-asset USD coherence verdict (GET /v1/dollar-coherence). Reconciles
+ *  the day's per-asset bias cards into ONE dollar read + flags the assets
+ *  whose bias fights the consensus. Descriptive only (ADR-017). */
+export interface DollarCoherenceData {
+  consensus: string; // usd_up | usd_down | mixed | neutral
+  consensus_strength: number;
+  coherent: boolean;
+  n_directional: number;
+  outliers: string[];
+  recommended_demotions: Record<string, number>;
+  views: DollarCoherenceView[];
+  coach_explanation: string;
+}
+
+/** Fetch the cross-asset USD-coherence verdict (asset-agnostic, SSR). Returns
+ *  null on apiGet failure → the lens renders honest absence. The backend
+ *  degrades honestly (consensus="neutral" + coherent=true when <2 directional
+ *  cards), so a non-null response with consensus="neutral" is legitimate. */
+export async function getDollarCoherence(): Promise<DollarCoherenceData | null> {
+  return apiGet<DollarCoherenceData>("/v1/dollar-coherence");
+}
+
 /** mission-7 — one point on the market-implied Fed-funds path (ZQ futures). */
 export interface StirPoint {
   series_id: string;
