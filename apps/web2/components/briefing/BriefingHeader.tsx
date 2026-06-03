@@ -17,7 +17,7 @@
 import { m } from "motion/react";
 
 import { Sparkline } from "@/components/briefing/Sparkline";
-import type { SessionCard } from "@/lib/api";
+import type { SessionCard, SessionVerdict } from "@/lib/api";
 import { deriveFreshness, type FreshnessState } from "@/lib/freshness";
 
 interface BriefingHeaderProps {
@@ -33,7 +33,22 @@ interface BriefingHeaderProps {
    * `< 2` → not rendered. Pure descriptive volatility context
    * (ADR-017), never a signal. */
   rangeTrend?: number[];
+  /** The canonical NY-session verdict (SSR). When present it OVERRIDES the
+   * raw card bias for the header's directional readout, so the header never
+   * contradicts the apex `<SessionVerdictPanel>` + the sticky chip (the
+   * verdict is the tradeability-gated "today's call"; the card bias is the
+   * raw pre-gate lean — showing both was a real contradiction, e.g. header
+   * "Baissier 28 %" over an apex "Neutre · ne pas prendre position"). */
+  verdict?: SessionVerdict | null;
 }
+
+/** Verdict direction (up/down/neutral) → the card-bias vocabulary the header's
+ * glyph/tone/label maps already speak. */
+const VERDICT_DIR_TO_BIAS: Record<string, SessionCard["bias_direction"]> = {
+  up: "long",
+  down: "short",
+  neutral: "neutral",
+};
 
 const SESSION_LABEL: Record<SessionCard["session_type"], string> = {
   pre_londres: "Pré-session Londres",
@@ -98,6 +113,7 @@ export function BriefingHeader({
   isLive,
   priceTrend,
   rangeTrend,
+  verdict,
 }: BriefingHeaderProps) {
   // HONEST FRESHNESS GATE — the pill state is driven by the CARD's
   // freshness (generated_at vs Paris-day + age), NOT by `isLive`
@@ -108,6 +124,13 @@ export function BriefingHeader({
   // governs the pill.
   void isLive;
   const freshness = deriveFreshness(card?.generated_at ?? null);
+  // Headline direction + conviction : the canonical verdict wins over the raw
+  // card bias (coherence with the apex panel + sticky chip). Fall back to the
+  // card bias only when there is no verdict.
+  const headDir: SessionCard["bias_direction"] = verdict
+    ? (VERDICT_DIR_TO_BIAS[verdict.direction] ?? "neutral")
+    : (card?.bias_direction ?? "neutral");
+  const headPct = verdict ? verdict.conviction_pct : (card?.conviction_pct ?? 0);
   return (
     <m.header
       initial={{ opacity: 0, y: -8 }}
@@ -209,11 +232,11 @@ export function BriefingHeader({
           <div className="space-y-4">
             <div className="flex items-baseline gap-3">
               {(() => {
-                const { glyph } = biasGlyph(card.bias_direction);
-                const label = BIAS_FR[card.bias_direction] ?? card.bias_direction;
+                const { glyph } = biasGlyph(headDir);
+                const label = BIAS_FR[headDir] ?? headDir;
                 return (
                   <span
-                    className={`font-serif text-4xl ${biasTone(card.bias_direction)}`}
+                    className={`font-serif text-4xl ${biasTone(headDir)}`}
                     aria-label={`Biais ${label}`}
                   >
                     {glyph} {label}
@@ -228,24 +251,24 @@ export function BriefingHeader({
                   Conviction
                 </span>
                 <span className="font-mono text-2xl font-medium tabular-nums text-[var(--color-text-primary)]">
-                  {card.conviction_pct.toFixed(0)}%
+                  {headPct.toFixed(0)}%
                 </span>
               </div>
               <div
                 className="h-1.5 overflow-hidden rounded-full bg-[var(--color-bg-base)]"
                 role="progressbar"
-                aria-valuenow={card.conviction_pct}
+                aria-valuenow={headPct}
                 aria-valuemin={0}
                 aria-valuemax={100}
               >
                 <m.div
                   initial={{ width: 0 }}
-                  animate={{ width: `${Math.min(card.conviction_pct, 95)}%` }}
+                  animate={{ width: `${Math.min(headPct, 95)}%` }}
                   transition={{ duration: 0.8, ease: "easeOut", delay: 0.3 }}
                   className={`h-full rounded-full ${
-                    card.bias_direction === "long"
+                    headDir === "long"
                       ? "bg-[var(--color-bull)]"
-                      : card.bias_direction === "short"
+                      : headDir === "short"
                         ? "bg-[var(--color-bear)]"
                         : "bg-[var(--color-neutral)]"
                   }`}

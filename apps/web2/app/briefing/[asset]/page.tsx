@@ -385,6 +385,7 @@ export default async function BriefingPage({ params }: PageParams) {
         isLive={card !== null}
         priceTrend={recentBars.map((b) => b.close)}
         rangeTrend={recentBars.map((b) => b.high - b.low)}
+        verdict={sessionVerdict}
       />
 
       <TodaySessionPulse
