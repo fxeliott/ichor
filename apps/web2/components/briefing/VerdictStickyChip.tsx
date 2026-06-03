@@ -76,10 +76,19 @@ export function VerdictStickyChip({ verdict, card, asset }: Props) {
     measure(); // initial state
     window.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("resize", onScroll, { passive: true });
+    // Late-loading content (sparklines, charts, polled panels) shifts the
+    // sentinel AFTER the last scroll event — without this the visibility would
+    // go stale until the next scroll (witnessed on prod mobile). A
+    // ResizeObserver on document.body re-measures whenever the content height
+    // changes (NOT documentElement — <html> stays viewport-sized and never
+    // fires on content growth), so the chip self-corrects while stationary.
+    const ro = new ResizeObserver(onScroll);
+    ro.observe(document.body);
     return () => {
       if (raf) cancelAnimationFrame(raf);
       window.removeEventListener("scroll", onScroll);
       window.removeEventListener("resize", onScroll);
+      ro.disconnect();
     };
   }, []);
 
