@@ -27,6 +27,9 @@ import type {
   Scenario,
   SessionCard,
 } from "./api";
+// Regime labels come from the single coach-FR SSOT — this verdict path once
+// rendered raw English ("haven bid", "funding stress") on the primary surface.
+import { REGIME_LABEL } from "./coachLabels";
 
 export type VerdictTone = "bull" | "bear" | "neutral" | "warn";
 
@@ -36,13 +39,6 @@ const ASSET_TO_MYFXBOOK: Record<string, string | null> = {
   XAU_USD: "XAUUSD",
   SPX500_USD: null,
   NAS100_USD: null,
-};
-
-const REGIME_LABEL: Record<string, string> = {
-  haven_bid: "haven bid",
-  funding_stress: "funding stress",
-  goldilocks: "goldilocks",
-  usd_complacency: "usd complacency",
 };
 
 export interface VerdictPart {

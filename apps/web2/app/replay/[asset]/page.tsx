@@ -9,6 +9,7 @@
 
 import { MetricTooltip } from "@/components/ui";
 import { MobileGate } from "@/components/ui/mobile-gate";
+import { biasFr, regimeLabel } from "@/lib/coachLabels";
 import { apiGet, isLive, type SessionCard, type SessionCardList } from "@/lib/api";
 
 import { ReplayClient, type ReplaySnapshot } from "./replay-client";
@@ -97,12 +98,12 @@ function deriveExcerpt(c: SessionCard): string {
   // excerpt from regime + bias + magnitude. Honest fallback until the
   // schema delta surfaces the brain's narrative.
   const dir = c.bias_direction;
-  const reg = c.regime_quadrant ?? "regime n/a";
+  const reg = regimeLabel(c.regime_quadrant);
   const mag =
     c.magnitude_pips_low !== null && c.magnitude_pips_high !== null
       ? `${c.magnitude_pips_low.toFixed(0)}-${c.magnitude_pips_high.toFixed(0)} pips`
-      : "magnitude n/a";
-  return `${dir.toUpperCase()} · ${reg} · target ${mag}`;
+      : "amplitude indisponible";
+  return `${biasFr(dir)} · ${reg} · objectif ${mag}`;
 }
 
 function adaptSession(c: SessionCard): ReplaySnapshot {

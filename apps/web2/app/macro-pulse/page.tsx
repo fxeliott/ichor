@@ -8,6 +8,13 @@
 
 import { BiasIndicator, MetricTooltip, RegimeQuadrant } from "@/components/ui";
 import {
+  humanizeEnum,
+  riskBandFr,
+  riskBandTone,
+  vixRegimeFr,
+  yieldShapeFr,
+} from "@/lib/coachLabels";
+import {
   apiGet,
   isLive,
   type CrossAssetHeatmap,
@@ -21,6 +28,8 @@ interface TrinityItem {
   delta: number;
   bias: "bull" | "bear" | "neutral";
   sig: string;
+  /** Optional text-color class for `sig` (e.g. risk-band tone). */
+  tone?: string;
 }
 
 const MOCK_TRINITY: TrinityItem[] = [
@@ -29,7 +38,7 @@ const MOCK_TRINITY: TrinityItem[] = [
     value: "51.4",
     delta: 0.4,
     bias: "bull",
-    sig: "above 50 = expansion",
+    sig: "au-dessus de 50 = expansion",
   },
   {
     label: "Inflation (PCE YoY)",
@@ -74,28 +83,29 @@ function buildTrinity(p: MacroPulse): TrinityItem[] {
   const fs = p.funding_stress;
   return [
     {
-      label: "VIX term",
+      label: "Structure de la volatilité (VIX)",
       value: vix.vix_1m !== null ? vix.vix_1m.toFixed(1) : "—",
       delta: vix.spread ?? 0,
       bias: classifyVixRegime(vix.regime),
-      sig: vix.interpretation || vix.regime,
+      sig: vix.interpretation || vixRegimeFr(vix.regime),
     },
     {
-      label: "Risk appetite",
+      label: "Appétit pour le risque",
       value: risk.composite.toFixed(2),
       delta: 0,
       bias: classifyBand(risk.band),
-      sig: `${risk.band} · ${risk.components.length} components`,
+      sig: `${riskBandFr(risk.band)} · ${risk.components.length} composantes`,
+      tone: riskBandTone(risk.band),
     },
     {
-      label: "Funding stress",
+      label: "Tensions de financement",
       value: fs.stress_score.toFixed(2),
       delta: fs.sofr_iorb_spread ?? 0,
       bias: fs.stress_score < 0.3 ? "bull" : fs.stress_score < 0.6 ? "neutral" : "bear",
       sig:
         fs.hy_oas !== null
-          ? `HY OAS ${fs.hy_oas.toFixed(0)}bps · SOFR-IORB ${(fs.sofr_iorb_spread ?? 0).toFixed(2)}bps`
-          : "no SOFR/IORB data",
+          ? `Spread crédit haut rendement ${fs.hy_oas.toFixed(0)} pb · SOFR-Fed ${(fs.sofr_iorb_spread ?? 0).toFixed(2)} pb`
+          : "Données de financement indisponibles",
     },
   ];
 }
@@ -113,7 +123,7 @@ function deriveQuadrantPosition(p: MacroPulse): { x: number; y: number } {
 // when no FRED/market_data observations are available yet.
 const CROSS_ASSET_SEED: HeatmapRow[] = [
   {
-    row: "Risk-on",
+    row: "Appétit pour le risque",
     cells: [
       { sym: "SPX", value: 0.42, bias: "bull", unit: "%" },
       { sym: "NAS100", value: 0.61, bias: "bull", unit: "%" },
@@ -122,7 +132,7 @@ const CROSS_ASSET_SEED: HeatmapRow[] = [
     ],
   },
   {
-    row: "Defensive",
+    row: "Valeurs défensives",
     cells: [
       { sym: "VIX", value: 0.04, bias: "neutral", unit: "%" },
       { sym: "USD/JPY", value: 0.21, bias: "bull", unit: "%" },
@@ -131,7 +141,7 @@ const CROSS_ASSET_SEED: HeatmapRow[] = [
     ],
   },
   {
-    row: "Rates",
+    row: "Taux",
     cells: [
       { sym: "US10Y", value: 4.18, bias: "bull", unit: "%" },
       { sym: "US2Y", value: 4.62, bias: "bull", unit: "%" },
@@ -140,7 +150,7 @@ const CROSS_ASSET_SEED: HeatmapRow[] = [
     ],
   },
   {
-    row: "Credit",
+    row: "Crédit",
     cells: [
       { sym: "HY OAS", value: 312, bias: "bull", unit: "bps" },
       { sym: "IG OAS", value: 96, bias: "bull", unit: "bps" },
@@ -159,7 +169,7 @@ export default async function MacroPulsePage() {
   const liveHeatmap = isLive(heatmap) ? heatmap : null;
   const trinity = apiOnline ? buildTrinity(data) : MOCK_TRINITY;
   const quadrantPos = apiOnline ? deriveQuadrantPosition(data) : { x: 0.4, y: -0.2 };
-  const yieldShape = apiOnline ? data.yield_curve.shape : "normal";
+  const yieldShape = apiOnline ? yieldShapeFr(data.yield_curve.shape) : yieldShapeFr("normal");
   const yieldBias = apiOnline ? classifyCurveShape(data.yield_curve.shape) : "neutral";
   const surpriseBand = apiOnline ? data.surprise_index.band : "neutral";
 
@@ -167,9 +177,9 @@ export default async function MacroPulsePage() {
     <div className="container mx-auto max-w-6xl px-6 py-12">
       <header className="mb-10 space-y-3">
         <p className="font-mono text-xs uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
-          Macro pulse · live snapshot{" "}
+          Pouls macro · instantané du jour{" "}
           <span
-            aria-label={apiOnline ? "API online" : "API offline"}
+            aria-label={apiOnline ? "Données en direct" : "Données indisponibles"}
             className="ml-1 inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[9px] uppercase tracking-widest"
             style={{
               color: apiOnline ? "var(--color-bull)" : "var(--color-bear)",
@@ -177,23 +187,24 @@ export default async function MacroPulsePage() {
             }}
           >
             <span aria-hidden="true">{apiOnline ? "▲" : "▼"}</span>
-            {apiOnline ? "live" : "offline · mock"}
+            {apiOnline ? "en direct" : "indisponible · exemple"}
           </span>
         </p>
         <h1 data-editorial className="text-5xl tracking-tight text-[var(--color-text-primary)]">
-          Macro pulse
+          Pouls macro
         </h1>
         <p className="max-w-prose text-[var(--color-text-secondary)]">
-          Lecture live du régime courant via{" "}
+          Lecture en direct du régime courant via{" "}
           <MetricTooltip
-            term="VIX term + risk appetite + funding stress"
-            definition="3 axes du risque macro : VIX term structure (contango/backwardation), risk appetite composite (HY/IG OAS + EM spread + cross-asset), funding stress (SOFR-IORB, HY OAS, RRP usage). Le quadrant 2x2 dérive de risk × stress."
+            term="Volatilité (VIX) + appétit pour le risque + tensions de financement"
+            definition="3 axes du risque macro : structure de la volatilité (calme/tendu), appétit pour le risque (spreads de crédit + cross-asset), tensions de financement (SOFR-Fed, spread crédit haut rendement, reverse repo). Le quadrant 2×2 dérive du couple risque × stress."
             glossaryAnchor="macro-trinity"
             density="compact"
           >
-            macro signals
+            signaux macro
           </MetricTooltip>{" "}
-          (VIX × risque × stress), corroboré par yield curve shape + surprise index.
+          (volatilité × risque × stress), corroboré par la forme de la courbe des taux et les
+          surprises économiques.
         </p>
       </header>
 
@@ -208,23 +219,23 @@ export default async function MacroPulsePage() {
 
       <section className="mb-12 grid gap-3 sm:grid-cols-3">
         <SecondaryStat
-          label="Yield curve"
+          label="Forme de la courbe des taux"
           value={yieldShape}
           sub={
             apiOnline && data.yield_curve.slope_2y_10y !== null
-              ? `2y-10y ${(data.yield_curve.slope_2y_10y * 100).toFixed(0)}bps · ${data.yield_curve.inverted_segments} inverted`
-              : "no curve data"
+              ? `Écart 2 − 10 ans ${(data.yield_curve.slope_2y_10y * 100).toFixed(0)} pb · ${data.yield_curve.inverted_segments} segment(s) inversé(s)`
+              : "Données de courbe indisponibles"
           }
           bias={yieldBias}
         />
         <SecondaryStat
-          label="Real yield 10y"
+          label="Taux réel 10 ans"
           value={
             apiOnline && data.yield_curve.real_yield_10y !== null
               ? `${data.yield_curve.real_yield_10y.toFixed(2)} %`
               : "—"
           }
-          sub="TIPS 10y nominal-implied"
+          sub="Taux 10 ans US ajusté de l'inflation (TIPS)"
           bias={
             apiOnline && data.yield_curve.real_yield_10y !== null
               ? data.yield_curve.real_yield_10y > 1.5
@@ -236,13 +247,13 @@ export default async function MacroPulsePage() {
           }
         />
         <SecondaryStat
-          label="Surprise index"
+          label="Surprises économiques"
           value={
             apiOnline && data.surprise_index.composite !== null
               ? data.surprise_index.composite.toFixed(2)
               : "—"
           }
-          sub={`${apiOnline ? data.surprise_index.region : "US"} · ${surpriseBand}`}
+          sub={`${apiOnline ? data.surprise_index.region : "US"} · ${humanizeEnum(surpriseBand)}`}
           bias={classifyBand(surpriseBand)}
         />
       </section>
@@ -262,12 +273,12 @@ function CrossAssetHeatmapSection({ liveHeatmap }: { liveHeatmap: CrossAssetHeat
   return (
     <section className="rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-6">
       <h2 className="mb-4 flex items-baseline gap-2 font-mono text-xs uppercase tracking-widest text-[var(--color-text-muted)]">
-        Cross-asset heatmap · 16 séries
+        Carte de chaleur multi-actifs · 16 séries
         <span
           className="font-normal normal-case tracking-normal"
           style={{ color: live ? "var(--color-bull)" : "var(--color-warn)" }}
         >
-          {live ? "▲ live" : "▼ seed"}
+          {live ? "▲ en direct" : "▼ exemple"}
         </span>
       </h2>
       <table className="w-full text-sm">
@@ -310,12 +321,14 @@ function TrinityTile({
   delta,
   bias,
   sig,
+  tone,
 }: {
   label: string;
   value: string;
   delta: number;
   bias: "bull" | "bear" | "neutral";
   sig: string;
+  tone?: string;
 }) {
   return (
     <article className="rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-4 shadow-[var(--shadow-sm)]">
@@ -328,7 +341,7 @@ function TrinityTile({
         </span>
         <BiasIndicator bias={bias} value={delta} unit="%" variant="compact" size="sm" />
       </div>
-      <p className="mt-1 text-xs text-[var(--color-text-muted)]">{sig}</p>
+      <p className={`mt-1 text-xs ${tone ?? "text-[var(--color-text-muted)]"}`}>{sig}</p>
     </article>
   );
 }

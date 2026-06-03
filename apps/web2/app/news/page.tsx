@@ -5,6 +5,7 @@
 // rows without tone are shown with a neutral muted indicator.
 
 import { MetricTooltip } from "@/components/ui";
+import { humanizeEnum } from "@/lib/coachLabels";
 import { apiGet, isLive, type NewsItem as ApiNews } from "@/lib/api";
 
 interface NewsItem {
@@ -14,6 +15,7 @@ interface NewsItem {
   url: string;
   published_at: string;
   tone: number;
+  tone_label: string | null;
   tickers: string[];
 }
 
@@ -25,8 +27,24 @@ function adapt(n: ApiNews): NewsItem {
     url: n.url,
     published_at: n.published_at,
     tone: n.tone_score ?? 0,
+    tone_label: n.tone_label,
     tickers: [], // ticker enrichment isn't on /v1/news yet
   };
+}
+
+// FinBERT-tone 3-class enum (positive | neutral | negative ; "mixed" defensive)
+// → coach FR. The backend keeps the English enum verbatim ; this is the single
+// place it becomes readable. Falls through to humanizeEnum for any unforeseen
+// value (doctrine #11 : degrade to readable, never show a raw enum).
+const TONE_LABEL_FR: Record<string, string> = {
+  positive: "positif",
+  negative: "négatif",
+  neutral: "neutre",
+  mixed: "mitigé",
+};
+function toneLabelFr(label: string | null): string | null {
+  if (label == null || label === "") return null;
+  return TONE_LABEL_FR[label.toLowerCase()] ?? humanizeEnum(label);
 }
 
 const MOCK_NEWS: NewsItem[] = [
@@ -37,6 +55,7 @@ const MOCK_NEWS: NewsItem[] = [
     url: "https://example.com/n1",
     published_at: "2026-05-04T07:18:00Z",
     tone: 0.32,
+    tone_label: "positive",
     tickers: ["EUR", "ECB"],
   },
   {
@@ -46,6 +65,7 @@ const MOCK_NEWS: NewsItem[] = [
     url: "https://example.com/n2",
     published_at: "2026-05-04T06:45:00Z",
     tone: -0.41,
+    tone_label: "negative",
     tickers: ["NVDA", "MSFT", "GOOGL", "META"],
   },
   {
@@ -55,6 +75,7 @@ const MOCK_NEWS: NewsItem[] = [
     url: "https://example.com/n3",
     published_at: "2026-05-04T06:30:00Z",
     tone: 0.55,
+    tone_label: "positive",
     tickers: ["USD", "Fed"],
   },
   {
@@ -64,6 +85,7 @@ const MOCK_NEWS: NewsItem[] = [
     url: "https://example.com/n4",
     published_at: "2026-05-04T05:12:00Z",
     tone: -0.62,
+    tone_label: "negative",
     tickers: ["China", "PBoC"],
   },
   {
@@ -73,6 +95,7 @@ const MOCK_NEWS: NewsItem[] = [
     url: "https://example.com/n5",
     published_at: "2026-05-04T04:55:00Z",
     tone: -0.71,
+    tone_label: "negative",
     tickers: ["Israel", "Iran"],
   },
 ];
@@ -101,7 +124,7 @@ export default async function NewsPage() {
     <div className="container mx-auto max-w-4xl px-6 py-12">
       <header className="mb-8 space-y-3">
         <p className="font-mono text-xs uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
-          News · feed unifié 12h glissantes · {news.length} headlines{" "}
+          Actualités · flux unifié 12h glissantes · {news.length} titres{" "}
           <span
             aria-label={apiOnline ? "API online" : "API offline"}
             className="ml-1 inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[9px] uppercase tracking-widest"
@@ -115,10 +138,10 @@ export default async function NewsPage() {
           </span>
         </p>
         <h1 data-editorial className="text-5xl tracking-tight text-[var(--color-text-primary)]">
-          News
+          Actualités
         </h1>
         <p className="max-w-prose text-[var(--color-text-secondary)]">
-          Headlines aggregées RSS + Polygon News (ticker-linked) + GDELT 2.0 events. Tone enrichi
+          Titres agrégés RSS + Polygon News (liés aux tickers) + événements GDELT 2.0. Ton enrichi
           par{" "}
           <MetricTooltip
             term="analyse du ton des actualités"
@@ -128,7 +151,7 @@ export default async function NewsPage() {
           >
             analyse du ton des actualités
           </MetricTooltip>{" "}
-          en post-traitement. Filtre ticker-linked sur la page asset drill-down.
+          en post-traitement. Filtre par ticker sur la page de détail de l&apos;actif.
         </p>
       </header>
 
@@ -151,10 +174,9 @@ export default async function NewsPage() {
               <span
                 className="ml-auto font-mono tabular-nums"
                 style={{ color: toneColor(n.tone) }}
-                aria-label={`Tone ${n.tone.toFixed(2)}`}
+                aria-label={`Ton ${toneLabelFr(n.tone_label) ?? n.tone.toFixed(2)}`}
               >
-                tone {n.tone > 0 ? "+" : ""}
-                {n.tone.toFixed(2)}
+                ton {toneLabelFr(n.tone_label) ?? `${n.tone > 0 ? "+" : ""}${n.tone.toFixed(2)}`}
               </span>
             </header>
             <a

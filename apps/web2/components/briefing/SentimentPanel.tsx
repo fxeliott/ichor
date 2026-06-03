@@ -21,6 +21,7 @@
 import { m } from "motion/react";
 
 import type { PositioningEntry } from "@/lib/api";
+import { contrarianTiltFr, intensityFr } from "@/lib/coachLabels";
 
 // Ichor priority asset → MyFXBook pair label (no underscore).
 const ASSET_TO_MYFXBOOK: Record<string, string | null> = {
@@ -115,16 +116,21 @@ export function SentimentPanel({ entries, asset, hideHeader }: SentimentPanelPro
               {asset.replace("_", "/")}
             </span>
             <span className={`font-serif text-lg ${TILT_TONE[focus.contrarian_tilt]}`}>
-              {TILT_GLYPH[focus.contrarian_tilt]} à contre-courant · {focus.contrarian_tilt}
+              {TILT_GLYPH[focus.contrarian_tilt]} à contre-courant ·{" "}
+              {contrarianTiltFr(focus.contrarian_tilt)}
             </span>
           </div>
           <div className="mt-3">
             <div className="mb-1.5 flex justify-between font-mono text-xs tabular-nums">
-              <span className="text-[var(--color-bull)]">{focus.long_pct.toFixed(0)}% long</span>
-              <span className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)]">
-                {focus.intensity}
+              <span className="text-[var(--color-bull)]">
+                {focus.long_pct.toFixed(0)}% à l&apos;achat
               </span>
-              <span className="text-[var(--color-bear)]">{focus.short_pct.toFixed(0)}% short</span>
+              <span className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)]">
+                {intensityFr(focus.intensity)}
+              </span>
+              <span className="text-[var(--color-bear)]">
+                {focus.short_pct.toFixed(0)}% à la vente
+              </span>
             </div>
             <SplitBar longPct={focus.long_pct} shortPct={focus.short_pct} />
           </div>

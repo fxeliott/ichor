@@ -39,6 +39,7 @@ import { m } from "motion/react";
 import type { ReactElement } from "react";
 
 import type { EventAnticipationOut, EventProximityFactorOut, UpcomingEventOut } from "@/lib/api";
+import { impactFr } from "@/lib/coachLabels";
 import {
   CONFIDENCE_FR,
   CURRENCY_FR,
@@ -147,7 +148,7 @@ function EngagedBody({ factor }: { factor: EventProximityFactorOut }): ReactElem
             {factor.next_event_impact ? (
               <>
                 <Sep />
-                <span className="uppercase tracking-wide">{factor.next_event_impact}</span>
+                <span className="tracking-wide">{impactFr(factor.next_event_impact)}</span>
               </>
             ) : null}
           </span>
@@ -310,7 +311,7 @@ function StandbyRow({ event }: { event: UpcomingEventOut }): ReactElement {
           <Sep />
           {currencyLabel}
           <Sep />
-          <span className="uppercase tracking-wide">{event.impact}</span>
+          <span className="tracking-wide">{impactFr(event.impact)}</span>
           <Sep />
           {dateStr} {timeStr} Paris
         </span>

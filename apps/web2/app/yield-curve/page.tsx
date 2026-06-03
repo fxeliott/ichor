@@ -5,6 +5,8 @@
 // never crashes during dev or partial outages.
 
 import { BiasIndicator, MetricTooltip } from "@/components/ui";
+import { yieldShapeFr } from "@/lib/coachLabels";
+import { humanizeMetrics } from "@/lib/fredLabels";
 import { apiGet, isLive, type YieldCurveStandalone } from "@/lib/api";
 import { linScale, svgCoord } from "@/lib/microchart";
 
@@ -51,7 +53,7 @@ const FALLBACK: YieldCurveStandalone = {
   real_yield_10y: 1.92,
   inverted_segments: 4,
   shape: "inverted_short",
-  note: "2Y-10Y inverted → growth premium compressed, USD haven flows expected",
+  note: "Écart 2 − 10 ans inversé → prime de croissance comprimée, flux refuge attendus sur le dollar",
   sources: [],
 };
 
@@ -80,31 +82,31 @@ export default async function YieldCurvePage() {
 
   const spreads = [
     {
-      label: "10Y - 2Y",
+      label: "10 ans − 2 ans",
       value: data.slope_2y_10y !== null ? Math.round(data.slope_2y_10y * 100) : null,
       bias:
         data.slope_2y_10y !== null && data.slope_2y_10y < 0 ? ("bear" as const) : ("bull" as const),
-      sig: data.slope_2y_10y !== null && data.slope_2y_10y < 0 ? "inverted" : "normal",
+      sig: data.slope_2y_10y !== null && data.slope_2y_10y < 0 ? "inversé" : "normal",
     },
     {
-      label: "10Y - 3M",
+      label: "10 ans − 3 mois",
       value: data.slope_3m_10y !== null ? Math.round(data.slope_3m_10y * 100) : null,
       bias:
         data.slope_3m_10y !== null && data.slope_3m_10y < 0 ? ("bear" as const) : ("bull" as const),
-      sig: data.slope_3m_10y !== null && data.slope_3m_10y < 0 ? "deeply inverted" : "normal",
+      sig: data.slope_3m_10y !== null && data.slope_3m_10y < 0 ? "fortement inversé" : "normal",
     },
     {
-      label: "30Y - 5Y",
+      label: "30 ans − 5 ans",
       value: data.slope_5y_30y !== null ? Math.round(data.slope_5y_30y * 100) : null,
       bias:
         data.slope_5y_30y !== null && data.slope_5y_30y < 0 ? ("bear" as const) : ("bull" as const),
-      sig: data.slope_5y_30y !== null && data.slope_5y_30y > 0.5 ? "term premium" : "compressed",
+      sig: data.slope_5y_30y !== null && data.slope_5y_30y > 0.5 ? "prime de terme" : "comprimé",
     },
     {
-      label: "Real 10Y",
+      label: "Taux réel 10 ans",
       value: data.real_yield_10y !== null ? Math.round(data.real_yield_10y * 100) : null,
       bias: "bull" as const,
-      sig: data.real_yield_10y !== null ? `TIPS ${data.real_yield_10y.toFixed(2)} %` : "n/a",
+      sig: data.real_yield_10y !== null ? `TIPS ${data.real_yield_10y.toFixed(2)} %` : "n.d.",
     },
   ];
 
@@ -112,31 +114,31 @@ export default async function YieldCurvePage() {
     <div className="container mx-auto max-w-5xl px-6 py-12">
       <header className="mb-8 space-y-3">
         <p className="font-mono text-xs uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
-          Yield curve · US Treasury ·{" "}
+          Courbe des taux · Trésor US ·{" "}
           <span style={{ color: isOffline ? "var(--color-warn)" : "var(--color-bull)" }}>
-            {isOffline ? "▼ offline · seed" : "▲ live"}
+            {isOffline ? "▼ indisponible · exemple" : "▲ en direct"}
           </span>{" "}
-          · shape: {data.shape}
+          · forme : {yieldShapeFr(data.shape)}
         </p>
         <h1 data-editorial className="text-5xl tracking-tight text-[var(--color-text-primary)]">
-          Yield curve
+          Courbe des taux
         </h1>
         <p className="max-w-prose text-[var(--color-text-secondary)]">
           La forme de la{" "}
           <MetricTooltip
-            term="yield curve"
-            definition="Trace des yields Treasury par tenor (3M → 30Y). Forme normale = ascendante. Inversée (10Y < 2Y) = signal récession historique fiable. Steepening rapide = repricing croissance + inflation."
+            term="courbe des taux"
+            definition="Trace les taux du Trésor US par échéance (3 mois → 30 ans). Forme normale = ascendante. Inversée (10 ans < 2 ans) = signal de récession historiquement fiable. Pentification rapide = réévaluation de la croissance et de l'inflation."
             glossaryAnchor="yield-curve"
             density="compact"
           >
-            yield curve
+            courbe des taux
           </MetricTooltip>{" "}
           conditionne la transmission du resserrement monétaire et signale les régimes de récession
-          (inversion 10Y - 2Y).
+          (inversion 10 ans − 2 ans).
         </p>
         {data.note ? (
           <p className="rounded-md border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)] px-3 py-2 font-mono text-xs text-[var(--color-text-secondary)]">
-            {data.note}
+            {humanizeMetrics(data.note)}
           </p>
         ) : null}
       </header>
@@ -162,7 +164,7 @@ function CurveChart({ points }: { points: RenderTenor[] }) {
     return (
       <section className="mb-8 rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-6">
         <p className="font-mono text-xs text-[var(--color-text-muted)]">
-          (no FRED yields available — collector may be lagging)
+          (aucun taux disponible pour le moment — la collecte de données est peut-être en retard)
         </p>
       </section>
     );
@@ -195,13 +197,13 @@ function CurveChart({ points }: { points: RenderTenor[] }) {
   return (
     <section className="mb-8 rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-6">
       <h2 className="mb-4 font-mono text-xs uppercase tracking-widest text-[var(--color-text-muted)]">
-        US Treasury curve · log-x tenor
+        Courbe du Trésor US · échéance en échelle log
       </h2>
       <svg
         viewBox={`0 0 ${W} ${H}`}
         width="100%"
         role="img"
-        aria-label={`US yield curve from ${points[0]?.label} ${points[0]?.yield_pct}% to ${points[points.length - 1]?.label} ${points[points.length - 1]?.yield_pct}%`}
+        aria-label={`Courbe des taux US, de ${points[0]?.label} ${points[0]?.yield_pct}% à ${points[points.length - 1]?.label} ${points[points.length - 1]?.yield_pct}%`}
         className="block"
       >
         <line
@@ -291,16 +293,16 @@ function CurveTable({ points }: { points: RenderTenor[] }) {
   return (
     <section className="rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-6">
       <h2 className="mb-4 font-mono text-xs uppercase tracking-widest text-[var(--color-text-muted)]">
-        Tenors
+        Échéances
       </h2>
       <table className="w-full font-mono text-xs">
         <thead>
           <tr className="border-b border-[var(--color-border-default)] text-left">
             <th className="py-2 pr-3 text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
-              Tenor
+              Échéance
             </th>
             <th className="py-2 pr-3 text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
-              Yield
+              Taux
             </th>
             <th className="py-2 text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
               Δ 24h

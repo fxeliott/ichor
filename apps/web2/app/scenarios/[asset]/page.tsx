@@ -11,6 +11,7 @@
 
 import { BiasIndicator, MetricTooltip } from "@/components/ui";
 import { MobileGate } from "@/components/ui/mobile-gate";
+import { humanizeEnum, regimeLabel, sessionTypeFr } from "@/lib/coachLabels";
 import {
   apiGet,
   isLive,
@@ -214,9 +215,9 @@ function Live3ScenarioModel({ data }: { data: ScenariosResponse }) {
     ScenariosResponse["scenarios"][number]["kind"],
     { label: string; color: string }
   > = {
-    continuation: { label: "Continuation", color: "var(--color-bull)" },
-    reversal: { label: "Reversal", color: "var(--color-bear)" },
-    sideways: { label: "Sideways", color: "var(--color-neutral)" },
+    continuation: { label: "Poursuite", color: "var(--color-bull)" },
+    reversal: { label: "Retournement", color: "var(--color-bear)" },
+    sideways: { label: "Range / Sans tendance", color: "var(--color-neutral)" },
   };
   return (
     <section
@@ -225,11 +226,11 @@ function Live3ScenarioModel({ data }: { data: ScenariosResponse }) {
     >
       <header className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
         <p className="font-mono text-[10px] uppercase tracking-widest text-[var(--color-bull)]">
-          ▲ Live · 3-scenario model · session {data.session_type}
+          ▲ Live · 3-scenario model · séance {sessionTypeFr(data.session_type)}
         </p>
         <p className="font-mono text-[10px] text-[var(--color-text-muted)]">
-          regime {data.regime ?? "—"} · conviction {data.conviction_pct.toFixed(0)}%
-          {data.sources.includes("latest_session_card") && " · ← latest card"}
+          régime {regimeLabel(data.regime)} · conviction {data.conviction_pct.toFixed(0)}%
+          {data.sources.includes("latest_session_card") && " · ← dernière carte"}
         </p>
       </header>
       <div className="mb-3 flex h-7 w-full overflow-hidden rounded">
@@ -377,7 +378,7 @@ function ScenarioCard({ scenario }: { scenario: Scenario }) {
             className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--color-accent-cobalt-bright)]"
           />
           <span className="font-mono text-[10px] uppercase tracking-widest text-[var(--color-accent-cobalt-bright)]">
-            Scénario-ancre : {scenario.counterfactual_anchor}
+            Scénario-ancre : {humanizeEnum(scenario.counterfactual_anchor)}
           </span>
         </div>
       )}

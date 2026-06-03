@@ -14,6 +14,7 @@
 //     SessionCardOut schema to expose trade plan + confluence drivers).
 
 import { MetricTooltip, SessionCard, type Trigger } from "@/components/ui";
+import { biasFr, impactFr } from "@/lib/coachLabels";
 import {
   apiGet,
   isLive,
@@ -122,7 +123,7 @@ export default async function TodayPage() {
 
   if (bundleOnline) {
     merged = adaptTodayBundleToTriggers(bundle);
-    sourceLabel = "Today bundle";
+    sourceLabel = "flux du jour";
   } else {
     const [cal, ffEvents] = await Promise.all([
       apiGet<CalendarUpcoming>("/v1/calendar/upcoming?horizon_days=2", { revalidate: 30 }),
@@ -139,10 +140,10 @@ export default async function TodayPage() {
       calOnline && ffOnline
         ? "FRED + ForexFactory"
         : calOnline
-          ? "FRED only"
+          ? "FRED seul"
           : ffOnline
-            ? "ForexFactory only"
-            : "mock";
+            ? "ForexFactory seul"
+            : "données de démo";
   }
 
   const apiOnline = bundleOnline || calOnline || ffOnline;
@@ -174,7 +175,7 @@ function Header({
       <p className="font-mono text-xs uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
         Pré-Londres · 2026-05-04 · 07:42 UTC{" "}
         <span
-          aria-label={apiOnline ? "API online" : "API offline"}
+          aria-label={apiOnline ? "Données en direct" : "Données hors ligne"}
           className="ml-1 inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[9px] uppercase tracking-widest"
           style={{
             color: apiOnline ? "var(--color-bull)" : "var(--color-bear)",
@@ -184,17 +185,18 @@ function Header({
           <span aria-hidden="true">{apiOnline ? "▲" : "▼"}</span>
           {apiOnline
             ? eventsCount !== null
-              ? `live · ${eventsCount} events · ${sourceLabel}`
-              : `live · ${sourceLabel}`
-            : "offline · mock"}
+              ? `en direct · ${eventsCount} événements · ${sourceLabel}`
+              : `en direct · ${sourceLabel}`
+            : "hors ligne · données de démo"}
         </span>
       </p>
       <h1 data-editorial className="text-5xl tracking-tight text-[var(--color-text-primary)]">
         Aujourd&apos;hui
       </h1>
       <p className="max-w-prose text-[var(--color-text-secondary)]">
-        Checklist pré-session, top 3 opportunités ranked par conviction × régime fit × confluence,
-        et calendrier d&apos;events sur la fenêtre H-4h → H+1h des sessions Londres et NY.
+        Checklist pré-session, top 3 opportunités classées par conviction × adéquation au régime ×
+        confluence, et calendrier d&apos;événements sur la fenêtre H-4h → H+1h des sessions Londres
+        et NY.
       </p>
     </header>
   );
@@ -240,7 +242,7 @@ function LiveSessionCard({
       }}
       thesis={
         session.thesis ??
-        `Card ${display} · ${session.bias_direction} ${Math.round(session.conviction_pct)} % — détail dans /sessions/${session.asset.toLowerCase()}.`
+        `Carte ${display} · ${biasFr(session.bias_direction)} ${Math.round(session.conviction_pct)} % — détail dans /sessions/${session.asset.toLowerCase()}.`
       }
       triggers={triggers}
       invalidation={{
@@ -260,27 +262,6 @@ function LiveSessionCard({
           : [],
       }}
       calibration={{ brier: 0, sampleSize: 0, trend: "neutral" }}
-      trade={
-        tp
-          ? {
-              entryLow: tp.entry_low,
-              entryHigh: tp.entry_high,
-              invalidationLevel: tp.invalidation_level,
-              invalidationCondition: tp.invalidation_condition,
-              tpRR3: tp.tp_rr3,
-              tpRR15: tp.tp_rr15 ?? tp.tp_rr3 * 1.4,
-              partialScheme: tp.partial_scheme,
-            }
-          : {
-              entryLow: 0,
-              entryHigh: 0,
-              invalidationLevel: 0,
-              invalidationCondition: "voir card détail",
-              tpRR3: 0,
-              tpRR15: 0,
-              partialScheme: "—",
-            }
-      }
     />
   );
 }
@@ -300,7 +281,7 @@ function ChecklistSection({ triggers }: { triggers: Trigger[] }) {
           id: "calendar",
           question: "Pas de catalyst surprise ?",
           status: "caution",
-          detail: `${next2h.length} high-impact event${next2h.length > 1 ? "s" : ""} dans les 2h : ${next2h
+          detail: `${next2h.length} événement${next2h.length > 1 ? "s" : ""} à fort impact dans les 2h : ${next2h
             .map((t) => t.label)
             .slice(0, 2)
             .join(" · ")}`,
@@ -309,11 +290,12 @@ function ChecklistSection({ triggers }: { triggers: Trigger[] }) {
           id: "calendar",
           question: "Pas de catalyst surprise ?",
           status: "go",
-          detail: "Pas de high-impact event dans les 2h prochaines",
+          detail: "Pas d'événement à fort impact dans les 2h prochaines",
         };
   const checklist: ChecklistItem[] = CHECKLIST.map((c) => (c.id === "calendar" ? calendarItem : c));
   const goCount = checklist.filter((c) => c.status === "go").length;
-  const verdict = goCount >= 4 ? "GO" : goCount >= 3 ? "GO conditional" : "NO-GO";
+  const verdict =
+    goCount >= 4 ? "Feu vert" : goCount >= 3 ? "Feu vert sous conditions" : "À éviter aujourd'hui";
   const verdictBias = goCount >= 4 ? "bull" : goCount >= 3 ? "neutral" : "bear";
 
   return (
@@ -366,15 +348,15 @@ function ChecklistSection({ triggers }: { triggers: Trigger[] }) {
 
 function StatusBadge({ status }: { status: ChecklistItem["status"] }) {
   const map = {
-    go: { label: "GO", glyph: "▲", color: "var(--color-bull)" },
-    caution: { label: "PRUDENCE", glyph: "━", color: "var(--color-warn)" },
-    no_go: { label: "NO-GO", glyph: "▼", color: "var(--color-bear)" },
+    go: { label: "Feu vert", glyph: "▲", color: "var(--color-bull)" },
+    caution: { label: "Prudence", glyph: "━", color: "var(--color-warn)" },
+    no_go: { label: "À éviter", glyph: "▼", color: "var(--color-bear)" },
   } as const;
   const m = map[status];
   return (
     <span
       role="status"
-      aria-label={`Status: ${m.label}`}
+      aria-label={`Statut : ${m.label}`}
       className="ml-2 inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-widest"
       style={{ color: m.color }}
     >
@@ -398,18 +380,18 @@ function BestOppsSection({
     <section className="mb-16 space-y-4">
       <div className="flex items-baseline justify-between">
         <h2 className="font-mono text-xs uppercase tracking-widest text-[var(--color-text-muted)]">
-          Top {hasLive ? topSessions.length : 3} opportunities · ranked
+          Top {hasLive ? topSessions.length : 3} opportunités · classées
         </h2>
         <p className="text-xs text-[var(--color-text-muted)]">
           Score{" "}
           <MetricTooltip
-            term="conviction × régime fit × confluence"
-            title="Best-opp score"
-            definition="Multiplie 3 scalaires en [0,1]: conviction de l'analyse par actif, régime fit (corrobore le quadrant macro courant), score de confluence. Range [0, 1]."
+            term="conviction × adéquation au régime × confluence"
+            title="Score des meilleures opportunités"
+            definition="Multiplie 3 scalaires entre 0 et 1 : conviction de l'analyse par actif, adéquation au régime (corrobore le quadrant macro courant), score de confluence. Plage [0, 1]."
             glossaryAnchor="best-opp-score"
             density="compact"
           >
-            (conviction × régime fit × confluence)
+            (conviction × adéquation au régime × confluence)
           </MetricTooltip>
         </p>
       </div>
@@ -430,9 +412,9 @@ function BestOppsSection({
             timestamp={NOW}
             conviction={{ bias: "bull", value: 72 }}
             magnitude={{ low: 18, high: 32, unit: "pips" }}
-            thesis="EUR support 1.0820 + ECB hawkish bias 8h30 + DXY weakness post-PCE faible. Long sur retest 1.0850–1.0860 H1."
+            thesis="Support EUR à 1.0820 + ton ECB plutôt restrictif à 8h30 + dollar affaibli après un PCE faible. Zone 1.0850–1.0860 à surveiller en H1."
             triggers={cardTriggers}
-            invalidation={{ level: 1.082, condition: "close H1 sous low Asian" }}
+            invalidation={{ level: 1.082, condition: "clôture H1 sous le plus bas asiatique" }}
             crossAsset={[
               { symbol: "DXY", bias: "bear", value: 0.32 },
               { symbol: "US10Y", bias: "bull", value: 4.18 },
@@ -442,38 +424,32 @@ function BestOppsSection({
               { symbol: "SPX", bias: "bull", value: 0.42 },
             ]}
             ideas={{
-              top: "Long zone 1.0850–1.0860 retest",
-              supporting: ["DXY breakdown 105.20", "Real yield diff favorable"],
-              risks: ["Surprise dovish Lagarde", "US10Y >4.30 squeeze"],
+              top: "Zone 1.0850–1.0860 à surveiller (retest H1)",
+              supporting: [
+                "Cassure du dollar sous 105.20",
+                "Écart de taux réels favorable à l'euro",
+              ],
+              risks: ["Surprise accommodante de Lagarde", "Tension si le 10 ans US dépasse 4,30 %"],
             }}
             confluence={{
               score: 7.2,
               drivers: [
-                { factor: "DXY directional alignment", contribution: 0.28 },
-                { factor: "Real yields differential", contribution: 0.22 },
-                { factor: "Polymarket Fed-cut shift", contribution: 0.15 },
-                { factor: "Asian range expansion", contribution: 0.09 },
-                { factor: "GDELT sentiment EU", contribution: -0.06 },
+                { factor: "Alignement directionnel du dollar", contribution: 0.28 },
+                { factor: "Différentiel de taux réels", contribution: 0.22 },
+                { factor: "Bascule Polymarket sur une baisse Fed", contribution: 0.15 },
+                { factor: "Expansion du range asiatique", contribution: 0.09 },
+                { factor: "Sentiment GDELT zone euro", contribution: -0.06 },
               ],
             }}
             calibration={{ brier: 0.142, sampleSize: 87, trend: "bull" }}
-            trade={{
-              entryLow: 1.085,
-              entryHigh: 1.086,
-              invalidationLevel: 1.082,
-              invalidationCondition: "close H1",
-              tpRR3: 1.094,
-              tpRR15: 1.13,
-              partialScheme: "90 % @ RR3 · trail 10 % vers RR15+",
-            }}
           />
         )}
       </div>
 
       {!hasLive ? (
         <p className="mt-3 text-xs text-[var(--color-text-muted)]">
-          Seed data — la section affiche le top 3 réel dès que{" "}
-          <code className="font-mono">/v1/today</code> renvoie au moins une session card.
+          Données de démonstration — la section affiche le vrai top 3 dès que{" "}
+          <code className="font-mono">/v1/today</code> renvoie au moins une carte de session.
         </p>
       ) : null}
     </section>
@@ -508,7 +484,7 @@ function CalendarSection({ events }: { events: Trigger[] }) {
                   className="ml-auto inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-widest text-[var(--color-warn)]"
                 >
                   <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-warn)]" />
-                  high impact
+                  {impactFr(e.importance)} impact
                 </span>
               )}
             </li>
