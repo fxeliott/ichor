@@ -10,6 +10,14 @@
 
 ---
 
+## §1 — Current state (2026-06-03 — quantum-leap Phases 0-7 ALL MERGED ; §10 deep-dive ELEVATION + content COHERENCE shipped ; `main = c877d04`)
+
+The 7-phase quantum-leap (pipeline rescue → Phase 7 streaming cadence) + the coach-FR content fix are all merged (`df5fa7c`). On top, the **2026-06-03 §10 frontend ELEVATION + content COHERENCE** is merged + deployed + witnessed (PR #177 elevation `b141b05` → #178 docs `5c715df` → #179 header↔verdict fix `c877d04`) — NOT a rebuild (OKLCH design system kept). Shipped: persistent `<VerdictStickyChip>` ; mobile section-nav (edge-fade + auto-scroll) ; GlowCard touch feedback ; 2-column dense sections (E/F) ; landing macro labels → coach-FR (+ `RISK_BAND_TONE` bug) ; `lib/fredLabels.ts` humanizing raw FRED codes (raw kept as tooltip) ; header bias/regime FR ; expired-verdict 410→200 "session terminée" ; **header now defers to the canonical verdict (kills the header↔verdict contradiction)**. typecheck 0 / vitest 675 / build OK / api 60 ; R-DEPLOY-6 api+web2 ; witnessed prod desktop+mobile 0 console error ; double-verified (independent verifier = CLEAN + hard-challenge audit). Voie D + ADR-017 + ADR-079 held ; ZERO Anthropic spend.
+
+**NEXT** : ⭐ **coherence pass 2** — the hard-challenge audit found **15 content-coherence leaks OUTSIDE /briefing** (secondary nav routes /today, /sessions, /scenarios, /replay, /macro-pulse, /yield-curve, /polymarket, /geopolitics + `components/ui/session-card.tsx`) ; precise backlog in `memory/ichor_coherence_backlog_2026-06-03.md`. **#1 = decide ADR-017/§6.8 on the legacy `session-card.tsx` "Trade plan / SL / TP" block** (potential no-TP/SL boundary surface). Then **stable URL** (named cloudflared tunnel — Eliot CF action ; auto-restart already live). Detail : [`SESSION_LOG_2026-06-03-frontend-elevation.md`](SESSION_LOG_2026-06-03-frontend-elevation.md).
+
+### Pre-2026-06-03 line preserved
+
 ## §1 — Current state (2026-06-02 QUANTUM-LEAP — pipeline rescued, 7-phase "make Ichor alive" plan in flight)
 
 The active plan is `ichor_quantum_leap_plan.md` (memory): 9 evidence-based gaps → 7 sequenced phases to make Ichor genuinely _alive_ where Eliot looks (live verdict + notify + Opus-everywhere + live web research). Eliot authorized everything (Tier A + all Tier B).

@@ -168,3 +168,50 @@ tagged) · full-Opus / ADR-108 unchanged (this session added no Ichor LLM call) 
 atomic Conventional commits → PR #177 → squash-merge AFTER prod witness ·
 anti-doublon (Glob+Read before creating `fredLabels.ts` / `VerdictStickyChip.tsx`).
 ZERO Anthropic API spend.
+
+---
+
+## Session-close hard-challenge (2026-06-03 PM) — found + fixed/documented real gaps
+
+Eliot challenged "are you SURE you treated 100% ?". A genuine re-challenge (an
+independent `verifier` sub-agent + an exhaustive `researcher` coherence-audit
+sub-agent + live API checks) surfaced that "100 % coherent" had been
+**scoped to /briefing** — gaps remained:
+
+1. **Header↔verdict contradiction (FIXED — PR #179 → main `c877d04`).** The
+   `/briefing` header rendered the RAW card bias prominently (e.g. "▲ Haussier
+   32 %") while the apex `<SessionVerdictPanel>` + the new sticky chip showed
+   the canonical "Neutre · 0 % · ne pas prendre position". Live: 4/5 assets
+   divergent (every verdict neutral 0 % under `low_volatility`/`no_setup`
+   tradeability today, vs card biases short/long 18-34 %) — exactly the
+   "contradictions partout" class. Fix: `BriefingHeader` now derives its
+   directional readout + conviction from the SSR verdict (card fallback) →
+   header + apex + chip agree. Witnessed prod: header "◆ Neutre · 0 %", 0
+   console error. Residual (minor): the LLM `card.thesis` prose still cites the
+   raw card conviction ("biais baissier 28 %"), self-explained by "edge faible"
+   — backend narrative, not a frontend label.
+
+2. **15 content-coherence leaks OUTSIDE /briefing (DOCUMENTED, not fixed).**
+   The coherence-audit sub-agent found raw enums / English jargon rendered on
+   the secondary nav routes (`/today`, `/sessions`, `/sessions/[asset]`,
+   `/scenarios`, `/replay`, `/macro-pulse`, `/yield-curve`, `/polymarket`,
+   `/geopolitics`) + the shared `components/ui/session-card.tsx` — none in the
+   freshly-fixed /briefing render path. Precise file:line backlog saved to
+   `~/.claude/projects/D--Ichor/memory/ichor_coherence_backlog_2026-06-03.md`.
+   **🔴 #1 to decide with Eliot**: `session-card.tsx:261-277` renders a "Trade
+   plan / Entry zone / SL / TP @ RR3" block (on /today + /sessions) — a
+   potential ADR-017 / owner-§6.8 ("jamais de TP/SL") surface on the legacy
+   /sessions route. Pre-existing, not introduced this session; needs a product
+   decision (strip the block, or deprecate /sessions). Recommended as a focused
+   "coherence pass 2" session.
+
+3. **Stale forward docs (REFRESHED).** ROADMAP §1 still said "Phases 1→7 NEXT"
+   (they're merged) and the durable pickup `ichor_next_session_prompt.md` still
+   said `origin/main = df5fa7c` with the elevation "TODO". Both refreshed to the
+   true state (this commit + the memory pickups).
+
+**Lesson**: a confident "it's clean" repeated is not proof — the hard-challenge
+sub-agents were right to look. /briefing (Eliot's PRIMARY daily surface) is
+coherent + the header contradiction is fixed; the secondary-route coherence is
+a precise, documented backlog (nothing lost). Voie D + ADR-017 held; ZERO
+Anthropic spend.
