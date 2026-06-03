@@ -8,6 +8,7 @@
 import Link from "next/link";
 
 import { BiasIndicator } from "@/components/ui";
+import { criticVerdictFr, regimeLabel, sessionTypeFr } from "@/lib/coachLabels";
 import { apiGet, isLive, type SessionCardList } from "@/lib/api";
 
 export const metadata = {
@@ -105,7 +106,7 @@ export default async function SessionsIndexPage() {
                 />
               </header>
               <p className="mt-2 text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
-                {card.session_type.replace(/_/g, " ")}
+                {sessionTypeFr(card.session_type)}
               </p>
               <p className="mt-1 font-mono text-xs text-[var(--color-text-secondary)]">
                 conviction {card.conviction_pct.toFixed(0)} %
@@ -117,12 +118,12 @@ export default async function SessionsIndexPage() {
               ) : null}
               {card.regime_quadrant ? (
                 <p className="mt-1 font-mono text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
-                  régime · {card.regime_quadrant}
+                  régime · {regimeLabel(card.regime_quadrant)}
                 </p>
               ) : null}
               {card.critic_verdict ? (
                 <p className="mt-2 font-mono text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
-                  critic · {card.critic_verdict}
+                  contrôle · {criticVerdictFr(card.critic_verdict)}
                 </p>
               ) : null}
             </Link>

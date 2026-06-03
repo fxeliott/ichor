@@ -83,7 +83,7 @@ export default async function GeopoliticsPage() {
         <p className="font-mono text-xs uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
           Géopolitique · GPR + GDELT 2.0
           {nEvents !== null && (
-            <span className="text-[var(--color-text-muted)]/70"> · {nEvents} events 24h</span>
+            <span className="text-[var(--color-text-muted)]/70"> · {nEvents} événements 24h</span>
           )}{" "}
           <span
             aria-label={apiOnline ? "API online" : "API offline"}
@@ -129,27 +129,27 @@ export default async function GeopoliticsPage() {
           value={gprTotal.toFixed(1)}
           delta={1.4}
           bias="bear"
-          sub="vs 30d avg"
+          sub="vs moyenne 30j"
         />
         <Stat
-          label="Events Goldstein < -5"
+          label="Événements Goldstein < -5"
           value={String(RECENT_EVENTS.filter((e) => e.goldstein < -5).length)}
           delta={1}
           bias="bear"
-          sub="last 6h"
+          sub="dernières 6h"
         />
         <Stat
-          label="Hotspots actifs"
+          label="Points chauds actifs"
           value={String(HOTSPOTS.length)}
           delta={0}
           bias="neutral"
-          sub="region count"
+          sub="nombre de régions"
         />
       </section>
 
       <section className="mb-6 rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-4">
         <h2 className="mb-3 font-mono text-xs uppercase tracking-widest text-[var(--color-text-muted)]">
-          Hotspots map · equirectangular (placeholder)
+          Carte des points chauds · équirectangulaire (provisoire)
         </h2>
         <WorldMap hotspots={HOTSPOTS} />
         <p className="mt-2 text-xs text-[var(--color-text-muted)]">
@@ -163,22 +163,22 @@ export default async function GeopoliticsPage() {
       {liveCountries.length > 0 && (
         <section className="mb-6 rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-6">
           <h2 className="mb-3 font-mono text-xs uppercase tracking-widest text-[var(--color-text-muted)]">
-            Top countries · GDELT activity 24h (live)
+            Principaux pays · activité GDELT 24h (en direct)
           </h2>
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-[var(--color-border-default)] text-left">
                 <th className="py-2 pr-3 font-mono text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
-                  Country
+                  Pays
                 </th>
                 <th className="py-2 pr-3 font-mono text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
-                  Events
+                  Événements
                 </th>
                 <th className="py-2 pr-3 font-mono text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
-                  Mean tone
+                  Ton moyen
                 </th>
                 <th className="py-2 font-mono text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
-                  Most-negative headline
+                  Titre le plus négatif
                 </th>
               </tr>
             </thead>
@@ -201,7 +201,7 @@ export default async function GeopoliticsPage() {
                         unit="%"
                         variant="compact"
                         size="xs"
-                        ariaLabel={`Mean tone ${c.mean_tone}, ${toneBias}`}
+                        ariaLabel={`Ton moyen ${c.mean_tone}, ${toneBias}`}
                       />
                     </td>
                     <td className="py-2 text-xs text-[var(--color-text-secondary)]">
@@ -217,25 +217,25 @@ export default async function GeopoliticsPage() {
 
       <section className="rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-6">
         <h2 className="mb-4 font-mono text-xs uppercase tracking-widest text-[var(--color-text-muted)]">
-          Recent GDELT events · Goldstein scale
+          Événements GDELT récents · indice Goldstein
         </h2>
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-[var(--color-border-default)] text-left">
               <th className="py-2 pr-3 font-mono text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
-                Time
+                Heure
               </th>
               <th className="py-2 pr-3 font-mono text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
-                Actor 1
+                Acteur 1
               </th>
               <th className="py-2 pr-3 font-mono text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
-                Actor 2
+                Acteur 2
               </th>
               <th className="py-2 pr-3 font-mono text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
                 Goldstein
               </th>
               <th className="py-2 font-mono text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
-                Tone
+                Ton
               </th>
             </tr>
           </thead>
@@ -262,7 +262,7 @@ export default async function GeopoliticsPage() {
                       unit="%"
                       variant="compact"
                       size="xs"
-                      ariaLabel={`Goldstein: ${e.goldstein}, ${bias}`}
+                      ariaLabel={`Goldstein : ${e.goldstein}, ${bias}`}
                     />
                   </td>
                   <td className="py-2 font-mono tabular-nums text-[var(--color-text-secondary)]">
@@ -320,7 +320,7 @@ function WorldMap({ hotspots }: { hotspots: Hotspot[] }) {
       viewBox={`0 0 ${W} ${H}`}
       width="100%"
       role="img"
-      aria-label={`World map with ${hotspots.length} active geopolitical hotspots`}
+      aria-label={`Carte du monde avec ${hotspots.length} points chauds géopolitiques actifs`}
       className="block"
     >
       {/* Frame */}

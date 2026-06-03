@@ -1,9 +1,11 @@
-// SessionCard — carte cœur du produit Ichor (format institutionnel 8 blocs
-// Goldman/JPM, cf docs/SPEC_V2_TRADER.md §8).
+// SessionCard — carte cœur du produit Ichor (lecture multidimensionnelle
+// pré-session, cf docs/SPEC_V2_TRADER.md §8).
 //
-// Contient la zone trade (entry zone, SL invalidation, TP@RR3, RR15 trail,
-// scheme partial 90/10) alignée sur la stratégie momentum sessions
-// Londres/NY d'Eliot (cf SPEC.md §3.8).
+// NB ADR-017 / §7.8 : la carte ne rend AUCUN ordre — pas d'entry zone, SL,
+// TP ni trail. L'ancien bloc « Trade plan » a été retiré (le trader fait son
+// analyse technique lui-même ; Ichor n'enrichit que le contexte). Le niveau
+// d'invalidation reste affiché de façon descriptive (« ce qui casserait la
+// lecture »), jamais comme un stop-loss.
 //
 // Tout chiffré bias passe par <BiasIndicator> (redondance triple §14).
 
@@ -54,7 +56,9 @@ export interface SessionCardProps {
   ideas: { top: string; supporting: string[]; risks: string[] };
   confluence: { score: number; drivers: Driver[] };
   calibration: { brier: number; sampleSize: number; trend: Bias };
-  trade: TradeSetup;
+  /** @deprecated ADR-017 / §7.8 — no order surface. Kept optional so existing
+   *  call sites still type-check; the trade plan is no longer rendered. */
+  trade?: TradeSetup;
   state?: "default" | "loading" | "expanded" | "error" | "empty";
   onExpand?: () => void;
   className?: string;
@@ -79,7 +83,6 @@ export function SessionCard({
   ideas,
   confluence,
   calibration,
-  trade,
   state = "default",
   className,
 }: SessionCardProps) {
@@ -140,7 +143,7 @@ export function SessionCard({
       {triggers.length > 0 && (
         <div>
           <h4 className="mb-2 font-mono text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
-            Catalysts
+            Catalyseurs
           </h4>
           <ul className="flex flex-wrap gap-2">
             {triggers.map((t) => (
@@ -184,7 +187,7 @@ export function SessionCard({
       {crossAsset.length > 0 && (
         <div>
           <h4 className="mb-2 font-mono text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
-            Cross-asset
+            Inter-actifs
           </h4>
           <ul className="grid grid-cols-2 gap-x-4 gap-y-1.5 sm:grid-cols-3">
             {crossAsset.map((ca) => (
@@ -199,9 +202,9 @@ export function SessionCard({
 
       {/* Bloc 6 — Idea split */}
       <div className="grid grid-cols-3 gap-3 border-t border-[var(--color-border-subtle)] pt-4">
-        <IdeaCol label="Top idea" items={[ideas.top]} accent="bull" />
-        <IdeaCol label="Supporting" items={ideas.supporting} accent="neutral" />
-        <IdeaCol label="Risks" items={ideas.risks} accent="bear" />
+        <IdeaCol label="Idée principale" items={[ideas.top]} accent="bull" />
+        <IdeaCol label="Arguments" items={ideas.supporting} accent="neutral" />
+        <IdeaCol label="Risques" items={ideas.risks} accent="bear" />
       </div>
 
       {/* Bloc 7 — Confluence (collapsible) */}
@@ -252,36 +255,9 @@ export function SessionCard({
         />
       </footer>
 
-      {/* Zone trade — §3.8 (Eliot momentum) */}
-      <section
-        aria-label="Trade setup"
-        className="rounded border border-[var(--color-accent-cobalt)]/30 bg-[var(--color-accent-cobalt)]/5 p-3"
-      >
-        <h4 className="mb-2 font-mono text-[10px] uppercase tracking-widest text-[var(--color-accent-cobalt-bright)]">
-          Trade plan
-        </h4>
-        <dl className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
-          <TradeRow label="Entry zone">
-            <span className="font-mono tabular-nums">
-              {trade.entryLow}–{trade.entryHigh}
-            </span>
-          </TradeRow>
-          <TradeRow label="SL">
-            <span className="font-mono tabular-nums text-[var(--color-bear)]">
-              {trade.invalidationLevel}
-            </span>
-          </TradeRow>
-          <TradeRow label="TP @ RR3">
-            <span className="font-mono tabular-nums text-[var(--color-bull)]">{trade.tpRR3}</span>
-          </TradeRow>
-          <TradeRow label="Trail @ RR15">
-            <span className="font-mono tabular-nums text-[var(--color-bull)]">{trade.tpRR15}</span>
-          </TradeRow>
-        </dl>
-        <p className="mt-2 font-mono text-[10px] text-[var(--color-text-muted)]">
-          {trade.partialScheme}
-        </p>
-      </section>
+      {/* ADR-017 / §7.8 — pas de bloc « Trade plan » (entry/SL/TP/trail) : la
+          carte n'émet jamais d'ordre. L'invalidation (Bloc 4) couvre, de façon
+          descriptive, « ce qui casserait la lecture ». */}
     </article>
   );
 }
@@ -314,17 +290,6 @@ function IdeaCol({
           <li key={i}>{it}</li>
         ))}
       </ul>
-    </div>
-  );
-}
-
-function TradeRow({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="flex items-baseline justify-between gap-2 border-b border-[var(--color-border-subtle)] pb-1 last:border-b-0 last:pb-0">
-      <dt className="font-mono text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
-        {label}
-      </dt>
-      <dd>{children}</dd>
     </div>
   );
 }

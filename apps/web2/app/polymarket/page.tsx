@@ -10,6 +10,7 @@
 //                         history from Polymarket which isn't ingested)
 
 import { BiasIndicator, MetricTooltip } from "@/components/ui";
+import { humanizeEnum } from "@/lib/coachLabels";
 import { apiGet, isLive, type DivergenceList, type PolymarketImpact } from "@/lib/api";
 
 interface PolyMarketView {
@@ -145,7 +146,7 @@ export default async function PolymarketPage() {
     <div className="container mx-auto max-w-6xl px-6 py-12">
       <header className="mb-10 space-y-3">
         <p className="font-mono text-xs uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
-          Polymarket · whales + divergence cross-venue · {nScanned} markets scanned{" "}
+          Polymarket · gros paris + divergence inter-plateformes · {nScanned} marchés scannés{" "}
           <span
             aria-label={apiOnline ? "API online" : "API offline"}
             className="ml-1 inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[9px] uppercase tracking-widest"
@@ -162,15 +163,15 @@ export default async function PolymarketPage() {
           Polymarket
         </h1>
         <p className="max-w-prose text-[var(--color-text-secondary)]">
-          Exploitation maximale des prediction markets : top markets pondérés par theme impact,
-          whale bets &gt; $50K, et{" "}
+          Exploitation maximale des marchés de prédiction : principaux marchés pondérés par
+          l&apos;impact du thème, gros paris &gt; 50 000 $, et{" "}
           <MetricTooltip
-            term="divergence cross-venue"
-            definition="Quand un même événement (e.g. Fed cut Jul) a un yes price ≥ 5pp d'écart entre Polymarket / Kalshi / Manifold. Souvent un signal de mispricing exploitable."
+            term="divergence inter-plateformes"
+            definition="Quand un même événement a une probabilité « oui » qui diffère de ≥ 5pp entre Polymarket / Kalshi / Manifold. Souvent le signe d'un prix décalé exploitable."
             glossaryAnchor="cross-venue-divergence"
             density="compact"
           >
-            divergence cross-venue
+            divergence inter-plateformes
           </MetricTooltip>{" "}
           (Polymarket / Kalshi / Manifold).
         </p>
@@ -188,10 +189,10 @@ function DivergenceSection({ alerts }: { alerts: DivergenceView[] }) {
     return (
       <section className="mb-12 rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-6">
         <h2 className="mb-3 font-mono text-xs uppercase tracking-widest text-[var(--color-text-muted)]">
-          Divergence cross-venue · gap ≥ 5pp
+          Divergence inter-plateformes · écart ≥ 5pp
         </h2>
         <p className="text-sm text-[var(--color-text-muted)]">
-          Aucune divergence active sur 24h — pricing cross-venue cohérent.
+          Aucune divergence active sur 24h — prix cohérents entre les plateformes.
         </p>
       </section>
     );
@@ -199,7 +200,7 @@ function DivergenceSection({ alerts }: { alerts: DivergenceView[] }) {
   return (
     <section className="mb-12 rounded-xl border border-[var(--color-warn)]/30 bg-[var(--color-warn)]/5 p-6">
       <h2 className="mb-3 font-mono text-xs uppercase tracking-widest text-[var(--color-warn)]">
-        ⚠ Divergence cross-venue · gap ≥ 5pp
+        ⚠ Divergence inter-plateformes · écart ≥ 5pp
       </h2>
       <ul className="space-y-2">
         {alerts.map((a) => (
@@ -213,7 +214,7 @@ function DivergenceSection({ alerts }: { alerts: DivergenceView[] }) {
               {(a.low_price * 100).toFixed(0)} %
             </span>
             <span className="ml-auto font-mono text-sm tabular-nums text-[var(--color-warn)]">
-              gap {(a.gap * 100).toFixed(1)}pp
+              écart {(a.gap * 100).toFixed(1)}pp
             </span>
           </li>
         ))}
@@ -226,7 +227,7 @@ function TopMoversSection({ markets }: { markets: PolyMarketView[] }) {
   return (
     <section className="mb-12">
       <h2 className="mb-4 font-mono text-xs uppercase tracking-widest text-[var(--color-text-muted)]">
-        Top markets · theme-weighted
+        Principaux marchés · pondérés par thème
       </h2>
       <ul className="grid gap-3 lg:grid-cols-2">
         {markets.map((m) => {
@@ -251,7 +252,7 @@ function TopMoversSection({ markets }: { markets: PolyMarketView[] }) {
                   size="sm"
                 />
                 <span className="ml-auto font-mono text-[var(--color-text-muted)]">
-                  theme: {m.theme_label} · w {m.weight.toFixed(2)}
+                  thème : {humanizeEnum(m.theme_label)} · poids {m.weight.toFixed(2)}
                 </span>
               </div>
             </li>
@@ -266,7 +267,7 @@ function WhalesSection({ whales }: { whales: WhaleBet[] }) {
   return (
     <section className="rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-6">
       <h2 className="mb-4 font-mono text-xs uppercase tracking-widest text-[var(--color-text-muted)]">
-        Whale bets &gt; $50K · 24h{" "}
+        Gros paris &gt; 50 000 $ · 24h{" "}
         <span className="ml-2 font-normal normal-case tracking-normal text-[var(--color-text-muted)]/70">
           (illustratif — trade-tape ingestion en attente)
         </span>
@@ -278,13 +279,13 @@ function WhalesSection({ whales }: { whales: WhaleBet[] }) {
               Question
             </th>
             <th className="py-2 font-mono text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
-              Side
+              Sens
             </th>
             <th className="py-2 font-mono text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
-              Size
+              Montant
             </th>
             <th className="py-2 font-mono text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
-              When
+              Quand
             </th>
           </tr>
         </thead>
@@ -302,7 +303,7 @@ function WhalesSection({ whales }: { whales: WhaleBet[] }) {
                     color: w.side === "yes" ? "var(--color-bull)" : "var(--color-bear)",
                   }}
                 >
-                  {w.side}
+                  {w.side === "yes" ? "oui" : "non"}
                 </span>
               </td>
               <td className="py-2 font-mono tabular-nums text-[var(--color-text-primary)]">

@@ -242,28 +242,6 @@ export default async function SessionAssetPage({ params }: PageProps) {
                   }
                 : { brier: 0, sampleSize: 0, trend: "neutral" }
             }
-            trade={
-              liveTradePlan
-                ? {
-                    entryLow: liveTradePlan.entry_low,
-                    entryHigh: liveTradePlan.entry_high,
-                    invalidationLevel: liveTradePlan.invalidation_level,
-                    invalidationCondition: liveTradePlan.invalidation_condition,
-                    tpRR3: liveTradePlan.tp_rr3,
-                    tpRR15: liveTradePlan.tp_rr15 ?? liveTradePlan.tp_rr3 * 1.4,
-                    partialScheme: liveTradePlan.partial_scheme,
-                  }
-                : {
-                    entryLow: 0,
-                    entryHigh: 0,
-                    invalidationLevel: 0,
-                    invalidationCondition: "Plan en attente.",
-                    tpRR3: 0,
-                    tpRR15: 0,
-                    partialScheme:
-                      "Trade plan not yet produced (cold start — first session card pending)",
-                  }
-            }
           />
           <MechanismsSection />
           <CalibrationStrip
@@ -358,7 +336,7 @@ function MechanismsSection() {
       className="rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-6 shadow-[var(--shadow-sm)]"
     >
       <h2 className="mb-4 font-mono text-xs uppercase tracking-widest text-[var(--color-text-muted)]">
-        Mechanisms · how this thesis transmits to the price
+        Mécanismes · comment cette lecture se transmet au prix
       </h2>
       <ol className="space-y-4">
         {items.map((it, i) => (
@@ -413,7 +391,7 @@ function CalibrationStrip({
     <section className="rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-6">
       <div className="mb-3 flex items-baseline justify-between">
         <h2 className="font-mono text-xs uppercase tracking-widest text-[var(--color-text-muted)]">
-          Calibration track-record · this asset
+          Historique de fiabilité · cet actif
         </h2>
         <MetricTooltip
           term="Fiabilité"
