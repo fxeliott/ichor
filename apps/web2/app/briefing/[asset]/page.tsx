@@ -581,46 +581,55 @@ export default async function BriefingPage({ params }: PageParams) {
           intro="Qui est positionné comment : les particuliers (souvent à contre-courant), les institutionnels (smart money), les paris agrégés, l'actualité récente et la géopolitique."
           defaultOpen={false}
         >
-          <div>
-            <SubHeader
-              id="sentiment-heading"
-              title="Positionnement retail"
-              meta="Particuliers · souvent à contre-courant"
-            />
-            <SentimentPanel
-              entries={positioning?.entries ?? []}
-              asset={normalisedAsset}
-              hideHeader
-            />
-          </div>
-          <div>
-            <SubHeader
-              id="institutional-heading"
-              title="Acteurs du marché"
-              meta="Gros acteurs · smart money"
-            />
-            <InstitutionalPositioningPanel data={institutional} hideHeader />
-          </div>
-          <div>
-            <SubHeader
-              id="polymarket-impact-section-heading"
-              title="Paris agrégés"
-              meta="Paris de marché · par thème"
-            />
-            <PolymarketImpactPanel asset={normalisedAsset} impact={polymarketImpact} hideHeader />
-          </div>
-          <div>
-            <SubHeader id="news-heading" title="Actualités" meta="Flux récent · tonalité" />
-            <NewsPanel
-              news={news?.items ?? []}
-              filter={news?.filter ?? null}
-              asset={normalisedAsset}
-              hideHeader
-            />
-          </div>
-          <div>
-            <SubHeader id="geopolitics-heading" title="Géopolitique" meta="Tension géopolitique" />
-            <GeopoliticsPanel data={geopolitics} hideHeader />
+          {/* 2-column on wide desktop — the 5 actor panels are too tall as a
+              single column; xl:grid-cols-2 halves the open scroll. Below xl
+              (tablet/mobile) it stays one column (no regression). */}
+          <div className="grid items-start gap-6 xl:grid-cols-2 [&>*]:min-w-0">
+            <div>
+              <SubHeader
+                id="sentiment-heading"
+                title="Positionnement retail"
+                meta="Particuliers · souvent à contre-courant"
+              />
+              <SentimentPanel
+                entries={positioning?.entries ?? []}
+                asset={normalisedAsset}
+                hideHeader
+              />
+            </div>
+            <div>
+              <SubHeader
+                id="institutional-heading"
+                title="Acteurs du marché"
+                meta="Gros acteurs · smart money"
+              />
+              <InstitutionalPositioningPanel data={institutional} hideHeader />
+            </div>
+            <div>
+              <SubHeader
+                id="polymarket-impact-section-heading"
+                title="Paris agrégés"
+                meta="Paris de marché · par thème"
+              />
+              <PolymarketImpactPanel asset={normalisedAsset} impact={polymarketImpact} hideHeader />
+            </div>
+            <div>
+              <SubHeader id="news-heading" title="Actualités" meta="Flux récent · tonalité" />
+              <NewsPanel
+                news={news?.items ?? []}
+                filter={news?.filter ?? null}
+                asset={normalisedAsset}
+                hideHeader
+              />
+            </div>
+            <div>
+              <SubHeader
+                id="geopolitics-heading"
+                title="Géopolitique"
+                meta="Tension géopolitique"
+              />
+              <GeopoliticsPanel data={geopolitics} hideHeader />
+            </div>
           </div>
         </BriefingSection>
 
@@ -633,27 +642,30 @@ export default async function BriefingPage({ params }: PageParams) {
           intro="La structure de prix : les niveaux clés à surveiller, d'où venait le mouvement de la session précédente, comment Londres a tradé ce matin pour calibrer New York, l'activité de volume et la volatilité typique heure par heure."
           defaultOpen={false}
         >
-          <div>
-            <SubHeader
-              id="key-levels-heading"
-              title="Niveaux clés"
-              meta="Microstructure + bascules macro"
-            />
-            <KeyLevelsPanel items={renderedKeyLevels} focusAsset={normalisedAsset} />
-          </div>
-          <PreviousSessionContextPanel asset={normalisedAsset} />
-          <LondonSessionPanel asset={normalisedAsset} />
-          <div>
-            <SubHeader id="volume-heading" title="Volume" meta="Activité d'échange intraday" />
-            <VolumePanel asset={normalisedAsset} bars={recentBars} />
-          </div>
-          <div>
-            <SubHeader
-              id="hourly-vol-heading"
-              title="Volatilité horaire"
-              meta="Volatilité typique heure par heure · 30 j"
-            />
-            <HourlyVolReport report={hourlyVol} headingLevel={3} chrome="glass" />
+          {/* 2-column on wide desktop (same rationale as section E). */}
+          <div className="grid items-start gap-6 xl:grid-cols-2 [&>*]:min-w-0">
+            <div>
+              <SubHeader
+                id="key-levels-heading"
+                title="Niveaux clés"
+                meta="Microstructure + bascules macro"
+              />
+              <KeyLevelsPanel items={renderedKeyLevels} focusAsset={normalisedAsset} />
+            </div>
+            <PreviousSessionContextPanel asset={normalisedAsset} />
+            <LondonSessionPanel asset={normalisedAsset} />
+            <div>
+              <SubHeader id="volume-heading" title="Volume" meta="Activité d'échange intraday" />
+              <VolumePanel asset={normalisedAsset} bars={recentBars} />
+            </div>
+            <div>
+              <SubHeader
+                id="hourly-vol-heading"
+                title="Volatilité horaire"
+                meta="Volatilité typique heure par heure · 30 j"
+              />
+              <HourlyVolReport report={hourlyVol} headingLevel={3} chrome="glass" />
+            </div>
           </div>
         </BriefingSection>
       </div>
