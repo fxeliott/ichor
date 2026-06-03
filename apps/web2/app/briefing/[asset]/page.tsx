@@ -68,6 +68,7 @@ import { TodaySessionPulse } from "@/components/briefing/TodaySessionPulse";
 import { FreshDataBanner } from "@/components/briefing/FreshDataBanner";
 import { VerdictBanner } from "@/components/briefing/VerdictBanner";
 import { VerdictFreshnessBanner } from "@/components/briefing/VerdictFreshnessBanner";
+import { VerdictStickyChip } from "@/components/briefing/VerdictStickyChip";
 import { VolumePanel } from "@/components/briefing/VolumePanel";
 import { HourlyVolReport } from "@/components/hourly-vol/HourlyVolReport";
 import {
@@ -440,6 +441,11 @@ export default async function BriefingPage({ params }: PageParams) {
             />
           )}
 
+          {/* Sentinel for <VerdictStickyChip> : when this crosses above the
+              fold the floating verdict chip appears (the verdict readout has
+              left the screen). Zero-height, decorative. */}
+          <div id="verdict-sentinel" aria-hidden className="h-0" />
+
           {card ? (
             <ConvictionGroundingPanel
               card={card}
@@ -655,6 +661,11 @@ export default async function BriefingPage({ params }: PageParams) {
       <footer className="pt-6 text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
         Ichor · Aide à la décision pré-séance — jamais un signal d&apos;achat ou de vente
       </footer>
+
+      {/* Persistent verdict chip — keeps today's call DOMINANT once the apex
+          scrolls out of view (the long deep-dive otherwise buries the one
+          read that matters). Click → scroll back to the verdict. */}
+      <VerdictStickyChip verdict={sessionVerdict} card={card} asset={normalisedAsset} />
     </main>
   );
 }
