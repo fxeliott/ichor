@@ -76,6 +76,13 @@ DEFAULT_WATERMARKED_PREFIXES: tuple[str, ...] = (
     # stay byte-identical to Settings.ai_watermarked_route_prefixes
     # default per W90 invariant lockstep.
     "/v1/coach-macro-context",
+    # Cross-asset USD coherence — reconciles the day's per-asset bias cards
+    # (session_card_audit.bias_direction / conviction_pct, LLM-origin via the
+    # 4-pass pipeline) into one dollar read + a FR coach_explanation. Same
+    # AI-disclosure logic as /v1/verdict (derived from LLM-origin verdicts).
+    # MUST stay byte-identical to Settings.ai_watermarked_route_prefixes per
+    # W90 invariant `test_ai_watermark_default_prefixes_match_settings`.
+    "/v1/dollar-coherence",
 )
 
 # Disclosure URL surfaced via `X-Ichor-AI-Disclosure`. Must resolve

@@ -78,6 +78,12 @@ class Settings(BaseSettings):
             # DEFAULT_WATERMARKED_PREFIXES per W90 invariant
             # `test_ai_watermark_default_prefixes_match_settings`.
             "/v1/coach-macro-context",
+            # Cross-asset USD coherence — reconciles the day's per-asset bias
+            # cards (LLM-origin bias_direction/conviction_pct) into one dollar
+            # read + FR coach_explanation. Same AI-disclosure logic as
+            # /v1/verdict. MUST stay byte-identical to middleware
+            # DEFAULT_WATERMARKED_PREFIXES per W90 invariant.
+            "/v1/dollar-coherence",
         ]
     )
     """Path prefixes whose responses get the X-Ichor-AI-* watermark

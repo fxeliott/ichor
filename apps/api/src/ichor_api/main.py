@@ -29,6 +29,7 @@ from .routers import (
     currency_strength_router,
     data_pool_router,
     divergence_router,
+    dollar_coherence_router,
     economic_events_router,
     event_anticipation_router,
     geopolitics_router,
@@ -227,6 +228,7 @@ app.include_router(economic_events_router)
 app.include_router(event_anticipation_router)
 app.include_router(verdict_router)
 app.include_router(coach_macro_context_router)
+app.include_router(dollar_coherence_router)
 app.include_router(correlations_router)
 app.include_router(hourly_volatility_router)
 app.include_router(journal_router)
