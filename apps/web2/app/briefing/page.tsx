@@ -52,20 +52,39 @@ export const metadata: Metadata = {
     "Cockpit pré-session : verdict synthétique des 5 actifs prioritaires (EUR/USD, GBP/USD, XAU/USD, S&P 500, Nasdaq 100).",
 };
 
+// Tones keyed on the ACTUAL backend RiskBand domain
+// (services/risk_appetite.py:RiskBand = extreme_risk_off | risk_off |
+// neutral | risk_on | extreme_risk_on). The pre-fix map keyed on
+// greed/cautious/fear — values the backend never emits — so the two
+// extreme bands fell through to the neutral default (no tone colour).
 const RISK_BAND_TONE: Record<string, string> = {
-  greed: "text-[var(--color-bull)]",
+  extreme_risk_on: "text-[var(--color-bull)]",
   risk_on: "text-[var(--color-bull)]",
   neutral: "text-[var(--color-text-secondary)]",
-  cautious: "text-[var(--color-warn)]",
-  fear: "text-[var(--color-bear)]",
   risk_off: "text-[var(--color-bear)]",
+  extreme_risk_off: "text-[var(--color-bear)]",
 };
 
+// Plain-FR coach labels for the risk-appetite band (no raw enum on screen).
+const RISK_BAND_LABEL: Record<string, string> = {
+  extreme_risk_on: "Fort appétit pour le risque",
+  risk_on: "Appétit pour le risque",
+  neutral: "Neutre",
+  risk_off: "Aversion au risque",
+  extreme_risk_off: "Forte aversion au risque",
+};
+
+// Plain-FR coach labels for the VIX term-structure regime
+// (services/vix_term_structure.py:VixRegime). Reads as "what the vol
+// market is saying", never the raw enum.
 const VIX_REGIME_LABEL: Record<string, string> = {
-  contango: "Contango (calm)",
-  flat: "Flat",
-  backwardation: "Backwardation (stress)",
-  unknown: "Unknown",
+  stretched_contango: "Très calme (complaisance)",
+  contango: "Calme",
+  normal: "Normal",
+  flat: "En transition",
+  backwardation: "Tendu (stress court terme)",
+  extreme_backwardation: "Stress extrême",
+  unknown: "Indéterminé",
 };
 
 export default async function BriefingIndexPage() {
@@ -221,7 +240,7 @@ export default async function BriefingIndexPage() {
             Lecture du jour · 5 actifs
           </h2>
           <span className="text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
-            synthèse déterministe · zéro LLM
+            les 5 actifs en un coup d&apos;œil
           </span>
         </div>
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -267,7 +286,7 @@ export default async function BriefingIndexPage() {
                   {today.macro.risk_composite.toFixed(2)}
                 </p>
                 <p className="mt-1 text-xs uppercase tracking-wider text-[var(--color-text-secondary)]">
-                  {today.macro.risk_band}
+                  {RISK_BAND_LABEL[today.macro.risk_band] ?? today.macro.risk_band}
                 </p>
               </GlowCard>
             </Reveal>
@@ -281,7 +300,7 @@ export default async function BriefingIndexPage() {
                   {today.macro.funding_stress.toFixed(2)}
                 </p>
                 <p className="mt-1 text-xs uppercase tracking-wider text-[var(--color-text-secondary)]">
-                  SOFR-IORB · RRP · HY OAS
+                  Liquidité & crédit · tension du financement
                 </p>
               </GlowCard>
             </Reveal>
@@ -308,7 +327,7 @@ export default async function BriefingIndexPage() {
       </Reveal>
 
       <footer className="pt-8 text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
-        Ichor v2 · Pre-trade context only · No BUY/SELL signals (ADR-017 boundary)
+        Ichor · Aide à la décision pré-séance — jamais un signal d&apos;achat ou de vente
       </footer>
     </main>
   );

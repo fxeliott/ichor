@@ -238,7 +238,7 @@ function FreshnessSubtitle({ cardGeneratedAt }: { cardGeneratedAt: string | null
   if (freshness.state === "fresh") {
     return (
       <p className="mt-1 text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
-        Lecture en temps réel · recalibrée chaque session · pas de carry-over d&apos;hier
+        Recalibrée pour la session du jour · pas de report de la veille
       </p>
     );
   }
