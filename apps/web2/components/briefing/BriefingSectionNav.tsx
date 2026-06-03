@@ -32,6 +32,7 @@ export function BriefingSectionNav({ sections }: { sections: NavSection[] }) {
   const [active, setActive] = useState<string>(sections[0]?.id ?? "");
   const [headerH, setHeaderH] = useState(32);
   const navRef = useRef<HTMLElement>(null);
+  const listRef = useRef<HTMLUListElement>(null);
 
   // Measure the global sticky header + publish the combined anchor offset.
   useEffect(() => {
@@ -69,6 +70,14 @@ export function BriefingSectionNav({ sections }: { sections: NavSection[] }) {
     return () => observer.disconnect();
   }, [sections]);
 
+  // Keep the active pill in view inside the horizontally-scrolling pill bar
+  // (on mobile the 7 pills overflow). `block: "nearest"` so this never nudges
+  // the vertical page scroll — only the horizontal nav strip.
+  useEffect(() => {
+    const el = listRef.current?.querySelector<HTMLElement>(`a[href="#${active}"]`);
+    el?.scrollIntoView({ inline: "center", block: "nearest", behavior: "smooth" });
+  }, [active]);
+
   return (
     <nav
       ref={navRef}
@@ -76,23 +85,34 @@ export function BriefingSectionNav({ sections }: { sections: NavSection[] }) {
       style={{ top: headerH }}
       className="sticky z-[var(--z-sticky)] -mx-4 border-y border-[var(--color-border-subtle)] bg-[var(--color-bg-base)]/85 px-4 py-2 backdrop-blur-xl md:-mx-8 md:px-8"
     >
-      <ul className="flex gap-1 overflow-x-auto">
-        {sections.map((s) => (
-          <li key={s.id} className="shrink-0">
-            <a
-              href={`#${s.id}`}
-              aria-current={active === s.id ? "true" : undefined}
-              className={`block whitespace-nowrap rounded-full px-3 py-1.5 text-xs transition-colors ${
-                active === s.id
-                  ? "bg-[var(--color-bg-elevated)] text-[var(--color-text-primary)] shadow-[var(--shadow-xs)]"
-                  : "text-[var(--color-text-muted)] hover:bg-[var(--color-bg-surface)]/50 hover:text-[var(--color-text-secondary)]"
-              }`}
-            >
-              {s.label}
-            </a>
-          </li>
-        ))}
-      </ul>
+      <div className="relative">
+        <ul
+          ref={listRef}
+          className="flex gap-1 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        >
+          {sections.map((s) => (
+            <li key={s.id} className="shrink-0">
+              <a
+                href={`#${s.id}`}
+                aria-current={active === s.id ? "true" : undefined}
+                className={`block whitespace-nowrap rounded-full px-3 py-1.5 text-xs transition-colors ${
+                  active === s.id
+                    ? "bg-[var(--color-bg-elevated)] text-[var(--color-text-primary)] shadow-[var(--shadow-xs)]"
+                    : "text-[var(--color-text-muted)] hover:bg-[var(--color-bg-surface)]/50 hover:text-[var(--color-text-secondary)]"
+                }`}
+              >
+                {s.label}
+              </a>
+            </li>
+          ))}
+        </ul>
+        {/* Right-edge fade — a scrollability affordance for the overflowing
+            pill bar on narrow viewports (decorative, never intercepts taps). */}
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-[var(--color-bg-base)] to-transparent"
+        />
+      </div>
     </nav>
   );
 }
