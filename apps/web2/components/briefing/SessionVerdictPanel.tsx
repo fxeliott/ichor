@@ -174,14 +174,35 @@ export function SessionVerdictPanel({ data: initialData, asset }: Props): ReactE
             </span>
           )}
           {expired && (
-            <span className="rounded-full border border-[var(--color-accent-bear)]/30 bg-[var(--color-accent-bear)]/10 px-3 py-1 text-xs uppercase tracking-wide text-[var(--color-accent-bear)]">
-              verdict expiré
+            <span className="rounded-full border border-[var(--color-border-subtle)] bg-[var(--color-bg-base)]/40 px-3 py-1 text-xs uppercase tracking-wide text-[var(--color-text-muted)]">
+              session terminée
             </span>
           )}
         </div>
       </header>
 
       <div className="space-y-5 px-6 py-5">
+        {/* Expired (NY session closed) — honest "session terminée" banner so
+            the verdict below never reads as today's live call. The verdict is
+            still shown (dated context) but the whole body is demoted (opacity)
+            so the eye registers "closed" first. 2026-06-03 : replaces the old
+            backend 410 (which made this state invisible + logged a console
+            error). */}
+        {expired && (
+          <div
+            role="status"
+            className="rounded-md border border-[var(--color-border-subtle)] bg-[var(--color-bg-base)]/40 px-4 py-3 text-xs"
+          >
+            <p className="font-medium uppercase tracking-wide text-[var(--color-text-secondary)]">
+              Session de New York terminée
+            </p>
+            <p className="mt-1 leading-relaxed text-[var(--color-text-muted)]">
+              Ce verdict portait sur la séance qui vient de se clôturer — à lire comme un contexte
+              daté. Une nouvelle lecture se construira avant la prochaine session.
+            </p>
+          </div>
+        )}
+
         {/* r167 G8 — TradeabilityFlag honest disclosure banner. Closes
             Eliot's #1 CRITICAL gap from his methodology transcript (Fathom
             2026-05-25 §VIII : « ne trade pas aujourd'hui » when bank

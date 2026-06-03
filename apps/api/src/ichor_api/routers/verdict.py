@@ -16,8 +16,13 @@ the verdict is built deterministically by
   - 404 Not Found when no session_card_audit row exists yet today
     (caller — typically the frontend — renders an honest "verdict en
     attente, session non encore amorcée" state)
-  - 410 Gone when ``now_utc > expires_at_utc`` (verdict stale, past the
-    20h15 Paris cutoff)
+  - 200 OK + ``SessionVerdict`` JSON ALSO when the verdict has expired
+    (``now_utc > expires_at_utc``, past the ~20h15 Paris cutoff). Expiry is
+    a normal lifecycle state, not an error : the verdict body is returned so
+    the frontend can render a clean "session terminée" state from
+    ``expires_at_utc`` (its ``isVerdictExpired`` helper) instead of the panel
+    vanishing + the client poll logging a browser-console 410 every minute.
+    (Pre-2026-06-03 this returned 410 Gone with no body — superseded.)
   - 422 Unprocessable Entity when the ``asset`` path param doesn't match
     the canonical pattern (handled by FastAPI ``Path`` constraint)
   - 500 only on internal DB error (caller retries with exponential backoff)
@@ -61,7 +66,6 @@ router = APIRouter(prefix="/v1/verdict", tags=["verdict"])
     response_model=SessionVerdict,
     responses={
         404: {"description": "No session_card_audit row for today yet"},
-        410: {"description": "Verdict past expires_at_utc, session closed"},
         422: {"description": "Asset path param malformed"},
     },
 )
@@ -110,18 +114,16 @@ async def get_session_verdict(
             ),
         )
 
-    # Stale-check : if the verdict's expires_at_utc is past, return 410.
-    # Frontend renders "verdict expiré, attente nouvelle session" banner.
-    if now_utc > verdict.expires_at_utc:
-        raise HTTPException(
-            status_code=410,
-            detail=(
-                f"Verdict expired at {verdict.expires_at_utc.isoformat()} "
-                f"(NY-session window closed past 20h15 Paris). New verdict "
-                f"will fire at the next pre-Londres briefing emission."
-            ),
-        )
-
-    # LIVE state — never cache at intermediate proxy.
+    # Expired (now_utc > expires_at_utc, NY-session window closed past
+    # ~20h15 Paris) is a NORMAL lifecycle state, NOT an error. Pre-2026-06-03
+    # this raised 410 Gone with no body, which (a) made the client poll log a
+    # browser-console "Failed to load resource: 410" every minute and (b) left
+    # the frontend's own `isVerdictExpired()` / "session terminée" rendering as
+    # dead code (the expired verdict body never reached it). We now return the
+    # verdict with 200 and let the frontend present a clean "session terminée"
+    # state from `expires_at_utc` — zero console noise, honest disclosure.
+    # `Cache-Control: private, no-store` regardless (LIVE state, never cached
+    # at an intermediate proxy ; an expired verdict can become a fresh one on
+    # the next briefing emission within the same browser session).
     response.headers["Cache-Control"] = "private, no-store"
     return verdict

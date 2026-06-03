@@ -55,7 +55,11 @@ export function GlowCard({
       transition={{ type: "spring", stiffness: 300, damping: 24 }}
       className={`group relative overflow-hidden rounded-2xl border border-[var(--glass-border)] bg-[var(--glass-bg)] shadow-[var(--glow-card)] backdrop-blur-xl ${
         interactive
-          ? `transition-[border-color,box-shadow,transform] duration-300 hover:border-[var(--glass-border-hover)] ${HOVER_GLOW[glow]}`
+          ? // hover: only fires on hover-capable devices (Tailwind v4 default) ;
+            // active: gives touch devices the equivalent tap feedback so the
+            // card is not inert on mobile (the cursor spotlight is desktop-only
+            // by nature). active:scale is GPU-cheap + reduced-motion-safe.
+            `transition-[border-color,box-shadow,transform] duration-300 hover:border-[var(--glass-border-hover)] active:scale-[0.99] active:border-[var(--glass-border-hover)] ${HOVER_GLOW[glow]}`
           : ""
       } ${className}`}
     >

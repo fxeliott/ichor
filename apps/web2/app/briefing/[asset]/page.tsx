@@ -68,6 +68,7 @@ import { TodaySessionPulse } from "@/components/briefing/TodaySessionPulse";
 import { FreshDataBanner } from "@/components/briefing/FreshDataBanner";
 import { VerdictBanner } from "@/components/briefing/VerdictBanner";
 import { VerdictFreshnessBanner } from "@/components/briefing/VerdictFreshnessBanner";
+import { VerdictStickyChip } from "@/components/briefing/VerdictStickyChip";
 import { VolumePanel } from "@/components/briefing/VolumePanel";
 import { HourlyVolReport } from "@/components/hourly-vol/HourlyVolReport";
 import {
@@ -440,6 +441,11 @@ export default async function BriefingPage({ params }: PageParams) {
             />
           )}
 
+          {/* Sentinel for <VerdictStickyChip> : when this crosses above the
+              fold the floating verdict chip appears (the verdict readout has
+              left the screen). Zero-height, decorative. */}
+          <div id="verdict-sentinel" aria-hidden className="h-0" />
+
           {card ? (
             <ConvictionGroundingPanel
               card={card}
@@ -575,46 +581,55 @@ export default async function BriefingPage({ params }: PageParams) {
           intro="Qui est positionné comment : les particuliers (souvent à contre-courant), les institutionnels (smart money), les paris agrégés, l'actualité récente et la géopolitique."
           defaultOpen={false}
         >
-          <div>
-            <SubHeader
-              id="sentiment-heading"
-              title="Positionnement retail"
-              meta="Particuliers · souvent à contre-courant"
-            />
-            <SentimentPanel
-              entries={positioning?.entries ?? []}
-              asset={normalisedAsset}
-              hideHeader
-            />
-          </div>
-          <div>
-            <SubHeader
-              id="institutional-heading"
-              title="Acteurs du marché"
-              meta="Gros acteurs · smart money"
-            />
-            <InstitutionalPositioningPanel data={institutional} hideHeader />
-          </div>
-          <div>
-            <SubHeader
-              id="polymarket-impact-section-heading"
-              title="Paris agrégés"
-              meta="Paris de marché · par thème"
-            />
-            <PolymarketImpactPanel asset={normalisedAsset} impact={polymarketImpact} hideHeader />
-          </div>
-          <div>
-            <SubHeader id="news-heading" title="Actualités" meta="Flux récent · tonalité" />
-            <NewsPanel
-              news={news?.items ?? []}
-              filter={news?.filter ?? null}
-              asset={normalisedAsset}
-              hideHeader
-            />
-          </div>
-          <div>
-            <SubHeader id="geopolitics-heading" title="Géopolitique" meta="Tension géopolitique" />
-            <GeopoliticsPanel data={geopolitics} hideHeader />
+          {/* 2-column on wide desktop — the 5 actor panels are too tall as a
+              single column; xl:grid-cols-2 halves the open scroll. Below xl
+              (tablet/mobile) it stays one column (no regression). */}
+          <div className="grid items-start gap-6 xl:grid-cols-2 [&>*]:min-w-0">
+            <div>
+              <SubHeader
+                id="sentiment-heading"
+                title="Positionnement retail"
+                meta="Particuliers · souvent à contre-courant"
+              />
+              <SentimentPanel
+                entries={positioning?.entries ?? []}
+                asset={normalisedAsset}
+                hideHeader
+              />
+            </div>
+            <div>
+              <SubHeader
+                id="institutional-heading"
+                title="Acteurs du marché"
+                meta="Gros acteurs · smart money"
+              />
+              <InstitutionalPositioningPanel data={institutional} hideHeader />
+            </div>
+            <div>
+              <SubHeader
+                id="polymarket-impact-section-heading"
+                title="Paris agrégés"
+                meta="Paris de marché · par thème"
+              />
+              <PolymarketImpactPanel asset={normalisedAsset} impact={polymarketImpact} hideHeader />
+            </div>
+            <div>
+              <SubHeader id="news-heading" title="Actualités" meta="Flux récent · tonalité" />
+              <NewsPanel
+                news={news?.items ?? []}
+                filter={news?.filter ?? null}
+                asset={normalisedAsset}
+                hideHeader
+              />
+            </div>
+            <div>
+              <SubHeader
+                id="geopolitics-heading"
+                title="Géopolitique"
+                meta="Tension géopolitique"
+              />
+              <GeopoliticsPanel data={geopolitics} hideHeader />
+            </div>
           </div>
         </BriefingSection>
 
@@ -627,27 +642,30 @@ export default async function BriefingPage({ params }: PageParams) {
           intro="La structure de prix : les niveaux clés à surveiller, d'où venait le mouvement de la session précédente, comment Londres a tradé ce matin pour calibrer New York, l'activité de volume et la volatilité typique heure par heure."
           defaultOpen={false}
         >
-          <div>
-            <SubHeader
-              id="key-levels-heading"
-              title="Niveaux clés"
-              meta="Microstructure + bascules macro"
-            />
-            <KeyLevelsPanel items={renderedKeyLevels} focusAsset={normalisedAsset} />
-          </div>
-          <PreviousSessionContextPanel asset={normalisedAsset} />
-          <LondonSessionPanel asset={normalisedAsset} />
-          <div>
-            <SubHeader id="volume-heading" title="Volume" meta="Activité d'échange intraday" />
-            <VolumePanel asset={normalisedAsset} bars={recentBars} />
-          </div>
-          <div>
-            <SubHeader
-              id="hourly-vol-heading"
-              title="Volatilité horaire"
-              meta="Volatilité typique heure par heure · 30 j"
-            />
-            <HourlyVolReport report={hourlyVol} headingLevel={3} chrome="glass" />
+          {/* 2-column on wide desktop (same rationale as section E). */}
+          <div className="grid items-start gap-6 xl:grid-cols-2 [&>*]:min-w-0">
+            <div>
+              <SubHeader
+                id="key-levels-heading"
+                title="Niveaux clés"
+                meta="Microstructure + bascules macro"
+              />
+              <KeyLevelsPanel items={renderedKeyLevels} focusAsset={normalisedAsset} />
+            </div>
+            <PreviousSessionContextPanel asset={normalisedAsset} />
+            <LondonSessionPanel asset={normalisedAsset} />
+            <div>
+              <SubHeader id="volume-heading" title="Volume" meta="Activité d'échange intraday" />
+              <VolumePanel asset={normalisedAsset} bars={recentBars} />
+            </div>
+            <div>
+              <SubHeader
+                id="hourly-vol-heading"
+                title="Volatilité horaire"
+                meta="Volatilité typique heure par heure · 30 j"
+              />
+              <HourlyVolReport report={hourlyVol} headingLevel={3} chrome="glass" />
+            </div>
           </div>
         </BriefingSection>
       </div>
@@ -655,6 +673,11 @@ export default async function BriefingPage({ params }: PageParams) {
       <footer className="pt-6 text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
         Ichor · Aide à la décision pré-séance — jamais un signal d&apos;achat ou de vente
       </footer>
+
+      {/* Persistent verdict chip — keeps today's call DOMINANT once the apex
+          scrolls out of view (the long deep-dive otherwise buries the one
+          read that matters). Click → scroll back to the verdict. */}
+      <VerdictStickyChip verdict={sessionVerdict} card={card} asset={normalisedAsset} />
     </main>
   );
 }
