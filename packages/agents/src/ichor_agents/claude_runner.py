@@ -147,6 +147,8 @@ _AGENT_MODE_OVERRIDE_PREFIX = (
     "  - 'Ready for Stop', 'Stop hook', 'tracker' references\n"
     "  - 'Perfect.' or 'All N items' preamble sentences\n"
     "  - Markdown code fences (```json ... ```)\n"
+    "  - Tool-call XML scaffolding (</invoke>, </parameter>, <function_calls>,\n"
+    "    <invoke>) before, inside, or AFTER the JSON — emit plain JSON only\n"
     "  - Italics/bold formatting around or inside the JSON\n"
     "  - Numbered explanations of what you did\n"
     "  - Acknowledgements ('I will now...', 'Here is the JSON...')\n"
@@ -178,20 +180,26 @@ def _strip_json_fence(text: str) -> str:
     text = text.strip()
     m = _FENCE_RE.match(text)
     if m:
-        return m.group(1).strip()
-    # If the text doesn't START with `{`, look for an embedded object.
-    if not text.startswith("{"):
-        # r169 — prefer the FIRST balanced-bracket span over the greedy
-        # regex match. The greedy match would span first `{` to LAST `}`
-        # which can include trailing prose that happens to contain a `}`.
-        balanced = _extract_first_balanced_json(text)
-        if balanced is not None:
-            return balanced
-        # Greedy fallback for the legacy case where the prose has no
-        # additional braces (the original r? behaviour).
-        m2 = _JSON_OBJECT_RE.search(text)
-        if m2:
-            return m2.group(0).strip()
+        # Unwrap the fence, then STILL run balanced extraction below so a
+        # fenced object with trailing junk is cleaned too.
+        text = m.group(1).strip()
+    # ALWAYS prefer the FIRST balanced top-level {...} span. This strips BOTH
+    # leading prose AND trailing tokens in one pass — including the tool-call
+    # XML scaffolding (</invoke>, </parameter>) that Opus 4.8 intermittently
+    # leaks AFTER an otherwise-valid JSON object on the macro/positioning
+    # agents (witnessed every cron fire 2026-06-03 : "Invalid JSON: trailing
+    # characters at column N"). The pre-fix guard only ran this when the text
+    # did NOT start with `{`, so a `{...}</invoke>` payload was returned
+    # verbatim and failed model_validate_json. The extractor respects string
+    # literals so a brace inside a value never confuses the match.
+    balanced = _extract_first_balanced_json(text)
+    if balanced is not None:
+        return balanced
+    # Greedy fallback for the legacy case where no balanced object is found
+    # (e.g. prose with a single stray `{`); preserves the original behaviour.
+    m2 = _JSON_OBJECT_RE.search(text)
+    if m2:
+        return m2.group(0).strip()
     return text
 
 

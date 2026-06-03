@@ -116,6 +116,35 @@ def test_strip_fence_handles_leading_trailing_whitespace() -> None:
     assert _strip_json_fence(text) == '{"x": "y"}'
 
 
+# ── trailing tool-envelope leak (macro Couche-2, witnessed 2026-06-03) ──
+# Opus 4.8 intermittently appends tool-call XML scaffolding (</invoke>,
+# </parameter>) AFTER an otherwise-valid JSON object. Pre-fix, when the
+# text STARTED with `{`, _strip_json_fence skipped balanced extraction and
+# returned `{...}</invoke>` verbatim → model_validate_json failed with
+# "Invalid JSON: trailing characters". macro failed every cron fire.
+
+
+def test_strip_fence_strips_trailing_invoke_token_when_starts_with_brace() -> None:
+    text = '{"drivers": [{"theme": "monetary_policy"}], "summary": "ok"}</invoke>'
+    assert _strip_json_fence(text) == '{"drivers": [{"theme": "monetary_policy"}], "summary": "ok"}'
+
+
+def test_strip_fence_strips_trailing_parameter_token() -> None:
+    text = '{"a": 1, "b": "x"}\n</parameter>\n</invoke>'
+    assert _strip_json_fence(text) == '{"a": 1, "b": "x"}'
+
+
+def test_strip_fence_strips_leading_prose_and_trailing_tool_token() -> None:
+    text = 'Here is the result:\n{"a": 1}\n</invoke>'
+    assert _strip_json_fence(text) == '{"a": 1}'
+
+
+def test_strip_fence_plain_object_with_no_trailing_is_unchanged() -> None:
+    # Regression guard : the common happy path must be byte-identical.
+    text = '{"k": [1, 2, 3], "nested": {"x": "}"}}'
+    assert _strip_json_fence(text) == text
+
+
 # ── call_agent_task ─────────────────────────────────────────────────
 
 
