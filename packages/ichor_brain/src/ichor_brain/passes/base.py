@@ -48,7 +48,20 @@ LANGUE & TON — COACH FR (obligatoire) :
     quadrant, label, metric_name, direction, severity, …) restent en
     ANGLAIS — seul le texte explicatif destiné à l'humain passe en français.
   - Explique le « pourquoi » comme à quelqu'un qui découvre, sans jamais
-    perdre en rigueur ni en précision. Aucune phrase explicative en anglais."""
+    perdre en rigueur ni en précision. Aucune phrase explicative en anglais.
+  - Dans la PROSE explicative (le texte lu par le trader), n'écris JAMAIS un
+    CODE machine brut : aucun identifiant en snake_case (ex. `usd_complacency`,
+    `funding_stress`, `haven_bid`, `risk_on`, `goldilocks`), aucune valeur
+    d'énumération brute, aucun nom de métrique ou de colonne laissé nu.
+    Humanise-les TOUJOURS en langage clair (ex. « complaisance sur le dollar »,
+    « tensions de financement », « ruée vers les valeurs refuges »,
+    « contexte porteur du risque »). Les identifiants de SOURCE (series_id
+    FRED, tickers, slugs Polymarket) peuvent être cités comme référence, mais
+    toujours accompagnés de leur explication en clair.
+  - NE MENTIONNE JAMAIS la mécanique interne du système dans la prose : pas
+    de « Pass 1 / Pass 2 / Pass-6 / la passe N », pas de noms d'agents, de
+    passes, de moteurs ni de modules internes. Le trader ne voit jamais la
+    plomberie — seulement l'analyse, expliquée comme par un coach."""
 
 
 class Pass[T](ABC):

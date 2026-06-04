@@ -108,6 +108,8 @@ def test_watermark_default_prefixes_cover_adr029_surface() -> None:
         coach paragraph LLM-template-derived ⇒ ADR-029 §50 covered).
       - r167-close round-2 audit caught this expectation set drift
         and re-aligned with empirical DEFAULT_WATERMARKED_PREFIXES.
+      - 2026-06-03 added `/v1/dollar-coherence` (cross-asset USD
+        reconciliation derived from LLM-origin session-card biases).
     """
     expected = {
         "/v1/briefings",
@@ -117,6 +119,7 @@ def test_watermark_default_prefixes_cover_adr029_surface() -> None:
         "/v1/scenarios",
         "/v1/verdict",
         "/v1/coach-macro-context",
+        "/v1/dollar-coherence",
     }
     assert set(DEFAULT_WATERMARKED_PREFIXES) == expected
 

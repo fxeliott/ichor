@@ -22,6 +22,7 @@ import { NotificationToggle } from "@/components/NotificationToggle";
 import { AssetSwitcher } from "@/components/briefing/AssetSwitcher";
 import { PRIORITY_ASSETS } from "@/components/briefing/assets";
 import { NetExposureLens } from "@/components/briefing/NetExposureLens";
+import { DollarCoherenceLens } from "@/components/briefing/DollarCoherenceLens";
 import { SessionStatus } from "@/components/briefing/SessionStatus";
 import { ThemeRankingPanel } from "@/components/briefing/ThemeRankingPanel";
 import { VerdictCockpitCard } from "@/components/briefing/VerdictCockpitCard";
@@ -31,6 +32,7 @@ import {
   apiGet,
   getCalendarUpcoming,
   getCorrelations,
+  getDollarCoherence,
   getIntradayBars,
   getKeyLevels,
   getPositioning,
@@ -91,24 +93,28 @@ export default async function BriefingIndexPage() {
   // Three fully-parallel groups : shared macro/levels/positioning, the
   // per-asset latest card, and the per-asset intraday series (cockpit
   // sparklines). deriveVerdict is pure → run it server-side.
-  const [[today, keyLevels, positioning, calendar, correlations], cards, intradaySeries] =
-    await Promise.all([
-      Promise.all([
-        apiGet<TodaySnapshotOut>("/v1/today"),
-        getKeyLevels() as Promise<KeyLevelsResponse | null>,
-        getPositioning() as Promise<PositioningOut | null>,
-        getCalendarUpcoming() as Promise<CalendarUpcoming | null>,
-        getCorrelations() as Promise<CorrelationMatrix | null>,
-      ]),
-      Promise.all(
-        PRIORITY_ASSETS.map((a) =>
-          apiGet<SessionCardList>(`/v1/sessions/${encodeURIComponent(a.code)}?limit=1`),
-        ),
+  const [
+    [today, keyLevels, positioning, calendar, correlations, dollarCoherence],
+    cards,
+    intradaySeries,
+  ] = await Promise.all([
+    Promise.all([
+      apiGet<TodaySnapshotOut>("/v1/today"),
+      getKeyLevels() as Promise<KeyLevelsResponse | null>,
+      getPositioning() as Promise<PositioningOut | null>,
+      getCalendarUpcoming() as Promise<CalendarUpcoming | null>,
+      getCorrelations() as Promise<CorrelationMatrix | null>,
+      getDollarCoherence(),
+    ]),
+    Promise.all(
+      PRIORITY_ASSETS.map((a) =>
+        apiGet<SessionCardList>(`/v1/sessions/${encodeURIComponent(a.code)}?limit=1`),
       ),
-      Promise.all(
-        PRIORITY_ASSETS.map((a) => getIntradayBars(a.code) as Promise<IntradayBarOut[] | null>),
-      ),
-    ]);
+    ),
+    Promise.all(
+      PRIORITY_ASSETS.map((a) => getIntradayBars(a.code) as Promise<IntradayBarOut[] | null>),
+    ),
+  ]);
 
   const kl = keyLevels?.items ?? [];
   const pos = positioning?.entries ?? [];
@@ -259,6 +265,10 @@ export default async function BriefingIndexPage() {
 
       <Reveal>
         <NetExposureLens data={netExposure} labels={assetLabels} />
+      </Reveal>
+
+      <Reveal>
+        <DollarCoherenceLens data={dollarCoherence} labels={assetLabels} />
       </Reveal>
 
       {isLive(today) && (
