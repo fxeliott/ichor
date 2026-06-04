@@ -77,6 +77,9 @@ def test_inventory_watermarked_prefixes_match_adr_079() -> None:
       - r161 added `/v1/verdict` (SessionVerdict apex per ADR-106 D1+D4).
       - r162 added `/v1/coach-macro-context` (CoachMacroContext FR
         coach paragraph LLM-template-derived).
+      - 2026-06-03 added `/v1/dollar-coherence` (cross-asset USD
+        reconciliation DERIVED from LLM-origin session-card biases ⇒
+        ADR-029/079 §50 covered).
     """
     client = TestClient(_build_app())
     r = client.get("/.well-known/ai-content")
@@ -89,6 +92,7 @@ def test_inventory_watermarked_prefixes_match_adr_079() -> None:
         "/v1/scenarios",
         "/v1/verdict",
         "/v1/coach-macro-context",
+        "/v1/dollar-coherence",
     }
 
 
