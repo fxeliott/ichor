@@ -30,7 +30,7 @@ Pydantic `mixed`-tone normalizer (witnessed prod failure 2026-05-25 20:47 `ichor
 
 ### `8c94d4b` — r161 Strand A : Scenario Invalidation schema
 
-NEW `InvalidationCondition` Pydantic + `Scenario.invalidations: list[InvalidationCondition]` extension + `INVALIDATION_METRIC_NAMES` frozenset (33 metric names : DXY/EURUSD/GBPUSD/USDJPY/USDCAD/AUDUSD/SPX500/NAS100/XAUUSD/BRENT/WTI/FRED*DGS10/2/30/DFII10/T10Y2Y/T10YIE/VIX/VVIX/SKEW/MOVE/FRED_BAMLH0A0HYM2/NFCI/DTWEXBGS/CPIAUCSL/PCEPI/PAYEMS + 3 EVENT*_ + 3 POLY\__) + ADR-017 boundary regex mirror.
+NEW `InvalidationCondition` Pydantic + `Scenario.invalidations: list[InvalidationCondition]` extension + `INVALIDATION_METRIC_NAMES` frozenset (33 metric names : DXY/EURUSD/GBPUSD/USDJPY/USDCAD/AUDUSD/SPX500/NAS100/XAUUSD/BRENT/WTI/FRED*DGS10/2/30/DFII10/T10Y2Y/T10YIE/VIX/VVIX/SKEW/MOVE/FRED_BAMLH0A0HYM2/NFCI/DTWEXBGS/CPIAUCSL/PCEPI/PAYEMS + 3 EVENT*\_ + 3 POLY\_\_) + ADR-017 boundary regex mirror.
 
 ZERO migration needed per Agent researcher GREEN verdict (session_card_audit.scenarios JSONB free-form absorbs).
 

@@ -41,7 +41,7 @@ Single feat commit `12f3c80` "feat(api+web2): r159 Pattern #17 OBSERVATION → f
 
 ### Strand B — Pattern #17 OBSERVATION → formal DOCTRINE codification
 
-Module docstring PROMOTED from "PATTERN #17 NEGATIVE-RESULT-ANCHOR OBSERVATION (1 paper × 2 series)" → "PATTERN #17 NEGATIVE-RESULT-ANCHOR FORMAL DOCTRINE (r155+r157 OBSERVATION → r159 formal DOCTRINE via 2nd INDEPENDENT anchor Industrial_Production + Flannery-Protopapadakis 2002 _RFS_)". 2 INDEPENDENT anchors section explicit + methodology-difference honest scope stamp.
+Module docstring PROMOTED from "PATTERN #17 NEGATIVE-RESULT-ANCHOR OBSERVATION (1 paper × 2 series)" → "PATTERN #17 NEGATIVE-RESULT-ANCHOR FORMAL DOCTRINE (r155+r157 OBSERVATION → r159 formal DOCTRINE via 2nd INDEPENDENT anchor Industrial*Production + Flannery-Protopapadakis 2002 \_RFS*)". 2 INDEPENDENT anchors section explicit + methodology-difference honest scope stamp.
 
 Memory `~/.claude/projects/D--Ichor/memory/ichor_r51-r71_doctrinal_patterns.md` Pattern #17 entry PROMOTED to formal DOCTRINE with 2 INDEPENDENT anchors section + methodology-difference doctrinal note + Pre-r159 OBSERVATION historical archeology preserved.
 

@@ -200,7 +200,7 @@ NO axis state change. Axes post-r158 : 1-2 ✅ r123 / 3 ✅ r132+r133 / **4 ✅ 
 
 ## r159 binding default candidates
 
-1. ⭐ AUTO-RECO **Industrial_Production class at 5bp with Flannery-Protopapadakis 2002 _RFS_ anchor** → Pattern #17 OBSERVATION → formal DOCTRINE codify (verified 2nd INDEPENDENT anchor different paper RFS vs JBF + different methodology cross-section pricing vs event-window correlation). Methodology-difference caveat stamp obligatoire. Effort S.
+1. ⭐ AUTO-RECO **Industrial*Production class at 5bp with Flannery-Protopapadakis 2002 \_RFS* anchor** → Pattern #17 OBSERVATION → formal DOCTRINE codify (verified 2nd INDEPENDENT anchor different paper RFS vs JBF + different methodology cross-section pricing vs event-window correlation). Methodology-difference caveat stamp obligatoire. Effort S.
 2. **Dukascopy backfill** (r157 carry-forward, needs Eliot license-escalation decision per F1 R59 Phase 0.5).
 3. **FRED VIXCLS + NFCI 5y backfill** — closes BOTH r150 VIX threshold recompute AND r157 output_gap_proxy DATA STATE blockers (free FRED API + collector extension + manual backfill trigger). Effort M.
 4. **Per-currency Employment subclass refactor** — current Employment class is generic 20bp ; r157 UK_Employment shipped 12bp split. Parallel split for AUD/CAD/JPY/NZD (currency-aware mapping or downstream multiplier). Effort S-M.
