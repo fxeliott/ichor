@@ -11,6 +11,14 @@ dependencies = [
     "structlog>=25.1.0",
     "anyio>=4.7.0",
     "httpx>=0.28.0",
+    # Pin starlette to the line apps/api resolves + passes with (0.52.x +
+    # httpx 0.28.x). With fewer deps than apps/api, claude-runner's uv resolve
+    # otherwise pulls a NEWER starlette whose TestClient hard-requires the
+    # `httpx2` package, breaking pytest collection in CI
+    # (ModuleNotFoundError: No module named 'httpx2' → exit 2). Pinning below
+    # that boundary keeps TestClient on httpx 0.28 (no httpx2). Revisit when
+    # we migrate the test suite to httpx 2.x deliberately.
+    "starlette>=0.47,<0.53",
     # python-jose 3.3.0-era versions are vulnerable to CVE-2024-33663
     # (algorithm-confusion) + CVE-2025-61152 (timing-attack). Lib was
     # dormant 2021-2024, resumed 3.5.0 in May 2025. Floor bumped to
