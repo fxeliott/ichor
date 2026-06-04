@@ -56,7 +56,7 @@ Single feat commit `0945ead` "feat(api+web2+deploy): r157 multi-strand consolida
 
 `apps/api/src/ichor_api/services/event_proximity_engine.py` :
 
-- `EVENT_CLASS_BASELINE_BP["Durable_Goods"] = 5.0` (parity with r155 Retail_Sales — same Birz-Lott 2011 _JBF_ anchor, same negative-result class)
+- `EVENT_CLASS_BASELINE_BP["Durable_Goods"] = 5.0` (parity with r155 Retail*Sales — same Birz-Lott 2011 \_JBF* anchor, same negative-result class)
 - NEW pattern `("durable goods orders", "Durable_Goods")` placed BEFORE NFP family (single substring captures bare + Core variants)
 - `_LOW_SIGNAL_CONFIDENCE_CLASSES` extended `{"Retail_Sales", "Durable_Goods"}`
 - NEW caveat block with trader r157 YELLOW-1 cold-start stamp : "magnitude identique à Retail_Sales faute de désagrégation empirique, à recalibrer post-backfill empirique"
@@ -91,7 +91,7 @@ SR users no longer hear fabricated "magnitude n/a, direction indéterminée" whe
 
 ### Strand E — Pattern #17 OBSERVATION preserved (trader YELLOW-5 + code-reviewer N-5 concordant)
 
-Initial r157 draft promoted Pattern #17 OBSERVATION → DOCTRINE via Durable_Goods 2nd witness. Trader r157 YELLOW-5 REJECTED : "1 paper × 2 series is NOT 2 independent applications under multi-application discipline. Pattern #14 was validated via SEPARATE deploy events ; Pattern #16 via SEPARATE deploys ; Pattern #17 r155+r157 share Birz-Lott 2011 _JBF_ as single anchor source."
+Initial r157 draft promoted Pattern #17 OBSERVATION → DOCTRINE via Durable*Goods 2nd witness. Trader r157 YELLOW-5 REJECTED : "1 paper × 2 series is NOT 2 independent applications under multi-application discipline. Pattern #14 was validated via SEPARATE deploy events ; Pattern #16 via SEPARATE deploys ; Pattern #17 r155+r157 share Birz-Lott 2011 \_JBF* as single anchor source."
 
 Status REVERTED to **OBSERVATION (1 paper × 2 series witnessed)**. Formal DOCTRINE codify pending 2nd INDEPENDENT peer-reviewed anchor (Pinchuk 2022 housing-starts OR Industrial Production replication from different paper).
 

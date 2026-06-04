@@ -134,7 +134,7 @@ Edited `C:/Users/eliot/.claude/CLAUDE.md` ADDITIVE 11 lines at top : "EXCEPTION 
 | 2    | G2 DXY corrélation panel (Engel-West 2005 _JPE_ DOI 10.1086/429137, Eliot §XI "pilier" verbatim)                                    | M      | ✅            |
 | 3    | G6 hour-of-day vol signature (Andersen-Bollerslev 1997 _JEF_ + Ederington-Lee 2001 announcement-control caveat)                     | M      | ✅            |
 | 4    | ADR-106 Stride 5 conviction decay function                                                                                          | S      | ✅            |
-| 5    | G5 origin_zone (Elaut-Frömmel-Lampaert 2018 _JFM_ CORRECT citation post-Kaul-Sapp catch)                                            | M      | ✅            |
+| 5    | G5 origin*zone (Elaut-Frömmel-Lampaert 2018 \_JFM* CORRECT citation post-Kaul-Sapp catch)                                           | M      | ✅            |
 | 6    | Yang-Zhang 2000 _J. Business_ DOI 10.1086/209650 swap from GK for weekend gaps                                                      | S      | ✅            |
 | 7    | Fix `redeploy-brain.sh` + `register-cron-scenario-invalidation-check.sh` Win11 SSH-aware                                            | S      | ✅            |
 | 8    | G7 pre-NY false move (no peer-reviewed support → honest_sentinel or drop)                                                           | L      | ✅            |

@@ -114,6 +114,13 @@ export default tseslint.config(
       // Next.js core-web-vitals (subset of recommended that catches LCP/CLS bugs).
       ...nextPlugin.configs.recommended.rules,
       ...nextPlugin.configs["core-web-vitals"].rules,
+      // `no-html-link-for-pages` is a PAGES-router rule: it resolves a
+      // `pages/` manifest relative to cwd, and when eslint runs from the
+      // monorepo root it errors "Pages directory cannot be found at
+      // <root>/pages". apps/web2 is APP-router (no pages/ dir), so the rule
+      // is non-functional here — turn it off (app-router internal-nav
+      // hygiene is not what this rule checks). Fixes the Node CI lint gate.
+      "@next/next/no-html-link-for-pages": "off",
       // React Hooks correctness.
       ...reactHooks.configs.recommended.rules,
       // a11y subset — anchor + alt + aria attribute checks. Does NOT replace
