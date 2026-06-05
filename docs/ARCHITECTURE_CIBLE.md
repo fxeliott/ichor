@@ -1,5 +1,12 @@
 # Ichor — Architecture cible (Living Macro Entity 10 couches)
 
+> **⚠️ SUPERSEDED 2026-06-05 (Session 02) by [`ARCHITECTURE.md`](ARCHITECTURE.md).**
+> This file is a _target_ from 2026-05-12 and is partly stale (e.g. it says
+> "Couche-2 Haiku low" — superseded by ADR-108 Opus low). For the **current,
+> verified, as-built** architecture-of-record, read
+> [`ARCHITECTURE.md`](ARCHITECTURE.md). Kept here for archaeology / the
+> 10-layer aspirational scoring.
+
 > Référence architecturale globale du système Ichor. Ratifié 2026-05-12
 > session round 8 suite directive Eliot "revoit tout, construit
 > architecture globale interconnectée, pas accumuler couches".
