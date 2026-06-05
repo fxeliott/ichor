@@ -1,8 +1,37 @@
 # RUNBOOK-014: claude-runner Win11 down
 
 - **Severity**: P0 — every Couche-1 briefing + Couche-2 agent + 4-pass card depends on the runner. If it's down, the whole `/v1/briefing-task` and `/v1/agent-task` chain returns 5xx and `session_card_audit` writes stop.
-- **Last reviewed**: 2026-05-06
+- **Last reviewed**: 2026-06-05 (Session 02 — fail-loud guard + self-heal watchdog)
 - **Time to resolve (target)**: 5-10 min for the standalone uvicorn fallback ; 30-60 min for full NSSM service repair.
+
+## What changed in Session 02 (2026-06-05)
+
+Two reliability behaviours were hardened — read these before diagnosing a
+"cards are empty / stale shown as fresh" report:
+
+1. **The runner now FAILS LOUD on an empty / error envelope.** Previously
+   `claude -p` could exit 0 while signalling failure in-band (`is_error`,
+   an `error_*` subtype, rate-limit, refusal) with an empty `result`, and
+   the runner returned `status="success"` with `briefing_markdown=null`.
+   That disguised a FAILED generation as a fresh-but-empty card. Now
+   `subprocess_runner.run_claude` raises and the endpoint returns
+   `status="subprocess_error"` with the real reason
+   (`apps/claude-runner/.../subprocess_runner.py`). The brain client
+   (`packages/ichor_brain/.../runner_client.py`) and Couche-2 client now
+   both raise `RunnerResultError` / `ClaudeRunnerError` on a non-`success`
+   inner status or empty text instead of silently yielding `""`. **Net
+   effect:** a failed batch shows up as a loud error in logs (you can SEE
+   the cause), never as a silent empty card.
+2. **Timeout hierarchy is documented & ordered** (`config.py`):
+   runner `claude_timeout_sec` (540 s) < brain poll budget (600 s) <
+   Couche-2 poll budget (600 s) < systemd batch wall (1800 s). The runner
+   must kill a stuck subprocess and return a clean `timeout` BEFORE the
+   consumer gives up, so the failure is classified at the runner.
+
+> Implication for triage: if you see `status="subprocess_error"` /
+> `RunnerResultError` in logs, that is the **new, correct** classification
+> of a real failure — not a regression. Look at the `error_message` for the
+> true cause (timeout, rate-limit, refusal). Empty cards no longer ship.
 
 ## Trigger
 
@@ -91,6 +120,61 @@ Start-Sleep -Seconds 3
 curl http://127.0.0.1:8766/healthz
 # Expected: HTTP 200 with JSON {"status":"ok",...}
 ```
+
+### Recovery : a FOREIGN process squats port 8766 (2026-06-04 class)
+
+Symptom : `/healthz` connection-refused or returns non-runner content, but
+`Get-NetTCPConnection -LocalPort 8766` shows a listener. Witnessed cause :
+a rogue `python -m http.server 8766` (or a leftover dev server) held the
+port, so the runner could not bind and clients saw connection / 501 errors.
+
+```powershell
+# Identify the squatter (PID + command line)
+$c = Get-NetTCPConnection -LocalPort 8766 -State Listen
+Get-CimInstance Win32_Process -Filter "ProcessId=$($c.OwningProcess)" |
+  Select-Object ProcessId, Name, CommandLine
+# If it is NOT the ichor runner (no `ichor_claude_runner` / `uvicorn` in the
+# command line), stop it, then relaunch the runner:
+Stop-Process -Id $c.OwningProcess -Force
+& "D:\Ichor\scripts\windows\start-claude-runner-standalone.bat"
+Start-Sleep 3 ; curl http://127.0.0.1:8766/healthz
+```
+
+> Bind-interface note: the runner binds `127.0.0.1` (IPv4). If a client
+> resolves `localhost` → `::1` (IPv6) it will fail to connect even though
+> the runner is up. Always probe `127.0.0.1` explicitly, and keep
+> `cloudflared` pointed at `http://127.0.0.1:8766`, never `localhost`.
+
+### Self-heal watchdog (install once — prevents most P0s)
+
+`scripts/windows/runner-watchdog.ps1` probes `/healthz` and auto-heals the
+two recoverable failure modes (process down → restart ; our own hung runner
+→ recycle). A FOREIGN squatter is only evicted with the explicit
+`-KillRogue` switch, so the default run is never destructive. `status=down`
+(claude CLI unreachable) is reported loudly, not loop-restarted.
+
+Run it manually first to see the decision it makes:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File "D:\Ichor\scripts\windows\runner-watchdog.ps1"
+# add -KillRogue only after confirming a foreign squatter is safe to kill
+```
+
+Register it to run every 5 minutes (user-scope Task Scheduler, no admin):
+
+```powershell
+$action  = New-ScheduledTaskAction -Execute 'powershell.exe' `
+  -Argument '-NoProfile -ExecutionPolicy Bypass -File "D:\Ichor\scripts\windows\runner-watchdog.ps1"'
+$trigger = New-ScheduledTaskTrigger -Once -At (Get-Date) `
+  -RepetitionInterval (New-TimeSpan -Minutes 5)
+Register-ScheduledTask -TaskName 'IchorRunnerWatchdog' -Action $action `
+  -Trigger $trigger -Description 'Self-heal the Ichor claude-runner (RUNBOOK-014)'
+# Log: D:\Ichor\.cache\runner-watchdog.log  (HEALED / CRIT lines)
+```
+
+Exit codes: `0` healthy/healed · `2` restarted-still-unhealthy · `3`
+status=down (fix claude.exe path, RUNBOOK-014 Path D) · `4` foreign
+squatter, `-KillRogue` not set · `5` unexpected error.
 
 ### Recommended path : repair the NSSM service properly (30-60 min)
 

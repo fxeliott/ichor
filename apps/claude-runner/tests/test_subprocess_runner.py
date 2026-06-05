@@ -149,3 +149,88 @@ async def test_run_claude_raises_on_nonzero_exit(monkeypatch, fake_settings) -> 
 
     with pytest.raises(ClaudeSubprocessError):
         await run_claude(prompt="x", settings=fake_settings)
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# Session 02 (2026-06-05) — FAIL-LOUD guard : the runner must never report
+# success on an empty / error-subtype envelope (root cause of the ny_close
+# 0/6 + Couche-2 outage where a failed generation looked like a fresh card).
+# ─────────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_run_claude_raises_on_empty_result(monkeypatch, fake_settings) -> None:
+    """exit 0 + subtype=success but empty `result` → must raise, not return."""
+    from ichor_claude_runner.subprocess_runner import ClaudeSubprocessError
+
+    _capture_subprocess(
+        monkeypatch,
+        stdout_json={"type": "result", "subtype": "success", "result": ""},
+    )
+    with pytest.raises(ClaudeSubprocessError):
+        await run_claude(prompt="x", settings=fake_settings)
+
+
+@pytest.mark.asyncio
+async def test_run_claude_raises_on_missing_result_and_no_content(
+    monkeypatch, fake_settings
+) -> None:
+    """No `result` key and no text content blocks → raise."""
+    from ichor_claude_runner.subprocess_runner import ClaudeSubprocessError
+
+    _capture_subprocess(
+        monkeypatch,
+        stdout_json={"type": "result", "subtype": "success"},
+    )
+    with pytest.raises(ClaudeSubprocessError):
+        await run_claude(prompt="x", settings=fake_settings)
+
+
+@pytest.mark.asyncio
+async def test_run_claude_raises_on_error_subtype(monkeypatch, fake_settings) -> None:
+    """An error_* subtype (e.g. error_max_turns) is a failure even with
+    partial text — refuse to pass a truncated/failed card downstream."""
+    from ichor_claude_runner.subprocess_runner import ClaudeSubprocessError
+
+    _capture_subprocess(
+        monkeypatch,
+        stdout_json={
+            "type": "result",
+            "subtype": "error_max_turns",
+            "result": "partial output",
+        },
+    )
+    with pytest.raises(ClaudeSubprocessError):
+        await run_claude(prompt="x", settings=fake_settings)
+
+
+@pytest.mark.asyncio
+async def test_run_claude_raises_on_is_error_flag(monkeypatch, fake_settings) -> None:
+    """`is_error: true` is authoritative even if `result` carries text."""
+    from ichor_claude_runner.subprocess_runner import ClaudeSubprocessError
+
+    _capture_subprocess(
+        monkeypatch,
+        stdout_json={
+            "type": "result",
+            "subtype": "success",
+            "result": "looks ok but flagged",
+            "is_error": True,
+        },
+    )
+    with pytest.raises(ClaudeSubprocessError):
+        await run_claude(prompt="x", settings=fake_settings)
+
+
+@pytest.mark.asyncio
+async def test_run_claude_accepts_content_blocks(monkeypatch, fake_settings) -> None:
+    """API-SDK-shaped envelope (content[] text blocks, no flat `result`)
+    is usable text → must NOT raise; returns the parsed dict."""
+    envelope = {
+        "type": "result",
+        "subtype": "success",
+        "content": [{"type": "text", "text": "hello from content block"}],
+    }
+    _capture_subprocess(monkeypatch, stdout_json=envelope)
+    out = await run_claude(prompt="x", settings=fake_settings)
+    assert out == envelope
