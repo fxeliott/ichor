@@ -13,6 +13,17 @@ dependencies = [
     "alembic>=1.14.0",
     "redis[hiredis]>=5.2.0",
     "httpx>=0.28.0",
+    # starlette>=1.0.1 closes CVE-2026-48710 (GHSA-86qp-5c8j-p5mr — Host-header
+    # request smuggling; request.url.path could diverge from the requested path
+    # → path-based check bypass). apps/api has no explicit starlette pin (fastapi
+    # pulls it); a fresh resolve already lands on starlette 1.x, but we pin the
+    # security FLOOR explicitly so no transitive constraint can drag it back to
+    # <=1.0.0. Verified 2026-06-05 in an isolated venv: fastapi 0.136.3 +
+    # starlette 1.2.1 + the otel/prometheus instrumentators (0.63b1 / 8.0.0)
+    # resolve cleanly; the app builds (92 routes, 6 middleware) and the no-DB +
+    # middleware test surface is green. apps/api uses only 4 stable starlette
+    # APIs (BaseHTTPMiddleware/Request/Response/ASGIApp in ai_watermark.py).
+    "starlette>=1.0.1",
     # Round-46-round-3 dependency-auditor finding : urllib3 transitive
     # was pinned at 2.6.3 (vuln to CVE-2026-44431 sensitive-headers leak
     # via ProxyManager.connection_from_url(...).urlopen(..., assert_same_host=False)).
@@ -59,6 +70,10 @@ dev = [
     "pytest-asyncio>=0.25.0",
     "pytest-cov>=6.0.0",
     "httpx>=0.28.0",
+    # starlette 1.x TestClient backend (test-only; runtime stays on httpx 0.28).
+    # apps/api's pytest config doesn't error on the deprecation, but installing
+    # httpx2 silences it + future-proofs when starlette drops httpx-0.28 support.
+    "httpx2>=2.3.0",
     "ruff>=0.8.0",
     "mypy>=1.14.0",
 ]
