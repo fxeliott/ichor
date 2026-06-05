@@ -49,6 +49,50 @@ from .observability import observe
 
 log = structlog.get_logger(__name__)
 
+
+class RunnerResultError(RuntimeError):
+    """The runner replied 200/done but the INNER result is a failure.
+
+    Session 02 (2026-06-05) silent-failure guard. The async-polling path
+    used to return ``RunnerResponse(text=briefing_markdown or "")`` for ANY
+    completed task — so a runner ``status="timeout"`` / ``"subprocess_error"``
+    or an empty briefing came back as an empty-but-"successful" response.
+    The orchestrator then saw a confusing parse failure (PassError on "")
+    instead of the TRUE cause, and a live product risks disguising a failed
+    generation as a fresh empty card. We now raise this so the cause is
+    logged/classified and the orchestrator's retry-then-fail surfaces it
+    honestly (mirrors the Couche-2 client, which already raised).
+    """
+
+
+# Runner-side result statuses that mean the generation FAILED even though
+# the async task itself completed (HTTP 200, task_status="done"). Mirrors
+# BriefingTaskResponse.status / AgentTaskResponse.status literals.
+_RUNNER_FAILURE_STATUSES = frozenset({"timeout", "subprocess_error", "throttled", "auth_failed"})
+
+
+def _unwrap_runner_result(body: dict[str, Any]) -> str:
+    """Extract the briefing text from a completed runner result, or raise.
+
+    Raises ``RunnerResultError`` when the runner reported a failure status
+    or returned empty text — instead of silently yielding ``""``. A missing
+    ``status`` key (older runner builds / tests) is treated as success so
+    long as the text is non-empty (back-compat).
+    """
+    status = body.get("status")
+    if status in _RUNNER_FAILURE_STATUSES:
+        raise RunnerResultError(
+            f"runner result status={status}: {body.get('error_message') or 'no detail'}"
+        )
+    text = body.get("briefing_markdown") or ""
+    if not text.strip():
+        raise RunnerResultError(
+            f"runner reported status={status!r} but returned empty "
+            "briefing_markdown (silent-failure guard, Session 02)"
+        )
+    return text
+
+
 # CF tunnel + runner transient errors that warrant a transparent retry.
 # 524 is deliberately excluded (see module docstring).
 _TRANSIENT_STATUSES = frozenset({429, 502, 503, 504, 520, 521, 522, 523, 525, 530})
@@ -353,7 +397,7 @@ class HttpRunnerClient(RunnerClient):
                         )
                     body = status_body.get("result") or {}
                     return RunnerResponse(
-                        text=body.get("briefing_markdown") or "",
+                        text=_unwrap_runner_result(body),
                         raw=body,
                         duration_ms=int(body.get("duration_ms") or 0),
                     )
@@ -404,7 +448,7 @@ class HttpRunnerClient(RunnerClient):
                 response=httpx.Response(last_status or 503),
             )
         return RunnerResponse(
-            text=body.get("briefing_markdown") or "",
+            text=_unwrap_runner_result(body),
             raw=body,
             duration_ms=int(body.get("duration_ms") or 0),
         )

@@ -20,6 +20,7 @@ from ichor_brain.runner_client import (
     _MAX_CONSECUTIVE_POLL_ERRORS,
     HttpRunnerClient,
     RunnerCall,
+    RunnerResultError,
 )
 
 
@@ -198,3 +199,80 @@ async def test_async_poll_recovers_then_succeeds_resets_counter(monkeypatch) -> 
         resp = await _make_client().run(RunnerCall(prompt="p", system="s"))
     assert resp.text == "ok briefing"
     assert state["polls"] == 18
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# Session 02 (2026-06-05) — classify-and-raise on a FAILED inner result.
+# Before this, the async path returned RunnerResponse(text="") for a runner
+# status=timeout/subprocess_error or an empty briefing, disguising a failed
+# generation as an empty-but-"successful" card. Now it raises so the
+# orchestrator surfaces the TRUE cause.
+# ─────────────────────────────────────────────────────────────────────────
+
+
+def _done_failed(status: str) -> httpx.Response:
+    return httpx.Response(
+        200,
+        json={
+            "status": "done",
+            "result": {"status": status, "error_message": "boom", "duration_ms": 5},
+        },
+    )
+
+
+def _done_empty() -> httpx.Response:
+    return httpx.Response(
+        200,
+        json={
+            "status": "done",
+            "result": {"status": "success", "briefing_markdown": "", "duration_ms": 5},
+        },
+    )
+
+
+@pytest.mark.asyncio
+async def test_async_raises_on_runner_timeout_status(monkeypatch) -> None:
+    """Runner inner status=timeout → RunnerResultError, not empty success."""
+    monkeypatch.setattr("ichor_brain.runner_client.asyncio.sleep", lambda *a, **kw: _no_op())
+    state = {"polls": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.method == "POST":
+            return _accepted()
+        state["polls"] += 1
+        return _running() if state["polls"] < 2 else _done_failed("timeout")
+
+    with patch("ichor_brain.runner_client.httpx.AsyncClient", _run_with_handler(handler)):
+        with pytest.raises(RunnerResultError):
+            await _make_client().run(RunnerCall(prompt="p", system="s"))
+
+
+@pytest.mark.asyncio
+async def test_async_raises_on_subprocess_error_status(monkeypatch) -> None:
+    """Runner inner status=subprocess_error → RunnerResultError."""
+    monkeypatch.setattr("ichor_brain.runner_client.asyncio.sleep", lambda *a, **kw: _no_op())
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.method == "POST":
+            return _accepted()
+        return _done_failed("subprocess_error")
+
+    with patch("ichor_brain.runner_client.httpx.AsyncClient", _run_with_handler(handler)):
+        with pytest.raises(RunnerResultError):
+            await _make_client().run(RunnerCall(prompt="p", system="s"))
+
+
+@pytest.mark.asyncio
+async def test_async_raises_on_empty_markdown(monkeypatch) -> None:
+    """Runner status=success but empty briefing_markdown → RunnerResultError
+    (silent-failure guard — a fresh-but-empty card is the worst case)."""
+    monkeypatch.setattr("ichor_brain.runner_client.asyncio.sleep", lambda *a, **kw: _no_op())
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.method == "POST":
+            return _accepted()
+        return _done_empty()
+
+    with patch("ichor_brain.runner_client.httpx.AsyncClient", _run_with_handler(handler)):
+        with pytest.raises(RunnerResultError):
+            await _make_client().run(RunnerCall(prompt="p", system="s"))

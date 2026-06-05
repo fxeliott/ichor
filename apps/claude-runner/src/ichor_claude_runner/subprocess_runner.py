@@ -39,6 +39,28 @@ class ClaudeSubprocessError(RuntimeError):
     """Raised on non-zero exit, JSON parse error, or empty output."""
 
 
+def _result_has_usable_text(result: dict[str, Any]) -> bool:
+    """True iff the envelope carries non-empty model text.
+
+    Mirrors the extraction the FastAPI endpoints (`main.py`) do so that
+    `run_claude` and the endpoints agree on what "empty" means. Claude
+    Code `-p --output-format json` flattens the text into a top-level
+    ``result`` field ; the API-SDK shape uses ``content[]`` text blocks.
+    We accept either.
+    """
+    text = result.get("result")
+    if isinstance(text, str) and text.strip():
+        return True
+    blocks = result.get("content")
+    if isinstance(blocks, list):
+        joined = "\n\n".join(
+            b.get("text", "") for b in blocks if isinstance(b, dict) and b.get("type") == "text"
+        ).strip()
+        if joined:
+            return True
+    return False
+
+
 async def run_claude(
     prompt: str,
     settings: Settings,
@@ -209,6 +231,37 @@ async def run_claude(
             stdout_preview=stdout.decode(errors="replace")[:300],
         )
         raise ClaudeSubprocessError(f"failed to parse claude JSON output: {e}") from e
+
+    # Reliability — FAIL LOUD on an empty or error-subtype envelope
+    # (Session 02, 2026-06-05). Claude Code `-p --output-format json` can
+    # exit 0 while signalling failure IN-BAND via `is_error` / an
+    # `error_*` subtype (rate-limit, content refusal, error_max_turns,
+    # error_during_execution) with an empty `result`. The pre-S02 wrapper
+    # returned that verbatim, so the endpoints reported status="success"
+    # with `briefing_markdown=None` and the whole pipeline treated a
+    # FAILED generation as a fresh-but-empty card. A live product must
+    # never disguise a failure as a success : raise so the endpoint
+    # classifies it (status="subprocess_error") and the operator sees the
+    # real reason. Verified root cause of the ny_close 0/6 + Couche-2
+    # outage diagnosed 2026-06-05 (the runner could not tell "succeeded
+    # with content" from "succeeded with an error envelope").
+    subtype = result.get("subtype")
+    is_error = bool(result.get("is_error", False))
+    has_text = _result_has_usable_text(result)
+    if is_error or (isinstance(subtype, str) and subtype.startswith("error")) or not has_text:
+        log.error(
+            "claude.subprocess.empty_or_error_envelope",
+            subtype=subtype,
+            is_error=is_error,
+            has_text=has_text,
+            duration=duration,
+            stop_reason=result.get("stop_reason"),
+        )
+        raise ClaudeSubprocessError(
+            f"claude returned no usable result (subtype={subtype!r}, "
+            f"is_error={is_error}, has_text={has_text}) — refusing to report "
+            "a failed generation as success"
+        )
 
     log.info(
         "claude.subprocess.ok",
