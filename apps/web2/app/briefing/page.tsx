@@ -26,6 +26,7 @@ import { DollarCoherenceLens } from "@/components/briefing/DollarCoherenceLens";
 import { SessionStatus } from "@/components/briefing/SessionStatus";
 import { ThemeRankingPanel } from "@/components/briefing/ThemeRankingPanel";
 import { VerdictCockpitCard } from "@/components/briefing/VerdictCockpitCard";
+import { FreshnessPill } from "@/components/ui/FreshnessPill";
 import { GlowCard } from "@/components/ui/glow-card";
 import { Reveal } from "@/components/ui/reveal";
 import {
@@ -201,15 +202,10 @@ export default async function BriefingIndexPage() {
       {/* Fresh-data strip — snapshot freshness + live-read count. */}
       <Reveal delay={0.05}>
         <div className="glass flex flex-wrap items-center gap-x-6 gap-y-2 rounded-2xl px-5 py-3 text-xs">
-          <span className="flex items-center gap-2">
-            <span
-              aria-hidden
-              className={`inline-flex h-2 w-2 rounded-full ${liveCount > 0 ? "animate-pulse bg-[var(--color-bull)] shadow-[0_0_10px_var(--color-bull)]" : "bg-[var(--color-text-muted)]"}`}
-            />
-            <span className="uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
-              {liveCount > 0 ? "Données live" : "Hors-ligne"}
-            </span>
-          </span>
+          {/* Honest pill: driven by the freshest card's generated_at via the
+              SSOT deriveFreshness (NOT liveCount) — a stale freshest-card now
+              reads "DONNÉES NON FRAÎCHES", never a green "Données live". */}
+          <FreshnessPill generatedAt={latestGenerated} />
           <span className="text-[var(--color-text-secondary)]">
             <span className="font-mono tabular-nums text-[var(--color-text-primary)]">
               {liveCount}/5

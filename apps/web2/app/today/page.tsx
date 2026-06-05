@@ -151,9 +151,32 @@ export default async function TodayPage() {
   const eventsCount = apiOnline ? merged.length : null;
   const topSessions: TodaySessionPreview[] | null = bundleOnline ? bundle.top_sessions : null;
 
+  // Honest, per-request Europe/Paris date + time for the header eyebrow —
+  // replaces a hardcoded "Pré-Londres · 2026-05-04 · 07:42 UTC" string that
+  // lied a fixed stale date to every visitor. Page is revalidate:30, so this
+  // refreshes at least twice a minute.
+  const renderNow = new Date();
+  const dateLabel = renderNow.toLocaleDateString("fr-FR", {
+    timeZone: "Europe/Paris",
+    weekday: "long",
+    day: "2-digit",
+    month: "long",
+  });
+  const timeLabel = renderNow.toLocaleTimeString("fr-FR", {
+    timeZone: "Europe/Paris",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
   return (
     <div className="container mx-auto max-w-6xl px-6 py-12">
-      <Header apiOnline={apiOnline} eventsCount={eventsCount} sourceLabel={sourceLabel} />
+      <Header
+        apiOnline={apiOnline}
+        eventsCount={eventsCount}
+        sourceLabel={sourceLabel}
+        dateLabel={dateLabel}
+        timeLabel={timeLabel}
+      />
       <ChecklistSection triggers={triggers} />
       <BestOppsSection triggers={triggers} topSessions={topSessions} />
       <CalendarSection events={triggers} />
@@ -165,15 +188,19 @@ function Header({
   apiOnline,
   eventsCount,
   sourceLabel,
+  dateLabel,
+  timeLabel,
 }: {
   apiOnline: boolean;
   eventsCount: number | null;
   sourceLabel: string;
+  dateLabel: string;
+  timeLabel: string;
 }) {
   return (
     <header className="mb-10 space-y-3">
       <p className="font-mono text-xs uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
-        Pré-Londres · 2026-05-04 · 07:42 UTC{" "}
+        {dateLabel} · {timeLabel} Paris{" "}
         <span
           aria-label={apiOnline ? "Données en direct" : "Données hors ligne"}
           className="ml-1 inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[9px] uppercase tracking-widest"
