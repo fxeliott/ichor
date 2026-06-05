@@ -139,6 +139,14 @@ class AssetSentiment(BaseModel):
         return v
 
 
+# Canonical asset universe for AssetSentiment.asset — used by the resilience
+# validator below to DROP hallucinated asset codes (2026-06-05) rather than let
+# one bad row fail the whole agent output.
+_VALID_NEWS_ASSETS: frozenset[str] = frozenset(
+    {"EUR_USD", "GBP_USD", "USD_JPY", "AUD_USD", "USD_CAD", "XAU_USD", "NAS100_USD", "SPX500_USD"}
+)
+
+
 class NewsNlpAgentOutput(BaseModel):
     narratives: list[Narrative] = Field(min_length=1, max_length=5)
     asset_sentiment: list[AssetSentiment] = Field(default_factory=list, max_length=8)
@@ -146,6 +154,29 @@ class NewsNlpAgentOutput(BaseModel):
     window_hours: int = Field(default=4, ge=1, le=24)
     generated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     notes: str | None = Field(default=None, max_length=1000)
+
+    @field_validator("asset_sentiment", mode="before")
+    @classmethod
+    def _drop_invalid_assets(cls, v: object) -> object:
+        """Resilience — witnessed prod failure 2026-06-05 on
+        ``ichor-couche2@news_nlp.service`` : the runner SUCCEEDED (valid JSON,
+        3194 chars) but the LLM hallucinated an invalid asset code
+        (``asset_sentiment.2.asset='USD_USD'``), so the ``asset`` Literal
+        narrowed to a whole-output ``ValidationError`` →
+        ``ClaudeRunnerOutputError`` → ``AllProvidersFailed`` → the ENTIRE
+        Couche-2 agent run FAILED. One hallucinated row must not kill the whole
+        agent. Drop dict entries whose ``asset`` is not in the canonical 8
+        (mirrors the ``_normalize_mixed_tone`` precedent — structural defense
+        beats prompt engineering). Non-dict / valid entries pass through so the
+        per-item ``AssetSentiment`` validation still runs.
+        """
+        if not isinstance(v, list):
+            return v
+        return [
+            item
+            for item in v
+            if not (isinstance(item, dict) and item.get("asset") not in _VALID_NEWS_ASSETS)
+        ]
 
 
 SYSTEM_PROMPT_NEWS_NLP = """You are the News-NLP Agent of Ichor. Your job:

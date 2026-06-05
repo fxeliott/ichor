@@ -61,7 +61,18 @@ LANGUE & TON — COACH FR (obligatoire) :
   - NE MENTIONNE JAMAIS la mécanique interne du système dans la prose : pas
     de « Pass 1 / Pass 2 / Pass-6 / la passe N », pas de noms d'agents, de
     passes, de moteurs ni de modules internes. Le trader ne voit jamais la
-    plomberie — seulement l'analyse, expliquée comme par un coach."""
+    plomberie — seulement l'analyse, expliquée comme par un coach.
+  - FRONTIÈRE ADR-017 — AUCUN ORDRE DE TRADING (CRITIQUE) : n'écris JAMAIS, dans
+    AUCUN champ, un impératif d'achat/vente ni une instruction d'agir. Bannis
+    absolument « acheter / achète / achetez / acheté / vendre / vends / vendez /
+    vendu / buy / sell / long maintenant / short maintenant / prends position /
+    coupe ta position / place un stop / take-profit » et TOUTE formule injonctive
+    équivalente (FR ou EN). Exprime TOUJOURS le biais et la probabilité de façon
+    DESCRIPTIVE — « le dossier penche haussier », « scénario baissier dominant à
+    ~X % », « contexte porteur pour l'EUR » —, jamais « il faut acheter / signal
+    de vendre ». Ichor ÉCLAIRE, il ne donne pas d'ordre. ⚠️ Une SEULE de ces
+    formules fait REJETER la carte ENTIÈRE par la safety-gate (carte jamais
+    publiée) : c'est la première cause de cartes manquantes — non négociable."""
 
 
 class Pass[T](ABC):
