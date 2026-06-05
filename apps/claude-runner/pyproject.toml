@@ -18,6 +18,19 @@ dependencies = [
     # (ModuleNotFoundError: No module named 'httpx2' → exit 2). Pinning below
     # that boundary keeps TestClient on httpx 0.28 (no httpx2). Revisit when
     # we migrate the test suite to httpx 2.x deliberately.
+    #
+    # SECURITY NOTE (2026-06-05 — Dependabot #28 / CVE-2026-48710 /
+    # GHSA-86qp-5c8j-p5mr, moderate 6.5): starlette <= 1.0.0 is vulnerable to
+    # Host-header request smuggling (request.url.path can diverge from the
+    # requested path → path-based check bypass). The ONLY patched version is
+    # 1.0.1, which is OUTSIDE this pin. We deliberately HOLD the bump here
+    # rather than ship an unverifiable framework migration on the live Voie-D
+    # runner: 1.0.1 re-trips the httpx2 TestClient break above (the test suite
+    # uses fastapi.testclient) and likely needs a fastapi co-bump (0.118→0.128).
+    # Mitigation: the runner is reachable ONLY via the authenticated Cloudflare
+    # Access tunnel, which gates the crafted-Host attack vector. Tracked as a
+    # deliberate starlette-1.0 + httpx-2.x migration (verify in an isolated
+    # venv + deploy-coordinated), NOT a hotfix.
     "starlette>=0.47,<0.53",
     # python-jose 3.3.0-era versions are vulnerable to CVE-2024-33663
     # (algorithm-confusion) + CVE-2025-61152 (timing-attack). Lib was
