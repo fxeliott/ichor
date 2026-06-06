@@ -240,7 +240,11 @@ export default async function TodayPage() {
   }
 
   const apiOnline = bundleOnline || calOnline || ffOnline;
-  const triggers: Trigger[] = merged.length > 0 ? merged : MOCK_TRIGGERS;
+  // S03 honesty: only fall back to MOCK_TRIGGERS when the API is fully
+  // OFFLINE (the header then reads "hors ligne · données de démo"). When the
+  // API is online but the calendar window is genuinely empty, show the real
+  // empty calendar — never fabricate events under an "en direct" header.
+  const triggers: Trigger[] = merged.length > 0 ? merged : apiOnline ? [] : MOCK_TRIGGERS;
   const eventsCount = apiOnline ? merged.length : null;
   const topSessions: TodaySessionPreview[] | null = bundleOnline ? bundle.top_sessions : null;
   // Checklist derived from REAL data only — `merged` is the real calendar
@@ -569,6 +573,11 @@ function CalendarSection({ events }: { events: Trigger[] }) {
         Calendrier · fenêtre H-4h → H+1h sessions
       </h2>
       <ol className="space-y-2">
+        {events.length === 0 ? (
+          <li className="rounded border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)] px-3 py-2 text-sm text-[var(--color-text-muted)]">
+            Aucun événement sur la fenêtre H-4h → H+1h.
+          </li>
+        ) : null}
         {events.map((e) => {
           const date = new Date(e.scheduledAt);
           const time = date.toLocaleTimeString("fr-FR", {

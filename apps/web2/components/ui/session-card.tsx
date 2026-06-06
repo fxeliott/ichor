@@ -238,7 +238,9 @@ export function SessionCard({
         <span>
           Fiabilité{" "}
           <span className="tabular-nums text-[var(--color-text-secondary)]">
-            {calibration.brier.toFixed(3)}
+            {/* S03 honesty: n=0 has no Brier yet — show "—", never a
+                misleading "0.000" (which reads as a perfect score). */}
+            {calibration.sampleSize > 0 ? calibration.brier.toFixed(3) : "—"}
           </span>{" "}
           · n=
           <span className="tabular-nums text-[var(--color-text-secondary)]">

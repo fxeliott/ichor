@@ -123,6 +123,12 @@ export default async function GeopoliticsPage() {
         </p>
       </header>
 
+      {/* S03 honesty: these three stats are derived from static HOTSPOTS /
+          RECENT_EVENTS constants, not the live GPR feed — labelled "exemple"
+          so they are not read as the real geopolitical-risk composite. */}
+      <p className="mb-2 font-mono text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
+        Indicateurs ci-dessous : exemple · données illustratives
+      </p>
       <section className="mb-6 grid gap-4 sm:grid-cols-3">
         <Stat
           label="GPR composite (24h)"
@@ -216,8 +222,13 @@ export default async function GeopoliticsPage() {
       )}
 
       <section className="rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-6">
-        <h2 className="mb-4 font-mono text-xs uppercase tracking-widest text-[var(--color-text-muted)]">
-          Événements GDELT récents · indice Goldstein
+        <h2 className="mb-4 flex items-center justify-between font-mono text-xs uppercase tracking-widest text-[var(--color-text-muted)]">
+          <span>Événements GDELT récents · indice Goldstein</span>
+          {/* S03 honesty: these per-event rows are illustrative (no per-event
+              GDELT endpoint yet — /v1/geopolitics exposes aggregates only). */}
+          <span className="rounded border border-[var(--color-border-subtle)] px-1.5 py-0.5 text-[9px] normal-case">
+            exemple
+          </span>
         </h2>
         <table className="w-full text-sm">
           <thead>

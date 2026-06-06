@@ -404,24 +404,36 @@ function CalibStat({
 }
 
 function RegimeAside() {
+  // S03 honesty: this quadrant position + caption are illustrative
+  // placeholders (not yet wired to /v1/macro-pulse), so they are labelled
+  // "exemple" rather than rendered as the live macro regime.
   return (
     <div className="rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-4">
-      <p className="mb-2 font-mono text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
+      <p className="mb-2 flex items-center justify-between font-mono text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
         Régime macro courant
+        <span className="rounded border border-[var(--color-border-subtle)] px-1.5 py-0.5 text-[9px]">
+          exemple
+        </span>
       </p>
       <RegimeQuadrant position={{ x: 0.4, y: -0.2 }} variant="compact" ambient={false} />
-      <p className="mt-2 text-xs text-[var(--color-text-secondary)]">
-        Risk-on · désinflation modérée
+      <p className="mt-2 text-xs italic text-[var(--color-text-muted)]">
+        Risk-on · désinflation modérée — données illustratives
       </p>
     </div>
   );
 }
 
 function AnaloguesPreview() {
+  // S03 honesty: there is no /v1/analogues endpoint yet; these three
+  // historical matches are illustrative, so the panel is labelled "exemple"
+  // rather than presented as real retrieved analogues.
   return (
     <div className="rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-4">
-      <p className="mb-2 font-mono text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
+      <p className="mb-2 flex items-center justify-between font-mono text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
         Situations historiques similaires · top 3
+        <span className="rounded border border-[var(--color-border-subtle)] px-1.5 py-0.5 text-[9px]">
+          exemple
+        </span>
       </p>
       <ol className="space-y-2 text-xs">
         <li className="border-l-2 border-[var(--color-bull)] pl-2">
