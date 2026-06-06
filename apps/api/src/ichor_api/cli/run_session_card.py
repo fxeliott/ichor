@@ -37,6 +37,41 @@ log = structlog.get_logger(__name__)
 from ichor_brain.types import VALID_SESSION_TYPES as _VALID_SESSIONS
 
 
+def _build_tool_config(*, web_research_on: bool):
+    """Build the Cap-5 ToolConfig for the live tool-enabled passes.
+
+    G1 (S03 real-time interconnection): when ``web_research_on`` is True, add
+    Claude Code's native ``WebSearch`` tool so Opus can pull the very latest
+    real-world context during generation (Voie D — the local ``claude`` CLI,
+    zero API spend) + a couple extra turns for the search round. Only the
+    regime pass prompt is *directed* to use it (bounded latency); the tool is
+    harmless to the other tool-enabled passes. Pure + synchronous so the wiring
+    is unit-testable without a DB / feature-flag round-trip.
+    """
+    from ichor_brain.runner_client import ToolConfig
+
+    tools = ["mcp__ichor__query_db", "mcp__ichor__calc"]
+    if web_research_on:
+        tools.append("WebSearch")
+    return ToolConfig(
+        mcp_config={
+            "mcpServers": {
+                "ichor": {
+                    "command": "python",
+                    "args": ["-m", "ichor_mcp.server"],
+                }
+            }
+        },
+        allowed_tools=tuple(tools),
+        # Web search needs a couple extra agentic turns vs the db/calc-only
+        # default; still well inside the runner's 540s timeout for one pass.
+        max_turns=10 if web_research_on else 8,
+        # Pass-3 stress + Pass-4 invalidation excluded by design — they
+        # operate on prior-pass narrative, not raw market data.
+        enabled_for_passes=frozenset({"regime", "asset", "scenarios"}),
+    )
+
+
 async def _run(
     asset: str,
     session_type: str,
@@ -178,28 +213,21 @@ async def _run(
     # captures every invocation.
     tool_config = None
     if live and enable_tools:
-        from ichor_brain.runner_client import ToolConfig
+        # G1 (S03) — Opus-driven live web research is gated by the
+        # `brain_web_research_enabled` feature flag (fail-closed): an instant
+        # kill-switch if the extra WebSearch latency ever threatens the runner
+        # timeout (S02 stale-card lesson). --enable-tools is required and the
+        # cron passes it; the flag then adds WebSearch on top of db/calc.
+        from ..services.feature_flags import is_enabled
 
-        tool_config = ToolConfig(
-            mcp_config={
-                "mcpServers": {
-                    "ichor": {
-                        "command": "python",
-                        "args": ["-m", "ichor_mcp.server"],
-                    }
-                }
-            },
-            allowed_tools=(
-                "mcp__ichor__query_db",
-                "mcp__ichor__calc",
-            ),
-            max_turns=8,
-            # Pass-3 stress + Pass-4 invalidation excluded by design —
-            # they operate on prior-pass narrative, not raw market data
-            # (cf ADR-077 §"Tool-pass scope rationale").
-            enabled_for_passes=frozenset({"regime", "asset", "scenarios"}),
+        async with sm() as _ff_session:
+            web_research_on = await is_enabled(_ff_session, "brain_web_research_enabled")
+        tool_config = _build_tool_config(web_research_on=web_research_on)
+        log.info(
+            "cap5.tools.enabled",
+            passes=sorted(tool_config.enabled_for_passes),
+            web_research=web_research_on,
         )
-        log.info("cap5.tools.enabled", passes=sorted(tool_config.enabled_for_passes))
 
     # W110d ADR-086 — past-only RAG analogues injection into Pass-1.
     # Opt-in via `--enable-rag` (default OFF for prudent rollout). The
