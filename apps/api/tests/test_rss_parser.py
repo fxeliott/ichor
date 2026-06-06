@@ -148,6 +148,30 @@ def test_default_feeds_is_non_empty_and_unique() -> None:
     assert "news" in kinds
 
 
+def test_default_feeds_https_only_and_s03_expansion() -> None:
+    """S03 'newsletters du monde' expansion (2026-06-06): every feed is HTTPS
+    (MITM safety — the body flows into the LLM prompt, MED-2 2026-05-03 audit),
+    URLs are unique, kinds are valid, and the verified-live broadened world-news
+    + central-bank surface is present (each URL HTTP-200 + valid RSS, checked
+    from the Hetzner collector host before being added)."""
+    assert all(f.url.startswith("https://") for f in DEFAULT_FEEDS), (
+        "non-HTTPS feed present — http feeds are MITM-injectable"
+    )
+    urls = [f.url for f in DEFAULT_FEEDS]
+    assert len(set(urls)) == len(urls), "duplicate feed URL"
+    assert all(f.kind in {"central_bank", "news", "regulator"} for f in DEFAULT_FEEDS)
+    names = {f.name for f in DEFAULT_FEEDS}
+    assert {
+        "boj_news",
+        "forexlive",
+        "wsj_markets",
+        "marketwatch_top",
+        "investing_news",
+        "investing_economy",
+    }.issubset(names), "S03 verified-live feed additions missing"
+    assert len(DEFAULT_FEEDS) >= 11
+
+
 def test_skips_items_without_title_or_link() -> None:
     body = b"""<?xml version="1.0"?>
     <rss version="2.0"><channel>

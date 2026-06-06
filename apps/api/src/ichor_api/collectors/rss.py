@@ -79,6 +79,42 @@ DEFAULT_FEEDS: tuple[FeedSource, ...] = (
         "https://feeds.bbci.co.uk/news/business/rss.xml",
         "news",
     ),
+    # S03 "newsletters du monde" expansion — broadened the world-news +
+    # CB surface. Every URL below was verified LIVE from the Hetzner
+    # collector host (HTTP 200 + valid <rss>/<feed> body + multi-item)
+    # on 2026-06-06 before being added; HTTPS-only (MITM safety). Dead /
+    # non-RSS / 403 candidates (Treasury, IMF, FXStreet, SNB, BoC) were
+    # rejected, never guessed.
+    FeedSource(
+        "boj_news",
+        "https://www.boj.or.jp/en/rss/whatsnew.xml",
+        "central_bank",
+    ),
+    FeedSource(
+        "forexlive",
+        "https://www.forexlive.com/feed/",
+        "news",
+    ),
+    FeedSource(
+        "wsj_markets",
+        "https://feeds.a.dj.com/rss/RSSMarketsMain.xml",
+        "news",
+    ),
+    FeedSource(
+        "marketwatch_top",
+        "https://feeds.content.dowjones.io/public/rss/mw_topstories",
+        "news",
+    ),
+    FeedSource(
+        "investing_news",
+        "https://www.investing.com/rss/news.rss",
+        "news",
+    ),
+    FeedSource(
+        "investing_economy",
+        "https://www.investing.com/rss/news_25.rss",
+        "news",
+    ),
 )
 
 
