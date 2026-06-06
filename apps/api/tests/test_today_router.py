@@ -8,7 +8,7 @@ requiring a live DB.
 
 from __future__ import annotations
 
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 from uuid import uuid4
@@ -93,7 +93,10 @@ def _card(
         magnitude_pips_low=18.0,
         magnitude_pips_high=32.0,
         regime_quadrant="goldilocks",
-        generated_at=generated or datetime(2026, 5, 4, 7, 0, tzinfo=UTC),
+        # Default to "now" so cards built by the happy-path fixtures pass the
+        # S03 36h freshness cutoff ; stale-card behaviour is exercised
+        # explicitly in ``test_today_top_sessions_excludes_stale_cards``.
+        generated_at=generated or datetime.now(UTC),
     )
 
 
@@ -228,15 +231,18 @@ def test_today_top_sessions_distinct_per_asset_newest_wins(
 ) -> None:
     """Service emits DISTINCT ON (asset) so the stub already returns one
     row per asset ; the router then sorts by generated_at desc and slices
-    to top_n."""
+    to top_n. Cards are dated relative to *now* so they pass the freshness
+    cutoff (the S03 honesty gate drops stale cards — see
+    ``test_today_top_sessions_excludes_stale_cards``)."""
     _macro_stubs(monkeypatch)
     monkeypatch.setattr(today_router, "assess_calendar", _calendar_stub())
 
+    now = datetime.now(UTC)
     rows = [
-        _card(asset="EUR_USD", generated=datetime(2026, 5, 4, 7, 0, tzinfo=UTC)),
-        _card(asset="USD_JPY", generated=datetime(2026, 5, 4, 7, 30, tzinfo=UTC)),
-        _card(asset="XAU_USD", generated=datetime(2026, 5, 4, 7, 15, tzinfo=UTC)),
-        _card(asset="GBP_USD", generated=datetime(2026, 5, 4, 6, 45, tzinfo=UTC)),
+        _card(asset="EUR_USD", generated=now - timedelta(hours=4)),
+        _card(asset="USD_JPY", generated=now - timedelta(hours=1)),
+        _card(asset="XAU_USD", generated=now - timedelta(hours=2)),
+        _card(asset="GBP_USD", generated=now - timedelta(hours=6)),
     ]
 
     async def _override():
@@ -249,7 +255,43 @@ def test_today_top_sessions_distinct_per_asset_newest_wins(
             body = r.json()
             assert body["n_session_cards"] == 4
             assert len(body["top_sessions"]) == 3
-            # Sorted newest-first ; USD_JPY (07:30) is the freshest
+            # Sorted newest-first ; USD_JPY (-1h) is the freshest
             assert body["top_sessions"][0]["asset"] == "USD_JPY"
+    finally:
+        app.dependency_overrides.pop(get_session, None)
+
+
+def test_today_top_sessions_excludes_stale_cards(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """S03 honesty gate : /today must never rank a stale card as a
+    'top session today'. Cards older than the 36h freshness cutoff
+    (mirror of the /today/diff cutoff) are dropped — both from
+    ``top_sessions`` and from the ``n_session_cards`` count."""
+    _macro_stubs(monkeypatch)
+    monkeypatch.setattr(today_router, "assess_calendar", _calendar_stub())
+
+    now = datetime.now(UTC)
+    rows = [
+        _card(asset="EUR_USD", generated=now - timedelta(hours=2)),  # fresh
+        _card(asset="USD_JPY", generated=now - timedelta(hours=50)),  # stale > 36h
+        _card(asset="XAU_USD", generated=now - timedelta(hours=10)),  # fresh
+    ]
+
+    async def _override():
+        yield _StubSession(rows)
+
+    app.dependency_overrides[get_session] = _override
+    try:
+        with TestClient(app) as c:
+            r = c.get("/v1/today?top_n=3")
+            assert r.status_code == 200
+            body = r.json()
+            # Only the 2 fresh cards survive the 36h cutoff.
+            assert body["n_session_cards"] == 2
+            assert len(body["top_sessions"]) == 2
+            returned = {s["asset"] for s in body["top_sessions"]}
+            assert returned == {"EUR_USD", "XAU_USD"}
+            assert "USD_JPY" not in returned  # stale dropped
     finally:
         app.dependency_overrides.pop(get_session, None)

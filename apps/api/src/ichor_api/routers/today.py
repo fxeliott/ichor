@@ -13,7 +13,7 @@ business logic lives in exactly one place.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Query
@@ -150,22 +150,34 @@ async def today_snapshot(
     calendar_events = [_serialize_event(e) for e in impactful]
 
     # ── Top-N latest session cards (DISTINCT ON (asset)).
+    #
+    # S03 honesty gate : a /today "top session" must be genuinely recent.
+    # We mirror the 36h freshness cutoff used by /today/diff (see
+    # ``today_cutoff`` below at the diff endpoint) so a stale card — an
+    # asset that has NOT been re-generated in the last 36h — never ranks
+    # as one of "today's top opportunities". The query still returns the
+    # latest card per asset (DISTINCT ON); we then drop the stale ones in
+    # Python (≤ universe-size rows, negligible cost) so both ``top_sessions``
+    # and the ``n_session_cards`` count reflect only fresh cards.
+    now = datetime.now(UTC)
+    fresh_cutoff = now - timedelta(hours=36)
     stmt = (
         select(SessionCardAudit)
         .distinct(SessionCardAudit.asset)
         .order_by(SessionCardAudit.asset, desc(SessionCardAudit.generated_at))
     )
     rows = list((await session.execute(stmt)).scalars().all())
-    rows_sorted = sorted(rows, key=lambda r: r.generated_at, reverse=True)[:top_n]
+    fresh_rows = [r for r in rows if r.generated_at >= fresh_cutoff]
+    rows_sorted = sorted(fresh_rows, key=lambda r: r.generated_at, reverse=True)[:top_n]
     top_sessions = [_serialize_session(c) for c in rows_sorted]
 
     return TodaySnapshotOut(
-        generated_at=datetime.now(UTC),
+        generated_at=now,
         macro=macro,
         calendar_window_days=horizon_days,
         n_calendar_events=len(calendar_events),
         calendar_events=calendar_events,
-        n_session_cards=len(rows),
+        n_session_cards=len(fresh_rows),
         top_sessions=top_sessions,
     )
 
