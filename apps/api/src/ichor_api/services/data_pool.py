@@ -4776,6 +4776,70 @@ async def _section_calendar(session: AsyncSession, asset: str) -> tuple[str, lis
     return render_calendar_block(report, asset=asset, max_items=10)
 
 
+async def _section_today_schedule(session: AsyncSession, asset: str) -> tuple[str, list[str]]:
+    """## Today's full economic schedule — every release, all impact tiers.
+
+    Where `_section_calendar` answers "what's coming in the next 14 days?"
+    (medium/high only, capped at 10), this answers "what is on *today's*
+    agenda?" with NO impact filter and NO cap — the complete day's docket
+    (S03/D1 completeness). "Today" is Paris-local (Eliot's operating window),
+    mirroring the verdict builder, so the docket lines up with the session
+    the card is generated for. We query `economic_events` directly because
+    `assess_calendar` hard-drops low-impact rows at the SQL layer; here every
+    tier is surfaced and source-stamped, with a per-asset relevance flag from
+    the same currency→asset map as the upcoming-calendar feed. Descriptive
+    only (ADR-017): it states WHAT releases WHEN, never an action.
+    """
+    from ..models import EconomicEvent
+    from .economic_calendar import _FF_CURRENCY_MAP
+    from .session_verdict_builder import _today_paris_midnight_utc
+
+    now = datetime.now(UTC)
+    start = _today_paris_midnight_utc(now)
+    end = start + timedelta(days=1)
+    rows = list(
+        (
+            await session.execute(
+                select(EconomicEvent)
+                .where(
+                    EconomicEvent.scheduled_at.is_not(None),
+                    EconomicEvent.scheduled_at >= start,
+                    EconomicEvent.scheduled_at < end,
+                )
+                .order_by(EconomicEvent.scheduled_at.asc())
+            )
+        )
+        .scalars()
+        .all()
+    )
+
+    header = "## Today's economic schedule — every release, all impact tiers"
+    if not rows:
+        return (f"{header}\n- (no economic releases scheduled today)", [])
+
+    impact_tag = {"high": "🔴 HIGH", "medium": "🟡 medium", "low": "🟢 low"}
+    asset_u = asset.upper()
+    lines = [header]
+    sources: list[str] = []
+    for r in rows:
+        region, affected = _FF_CURRENCY_MAP.get(r.currency, (r.currency, []))
+        when = "all day" if r.is_all_day else f"{r.scheduled_at:%H:%M} UTC"
+        tag = impact_tag.get(r.impact, f"⚪ {r.impact}")
+        detail_parts: list[str] = []
+        if r.forecast:
+            detail_parts.append(f"forecast={r.forecast}")
+        if r.previous:
+            detail_parts.append(f"previous={r.previous}")
+        if r.actual:
+            detail_parts.append(f"actual={r.actual}")
+        detail = (" · " + " ".join(detail_parts)) if detail_parts else ""
+        relevance = "  ← affects this asset" if asset_u in affected else ""
+        lines.append(f"- {when} [{region}] {tag} · {r.title}{detail}{relevance}")
+        sources.append(f"economic_events:{r.currency}")
+
+    return "\n".join(lines), sources
+
+
 async def _section_correlations(
     session: AsyncSession,
 ) -> tuple[str, list[str]]:
@@ -5169,6 +5233,9 @@ async def build_data_pool(
 
     cal_md, cal_src = await _section_calendar(session, asset)
     sections.append(("calendar", cal_md, cal_src))
+
+    today_md, today_src = await _section_today_schedule(session, asset)
+    sections.append(("today_schedule", today_md, today_src))
 
     ra_md, ra_src = await _section_recent_actuals(session)
     sections.append(("recent_actuals", ra_md, ra_src))
