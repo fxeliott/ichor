@@ -71,38 +71,131 @@ interface ChecklistItem {
   detail: string;
 }
 
-const CHECKLIST: ChecklistItem[] = [
-  {
-    id: "regime",
-    question: "Régime fit ?",
-    status: "go",
-    detail: "Risk-on, désinflation modérée — favorable aux setups longs cycliques",
-  },
-  {
-    id: "conviction",
-    question: "Conviction > 60 % sur ≥ 1 actif ?",
-    status: "go",
-    detail: "EUR/USD long 72%, XAU/USD short 64%",
-  },
-  {
-    id: "confluence",
-    question: "Confluence cohérente avec le régime ?",
-    status: "go",
-    detail: "DXY weakness + real yields favorable EUR + ECB hawkish bias",
-  },
-  {
-    id: "calendar",
-    question: "Pas de catalyst surprise ?",
-    status: "caution",
-    detail: "Lagarde 8h30 + EU CPI 9h00 — fenêtre serrée, prendre position après 9h15",
-  },
-  {
-    id: "polymarket",
-    question: "Polymarket pas en désaccord majeur ?",
-    status: "go",
-    detail: "Fed-cut probability stable +1pp 24h — pas de divergence cross-venue",
-  },
-];
+// Plain-FR coach labels for the macro risk-appetite band (mirror of the SSOT
+// in app/briefing/page.tsx — the backend RiskBand domain).
+const RISK_BAND_FR: Record<string, string> = {
+  extreme_risk_on: "Fort appétit pour le risque",
+  risk_on: "Appétit pour le risque",
+  neutral: "Régime neutre",
+  risk_off: "Aversion au risque",
+  extreme_risk_off: "Forte aversion au risque",
+};
+
+/**
+ * Derive the pre-session checklist from REAL data (the /v1/today bundle + the
+ * live calendar) instead of the previously hardcoded fake answers
+ * ("EUR/USD long 72%", "Lagarde 8h30", "Fed-cut +1pp") that contradicted
+ * reality (e.g. claimed conviction > 60 % while the real top read was ~25 %).
+ * Each line is now traceable to a live value or honestly flagged as
+ * unavailable — never fabricated. Items whose data the bundle does not carry
+ * (per-asset confluence detail / Polymarket) are intentionally omitted rather
+ * than faked.
+ */
+function buildChecklist(
+  bundle: TodaySnapshotOut | null,
+  realTriggers: Trigger[],
+  apiOnline: boolean,
+): ChecklistItem[] {
+  const items: ChecklistItem[] = [];
+  const sessions = bundle?.top_sessions ?? [];
+
+  // 1. Régime — real macro risk band + VIX regime.
+  if (bundle) {
+    const band = bundle.macro.risk_band;
+    items.push({
+      id: "regime",
+      question: "Régime de marché lisible ?",
+      status: band !== "neutral" ? "go" : "caution",
+      detail:
+        `${RISK_BAND_FR[band] ?? band} (composite ${bundle.macro.risk_composite.toFixed(2)})` +
+        (bundle.macro.vix_1m !== null
+          ? ` · VIX ${bundle.macro.vix_1m.toFixed(1)} (${bundle.macro.vix_regime})`
+          : ""),
+    });
+  } else {
+    items.push({
+      id: "regime",
+      question: "Régime de marché lisible ?",
+      status: "caution",
+      detail: "Pouls macro indisponible pour le moment.",
+    });
+  }
+
+  // 2. Conviction — real top_sessions strongest conviction vs the 60 % bar.
+  if (sessions.length > 0) {
+    const top = sessions.reduce((a, b) => (b.conviction_pct > a.conviction_pct ? b : a));
+    const maxConv = Math.round(top.conviction_pct);
+    items.push({
+      id: "conviction",
+      question: "Conviction ≥ 60 % sur ≥ 1 actif ?",
+      status: maxConv >= 60 ? "go" : maxConv >= 45 ? "caution" : "no_go",
+      detail: `Conviction la plus forte : ${maxConv} % (${top.asset.replace("_", "/")} ${biasFr(
+        top.bias_direction,
+      )}) — ${maxConv >= 60 ? "au-dessus" : "en-dessous"} du seuil de 60 %.`,
+    });
+  } else {
+    items.push({
+      id: "conviction",
+      question: "Conviction ≥ 60 % sur ≥ 1 actif ?",
+      status: "caution",
+      detail: "Aucune carte de session disponible pour le moment.",
+    });
+  }
+
+  // 3. Direction — at least one non-neutral bias among the real top reads.
+  if (sessions.length > 0) {
+    const directional = sessions.filter((s) => s.bias_direction !== "neutral");
+    items.push({
+      id: "direction",
+      question: "Au moins un biais directionnel net ?",
+      status: directional.length >= 1 ? "go" : "caution",
+      detail:
+        directional.length > 0
+          ? `${directional.length} actif${directional.length > 1 ? "s" : ""} directionnel${
+              directional.length > 1 ? "s" : ""
+            } : ${directional
+              .map((s) => `${s.asset.replace("_", "/")} ${biasFr(s.bias_direction)}`)
+              .join(" · ")}`
+          : "Tous les biais sont neutres — pas de direction tranchée aujourd'hui.",
+    });
+  }
+
+  // 4. Catalyst surprise — live calendar (real events only, next 2 h high-impact).
+  if (!apiOnline) {
+    items.push({
+      id: "calendar",
+      question: "Pas de catalyst surprise ?",
+      status: "caution",
+      detail: "Calendrier indisponible — impossible de confirmer l'absence d'événement.",
+    });
+  } else {
+    const now = Date.now();
+    const next2h = realTriggers.filter((t) => {
+      const ts = new Date(t.scheduledAt).getTime();
+      return t.importance === "high" && ts >= now && ts - now < 2 * 3600 * 1000;
+    });
+    items.push(
+      next2h.length > 0
+        ? {
+            id: "calendar",
+            question: "Pas de catalyst surprise ?",
+            status: "caution",
+            detail: `${next2h.length} événement${next2h.length > 1 ? "s" : ""} à fort impact dans les 2 h : ${next2h
+              .map((t) => t.label)
+              .slice(0, 2)
+              .join(" · ")}`,
+          }
+        : {
+            id: "calendar",
+            question: "Pas de catalyst surprise ?",
+            status: "go",
+            detail: "Pas d'événement à fort impact dans les 2 h prochaines.",
+          },
+    );
+  }
+
+  return items;
+}
 
 export default async function TodayPage() {
   // First try the bundled /v1/today endpoint (single fetch, server-merged
@@ -150,6 +243,9 @@ export default async function TodayPage() {
   const triggers: Trigger[] = merged.length > 0 ? merged : MOCK_TRIGGERS;
   const eventsCount = apiOnline ? merged.length : null;
   const topSessions: TodaySessionPreview[] | null = bundleOnline ? bundle.top_sessions : null;
+  // Checklist derived from REAL data only — `merged` is the real calendar
+  // triggers (possibly empty), never the MOCK_TRIGGERS display fallback.
+  const checklist = buildChecklist(bundleOnline ? bundle : null, merged, apiOnline);
 
   // Honest, per-request Europe/Paris date + time for the header eyebrow —
   // replaces a hardcoded "Pré-Londres · 2026-05-04 · 07:42 UTC" string that
@@ -177,7 +273,7 @@ export default async function TodayPage() {
         dateLabel={dateLabel}
         timeLabel={timeLabel}
       />
-      <ChecklistSection triggers={triggers} />
+      <ChecklistSection checklist={checklist} />
       <BestOppsSection triggers={triggers} topSessions={topSessions} />
       <CalendarSection events={triggers} />
     </div>
@@ -293,43 +389,26 @@ function LiveSessionCard({
   );
 }
 
-function ChecklistSection({ triggers }: { triggers: Trigger[] }) {
-  // The catalyst-surprise question is auto-flagged based on the live
-  // calendar : if a high-impact event lands in the next 2h, downgrade to
-  // "caution" with a derived detail line ; else "go".
-  const now = Date.now();
-  const next2h = triggers.filter((t) => {
-    const ts = new Date(t.scheduledAt).getTime();
-    return t.importance === "high" && ts >= now && ts - now < 2 * 3600 * 1000;
-  });
-  const calendarItem: ChecklistItem =
-    next2h.length > 0
-      ? {
-          id: "calendar",
-          question: "Pas de catalyst surprise ?",
-          status: "caution",
-          detail: `${next2h.length} événement${next2h.length > 1 ? "s" : ""} à fort impact dans les 2h : ${next2h
-            .map((t) => t.label)
-            .slice(0, 2)
-            .join(" · ")}`,
-        }
-      : {
-          id: "calendar",
-          question: "Pas de catalyst surprise ?",
-          status: "go",
-          detail: "Pas d'événement à fort impact dans les 2h prochaines",
-        };
-  const checklist: ChecklistItem[] = CHECKLIST.map((c) => (c.id === "calendar" ? calendarItem : c));
+function ChecklistSection({ checklist }: { checklist: ChecklistItem[] }) {
+  // Verdict derived from the REAL checklist (built upstream from the /v1/today
+  // bundle) : any "no_go" (e.g. conviction below the 60 % threshold) blocks the
+  // day ; all-go = clear ; otherwise conditional. No fabricated answers.
+  const total = checklist.length;
   const goCount = checklist.filter((c) => c.status === "go").length;
+  const noGoCount = checklist.filter((c) => c.status === "no_go").length;
   const verdict =
-    goCount >= 4 ? "Feu vert" : goCount >= 3 ? "Feu vert sous conditions" : "À éviter aujourd'hui";
-  const verdictBias = goCount >= 4 ? "bull" : goCount >= 3 ? "neutral" : "bear";
+    noGoCount > 0
+      ? "À éviter aujourd'hui"
+      : goCount === total
+        ? "Feu vert"
+        : "Feu vert sous conditions";
+  const verdictBias = noGoCount > 0 ? "bear" : goCount === total ? "bull" : "neutral";
 
   return (
     <section className="mb-16 rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-6 shadow-[var(--shadow-md)]">
       <div className="mb-4 flex items-baseline justify-between">
         <h2 className="font-mono text-xs uppercase tracking-widest text-[var(--color-text-muted)]">
-          Checklist pré-session · 5 questions
+          Checklist pré-session · {total} points
         </h2>
         <span
           className="font-mono text-sm uppercase tracking-widest"

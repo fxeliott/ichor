@@ -87,7 +87,11 @@ function buildTrinity(p: MacroPulse): TrinityItem[] {
       value: vix.vix_1m !== null ? vix.vix_1m.toFixed(1) : "—",
       delta: vix.spread ?? 0,
       bias: classifyVixRegime(vix.regime),
-      sig: vix.interpretation || vixRegimeFr(vix.regime),
+      // Use the SSOT FR label only — the raw backend `interpretation` note leaks
+      // English jargon ("watch out for mean-revert vol-spike") + trade-idea
+      // vocabulary ("long equity 1-3 mois") that breaches the coach-FR (§6.9)
+      // and ADR-017 boundaries on this live surface.
+      sig: vixRegimeFr(vix.regime),
     },
     {
       label: "Appétit pour le risque",

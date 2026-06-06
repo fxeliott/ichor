@@ -7,7 +7,7 @@
 
 import Link from "next/link";
 
-import { BiasIndicator } from "@/components/ui";
+import { BiasIndicator, FreshnessPill } from "@/components/ui";
 import { criticVerdictFr, regimeLabel, sessionTypeFr } from "@/lib/coachLabels";
 import { apiGet, isLive, type SessionCardList } from "@/lib/api";
 
@@ -105,6 +105,10 @@ export default async function SessionsIndexPage() {
                   size="xs"
                 />
               </header>
+              {/* Honest freshness gate (SSOT) — a stale card (e.g. USD/JPY or
+                  AUD/USD weeks old) now reads "DONNÉES NON FRAÎCHES · il y a N j"
+                  instead of an undated conviction that looks current. */}
+              <FreshnessPill generatedAt={card.generated_at} className="mt-2" />
               <p className="mt-2 text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
                 {sessionTypeFr(card.session_type)}
               </p>
