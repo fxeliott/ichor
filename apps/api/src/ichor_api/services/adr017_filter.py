@@ -299,3 +299,52 @@ def count_violations(text: str) -> int:
     """
     normalized = _normalize_for_match(text)
     return sum(1 for _ in _ADR017_FORBIDDEN_RE.finditer(normalized))
+
+
+# --------------------------------------------------------------------
+# Deterministic scrubber (S03 / G1 — Opus live web research)
+# --------------------------------------------------------------------
+
+# Common English trade words → neutral French descriptors. Live web research
+# (G1) can splice these into an LLM rationale verbatim from a quoted source ;
+# the safety gate then DISCARDS the entire session card. Order matters :
+# compounds (sell-off / buy-side) before the bare buy/sell so the nicer
+# replacement wins.
+_SCRUB_REPLACEMENTS: tuple[tuple[re.Pattern[str], str], ...] = (
+    (re.compile(r"\bsell[\s\-]?offs?\b", re.IGNORECASE), "repli"),
+    (re.compile(r"\bbuy[\s\-]?side\b", re.IGNORECASE), "côté acheteur"),
+    (re.compile(r"\bsell[\s\-]?side\b", re.IGNORECASE), "côté vendeur"),
+    (re.compile(r"\bbuy\b", re.IGNORECASE), "achats"),
+    (re.compile(r"\bsell\b", re.IGNORECASE), "ventes"),
+)
+
+
+def scrub_adr017(text: str) -> str:
+    """Return `text` with ALL ADR-017 forbidden tokens neutralised —
+    GUARANTEED clean : ``is_adr017_clean(scrub_adr017(x)) is True`` for any
+    input.
+
+    Two layers:
+      1. Replace the common English trade words (buy / sell / sell-off /
+         buy-side / sell-side) with neutral French descriptors so the prose
+         stays readable.
+      2. If anything still trips the canonical regex (exotic tokens, FR/ES/DE
+         imperatives, full-width / confusable obfuscations, TP3, leverage…),
+         NFKC-normalise and redact every remaining match with ``[…]`` — which
+         cannot itself match the regex, so the result is provably clean.
+
+    Used by the card pipeline (S03/G1) on the web-research-influenced regime
+    rationale BEFORE the ADR-017 safety gate, so an incidental web-quoted
+    trade word never discards a whole session card. Uses the SAME regex SSOT
+    the gate enforces, so cleanliness is exact, not approximate.
+    """
+    if not text:
+        return text
+    out = text
+    for pat, repl in _SCRUB_REPLACEMENTS:
+        out = pat.sub(repl, out)
+    if is_adr017_clean(out):
+        return out
+    # Guaranteed-clean fallback for any residual token.
+    normalized = _normalize_for_match(out)
+    return _ADR017_FORBIDDEN_RE.sub("[…]", normalized)

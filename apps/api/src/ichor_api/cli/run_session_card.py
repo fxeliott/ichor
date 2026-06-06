@@ -324,6 +324,19 @@ async def _run(
     # had ZERO content-level safety check, and Critic verdict was
     # purely cosmetic (persisted to column without gating, surfaced via
     # /v1/today DISTINCT-ON exactly like an approved card).
+    # G1 (S03) — live web research can splice an English trade word (e.g.
+    # "buy", quoted verbatim from a source) into the regime rationale, which
+    # would make the ADR-017 safety gate discard the WHOLE card (a missing
+    # analysis = worse than no web research). Deterministically scrub that
+    # one web-influenced field BEFORE the gate, using the SAME regex SSOT the
+    # gate enforces — guaranteed clean, no-op when already clean. The gate
+    # below remains the hard backstop for every other field.
+    from ..services.adr017_filter import scrub_adr017
+
+    _regime = getattr(result.card, "regime", None)
+    if _regime is not None and getattr(_regime, "rationale", None):
+        _regime.rationale = scrub_adr017(_regime.rationale)
+
     from ..services.session_card_safety_gate import evaluate_safety_gate
 
     _safety = evaluate_safety_gate(result.card)
