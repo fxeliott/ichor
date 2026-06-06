@@ -171,8 +171,14 @@ def _parse_date(raw: str | None) -> datetime:
     except (TypeError, ValueError):
         pass
     try:
-        # Atom-style ISO 8601
-        return datetime.fromisoformat(raw.replace("Z", "+00:00"))
+        # Atom-style ISO 8601. fromisoformat returns a NAIVE datetime when the
+        # string carries no offset (e.g. "2026-06-06T12:00:00") — coerce to UTC
+        # like the RFC-822 branch, else poll_all's mixed-tz sort raises
+        # "can't compare offset-naive and offset-aware datetimes".
+        dt = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=UTC)
+        return dt
     except ValueError:
         return datetime.now(UTC)
 

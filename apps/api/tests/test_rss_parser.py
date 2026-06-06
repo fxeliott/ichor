@@ -15,6 +15,7 @@ from ichor_api.collectors.rss import (
     DEFAULT_FEEDS,
     FeedSource,
     NewsItem,
+    _parse_date,
     parse_feed,
 )
 
@@ -170,6 +171,21 @@ def test_default_feeds_https_only_and_s03_expansion() -> None:
         "investing_economy",
     }.issubset(names), "S03 verified-live feed additions missing"
     assert len(DEFAULT_FEEDS) >= 11
+
+
+def test_parse_date_always_timezone_aware() -> None:
+    """Regression (S03 feed expansion, observed live 2026-06-06): every parsed
+    date MUST be tz-aware. A naive datetime from the ISO fallback crashes
+    poll_all's newest-first sort with mixed-tz feeds (TypeError: can't compare
+    offset-naive and offset-aware datetimes)."""
+    # tz-less ISO 8601 (the bug: fromisoformat returns NAIVE here).
+    assert _parse_date("2026-06-06T12:00:00").tzinfo is not None
+    # Already-working forms, pinned so the fix doesn't regress them.
+    assert _parse_date("Fri, 06 Jun 2026 12:00:00 GMT").tzinfo is not None
+    assert _parse_date("2026-06-06T12:00:00Z").tzinfo is not None
+    assert _parse_date("2026-06-06T12:00:00+02:00").tzinfo is not None
+    assert _parse_date(None).tzinfo is not None
+    assert _parse_date("garbage-not-a-date").tzinfo is not None
 
 
 def test_skips_items_without_title_or_link() -> None:
