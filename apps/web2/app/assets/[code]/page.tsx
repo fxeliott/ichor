@@ -9,7 +9,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { BiasIndicator } from "@/components/ui";
+import { BiasIndicator, FreshnessPill } from "@/components/ui";
 import {
   apiGet,
   isLive,
@@ -95,6 +95,9 @@ export default async function AssetDrillDownPage({ params }: PageProps) {
               {slug}
             </span>
           </h1>
+          {/* Honest freshness gate (SSOT) — the glowing conviction below is the
+              latest card's; this flags whether that read is today's or dated. */}
+          <FreshnessPill generatedAt={latestCard?.generated_at ?? null} className="mt-2" />
         </div>
         {latestCard ? (
           <BiasIndicator

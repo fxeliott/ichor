@@ -10,6 +10,7 @@
 
 import {
   BiasIndicator,
+  FreshnessPill,
   MetricTooltip,
   RegimeQuadrant,
   SessionCard,
@@ -100,9 +101,6 @@ export default async function SessionAssetPage({ params }: PageProps) {
       revalidate: 60,
     }),
   ]);
-  const apiOnline =
-    isLive(history) || isLive(calibration7d) || isLive(calibration30d) || isLive(calibration90d);
-  const cardsCount = isLive(history) ? history.total : null;
   const liveBrier =
     isLive(calibration30d) && calibration30d.n_cards > 0 ? calibration30d.mean_brier : null;
   const liveSampleSize = isLive(calibration30d) ? calibration30d.n_cards : null;
@@ -136,6 +134,12 @@ export default async function SessionAssetPage({ params }: PageProps) {
         : "neutral";
 
   const liveConvictionValue = latestCard?.conviction_pct ?? null;
+  // Real confluence score from the live drivers (was a hardcoded 7.2 that
+  // rendered even for real cards). Same formula as /today's LiveSessionCard;
+  // neutral 5.0 fallback when no live drivers (never the misleading 7.2).
+  const liveConfluenceScore = liveDrivers
+    ? Math.max(0, Math.min(10, 5 + liveDrivers.reduce((s, d) => s + d.contribution * 5, 0)))
+    : 5.0;
   const liveMagnitudeLow = latestCard?.magnitude_pips_low ?? null;
   const liveMagnitudeHigh = latestCard?.magnitude_pips_high ?? null;
 
@@ -188,7 +192,13 @@ export default async function SessionAssetPage({ params }: PageProps) {
 
   return (
     <div className="container mx-auto max-w-7xl px-6 py-12">
-      <Header display={display} slug={slug} apiOnline={apiOnline} cardsCount={cardsCount} />
+      <Header
+        display={display}
+        slug={slug}
+        generatedAt={latestCard?.generated_at ?? null}
+        conviction={liveConvictionValue ?? 0}
+        bias={latestCard ? liveBias : "neutral"}
+      />
       <div className="grid gap-8 lg:grid-cols-[1fr_320px]" id="section-top">
         <main className="space-y-8">
           <SessionCard
@@ -232,7 +242,7 @@ export default async function SessionAssetPage({ params }: PageProps) {
                 risks: ["Pending live risks"],
               }
             }
-            confluence={{ score: 7.2, drivers: liveDrivers ?? DRIVERS_FALLBACK }}
+            confluence={{ score: liveConfluenceScore, drivers: liveDrivers ?? DRIVERS_FALLBACK }}
             calibration={
               liveCalibration
                 ? {
@@ -243,7 +253,6 @@ export default async function SessionAssetPage({ params }: PageProps) {
                 : { brier: 0, sampleSize: 0, trend: "neutral" }
             }
           />
-          <MechanismsSection />
           <CalibrationStrip
             liveBrier7d={liveBrier7d}
             liveSample7d={liveSample7d}
@@ -267,35 +276,26 @@ export default async function SessionAssetPage({ params }: PageProps) {
 function Header({
   display,
   slug,
-  apiOnline,
-  cardsCount,
+  generatedAt,
+  conviction,
+  bias,
 }: {
   display: string;
   slug: AssetSlug;
-  apiOnline: boolean;
-  cardsCount: number | null;
+  generatedAt: string | null;
+  conviction: number;
+  bias: "bull" | "bear" | "neutral";
 }) {
   return (
     <header className="mb-8 flex flex-wrap items-baseline justify-between gap-3">
       <div>
         <p className="font-mono text-xs uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
-          Session asset · drill-down{" "}
-          <span
-            aria-label={apiOnline ? "API online" : "API offline"}
-            className="ml-1 inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[9px] uppercase tracking-widest"
-            style={{
-              color: apiOnline ? "var(--color-bull)" : "var(--color-bear)",
-              borderColor: apiOnline ? "var(--color-bull)" : "var(--color-bear)",
-            }}
-          >
-            <span aria-hidden="true">{apiOnline ? "▲" : "▼"}</span>
-            {apiOnline
-              ? cardsCount !== null
-                ? `live · ${cardsCount} cards persisted`
-                : "live"
-              : "offline · mock"}
-          </span>
+          Session asset · drill-down
         </p>
+        {/* Honest freshness gate (SSOT) — driven by the latest card's
+            generated_at, NOT API-reachability. A stale/absent card no longer
+            reads "live". */}
+        <FreshnessPill generatedAt={generatedAt} className="mt-1" />
         <h1 className="mt-1 flex items-baseline gap-3 text-4xl tracking-tight text-[var(--color-text-primary)]">
           <span className="font-mono">{display}</span>
           <span className="font-mono text-sm uppercase tracking-widest text-[var(--color-text-muted)]">
@@ -307,56 +307,12 @@ function Header({
           <CounterfactualModal sessionCardId={null} asset={slug} session="london" />
         </div>
       </div>
-      <BiasIndicator bias="bull" value={1.42} unit="%" size="lg" withGlow />
+      {/* Real conviction from the latest card (was a hardcoded fake 1.42 %).
+          Only shown when a card exists; the FreshnessPill flags its age. */}
+      {generatedAt !== null && (
+        <BiasIndicator bias={bias} value={conviction} unit="%" size="lg" withGlow />
+      )}
     </header>
-  );
-}
-
-function MechanismsSection() {
-  const items = [
-    {
-      title: "Mécanisme 1 · DXY weakness driver",
-      body: "Le dollar plonge sous 105.20 sur PCE faible (2.7% vs 2.9% attendu). Réduit la force générale du dollar contre EUR.",
-      sources: ["FRED:DEXUSEU@2026-05-03", "FRED:DTWEXM@2026-05-03"],
-    },
-    {
-      title: "Mécanisme 2 · Real yield differential",
-      body: "TIPS 10Y US a baissé de 12bps en 5 séances tandis que Bund 10Y reste stable. Différentiel réel s'inverse en faveur de l'EUR.",
-      sources: ["FRED:DFII10@2026-05-03", "FRED:IRLTLT01EZM156N@2026-05-03"],
-    },
-    {
-      title: "Mécanisme 3 · rhétorique ECB",
-      body: "La veille banques centrales flag Lagarde + Schnabel comme « more hawkish » sur les dernières 72h, vs OIS implied path qui pricing 25bps cuts en juin.",
-      sources: ["veille banques centrales · 2026-05-04 06:00"],
-    },
-  ];
-  return (
-    <section
-      id="section-mechanisms"
-      className="rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-6 shadow-[var(--shadow-sm)]"
-    >
-      <h2 className="mb-4 font-mono text-xs uppercase tracking-widest text-[var(--color-text-muted)]">
-        Mécanismes · comment cette lecture se transmet au prix
-      </h2>
-      <ol className="space-y-4">
-        {items.map((it, i) => (
-          <li key={i} className="border-l-2 border-[var(--color-accent-cobalt)] pl-4">
-            <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">{it.title}</h3>
-            <p className="mt-1 text-sm text-[var(--color-text-secondary)]">{it.body}</p>
-            <ul className="mt-2 flex flex-wrap gap-1 font-mono text-[10px] text-[var(--color-text-muted)]">
-              {it.sources.map((s) => (
-                <li
-                  key={s}
-                  className="rounded border border-[var(--color-border-subtle)] bg-[var(--color-bg-elevated)] px-1.5 py-0.5"
-                >
-                  {s}
-                </li>
-              ))}
-            </ul>
-          </li>
-        ))}
-      </ol>
-    </section>
   );
 }
 
