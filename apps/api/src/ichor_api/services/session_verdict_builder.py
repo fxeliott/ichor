@@ -278,6 +278,14 @@ _ASSET_TRIGGER_CURRENCIES: dict[str, tuple[str, ...]] = {
 # high-confidence headlines out of the firehose.
 _STRONG_TONE_ABS = 0.85
 
+# News trigger budget. The news feed is global and asset-agnostic (NewsItem
+# has no currency/asset column), so we widen the SQL candidate window then
+# keep only the first `_NEWS_TRIGGER_CAP` rows that pass the per-asset
+# `matches_asset` keyword guard. Without the wider window a tech-heavy 4-row
+# slice could yield zero on-asset triggers after filtering.
+_NEWS_CANDIDATE_LIMIT = 40
+_NEWS_TRIGGER_CAP = 4
+
 # FR labels for the tone burst surfaced in the trigger description.
 _TONE_LABEL_FR: dict[str, str] = {"positive": "positive", "negative": "négative"}
 
@@ -412,8 +420,21 @@ async def _assemble_live_triggers(
     except Exception:
         log.warning("verdict.live_triggers.cb_failed", asset=asset, exc_info=True)
 
-    # 3 — Strong-tone news headlines (<6 h).
+    # 3 — Strong-tone news headlines (<6 h), filtered to THIS asset.
+    #
+    # NewsItem has no currency/asset column — association is keyword-only —
+    # so we cannot mirror section 1's SQL `currency.in_(...)` guard. Instead
+    # we widen the SQL window and apply the per-row `matches_asset` keyword
+    # guard in Python, then cap to the news budget. We deliberately do NOT
+    # use `filter_rows_by_asset_affinity`: its `min_required=3` scarce-
+    # fallback re-globalizes to the full feed — exactly the off-asset
+    # contamination this guard removes (before this, every asset got the same
+    # global firehose). `matches_asset` keeps the honest "asset outside
+    # NEWS_KEYWORDS → keep all" fallback, so no regression for an unmapped
+    # or future asset.
     try:
+        from .asset_news_affinity import matches_asset
+
         cutoff = now_utc - timedelta(hours=6)
         stmt = (
             select(NewsItem)
@@ -425,9 +446,12 @@ async def _assemble_live_triggers(
                 func.abs(NewsItem.tone_score) >= _STRONG_TONE_ABS,
             )
             .order_by(NewsItem.published_at.desc())
-            .limit(4)
+            .limit(_NEWS_CANDIDATE_LIMIT)
         )
+        news_added = 0
         for row in (await session.execute(stmt)).scalars().all():
+            if not matches_asset(row.title or "", row.url or "", asset, row.summary or ""):
+                continue
             tone_fr = _TONE_LABEL_FR.get(row.tone_label or "", row.tone_label or "")
             trigger = _try_build_live_trigger(
                 trigger_type="news_headline",
@@ -438,6 +462,9 @@ async def _assemble_live_triggers(
             )
             if trigger is not None:
                 triggers.append(trigger)
+                news_added += 1
+                if news_added >= _NEWS_TRIGGER_CAP:
+                    break
     except Exception:
         log.warning("verdict.live_triggers.news_failed", asset=asset, exc_info=True)
 

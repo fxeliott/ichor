@@ -49,13 +49,23 @@ def _cb(title: str, *, bank: str = "FOMC", speaker: str | None = "Powell", mins_
     )
 
 
-def _news(title: str, *, tone: str = "positive", source: str = "Reuters", mins_ago: int = 30):
+def _news(
+    title: str,
+    *,
+    tone: str = "positive",
+    source: str = "Reuters",
+    mins_ago: int = 30,
+    url: str = "",
+    summary: str = "",
+):
     return SimpleNamespace(
         title=title,
         tone_label=tone,
         tone_score=0.92 if tone == "positive" else -0.92,
         source=source,
         published_at=_NOW - timedelta(minutes=mins_ago),
+        url=url,
+        summary=summary,
     )
 
 
@@ -141,7 +151,7 @@ async def test_assemble_maps_each_source():
     session = _session(
         [_econ("CPI m/m", mins_ago=60)],
         [_cb("Economic Outlook", mins_ago=120)],
-        [_news("Markets rally on data", mins_ago=30)],
+        [_news("ECB meeting steadies the euro", mins_ago=30)],
     )
     triggers = await _assemble_live_triggers(session, asset="EUR_USD", now_utc=_NOW)
     by_type = {t.trigger_type: t for t in triggers}
@@ -157,7 +167,7 @@ async def test_assemble_sorts_most_recent_first():
     session = _session(
         [_econ("CPI m/m", mins_ago=60)],
         [_cb("Speech", mins_ago=120)],
-        [_news("Headline", mins_ago=30)],
+        [_news("Euro climbs after ECB", mins_ago=30)],
     )
     triggers = await _assemble_live_triggers(session, asset="EUR_USD", now_utc=_NOW)
     fired = [t.fired_at_utc for t in triggers]
@@ -182,7 +192,7 @@ async def test_assemble_fails_open_per_source():
         side_effect=[
             RuntimeError("db blip"),
             _result([_cb("Speech", mins_ago=120)]),
-            _result([_news("Headline", mins_ago=30)]),
+            _result([_news("Euro firms after ECB", mins_ago=30)]),
         ]
     )
     triggers = await _assemble_live_triggers(s, asset="EUR_USD", now_utc=_NOW)
@@ -192,10 +202,12 @@ async def test_assemble_fails_open_per_source():
 
 @pytest.mark.asyncio
 async def test_assemble_skips_adr017_news_row():
+    # On-asset (euro/ECB) so it passes the per-asset guard and actually
+    # reaches the ADR-017 description check, which then skips it for "SELL".
     session = _session(
         [],
         [],
-        [_news("Big SELL-off hits equities", tone="negative", mins_ago=10)],
+        [_news("Euro SELL-off deepens after ECB", tone="negative", mins_ago=10)],
     )
     triggers = await _assemble_live_triggers(session, asset="EUR_USD", now_utc=_NOW)
     assert triggers == []  # the only row tripped ADR-017 → skipped, no crash
@@ -208,3 +220,23 @@ async def test_assemble_xau_only_usd_currency():
     triggers = await _assemble_live_triggers(session, asset="XAU_USD", now_utc=_NOW)
     assert len(triggers) == 1
     assert triggers[0].source == "economic_events:USD"
+
+
+@pytest.mark.asyncio
+async def test_assemble_filters_offasset_news():
+    # S03/D2 honesty : strong-tone news must be filtered to the verdict's
+    # asset. For EUR_USD only the euro/ECB headline is relevant ; a gold-only
+    # headline must NOT contaminate the EUR_USD verdict (every asset used to
+    # get the same global firehose).
+    session = _session(
+        [],
+        [],
+        [
+            _news("ECB decision lifts the euro sharply", mins_ago=20),
+            _news("Gold soars to a fresh record high", mins_ago=10),
+        ],
+    )
+    triggers = await _assemble_live_triggers(session, asset="EUR_USD", now_utc=_NOW)
+    news = [t for t in triggers if t.trigger_type == "news_headline"]
+    assert len(news) == 1
+    assert "euro" in news[0].description.lower()
