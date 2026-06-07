@@ -47,6 +47,10 @@ class LiquidityProxyReading:
     """proxy_bn - proxy_bn_lag in $bn. Negative = liquidity drained."""
 
     note: str = ""
+    tga_series: str | None = None
+    """Which TGA series actually supplied the value (``DTS_TGA_CLOSE`` or the
+    ``WTREGEN`` fallback). Drives accurate source provenance in the render —
+    never claim DTS_TGA_CLOSE when the number came from WTREGEN."""
 
 
 async def _latest_value_at_or_before(
@@ -76,6 +80,32 @@ async def _latest_value_at_or_before(
     return row[0], float(row[1]) if row[1] is not None else None
 
 
+# TGA source preference. The daily Treasury-statement close (DTS_TGA_CLOSE)
+# is the ideal granularity, but the dts_treasury collector does not always
+# populate it in fred_observations; WTREGEN is the canonical FRED H.4.1 WEEKLY
+# Treasury General Account series and is reliably ingested. BOTH are in
+# $millions (→ /1000 → $bn), so they are unit-compatible and interchangeable
+# for the proxy. Empirically (2026-06) DTS_TGA_CLOSE = 0 rows while WTREGEN is
+# fresh — this fallback is what makes the liquidity dimension (and the formerly
+# dormant LIQUIDITY_TIGHTENING alert) actually carry data.
+_TGA_SERIES: tuple[str, ...] = ("DTS_TGA_CLOSE", "WTREGEN")
+
+
+async def _latest_tga_at_or_before(
+    session: AsyncSession,
+    *,
+    cutoff_date,
+) -> tuple[object | None, float | None, str | None]:
+    """First available TGA value (in $mn) at/before ``cutoff_date`` across the
+    preferred series. Returns ``(observation_date, value_mn, series_id)`` or
+    ``(None, None, None)`` if no TGA series has a row in the window."""
+    for sid in _TGA_SERIES:
+        d, v = await _latest_value_at_or_before(session, series_id=sid, cutoff_date=cutoff_date)
+        if v is not None:
+            return d, v, sid
+    return None, None, None
+
+
 async def assess_liquidity_proxy(
     session: AsyncSession,
     *,
@@ -93,9 +123,7 @@ async def assess_liquidity_proxy(
     rrp_t_date, rrp_bn = await _latest_value_at_or_before(
         session, series_id="RRPONTSYD", cutoff_date=today
     )
-    tga_t_date, tga_mn = await _latest_value_at_or_before(
-        session, series_id="DTS_TGA_CLOSE", cutoff_date=today
-    )
+    tga_t_date, tga_mn, tga_src = await _latest_tga_at_or_before(session, cutoff_date=today)
 
     if rrp_bn is None or tga_mn is None or rrp_t_date is None or tga_t_date is None:
         # Cannot compute — log a clear note for observability.
@@ -103,7 +131,7 @@ async def assess_liquidity_proxy(
         if rrp_bn is None:
             missing.append("RRPONTSYD")
         if tga_mn is None:
-            missing.append("DTS_TGA_CLOSE")
+            missing.append("TGA(" + "/".join(_TGA_SERIES) + ")")
         return LiquidityProxyReading(
             rrp_bn=rrp_bn,
             tga_bn=(tga_mn / 1000.0) if tga_mn is not None else None,
@@ -124,9 +152,7 @@ async def assess_liquidity_proxy(
     rrp_lag_date, rrp_lag_bn = await _latest_value_at_or_before(
         session, series_id="RRPONTSYD", cutoff_date=cutoff_lag
     )
-    tga_lag_date, tga_lag_mn = await _latest_value_at_or_before(
-        session, series_id="DTS_TGA_CLOSE", cutoff_date=cutoff_lag
-    )
+    tga_lag_date, tga_lag_mn, _ = await _latest_tga_at_or_before(session, cutoff_date=cutoff_lag)
 
     if rrp_lag_bn is None or tga_lag_mn is None:
         return LiquidityProxyReading(
@@ -136,6 +162,7 @@ async def assess_liquidity_proxy(
             proxy_bn_lag=None,
             delta_bn=None,
             note=f"insufficient history (need ≥ {lookback_days} d)",
+            tga_series=tga_src,
         )
 
     proxy_lag = round(rrp_lag_bn + tga_lag_mn / 1000.0, 2)
@@ -147,10 +174,11 @@ async def assess_liquidity_proxy(
         proxy_bn_lag=proxy_lag,
         delta_bn=delta,
         note=(
-            f"RRP {rrp_bn:.0f}bn + TGA {tga_bn:.0f}bn = {proxy_t:.0f}bn "
+            f"RRP {rrp_bn:.0f}bn + TGA {tga_bn:.0f}bn (via {tga_src}) = {proxy_t:.0f}bn "
             f"vs {proxy_lag:.0f}bn ({lookback_days}d ago) "
             f"→ Δ {delta:+.0f}bn"
         ),
+        tga_series=tga_src,
     )
 
 
@@ -181,10 +209,11 @@ def render_liquidity_proxy_block(r: LiquidityProxyReading) -> tuple[str, list[st
         lines.append(f"- Macro liquidity proxy unavailable ({r.note}).")
         return "\n".join(lines), sources
 
-    sources.extend(["FRED:RRPONTSYD", "FRED:DTS_TGA_CLOSE"])
+    tga_sid = r.tga_series or "DTS_TGA_CLOSE"
+    sources.extend(["FRED:RRPONTSYD", f"FRED:{tga_sid}"])
     lines.append(
         f"- RRP+TGA liquidity proxy = **{r.proxy_bn:.0f} $bn** "
-        f"(RRP {r.rrp_bn:.0f} + TGA {r.tga_bn:.0f}; FRED:RRPONTSYD + FRED:DTS_TGA_CLOSE)"
+        f"(RRP {r.rrp_bn:.0f} + TGA {r.tga_bn:.0f}; FRED:RRPONTSYD + FRED:{tga_sid})"
     )
 
     if r.delta_bn is None:
