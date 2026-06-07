@@ -11,12 +11,14 @@ Two kinds of guard:
    renames a seam, the documented hand-off breaks → this test fails → doc and
    code are forced back into sync.
 
-2. **Gap-tracking lockstep** — ARCHITECTURE.md §4/§5 document two *open* gaps
-   (the apex verdict reads Pass-6 only; the learning loop is not wired). These
-   tests assert the gap is STILL open. The moment Session 04 / 05 closes a gap,
-   the assertion flips and the test fails **on purpose** — forcing whoever
-   closes it to update ARCHITECTURE.md so the as-built record stays true. The
-   failure message says exactly what to do.
+2. **Gap-tracking lockstep** — ARCHITECTURE.md §4/§5 track two interconnection
+   gaps. Session 04 CLOSED the first (the apex verdict now FUSES the synthesis
+   via ``conviction_fusion.fuse_conviction``) — its guard is inverted to assert
+   the seam STAYS wired. The second (the learning loop is not wired) is STILL
+   open and its guard asserts so. The moment a guard's invariant breaks — a
+   closed gap re-opens, or the still-open loop closes in Session 05 — the test
+   fails **on purpose**, forcing whoever did it to update ARCHITECTURE.md so the
+   as-built record stays true. The failure message says exactly what to do.
 
 Pure file reads — no imports of app code, no DB, no network. Fast.
 """
@@ -40,10 +42,17 @@ _RUN_SESSION_CARD = (
 )
 _ORCHESTRATOR = _REPO_ROOT / "packages" / "ichor_brain" / "src" / "ichor_brain" / "orchestrator.py"
 
-# The three synthesis layers that the apex verdict must NOT yet reference
-# (per ARCHITECTURE.md §4 — the "50/50" gap). When Session 04 fuses them into
-# the verdict conviction, the lockstep test below flips.
-_SYNTHESIS_MODULES = ("confluence_engine", "theme_classifier", "dollar_coherence")
+# Session 04 CLOSED the "50/50": the apex verdict conviction is now FUSED from
+# the synthesis snapshots (confluence / theme / dollar) frozen on the card, via
+# ``services.conviction_fusion.fuse_conviction`` read through
+# ``_extract_synthesis_primitives``. These markers are the fusion seam the
+# lockstep below asserts STAYS wired (inverted from the pre-S04 "must NOT
+# reference synthesis" guard).
+_FUSION_SEAM_MARKERS = (
+    "conviction_fusion",
+    "fuse_conviction",
+    "_extract_synthesis_primitives",
+)
 
 
 def _read(path: Path) -> str:
@@ -101,21 +110,23 @@ def test_s05_learning_loop_seam_exists() -> None:
 # ─────────────────────────────────────────────────────────────────────────
 
 
-@pytest.mark.parametrize("module", _SYNTHESIS_MODULES)
-def test_apex_verdict_still_ignores_synthesis(module: str) -> None:
-    """ARCHITECTURE.md §4: the apex SessionVerdict conviction is derived from
-    Pass-6 buckets ONLY and does not yet reference the synthesis layers — that
-    disconnect IS the "50/50".
+@pytest.mark.parametrize("marker", _FUSION_SEAM_MARKERS)
+def test_apex_verdict_fuses_synthesis(marker: str) -> None:
+    """ARCHITECTURE.md §0/§4 (S04 — « kill the 50/50 »): the apex SessionVerdict
+    conviction is now FUSED from the synthesis evidence (confluence lean +
+    dominant-theme presence + cross-asset dollar consensus) frozen on the card
+    at generation, not a bare ``max()`` over the Pass-6 buckets. This guard
+    asserts the fusion seam is present.
 
-    When Session 04 wires `{module}` into the verdict conviction, this test
-    fails. THAT IS THE SIGNAL to update ARCHITECTURE.md §0/§4 (remove the gap
-    from the "50/50 root cause" section) — do not just delete this assertion.
+    If `{marker}` disappears from the builder, the apex may be regressing toward
+    the bucket-only "50/50" — UPDATE ARCHITECTURE.md §0/§4 and re-scope this
+    guard rather than silently deleting the assertion.
     """
     text = _read(_VERDICT_BUILDER)
-    assert module not in text, (
-        f"session_verdict_builder now references `{module}` — the apex verdict "
-        f"may finally be fusing the synthesis (Session 04). UPDATE "
-        f"ARCHITECTURE.md §4 (the '50/50' gap is closing) and re-scope this guard."
+    assert marker in text, (
+        f"session_verdict_builder no longer references `{marker}` — the S04 "
+        f"conviction fusion may be regressing toward the bucket-only '50/50'. "
+        f"UPDATE ARCHITECTURE.md §0/§4 and re-scope this guard."
     )
 
 

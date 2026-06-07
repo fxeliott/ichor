@@ -114,3 +114,30 @@ class SessionCardAudit(Base):
     # [] = "tracked, all anchors fresh" ; [...] = "degraded". A '[]'
     # backfill would be the exact silent-skip dishonesty ADR-103 kills.
     degraded_inputs: Mapped[Any | None] = mapped_column(JSONB, nullable=True)
+
+    # S04 (migration 0055, « kill the 50/50 ») — synthesis-layer reads frozen
+    # at card generation so the apex SessionVerdict conviction fusion
+    # (services.conviction_fusion.fuse_conviction) is REPRODUCIBLE at read-time
+    # (/v1/verdict is polled every 60 s — recomputing the 12-factor confluence
+    # / theme / cross-asset dollar live per poll would be heavy AND drift the
+    # apex under the user). Each is DELIBERATELY NULLABLE with NO server_default
+    # (mirror of degraded_inputs above) : NULL = "synthesis not captured at this
+    # card's generation" (every pre-0055 card + any card whose best-effort
+    # capture failed) → the fuser degrades to the bucket-only conviction with
+    # the graded dead-zone still applied. Never a fabricated neutral default.
+    confluence_snapshot: Mapped[Any | None] = mapped_column(JSONB, nullable=True)
+    """confluence_engine read at generation. Shape :
+    {"dominant_direction": "long"|"short"|"neutral", "score_long": float,
+    "score_short": float, "confluence_count": int}. Feeds fuse_conviction
+    ``confluence_lean``."""
+
+    theme_snapshot: Mapped[Any | None] = mapped_column(JSONB, nullable=True)
+    """Dominant market-theme read at generation (GLOBAL, not per-asset).
+    Shape : {"present": bool, "top_theme": str|null, "strength": float|null}.
+    Feeds fuse_conviction ``theme_present`` (non-directional — ADR-017)."""
+
+    dollar_snapshot: Mapped[Any | None] = mapped_column(JSONB, nullable=True)
+    """cross_asset_dollar_coherence read at generation. Shape :
+    {"consensus": "usd_up"|"usd_down"|"mixed"|"neutral",
+    "consensus_strength": float}. Feeds fuse_conviction ``dollar_consensus``
+    + ``dollar_strength``."""

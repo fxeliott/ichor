@@ -23,13 +23,19 @@
 Ichor **is** already a large interconnected system — the spine
 `collectors → data_pool (54 sections) → Couche-2 → 4-pass+Pass-6 brain →
 session_card_audit → frontend` is real, mathematical, and runs 24h/24 on ~59
-systemd timers. **But two interconnections are not closed**, and that is
-exactly what makes the product feel like "isolated cards / 50-50":
+systemd timers. Two interconnections used to be open and made the product feel
+like "isolated cards / 50-50"; **Session 04 closed the first**, one remains:
 
-1. **The apex verdict you see is computed from Pass-6 buckets ONLY** — it
-   ignores the rich synthesis layers (`confluence_engine`, `theme_classifier`,
-   `cross_asset_dollar_coherence`). When Pass-6 is dormant it hard-returns
-   `neutral / 0%`. → **Session 04**.
+1. **[CLOSED — Session 04]** The apex verdict conviction is now **FUSED** from
+   the synthesis evidence (confluence lean + dominant-theme presence +
+   cross-asset dollar consensus) frozen on the card at generation, via
+   `conviction_fusion.fuse_conviction`. The legacy bare `max()` over Pass-6
+   buckets + hard 0.15 cliff is replaced by an **evidence-weighted** conviction
+   with a **graded** dead-zone (0.05 hard / 0.15 soft) and an explicit French
+   grounding ("conviction X % parce que A et B confirment, D s'oppose"). When
+   Pass-6 is dormant it still honestly returns `neutral / 0%` (doctrine #11),
+   and on legacy / pre-0055 cards (NULL snapshots) it degrades to the
+   bucket-only conviction. ADR-017 held — direction stays bucket-derived.
 2. **Ichor measures its own skill but does not act on it** — the Vovk/Brier/
    ADWIN loops learn weights and persist them, but `pocket_skill_reader`
    (which would feed them back into card generation) is built and **not wired**.
@@ -42,19 +48,19 @@ next sessions plug into.
 
 ## 1 · Topology (verified counts, 2026-06-05)
 
-| Layer                                     | Count                                                                               | Verified                         |
-| ----------------------------------------- | ----------------------------------------------------------------------------------- | -------------------------------- |
-| API routers (`apps/api/.../routers/*.py`) | **~49**                                                                             | ✓ Glob                           |
-| Services (`.../services/*.py`)            | **104**                                                                             | (§2.1)                           |
-| `data_pool.py` `_section_*` builders      | **54**                                                                              | ✓ Grep `async def _section_`     |
-| Collectors (`.../collectors/*.py`)        | **47**                                                                              | (§2.1)                           |
-| CLI runners (`.../cli/*.py`)              | **58**                                                                              | (§2.1)                           |
-| Alembic migrations / head                 | **54 / `0054`**                                                                     | ✓ Glob (`0054_eia_crude_stocks`) |
-| systemd cron register scripts             | **59**                                                                              | ✓ Glob `register-cron-*.sh`      |
-| Brain passes                              | **6** (Régime→Asset→Stress→Invalidation + Pass-5 counterfactual + Pass-6 scenarios) | (§2.2)                           |
-| Couche-2 agents                           | **5** (cb_nlp, news_nlp, sentiment, positioning, macro)                             | (§2.2)                           |
-| web2 routes / `/learn` pages              | **46 / 15**                                                                         | ✓ Glob `app/**/page.tsx`         |
-| Priority asset universe                   | **6** (EUR_USD, GBP_USD, USD_CAD, XAU_USD, SPX500_USD, NAS100_USD)                  | code                             |
+| Layer                                     | Count                                                                               | Verified                                         |
+| ----------------------------------------- | ----------------------------------------------------------------------------------- | ------------------------------------------------ |
+| API routers (`apps/api/.../routers/*.py`) | **~49**                                                                             | ✓ Glob                                           |
+| Services (`.../services/*.py`)            | **104**                                                                             | (§2.1)                                           |
+| `data_pool.py` `_section_*` builders      | **54**                                                                              | ✓ Grep `async def _section_`                     |
+| Collectors (`.../collectors/*.py`)        | **47**                                                                              | (§2.1)                                           |
+| CLI runners (`.../cli/*.py`)              | **58**                                                                              | (§2.1)                                           |
+| Alembic migrations / head                 | **55 / `0055`**                                                                     | ✓ Glob (`0055_session_card_synthesis_snapshots`) |
+| systemd cron register scripts             | **59**                                                                              | ✓ Glob `register-cron-*.sh`                      |
+| Brain passes                              | **6** (Régime→Asset→Stress→Invalidation + Pass-5 counterfactual + Pass-6 scenarios) | (§2.2)                                           |
+| Couche-2 agents                           | **5** (cb_nlp, news_nlp, sentiment, positioning, macro)                             | (§2.2)                                           |
+| web2 routes / `/learn` pages              | **46 / 15**                                                                         | ✓ Glob `app/**/page.tsx`                         |
+| Priority asset universe                   | **6** (EUR_USD, GBP_USD, USD_CAD, XAU_USD, SPX500_USD, NAS100_USD)                  | code                                             |
 
 Stack: Turborepo + pnpm monorepo · FastAPI/Python 3.12 (async SQLAlchemy 2 +
 Alembic) · Next.js 15 / React 19 / Tailwind v4 (OKLCH design system) ·
@@ -129,40 +135,52 @@ cadence; the **auto-invalidation** edge is built but flag-dormant.
 
 ---
 
-## 4 · The two convictions & the "50/50" (THE broken interconnection)
+## 4 · The two convictions & the "50/50" (CLOSED — Session 04)
 
-There are **two distinct conviction numbers**, and they disagree by design:
+Historically there were **two distinct conviction numbers** that disagreed by
+design; **Session 04 fused them**. For the record:
 
 **(A) Persisted card conviction** — `session_card_audit.conviction_pct`
-= `card.stress.revised_conviction_pct` (`persistence.py:37`), AND it **is**
-mathematically touched by the synthesis: `confluence_engine.assess_confluence`
-→ `card.drivers` (`run_session_card.py:375`) → `card_coherence.reconcile_coherence`
-(`run_session_card.py:412-418`) which can **demote-only** (bias→neutral / shave
-conviction) → writes `row.conviction_pct` (`run_session_card.py:434-435`).
+= `card.stress.revised_conviction_pct` (`persistence.py:37`), mathematically
+touched by the synthesis: `confluence_engine.assess_confluence`
+→ `card.drivers` (`run_session_card.py:416-432`) → `card_coherence.reconcile_coherence`
+(`run_session_card.py:453-476`) which can **demote-only** (bias→neutral / shave
+conviction) → writes `row.conviction_pct`.
 
 **(B) Frontend apex verdict conviction** — `SessionVerdict.conviction_pct`
-from `build_session_verdict()`:
+from `build_session_verdict()` — **was** a bare `max(bullish_mass,
+bearish_mass) * 100` over the Pass-6 buckets, with a hard `spread < 0.15 →
+neutral` cliff, disconnected from (A) and from every synthesis layer.
+**That** was the "50/50".
 
-- `_derive_direction_and_conviction(scenarios_raw)` (`session_verdict_builder.py:541`)
-  reads `card.scenarios` ONLY (`:498`).
-- `conviction = max(bullish_mass, bearish_mass) * 100`, cap 95 (`:135`); if
-  `spread < 0.15` → `("neutral", 0.0)` (`:131-132`).
-- It imports/uses **none** of `confluence_engine`, `theme_classifier`,
-  `cross_asset_dollar_coherence` (verified: zero references in that file).
-- When Pass-6 is dormant / `scenarios=[]` → hard `neutral / 0% / uncertain`
-  fallback (`:520-538`).
+**What Session 04 changed (the fix, AS-BUILT):**
 
-> **This is the 50/50, exactly.** The apex you read is a `max()` over 6 Pass-6
-> bucket probabilities, **disconnected** from the 54 data sections, the
-> 10-factor confluence engine, the theme classifier and the dollar-coherence
-> lens. The Ferrari engine (the evidence) is bolted to a bicycle gearbox (one
-> `max()`), and a second, richer conviction (A) exists but never reaches the
-> apex. `cross_asset_dollar_coherence` is an **orphan** w.r.t. the pipeline
-> (router-only, zero `data_pool`/verdict references).
+- At generation, `run_session_card._capture_synthesis_snapshots` freezes three
+  reads onto the card: `confluence_snapshot` (confluence_engine dominant
+  direction + scores), `theme_snapshot` (theme_classifier presence —
+  non-directional), `dollar_snapshot` (cross_asset_dollar_coherence consensus +
+  strength). Persisted as 3 nullable JSONB columns (migration **0055**);
+  NULL = "synthesis not captured at generation".
+- `build_session_verdict` reads them via `_extract_synthesis_primitives(card)`
+  and passes the primitives to `_derive_direction_and_conviction(...)`
+  (`session_verdict_builder.py:110`), which now **delegates to**
+  `conviction_fusion.fuse_conviction`.
+- `conviction = base_bucket_mass × soft_zone_scale × agreement_factor`, clamped
+  to 95 (ADR-022); direction stays **bucket-derived** (ADR-017 — evidence scales
+  magnitude, never sign); a **graded** dead-zone (hard 0.05 / soft 0.15)
+  replaces the legacy hard 0.15 cliff. The fuser emits an explicit French
+  grounding (`rationale_fr`) surfaced inside `coach_explanation`.
+- On NULL snapshots (legacy / pre-0055 / capture-failure) the fuser degrades to
+  the bucket-only conviction with the graded dead-zone still applied — never a
+  fabricated neutral (doctrine #11).
+- When Pass-6 is dormant / `scenarios=[]` → honest `neutral / 0% / uncertain`
+  fallback (`session_verdict_builder.py:546-565`), unchanged.
 
-**Session 04 = fuse (A)+(B): an evidence-weighted conviction that the apex
-verdict actually reads**, with a calibrated dead-zone and explicit grounding
-("X% because …"). ADR-017 held (bias + probability, never an order).
+> **The Ferrari engine (the evidence) now drives the apex.**
+> `cross_asset_dollar_coherence` is no longer an orphan w.r.t. the verdict — it
+> feeds the apex conviction through the `dollar_snapshot` seam. The remaining
+> open interconnection is the **learning loop** (§5). ADR-017 held throughout
+> (bias + probability, never an order).
 
 ---
 
@@ -189,23 +207,25 @@ verdict actually reads**, with a calibrated dead-zone and explicit grounding
 
 ## 6 · Dormant / orphan / unverified (honest gaps register)
 
-| Item                            | State                                              | Evidence                                                                                  |
-| ------------------------------- | -------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| Apex verdict ↔ synthesis        | **NOT wired**                                      | `session_verdict_builder.py` (0 refs to confluence/theme/dollar)                          |
-| `pocket_skill_reader` → cards   | **built, not wired**                               | `run_session_card.py` (0 `read_pocket`/`confluence_section`)                              |
-| `cross_asset_dollar_coherence`  | **orphan** (router-only)                           | `routers/dollar_coherence.py:101`; 0 data_pool refs                                       |
-| scenario-invalidation monitor   | **flag default False (dormant)**                   | `run_scenario_invalidation_check.py:91-100`                                               |
-| W116c LLM addendum              | **flag default False (dormant)**                   | `run_addendum_generator.py:10`                                                            |
-| streaming-refresh live ON-state | **unverified in repo**                             | flag `streaming_refresh_enabled` fail-closed; live DB row not inspectable from repo       |
-| Live pipeline freshness (today) | **unverified this session**                        | harness sandbox blocks network probes; only verifiable on the host / via the S02 watchdog |
-| Critic                          | **source-traceability only**, not factual-accuracy | PLAN_DIRECTEUR §2.2                                                                       |
+| Item                            | State                                              | Evidence                                                                                      |
+| ------------------------------- | -------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| Apex verdict ↔ synthesis        | **WIRED (S04, mig 0055)**                          | `session_verdict_builder._extract_synthesis_primitives` → `conviction_fusion.fuse_conviction` |
+| `pocket_skill_reader` → cards   | **built, not wired**                               | `run_session_card.py` (0 `read_pocket`/`confluence_section`)                                  |
+| `cross_asset_dollar_coherence`  | **WIRED to verdict (S04)**                         | `run_session_card._capture_synthesis_snapshots` → `dollar_snapshot` → verdict fuser           |
+| scenario-invalidation monitor   | **flag default False (dormant)**                   | `run_scenario_invalidation_check.py:91-100`                                                   |
+| W116c LLM addendum              | **flag default False (dormant)**                   | `run_addendum_generator.py:10`                                                                |
+| streaming-refresh live ON-state | **unverified in repo**                             | flag `streaming_refresh_enabled` fail-closed; live DB row not inspectable from repo           |
+| Live pipeline freshness (today) | **unverified this session**                        | harness sandbox blocks network probes; only verifiable on the host / via the S02 watchdog     |
+| Critic                          | **source-traceability only**, not factual-accuracy | PLAN_DIRECTEUR §2.2                                                                           |
 
 ---
 
-## 7 · Persistence / memory layer (alembic head `0054`)
+## 7 · Persistence / memory layer (alembic head `0055`)
 
 - `session_card_audit` — per-card 6-pass output + `scenarios`/`key_levels`/
-  `drivers`/`brier_contribution`/`realized_*` (mig. 0026/0039/0045/0049/0050).
+  `drivers`/`brier_contribution`/`realized_*` (mig. 0026/0039/0045/0049/0050)
+  - S04 synthesis snapshots `confluence_snapshot`/`theme_snapshot`/
+    `dollar_snapshot` (mig. 0055, nullable — NULL = not captured at generation).
 - `couche2_outputs` (0009) — the 5 Couche-2 agents' NLP JSON.
 - `auto_improvement_log` (0042, immutable trigger) — Phase-D loop audit.
 - `brier_aggregator_weights` (0043) — Vovk per-(asset,regime) expert weights.
@@ -240,14 +260,14 @@ squatter. See [`SESSION_LOG_2026-06-05-session02-reliable-substrate.md`] +
 The socle is "ready to receive the next engines" at these **exact** extension
 points — each future session plugs into a named contract, not a rewrite:
 
-| Session                                     | Plugs into (file / seam)                                                                                                                                | Contract to honour                                                                                                |
-| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| **03 Freshness & coherence**                | every web2 route + `SessionVerdict.expires_at_utc` / `last_updated_utc` (`session_verdict_builder.py:106,535`)                                          | never render stale-as-fresh; freshness gate on all surfaces                                                       |
-| **04 Conviction fusion**                    | `session_verdict_builder._derive_direction_and_conviction` (`:110-139`) + the persisted-side `card_coherence` (`run_session_card.py:412-435`)           | read confluence(10)+theme+dollar into the apex conviction; calibrate the 0.15 dead-zone; ADR-017 (bias+prob only) |
-| **05 Close the learning loop**              | `pocket_skill_reader.read_pocket` → `orchestrator.run(confluence_section=...)` (`orchestrator.py:233,256-266`); flag `phase_d_w115c_confluence_enabled` | feed `brier_aggregator_weights` back into generation; flag fail-closed                                            |
-| **06 Deeper coverage / 8-driver synthesis** | new `_section_*` in `data_pool.py` + `theme_classifier` drivers (`price_action_flow`, `fiscal_policy` baseline)                                         | source-stamp every numeric; Critic-verifiable                                                                     |
-| **07 The "alive" strides**                  | `streaming_refresh.py` (12-min reactive) + `scenario_invalidation_monitor` (flag ON) + a new conviction-decay seam on `SessionVerdict`                  | event-triggered targeted regen; ADR-106 Strides 2/5/6                                                             |
-| **08 Pedagogy elevation**                   | web2 `/briefing/[asset]` + the 15 `/learn` pages + coach-FR SSOTs (`coachLabels.ts`, `fredLabels.ts`, `sessionVerdict.ts`)                              | explicit beginner coach; never touch the premium structure                                                        |
+| Session                                     | Plugs into (file / seam)                                                                                                                                                          | Contract to honour                                                                                                                             |
+| ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| **03 Freshness & coherence**                | every web2 route + `SessionVerdict.expires_at_utc` / `last_updated_utc` (`session_verdict_builder.py:106,535`)                                                                    | never render stale-as-fresh; freshness gate on all surfaces                                                                                    |
+| **04 Conviction fusion** ✅ DONE            | `session_verdict_builder._derive_direction_and_conviction` → `conviction_fusion.fuse_conviction` ; snapshots frozen by `run_session_card._capture_synthesis_snapshots` (mig 0055) | ✅ confluence+theme+dollar fused into the apex conviction; graded dead-zone (0.05/0.15) replaces the 0.15 cliff; ADR-017 (bias+prob only) held |
+| **05 Close the learning loop**              | `pocket_skill_reader.read_pocket` → `orchestrator.run(confluence_section=...)` (`orchestrator.py:233,256-266`); flag `phase_d_w115c_confluence_enabled`                           | feed `brier_aggregator_weights` back into generation; flag fail-closed                                                                         |
+| **06 Deeper coverage / 8-driver synthesis** | new `_section_*` in `data_pool.py` + `theme_classifier` drivers (`price_action_flow`, `fiscal_policy` baseline)                                                                   | source-stamp every numeric; Critic-verifiable                                                                                                  |
+| **07 The "alive" strides**                  | `streaming_refresh.py` (12-min reactive) + `scenario_invalidation_monitor` (flag ON) + a new conviction-decay seam on `SessionVerdict`                                            | event-triggered targeted regen; ADR-106 Strides 2/5/6                                                                                          |
+| **08 Pedagogy elevation**                   | web2 `/briefing/[asset]` + the 15 `/learn` pages + coach-FR SSOTs (`coachLabels.ts`, `fredLabels.ts`, `sessionVerdict.ts`)                                                        | explicit beginner coach; never touch the premium structure                                                                                     |
 
 `/learn` (15 pages) is the pedagogy substrate; `coachLabels`/`fredLabels`/
 `sessionVerdict` SSOTs are the FR-coach contract every new label must route

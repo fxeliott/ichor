@@ -80,8 +80,8 @@ DollarConsensus = Literal["usd_up", "usd_down", "mixed", "neutral"]
 # --------------------------------------------------------------------------- #
 
 DEAD_ZONE_HARD = 0.05
-"""bullish-vs-bearish mass spread below which the read is a true coin-flip ->
-``neutral, 0.0``. A 5 pp spread is within Pass-6 quantisation noise for 7
+"""bullish-vs-bearish mass spread at or below which the read is a true
+coin-flip -> ``neutral, 0.0``. A 5 pp spread is within Pass-6 quantisation noise for 7
 buckets each capped at 0.95; calling a direction below it is dishonest.
 Tighter than the legacy hard 0.15 — the graded soft-zone below handles the
 0.05–0.15 band instead of cliff-dropping it to neutral."""
@@ -251,7 +251,11 @@ def fuse_conviction(
     spread = abs(bullish - bearish)
 
     # --- Hard dead-zone: an honest coin-flip. Evidence cannot save it. ----- #
-    if spread < DEAD_ZONE_HARD:
+    # ``<=`` (not ``<``) so the exact boundary spread == DEAD_ZONE_HARD resolves
+    # to neutral/0 rather than a directional label at 0 % conviction (the
+    # soft-zone scale would be 0 there) — doctrine #11: no "biais haussier à
+    # 0 %".
+    if spread <= DEAD_ZONE_HARD:
         spread_pp = round(spread * 100, 1)
         rationale = (
             f"Conviction nulle : la décomposition des scénarios est trop "

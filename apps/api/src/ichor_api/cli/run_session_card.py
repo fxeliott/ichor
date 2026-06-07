@@ -17,10 +17,12 @@ from __future__ import annotations
 
 import asyncio
 import sys
-from datetime import UTC, datetime
+from datetime import UTC, datetime, time
 from typing import Any
+from zoneinfo import ZoneInfo
 
 import structlog
+from sqlalchemy import select
 
 from ..config import get_settings
 from ..db import get_engine, get_sessionmaker
@@ -28,6 +30,10 @@ from ..schemas import DegradedInputOut
 from ..services.confluence_engine import assess_confluence
 
 log = structlog.get_logger(__name__)
+
+# S04 — Paris-midnight reference for the cross-asset dollar snapshot window
+# (mirror of session_verdict_builder._PARIS_TZ ; Eliot's working timezone).
+_PARIS_TZ = ZoneInfo("Europe/Paris")
 
 
 # Single source of truth — derived from `SessionType` Literal via
@@ -70,6 +76,101 @@ def _build_tool_config(*, web_research_on: bool):
         # operate on prior-pass narrative, not raw market data.
         enabled_for_passes=frozenset({"regime", "asset", "scenarios"}),
     )
+
+
+async def _capture_synthesis_snapshots(
+    session: Any,
+    *,
+    asset: str,
+    bias: str,
+    conviction: float,
+    confluence_report: Any,
+    now_utc: datetime,
+) -> tuple[dict[str, Any] | None, dict[str, Any] | None, dict[str, Any] | None]:
+    """S04 (« kill the 50/50 ») — freeze the three synthesis-layer reads at
+    card generation so the apex SessionVerdict conviction fusion
+    (``services.conviction_fusion.fuse_conviction``) is reproducible at
+    read-time.
+
+    Returns ``(confluence_snapshot, theme_snapshot, dollar_snapshot)``. Each
+    capture is INDEPENDENTLY best-effort : any failure → ``None`` for that
+    layer (the fuser then degrades to the bucket-only conviction with the
+    graded dead-zone still applied — doctrine #11 calibrated honesty, never a
+    fabricated neutral snapshot). Voie-D clean : pure persistence of
+    already-computable runtime structures, ZERO LLM call.
+    """
+    confluence_snapshot: dict[str, Any] | None = None
+    theme_snapshot: dict[str, Any] | None = None
+    dollar_snapshot: dict[str, Any] | None = None
+
+    # 1 — Confluence : reuse the report already computed upstream (no 2nd call).
+    try:
+        if confluence_report is not None:
+            confluence_snapshot = {
+                "dominant_direction": confluence_report.dominant_direction,
+                "score_long": round(float(confluence_report.score_long), 2),
+                "score_short": round(float(confluence_report.score_short), 2),
+                "confluence_count": int(confluence_report.confluence_count),
+            }
+    except Exception as e:  # noqa: BLE001 — never fail the persist on snapshot error
+        log.warning("synthesis_snapshot.confluence_failed", asset=asset, error=str(e))
+
+    # 2 — Dominant market theme (GLOBAL ; presence is non-directional, ADR-017).
+    try:
+        from ..services.theme_classifier import classify_dominant_theme
+
+        ranking = await classify_dominant_theme(session, now_utc=now_utc)
+        theme_snapshot = {
+            "present": ranking is not None,
+            "top_theme": ranking.top_theme if ranking is not None else None,
+            "strength": (
+                round(float(ranking.driver_strengths[ranking.top_theme]), 3)
+                if ranking is not None
+                else None
+            ),
+        }
+    except Exception as e:  # noqa: BLE001 — never fail the persist on snapshot error
+        log.warning("synthesis_snapshot.theme_failed", asset=asset, error=str(e))
+
+    # 3 — Cross-asset dollar coherence : the day's latest card per asset PLUS
+    # this in-progress card (with its FINAL reconciled bias / conviction). This
+    # is "the dollar read as this card saw it at generation" — honest snapshot.
+    try:
+        from ..models import SessionCardAudit
+        from ..services.cross_asset_dollar_coherence import assess_dollar_coherence
+
+        paris_today = now_utc.astimezone(_PARIS_TZ).date()
+        midnight_utc = datetime.combine(paris_today, time.min, tzinfo=_PARIS_TZ).astimezone(UTC)
+
+        stmt = (
+            select(
+                SessionCardAudit.asset,
+                SessionCardAudit.bias_direction,
+                SessionCardAudit.conviction_pct,
+            )
+            .where(SessionCardAudit.generated_at >= midnight_utc)
+            .order_by(SessionCardAudit.generated_at.desc())
+        )
+        latest: dict[str, dict[str, Any]] = {}
+        for r in (await session.execute(stmt)).all():
+            if r.asset not in latest:
+                latest[r.asset] = {
+                    "asset": r.asset,
+                    "bias": r.bias_direction,
+                    "conviction": r.conviction_pct,
+                }
+        # The in-progress card's FINAL reconciled values take precedence.
+        latest[asset] = {"asset": asset, "bias": bias, "conviction": conviction}
+
+        verdict = assess_dollar_coherence(list(latest.values()))
+        dollar_snapshot = {
+            "consensus": verdict.consensus,
+            "consensus_strength": float(verdict.consensus_strength),
+        }
+    except Exception as e:  # noqa: BLE001 — never fail the persist on snapshot error
+        log.warning("synthesis_snapshot.dollar_failed", asset=asset, error=str(e))
+
+    return confluence_snapshot, theme_snapshot, dollar_snapshot
 
 
 async def _run(
@@ -412,6 +513,7 @@ async def _run(
         # falling back to fabricated LLM-narrative confluence_drivers.
         # `None` is reserved for legacy pre-r142 cards (orchestrator
         # hook never ran).
+        confluence_report: Any = None
         try:
             confluence_report = await assess_confluence(session, asset)
             engine_drivers: list[dict[str, Any]] | None = [
@@ -474,6 +576,25 @@ async def _run(
             )
             row.bias_direction = _coh.bias
             row.conviction_pct = _coh.conviction
+
+        # S04 (« kill the 50/50 ») — freeze the synthesis-layer reads
+        # (confluence / theme / dollar) so the apex verdict conviction fusion
+        # is reproducible at read-time. Uses the FINAL reconciled bias /
+        # conviction (post card_coherence). Best-effort : any failure → None,
+        # and the fuser degrades to the bucket-only conviction (graded
+        # dead-zone still applies) — doctrine #11, never a fabricated snapshot.
+        (
+            row.confluence_snapshot,
+            row.theme_snapshot,
+            row.dollar_snapshot,
+        ) = await _capture_synthesis_snapshots(
+            session,
+            asset=row.asset,
+            bias=row.bias_direction,
+            conviction=row.conviction_pct,
+            confluence_report=confluence_report,
+            now_utc=datetime.now(UTC),
+        )
 
         session.add(row)
         await session.commit()

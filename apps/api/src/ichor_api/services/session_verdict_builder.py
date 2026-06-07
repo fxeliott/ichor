@@ -107,36 +107,88 @@ def _window_stamps_paris(now_utc: datetime) -> tuple[datetime, datetime, datetim
     return window_open, window_close, expires_utc
 
 
+def _extract_synthesis_primitives(
+    card: SessionCardAudit,
+) -> tuple[str | None, bool, str | None, float]:
+    """Read the S04 synthesis snapshots frozen on the card at generation
+    (migration 0055) into the primitives ``fuse_conviction`` consumes.
+
+    Returns ``(confluence_lean, theme_present, dollar_consensus,
+    dollar_strength)``. Every field defaults to its NO-EVIDENCE value when the
+    snapshot is NULL (legacy / pre-0055 card) or malformed — so the fuser
+    degrades gracefully to the bucket-only conviction. Pure + defensive ;
+    never raises.
+    """
+    confluence_lean: str | None = None
+    theme_present = False
+    dollar_consensus: str | None = None
+    dollar_strength = 0.0
+
+    conf = card.confluence_snapshot
+    if isinstance(conf, dict):
+        lean = conf.get("dominant_direction")
+        if lean in ("long", "short", "neutral"):
+            confluence_lean = lean
+
+    theme = card.theme_snapshot
+    if isinstance(theme, dict):
+        theme_present = bool(theme.get("present", False))
+
+    dollar = card.dollar_snapshot
+    if isinstance(dollar, dict):
+        cons = dollar.get("consensus")
+        if cons in ("usd_up", "usd_down", "mixed", "neutral"):
+            dollar_consensus = cons
+        try:
+            dollar_strength = float(dollar.get("consensus_strength", 0.0) or 0.0)
+        except (TypeError, ValueError):
+            dollar_strength = 0.0
+
+    return confluence_lean, theme_present, dollar_consensus, dollar_strength
+
+
 def _derive_direction_and_conviction(
     scenarios: list[dict[str, Any]],
-) -> tuple[VerdictDirection, float]:
-    """Apply ADR-106 D2 directional aggregation rule.
+    *,
+    asset: str,
+    confluence_lean: str | None = None,
+    theme_present: bool = False,
+    dollar_consensus: str | None = None,
+    dollar_strength: float = 0.0,
+) -> tuple[VerdictDirection, float, str]:
+    """S04 (« kill the 50/50 ») — delegate the apex conviction to the
+    evidence-weighted fusion core (``services.conviction_fusion``).
 
-    Returns ``(direction, conviction_pct)``. ``direction`` is ``up``,
-    ``down``, or ``neutral`` ; ``conviction_pct`` is in ``[0, 95]``.
+    Direction stays bucket-derived (ADR-017 — bias + probability, never an
+    order ; evidence scales MAGNITUDE, never sign). The synthesis evidence
+    frozen on the card at generation (confluence lean / dominant-theme
+    presence / cross-asset dollar consensus) corroborates or contradicts the
+    bucket edge and produces an explicit French grounding.
+
+    With NO synthesis primitives supplied — legacy / pre-0055 cards whose
+    snapshots are NULL — the direction is byte-identical to the legacy
+    bucket-only ADR-106 D2 path ; only the dead-zone becomes GRADED (the
+    intended S04 change : a weak 0.05–0.15 edge survives iff corroborated,
+    dies if contradicted, instead of cliff-dropping straight to neutral).
+
+    Returns ``(direction, conviction_pct, rationale_fr)``. ``direction`` is
+    ``up``/``down``/``neutral`` ; ``conviction_pct`` is in ``[0, 95]`` ;
+    ``rationale_fr`` is the plain-French coach grounding (zero trade tokens).
     """
-    by_label = {s["label"]: float(s["p"]) for s in scenarios}
-    bullish_mass = (
-        by_label.get("mild_bull", 0.0)
-        + by_label.get("strong_bull", 0.0)
-        + by_label.get("melt_up", 0.0)
-    )
-    bearish_mass = (
-        by_label.get("mild_bear", 0.0)
-        + by_label.get("strong_bear", 0.0)
-        + by_label.get("crash_flush", 0.0)
-    )
+    # Lazy import keeps the module entry-point light and avoids any import
+    # cycle through the services package at collection time.
+    from .conviction_fusion import fuse_conviction
 
-    spread = abs(bullish_mass - bearish_mass)
-    if spread < _DIRECTIONAL_DEAD_ZONE:
-        return ("neutral", 0.0)
-
-    direction: VerdictDirection = "up" if bullish_mass > bearish_mass else "down"
-    raw_conviction = max(bullish_mass, bearish_mass) * 100.0
-    # Cap at 95 per ADR-022 ; the Pydantic Field constraint will also
-    # enforce this, but we clamp defensively to avoid a 422 cascade.
-    capped = min(raw_conviction, 95.0)
-    return (direction, capped)
+    grounding = fuse_conviction(
+        asset=asset,
+        scenarios=scenarios,
+        confluence_lean=confluence_lean,  # type: ignore[arg-type]
+        theme_present=theme_present,
+        dollar_consensus=dollar_consensus,  # type: ignore[arg-type]
+        dollar_strength=dollar_strength,
+    )
+    direction: VerdictDirection = grounding.direction
+    return (direction, grounding.conviction_pct, grounding.rationale_fr)
 
 
 def _derive_nature(scenarios: list[dict[str, Any]]) -> VerdictNature:
@@ -169,6 +221,7 @@ def _build_coach_explanation_populated(
     conviction_pct: float,
     nature: VerdictNature,
     scenarios: list[dict[str, Any]],
+    conviction_rationale_fr: str = "",
 ) -> str:
     """Generate the plain-French beginner-friendly explanation when
     Pass-6 has populated the 7 buckets. The template surfaces : (a) the
@@ -194,7 +247,7 @@ def _build_coach_explanation_populated(
         "uncertain": "mouvement de nature incertaine (décomposition mixte)",
     }[nature]
 
-    return (
+    base = (
         f"Verdict NY session pour {asset} : {direction_fr} avec "
         f"{conviction_pct:.0f} % de conviction, de type {nature_fr}. "
         f"Le bucket Pass-6 dominant est {top_label} ({top_pct} % de masse). "
@@ -203,6 +256,17 @@ def _build_coach_explanation_populated(
         f"distinct. La conviction est plafonnée à 95 % par construction "
         f"(ADR-022) — aucun verdict ne peut exprimer une certitude absolue."
     )
+
+    # S04 — surface the evidence-weighted grounding ("conviction X % parce que
+    # A et B confirment, D s'oppose") so the coach explains WHY the apex reads
+    # as it does. Appended only if it fits the 800-char Pydantic ceiling
+    # (SessionVerdict.coach_explanation max_length) — never risk a 422 that
+    # would block verdict emission.
+    if conviction_rationale_fr:
+        candidate = f"{base} {conviction_rationale_fr}"
+        if len(candidate) <= 800:
+            return candidate
+    return base
 
 
 def _build_coach_explanation_fallback(asset: PriorityAsset) -> str:
@@ -564,8 +628,24 @@ async def build_session_verdict(
             tradeability=fallback_tradeability,
         )
 
-    # Populated path : derive per ADR-106 D2.
-    direction, conviction_pct = _derive_direction_and_conviction(scenarios_raw)
+    # Populated path : derive per ADR-106 D2, now FUSED with the synthesis
+    # evidence frozen on the card at generation (S04 — « kill the 50/50 »).
+    # The primitives are NULL on legacy / pre-0055 cards → the fuser degrades
+    # to the bucket-only conviction (graded dead-zone still applies).
+    (
+        confluence_lean,
+        theme_present,
+        dollar_consensus,
+        dollar_strength,
+    ) = _extract_synthesis_primitives(card)
+    direction, conviction_pct, conviction_rationale_fr = _derive_direction_and_conviction(
+        scenarios_raw,
+        asset=asset,
+        confluence_lean=confluence_lean,
+        theme_present=theme_present,
+        dollar_consensus=dollar_consensus,
+        dollar_strength=dollar_strength,
+    )
     nature = _derive_nature(scenarios_raw)
 
     coach_explanation = _build_coach_explanation_populated(
@@ -574,6 +654,7 @@ async def build_session_verdict(
         conviction_pct=conviction_pct,
         nature=nature,
         scenarios=scenarios_raw,
+        conviction_rationale_fr=conviction_rationale_fr,
     )
 
     # r164 Strand D : invalidation_state now populated by the
