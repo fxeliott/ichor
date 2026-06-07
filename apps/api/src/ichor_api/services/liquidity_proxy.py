@@ -152,3 +152,67 @@ async def assess_liquidity_proxy(
             f"→ Δ {delta:+.0f}bn"
         ),
     )
+
+
+# Documented LIQUIDITY_TIGHTENING alert threshold (catalog.py metric
+# liq_proxy_d ≤ -200 $bn / window). Reused here so the data_pool narrative
+# band and the alert fire on the SAME anchor (single source of truth).
+LIQ_TIGHTENING_THRESHOLD_BN = -200.0
+
+
+def render_liquidity_proxy_block(r: LiquidityProxyReading) -> tuple[str, list[str]]:
+    """Markdown block + sources — the S04 « manipulations & zones de liquidité »
+    dimension (macro/structural facet), matching the data_pool.py section
+    contract ``tuple[markdown, sources]``.
+
+    Frames the macro funding-liquidity condition (RRP+TGA proxy + its
+    multi-day delta) AND its market-structure implication: thinner / draining
+    liquidity AMPLIFIES manipulation propensity (stop-runs, dealer gamma
+    pinning, squeezes of crowded positioning) because fewer resting orders
+    absorb aggressive flow (Brunnermeier-Pedersen 2009 funding↔market-liquidity
+    spiral). DESCRIPTIVE only (ADR-017: a liquidity condition, never an order)
+    and honest-absence by construction. Pure price-action liquidity zones (ICT
+    pools / stop-hunt chart levels) are the technical read — Session 05.
+    """
+    lines = ["## Manipulation & liquidity zones — macro funding-liquidity proxy (FRED)"]
+    sources: list[str] = []
+
+    if r.proxy_bn is None:
+        lines.append(f"- Macro liquidity proxy unavailable ({r.note}).")
+        return "\n".join(lines), sources
+
+    sources.extend(["FRED:RRPONTSYD", "FRED:DTS_TGA_CLOSE"])
+    lines.append(
+        f"- RRP+TGA liquidity proxy = **{r.proxy_bn:.0f} $bn** "
+        f"(RRP {r.rrp_bn:.0f} + TGA {r.tga_bn:.0f}; FRED:RRPONTSYD + FRED:DTS_TGA_CLOSE)"
+    )
+
+    if r.delta_bn is None:
+        lines.append(f"- Δ vs lookback = n/a ({r.note})")
+    else:
+        if r.delta_bn <= LIQ_TIGHTENING_THRESHOLD_BN:
+            cond = (
+                f"DRAINING hard (≤ {LIQ_TIGHTENING_THRESHOLD_BN:.0f} $bn — documented "
+                "LIQUIDITY_TIGHTENING threshold): thin-liquidity regime, "
+                "manipulation / stop-run / squeeze propensity ELEVATED"
+            )
+        elif r.delta_bn < 0:
+            cond = "draining (cash leaving money markets): liquidity thinning, manipulation propensity rising"
+        else:
+            cond = (
+                "stable / rising (cash returning): deeper liquidity, manipulation propensity easing"
+            )
+        lines.append(f"- Δ liquidity proxy = **{r.delta_bn:+.0f} $bn** → {cond}")
+
+    lines.append(
+        "- Mechanism: macro funding liquidity sets the manipulation BACKDROP — thinner books let "
+        "aggressive flow run stops, pin dealer gamma, and squeeze crowded positioning more easily "
+        "(Brunnermeier-Pedersen 2009 funding↔market-liquidity spiral). Per-asset manipulation "
+        "magnets (dealer gamma walls, crowded COT/TFF positioning, tail skew) are detailed in the "
+        "key-levels / positioning / tail-risk sections — cross-read, not duplicated here."
+    )
+    lines.append(
+        "- Boundary: this is the DATA-derived macro/structural liquidity read; pure price-action "
+        "liquidity zones (ICT pools, stop-hunt chart levels) are the technical reading (Session 05)."
+    )
+    return "\n".join(lines), sources
