@@ -31,8 +31,20 @@ from ichor_api.services.theme_classifier import (
     ThemeRanking,
     _rank_drivers,
     _value_above_percentile,
+    _value_below_percentile,
     classify_dominant_theme,
 )
+
+
+@pytest.fixture(autouse=True)
+def _default_dxy_not_extreme():
+    """S04 fix: ``classify_dominant_theme`` now awaits the new self-calibrating
+    ``_is_dxy_at_extreme`` helper (replacing the degenerate fixed 105/95 DTWEXBGS
+    thresholds). Default it to False for every test so the existing scenarios are
+    unaffected; the macroeconomic co-occurrence test overrides it to True in its
+    own ``with`` block (nested patch wins in scope)."""
+    with patch.object(tc_mod, "_is_dxy_at_extreme", AsyncMock(return_value=False)):
+        yield
 
 
 class TestThemeRankingShape:
@@ -370,14 +382,13 @@ class TestClassifyDominantThemeExecution:
 
         async def _run() -> None:
             async def fake_fred(session: Any, series_id: str, **kwargs: Any) -> float | None:
-                if series_id == "VIXCLS":
-                    return 35.0
-                if series_id == "DTWEXBGS":
-                    return 108.0  # > 105 threshold
-                return None
+                return 35.0 if series_id == "VIXCLS" else None
 
             with (
                 patch.object(tc_mod, "_latest_fred_value", side_effect=fake_fred),
+                # S04: DXY at a two-sided percentile extreme (self-calibrating)
+                # — overrides the autouse default to fire the macroeconomic gate.
+                patch.object(tc_mod, "_is_dxy_at_extreme", AsyncMock(return_value=True)),
                 patch.object(tc_mod, "_fomc_proximity_days", AsyncMock(return_value=None)),
                 patch.object(
                     tc_mod, "_count_recent_high_impact_releases", AsyncMock(return_value=0)
@@ -585,6 +596,30 @@ class TestSupplyDemandDriver:
             assert result is None
 
         asyncio.run(_run())
+
+
+class TestValueBelowPercentile:
+    """S04 — pure low-tail percentile helper (two-sided DXY extreme)."""
+
+    def test_below_returns_false_under_min_history(self) -> None:
+        # 10 values < _MIN_PERCENTILE_HISTORY (30) → honest absence.
+        assert _value_below_percentile([1.0] * 10, 0.20) is False
+
+    def test_below_true_when_latest_in_low_tail(self) -> None:
+        # latest (newest-first[0]) = the minimum of a 40-wide range → low tail.
+        vals = [100.0] + [float(v) for v in range(101, 140)]  # newest=100 = min
+        assert _value_below_percentile(vals, 0.20) is True
+
+    def test_below_false_when_latest_high(self) -> None:
+        # latest = the maximum → NOT in the low tail.
+        vals = [200.0] + [float(v) for v in range(101, 140)]  # newest=200 = max
+        assert _value_below_percentile(vals, 0.20) is False
+
+    def test_above_and_below_are_complementary_extremes(self) -> None:
+        # A mid value is neither high-tail nor low-tail.
+        vals = [120.0] + [float(v) for v in range(101, 140)]  # newest=120 ≈ median
+        assert _value_above_percentile(vals, 0.80) is False
+        assert _value_below_percentile(vals, 0.20) is False
 
 
 if __name__ == "__main__":
