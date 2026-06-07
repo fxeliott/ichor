@@ -4991,7 +4991,15 @@ async def _section_news(
     lines = [label]
     sources: list[str] = []
     for r in filtered:
-        lines.append(f"- {r.published_at:%Y-%m-%d %H:%M} {r.source} · {r.title[:90]} {r.url}")
+        # S04 depth-audit fix: surface the FinBERT tone (label + signed score)
+        # that run_news_tone_scorer already persists per headline — it was
+        # computed + stored but dropped at render, so the brain saw headlines
+        # with no sentiment polarity. Defensive None-guard (legacy unsccored
+        # rows). Descriptive sentiment, not a trade signal (ADR-017 clean).
+        tone = ""
+        if r.tone_label is not None and r.tone_score is not None:
+            tone = f" [tone {r.tone_label} {r.tone_score:+.2f}]"
+        lines.append(f"- {r.published_at:%Y-%m-%d %H:%M} {r.source} · {r.title[:90]}{tone} {r.url}")
         sources.append(r.url)
     return "\n".join(lines), sources
 
