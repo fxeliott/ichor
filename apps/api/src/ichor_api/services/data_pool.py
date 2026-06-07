@@ -107,6 +107,10 @@ from .hourly_volatility import (
     assess_hourly_volatility,
     render_hourly_volatility_block,
 )
+from .liquidity_proxy import (
+    assess_liquidity_proxy,
+    render_liquidity_proxy_block,
+)
 from .microstructure import (
     assess_microstructure,
     render_microstructure_block,
@@ -4577,6 +4581,20 @@ async def _section_funding_stress(session: AsyncSession) -> tuple[str, list[str]
     return render_funding_stress_block(reading)
 
 
+async def _section_manipulation_liquidity(session: AsyncSession) -> tuple[str, list[str]]:
+    """## Manipulation & liquidity zones — S04 dimension (macro/structural facet).
+
+    Wires the previously data_pool-orphan ``assess_liquidity_proxy`` (RRP+TGA
+    combined drain) into the brain as the explicit « manipulations & zones de
+    liquidité » dimension: macro funding-liquidity condition + its manipulation
+    propensity implication. Distinct from ``_section_funding_stress`` (rates /
+    credit funding) — this is the liquidity-DEPTH / manipulation-risk cross-read.
+    Pure price-action liquidity zones (ICT) stay the Session-05 technical read.
+    """
+    reading = await assess_liquidity_proxy(session)
+    return render_liquidity_proxy_block(reading)
+
+
 async def _section_surprise_index(session: AsyncSession) -> tuple[str, list[str]]:
     """## Eco Surprise Index — z-score proxy on FRED macro hard data."""
     reading = await assess_surprise_index(session)
@@ -5397,6 +5415,9 @@ async def build_data_pool(
 
     fs_md, fs_src = await _section_funding_stress(session)
     sections.append(("funding_stress", fs_md, fs_src))
+
+    ml_md, ml_src = await _section_manipulation_liquidity(session)
+    sections.append(("manipulation_liquidity", ml_md, ml_src))
 
     si_md, si_src = await _section_surprise_index(session)
     sections.append(("surprise_index", si_md, si_src))
