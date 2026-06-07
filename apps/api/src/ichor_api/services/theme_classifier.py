@@ -218,14 +218,22 @@ _VIX_COMPLACENT_THRESHOLD: Final[float] = 15.0
 market is structurally complacent — different driver regime than
 panic. r183+ calibration via Phase D Brier feedback may refine."""
 
-_DXY_STRONG_THRESHOLD: Final[float] = 105.0
-"""Practitioner-grade strong-USD threshold on DTWEXBGS broad basket.
-Bertaut-DeMarco-Kamin-Tryon 2012 (FRB IFDP 1063) divergence
-discipline informs the broad-vs-narrow read at r183+ ; for r182
-we use the broad index level alone."""
+_DXY_LOOKBACK_DAYS: Final[int] = 365
+"""Rolling window for the broad-dollar (DTWEXBGS) extreme percentile rank.
+A 1-year window captures the dollar's annual range so 'extreme' is relative
+to its own recent regime, not a fixed level."""
 
-_DXY_WEAK_THRESHOLD: Final[float] = 95.0
-"""Practitioner-grade weak-USD threshold."""
+_DXY_EXTREME_HIGH_PERCENTILE: Final[float] = 0.80
+"""DTWEXBGS at/above its 80th rolling percentile = strong-USD extreme."""
+
+_DXY_EXTREME_LOW_PERCENTILE: Final[float] = 0.20
+"""DTWEXBGS at/below its 20th rolling percentile = weak-USD extreme. Two-sided:
+either tail is a macro regime shift. **Replaces the r182 fixed 105/95
+thresholds** which were doc'd 'on DTWEXBGS broad basket' but were ICE-DXY-scale
+values — DTWEXBGS (broad index) runs ~119, so `dxy > 105` was ALWAYS true and
+`dxy < 95` NEVER, making the macroeconomic gate permanently degenerate (S04
+depth-audit finding, prod-verified DTWEXBGS=118.88). Now scale-free +
+self-calibrating (mirror of the GPR / VVIX-SKEW drivers)."""
 
 _GPR_HIGH_PERCENTILE: Final[float] = 0.80
 """ai_gpr above 80th percentile of rolling 90-day window =
@@ -463,6 +471,22 @@ def _value_above_percentile(
     return rank / len(ordered) >= pct
 
 
+def _value_below_percentile(
+    values_newest_first: list[float],
+    pct: float,
+) -> bool:
+    """Pure : True if the most-recent value sits at/below the ``pct`` percentile
+    (the low tail) of the full set. False when fewer than
+    ``_MIN_PERCENTILE_HISTORY`` observations (doctrine #11 honest absence).
+    Mirror of :func:`_value_above_percentile` for two-sided extreme detection."""
+    if len(values_newest_first) < _MIN_PERCENTILE_HISTORY:
+        return False
+    today = values_newest_first[0]
+    ordered = sorted(values_newest_first)
+    rank = sum(1 for v in ordered if v <= today)
+    return rank / len(ordered) <= pct
+
+
 async def _is_ai_gpr_elevated(
     session: AsyncSession,
     *,
@@ -572,6 +596,40 @@ async def _is_supply_demand_elevated(
     return _value_above_percentile(deltas_newest_first, _SUPPLY_DEMAND_PERCENTILE)
 
 
+async def _is_dxy_at_extreme(
+    session: AsyncSession,
+    *,
+    now_utc: datetime,
+) -> bool:
+    """True if the broad-dollar index (DTWEXBGS) sits at a TWO-SIDED extreme —
+    at/above its high percentile OR at/below its low percentile — of the rolling
+    ``_DXY_LOOKBACK_DAYS`` window. Either tail (strong- or weak-USD) marks a
+    macro regime shift.
+
+    Self-calibrating percentile rank (shared ``_value_above_percentile`` /
+    ``_value_below_percentile``) — scale-free, robust across index revisions,
+    honest-absent (< ``_MIN_PERCENTILE_HISTORY`` observations → False) per
+    doctrine #11. Replaces the r182 fixed 105/95 thresholds which were degenerate
+    on the DTWEXBGS broad index (S04 depth-audit)."""
+    cutoff = (now_utc - timedelta(days=_DXY_LOOKBACK_DAYS)).date()
+    rows = (
+        (
+            await session.execute(
+                select(FredObservation)
+                .where(FredObservation.series_id == "DTWEXBGS")
+                .where(FredObservation.observation_date >= cutoff)
+                .order_by(desc(FredObservation.observation_date))
+            )
+        )
+        .scalars()
+        .all()
+    )
+    values = [float(r.value) for r in rows if r.value is not None]
+    return _value_above_percentile(values, _DXY_EXTREME_HIGH_PERCENTILE) or _value_below_percentile(
+        values, _DXY_EXTREME_LOW_PERCENTILE
+    )
+
+
 def _rank_drivers(
     strengths: dict[ThemeDriverKey, float],
 ) -> tuple[ThemeDriverKey, list[ThemeDriverKey]] | None:
@@ -648,7 +706,9 @@ async def classify_dominant_theme(
     """
     # r182 EXECUTION : 4 hetero inputs + 8-driver strength scoring.
     vix = await _latest_fred_value(session, "VIXCLS", now_utc=now_utc)
-    dxy = await _latest_fred_value(session, "DTWEXBGS", now_utc=now_utc)
+    # DTWEXBGS broad-dollar extreme is computed via the self-calibrating
+    # percentile helper _is_dxy_at_extreme (S04 fix — the r182 fixed 105/95
+    # absolute thresholds were degenerate on the broad index).
     # dgs10 query reserved for r183+ extension (US10Y yield-shift signal)
     _ = await _latest_fred_value(session, "DGS10", now_utc=now_utc)
     fomc_days = await _fomc_proximity_days(session, now_utc=now_utc)
@@ -681,12 +741,8 @@ async def classify_dominant_theme(
     else:
         strengths["market_interconnexions"] = 0.3
 
-    if (
-        vix is not None
-        and dxy is not None
-        and vix > _VIX_PANIC_THRESHOLD
-        and (dxy > _DXY_STRONG_THRESHOLD or dxy < _DXY_WEAK_THRESHOLD)
-    ):
+    dxy_at_extreme = await _is_dxy_at_extreme(session, now_utc=now_utc)
+    if vix is not None and vix > _VIX_PANIC_THRESHOLD and dxy_at_extreme:
         strengths["macroeconomic"] = 0.65
     else:
         strengths["macroeconomic"] = _BASELINE_STRENGTH
