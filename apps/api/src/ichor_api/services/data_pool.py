@@ -4763,10 +4763,23 @@ async def _section_prediction_markets(
     return "\n".join(sections), sources
 
 
+_GEO_GDELT_POOL = 50  # wider GDELT candidate pool before per-asset affinity filter
+_GEO_MIN_ASSET_MATCHES = 3  # below this, GDELT negatives fall back to the global ranking
+
+
 async def _section_geopolitics(
-    session: AsyncSession,
+    session: AsyncSession, asset: str | None = None
 ) -> tuple[str, list[str], list[DegradedInput]]:
-    """## Geopolitics — AI-GPR latest + GDELT critical cluster count."""
+    """## Geopolitics — AI-GPR latest (global) + GDELT critical cluster, per-asset.
+
+    S04 TIER-2 #3 depth: AI-GPR stays the GLOBAL geopolitical-risk index (single
+    index, identical for every asset by construction). The GDELT negative-event
+    cluster is narrowed to the asset's conversation via
+    ``filter_rows_by_asset_affinity`` (title + query_label + domain + url) with a
+    scarce→global fallback, mirroring ``_section_news`` + ``routers/geopolitics.py``
+    so the brain's per-asset card no longer reads an identical geopolitics block
+    for gold, the euro and the Nasdaq. ADR-017-safe (keywords content-neutral).
+    """
     lines = ["## Geopolitics"]
     sources: list[str] = []
     degraded: list[DegradedInput] = []
@@ -4808,17 +4821,40 @@ async def _section_geopolitics(
     else:
         lines.append(f"- ⚠ AI-GPR {live.status.upper()} : n/a")
 
+    # GDELT negative-event cluster — per-asset (S04 TIER-2 #3). Pull a wider
+    # candidate pool (deterministic tone-asc, seendate-desc on ties) then narrow
+    # to the asset's conversation; scarce→global fallback. Mirrors the
+    # /v1/geopolitics/briefing router so the panel and the brain agree.
+    from .asset_news_affinity import filter_rows_by_asset_affinity
+
     cutoff = datetime.now(UTC) - timedelta(hours=24)
     gdelt_stmt = (
         select(GdeltEvent)
         .where(GdeltEvent.seendate >= cutoff)
-        .order_by(GdeltEvent.tone.asc())
-        .limit(5)
+        .order_by(GdeltEvent.tone.asc(), GdeltEvent.seendate.desc())
+        .limit(_GEO_GDELT_POOL)
     )
     gdelt_rows = list((await session.execute(gdelt_stmt)).scalars().all())
     if gdelt_rows:
-        lines.append("- GDELT 5 most-negative events last 24h:")
-        for r in gdelt_rows:
+
+        def _gd_key(r: GdeltEvent) -> tuple[str, str]:
+            blob = " ".join([r.title or "", r.query_label or "", r.domain or ""])
+            return blob, r.url or ""
+
+        filtered, matched, applied = filter_rows_by_asset_affinity(
+            gdelt_rows, asset, key=_gd_key, min_required=_GEO_MIN_ASSET_MATCHES
+        )
+        top = sorted(filtered, key=lambda r: r.tone)[:5]
+        if asset and applied:
+            lines.append(f"- GDELT 5 most-negative events last 24h, ticker-linked to {asset}:")
+        elif asset:
+            lines.append(
+                f"- GDELT 5 most-negative events last 24h "
+                f"(wide — {asset} match scarce, matched={matched}):"
+            )
+        else:
+            lines.append("- GDELT 5 most-negative events last 24h:")
+        for r in top:
             lines.append(
                 f"  · tone={r.tone:+.1f} {r.title[:80]} "
                 f"({r.domain or 'unknown'}, query={r.query_label}) {r.url}"
@@ -5795,7 +5831,7 @@ async def build_data_pool(
     if cbi_md:
         sections.append(("cb_intervention", cbi_md, cbi_src))
 
-    geo_md, geo_src, geo_deg = await _section_geopolitics(session)
+    geo_md, geo_src, geo_deg = await _section_geopolitics(session, asset)
     degraded_inputs.extend(geo_deg)
     sections.append(("geopolitics", geo_md, geo_src))
 
