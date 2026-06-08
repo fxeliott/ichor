@@ -29,12 +29,12 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..models import PolygonIntradayBar
+from ..models import MarketDataBar, PolygonIntradayBar
 
 
 @dataclass(frozen=True)
@@ -325,3 +325,225 @@ def render_microstructure_block(r: MicrostructureReading) -> tuple[str, list[str
     ]
     sources = [f"polygon_intraday:{r.asset}@last{r.window_minutes}min"]
     return "\n".join(lines), sources
+
+
+# ════════════════════ Relative-volume / participation layer ════════════════
+#
+# S04 TIER-2 depth (« chaque dimension poussée au maximum, sans zone d'ombre ») :
+# the microstructure block above uses volume only as a WEIGHT (Amihud / Kyle /
+# VWAP / value-area). It never answers the first question a desk asks of volume —
+# « is today's participation light, normal, or a spike vs its own history ? »
+#
+# This layer adds exactly that : relative volume (RVOL = current daily volume /
+# trailing average), a volume z-score, and a non-directional participation bucket.
+# It runs on DAILY ``market_data`` bars (deep history) rather than the shallow
+# intraday table, and only for assets that carry real consolidated volume —
+# empirically SPY (SPX500), I:NDX daily (NAS100) and GC=F gold futures (XAU) via
+# yfinance. FX pairs carry zero venue volume → honest N/A by data property (the
+# caller decides), never a silent gap. Direction is NOT inferred (a spike can be
+# up or down) — this is participation / conviction CONTEXT for the brain,
+# descriptive and ADR-017-safe by construction.
+
+_RVOL_AVG_WINDOW = 20
+"""Trailing trading-day window for the RVOL ratio baseline (classic 20-day RVOL)."""
+_VOLUME_ZSCORE_WINDOW = 60
+"""Trailing window for the volume z-score."""
+_MIN_RVOL_HISTORY = 10
+"""Below this many baseline observations the RVOL ratio is not credible → None."""
+_MIN_VOLUME_ZSCORE_HISTORY = 60
+"""z-score floor — mirrors ``dollar_smile_check._MIN_ZSCORE_HISTORY`` (credible sample)."""
+
+
+@dataclass(frozen=True)
+class RelativeVolumeReading:
+    """Relative-volume / participation read for one asset over its daily history."""
+
+    asset: str
+    volume_available: bool
+    """False = the venue reports no consolidated volume (FX) → every metric below
+    is None and the bucket is an honest N/A, NOT a gap."""
+    latest_date: date | None
+    current_volume: float | None
+    avg_volume: float | None
+    """Trailing ``_RVOL_AVG_WINDOW``-day mean volume, excluding the current bar."""
+    rvol_ratio: float | None
+    """current_volume / avg_volume — > 1 = above-average participation."""
+    volume_zscore: float | None
+    """(current - mean) / std over ``_VOLUME_ZSCORE_WINDOW``; None until credible."""
+    n_history: int
+    bucket: str
+
+
+def _volume_zscore(history: list[float], current: float) -> float | None:
+    """z-score with min-history + zero-std defenses (mirror of dollar_smile_check)."""
+    n = len(history)
+    if n < _MIN_VOLUME_ZSCORE_HISTORY:
+        return None
+    mean = sum(history) / n
+    var = sum((v - mean) ** 2 for v in history) / n
+    std = math.sqrt(var)
+    if std == 0:
+        return None
+    return (current - mean) / std
+
+
+def _volume_bucket(rvol_ratio: float | None, zscore: float | None) -> str:
+    """Non-directional participation label from the RVOL ratio + z-score.
+
+    Descriptive only (ADR-017) : magnitude of participation, never a direction.
+    """
+    if rvol_ratio is None:
+        return "insufficient-history"
+    if rvol_ratio >= 2.0 or (zscore is not None and zscore >= 2.0):
+        return "volume spike"
+    if rvol_ratio >= 1.25:
+        return "elevated participation"
+    if rvol_ratio >= 0.8:
+        return "average participation"
+    if rvol_ratio >= 0.5:
+        return "below-average participation"
+    return "very light participation"
+
+
+def classify_relative_volume(
+    daily_volumes: list[float],
+    *,
+    asset: str,
+    latest_date: date | None,
+    volume_available: bool = True,
+) -> RelativeVolumeReading:
+    """Pure RVOL + volume z-score + participation bucket.
+
+    ``daily_volumes`` is the ascending series of positive daily volumes, last
+    element = the current (most recent) bar. Pure-stdlib, no I/O ; degenerate
+    inputs return ``None`` metrics with an honest bucket, never raise.
+    """
+    if not volume_available:
+        return RelativeVolumeReading(
+            asset=asset,
+            volume_available=False,
+            latest_date=latest_date,
+            current_volume=None,
+            avg_volume=None,
+            rvol_ratio=None,
+            volume_zscore=None,
+            n_history=0,
+            bucket="n/a — no venue volume",
+        )
+    current = daily_volumes[-1] if daily_volumes else 0.0
+    if not daily_volumes or current <= 0:
+        # No usable current volume → honest absent. The DB path already filters
+        # <= 0; this also guards a direct caller bypassing that filter, so a
+        # non-positive current can never mis-bucket as "very light participation".
+        return RelativeVolumeReading(
+            asset=asset,
+            volume_available=True,
+            latest_date=latest_date,
+            current_volume=None,
+            avg_volume=None,
+            rvol_ratio=None,
+            volume_zscore=None,
+            n_history=0,
+            bucket="absent",
+        )
+    history = daily_volumes[:-1]
+    n_history = len(history)
+
+    avg_window = history[-_RVOL_AVG_WINDOW:]
+    avg_volume = sum(avg_window) / len(avg_window) if len(avg_window) >= _MIN_RVOL_HISTORY else None
+    rvol_ratio = (current / avg_volume) if (avg_volume and avg_volume > 0) else None
+
+    z_window = history[-_VOLUME_ZSCORE_WINDOW:]
+    volume_zscore = _volume_zscore(z_window, current)
+
+    return RelativeVolumeReading(
+        asset=asset,
+        volume_available=True,
+        latest_date=latest_date,
+        current_volume=current,
+        avg_volume=avg_volume,
+        rvol_ratio=rvol_ratio,
+        volume_zscore=volume_zscore,
+        n_history=n_history,
+        bucket=_volume_bucket(rvol_ratio, volume_zscore),
+    )
+
+
+async def assess_relative_volume(
+    session: AsyncSession,
+    asset: str,
+    *,
+    lookback_days: int = 400,
+) -> RelativeVolumeReading:
+    """Pull daily volume from ``market_data`` and compute the relative-volume read.
+
+    Dedups ``(asset, bar_date)`` across sources by keeping the largest positive
+    volume, and drops days with no/zero volume (non-trading days or volume-less
+    sources). ``lookback_days`` ~400 covers ``_VOLUME_ZSCORE_WINDOW`` with margin.
+    Intended for volume-bearing assets only — the FX honest-N/A path is the
+    caller's zero-DB ``volume_available=False`` branch.
+    """
+    cutoff = (datetime.now(UTC) - timedelta(days=lookback_days)).date()
+    rows = list(
+        (
+            await session.execute(
+                select(MarketDataBar.bar_date, MarketDataBar.volume)
+                .where(
+                    MarketDataBar.asset == asset,
+                    MarketDataBar.bar_date >= cutoff,
+                )
+                .order_by(MarketDataBar.bar_date.asc())
+            )
+        ).all()
+    )
+    by_date: dict[date, float] = {}
+    for bar_date, vol in rows:
+        if vol is None or vol <= 0:
+            continue
+        v = float(vol)
+        prev = by_date.get(bar_date)
+        if prev is None or v > prev:
+            by_date[bar_date] = v
+    if not by_date:
+        return classify_relative_volume([], asset=asset, latest_date=None, volume_available=True)
+    ordered = sorted(by_date)
+    volumes = [by_date[d] for d in ordered]
+    return classify_relative_volume(
+        volumes, asset=asset, latest_date=ordered[-1], volume_available=True
+    )
+
+
+def render_relative_volume_block(r: RelativeVolumeReading) -> tuple[str, list[str]]:
+    """Markdown block + sources for data_pool.py (descriptive, ADR-017-safe)."""
+    title = f"## Relative volume / participation ({r.asset})"
+    if not r.volume_available:
+        md = (
+            f"{title}\n"
+            f"- Relative daily volume N/A — {r.asset} carries no consolidated venue "
+            "volume (FX). Participation is read via the microstructure block's "
+            "order-flow proxies (Amihud / Kyle / signed-volume) instead — N/A here "
+            "by data property, NOT a gap."
+        )
+        return md, []
+    if r.current_volume is None or r.latest_date is None:
+        md = (
+            f"{title}\n- ⚠ market_data:{r.asset}:volume ABSENT : no positive daily volume persisted"
+        )
+        return md, []
+    src = [f"market_data:{r.asset}:volume@{r.latest_date.isoformat()}"]
+    if r.rvol_ratio is None or r.avg_volume is None:
+        md = (
+            f"{title}\n"
+            f"- volume {r.current_volume:,.0f} on {r.latest_date} — insufficient history "
+            f"(n={r.n_history}, need ≥{_MIN_RVOL_HISTORY}) to compute relative volume; warming up."
+        )
+        return md, src
+    z_str = f"{r.volume_zscore:+.1f}" if r.volume_zscore is not None else "n/a"
+    md = (
+        f"{title}\n"
+        f"- Latest daily bar {r.latest_date}: volume {r.current_volume:,.0f} vs "
+        f"{_RVOL_AVG_WINDOW}-day avg {r.avg_volume:,.0f} → RVOL {r.rvol_ratio:.2f}× (z {z_str})\n"
+        f"- Participation: {r.bucket}\n"
+        "- Note: compares the latest daily bar; an in-progress session day reads partial volume."
+    )
+    return md, src
