@@ -60,10 +60,15 @@ generalizes that, then fills the real per-dimension depth gaps.
    stale series surface an ABSENT/STALE band plus a degraded trace. ADR-017-safe
    (descriptive, non-directional). 30 tests. Witness: SPX RVOL 0.88×, NAS 0.96×,
    XAU 1.03×, EUR_USD honest N/A, all `degraded=[]`.
-3. **Geopolitics per-asset** [med]. `_section_geopolitics(session)` (data_pool.py:4500) has
-   NO asset param → identical for all 5 assets. Refactor to `(session, asset)` + apply
-   `filter_rows_by_asset_affinity` over GDELT (key=title/url/query_label) with scarce→global
-   fallback, mirroring `_section_news`. Pure part: the affinity filter (testable now).
+3. ✅ **DONE (code) — Geopolitics per-asset** [med] (PR #206, `b738ab9`, witnessed prod
+   2026-06-09). `_section_geopolitics(session, asset)` narrows the GDELT negative-event
+   cluster via `filter_rows_by_asset_affinity` (title+query_label+domain+url,
+   min_required=3, scarce→global fallback), mirroring `_section_news` +
+   `routers/geopolitics.py` (pool aligned to router top×8). AI-GPR stays global. 7 tests,
+   ruff/mypy clean. **Honest runtime caveat**: on the current 24h GDELT window all assets
+   fell back to global (matched 0–1 < 3) → the per-asset differentiation is DATA-GATED; it
+   activates on per-asset geo density (ECB day, gold shock…). The lever for routine
+   differentiation = richer per-asset GDELT queries (Session-03 collector), NOT this section.
 4. **Acteurs / TFF coverage** [high, NEEDS domain call]. cftc_tff collects 15 markets;
    consumer `_TFF_MARKET_BY_ASSET` (data_pool.py:206-215) uses 8. CHF/NZD/RUT/UST-2/5/10/30Y
    never surface per-asset. Extending requires a SEMANTIC decision (which TFF market informs
