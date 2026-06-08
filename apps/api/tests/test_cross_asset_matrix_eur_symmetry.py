@@ -22,7 +22,7 @@ each side, exact label text, balanced fallback when both sides silent.
 
 from __future__ import annotations
 
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -50,14 +50,16 @@ def _make_nowcast_row(value: float) -> MagicMock:
 def _make_skew_row(value: float) -> MagicMock:
     row = MagicMock()
     row.skew_value = value
-    row.observation_date = date(2026, 5, 13)
+    # Relative fresh date (SKEW liveness gate max_age=7d, daily NYSE series).
+    row.observation_date = datetime.now(UTC).date() - timedelta(days=2)
     return row
 
 
 def _make_sbet_row(value: float) -> MagicMock:
     row = MagicMock()
     row.sboi = value
-    row.report_month = date(2026, 4, 1)
+    # Relative fresh date (NFIB liveness gate max_age=80d, monthly report_month).
+    row.report_month = datetime.now(UTC).date() - timedelta(days=30)
     return row
 
 
