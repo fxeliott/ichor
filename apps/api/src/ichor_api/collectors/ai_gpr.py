@@ -32,7 +32,11 @@ import structlog
 
 log = structlog.get_logger(__name__)
 
-AI_GPR_CSV_URL = "https://www.matteoiacoviello.com/gpr_files/data_gpr_daily_recent.xls"
+# Upstream migrated the daily series to a clean CSV (columns `Date,GPR_AI,...`).
+# The legacy `gpr_files/data_gpr_daily_recent.xls` now serves a binary .xls the
+# collector cannot parse (xlrd is not a dependency) — root cause of the 2026-06
+# prod freeze (last fresh row 2026-06-01, collector silently returned []).
+AI_GPR_CSV_URL = "https://www.matteoiacoviello.com/ai_gpr_files/ai_gpr_data_daily.csv"
 AI_GPR_HOMEPAGE = "https://www.matteoiacoviello.com/ai_gpr.html"
 
 
@@ -79,7 +83,7 @@ def _parse_xls(body: bytes) -> list[AiGprObservation]:
             (
                 i
                 for i, h in enumerate(header)
-                if h.upper() in {"AI_GPR", "GPR_DAILY", "GPR", "GPRD"}
+                if h.upper() in {"GPR_AI", "AI_GPR", "GPR_DAILY", "GPR", "GPRD"}
             ),
             None,
         )
@@ -140,7 +144,7 @@ def _parse_xlsx(body: bytes) -> list[AiGprObservation]:
             (
                 i
                 for i, h in enumerate(header)
-                if h.upper() in {"AI_GPR", "GPR_DAILY", "GPR", "GPRD"}
+                if h.upper() in {"GPR_AI", "AI_GPR", "GPR_DAILY", "GPR", "GPRD"}
             ),
             None,
         )
@@ -203,9 +207,11 @@ def _parse_csv(body: bytes) -> list[AiGprObservation]:
     reader = csv.DictReader(io.StringIO(text))
     fields = set(reader.fieldnames or [])
 
-    # Accept either historical naming (`GPR_DAILY`) or the newer `AI_GPR`.
-    value_col = "AI_GPR" if "AI_GPR" in fields else "GPR_DAILY" if "GPR_DAILY" in fields else None
-    date_col = "date" if "date" in fields else "DATE" if "DATE" in fields else None
+    # Upstream canonical (ai_gpr_data_daily.csv) names the AI-GPR series
+    # `GPR_AI` with a `Date` column; keep legacy aliases (`AI_GPR`/`GPR_DAILY`,
+    # `date`/`DATE`) for resilience if the source layout changes again.
+    value_col = next((c for c in ("GPR_AI", "AI_GPR", "GPR_DAILY") if c in fields), None)
+    date_col = next((c for c in ("Date", "date", "DATE") if c in fields), None)
     if value_col is None or date_col is None:
         log.warning("ai_gpr.unexpected_header", header=reader.fieldnames)
         return []
