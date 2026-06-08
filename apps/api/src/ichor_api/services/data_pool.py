@@ -3490,6 +3490,9 @@ _MCT_MAX_AGE_DAYS = 100
 _NOWCAST_MAX_AGE_DAYS = 10
 _SKEW_MAX_AGE_DAYS = 7
 _NFIB_MAX_AGE_DAYS = 80
+_GPR_MAX_AGE_DAYS = 14  # AI-GPR daily but source publishes with ~8j lag (mesuré prod 2026-06-08)
+_TFF_MAX_AGE_DAYS = 14  # CFTC TFF weekly (report Tue, published Fri); intra-cycle age 3-10j
+_COT_MAX_AGE_DAYS = 14  # CFTC COT weekly (same cadence)
 
 
 async def _section_cross_asset_matrix(
@@ -4354,16 +4357,21 @@ async def _section_nyfed_mct(session: AsyncSession) -> tuple[str, list[str], lis
     return "\n".join(lines), sources, degraded
 
 
-async def _section_tff_positioning(session: AsyncSession, asset: str) -> tuple[str, list[str]]:
+async def _section_tff_positioning(
+    session: AsyncSession, asset: str
+) -> tuple[str, list[str], list[DegradedInput]]:
     """## TFF positioning — latest CFTC TFF 4-class breakdown for the asset.
 
     Surfaces the smart-money divergence signal (LevFunds vs AssetMgr)
     + dealer absorbing inventory. Per-asset, weekly cadence. Skip if the
     asset is not in the TFF tracked-market whitelist.
     """
+    degraded: list[DegradedInput] = []
+    _now = datetime.now(UTC).date()
     market = _TFF_MARKET_BY_ASSET.get(asset)
     if market is None:
-        return "", []
+        # Asset outside the TFF whitelist → no source expected → NOT degraded.
+        return "", [], []
     stmt = (
         select(CftcTffObservation)
         .where(CftcTffObservation.market_code == market)
@@ -4372,9 +4380,59 @@ async def _section_tff_positioning(session: AsyncSession, asset: str) -> tuple[s
     )
     rows = list((await session.execute(stmt)).scalars().all())
     if not rows:
-        return f"## TFF positioning ({asset}, market={market})\n- n/a", []
+        # S04 liveness gate — a tracked market with zero persisted rows is an
+        # ABSENT source (collector never delivered), not a silent n/a.
+        live = classify_liveness(
+            f"CFTC:TFF:{market}",
+            None,
+            now=_now,
+            max_age_days=_TFF_MAX_AGE_DAYS,
+            impacted=f"tff:{asset}",
+        )
+        degraded.append(
+            DegradedInput(
+                series_id=live.source_key,
+                status=live.status,  # type: ignore[arg-type]  # never "fresh" here
+                latest_date=live.latest_date,
+                age_days=live.age_days,
+                max_age_days=live.max_age_days,
+                impacted=live.impacted,
+            )
+        )
+        return (
+            f"## TFF positioning ({asset}, market={market})\n"
+            f"- ⚠ CFTC:TFF:{market} {live.status.upper()} : no persisted rows",
+            [],
+            degraded,
+        )
     cur = rows[0]
     prev = rows[1] if len(rows) > 1 else None
+
+    # S04 liveness gate — a stale weekly report must not render as the current
+    # positioning headline without an explicit STALE band + degraded trace.
+    live = classify_liveness(
+        f"CFTC:TFF:{market}",
+        cur.report_date,
+        now=_now,
+        max_age_days=_TFF_MAX_AGE_DAYS,
+        impacted=f"tff:{asset}",
+    )
+    stale_band = ""
+    if live.is_degraded:
+        degraded.append(
+            DegradedInput(
+                series_id=live.source_key,
+                status=live.status,  # type: ignore[arg-type]  # never "fresh" here
+                latest_date=live.latest_date,
+                age_days=live.age_days,
+                max_age_days=live.max_age_days,
+                impacted=live.impacted,
+            )
+        )
+        stale_band = (
+            f"\n- ⚠ CFTC:TFF:{market} {live.status.upper()} : "
+            f"{live.age_days}j (max {live.max_age_days}j)"
+        )
 
     dealer_net = cur.dealer_long - cur.dealer_short
     am_net = cur.asset_mgr_long - cur.asset_mgr_short
@@ -4402,21 +4460,26 @@ async def _section_tff_positioning(session: AsyncSession, asset: str) -> tuple[s
         f"- Dealer net = {dealer_net:+,}, AssetMgr net = {am_net:+,}, "
         f"LevFunds net = {lev_net:+,}, Other net = {other_net:+,} "
         f"(open_interest={cur.open_interest:,}, report_date={cur.report_date:%Y-%m-%d})"
-        f"{delta_str}{divergence}"
+        f"{delta_str}{divergence}{stale_band}"
     )
-    return md, sources
+    return md, sources, degraded
 
 
-async def _section_cot(session: AsyncSession, asset: str) -> tuple[str, list[str]]:
+async def _section_cot(
+    session: AsyncSession, asset: str
+) -> tuple[str, list[str], list[DegradedInput]]:
     """## COT positioning — latest weekly Disaggregated row for the asset.
 
     Wave 45 enriched: Δw/w + Δ4w + Δ12w trend deltas on managed_money_net
     to surface positioning regime shifts (acceleration / deceleration /
     reversal) rather than just a static snapshot.
     """
+    degraded: list[DegradedInput] = []
+    _now = datetime.now(UTC).date()
     market = _COT_MARKET_BY_ASSET.get(asset)
     if market is None:
-        return "", []
+        # Asset outside the COT whitelist → no source expected → NOT degraded.
+        return "", [], []
     stmt = (
         select(CotPosition)
         .where(CotPosition.market_code == market)
@@ -4425,8 +4488,57 @@ async def _section_cot(session: AsyncSession, asset: str) -> tuple[str, list[str
     )
     rows = list((await session.execute(stmt)).scalars().all())
     if not rows:
-        return f"## COT positioning ({asset}, market={market})\n- n/a", []
+        # S04 liveness gate — the COT table is EMPTY in prod; this makes the
+        # absence explicit (status="absent") instead of a silent n/a.
+        live = classify_liveness(
+            f"CFTC:COT:{market}",
+            None,
+            now=_now,
+            max_age_days=_COT_MAX_AGE_DAYS,
+            impacted=f"cot:{asset}",
+        )
+        degraded.append(
+            DegradedInput(
+                series_id=live.source_key,
+                status=live.status,  # type: ignore[arg-type]  # never "fresh" here
+                latest_date=live.latest_date,
+                age_days=live.age_days,
+                max_age_days=live.max_age_days,
+                impacted=live.impacted,
+            )
+        )
+        return (
+            f"## COT positioning ({asset}, market={market})\n"
+            f"- ⚠ CFTC:COT:{market} {live.status.upper()} : no persisted rows",
+            [],
+            degraded,
+        )
     cur = rows[0]
+    # S04 liveness gate — a stale weekly report must not render as the current
+    # positioning headline without an explicit STALE band + degraded trace.
+    live = classify_liveness(
+        f"CFTC:COT:{market}",
+        cur.report_date,
+        now=_now,
+        max_age_days=_COT_MAX_AGE_DAYS,
+        impacted=f"cot:{asset}",
+    )
+    stale_band = ""
+    if live.is_degraded:
+        degraded.append(
+            DegradedInput(
+                series_id=live.source_key,
+                status=live.status,  # type: ignore[arg-type]  # never "fresh" here
+                latest_date=live.latest_date,
+                age_days=live.age_days,
+                max_age_days=live.max_age_days,
+                impacted=live.impacted,
+            )
+        )
+        stale_band = (
+            f"\n- ⚠ CFTC:COT:{market} {live.status.upper()} : "
+            f"{live.age_days}j (max {live.max_age_days}j)"
+        )
     deltas: list[str] = []
     if len(rows) > 1:
         d1 = cur.managed_money_net - rows[1].managed_money_net
@@ -4456,8 +4568,9 @@ async def _section_cot(session: AsyncSession, asset: str) -> tuple[str, list[str
         f"(swap_dealer_net={cur.swap_dealer_net:+,}, "
         f"open_interest={cur.open_interest:,}, "
         f"report_date={cur.report_date:%Y-%m-%d})"
+        f"{stale_band}"
     )
-    return md, sources
+    return md, sources, degraded
 
 
 async def _section_prediction_markets(
@@ -4640,21 +4753,50 @@ async def _section_prediction_markets(
     return "\n".join(sections), sources
 
 
-async def _section_geopolitics(session: AsyncSession) -> tuple[str, list[str]]:
+async def _section_geopolitics(
+    session: AsyncSession,
+) -> tuple[str, list[str], list[DegradedInput]]:
     """## Geopolitics — AI-GPR latest + GDELT critical cluster count."""
     lines = ["## Geopolitics"]
     sources: list[str] = []
+    degraded: list[DegradedInput] = []
+    _now = datetime.now(UTC).date()
 
     gpr_stmt = select(GprObservation).order_by(desc(GprObservation.observation_date)).limit(1)
     gpr = (await session.execute(gpr_stmt)).scalars().first()
+    # S04 liveness gate — a stale AI-GPR must not render as the current
+    # geopolitical-risk headline without an explicit STALE/ABSENT band +
+    # degraded trace (the systemic stale-as-fresh « zone d'ombre »).
+    live = classify_liveness(
+        "AI-GPR",
+        gpr.observation_date if gpr else None,
+        now=_now,
+        max_age_days=_GPR_MAX_AGE_DAYS,
+        impacted="geopolitics",
+    )
+    if live.is_degraded:
+        degraded.append(
+            DegradedInput(
+                series_id=live.source_key,
+                status=live.status,  # type: ignore[arg-type]  # never "fresh" here
+                latest_date=live.latest_date,
+                age_days=live.age_days,
+                max_age_days=live.max_age_days,
+                impacted=live.impacted,
+            )
+        )
     if gpr is not None:
         lines.append(
             f"- AI-GPR = {gpr.ai_gpr:.1f} "
             f"(Iacoviello, observation_date={gpr.observation_date:%Y-%m-%d})"
         )
         sources.append(f"AI-GPR@{gpr.observation_date.isoformat()}")
+        if live.is_degraded:
+            lines.append(
+                f"- ⚠ AI-GPR {live.status.upper()} : {live.age_days}j (max {live.max_age_days}j)"
+            )
     else:
-        lines.append("- AI-GPR: n/a")
+        lines.append(f"- ⚠ AI-GPR {live.status.upper()} : n/a")
 
     cutoff = datetime.now(UTC) - timedelta(hours=24)
     gdelt_stmt = (
@@ -4675,7 +4817,7 @@ async def _section_geopolitics(session: AsyncSession) -> tuple[str, list[str]]:
     else:
         lines.append("- GDELT: no events in the last 24h")
 
-    return "\n".join(lines), sources
+    return "\n".join(lines), sources, degraded
 
 
 async def _section_cb_speeches(session: AsyncSession) -> tuple[str, list[str]]:
@@ -5545,7 +5687,8 @@ async def build_data_pool(
     if asian_md:
         sections.append(("asian_session", asian_md, asian_src))
 
-    cot_md, cot_src = await _section_cot(session, asset)
+    cot_md, cot_src, cot_deg = await _section_cot(session, asset)
+    degraded_inputs.extend(cot_deg)
     if cot_md:
         sections.append(("cot", cot_md, cot_src))
 
@@ -5553,7 +5696,8 @@ async def build_data_pool(
     # Asset-conditional via _TFF_MARKET_BY_ASSET (skip if unmapped). Sister
     # to _section_cot (Disaggregated) but TFF is the financial-futures-only
     # report with the AssetMgr / LevFunds split that COT lacks.
-    tff_md, tff_src = await _section_tff_positioning(session, asset)
+    tff_md, tff_src, tff_deg = await _section_tff_positioning(session, asset)
+    degraded_inputs.extend(tff_deg)
     if tff_md:
         sections.append(("tff_positioning", tff_md, tff_src))
 
@@ -5582,7 +5726,8 @@ async def build_data_pool(
     if cbi_md:
         sections.append(("cb_intervention", cbi_md, cbi_src))
 
-    geo_md, geo_src = await _section_geopolitics(session)
+    geo_md, geo_src, geo_deg = await _section_geopolitics(session)
+    degraded_inputs.extend(geo_deg)
     sections.append(("geopolitics", geo_md, geo_src))
 
     cb_md, cb_src = await _section_cb_speeches(session)
@@ -5673,7 +5818,7 @@ async def build_asset_data_only(session: AsyncSession, asset: str) -> str:
         parts.append(diff_md)
     poly_md, _ = await _section_polygon_intraday(session, asset)
     parts.append(poly_md)
-    cot_md, _ = await _section_cot(session, asset)
+    cot_md, _, _ = await _section_cot(session, asset)
     if cot_md:
         parts.append(cot_md)
     pm_md, _ = await _section_prediction_markets(session)
