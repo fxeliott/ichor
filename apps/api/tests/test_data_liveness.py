@@ -99,3 +99,30 @@ def test_source_liveness_is_frozen() -> None:
     lv = SourceLiveness("X", "fresh", _NOW, 0, 10)
     with pytest.raises(Exception):
         lv.status = "stale"  # type: ignore[misc]
+
+
+# ─── NYFED:MCT cadence calibration (pins the data_pool wiring max_age=100) ───
+# observation_month is a PCE reference month trailing publish by ~2 months;
+# a fresh latest row is legitimately up to ~95d old → 100d must NOT flag it.
+
+
+def test_nyfed_mct_fresh_release_not_false_flagged() -> None:
+    # Worst-case-normal: latest observation_month ~95d old just before next print.
+    lv = classify_liveness("NYFED:MCT", date(2026, 3, 5), now=_NOW, max_age_days=100)
+    assert lv.age_days == 95
+    assert lv.status == "fresh"
+    assert lv.is_degraded is False
+
+
+def test_nyfed_mct_dead_collector_is_stale() -> None:
+    # ≥2 missed monthly cycles → genuinely degraded.
+    lv = classify_liveness("NYFED:MCT", date(2026, 1, 1), now=_NOW, max_age_days=100)
+    assert lv.age_days == 158
+    assert lv.status == "stale"
+    assert lv.is_degraded is True
+
+
+def test_nyfed_mct_absent() -> None:
+    lv = classify_liveness("NYFED:MCT", None, now=_NOW, max_age_days=100)
+    assert lv.status == "absent"
+    assert lv.is_degraded is True
