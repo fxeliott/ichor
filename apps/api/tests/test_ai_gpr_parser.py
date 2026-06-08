@@ -55,6 +55,33 @@ def test_parse_csv_handles_ai_gpr_column_name() -> None:
     assert len(rows) == 1
 
 
+def test_parse_csv_handles_upstream_gpr_ai_header() -> None:
+    # Real upstream header of ai_gpr_data_daily.csv (verified 2026-06-08 via the
+    # live source): `Date` (capitalised) + the AI-GPR series under `GPR_AI`, plus
+    # extra GPR_* columns that must be ignored. Before the fix the collector
+    # only looked for `date`/`AI_GPR` -> returned [] -> silent 2026-06 prod freeze.
+    body = (
+        b"Date,GPR_AI,GPR_AER,GPR_OIL,GPR_NONOIL,GPR_OIL_MiddleEast\n"
+        b"2026-05-30,196.02,314.9,630.44,167.62,504.35\n"
+        b"2026-05-31,113.79,124.27,194.05,108.55,194.05\n"
+    )
+    rows = _parse_csv(body)
+    assert len(rows) == 2
+    assert rows[0].observation_date == date(2026, 5, 30)
+    assert rows[0].ai_gpr == 196.02  # GPR_AI column, not GPR_AER / GPR_OIL
+    assert rows[1].observation_date == date(2026, 5, 31)
+    assert rows[1].ai_gpr == 113.79
+
+
+def test_parse_csv_gpr_ai_precedence_and_zero_value() -> None:
+    # `GPR_AI` (modern) takes precedence over the legacy `AI_GPR` when both
+    # exist, and a literal 0.0 reading must be preserved (not dropped as falsy).
+    body = b"Date,AI_GPR,GPR_AI\n2026-05-30,11.1,0.0\n"
+    rows = _parse_csv(body)
+    assert len(rows) == 1
+    assert rows[0].ai_gpr == 0.0  # GPR_AI column wins, 0.0 preserved
+
+
 def test_parse_csv_returns_empty_on_unknown_header() -> None:
     body = b"""foo,bar
 1,2
