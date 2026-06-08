@@ -4763,7 +4763,9 @@ async def _section_prediction_markets(
     return "\n".join(sections), sources
 
 
-_GEO_GDELT_POOL = 50  # wider GDELT candidate pool before per-asset affinity filter
+_GEO_GDELT_POOL = (
+    40  # GDELT candidate pool before per-asset filter; = router top(5)*8 (brain↔panel parity)
+)
 _GEO_MIN_ASSET_MATCHES = 3  # below this, GDELT negatives fall back to the global ranking
 
 
