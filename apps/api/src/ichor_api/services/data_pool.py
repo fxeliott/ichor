@@ -3472,9 +3472,22 @@ def _band(value: float | None, thresholds: tuple[float, ...], labels: tuple[str,
     return labels[-1]
 
 
+# S04 liveness max-ages for the non-FRED régime inputs (SSOT — shared by
+# _section_nyfed_mct + _section_cross_asset_matrix so the SAME MCT data is
+# never classified inconsistently across its two consumers).
+#   MCT     : observation_month trails publish ~2mo, then ages ~30d to the next
+#             monthly print → a FRESH latest row can legitimately be ~95d old;
+#             100d never false-flags a normal release yet catches a dead
+#             collector (verified at runtime 2026-06-08: latest obs 68d → fresh).
+#   NOWCAST : Cleveland nowcast is DAILY (~16:00 Paris) → a fresh revision is
+#             ≤2d old; 10d catches a dead daily collector, no false-flag.
+_MCT_MAX_AGE_DAYS = 100
+_NOWCAST_MAX_AGE_DAYS = 10
+
+
 async def _section_cross_asset_matrix(
     session: AsyncSession,
-) -> tuple[str, list[str]]:
+) -> tuple[str, list[str], list[DegradedInput]]:
     """## Cross-asset matrix v2 — 6 macro dimensions + per-asset bias guide.
 
     Aggregates the macro-research surface into a single structured
@@ -3498,6 +3511,8 @@ async def _section_cross_asset_matrix(
     """
     sources: list[str] = []
     lines: list[str] = ["## Cross-asset matrix (W79)"]
+    degraded: list[DegradedInput] = []
+    _now = datetime.now(UTC).date()
 
     # ── 1. Inflation persistence (MCT trend) ──
     mct_row = (
@@ -3507,13 +3522,26 @@ async def _section_cross_asset_matrix(
             .limit(1)
         )
     ).scalar_one_or_none()
-    mct_value = mct_row.mct_trend_pct if mct_row else None
+    # S04 liveness gate — a stale MCT must NOT keep voting in the régime band
+    # (the systemic stale-as-fresh « zone d'ombre » the depth audit named #1).
+    # NYFED:MCT staleness is already surfaced in the integrity header by
+    # _section_nyfed_mct, so the value is withheld here WITHOUT re-emitting a
+    # duplicate DegradedInput (avoids double-count).
+    mct_live = classify_liveness(
+        "NYFED:MCT",
+        mct_row.observation_month if mct_row else None,
+        now=_now,
+        max_age_days=_MCT_MAX_AGE_DAYS,
+    )
+    mct_value = (
+        mct_row.mct_trend_pct if (mct_row is not None and not mct_live.is_degraded) else None
+    )
     mct_band = _band(
         mct_value,
         (2.25, 2.75, 3.25),
         ("anchored", "near-target", "above-target", "unanchored"),
     )
-    if mct_row is not None:
+    if mct_row is not None and not mct_live.is_degraded:
         sources.append(f"NYFED:MCT@{mct_row.observation_month.isoformat()}")
 
     # ── 2. Inflation surprise (Cleveland Core PCE YoY vs MCT) ──
@@ -3528,7 +3556,32 @@ async def _section_cross_asset_matrix(
             .limit(1)
         )
     ).scalar_one_or_none()
-    nowcast_value: float | None = nowcast_row.nowcast_value if nowcast_row else None
+    # S04 liveness gate — the Cleveland nowcast is DAILY; a stale revision must
+    # not feed the surprise band as current. Unlike MCT it is surfaced nowhere
+    # else, so emit a DegradedInput when degraded.
+    nowcast_live = classify_liveness(
+        "CLEVELAND:NOWCAST",
+        nowcast_row.revision_date if nowcast_row else None,
+        now=_now,
+        max_age_days=_NOWCAST_MAX_AGE_DAYS,
+        impacted="Pass-1 régime classifier (inflation-surprise band: CorePCE nowcast vs MCT)",
+    )
+    if nowcast_live.is_degraded:
+        degraded.append(
+            DegradedInput(
+                series_id=nowcast_live.source_key,
+                status=nowcast_live.status,  # type: ignore[arg-type]  # never "fresh" here
+                latest_date=nowcast_live.latest_date,
+                age_days=nowcast_live.age_days,
+                max_age_days=nowcast_live.max_age_days,
+                impacted=nowcast_live.impacted,
+            )
+        )
+    nowcast_value: float | None = (
+        nowcast_row.nowcast_value
+        if (nowcast_row is not None and not nowcast_live.is_degraded)
+        else None
+    )
     surprise_pts = (
         nowcast_value - mct_value if (nowcast_value is not None and mct_value is not None) else None
     )
@@ -3537,7 +3590,7 @@ async def _section_cross_asset_matrix(
         (-0.50, -0.10, 0.10, 0.50),
         ("downside-strong", "downside", "neutral", "upside", "upside-strong"),
     )
-    if nowcast_row is not None:
+    if nowcast_row is not None and not nowcast_live.is_degraded:
         sources.append(f"CLEVELAND_FED:NOWCAST@{nowcast_row.revision_date.isoformat()}")
 
     # ── 3. Liquidity / financial conditions (NFCI) ──
@@ -3587,7 +3640,11 @@ async def _section_cross_asset_matrix(
         sources.append(f"NFIB:SBET@{sbet_row.report_month.isoformat()}")
 
     if not sources:
-        return ("", [])  # nothing to surface — caller skips append
+        return (
+            "",
+            [],
+            degraded,
+        )  # nothing to surface — caller skips (degraded still threaded) append
 
     # ── Dimension table ──
     lines.append("")
@@ -3960,7 +4017,7 @@ async def _section_cross_asset_matrix(
     for asset_name, hints in asset_hints:
         lines.append(f"- **{asset_name}** : {' · '.join(hints)}")
 
-    return "\n".join(lines), sources
+    return "\n".join(lines), sources, degraded
 
 
 async def _section_myfxbook_outlook(
@@ -4161,12 +4218,8 @@ async def _section_nyfed_mct(session: AsyncSession) -> tuple[str, list[str], lis
         .scalars()
         .all()
     )
-    # S04 liveness gate (no silent stale). observation_month is a PCE
-    # reference month that trails the publish date by ~2 months even on a
-    # fresh release, then ages ~30d until the next monthly print → a fresh
-    # latest row can legitimately be ~95d old; 100d never false-flags a
-    # normally-timed release while still catching a dead collector (≥2 cycles).
-    _MCT_MAX_AGE_DAYS = 100
+    # S04 liveness gate (no silent stale) — _MCT_MAX_AGE_DAYS is the module-level
+    # SSOT (shared with _section_cross_asset_matrix; full rationale at its def).
     lv = classify_liveness(
         "NYFED:MCT",
         rows[0].observation_month if rows else None,
@@ -5274,7 +5327,8 @@ async def build_data_pool(
     # qualitative bands + per-asset directional-bias guide. Aggregates
     # the inflation pillar (W71/W72), liquidity (FRED W42), tail risk
     # (CBOE SKEW), sentiment (NFIB W74) into one structured surface.
-    cam_md, cam_src = await _section_cross_asset_matrix(session)
+    cam_md, cam_src, cam_degraded = await _section_cross_asset_matrix(session)
+    degraded_inputs.extend(cam_degraded)
     if cam_src:
         sections.append(("cross_asset_matrix", cam_md, cam_src))
 

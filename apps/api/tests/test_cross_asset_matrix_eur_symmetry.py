@@ -22,7 +22,7 @@ each side, exact label text, balanced fallback when both sides silent.
 
 from __future__ import annotations
 
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -32,14 +32,18 @@ from ichor_api.services.data_pool import _section_cross_asset_matrix
 def _make_mct_row(value: float) -> MagicMock:
     row = MagicMock()
     row.mct_trend_pct = value
-    row.observation_month = date(2026, 4, 1)
+    # Relative fresh date so the S04 liveness gate (max_age=100d) never flags
+    # these symmetry fixtures STALE as wall-clock advances (a fixed past date
+    # would silently break these tests once it aged > max_age).
+    row.observation_month = datetime.now(UTC).date() - timedelta(days=30)
     return row
 
 
 def _make_nowcast_row(value: float) -> MagicMock:
     row = MagicMock()
     row.nowcast_value = value
-    row.revision_date = date(2026, 5, 1)
+    # Relative fresh date (Cleveland nowcast liveness gate max_age=10d, daily).
+    row.revision_date = datetime.now(UTC).date() - timedelta(days=2)
     return row
 
 
@@ -109,7 +113,7 @@ async def test_usd_positive_regime_renders_3_usd_bid_hints(monkeypatch: pytest.M
         skew_val=160.0,  # tail-fear
         sbet_val=92.0,  # recession-pre
     )
-    md, _src = await _section_cross_asset_matrix(session)
+    md, _src, _deg = await _section_cross_asset_matrix(session)
     # EUR_USD section line should contain all 3 USD-bid hints, NO EUR-bid.
     assert "USD-bid (NFCI tight)" in md
     assert "USD-bid (vol regime)" in md
@@ -143,7 +147,7 @@ async def test_eur_positive_regime_renders_3_eur_bid_hints(monkeypatch: pytest.M
         skew_val=120.0,  # calm
         sbet_val=105.0,  # expansionary
     )
-    md, _src = await _section_cross_asset_matrix(session)
+    md, _src, _deg = await _section_cross_asset_matrix(session)
     eur_block = md.split("EUR_USD")[1].split("GBP_USD")[0]
     # Round-39 GAP-C closure : each EUR-bid hint now carries a
     # Tetlock-invalidation threshold inline. The exact prefix +
@@ -183,7 +187,7 @@ async def test_balanced_regime_falls_back_to_balanced_label(
         skew_val=140.0,  # normal
         sbet_val=99.0,  # soft
     )
-    md, _src = await _section_cross_asset_matrix(session)
+    md, _src, _deg = await _section_cross_asset_matrix(session)
     eur_block = md.split("EUR_USD")[1].split("GBP_USD")[0]
     # mild-loose IS in liquidity_loose set → triggers 1 EUR-bid hint
     # (with round-39 Tetlock invalidation suffix — match prefix only)
@@ -220,7 +224,7 @@ async def test_eur_usd_hint_count_symmetric_with_usd_eur(monkeypatch: pytest.Mon
     session = _make_session_execute_mock(
         mct_val=2.10, nowcast_val=2.05, skew_val=120.0, sbet_val=105.0
     )
-    md, _src = await _section_cross_asset_matrix(session)
+    md, _src, _deg = await _section_cross_asset_matrix(session)
     eur_block = md.split("EUR_USD")[1].split("GBP_USD")[0]
     eur_bid_count = eur_block.count("EUR-bid (")
     assert eur_bid_count == 3, (
@@ -258,7 +262,7 @@ async def test_eur_bid_hints_carry_testable_invalidation_threshold(
     session = _make_session_execute_mock(
         mct_val=2.10, nowcast_val=2.05, skew_val=120.0, sbet_val=105.0
     )
-    md, _src = await _section_cross_asset_matrix(session)
+    md, _src, _deg = await _section_cross_asset_matrix(session)
     eur_block = md.split("EUR_USD")[1].split("GBP_USD")[0]
 
     # Hints are joined with " · " on a single line. Split on the EUR-bid
@@ -302,7 +306,7 @@ async def test_eur_bullish_hints_contain_no_trade_signals(monkeypatch: pytest.Mo
     session = _make_session_execute_mock(
         mct_val=2.10, nowcast_val=2.05, skew_val=120.0, sbet_val=105.0
     )
-    md, _src = await _section_cross_asset_matrix(session)
+    md, _src, _deg = await _section_cross_asset_matrix(session)
     eur_block = md.split("EUR_USD")[1].split("GBP_USD")[0]
     for forbidden in ("BUY", "SELL", "LONG ", "SHORT ", "TARGET", "STOP", "ENTRY"):
         assert forbidden not in eur_block.upper().replace("EUR-USD", "").replace("USD-USD", ""), (
@@ -338,7 +342,7 @@ async def test_gbp_usd_no_longer_copies_eur_usd_list(
     session = _make_session_execute_mock(
         mct_val=2.10, nowcast_val=2.05, skew_val=120.0, sbet_val=105.0
     )
-    md, _src = await _section_cross_asset_matrix(session)
+    md, _src, _deg = await _section_cross_asset_matrix(session)
     gbp_block = md.split("GBP_USD")[1].split("USD_JPY")[0]
 
     # GBP_USD block must NOT contain "EUR-bid" anywhere (the pre-r40
@@ -376,7 +380,7 @@ async def test_gbp_usd_bullish_subset_of_eur_pattern(
     session = _make_session_execute_mock(
         mct_val=2.10, nowcast_val=2.05, skew_val=120.0, sbet_val=105.0
     )
-    md, _src = await _section_cross_asset_matrix(session)
+    md, _src, _deg = await _section_cross_asset_matrix(session)
     gbp_block = md.split("GBP_USD")[1].split("USD_JPY")[0]
     eur_block = md.split("EUR_USD")[1].split("GBP_USD")[0]
 
@@ -426,7 +430,7 @@ async def test_usd_cad_has_at_least_one_cad_bid_branch(
         skew_val=120.0,
         sbet_val=105.0,  # sentiment_strong
     )
-    md, _src = await _section_cross_asset_matrix(session)
+    md, _src, _deg = await _section_cross_asset_matrix(session)
     cad_block = md.split("USD_CAD")[1].split("XAU_USD")[0]
 
     # 1 CAD-bid trigger expected under (liquidity_loose AND
@@ -464,7 +468,7 @@ async def test_usd_cad_usd_bid_branch_3_triggers(
     session = _make_session_execute_mock(
         mct_val=3.50, nowcast_val=3.55, skew_val=160.0, sbet_val=92.0
     )
-    md, _src = await _section_cross_asset_matrix(session)
+    md, _src, _deg = await _section_cross_asset_matrix(session)
     cad_block = md.split("USD_CAD")[1].split("XAU_USD")[0]
     usd_bid_count = cad_block.count("USD-bid (")
     assert usd_bid_count == 3, (
