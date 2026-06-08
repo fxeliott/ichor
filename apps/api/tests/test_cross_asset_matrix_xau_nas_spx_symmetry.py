@@ -34,7 +34,7 @@ These tests pin :
 
 from __future__ import annotations
 
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -44,14 +44,17 @@ from ichor_api.services.data_pool import _section_cross_asset_matrix
 def _make_mct_row(value: float) -> MagicMock:
     row = MagicMock()
     row.mct_trend_pct = value
-    row.observation_month = date(2026, 4, 1)
+    # Relative fresh date so the S04 liveness gate (max_age=100d) never flags
+    # these symmetry fixtures STALE as wall-clock advances.
+    row.observation_month = datetime.now(UTC).date() - timedelta(days=30)
     return row
 
 
 def _make_nowcast_row(value: float) -> MagicMock:
     row = MagicMock()
     row.nowcast_value = value
-    row.revision_date = date(2026, 5, 1)
+    # Relative fresh date (Cleveland nowcast liveness gate max_age=10d, daily).
+    row.revision_date = datetime.now(UTC).date() - timedelta(days=2)
     return row
 
 
@@ -137,7 +140,7 @@ async def test_stress_regime_xau_bid_nas_soft_spx_soft(
         skew_val=160.0,  # tail-fear
         sbet_val=92.0,  # sentiment_weak
     )
-    md, _src = await _section_cross_asset_matrix(session)
+    md, _src, _deg = await _section_cross_asset_matrix(session)
 
     xau_block = _xau_block(md)
     nas_block = _nas_block(md)
@@ -195,7 +198,7 @@ async def test_goldilocks_regime_xau_soft_nas_bid_spx_bid(
         skew_val=120.0,  # tail_calm
         sbet_val=105.0,  # sentiment_strong
     )
-    md, _src = await _section_cross_asset_matrix(session)
+    md, _src, _deg = await _section_cross_asset_matrix(session)
 
     xau_block = _xau_block(md)
     nas_block = _nas_block(md)
@@ -256,7 +259,7 @@ async def test_xau_all_hints_carry_tetlock_invalidation(
         skew_val=160.0,
         sbet_val=92.0,
     )
-    md, _src = await _section_cross_asset_matrix(session)
+    md, _src, _deg = await _section_cross_asset_matrix(session)
     xau_block = _xau_block(md)
 
     # Split on "XAU-bid (" delimiter, collect non-empty fragments
@@ -292,7 +295,7 @@ async def test_nas_all_hints_carry_tetlock_invalidation(
     session = _make_session_execute_mock(
         mct_val=2.10, nowcast_val=2.05, skew_val=120.0, sbet_val=105.0
     )
-    md, _src = await _section_cross_asset_matrix(session)
+    md, _src, _deg = await _section_cross_asset_matrix(session)
     nas_block = _nas_block(md)
 
     nas_bid_frags = ["NAS-bid " + frag for frag in nas_block.split("NAS-bid ") if frag.strip()]
@@ -325,7 +328,7 @@ async def test_spx_all_hints_carry_tetlock_invalidation(
     session = _make_session_execute_mock(
         mct_val=2.10, nowcast_val=2.05, skew_val=120.0, sbet_val=105.0
     )
-    md, _src = await _section_cross_asset_matrix(session)
+    md, _src, _deg = await _section_cross_asset_matrix(session)
     spx_block = _spx_block(md)
 
     spx_bid_frags = ["SPX-bid " + frag for frag in spx_block.split("SPX-bid ") if frag.strip()]
@@ -362,7 +365,7 @@ async def test_xau_nas_spx_hints_contain_no_trade_signals(
     session = _make_session_execute_mock(
         mct_val=2.10, nowcast_val=2.05, skew_val=120.0, sbet_val=105.0
     )
-    md, _src = await _section_cross_asset_matrix(session)
+    md, _src, _deg = await _section_cross_asset_matrix(session)
 
     # Use the actual ADR-017 source-of-truth regex filter (word-boundary
     # aware) — string-substring checks would false-positive on legitimate
@@ -408,7 +411,7 @@ async def test_xau_has_both_bid_and_soft_branches_defined(
     session = _make_session_execute_mock(
         mct_val=3.50, nowcast_val=3.55, skew_val=160.0, sbet_val=92.0
     )
-    md_stress, _ = await _section_cross_asset_matrix(session)
+    md_stress, _, _deg = await _section_cross_asset_matrix(session)
     xau_stress = _xau_block(md_stress)
     assert "XAU-bid (" in xau_stress
     assert "XAU-soft" not in xau_stress
@@ -427,7 +430,7 @@ async def test_xau_has_both_bid_and_soft_branches_defined(
     session2 = _make_session_execute_mock(
         mct_val=2.10, nowcast_val=2.05, skew_val=120.0, sbet_val=105.0
     )
-    md_calm, _ = await _section_cross_asset_matrix(session2)
+    md_calm, _, _deg = await _section_cross_asset_matrix(session2)
     xau_calm = _xau_block(md_calm)
     assert "XAU-soft (" in xau_calm
     assert "XAU-bid" not in xau_calm
@@ -457,7 +460,7 @@ async def test_xau_hints_cite_erb_harvey_and_brunnermeier_pedersen(
     session = _make_session_execute_mock(
         mct_val=3.50, nowcast_val=3.55, skew_val=160.0, sbet_val=92.0
     )
-    md, _src = await _section_cross_asset_matrix(session)
+    md, _src, _deg = await _section_cross_asset_matrix(session)
     xau_block = _xau_block(md)
     assert "Erb-Harvey" in xau_block
     assert "Brunnermeier-Pedersen 2009" in xau_block
@@ -485,7 +488,7 @@ async def test_nas_hints_cite_hou_mo_xue_and_park_2015(
     session_s = _make_session_execute_mock(
         mct_val=3.50, nowcast_val=3.55, skew_val=160.0, sbet_val=92.0
     )
-    md_stress, _ = await _section_cross_asset_matrix(session_s)
+    md_stress, _, _deg = await _section_cross_asset_matrix(session_s)
     nas_stress = _nas_block(md_stress)
     assert "Hou-Mo-Xue" in nas_stress
     assert "Park 2015" in nas_stress
@@ -504,7 +507,7 @@ async def test_nas_hints_cite_hou_mo_xue_and_park_2015(
     session_c = _make_session_execute_mock(
         mct_val=2.10, nowcast_val=2.05, skew_val=120.0, sbet_val=105.0
     )
-    md_calm, _ = await _section_cross_asset_matrix(session_c)
+    md_calm, _, _deg = await _section_cross_asset_matrix(session_c)
     nas_calm = _nas_block(md_calm)
     assert "Hou-Mo-Xue" in nas_calm
     assert "Bevilacqua-Tunaru 2021" in nas_calm
@@ -530,7 +533,7 @@ async def test_spx_hints_cite_brunnermeier_pedersen_funding_spiral(
     session = _make_session_execute_mock(
         mct_val=3.50, nowcast_val=3.55, skew_val=160.0, sbet_val=92.0
     )
-    md, _src = await _section_cross_asset_matrix(session)
+    md, _src, _deg = await _section_cross_asset_matrix(session)
     spx_block = _spx_block(md)
     assert "Brunnermeier-Pedersen" in spx_block
 
@@ -565,7 +568,7 @@ async def test_balanced_fallback_with_neutral_bands(
         skew_val=140.0,  # normal, neither tail_fear nor tail_calm
         sbet_val=99.0,  # soft, neither sentiment_strong nor sentiment_weak
     )
-    md, _src = await _section_cross_asset_matrix(session)
+    md, _src, _deg = await _section_cross_asset_matrix(session)
 
     xau_block = _xau_block(md)
     nas_block = _nas_block(md)
@@ -619,7 +622,7 @@ async def test_xau_symmetric_mirror_hint_count(monkeypatch: pytest.MonkeyPatch) 
     session = _make_session_execute_mock(
         mct_val=3.50, nowcast_val=3.55, skew_val=160.0, sbet_val=92.0
     )
-    md, _src = await _section_cross_asset_matrix(session)
+    md, _src, _deg = await _section_cross_asset_matrix(session)
     xau_stress = _xau_block(md)
     assert xau_stress.count("XAU-bid (") == 3, (
         f"Expected 3 XAU-bid triggers in maximal stress regime, got {xau_stress.count('XAU-bid (')}"
@@ -639,7 +642,7 @@ async def test_xau_symmetric_mirror_hint_count(monkeypatch: pytest.MonkeyPatch) 
     session2 = _make_session_execute_mock(
         mct_val=2.10, nowcast_val=2.05, skew_val=120.0, sbet_val=105.0
     )
-    md_calm, _ = await _section_cross_asset_matrix(session2)
+    md_calm, _, _deg = await _section_cross_asset_matrix(session2)
     xau_calm = _xau_block(md_calm)
     assert xau_calm.count("XAU-soft (") == 2
 
@@ -662,7 +665,7 @@ async def test_nas_symmetric_mirror_hint_count(monkeypatch: pytest.MonkeyPatch) 
     session = _make_session_execute_mock(
         mct_val=3.50, nowcast_val=3.55, skew_val=160.0, sbet_val=92.0
     )
-    md, _src = await _section_cross_asset_matrix(session)
+    md, _src, _deg = await _section_cross_asset_matrix(session)
     nas_stress = _nas_block(md)
     assert nas_stress.count("NAS-soft (") == 3
 
@@ -679,7 +682,7 @@ async def test_nas_symmetric_mirror_hint_count(monkeypatch: pytest.MonkeyPatch) 
     session2 = _make_session_execute_mock(
         mct_val=2.10, nowcast_val=2.05, skew_val=120.0, sbet_val=105.0
     )
-    md_calm, _ = await _section_cross_asset_matrix(session2)
+    md_calm, _, _deg = await _section_cross_asset_matrix(session2)
     nas_calm = _nas_block(md_calm)
     assert nas_calm.count("NAS-bid (") == 3
 
@@ -702,7 +705,7 @@ async def test_spx_symmetric_mirror_hint_count(monkeypatch: pytest.MonkeyPatch) 
     session = _make_session_execute_mock(
         mct_val=3.50, nowcast_val=3.55, skew_val=160.0, sbet_val=92.0
     )
-    md, _src = await _section_cross_asset_matrix(session)
+    md, _src, _deg = await _section_cross_asset_matrix(session)
     spx_stress = _spx_block(md)
     assert spx_stress.count("SPX-soft (") == 2
 
@@ -719,6 +722,6 @@ async def test_spx_symmetric_mirror_hint_count(monkeypatch: pytest.MonkeyPatch) 
     session2 = _make_session_execute_mock(
         mct_val=2.10, nowcast_val=2.05, skew_val=120.0, sbet_val=105.0
     )
-    md_calm, _ = await _section_cross_asset_matrix(session2)
+    md_calm, _, _deg = await _section_cross_asset_matrix(session2)
     spx_calm = _spx_block(md_calm)
     assert spx_calm.count("SPX-bid (") == 3
