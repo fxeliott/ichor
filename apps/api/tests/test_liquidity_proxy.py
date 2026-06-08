@@ -48,11 +48,17 @@ async def test_returns_none_when_rrp_missing() -> None:
 
 @pytest.mark.asyncio
 async def test_returns_none_when_tga_missing() -> None:
-    session = _build_session([(date(2026, 5, 5), 450.0), None])
+    # session.execute call order: 1) RRPONTSYD (found), 2) DTS_TGA_CLOSE (missing),
+    # 3) WTREGEN fallback (also missing) → TGA is truly absent. Both TGA series in
+    # _TGA_SERIES must be exhausted before the proxy reports a missing series; the
+    # mock must therefore supply a row for each of the three queries (the WTREGEN
+    # fallback was added in #191 — this test previously stopped at two and broke).
+    session = _build_session([(date(2026, 5, 5), 450.0), None, None])
     reading = await assess_liquidity_proxy(session)
     assert reading.tga_bn is None
     assert reading.proxy_bn is None
     assert "DTS_TGA_CLOSE" in reading.note
+    assert "WTREGEN" in reading.note
 
 
 @pytest.mark.asyncio
