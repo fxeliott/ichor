@@ -3481,8 +3481,15 @@ def _band(value: float | None, thresholds: tuple[float, ...], labels: tuple[str,
 #             collector (verified at runtime 2026-06-08: latest obs 68d → fresh).
 #   NOWCAST : Cleveland nowcast is DAILY (~16:00 Paris) → a fresh revision is
 #             ≤2d old; 10d catches a dead daily collector, no false-flag.
+#   SKEW    : CBOE SKEW is published every NYSE trading day → mirror the sibling
+#             VIX guard (7d) so the two vol-dimension inputs age-out identically.
+#   NFIB    : NFIB SBOI is MONTHLY (report_month released ~2nd Tue of M+1) → a
+#             FRESH report_month is legitimately ~37-75d old; 80d never
+#             false-flags (witnessed 2026-06-08: latest report_month 68d → fresh).
 _MCT_MAX_AGE_DAYS = 100
 _NOWCAST_MAX_AGE_DAYS = 10
+_SKEW_MAX_AGE_DAYS = 7
+_NFIB_MAX_AGE_DAYS = 80
 
 
 async def _section_cross_asset_matrix(
@@ -3612,11 +3619,33 @@ async def _section_cross_asset_matrix(
             .limit(1)
         )
     ).scalar_one_or_none()
-    skew_value = skew_row.skew_value if skew_row else None
+    # S04 liveness gate — a stale SKEW must not feed the tail-risk band. Surfaced
+    # nowhere else with a guard → emit a DegradedInput when degraded.
+    skew_live = classify_liveness(
+        "CBOE:SKEW",
+        skew_row.observation_date if skew_row else None,
+        now=_now,
+        max_age_days=_SKEW_MAX_AGE_DAYS,
+        impacted="Pass-1 régime classifier (tail-risk band: CBOE SKEW)",
+    )
+    if skew_live.is_degraded:
+        degraded.append(
+            DegradedInput(
+                series_id=skew_live.source_key,
+                status=skew_live.status,  # type: ignore[arg-type]  # never "fresh" here
+                latest_date=skew_live.latest_date,
+                age_days=skew_live.age_days,
+                max_age_days=skew_live.max_age_days,
+                impacted=skew_live.impacted,
+            )
+        )
+    skew_value = (
+        skew_row.skew_value if (skew_row is not None and not skew_live.is_degraded) else None
+    )
     skew_band = _band(
         skew_value, (135.0, 145.0, 155.0), ("calm", "normal", "elevated", "tail-fear")
     )
-    if skew_row is not None:
+    if skew_row is not None and not skew_live.is_degraded:
         sources.append(f"CBOE:SKEW@{skew_row.observation_date.isoformat()}")
 
     # ── 5. Volatility regime (VIX) ──
@@ -3632,11 +3661,32 @@ async def _section_cross_asset_matrix(
             select(NfibSbetObservation).order_by(desc(NfibSbetObservation.report_month)).limit(1)
         )
     ).scalar_one_or_none()
-    sbet_value = sbet_row.sboi if sbet_row else None
+    # S04 liveness gate — a stale NFIB SBOI must not feed the sentiment band.
+    # Surfaced by the standalone _section_nfib_sbet (currently unguarded), so the
+    # matrix emits the DegradedInput here as the single integrity surface for now.
+    sbet_live = classify_liveness(
+        "NFIB:SBET",
+        sbet_row.report_month if sbet_row else None,
+        now=_now,
+        max_age_days=_NFIB_MAX_AGE_DAYS,
+        impacted="Pass-1 régime classifier (small-business-sentiment band: NFIB SBOI)",
+    )
+    if sbet_live.is_degraded:
+        degraded.append(
+            DegradedInput(
+                series_id=sbet_live.source_key,
+                status=sbet_live.status,  # type: ignore[arg-type]  # never "fresh" here
+                latest_date=sbet_live.latest_date,
+                age_days=sbet_live.age_days,
+                max_age_days=sbet_live.max_age_days,
+                impacted=sbet_live.impacted,
+            )
+        )
+    sbet_value = sbet_row.sboi if (sbet_row is not None and not sbet_live.is_degraded) else None
     sbet_band = _band(
         sbet_value, (95.0, 98.0, 102.0), ("recession-pre", "below-avg", "soft", "expansionary")
     )
-    if sbet_row is not None:
+    if sbet_row is not None and not sbet_live.is_degraded:
         sources.append(f"NFIB:SBET@{sbet_row.report_month.isoformat()}")
 
     if not sources:

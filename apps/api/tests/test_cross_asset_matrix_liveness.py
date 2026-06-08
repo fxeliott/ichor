@@ -21,7 +21,9 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from ichor_api.services.data_pool import (
     _MCT_MAX_AGE_DAYS,
+    _NFIB_MAX_AGE_DAYS,
     _NOWCAST_MAX_AGE_DAYS,
+    _SKEW_MAX_AGE_DAYS,
     _section_cross_asset_matrix,
 )
 
@@ -41,14 +43,21 @@ def _session(
     nowcast_rev: date,
     skew_val: float = 140.0,
     sbet_val: float = 105.0,
+    skew_obs: date | None = None,
+    sbet_month: date | None = None,
 ) -> MagicMock:
     """Session whose .execute() returns, in `_section_cross_asset_matrix`
-    query order: MCT → Cleveland nowcast → SKEW → SBET."""
+    query order: MCT → Cleveland nowcast → SKEW → SBET. SKEW/SBET default to
+    fresh relative dates so they never spuriously trip their own liveness gate
+    (override skew_obs / sbet_month to test the stale path)."""
+    today = datetime.now(UTC).date()
+    skew_obs = skew_obs if skew_obs is not None else today - timedelta(days=2)
+    sbet_month = sbet_month if sbet_month is not None else today - timedelta(days=30)
     results = [
         _row(mct_trend_pct=mct_val, observation_month=mct_obs_month),
         _row(nowcast_value=nowcast_val, revision_date=nowcast_rev),
-        _row(skew_value=skew_val, observation_date=date(2026, 5, 13)),
-        _row(sboi=sbet_val, report_month=date(2026, 4, 1)),
+        _row(skew_value=skew_val, observation_date=skew_obs),
+        _row(sboi=sbet_val, report_month=sbet_month),
     ]
 
     def execute_side_effect(_stmt: object) -> MagicMock:
@@ -144,3 +153,43 @@ async def test_fresh_inputs_emit_no_degraded(_fresh_fred: None) -> None:
     md, _src, degraded = await _section_cross_asset_matrix(session)
     assert degraded == []
     assert "Inflation persistence (MCT) | 2.10% |" in md
+
+
+@pytest.mark.asyncio
+async def test_stale_skew_withheld_and_degraded(_fresh_fred: None) -> None:
+    """A CBOE SKEW older than _SKEW_MAX_AGE_DAYS is withheld from the tail-risk
+    band and emits a CBOE:SKEW DegradedInput."""
+    today = datetime.now(UTC).date()
+    session = _session(
+        mct_val=2.10,
+        mct_obs_month=today - timedelta(days=30),
+        nowcast_val=2.05,
+        nowcast_rev=today - timedelta(days=2),
+        skew_val=160.0,  # would be 'tail-fear' if fresh
+        skew_obs=today - timedelta(days=_SKEW_MAX_AGE_DAYS + 10),  # STALE
+    )
+    md, _src, degraded = await _section_cross_asset_matrix(session)
+    assert "Tail risk (SKEW) | n/a | n/a |" in md
+    skew_degraded = [d for d in degraded if d.series_id == "CBOE:SKEW"]
+    assert len(skew_degraded) == 1
+    assert skew_degraded[0].status == "stale"
+
+
+@pytest.mark.asyncio
+async def test_stale_nfib_withheld_and_degraded(_fresh_fred: None) -> None:
+    """A NFIB SBOI report_month older than _NFIB_MAX_AGE_DAYS is withheld from
+    the sentiment band and emits a NFIB:SBET DegradedInput."""
+    today = datetime.now(UTC).date()
+    session = _session(
+        mct_val=2.10,
+        mct_obs_month=today - timedelta(days=30),
+        nowcast_val=2.05,
+        nowcast_rev=today - timedelta(days=2),
+        sbet_val=105.0,  # would be 'expansionary' if fresh
+        sbet_month=today - timedelta(days=_NFIB_MAX_AGE_DAYS + 30),  # STALE
+    )
+    md, _src, degraded = await _section_cross_asset_matrix(session)
+    assert "Small-biz sentiment (SBOI) | n/a | n/a |" in md
+    nfib_degraded = [d for d in degraded if d.series_id == "NFIB:SBET"]
+    assert len(nfib_degraded) == 1
+    assert nfib_degraded[0].status == "stale"
