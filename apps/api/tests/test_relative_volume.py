@@ -80,6 +80,18 @@ def test_classify_empty_is_absent() -> None:
     assert r.current_volume is None
 
 
+def test_classify_nonpositive_current_is_absent_not_mis_bucketed() -> None:
+    # Defensive: a direct caller bypassing the DB <=0 filter must NOT mis-bucket
+    # a zero/negative current as "very light participation".
+    for bad in ([1000.0] * 60 + [0.0], [1000.0] * 60 + [-5.0]):
+        r = classify_relative_volume(
+            bad, asset="SPX500_USD", latest_date=date(2026, 6, 8), volume_available=True
+        )
+        assert r.bucket == "absent"
+        assert r.current_volume is None
+        assert r.rvol_ratio is None
+
+
 def test_classify_insufficient_history() -> None:
     vols = [1000.0] * 5 + [1000.0]  # history of 5 < _MIN_RVOL_HISTORY
     r = classify_relative_volume(

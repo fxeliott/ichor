@@ -430,7 +430,11 @@ def classify_relative_volume(
             n_history=0,
             bucket="n/a — no venue volume",
         )
-    if not daily_volumes:
+    current = daily_volumes[-1] if daily_volumes else 0.0
+    if not daily_volumes or current <= 0:
+        # No usable current volume → honest absent. The DB path already filters
+        # <= 0; this also guards a direct caller bypassing that filter, so a
+        # non-positive current can never mis-bucket as "very light participation".
         return RelativeVolumeReading(
             asset=asset,
             volume_available=True,
@@ -442,7 +446,6 @@ def classify_relative_volume(
             n_history=0,
             bucket="absent",
         )
-    current = daily_volumes[-1]
     history = daily_volumes[:-1]
     n_history = len(history)
 
