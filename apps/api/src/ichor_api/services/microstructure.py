@@ -70,6 +70,12 @@ class MicrostructureReading:
     value_area_low: float | None
     value_area_high: float | None
     """70%-volume value area boundaries (POC ± until 70% volume captured)."""
+    volume_is_reported: bool = True
+    """Whether the venue reported real volume over the window. Polygon FX
+    aggregates (C:EURUSD/C:GBPUSD) carry no consolidated volume → this is
+    False, and the volume-derived metrics above are N/A by data property,
+    NOT a gap. Defaults True so legacy constructors keep their behaviour
+    (no spurious disclaimer); ``assess_microstructure`` sets the real value."""
 
 
 def _signed_volume(bars: list[IntradayBar]) -> list[float]:
@@ -217,6 +223,16 @@ def value_area(
     return poc, bucket_mid[lo_idx], bucket_mid[hi_idx]
 
 
+def _volume_is_reported(bars: list[IntradayBar]) -> bool:
+    """True iff the venue reported any real volume over the window.
+
+    Polygon FX aggregates (C:EURUSD/C:GBPUSD) return bars with volume == 0
+    while still carrying OHLC — so ``sum(volume) == 0`` with ``n_bars > 0``
+    means "volume not reported", distinct from "market closed" (n_bars == 0).
+    """
+    return any(b.volume > 0 for b in bars)
+
+
 async def assess_microstructure(
     session: AsyncSession,
     asset: str,
@@ -268,6 +284,7 @@ async def assess_microstructure(
         poc=poc,
         value_area_low=val,
         value_area_high=vah,
+        volume_is_reported=_volume_is_reported(bars),
     )
 
 
@@ -285,6 +302,20 @@ def render_microstructure_block(r: MicrostructureReading) -> tuple[str, list[str
     )
     lines = [
         f"## Microstructure ({r.asset}, last {r.window_minutes}min, {r.n_bars} bars)",
+    ]
+    if not r.volume_is_reported:
+        # Polygon FX aggregates carry OHLC but no consolidated volume → the
+        # volume-derived metrics below read n/a as a DATA PROPERTY, not a gap.
+        # Make this explicit so the brain doesn't treat it as a broken pipeline
+        # (S04 « sans zone d'ombre » — no silent n/a). Index assets (SPY/I:NDX)
+        # carry real share volume and never hit this branch.
+        lines.append(
+            "- ⚠ Volume not reported by source (Polygon FX aggregates carry no "
+            "consolidated volume) — volume-derived metrics (Amihud / Kyle / VWAP "
+            "/ POC / value-area) are N/A by data property, NOT a gap; realized "
+            "vol below is volume-free and remains valid."
+        )
+    lines += [
         f"- Amihud illiquidity      = {illiq_str}",
         f"- Kyle's lambda           = {f(r.kyles_lambda, '{:.3e}')}  (price impact per signed unit)",
         f"- Realized vol annualized = {f(r.realized_vol_pct, '{:.2f}%')}",

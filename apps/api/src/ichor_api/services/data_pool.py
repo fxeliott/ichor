@@ -92,6 +92,7 @@ from .daily_levels import (
     assess_daily_levels,
     render_daily_levels_block,
 )
+from .data_liveness import classify_liveness
 from .divergence import render_divergence_block
 from .economic_calendar import (
     assess_calendar,
@@ -4137,7 +4138,7 @@ async def _section_aaii(session: AsyncSession) -> tuple[str, list[str]]:
     return "\n".join(lines), sources
 
 
-async def _section_nyfed_mct(session: AsyncSession) -> tuple[str, list[str]]:
+async def _section_nyfed_mct(session: AsyncSession) -> tuple[str, list[str], list[DegradedInput]]:
     """## NY Fed Multivariate Core Trend — persistent inflation trend.
 
     Replaces the discontinued FRED UIGFULL series. Surfaces the most
@@ -4160,8 +4161,47 @@ async def _section_nyfed_mct(session: AsyncSession) -> tuple[str, list[str]]:
         .scalars()
         .all()
     )
-    if not rows:
-        return ("## NY Fed MCT (PCE trend)\n- n/a (collector empty)", [])
+    # S04 liveness gate (no silent stale). observation_month is a PCE
+    # reference month that trails the publish date by ~2 months even on a
+    # fresh release, then ages ~30d until the next monthly print → a fresh
+    # latest row can legitimately be ~95d old; 100d never false-flags a
+    # normally-timed release while still catching a dead collector (≥2 cycles).
+    _MCT_MAX_AGE_DAYS = 100
+    lv = classify_liveness(
+        "NYFED:MCT",
+        rows[0].observation_month if rows else None,
+        now=datetime.now(UTC).date(),
+        max_age_days=_MCT_MAX_AGE_DAYS,
+        impacted="NY Fed MCT section + Pass-1 inflation-trend régime classifier",
+    )
+    degraded: list[DegradedInput] = []
+    if lv.is_degraded:
+        degraded.append(
+            DegradedInput(
+                series_id=lv.source_key,
+                status=lv.status,  # type: ignore[arg-type]  # never "fresh" here
+                latest_date=lv.latest_date,
+                age_days=lv.age_days,
+                max_age_days=lv.max_age_days,
+                impacted=lv.impacted,
+            )
+        )
+        if lv.status == "absent":
+            md = (
+                "## NY Fed MCT (PCE trend) — ⚠️ ABSENT\n"
+                "- ⚠️ ABSENT: no NY Fed MCT observation ingested — inflation-trend "
+                "block unavailable (collector never delivered; ADR-099 §D-2 "
+                "« never silently absent »)."
+            )
+        else:
+            md = (
+                "## NY Fed MCT (PCE trend) — ⚠️ STALE\n"
+                f"- ⚠️ STALE: latest obs {lv.latest_date:%b %Y} is {lv.age_days}d old "
+                f"(> {lv.max_age_days}d max) — value withheld, NOT presented as current "
+                "(NYFED:MCT collector degraded; data-provenance context, not a signal "
+                "— ADR-099 §D-2)."
+            )
+        return md, [], degraded
 
     cur = rows[0]
     sources = [f"NYFED:MCT@{cur.observation_month.isoformat()}"]
@@ -4208,7 +4248,7 @@ async def _section_nyfed_mct(session: AsyncSession) -> tuple[str, list[str]]:
         lines.append("### Sector contribution")
         lines.append("- " + " · ".join(sector_parts))
 
-    return "\n".join(lines), sources
+    return "\n".join(lines), sources, degraded
 
 
 async def _section_tff_positioning(session: AsyncSession, asset: str) -> tuple[str, list[str]]:
@@ -5198,8 +5238,9 @@ async def build_data_pool(
     # Wave 71 — NY Fed Multivariate Core Trend (PCE inflation trend).
     # Replaces discontinued UIGFULL. Pass 1 régime (anchored vs un-anchored)
     # + Pass 2 mechanism citation for Fed reaction-function thesis.
-    mct_md, mct_src = await _section_nyfed_mct(session)
+    mct_md, mct_src, mct_degraded = await _section_nyfed_mct(session)
     sections.append(("nyfed_mct", mct_md, mct_src))
+    degraded_inputs.extend(mct_degraded)
 
     # Wave 72 — Cleveland Fed daily inflation nowcast (CPI / Core CPI / PCE
     # / Core PCE × MoM / QoQ / YoY). Higher-frequency point-in-time forecast
@@ -5492,7 +5533,7 @@ async def build_data_pool(
     now = datetime.now(UTC)
     # ADR-103 — deterministic, LLM-independent integrity line in the
     # header machine-truth (separate from the LLM-primed section body).
-    integrity_line = f"Data integrity : {len(degraded_inputs)} critical FRED anchor(s) degraded" + (
+    integrity_line = f"Data integrity : {len(degraded_inputs)} critical anchor(s) degraded" + (
         " — " + ", ".join(f"{d.series_id}({d.status})" for d in degraded_inputs)
         if degraded_inputs
         else " (all fresh)"

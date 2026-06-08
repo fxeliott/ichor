@@ -8,6 +8,7 @@ import pytest
 from ichor_api.services.microstructure import (
     IntradayBar,
     MicrostructureReading,
+    _volume_is_reported,
     amihud,
     kyles_lambda,
     realized_vol_pct,
@@ -199,3 +200,57 @@ def test_render_block_with_data_includes_sources() -> None:
     assert "VWAP" in md
     assert "POC" in md
     assert sources == ["polygon_intraday:EUR_USD@last240min"]
+
+
+# ─────────────────── FX zero-volume disclaimer (S04 « zone d'ombre ») ──────
+
+
+def test_volume_is_reported_helper() -> None:
+    # Polygon FX aggregates: OHLC present, volume uniformly 0 → not reported.
+    assert _volume_is_reported([_bar(1.10, 0), _bar(1.11, 0), _bar(1.12, 0)]) is False
+    # Index assets: real share volume → reported.
+    assert _volume_is_reported([_bar(1.10, 0), _bar(1.11, 500)]) is True
+    # Empty window (market closed) → not reported (n_bars==0 handled separately).
+    assert _volume_is_reported([]) is False
+
+
+def test_render_block_fx_zero_volume_emits_disclaimer() -> None:
+    # EUR_USD with bars but no volume: the volume-derived metrics are n/a as a
+    # DATA PROPERTY — the block must say so, not leave silent n/a (= looks like a bug).
+    r = MicrostructureReading(
+        asset="EUR_USD",
+        n_bars=120,
+        window_minutes=240,
+        amihud_illiquidity=None,
+        kyles_lambda=None,
+        realized_vol_pct=8.4,  # volume-free, still valid
+        vwap=None,
+        poc=None,
+        value_area_low=None,
+        value_area_high=None,
+        volume_is_reported=False,
+    )
+    md, sources = render_microstructure_block(r)
+    assert "Volume not reported" in md
+    assert "by data property" in md.lower() or "data property" in md
+    # realized vol (volume-free) is still surfaced
+    assert "8.40%" in md
+    assert sources == ["polygon_intraday:EUR_USD@last240min"]
+
+
+def test_render_block_with_volume_has_no_disclaimer() -> None:
+    # Default volume_is_reported=True (legacy + index assets) → no disclaimer.
+    r = MicrostructureReading(
+        asset="NAS100_USD",
+        n_bars=120,
+        window_minutes=240,
+        amihud_illiquidity=1.234e-9,
+        kyles_lambda=2.5e-7,
+        realized_vol_pct=8.4,
+        vwap=18000.0,
+        poc=18001.0,
+        value_area_low=17990.0,
+        value_area_high=18010.0,
+    )
+    md, _ = render_microstructure_block(r)
+    assert "Volume not reported" not in md
