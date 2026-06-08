@@ -8,6 +8,12 @@
 > Spec bar « chaque dimension poussée au maximum, sans zone d'ombre » = NOT met.
 > 0/9 maxed. This file is the executable sequence to close it.
 >
+> **Update 2026-06-09**: TIER-2 #2 (Volume = real RVOL layer) is SHIPPED, DEPLOYED and
+> WITNESSED in prod (PR #204, `4f3fa94`). The Volume dimension now carries a real depth
+> read (RVOL ratio, 60d z-score, participation bucket), not just a weight — the first
+> dimension to get genuine per-dimension depth. See the DONE note in TIER-2 #2 below and
+> `docs/SESSION_LOG_2026-06-09-s04-volume-rvol.md`.
+>
 > **Witness rule (Eliot criterion ⑥)**: every brain-path (data_pool / verdict) change
 > below is DONE only after `redeploy-api.sh` + a live card witness. The pure-logic
 > parts are unit-testable locally; the runtime witness is the deploy step.
@@ -43,9 +49,17 @@ generalizes that, then fills the real per-dimension depth gaps.
 
 ## TIER 2 — real per-dimension depth (the « zone d'ombre » per dimension)
 
-2. **Volume = real RVOL layer** [high]. Today volume is only a weight; no RVOL/z-score/
-   spike. Add a direct-volume section for index assets (SPY/NDX carry real volume).
-   (FX disclosure already shipped.) microstructure.py + a new data_pool section.
+2. ✅ **DONE — Volume = real RVOL layer** [high] (PR #204, `4f3fa94`, witnessed prod
+   2026-06-09). `microstructure.py` gains `RelativeVolumeReading`, pure
+   `classify_relative_volume` (RVOL ratio vs 20d avg, 60d volume z-score,
+   non-directional participation bucket), `assess_relative_volume` (daily
+   `market_data` bars), and `render_relative_volume_block`. `data_pool.py` gains
+   `_section_volume_rvol` (3-tuple, liveness-gated) wired into `build_data_pool` and
+   `build_asset_data_only`. Scope (empirically witnessed): SPX500/NAS100/XAU carry
+   real daily volume; FX gets an honest N/A by data property (zero DB I/O). Empty or
+   stale series surface an ABSENT/STALE band plus a degraded trace. ADR-017-safe
+   (descriptive, non-directional). 30 tests. Witness: SPX RVOL 0.88×, NAS 0.96×,
+   XAU 1.03×, EUR_USD honest N/A, all `degraded=[]`.
 3. **Geopolitics per-asset** [med]. `_section_geopolitics(session)` (data_pool.py:4500) has
    NO asset param → identical for all 5 assets. Refactor to `(session, asset)` + apply
    `filter_rows_by_asset_affinity` over GDELT (key=title/url/query_label) with scarce→global
