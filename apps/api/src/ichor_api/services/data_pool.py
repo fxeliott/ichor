@@ -114,7 +114,10 @@ from .liquidity_proxy import (
 )
 from .microstructure import (
     assess_microstructure,
+    assess_relative_volume,
+    classify_relative_volume,
     render_microstructure_block,
+    render_relative_volume_block,
 )
 from .ml_signals import render_ml_signals_block
 from .narrative_tracker import render_narrative_block, track_narratives
@@ -3493,6 +3496,13 @@ _NFIB_MAX_AGE_DAYS = 80
 _GPR_MAX_AGE_DAYS = 14  # AI-GPR daily but source publishes with ~8j lag (mesuré prod 2026-06-08)
 _TFF_MAX_AGE_DAYS = 14  # CFTC TFF weekly (report Tue, published Fri); intra-cycle age 3-10j
 _COT_MAX_AGE_DAYS = 14  # CFTC COT weekly (same cadence)
+_VOLUME_RVOL_MAX_AGE_DAYS = 5  # market_data daily volume; 5j covers long weekends/holidays
+
+# S04 TIER-2 relative-volume layer — assets carrying real consolidated daily
+# volume in `market_data` (source=yfinance, empirically witnessed prod 2026-06-08:
+# SPX500/NAS100 share volume + XAU GC=F gold-futures volume). FX pairs carry zero
+# venue volume → honest N/A by data property (not a degraded source).
+_VOLUME_ASSETS: frozenset[str] = frozenset({"SPX500_USD", "NAS100_USD", "XAU_USD"})
 
 
 async def _section_cross_asset_matrix(
@@ -4849,6 +4859,58 @@ async def _section_microstructure(session: AsyncSession, asset: str) -> tuple[st
     return render_microstructure_block(reading)
 
 
+async def _section_volume_rvol(
+    session: AsyncSession, asset: str
+) -> tuple[str, list[str], list[DegradedInput]]:
+    """## Relative volume / participation — daily RVOL + z-score + spike bucket.
+
+    S04 TIER-2 depth for the Volume dimension: the microstructure block uses
+    volume only as a weight; this answers « is participation light / normal / a
+    spike vs its own history ? ». Index/commodity assets (SPX500 / NAS100 / XAU)
+    carry real daily volume → RVOL + z-score + bucket. FX pairs carry no
+    consolidated venue volume → honest N/A (data property, NOT degraded), emitted
+    with ZERO DB I/O. A volume asset whose daily series is empty or stale beyond
+    ``_VOLUME_RVOL_MAX_AGE_DAYS`` surfaces an explicit ABSENT/STALE band + degraded
+    trace — S04 « sans zone d'ombre », no silent n/a.
+    """
+    degraded: list[DegradedInput] = []
+    if asset not in _VOLUME_ASSETS:
+        # FX (no consolidated venue volume) → honest N/A, NOT degraded, zero DB I/O.
+        reading = classify_relative_volume(
+            [], asset=asset, latest_date=None, volume_available=False
+        )
+        md, src = render_relative_volume_block(reading)
+        return md, src, degraded
+    _now = datetime.now(UTC).date()
+    reading = await assess_relative_volume(session, asset)
+    live = classify_liveness(
+        f"market_data:{asset}:volume",
+        reading.latest_date,
+        now=_now,
+        max_age_days=_VOLUME_RVOL_MAX_AGE_DAYS,
+        impacted=f"volume_rvol:{asset}",
+    )
+    md, src = render_relative_volume_block(reading)
+    if live.is_degraded:
+        degraded.append(
+            DegradedInput(
+                series_id=live.source_key,
+                status=live.status,  # type: ignore[arg-type]  # never "fresh" here
+                latest_date=live.latest_date,
+                age_days=live.age_days,
+                max_age_days=live.max_age_days,
+                impacted=live.impacted,
+            )
+        )
+        if live.status == "stale":
+            # render already showed the (stale) headline value; add the explicit band.
+            md += (
+                f"\n- ⚠ market_data:{asset}:volume STALE : "
+                f"{live.age_days}j (max {live.max_age_days}j)"
+            )
+    return md, src, degraded
+
+
 async def _section_asian_session(session: AsyncSession, asset: str) -> tuple[str, list[str]]:
     """## Asian session — Tokyo fix + range + direction (JPY-relevant only).
 
@@ -5683,6 +5745,13 @@ async def build_data_pool(
     micro_md, micro_src = await _section_microstructure(session, asset)
     sections.append(("microstructure", micro_md, micro_src))
 
+    # S04 TIER-2 — relative-volume / participation (RVOL + z-score + spike).
+    # Always rendered: a value for volume-bearing assets (SPX500/NAS100/XAU), an
+    # explicit honest-N/A for FX. 3-tuple: degraded surfaces empty/stale volume.
+    rvol_md, rvol_src, rvol_deg = await _section_volume_rvol(session, asset)
+    degraded_inputs.extend(rvol_deg)
+    sections.append(("volume_rvol", rvol_md, rvol_src))
+
     asian_md, asian_src = await _section_asian_session(session, asset)
     if asian_md:
         sections.append(("asian_session", asian_md, asian_src))
@@ -5818,6 +5887,10 @@ async def build_asset_data_only(session: AsyncSession, asset: str) -> str:
         parts.append(diff_md)
     poly_md, _ = await _section_polygon_intraday(session, asset)
     parts.append(poly_md)
+    # S04 TIER-2 — asset-specific relative-volume / participation for Pass-2.
+    rvol_md, _, _ = await _section_volume_rvol(session, asset)
+    if rvol_md:
+        parts.append(rvol_md)
     cot_md, _, _ = await _section_cot(session, asset)
     if cot_md:
         parts.append(cot_md)
