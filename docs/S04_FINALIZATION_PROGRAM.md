@@ -69,11 +69,16 @@ generalizes that, then fills the real per-dimension depth gaps.
    fell back to global (matched 0–1 < 3) → the per-asset differentiation is DATA-GATED; it
    activates on per-asset geo density (ECB day, gold shock…). The lever for routine
    differentiation = richer per-asset GDELT queries (Session-03 collector), NOT this section.
-4. **Acteurs / TFF coverage** [high, NEEDS domain call]. cftc_tff collects 15 markets;
-   consumer `_TFF_MARKET_BY_ASSET` (data_pool.py:206-215) uses 8. CHF/NZD/RUT/UST-2/5/10/30Y
-   never surface per-asset. Extending requires a SEMANTIC decision (which TFF market informs
-   which asset, e.g. UST_10Y → SPX/NAS rate-sensitivity?) — Eliot/analyst call, not mechanical.
-   Add a guard test `consumer ⊆ collector` to prevent silent drift.
+4. ✅ **DONE (actionable part) — Acteurs / TFF coverage** [high] (PR #208, `623af98`,
+   witnessed prod 2026-06-09). The semantic call was made (Eliot delegated it): UST 10Y
+   (TFF `043602`, the equity discount-rate benchmark) now surfaces as a DESCRIPTIVE,
+   non-directional rate-sensitivity context for SPX500 + NAS100 via a separate
+   `_section_rate_positioning` (kept distinct from the primary `_TFF_MARKET_BY_ASSET`
+   E-mini mapping, so indices keep both). 10Y only — 2Y/5Y/30Y are collected but
+   deliberately left out to keep one clean, well-grounded channel. Witness: LevFunds net
+   −1.96M / AssetMgr net +2.35M on the 10Y (SPX+NAS), EUR_USD empty. 10 tests incl. a
+   `_RATE_CONTEXT_BY_ASSET ⊆ TRACKED_MARKET_CODES` guard. CHF/NZD/RUT have no Ichor asset
+   → non-consumption is correct, not a gap.
 5. **Sentiment orphan wire** [low]. CRYPTO_FNG persisted (run_collectors.py:1490), zero
    analysis reader → add to a sentiment section (extremes ≤20/≥80 as risk context).
 6. **Volume orphan** [low]. FinraShortVolume persisted, zero reader (needs finra_api_token).
