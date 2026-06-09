@@ -4462,6 +4462,11 @@ async def _section_tff_positioning(
     am_net = cur.asset_mgr_long - cur.asset_mgr_short
     lev_net = cur.lev_money_long - cur.lev_money_short
     other_net = cur.other_rept_long - cur.other_rept_short
+    # Non-reportable = small / retail traders (below CFTC reporting threshold).
+    # The 5th and final TFF trader class — previously stored but never surfaced,
+    # so the LLM saw a 4-of-5 breakdown. Retail is the classic contrarian
+    # cohort (often offside at extremes), worth its own descriptive line.
+    nonrept_net = cur.nonrept_long - cur.nonrept_short
 
     if prev is not None:
         dealer_dw = (prev.dealer_long - prev.dealer_short) - dealer_net
@@ -4469,7 +4474,11 @@ async def _section_tff_positioning(
         dealer_dw = -dealer_dw
         am_dw = am_net - (prev.asset_mgr_long - prev.asset_mgr_short)
         lev_dw = lev_net - (prev.lev_money_long - prev.lev_money_short)
-        delta_str = f", Δw/w (Dealer {dealer_dw:+,}, AM {am_dw:+,}, LevFunds {lev_dw:+,})"
+        nonrept_dw = nonrept_net - (prev.nonrept_long - prev.nonrept_short)
+        delta_str = (
+            f", Δw/w (Dealer {dealer_dw:+,}, AM {am_dw:+,}, "
+            f"LevFunds {lev_dw:+,}, Nonrept {nonrept_dw:+,})"
+        )
     else:
         delta_str = ""
 
@@ -4482,7 +4491,8 @@ async def _section_tff_positioning(
     md = (
         f"## TFF positioning ({asset}, market={market})\n"
         f"- Dealer net = {dealer_net:+,}, AssetMgr net = {am_net:+,}, "
-        f"LevFunds net = {lev_net:+,}, Other net = {other_net:+,} "
+        f"LevFunds net = {lev_net:+,}, Other net = {other_net:+,}, "
+        f"Nonrept (small/retail) net = {nonrept_net:+,} "
         f"(open_interest={cur.open_interest:,}, report_date={cur.report_date:%Y-%m-%d})"
         f"{delta_str}{divergence}{stale_band}"
     )
@@ -4685,6 +4695,12 @@ async def _section_cot(
         f"## COT positioning ({asset}, market={market})\n"
         f"- managed_money_net = {cur.managed_money_net:+,}{delta_str}{pattern} "
         f"(swap_dealer_net={cur.swap_dealer_net:+,}, "
+        # Commercials (producer/merchant/processor/user) = physical hedgers, the
+        # classic COT smart-money anchor ; non-reportable = small/retail traders.
+        # Both stored by the parser but previously never surfaced to the LLM.
+        f"commercials_producer_net={cur.producer_net:+,}, "
+        f"other_reportable_net={cur.other_reportable_net:+,}, "
+        f"small_traders_non_reportable_net={cur.non_reportable_net:+,}, "
         f"open_interest={cur.open_interest:,}, "
         f"report_date={cur.report_date:%Y-%m-%d})"
         f"{stale_band}"
