@@ -26,20 +26,29 @@ last known weekly position + flag staleness.
 
 from __future__ import annotations
 
-import csv
-import io
 from collections.abc import Iterable
 from dataclasses import dataclass
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
+from typing import Any
 
 import httpx
 import structlog
 
 log = structlog.get_logger(__name__)
 
-# CFTC publishes a "current week" CSV that's updated each Friday with last
-# Tuesday's positions. For historical, see the annual ZIP files.
-CFTC_DISAGG_FUT_CSV = "https://www.cftc.gov/dea/newcot/f_disagg.txt"
+# CFTC public-reporting Socrata SODA endpoint, resource `72hh-3qpy`
+# (Disaggregated Futures-Only Combined). Verified live 2026-06-09: returns
+# GOLD (088691) with prod_merc / swap / m_money / nonrept fields, report 2026-06-02.
+#
+# Why Socrata, not the legacy `f_disagg.txt` flat file: that file is HEADERLESS
+# (its first line is a DATA row, not column names), so the old csv.DictReader
+# parser resolved ZERO rows in prod — every tracked market logged "not in this
+# week's report" and the cron exited 1, leaving cot_positions empty — while the
+# unit test passed against a synthetic header row (a false-green). The TFF
+# sibling already uses this Socrata path successfully; we mirror it exactly:
+# clean named JSON fields + server-side `$where` filter.
+CFTC_DISAGG_SODA_URL = "https://publicreporting.cftc.gov/resource/72hh-3qpy.json"
+_HEADERS = {"User-Agent": "IchorCOTCollector/0.2 (Voie D; CFTC public domain)"}
 
 
 @dataclass(frozen=True)
@@ -82,87 +91,63 @@ MARKET_CODE_TO_ASSET: dict[str, str] = {
 }
 
 
-async def fetch_disagg_fut_only(*, timeout: float = 60.0) -> bytes:
-    """Pull the latest Disaggregated Futures Only CSV from CFTC.
-
-    Returns raw bytes ; parser is separate so caller can cache.
-    """
-    async with httpx.AsyncClient() as client:
-        try:
-            r = await client.get(
-                CFTC_DISAGG_FUT_CSV,
-                timeout=timeout,
-                follow_redirects=True,
-                headers={"User-Agent": "IchorCOTCollector/0.1"},
-            )
-            r.raise_for_status()
-            return r.content
-        except httpx.HTTPError as e:
-            log.warning("cot.fetch_failed", error=str(e))
-            return b""
-
-
-def _parse_int(s: str | None) -> int:
-    if s is None:
-        return 0
-    s = s.strip().replace(",", "")
-    if not s or s in {".", "-"}:
+def _to_int(value: Any) -> int:
+    """Socrata returns numerics as strings — coerce safely. Empty/None/
+    '.' (CFTC missing-data sentinel) → 0. Mirror of cftc_tff._to_int."""
+    if value is None or value == "" or value == ".":
         return 0
     try:
-        return int(float(s))
-    except (ValueError, TypeError):
+        return int(str(value).replace(",", ""))
+    except (TypeError, ValueError):
         return 0
 
 
-def _parse_disagg_csv(body: bytes) -> list[CotPosition]:
-    """Parse the CFTC Disaggregated Futures Only flat file.
+def parse_socrata_response(payload: Any) -> list[CotPosition]:
+    """Pure parser — extract Disaggregated COT rows from Socrata JSON.
 
-    The file is space-separated with a fixed header. We use csv.DictReader
-    after splitting headers manually since the format is a quoted CSV.
+    Returns [] on any structural mismatch ; never raises. Field names verified
+    live 2026-06-09 against resource `72hh-3qpy` (the swap SHORT field carries a
+    DOUBLE underscore — `swap__positions_short_all` — a real CFTC schema quirk).
     """
-    if not body:
+    if not isinstance(payload, list):
+        log.warning("cot.parse_payload_not_list", type=type(payload).__name__)
         return []
-    text = body.decode("utf-8", errors="replace")
-    reader = csv.DictReader(io.StringIO(text))
+
     fetched = datetime.now(UTC)
     out: list[CotPosition] = []
-    for row in reader:
+    for row in payload:
         try:
-            code = (
-                row.get("CFTC Contract Market Code") or row.get("CFTC_Contract_Market_Code") or ""
-            ).strip()
-            if not code:
-                continue
-            name = (
-                row.get("Market and Exchange Names") or row.get("Market_and_Exchange_Names") or ""
-            ).strip()
-            d = (
-                row.get("Report Date as YYYY-MM-DD") or row.get("Report_Date_as_YYYY-MM-DD") or ""
-            ).strip()
-            if not d:
+            iso = row.get("report_date_as_yyyy_mm_dd")
+            if not iso:
                 continue
             try:
-                report_date = date.fromisoformat(d)
-            except ValueError:
+                report_date = datetime.fromisoformat(iso.replace("Z", "+00:00")).date()
+            except (TypeError, ValueError):
+                try:
+                    report_date = date.fromisoformat(iso[:10])
+                except (TypeError, ValueError):
+                    continue
+            code = str(row.get("cftc_contract_market_code") or "").strip()
+            if not code:
                 continue
 
-            prod_long = _parse_int(row.get("Producer/Merchant/Processor/User Longs"))
-            prod_short = _parse_int(row.get("Producer/Merchant/Processor/User Shorts"))
-            swap_long = _parse_int(row.get("Swap Dealer Longs"))
-            swap_short = _parse_int(row.get("Swap Dealer Shorts"))
-            mm_long = _parse_int(row.get("Money Manager Longs"))
-            mm_short = _parse_int(row.get("Money Manager Shorts"))
-            other_long = _parse_int(row.get("Other Reportable Longs"))
-            other_short = _parse_int(row.get("Other Reportable Shorts"))
-            nonrep_long = _parse_int(row.get("Nonreportable Positions-Long (All)"))
-            nonrep_short = _parse_int(row.get("Nonreportable Positions-Short (All)"))
-            oi = _parse_int(row.get("Open Interest (All)"))
+            prod_long = _to_int(row.get("prod_merc_positions_long"))
+            prod_short = _to_int(row.get("prod_merc_positions_short"))
+            swap_long = _to_int(row.get("swap_positions_long_all"))
+            swap_short = _to_int(row.get("swap__positions_short_all"))  # sic: double underscore
+            mm_long = _to_int(row.get("m_money_positions_long_all"))
+            mm_short = _to_int(row.get("m_money_positions_short_all"))
+            other_long = _to_int(row.get("other_rept_positions_long"))
+            other_short = _to_int(row.get("other_rept_positions_short"))
+            nonrep_long = _to_int(row.get("nonrept_positions_long_all"))
+            nonrep_short = _to_int(row.get("nonrept_positions_short_all"))
+            oi = _to_int(row.get("open_interest_all"))
 
             out.append(
                 CotPosition(
                     report_date=report_date,
                     market_code=code,
-                    market_name=name[:128],
+                    market_name=str(row.get("market_and_exchange_names") or "")[:128],
                     producer_net=prod_long - prod_short,
                     swap_dealer_net=swap_long - swap_short,
                     managed_money_net=mm_long - mm_short,
@@ -172,30 +157,68 @@ def _parse_disagg_csv(body: bytes) -> list[CotPosition]:
                     fetched_at=fetched,
                 )
             )
-        except (KeyError, ValueError) as e:
-            log.warning("cot.parse_row_failed", error=str(e))
+        except (KeyError, TypeError, ValueError) as e:
+            log.warning("cot.row_skip", error=str(e), row_id=row.get("id"))
             continue
     return out
+
+
+async def fetch_recent(
+    *,
+    weeks_lookback: int = 8,
+    market_codes: Iterable[str] = tuple(MARKET_CODE_TO_ASSET.keys()),
+    client: httpx.AsyncClient | None = None,
+) -> list[CotPosition]:
+    """Fetch the last `weeks_lookback` weeks of Disaggregated COT for tracked
+    markets via the Socrata `$where` server-side filter. Returns [] on any HTTP
+    error (best-effort). Mirror of cftc_tff.fetch_recent.
+
+    Only markets actually present in the disaggregated report return rows — the
+    FX / equity-index codes live in the TFF report (sibling collector), so they
+    legitimately yield nothing here ; GOLD (088691) is the live commodity leg.
+    """
+    cutoff = (datetime.now(UTC).date() - timedelta(weeks=weeks_lookback)).isoformat()
+    quoted = ", ".join(f"'{c}'" for c in market_codes)
+    where = (
+        f"cftc_contract_market_code IN ({quoted}) "
+        f"AND report_date_as_yyyy_mm_dd >= '{cutoff}T00:00:00.000'"
+    )
+    params: dict[str, Any] = {
+        "$where": where,
+        "$order": "report_date_as_yyyy_mm_dd DESC",
+        "$limit": 5000,
+    }
+    own_client = client is None
+    if own_client:
+        client = httpx.AsyncClient(timeout=20.0, headers=_HEADERS)
+    try:
+        try:
+            assert client is not None
+            r = await client.get(CFTC_DISAGG_SODA_URL, params=params)
+            r.raise_for_status()
+            return parse_socrata_response(r.json())
+        except (httpx.HTTPError, ValueError) as e:
+            log.warning("cot.fetch_failed", error=str(e))
+            return []
+    finally:
+        if own_client and client is not None:
+            await client.aclose()
 
 
 async def poll_all_assets(
     asset_codes: Iterable[str] = tuple(MARKET_CODE_TO_ASSET.keys()),
 ) -> dict[str, CotPosition | None]:
-    """Pull full Disagg report and filter to our tracked markets.
+    """Pull the Disaggregated COT report (Socrata) and filter to tracked markets.
 
-    Returns asset_code → latest CotPosition (or None if not found in the
-    report). The report contains ALL CFTC markets ; we filter.
+    Returns asset_code → latest CotPosition (or None if not found in the report,
+    e.g. FX / index codes that only live in the TFF report).
     """
-    body = await fetch_disagg_fut_only()
-    rows = _parse_disagg_csv(body)
+    codes = tuple(asset_codes)
+    rows = await fetch_recent(market_codes=codes)
     by_code: dict[str, CotPosition] = {}
     for r in rows:
-        if r.market_code in asset_codes:
-            # Keep the most recent date per market_code
+        if r.market_code in codes:
             existing = by_code.get(r.market_code)
             if existing is None or r.report_date > existing.report_date:
                 by_code[r.market_code] = r
-    out: dict[str, CotPosition | None] = {}
-    for code in asset_codes:
-        out[code] = by_code.get(code)
-    return out
+    return {code: by_code.get(code) for code in codes}
