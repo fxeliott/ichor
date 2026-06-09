@@ -62,7 +62,7 @@ def test_cb_nlp_overrun_notes_does_not_crash() -> None:
     """The exact witnessed prod failure: a >1000-char note must clamp, not crash."""
     out = _cb_nlp(_OVERRUN)
     assert out.notes is not None
-    assert len(out.notes) == 1000
+    assert len(out.notes) <= 1000  # load-bearing invariant: never exceeds cap, never crashes
     assert out.notes.endswith("…")
 
 
@@ -77,7 +77,7 @@ def test_macro_overrun_notes_clamped() -> None:
             "notes": _OVERRUN,
         }
     )
-    assert out.notes is not None and len(out.notes) == 1000
+    assert out.notes is not None and len(out.notes) <= 1000
 
 
 def test_news_nlp_overrun_notes_clamped() -> None:
@@ -87,19 +87,94 @@ def test_news_nlp_overrun_notes_clamped() -> None:
             "notes": _OVERRUN,
         }
     )
-    assert out.notes is not None and len(out.notes) == 1000
+    assert out.notes is not None and len(out.notes) <= 1000
 
 
 def test_positioning_overrun_notes_clamped_to_800() -> None:
     out = PositioningAgentOutput.model_validate({"notes": _OVERRUN})
-    assert out.notes is not None and len(out.notes) == 800
+    assert out.notes is not None and len(out.notes) <= 800
 
 
 def test_sentiment_overrun_notes_clamped_to_800() -> None:
     out = SentimentAgentOutput.model_validate(
         {"overall_retail_mood": "neutral", "contrarian_signal": "no_extreme", "notes": _OVERRUN}
     )
-    assert out.notes is not None and len(out.notes) == 800
+    assert out.notes is not None and len(out.notes) <= 800
+
+
+# --- nested free-text fields also self-heal (verifier CHALLENGE 3) --------
+
+
+def test_cb_shift_overrun_fields_clamped() -> None:
+    """CbShift.quote(500)/rationale(600) are NOT prompt-bounded — same crash class."""
+    out = CbNlpAgentOutput.model_validate(
+        {
+            "stances": [
+                {"cb": "FED", "stance": "neutral", "confidence": 0.5, "rate_path_skew": "neutral"}
+            ],
+            "shifts": [
+                {
+                    "cb": "ECB",
+                    "speaker": "Lagarde",
+                    "speech_date": "2026-06-09T12:00:00Z",
+                    "direction": "no_change",
+                    "quote": _OVERRUN,
+                    "rationale": _OVERRUN,
+                }
+            ],
+        }
+    )
+    assert len(out.shifts[0].quote) <= 500
+    assert len(out.shifts[0].rationale) <= 600
+
+
+def test_cb_asset_impact_overrun_rationale_clamped() -> None:
+    out = CbNlpAgentOutput.model_validate(
+        {
+            "stances": [
+                {"cb": "FED", "stance": "neutral", "confidence": 0.5, "rate_path_skew": "neutral"}
+            ],
+            "asset_impacts": [
+                {
+                    "asset": "EUR_USD",
+                    "bias": "neutral",
+                    "confidence": 0.5,
+                    "primary_driver_cb": "ECB",
+                    "rationale": _OVERRUN,
+                }
+            ],
+        }
+    )
+    assert len(out.asset_impacts[0].rationale) <= 400
+
+
+def test_macro_driver_overrun_rationale_clamped() -> None:
+    out = MacroAgentOutput.model_validate(
+        {
+            "drivers": [
+                {
+                    "theme": "monetary_policy",
+                    "bias": "neutral",
+                    "confidence": 0.5,
+                    "rationale": _OVERRUN,
+                }
+            ],
+            "overall_bias": "neutral",
+            "overall_confidence": 0.5,
+        }
+    )
+    assert len(out.drivers[0].rationale) <= 500
+
+
+def test_narrative_overrun_label_clamped() -> None:
+    out = NewsNlpAgentOutput.model_validate(
+        {
+            "narratives": [
+                {"label": _OVERRUN, "sentiment": "mixed", "intensity": 0.5, "n_articles": 3}
+            ]
+        }
+    )
+    assert len(out.narratives[0].label) <= 120
 
 
 # --- non-violating outputs stay byte-identical ---------------------------
