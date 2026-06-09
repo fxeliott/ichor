@@ -5972,7 +5972,8 @@ async def build_data_pool(
     sections.append(("cb_speeches", cb_md, cb_src))
 
     # Phase 2 — Couche-2 agents output (CB-NLP, News-NLP, Sentiment, Positioning)
-    c2_md, c2_src = await render_couche2_block(session)
+    # Pass the asset so News-NLP surfaces this card's per-asset news tone (S04 #4).
+    c2_md, c2_src = await render_couche2_block(session, asset)
     sections.append(("couche2", c2_md, c2_src))
 
     # Phase 2 — divergence cross-venue (Polymarket vs Kalshi vs Manifold)

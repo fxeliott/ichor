@@ -21,6 +21,7 @@ from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models import Couche2Output
+from .adr017_filter import scrub_adr017
 
 AgentKind = (
     str  # "cb_nlp" | "news_nlp" | "sentiment" | "positioning" — DB CHECK constraint enforces
@@ -92,12 +93,52 @@ async def latest_per_kind(
     return out
 
 
-def _summarize_payload(kind: str, payload: dict[str, Any]) -> str:
+def _fmt_asset_sentiment_row(row: dict[str, Any], *, with_asset: bool) -> str:
+    """One asset-sentiment row as descriptive text (ADR-017-scrubbed drivers).
+
+    `top_drivers` are free-text LLM phrases lifted from news; route them through
+    `scrub_adr017` so an incidental trade word ('buy the dip', 'sell-off') can
+    never trip the safety gate that would discard the whole card.
+    """
+    asset = row.get("asset", "?")
+    tone = row.get("tone", "n/a")
+    score = row.get("score")
+    n_articles = row.get("n_articles", 0)
+    score_s = f"{score:+.2f}" if isinstance(score, (int, float)) else "n/a"
+    drivers = [scrub_adr017(str(d)) for d in (row.get("top_drivers") or [])[:3]]
+    prefix = f"{asset}: " if with_asset else ""
+    base = f"{prefix}{tone} (score {score_s}, {n_articles} art)"
+    if drivers:
+        base += " · drivers: " + "; ".join(drivers)
+    return base
+
+
+def _news_asset_sentiment_line(asset_sentiment: list[dict[str, Any]], asset: str | None) -> str:
+    """S04 #4 — surface the per-asset news tone the agent emits.
+
+    `news_nlp` produces a per-asset `asset_sentiment` array (tone / score /
+    top_drivers) that the render previously DROPPED, so the card only ever saw
+    global narratives. Filter to the current card's asset when known; otherwise
+    show the top cross-asset rows so the global Pass-1 régime still benefits.
+    Descriptive sentiment only — never a directional trade signal (ADR-017).
+    """
+    if not asset_sentiment:
+        return ""
+    if asset is not None:
+        match = next((r for r in asset_sentiment if r.get("asset") == asset), None)
+        if match is not None:
+            row = _fmt_asset_sentiment_row(match, with_asset=False)
+            return f"  - News tone ({asset}): {row} — descriptive sentiment, not a signal."
+    top = "; ".join(_fmt_asset_sentiment_row(r, with_asset=True) for r in asset_sentiment[:3])
+    return f"  - News tone (cross-asset): {top} — descriptive sentiment, not a signal."
+
+
+def _summarize_payload(kind: str, payload: dict[str, Any], asset: str | None = None) -> str:
     """1-3 line text summary of a Couche-2 payload for the data_pool block.
 
     The full payload is JSONB-stored; the data_pool block just shows the
     critical fields. Pass-2 can request the full payload via a separate
-    endpoint when needed.
+    endpoint when needed. `asset` (when set) filters the news per-asset tone.
     """
     if kind == "cb_nlp":
         stances = payload.get("stances", [])
@@ -106,13 +147,19 @@ def _summarize_payload(kind: str, payload: dict[str, Any]) -> str:
         return f"  - Stances: {', '.join(bullets)}\n  - Recent shifts: {n_shifts}"
     if kind == "news_nlp":
         narratives = payload.get("narratives", [])
-        if not narratives:
-            return "  - No narratives above threshold."
-        bullets = [
-            f"{n['label']} ({n['sentiment']}, intensity {n['intensity']:.2f})"
-            for n in narratives[:5]
-        ]
-        return "  - Top narratives:\n" + "\n".join(f"    · {b}" for b in bullets)
+        parts: list[str] = []
+        if narratives:
+            bullets = [
+                f"{n['label']} ({n['sentiment']}, intensity {n['intensity']:.2f})"
+                for n in narratives[:5]
+            ]
+            parts.append("  - Top narratives:\n" + "\n".join(f"    · {b}" for b in bullets))
+        else:
+            parts.append("  - No narratives above threshold.")
+        sentiment_line = _news_asset_sentiment_line(payload.get("asset_sentiment", []), asset)
+        if sentiment_line:
+            parts.append(sentiment_line)
+        return "\n".join(parts)
     if kind == "sentiment":
         mood = payload.get("overall_retail_mood", "n/a")
         contra = payload.get("contrarian_signal", "no_extreme")
@@ -128,12 +175,14 @@ def _summarize_payload(kind: str, payload: dict[str, Any]) -> str:
 
 async def render_couche2_block(
     session: AsyncSession,
+    asset: str | None = None,
 ) -> tuple[str, list[str]]:
     """## Couche-2 — latest agent outputs (freshness-bounded).
 
     Emits a markdown block summarizing the 4 agent outputs (CB-NLP,
     News-NLP, Sentiment, Positioning). Falls through gracefully if any
-    agent has no recent run.
+    agent has no recent run. When `asset` is set, the News-NLP summary
+    surfaces that asset's per-asset news tone (S04 #4).
     """
     latest = await latest_per_kind(session)
     lines = ["## Couche-2 agents (latest, last 12h)"]
@@ -149,6 +198,6 @@ async def render_couche2_block(
         age = datetime.now(UTC) - row.ran_at
         age_h = age.total_seconds() / 3600
         lines.append(f"- **{kind}** (model={row.model_used}, age {age_h:.1f}h):")
-        lines.append(_summarize_payload(kind, row.payload))
+        lines.append(_summarize_payload(kind, row.payload, asset))
         sources.append(f"couche2:{kind}@{row.ran_at.isoformat()}")
     return "\n".join(lines), sources
