@@ -218,6 +218,20 @@ _TFF_MARKET_BY_ASSET: dict[str, str] = {
     "SPX500_USD": "13874A",  # E-MINI S&P 500 (TFF covers it; COT collector doesn't yet)
 }
 
+# S04 TIER-2 #4 — UST → equity-index rate-sensitivity context (expert call).
+# The 10-Year US Treasury is THE benchmark discount rate for equity valuations;
+# 10Y-futures positioning (TFF) is a forward read on the rate channel that drives
+# index multiples (esp. long-duration tech → Nasdaq). Surfaced as DESCRIPTIVE,
+# NON-directional context (ADR-017) for the rate-sensitive indices only. 10Y only
+# (the valuation benchmark) — 2Y/5Y/30Y are collected but left out here to keep
+# one clean, well-grounded channel (cftc_tff.py:83-86). The collector already
+# fetches 043602, so the consumer⊆collector guard stays green.
+_UST_10Y_TFF_CODE = "043602"
+_RATE_CONTEXT_BY_ASSET: dict[str, str] = {
+    "SPX500_USD": _UST_10Y_TFF_CODE,
+    "NAS100_USD": _UST_10Y_TFF_CODE,
+}
+
 # Polygon ticker per asset (mirrors collectors/polygon.py).
 # Round-27 ADR-089 (PROPOSED) : SPX500_USD aliased to SPY (NYSE Arca
 # ETF, $0 incremental cost) until Polygon Indices Starter $49/mo is
@@ -4475,6 +4489,101 @@ async def _section_tff_positioning(
     return md, sources, degraded
 
 
+async def _section_rate_positioning(
+    session: AsyncSession, asset: str
+) -> tuple[str, list[str], list[DegradedInput]]:
+    """## Rate positioning — UST 10Y futures positioning as the discount-rate
+    context for rate-sensitive equity indices (S04 TIER-2 #4).
+
+    The 10-Year Treasury is the benchmark discount rate for equity valuations;
+    leveraged-fund / asset-manager positioning in 10Y futures is a forward read
+    on the rate channel that drives index multiples (esp. long-duration tech →
+    Nasdaq). Index assets only (SPX500 / NAS100). DESCRIPTIVE + NON-directional
+    (ADR-017): the positioning is rate-channel context, never a direction on the
+    index. Liveness-gated like the sister TFF/COT sections; reuses the same
+    CftcTffObservation rows the collector already persists for code 043602.
+    """
+    degraded: list[DegradedInput] = []
+    market = _RATE_CONTEXT_BY_ASSET.get(asset)
+    if market is None:
+        # Asset is not rate-sensitivity-mapped → no source expected → NOT degraded.
+        return "", [], []
+    _now = datetime.now(UTC).date()
+    stmt = (
+        select(CftcTffObservation)
+        .where(CftcTffObservation.market_code == market)
+        .order_by(desc(CftcTffObservation.report_date))
+        .limit(2)
+    )
+    rows = list((await session.execute(stmt)).scalars().all())
+    if not rows:
+        live = classify_liveness(
+            f"CFTC:TFF:{market}",
+            None,
+            now=_now,
+            max_age_days=_TFF_MAX_AGE_DAYS,
+            impacted=f"rate_positioning:{asset}",
+        )
+        degraded.append(
+            DegradedInput(
+                series_id=live.source_key,
+                status=live.status,  # type: ignore[arg-type]  # never "fresh" here
+                latest_date=live.latest_date,
+                age_days=live.age_days,
+                max_age_days=live.max_age_days,
+                impacted=live.impacted,
+            )
+        )
+        return (
+            f"## Rate positioning ({asset} ← UST 10Y, market={market})\n"
+            f"- ⚠ CFTC:TFF:{market} {live.status.upper()} : no persisted rows",
+            [],
+            degraded,
+        )
+    cur = rows[0]
+    prev = rows[1] if len(rows) > 1 else None
+    live = classify_liveness(
+        f"CFTC:TFF:{market}",
+        cur.report_date,
+        now=_now,
+        max_age_days=_TFF_MAX_AGE_DAYS,
+        impacted=f"rate_positioning:{asset}",
+    )
+    stale_band = ""
+    if live.is_degraded:
+        degraded.append(
+            DegradedInput(
+                series_id=live.source_key,
+                status=live.status,  # type: ignore[arg-type]  # never "fresh" here
+                latest_date=live.latest_date,
+                age_days=live.age_days,
+                max_age_days=live.max_age_days,
+                impacted=live.impacted,
+            )
+        )
+        stale_band = (
+            f"\n- ⚠ CFTC:TFF:{market} {live.status.upper()} : "
+            f"{live.age_days}j (max {live.max_age_days}j)"
+        )
+    lev_net = cur.lev_money_long - cur.lev_money_short
+    am_net = cur.asset_mgr_long - cur.asset_mgr_short
+    delta_str = ""
+    if prev is not None:
+        lev_dw = lev_net - (prev.lev_money_long - prev.lev_money_short)
+        am_dw = am_net - (prev.asset_mgr_long - prev.asset_mgr_short)
+        delta_str = f", Δw/w (LevFunds {lev_dw:+,}, AM {am_dw:+,})"
+    sources = [f"CFTC:TFF:{market}@{cur.report_date.isoformat()}"]
+    md = (
+        f"## Rate positioning ({asset} ← UST 10Y, the equity discount-rate benchmark)\n"
+        f"- UST 10Y futures positioning: LevFunds net = {lev_net:+,}, "
+        f"AssetMgr net = {am_net:+,} (open_interest={cur.open_interest:,}, "
+        f"report_date={cur.report_date:%Y-%m-%d}){delta_str}\n"
+        f"- Rate-channel context for {asset} (discount-rate sensitivity), not a direction."
+        f"{stale_band}"
+    )
+    return md, sources, degraded
+
+
 async def _section_cot(
     session: AsyncSession, asset: str
 ) -> tuple[str, list[str], list[DegradedInput]]:
@@ -5808,6 +5917,12 @@ async def build_data_pool(
     if tff_md:
         sections.append(("tff_positioning", tff_md, tff_src))
 
+    # S04 TIER-2 #4 — UST 10Y rate-sensitivity context for index assets only.
+    rate_md, rate_src, rate_deg = await _section_rate_positioning(session, asset)
+    degraded_inputs.extend(rate_deg)
+    if rate_md:
+        sections.append(("rate_positioning", rate_md, rate_src))
+
     pm_md, pm_src = await _section_prediction_markets(session)
     sections.append(("prediction_markets", pm_md, pm_src))
 
@@ -5929,6 +6044,9 @@ async def build_asset_data_only(session: AsyncSession, asset: str) -> str:
     rvol_md, _, _ = await _section_volume_rvol(session, asset)
     if rvol_md:
         parts.append(rvol_md)
+    rate_md, _, _ = await _section_rate_positioning(session, asset)
+    if rate_md:
+        parts.append(rate_md)
     cot_md, _, _ = await _section_cot(session, asset)
     if cot_md:
         parts.append(cot_md)
