@@ -23,6 +23,7 @@ from pydantic import BaseModel, Field, field_validator
 from ..claude_runner import ClaudeRunnerConfig
 from ..fallback import FallbackChain
 from ..providers import CEREBRAS, GROQ
+from ._free_text import truncate_free_text
 
 CentralBank = Literal["FED", "ECB", "BOE", "BOJ", "SNB", "PBOC", "RBA", "BOC"]
 Stance = Literal["hawkish", "neutral", "dovish"]
@@ -102,6 +103,15 @@ class CbNlpAgentOutput(BaseModel):
     generated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     notes: str | None = Field(default=None, max_length=1000)
 
+    @field_validator("notes", mode="before")
+    @classmethod
+    def _clamp_notes(cls, v: object) -> object:
+        """Self-heal an over-long free-text ``notes`` instead of crashing the
+        whole agent run — witnessed prod failure 2026-06-09 16:15 CEST
+        (``string_too_long`` → ``AllProvidersFailed`` → systemd exit 1). See
+        :mod:`ichor_agents.agents._free_text`."""
+        return truncate_free_text(v, 1000)
+
 
 SYSTEM_PROMPT_CB_NLP = """You are the Central-Bank NLP research analyst of
 Ichor, a probabilistic pre-trade research system (ADR-017: research only,
@@ -138,7 +148,7 @@ Field-by-field guidance:
     among many, not advice. Keep the note short, evidence-based, and
     grounded in the quoted rhetoric.
   - `notes`: free-text caveats (data gaps, blackout windows, unusual
-    speakers). Optional.
+    speakers). Optional. Keep under 1000 characters.
 
 Style:
   - Evidence over opinion. Cite the speech.

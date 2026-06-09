@@ -16,11 +16,12 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from ..claude_runner import ClaudeRunnerConfig
 from ..fallback import FallbackChain
 from ..providers import CEREBRAS, GROQ_HIGH_VOLUME
+from ._free_text import truncate_free_text
 
 RetailMood = Literal["euphoric", "bullish", "neutral", "bearish", "panic"]
 
@@ -61,6 +62,14 @@ class SentimentAgentOutput(BaseModel):
     contrarian_signal: Literal["fade_retail_bullish", "fade_retail_bearish", "no_extreme"]
     generated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     notes: str | None = Field(default=None, max_length=800)
+
+    @field_validator("notes", mode="before")
+    @classmethod
+    def _clamp_notes(cls, v: object) -> object:
+        """Self-heal an over-long free-text ``notes`` instead of crashing the
+        whole agent run (same class as the witnessed ``cb_nlp`` 2026-06-09
+        failure). See :mod:`ichor_agents.agents._free_text`."""
+        return truncate_free_text(v, 800)
 
 
 SYSTEM_PROMPT_SENTIMENT = """You are the Sentiment Agent of Ichor. Your job:
