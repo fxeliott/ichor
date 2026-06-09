@@ -19,6 +19,7 @@ from pydantic import BaseModel, Field, field_validator
 from ..claude_runner import ClaudeRunnerConfig
 from ..fallback import FallbackChain
 from ..providers import CEREBRAS, GROQ
+from ._free_text import truncate_free_text
 
 EntityKind = Literal["company", "country", "person", "currency", "commodity"]
 
@@ -154,6 +155,15 @@ class NewsNlpAgentOutput(BaseModel):
     window_hours: int = Field(default=4, ge=1, le=24)
     generated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     notes: str | None = Field(default=None, max_length=1000)
+
+    @field_validator("notes", mode="before")
+    @classmethod
+    def _clamp_notes(cls, v: object) -> object:
+        """Self-heal an over-long free-text ``notes`` instead of crashing the
+        whole agent run (same class as the witnessed ``cb_nlp`` 2026-06-09
+        failure, twin of ``_drop_invalid_assets`` below). See
+        :mod:`ichor_agents.agents._free_text`."""
+        return truncate_free_text(v, 1000)
 
     @field_validator("asset_sentiment", mode="before")
     @classmethod
