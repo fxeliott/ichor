@@ -44,6 +44,13 @@ class Narrative(BaseModel):
     top_entities: list[Entity] = Field(default_factory=list, max_length=5)
     representative_headlines: list[str] = Field(default_factory=list, max_length=3)
 
+    @field_validator("label", mode="before")
+    @classmethod
+    def _clamp_label(cls, v: object) -> object:
+        """Self-heal an over-long free-text label instead of crashing the whole
+        run (crash-class fix, see :mod:`ichor_agents.agents._free_text`)."""
+        return truncate_free_text(v, 120)
+
     @field_validator("sentiment", mode="before")
     @classmethod
     def _normalize_news_tone_drift_on_sentiment(cls, v: object) -> object:

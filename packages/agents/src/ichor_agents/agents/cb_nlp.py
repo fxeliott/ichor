@@ -39,6 +39,19 @@ class CbShift(BaseModel):
     quote: str = Field(max_length=500)
     rationale: str = Field(max_length=600)
 
+    @field_validator("quote", mode="before")
+    @classmethod
+    def _clamp_quote(cls, v: object) -> object:
+        """Self-heal an over-long free-text field instead of crashing the whole
+        run — same crash class as the witnessed ``cb_nlp.notes`` 2026-06-09
+        failure. See :mod:`ichor_agents.agents._free_text`."""
+        return truncate_free_text(v, 500)
+
+    @field_validator("rationale", mode="before")
+    @classmethod
+    def _clamp_rationale(cls, v: object) -> object:
+        return truncate_free_text(v, 600)
+
 
 class CbStance(BaseModel):
     cb: CentralBank
@@ -69,6 +82,13 @@ class CbAssetImpact(BaseModel):
     confidence: float = Field(ge=0.0, le=1.0)
     primary_driver_cb: CentralBank
     rationale: str = Field(max_length=400)
+
+    @field_validator("rationale", mode="before")
+    @classmethod
+    def _clamp_rationale(cls, v: object) -> object:
+        """Self-heal an over-long free-text field instead of crashing the whole
+        run (crash-class fix, see :mod:`ichor_agents.agents._free_text`)."""
+        return truncate_free_text(v, 400)
 
     @field_validator("bias", mode="before")
     @classmethod

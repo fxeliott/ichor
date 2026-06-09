@@ -42,6 +42,13 @@ class MacroDriver(BaseModel):
     rationale: str = Field(max_length=500)
     sources_cited: list[str] = Field(default_factory=list, max_length=5)
 
+    @field_validator("rationale", mode="before")
+    @classmethod
+    def _clamp_rationale(cls, v: object) -> object:
+        """Self-heal an over-long free-text field instead of crashing the whole
+        run (crash-class fix, see :mod:`ichor_agents.agents._free_text`)."""
+        return truncate_free_text(v, 500)
+
 
 class MacroAgentOutput(BaseModel):
     drivers: list[MacroDriver] = Field(min_length=1, max_length=8)
