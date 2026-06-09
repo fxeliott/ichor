@@ -38,6 +38,11 @@ def truncate_free_text(value: object, max_len: int) -> object:
     characters total (``max_len - 1`` content chars + a single ellipsis), which
     satisfies a ``Field(max_length=max_len)`` constraint applied afterwards.
     """
-    if isinstance(value, str) and len(value) > max_len:
-        return value[: max_len - 1].rstrip() + _ELLIPSIS
-    return value
+    if not isinstance(value, str) or len(value) <= max_len:
+        return value
+    if max_len <= 0:
+        # Defensive: a non-positive cap admits no non-empty string. Never hit
+        # by the real Couche-2 fields (caps are 120-1000) but keeps the helper
+        # total — no IndexError, no negative-slice surprise.
+        return ""
+    return value[: max_len - 1].rstrip() + _ELLIPSIS

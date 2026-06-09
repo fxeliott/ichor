@@ -200,3 +200,54 @@ def test_none_notes_stays_none() -> None:
 )
 def test_omitted_notes_defaults_none(model_factory: object) -> None:
     assert model_factory().notes is None  # type: ignore[operator]
+
+
+# --- hardcore adversarial scenarios (Eliot: "test scénarios hardcore") ----
+
+
+@pytest.mark.parametrize(
+    "value,max_len",
+    [
+        pytest.param("", 100, id="empty"),
+        pytest.param("   ", 100, id="ws-only-within-cap"),
+        pytest.param("a" * 100, 100, id="exactly-cap"),
+        pytest.param("a" * 99, 100, id="just-under"),
+        pytest.param("a" * 101, 100, id="just-over"),
+        pytest.param("é" * 5000, 1000, id="precomposed-multibyte"),
+        pytest.param("😀" * 5000, 800, id="astral-emoji"),
+        pytest.param("x" * 1_000_000, 1000, id="one-megabyte"),
+        pytest.param("\n\t " * 5000, 500, id="control-and-ws"),
+        pytest.param("acheter EUR maintenant " * 500, 1000, id="adr017-token-spam"),
+    ],
+)
+def test_truncate_never_exceeds_cap_and_stays_str(value: str, max_len: int) -> None:
+    """The single load-bearing invariant under adversarial input: result is a
+    str of length <= cap, and the call never raises."""
+    out = truncate_free_text(value, max_len)
+    assert isinstance(out, str)
+    assert len(out) <= max_len
+
+
+def test_truncate_trailing_whitespace_at_cut_shrinks_below_cap() -> None:
+    # cut point lands inside a run of spaces → rstrip yields < cap (still valid)
+    out = truncate_free_text("abcd" + " " * 20 + "efgh", 10)
+    assert out == "abcd…"
+    assert len(out) <= 10
+
+
+@pytest.mark.parametrize("bad", [None, 123, 1.5, True, [], {}, b"bytes", object()])
+def test_truncate_passes_non_str_through_unchanged(bad: object) -> None:
+    assert truncate_free_text(bad, 100) is bad
+
+
+def test_truncate_nonpositive_cap_is_total() -> None:
+    assert truncate_free_text("anything", 0) == ""
+    assert truncate_free_text("", 0) == ""
+    assert truncate_free_text("x", -5) == ""
+
+
+def test_cb_nlp_emoji_and_token_overrun_notes_does_not_crash() -> None:
+    """Realistic adversarial cb_nlp note: emoji + ADR-017 token spam, > 1000 chars."""
+    out = _cb_nlp("😀 acheter EUR maintenant " * 500)
+    assert out.notes is not None
+    assert len(out.notes) <= 1000
