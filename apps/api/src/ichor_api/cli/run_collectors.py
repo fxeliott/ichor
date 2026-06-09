@@ -916,9 +916,6 @@ async def _run_bls(*, persist: bool) -> int:
     """BLS public API — pulls each watched series and persists as
     fred_observations with series_id='BLS_<id>'.
     """
-    from datetime import UTC as _UTC
-    from datetime import datetime as _dt
-
     settings = get_settings()
     bls_key = getattr(settings, "bls_api_key", "") or ""
     total = 0
@@ -934,23 +931,25 @@ async def _run_bls(*, persist: bool) -> int:
         total += len(obs)
         print(f"BLS · [{series_id}] {len(obs)} observations")
         if persist and obs and sm is not None:
-            from ..models import FredObservation
+            from ..collectors.fred import FredObservation as FredObservationData
+            from ..collectors.persistence import persist_fred_observations
 
+            # Idempotent: route through the dedup-aware FRED persister so a
+            # re-run that re-fetches existing observations no longer crashes the
+            # whole batch on the uq_fred_series_date unique constraint (the
+            # silent IntegrityError that left BLS data stale in prod).
+            rows = [
+                FredObservationData(
+                    series_id=f"BLS_{o.series_id}"[:64],
+                    observation_date=o.observation_date.isoformat(),
+                    value=float(o.value),
+                    fetched_at=o.fetched_at,
+                )
+                for o in obs
+                if o.value is not None and o.observation_date is not None
+            ]
             async with sm() as session:
-                for o in obs:
-                    if o.value is None or o.observation_date is None:
-                        continue
-                    session.add(
-                        FredObservation(
-                            observation_date=o.observation_date,
-                            created_at=_dt.now(_UTC),
-                            series_id=f"BLS_{o.series_id}"[:64],
-                            value=float(o.value),
-                            fetched_at=o.fetched_at,
-                        )
-                    )
-                    persisted += 1
-                await session.commit()
+                persisted += await persist_fred_observations(session, rows)
     if persist:
         print(f"BLS · persisted {persisted} rows")
     return 0 if total else 1
@@ -977,40 +976,42 @@ async def _run_ecb_sdmx(*, persist: bool) -> int:
         total += len(obs)
         print(f"ECB · [{flow}] {len(obs)} observations")
         if persist and obs and sm is not None:
-            from ..models import FredObservation
+            from ..collectors.fred import FredObservation as FredObservationData
+            from ..collectors.persistence import persist_fred_observations
 
             # Synthetic series_id : flow only (key is too long for our
             # 64-char index). Drop the second-half of the key after the
             # rate type prefix.
             synth_id = f"ECB_{flow}"
-            async with sm() as session:
-                for o in obs:
-                    period = o.observation_period
-                    try:
-                        if "-" in period:
-                            year, mp = period.split("-", 1)
-                            if mp.startswith("Q"):
-                                month = (int(mp[1:]) - 1) * 3 + 1
-                            else:
-                                month = int(mp)
-                            obs_date = _date(int(year), month, 1)
+            rows: list[FredObservationData] = []
+            for o in obs:
+                period = o.observation_period
+                try:
+                    if "-" in period:
+                        year, mp = period.split("-", 1)
+                        if mp.startswith("Q"):
+                            month = (int(mp[1:]) - 1) * 3 + 1
                         else:
-                            obs_date = _date(int(period), 1, 1)
-                    except (ValueError, AttributeError):
-                        continue
-                    if o.value is None:
-                        continue
-                    session.add(
-                        FredObservation(
-                            observation_date=obs_date,
-                            created_at=_dt.now(_UTC),
-                            series_id=synth_id[:64],
-                            value=float(o.value),
-                            fetched_at=_dt.now(_UTC),
-                        )
+                            month = int(mp)
+                        obs_date = _date(int(year), month, 1)
+                    else:
+                        obs_date = _date(int(period), 1, 1)
+                except (ValueError, AttributeError):
+                    continue
+                if o.value is None:
+                    continue
+                rows.append(
+                    FredObservationData(
+                        series_id=synth_id[:64],
+                        observation_date=obs_date.isoformat(),
+                        value=float(o.value),
+                        fetched_at=_dt.now(_UTC),
                     )
-                    persisted += 1
-                await session.commit()
+                )
+            # Idempotent persist (dedup-aware) — was a raw INSERT that crashed
+            # the whole batch on re-run via the uq_fred_series_date constraint.
+            async with sm() as session:
+                persisted += await persist_fred_observations(session, rows)
     if persist:
         print(f"ECB · persisted {persisted} rows")
     return 0 if total else 1
@@ -1240,36 +1241,37 @@ async def _run_eia_petroleum(*, persist: bool) -> int:
     obs = list(weekly) + list(steo)
     print(f"EIA · weekly={len(weekly)} steo={len(steo)} total={len(obs)} obs")
     if persist and obs:
-        from ..models import FredObservation
+        from ..collectors.fred import FredObservation as FredObservationData
+        from ..collectors.persistence import persist_fred_observations
 
         sm = get_sessionmaker()
-        n = 0
-        async with sm() as session:
-            for o in obs:
-                if o.value is None:
+        rows: list[FredObservationData] = []
+        for o in obs:
+            if o.value is None:
+                continue
+            # Period parse : "2026-04" or "2026-04-25"
+            try:
+                parts = o.period.split("-")
+                if len(parts) == 3:
+                    obs_date = _date(int(parts[0]), int(parts[1]), int(parts[2]))
+                elif len(parts) == 2:
+                    obs_date = _date(int(parts[0]), int(parts[1]), 1)
+                else:
                     continue
-                # Period parse : "2026-04" or "2026-04-25"
-                try:
-                    parts = o.period.split("-")
-                    if len(parts) == 3:
-                        obs_date = _date(int(parts[0]), int(parts[1]), int(parts[2]))
-                    elif len(parts) == 2:
-                        obs_date = _date(int(parts[0]), int(parts[1]), 1)
-                    else:
-                        continue
-                except (ValueError, AttributeError):
-                    continue
-                session.add(
-                    FredObservation(
-                        observation_date=obs_date,
-                        created_at=_dt.now(_UTC),
-                        series_id=f"EIA_{o.series_id}"[:64],
-                        value=float(o.value),
-                        fetched_at=_dt.now(_UTC),
-                    )
+            except (ValueError, AttributeError):
+                continue
+            rows.append(
+                FredObservationData(
+                    series_id=f"EIA_{o.series_id}"[:64],
+                    observation_date=obs_date.isoformat(),
+                    value=float(o.value),
+                    fetched_at=_dt.now(_UTC),
                 )
-                n += 1
-            await session.commit()
+            )
+        async with sm() as session:
+            # Idempotent persist (dedup-aware) — the raw INSERT crashed the whole
+            # batch on re-run via the uq_fred_series_date unique constraint.
+            n = await persist_fred_observations(session, rows)
 
             # OIL_INVENTORY_SHOCK : crude inventory week-over-week change
             # in million barrels. The catalog metric_name='EIA_crude_chg'
