@@ -4,26 +4,34 @@
 > Pre-trade macro/geopolitical/sentiment context for one trader (Eliot)
 > who executes discretionary technical analysis on TradingView.
 
-**Status** : 🟢 **Phase 2 LIVE in production**. 24 ADRs, 13 runbooks,
-26 Alembic migrations (head `0027`), 49+ systemd timers autopilot 24/7,
-the 4-pass + Pass 5 pipeline persists into `session_card_audit` on
-every cron tick (8 assets × 4 windows/day = 32 cards/day).
+**Status** (refreshed 2026-06-10, verified at source) : 🟢 **LIVE in
+production** (`main 5699a90`). **95 ADRs** (head ADR-109, in
+[`docs/decisions/`](docs/decisions/)), Alembic head **`0055`**,
+~59 systemd timers autopilot 24/7, the 4-pass + Pass-6 pipeline persists
+into `session_card_audit` on every cron tick — 4 batches/day on the
+**6-asset trading universe** (ADR-083), verdict apex on the **5 priority
+assets**, data layer covering **8 instruments**. Canonical state docs :
+[`docs/PLAN_DIRECTEUR.md`](docs/PLAN_DIRECTEUR.md) (strategic spine) ·
+[`docs/ROADMAP.md`](docs/ROADMAP.md) (running log) ·
+[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) (as-built).
 
 ## What is Ichor?
 
-Ichor produces 32 **session cards per day** (8 actifs × 4 sessions :
-06h00 pre-Londres, 12h00 pre-NY, 17h00 NY-mid, 22h00 NY-close, all
-Europe/Paris) on 8 instruments — EUR/USD, XAU/USD, NAS100, USD/JPY,
-SPX500, GBP/USD, AUD/USD, USD/CAD — using a 3-layer architecture:
+Ichor produces **session cards** 4×/day (06h00 pre-Londres, 12h00 pre-NY,
+17h00 NY-mid, 22h00 NY-close, all Europe/Paris) on the **6-asset trading
+universe** — EUR/USD, GBP/USD, USD/CAD, XAU/USD, NAS100, SPX500
+(`run_session_cards_batch.py`, ADR-083) — with a data/collection layer
+covering 8 instruments (+ USD/JPY, AUD/USD) and a verdict apex on the
+5 priority assets, using a 3-layer architecture:
 
-1. **Qualitative analysis** — Claude (Opus 4.7 + Sonnet 4.6 + Haiku 4.5)
-   via the **Max 20x subscription**, run locally on a Windows 11 host
-   through Cloudflare Tunnel. Flat $200/mo, no API consumption
-   ([ADR-009](docs/decisions/ADR-009-voie-d-no-api-consumption.md)).
-   Couche-2 (5 always-on agents) routes via Claude Haiku 4.5 by
-   default ([ADR-021](docs/decisions/ADR-021-couche2-via-claude-not-fallback.md) /
-   [ADR-023](docs/decisions/ADR-023-couche2-haiku-not-sonnet-on-free-cf-tunnel.md)),
-   with Cerebras + Groq free tiers wired as transparent fallback.
+1. **Qualitative analysis** — Claude **Opus 4.8 everywhere**
+   ([ADR-108](docs/decisions/ADR-108-full-opus-everywhere.md), supersedes
+   ADR-021/ADR-023) via the **Max 20x subscription**, run locally on a
+   Windows 11 host through Cloudflare Tunnel. Flat $200/mo, zero API
+   consumption ([ADR-009](docs/decisions/ADR-009-voie-d-no-api-consumption.md)).
+   Couche-2 (5 always-on agents) keeps a Cerebras + Groq free-tier
+   fallback chain; the Couche-1 generation path is premium-only
+   fail-loud (no LLM fallback — see `docs/PLAN_DIRECTEUR.md` §9.3).
 2. **Local ML (no LLM)** — LightGBM + hmmlearn + dtaidistance + river +
    FOMC-RoBERTa + FinBERT-tone running on Hetzner. 14 models registered
    in [`packages/ml/model_registry.yaml`](packages/ml/model_registry.yaml)
@@ -52,10 +60,12 @@ Permutable AI) :
 8. Causal forward-propagation simulator (Bayes-lite shock)
 
 See [`docs/decisions/ADR-017-reset-phase1-living-macro-entity.md`](docs/decisions/ADR-017-reset-phase1-living-macro-entity.md)
-for the contractual vision, [`docs/VISION_2026.md`](docs/VISION_2026.md)
-for the 17 deltas roadmap, and [`docs/SESSION_HANDOFF.md`](docs/SESSION_HANDOFF.md)
-for the latest state. [`docs/USER_GUIDE.md`](docs/USER_GUIDE.md) is the
-operator manual.
+for the contractual vision and boundary (bias + probability, never a
+BUY/SELL order). For the latest state read
+[`docs/PLAN_DIRECTEUR.md`](docs/PLAN_DIRECTEUR.md) and
+[`docs/ROADMAP.md`](docs/ROADMAP.md) — `VISION_2026.md` and
+`SESSION_HANDOFF.md` are historical. [`docs/USER_GUIDE.md`](docs/USER_GUIDE.md)
+is the operator manual.
 
 ## Live state (post-2026-05-04 marathon)
 
@@ -72,7 +82,8 @@ operator manual.
 | VAPID push notifications                        | Hetzner Redis subs    | live (`/v1/push/test` OK) |
 | 9/10 collector tables peuplées                  | Hetzner Postgres      | LIVE                      |
 
-**Data live** (snapshot 2026-05-06) : polygon_intraday 28 643 bars,
+**Data snapshot (historical, 2026-05-06 — counts have grown since;
+`cot_positions` is live since PR #212, 2026-06-09)** : polygon_intraday 28 643 bars,
 fx_ticks 224 918 (FX quote-tick stream for VPIN), fred_observations
 933, gpr_observations 15 096 historical, polymarket 711, gdelt_events
 1 948, news_items 209, cb_speeches 133, kalshi 30, manifold 37,
@@ -112,11 +123,10 @@ ichor/
 │   ├── cloudflare/       Cloudflare Tunnel + Pages config
 │   └── secrets/          SOPS-encrypted .env files (.sops.yaml multi-recipient)
 ├── docs/
-│   ├── ARCHITECTURE_FINALE.md   The accepted architecture
-│   ├── AUDIT_V3.md              Final technical audit (78 verified sources)
-│   ├── PHASE_0_LOG.md           Live log of Phase 0 status + deltas
-│   ├── SESSION_HANDOFF.md       Single source of truth for /clear pickup
-│   ├── decisions/               11 ADRs (Architecture Decision Records)
+│   ├── PLAN_DIRECTEUR.md        Strategic spine (9-session arc, verified)
+│   ├── ROADMAP.md               Forward-looking running log (§1 = state)
+│   ├── ARCHITECTURE.md          As-built architecture (ARCHITECTURE_FINALE = archive)
+│   ├── decisions/               95 ADRs (Architecture Decision Records)
 │   ├── runbooks/                10 on-call runbooks (DR, rotation, recovery)
 │   ├── dr-tests/                Quarterly disaster-recovery drill records
 │   └── legal/                   AMF + EU AI Act + Anthropic Usage Policy
@@ -212,21 +222,24 @@ ssh ichor-hetzner 'sudo bash /usr/local/bin/walg-restore-drill.sh'
 
 No usage-based API costs by design.
 
-## Phase 2 — current status
+## Current status
 
-[`docs/SESSION_LOG_2026-05-06.md`](docs/SESSION_LOG_2026-05-06.md)
-captures the most recent state. Latest milestones :
+[`docs/PLAN_DIRECTEUR.md`](docs/PLAN_DIRECTEUR.md) (per-session state of
+the art, verified at source) and [`docs/ROADMAP.md`](docs/ROADMAP.md) §1
+capture the most recent state; the dated `docs/SESSION_LOG_*.md` files are
+the per-session record. Verified milestones (2026-06-10) :
 
-- **24 ADRs** total (latest: ADR-024 session-cards 5-bug fix)
-- **26 Alembic migrations** linear, head `0027`
-- **49+ systemd timers** autopilot 24/7
-- **5 Couche-2 agents** routing through Claude Haiku 4.5 (ADR-021/023)
+- **95 ADRs** total, head ADR-109 (streaming-cadence verdict refresh)
+- **Alembic head `0055`** (session-card synthesis snapshots)
+- **~59 systemd timers** autopilot 24/7
+- **5 Couche-2 agents** on Opus 4.8 (ADR-108 ; ADR-021/023 superseded)
 - **6 probability-only bias trainers** reinstated (ADR-022)
-- **8 unique capabilities** vs concurrents premium
+- **Apex verdict with evidence-weighted conviction fusion LIVE**
+  (`conviction_fusion.py` — the "50/50" killed in prod)
 
-The cron-fired session-card path is proven end-to-end. Auto-push iOS
+The cron-fired session-card path is proven end-to-end. Auto-push
 notifications operational. Daily batches at 06:00 / 12:00 / 17:00 /
-22:00 Paris generate 32 cards/day. Reconciler nightly chains into the
+22:00 Paris generate cards across the 6-asset universe. Reconciler nightly chains into the
 Living Entity loop : reconciler 02:00 → brier_optimizer 03:30 →
 brier_drift 04:00 → concept_drift 04:30 → prediction_outlier 04:45 →
 dtw_analogue 05:00, then weekly post_mortem Sun 19:00 →
@@ -234,7 +247,7 @@ counterfactual_batch Sun 20:00.
 
 ## Operational documents
 
-- [24 ADRs](docs/decisions/) — every delta from the accepted architecture, with rationale
+- [95 ADRs](docs/decisions/) — every delta from the accepted architecture, with rationale
 - [13 runbooks](docs/runbooks/) — on-call procedures (DR, rotation, recovery)
 - [DR test records](docs/dr-tests/) — quarterly drill outcomes
 - [Legal mapping](docs/legal/) — AMF DOC-2008-23, EU AI Act Article 50,

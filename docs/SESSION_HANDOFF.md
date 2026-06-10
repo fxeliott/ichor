@@ -1,6 +1,12 @@
 # Session handoff — Ichor Phase 1 (Living Macro Entity)
 
-> **AUTORITAIRE** — read this first when resuming work after `/clear`.
+> ⚠️ **SUPERSEDED — no longer authoritative.** This handoff froze at the
+> 2026-05-03/04 Phase-1 reset. For pickup, read
+> [`PLAN_DIRECTEUR.md`](PLAN_DIRECTEUR.md) + [`ROADMAP.md`](ROADMAP.md) §1 +
+> the memory-scope `auto_session_resume.md`. Kept for archaeology.
+> Banner added 2026-06-10 (Session 01 re-run).
+
+> **AUTORITAIRE** (historique) — read this first when resuming work after `/clear`.
 > Reset commit `[CHUNK 1]` 2026-05-03 — see ADR-017 for context.
 > Pre-reset historical state in `SESSION_HANDOFF_pre-reset_2026-05-03.md`.
 

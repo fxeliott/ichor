@@ -1,5 +1,12 @@
 # SPEC — Ichor Phase 2 (refonte + extension omnisciente)
 
+> ⚠️ **HISTORICAL SPEC (2026-05-04) — superseded as state-of-truth.** Several
+> claims are stale (e.g. Opus 4.7 → real: Opus 4.8 per ADR-108; the global
+> LLM fallback it implies → real: Couche-2 only, see `PLAN_DIRECTEUR.md` §9.3).
+> Current truth: [`docs/PLAN_DIRECTEUR.md`](docs/PLAN_DIRECTEUR.md) +
+> [`docs/ROADMAP.md`](docs/ROADMAP.md) + [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md);
+> per repo convention, ADRs supersede this spec. Banner added 2026-06-10.
+
 **Date** : 2026-05-04
 **Auteur** : Eliot (interview Claude Code via skill `/spec`)
 **Statut** : prêt pour implémentation après `/clear` + nouvelle session

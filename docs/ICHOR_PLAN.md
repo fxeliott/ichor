@@ -1,5 +1,11 @@
 # ICHOR — Plan de conception complet (V0+V1+V2+V3+UI)
 
+> ⚠️ **SUPERSEDED — do NOT use as session reference.** The canonical plan is
+> [`PLAN_DIRECTEUR.md`](PLAN_DIRECTEUR.md) (strategic spine) +
+> [`ROADMAP.md`](ROADMAP.md) (running state). This 2026-05-02 vision (26 axes,
+> 15 instruments, 7 phases) predates the 9-session arc and the current
+> 5/6/8-asset universe. Kept for archaeology. Banner added 2026-06-10.
+
 > Document de référence, écrit 2026-05-02, à relire en début de chaque nouvelle session Claude Code sur Ichor.
 > Owner : Eliot. Stack : Hetzner + Cloudflare + Claude Max 20x + free APIs. Budget data : 0 € (sauf Twitter strategic ~30-50€/mois max).
 

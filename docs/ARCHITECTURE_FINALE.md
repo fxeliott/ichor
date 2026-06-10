@@ -1,5 +1,10 @@
 # Architecture finale Ichor — Voie D acceptée
 
+> ⚠️ **SUPERSEDED 2026-06-05 by [`ARCHITECTURE.md`](ARCHITECTURE.md)** (as-built,
+> verified at source). Kept for archaeology — the founding Voie-D decision
+> (2026-05-02) remains historically valid, but do NOT read this file as the
+> current architecture. Banner added 2026-06-10 (Session 01 re-run).
+
 **Date** : 2026-05-02
 **Décision Eliot actée** : 100% automatisé, ultra-complet, sans API key Claude payante. Stack autorisée :
 
