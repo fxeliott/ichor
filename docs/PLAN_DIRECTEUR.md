@@ -409,7 +409,16 @@ chantier** so no session rediscovers them. (LOW-severity wording nits omitted.)
    so the effective chain everywhere is **Claude-only, fail-loud** — which now
    matches the owner's premium-only decision (§9.2) but means a ban stops
    Couche-2 too, not just Couche-1. Existential risk #1; mitigation (continuity
-   plan, recovery runbook) still unwritten.
+   plan, recovery runbook) still unwritten. **Same-account contention, proven
+   live 06-10 evening**: a heavy interactive Claude-Code session (this very
+   audit) exhausted the shared Max-20x quota right before the 22:01 ny_close
+   batch → `claude exited 1` → ny_close briefing + 3 Couche-2 failed until the
+   22:50 reset (witnessed in the journal; the runner itself stayed healthy —
+   same units succeeded at 20:05 and again after reset). Operating rule until
+   Chantier D alerts on this class: **avoid heavy interactive sessions in the
+   30 min before a batch window** (06:00 / 12:00 / 17:00 / 22:00 CEST), and
+   treat `subprocess_error: claude exited 1` with empty stderr as
+   quota-exhaustion first.
 2. **Single Win11 host + serialised subprocess** (`max_concurrent_subprocess=1`):
    one Claude at a time for the whole system. No HA, no horizontal scale; home
    hardware/power/ISP failure = total outage. _Precision v4 (witnessed 06-10):_
@@ -663,6 +672,13 @@ attempt=1 model=claude:opus`, async through the tunnel in 15.6 s, exit 0** — t
 - **Carry-over**: morning-window briefing units stay marked failed until
   their next scheduled runs (windows passed; regenerating them off-window
   would fabricate freshness). Chantier D owns killing this class (§6.5).
+- **Post-script (06-10 22:01 / 06-11 01:00)**: the "natural full witness"
+  (ny_close batch) **failed for a different, proven cause** — shared-account
+  quota exhaustion (§6.1 contention note), not the repaired runner: journal
+  shows the runner answering with `claude exited 1` at 21:32-22:02, and the
+  same Couche-2 units succeeded again right after the 22:50 reset (re-fired
+  06-11 ~01:00, `success` ×3). Card freshness recovers at the next batch
+  window (06-11 pre_londres 06:00).
 
 ### 10.3 · v4 claim corrections folded (7 PARTIAL)
 
