@@ -390,7 +390,8 @@ ADR-017-safe (descriptive; Ichor surfaces, Eliot trades):
 > audit showed the premium OKLCH design system is already in place and a
 > rebuild would be destructive; the chantier is **continuous élévation**, not
 > rebuild. _(v4 honesty note: the spec phrase "conserver la même direction
-> artistique" governs the daily Fable-5 rework sessions, it is not itself a
+> artistique" governs the daily max-effort rework sessions (Fable 5 until
+> June 22, then the §9.3 engine doctrine — Opus 4.8 xhigh), it is not itself a
 > licence to skip the rebuild — the no-rebuild call rests on the audit, and
 > is re-submittable to the owner at any time.)_ (2) **S05's "Ichor fait toute
 > l'AT"** contradicted the as-built doctrine — GAP-4, **decided Option A
@@ -421,7 +422,7 @@ chantier** so no session rediscovers them. (LOW-severity wording nits omitted.)
 - **S04** → the "🎓 montée en compétence" block (spec:188-199) is **not**
   S05-only: web-research-driven mastery of fundamental/macro/announcement
   analysis + the transcripts' non-technical lessons feed **Chantier C** (and
-  the Fable-5 web-research passes). "Analyse exhaustive, **vérifiée et
+  the engine web-research passes — Opus 4.8 xhigh per §9.3). "Analyse exhaustive, **vérifiée et
   croisée**" per asset = Chantier C done-criterion (cross-dimension
   consistency, §4.5). "Calibrées à la réalité actuelle du marché" =
   regime-awareness of dimension modules (distinct from §4.2 probability
@@ -453,7 +454,8 @@ chantier** so no session rediscovers them. (LOW-severity wording nits omitted.)
   phrasing itself. The élévation chantier owns the spec's concrete visual
   deliverables (bespoke animated illustrations, embedded reference imagery,
   flawless charts, hover micro-interactions, zero overlap) and the **recurring
-  frontend rework mechanism** (local Fable-5 sessions at max effort, same DA).
+  frontend rework mechanism** (local max-effort Claude sessions — Fable 5
+  until June 22, then per the §9.3 engine doctrine — same DA).
 - **S09** → Chantier F's seal includes a **vision-conformance audit** (spec:
   "valide que la vision fondatrice est intégralement respectée") and the final
   bilan keeps its three spec components: where we are / what remains / **what
