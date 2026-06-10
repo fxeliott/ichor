@@ -64,9 +64,11 @@ It must:
 - **Cover the whole field of trading** (macro, fundamental, monetary,
   geopolitics, flow, positioning, sentiment, intermarket, options structure,
   seasonality…), **in real time + via APIs**, continuously.
-- **Reason with Opus 4.8 everywhere**, understand the market like an embodied
-  market-intelligence with decades of experience, and **self-improve** from past
-  lessons (the differentiator — currently inert, see §0.4).
+- **Reason with the best available Claude everywhere** — as-built: Opus 4.8
+  (ADR-108); **owner decision 06-10: upgrade to Fable 5 at max effort** (§9) —
+  understand the market like an embodied market-intelligence with decades of
+  experience, and **self-improve** from past lessons (the differentiator —
+  currently inert, see §0.4).
 - **Explain everything as a beginner-level COACH** ("why / how / what to watch")
   inside an **ultra-premium web UI**.
 - Stay aligned to the owner's method: NY momentum bull/bear/range, **position
@@ -192,20 +194,28 @@ focused 2026 sweep (StockBench, calibration-aware RL, narrative-bias studies).
 > Order is dictated by (a) leverage on the vision, (b) hard dependencies,
 > (c) the principle "prove the edge before enriching".
 
-| #      | Chantier                                                                 | Advances       | Depends on                          | Deliverable                                                                                                                                                                                                                                          |
-| ------ | ------------------------------------------------------------------------ | -------------- | ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **01** | **Cadrage + doctrine arbitrations** (this)                               | S01            | —                                   | This plan (v3); **GAP-4 + Couche-1 fallback put to the owner (§9)**; `README.md`/`ROADMAP.md` refreshed + SUPERSEDED banners added (✅ done 06-10, this session); lying docstrings (§7) = first task of the next code chantier (S01 writes no code). |
-| **A**  | **Benchmark & trading-grade validation**                                 | S07/S09        | data S03✓, reconciliation S07✓      | Buy-and-hold + naïve baseline gate, **out-of-sample** (post-cutoff), walk-forward, costs included. _First — it conditions every later edge claim._                                                                                                   |
-| **B**  | **Close the learning loop + calibration**                                | **S07** (+S06) | seams S02✓, measurement S07✓, **A** | Wire W115c (`read_pocket`→Pass-3), per-bucket recalibration. Ichor **actually learns**. The "100x" chantier.                                                                                                                                         |
-| **C**  | **Make dimensions vote + risk agent**                                    | S04/S06        | **B**, **A**                        | Refactor `data_pool` monolith into voting modules + adversarial Bull/Bear + distinct risk agent.                                                                                                                                                     |
-| **D**  | **Real-time + proactive monitoring**                                     | S03/S06/S09    | socle S02/S03✓                      | Seed streaming/invalidation flags (after empirical validation), SSE push, Prometheus alert rules, end-to-end freshness gate (GAP-8). _Parallelisable with C._                                                                                        |
-| **E**  | **S05 technical methodology** _(conditional on Chantier 01 arbitration)_ | **S05**/S06    | GAP-4 decision, **C**               | If chart validated: wire `tradingview-cdp`, Pine indicators, the owner's method → feed the verdict (resolves GAP-4).                                                                                                                                 |
-| **F**  | **Durability hardening + stable frontend**                               | **S09**/S08    | all above                           | Coverage→70%, mypy/audit blocking, recurring multi-asset E2E, **stable URL** (Cloudflare named tunnel — end the rotating quick-tunnel), remove `/today` demo data. Seals the system.                                                                 |
+| #      | Chantier                                                            | Advances       | Depends on                          | Deliverable                                                                                                                                                                                                                                          |
+| ------ | ------------------------------------------------------------------- | -------------- | ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **01** | **Cadrage + doctrine arbitrations** (this)                          | S01            | —                                   | This plan (v3); **GAP-4 + Couche-1 fallback put to the owner (§9)**; `README.md`/`ROADMAP.md` refreshed + SUPERSEDED banners added (✅ done 06-10, this session); lying docstrings (§7) = first task of the next code chantier (S01 writes no code). |
+| **A**  | **Benchmark & trading-grade validation**                            | S07/S09        | data S03✓, reconciliation S07✓      | Buy-and-hold + naïve baseline gate, **out-of-sample** (post-cutoff), walk-forward, costs included. _First — it conditions every later edge claim._                                                                                                   |
+| **B**  | **Close the learning loop + calibration**                           | **S07** (+S06) | seams S02✓, measurement S07✓, **A** | Wire W115c (`read_pocket`→Pass-3), per-bucket recalibration. Ichor **actually learns**. The "100x" chantier.                                                                                                                                         |
+| **C**  | **Make dimensions vote + risk agent**                               | S04/S06        | **B**, **A**                        | Refactor `data_pool` monolith into voting modules + adversarial Bull/Bear + distinct risk agent.                                                                                                                                                     |
+| **D**  | **Real-time + proactive monitoring**                                | S03/S06/S09    | socle S02/S03✓                      | Seed streaming/invalidation flags (after empirical validation), SSE push, Prometheus alert rules, end-to-end freshness gate (GAP-8). _Parallelisable with C._                                                                                        |
+| **E**  | **S05 technical methodology** _(GAP-4 DECIDED ✅ 06-10 — Option A)_ | **S05**/S06    | §9.2 materials (owner), **C**       | Chart validated by the owner: ADR amending the "Eliot does TA" doctrine, wire `tradingview-cdp`, Pine indicators, the owner's method → feed the verdict (no-BUY/SELL stays contractual).                                                             |
+| **F**  | **Durability hardening + stable frontend**                          | **S09**/S08    | all above                           | Coverage→70%, mypy/audit blocking, recurring multi-asset E2E, **stable URL** (Cloudflare named tunnel — end the rotating quick-tunnel), remove `/today` demo data. Seals the system.                                                                 |
 
 **Why this order:** A-before-B/C is counter-intuitive but critical — 2026
 research shows enriching a system _without_ an out-of-sample benchmark produces
-narrative, not edge. B is the heart of the vision. E is gated on a human decision
-(Chantier 01). F plays the S09 sealing role.
+narrative, not edge. B is the heart of the vision. E was gated on a human
+decision — **decided 06-10 (Option A, §9)**; it now waits only on the §9.2
+materials and on C. F plays the S09 sealing role.
+
+**Transverse chantier (owner decision 06-10, §9): engine upgrade Opus 4.8 →
+Fable 5 at max effort.** Config-level but witness-heavy: new ADR superseding
+ADR-108, runner CLI ≥ 2.1.170, staged per-surface rollout (Pass-1..6, Couche-2,
+briefings) each with a live card witness. Execute as the opening task of the
+next code session — before/alongside Chantier A so the benchmark measures the
+final engine.
 
 ---
 
@@ -239,16 +249,16 @@ ADR-017-safe (descriptive; Ichor surfaces, Eliot trades):
 > chantier carries the remaining work. This is the per-session roadmap the
 > spec's Session 01 demands (order, dependencies, deliverables).
 
-| Spec                          | Deliverable demanded by the spec (condensed, faithful)                                                                                                                                          | État                                               | Chantier(s)                                         |
-| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- | --------------------------------------------------- |
-| **S02 Socle**                 | Orchestration backbone + LLM engine at full effort for every analysis + persistence + 24/7 real-time skeleton; "écosystème vivant, analyses jamais statiques"                                   | 72% LIVE                                           | **D** (real-time), **F** (hardening)                |
-| **S03 Data temps réel**       | Pipeline web research + APIs + newsletters + Polymarket + full eco calendar + holidays/week-end detection, continuous ingestion, automatic event captation                                      | 68% LIVE (flag ON-state not provable from repo)    | **D**                                               |
-| **S04 Analyse multidim**      | Per-dimension modules (fonda, macro, géopo, world news, correlations/DXY, volume, sentiment, market actors, manipulation/liquidity + Ichor's own view) on live data, "aucune zone d'ombre"      | 58% — 9/9 wired, 0/9 maxed                         | **C** (+ `S04_FINALIZATION_PROGRAM.md`)             |
-| **S05 Méthodo technique**     | **Ichor does ALL the TA**: deep study of the 2 transcripts + Ichor-beta meeting hub, TradingView connection, live chart reading, own indicators, fusion with the multidim — never signals/TP/SL | 18% — data-derived proxies only; **gated §9**      | **E** (conditional)                                 |
-| **S06 Prédiction/verdict**    | Verdict /100 (direction + conviction % + nature momentum/structuré), ranked scenarios, triggers/invalidations, London-morning read → NY calibration, daily reset, live re-analysis + alerts     | 52% — verdict+fusion LIVE; reactivity = poll/cron  | **C**, **D**                                        |
-| **S07 Apprentissage**         | Structured memory + verdict↔reality feedback loop + lesson journal + **measurable daily improvement** + hub lessons ingestion                                                                   | 52% — measurement LIVE, **act-loop OPEN = #1 gap** | **B** (after **A**)                                 |
-| **S08 Frontend**              | Premium frontend (dark noir/bleu lumineux DA), visual comprehension-coach, responsive, auto-refreshed, zero bug                                                                                 | 68% — web2 real & premium; unstable URL, demo data | **F** (continuous élévation)                        |
-| **S09 Intégration/pérennité** | Everything interconnected as ONE system, tested in real conditions, 0 bug, durable + final beginner-level bilan                                                                                 | 62% — CI/guards LIVE; no proactive monitoring      | **A** (benchmark), **D** (monitoring), **F** (seal) |
+| Spec                          | Deliverable demanded by the spec (condensed, faithful)                                                                                                                                          | État                                                                                        | Chantier(s)                                         |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- | --------------------------------------------------- |
+| **S02 Socle**                 | Orchestration backbone + LLM engine at full effort for every analysis + persistence + 24/7 real-time skeleton; "écosystème vivant, analyses jamais statiques"                                   | 72% LIVE                                                                                    | **D** (real-time), **F** (hardening)                |
+| **S03 Data temps réel**       | Pipeline web research + APIs + newsletters + Polymarket + full eco calendar + holidays/week-end detection, continuous ingestion, automatic event captation                                      | 68% LIVE (flag ON-state not provable from repo)                                             | **D**                                               |
+| **S04 Analyse multidim**      | Per-dimension modules (fonda, macro, géopo, world news, correlations/DXY, volume, sentiment, market actors, manipulation/liquidity + Ichor's own view) on live data, "aucune zone d'ombre"      | 58% — 9/9 wired, 0/9 maxed                                                                  | **C** (+ `S04_FINALIZATION_PROGRAM.md`)             |
+| **S05 Méthodo technique**     | **Ichor does ALL the TA**: deep study of the 2 transcripts + Ichor-beta meeting hub, TradingView connection, live chart reading, own indicators, fusion with the multidim — never signals/TP/SL | 18% — data-derived proxies only; GAP-4 ✅ decided 06-10 (Option A), gated on §9.2 materials | **E**                                               |
+| **S06 Prédiction/verdict**    | Verdict /100 (direction + conviction % + nature momentum/structuré), ranked scenarios, triggers/invalidations, London-morning read → NY calibration, daily reset, live re-analysis + alerts     | 52% — verdict+fusion LIVE; reactivity = poll/cron                                           | **C**, **D**                                        |
+| **S07 Apprentissage**         | Structured memory + verdict↔reality feedback loop + lesson journal + **measurable daily improvement** + hub lessons ingestion                                                                   | 52% — measurement LIVE, **act-loop OPEN = #1 gap**                                          | **B** (after **A**)                                 |
+| **S08 Frontend**              | Premium frontend (dark noir/bleu lumineux DA), visual comprehension-coach, responsive, auto-refreshed, zero bug                                                                                 | 68% — web2 real & premium; unstable URL, demo data                                          | **F** (continuous élévation)                        |
+| **S09 Intégration/pérennité** | Everything interconnected as ONE system, tested in real conditions, 0 bug, durable + final beginner-level bilan                                                                                 | 62% — CI/guards LIVE; no proactive monitoring                                               | **A** (benchmark), **D** (monitoring), **F** (seal) |
 
 > ⚠️ Two spec↔as-built tensions are resolved deliberately here, not silently:
 > (1) **S08 says "rebuild from zero"** — the 2026-06-03 grounded Playwright
@@ -367,6 +377,28 @@ Pass-3) is unchanged; this doc uses the **spec numbering** throughout.
 ---
 
 ## 9 · The decisions only the owner can make
+
+> **⚖️ DECIDED 2026-06-10 (owner, in-session, verbatim recorded):**
+>
+> 1. **GAP-4 = Option A, reinforced** — "ichor lit et analyse complètement le
+>    chart de A à Z ultra ultra poussé". Ichor does ALL the technical analysis.
+>    Chantier E is **unblocked doctrinally**; it remains gated only on the
+>    §9.2 materials (owner must supply) and on its place in the §5 order
+>    (after C). First code step: ADR amending the "Eliot does TA" doctrine
+>    (no-BUY/SELL/TP/SL stays contractual).
+> 2. **Couche-1 = premium-only, NO degraded fallback** — "pas de fallback, on
+>    priorise le maximum de qualité" — **and the LLM engine upgrades from
+>    Opus 4.8 to Fable 5** ("full analyse avec fable 5 … puisque meilleur
+>    modèle"), with maximum permanence engineering ("faire tout pour que tout
+>    soit ultra permanent"). Consequences: (a) reconcile the lying fallback
+>    docs (`run_briefing.py:22-25`, `ADR-009:61`) to fail-loud truth;
+>    (b) new ADR superseding ADR-108: **full-Fable-5 everywhere, effort max**
+>    via the local runner (CLI ≥ 2.1.170, model `claude-fable-5`/alias
+>    `fable`) — staged rollout + live witness per surface (Pass-1..6,
+>    Couche-2, briefings); (c) permanence hardening = collector-staleness
+>    watchdog + runner auto-restart + alerting (folds into Chantier D).
+>
+> The arbitration analyses below are kept for the record.
 
 **9.1 — GAP-4, S05 doctrine arbitration (blocks Chantier E and part of C/S06).**
 The spec files are emphatic and repeat it three times (S04 "Analyse technique
