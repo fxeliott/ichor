@@ -4,10 +4,11 @@
 > Pre-trade macro/geopolitical/sentiment context for one trader (Eliot)
 > who executes discretionary technical analysis on TradingView.
 
-**Status** (refreshed 2026-06-10, verified at source) : 🟢 **LIVE in
-production** (`main 5699a90`). **95 ADRs** (head ADR-109, in
-[`docs/decisions/`](docs/decisions/)), Alembic head **`0055`**,
-~59 systemd timers autopilot 24/7, the 4-pass + Pass-6 pipeline persists
+**Status** (refreshed 2026-06-10 PM, verified at source + witnessed on the
+prod host) : 🟢 **LIVE in production**. **95 ADRs** (head ADR-109, in
+[`docs/decisions/`](docs/decisions/)), Alembic head **`0055`** (= prod,
+witnessed), **102 ichor systemd timers** autopilot 24/7, the 4-pass + Pass-6
+pipeline persists
 into `session_card_audit` on every cron tick — 4 batches/day on the
 **6-asset trading universe** (ADR-083), verdict apex on the **5 priority
 assets**, data layer covering **8 instruments**. Canonical state docs :
