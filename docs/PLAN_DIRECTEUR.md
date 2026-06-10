@@ -1,5 +1,6 @@
 # PLAN DIRECTEUR ICHOR — Master plan (9-session arc)
 
+> **v4.1 — 2026-06-11 (engine decision revised: Opus 4.8 max effort, Fable-5 migration cancelled — §9 decision 3; + §4bis target module map, chantier sizing, session-file execution mapping).**
 > **v4 — 2026-06-10 PM (Session 01/09 second adversarial re-run — prod verified, incident repaired).**
 > Supersedes v3 (same day, PR #218/#219), v2 (2026-06-09, uncommitted) and the
 > 2026-06-05 v1 (commit `94a64dc`; git keeps all). Canonical 9-session execution
@@ -75,7 +76,9 @@ It must:
   geopolitics, flow, positioning, sentiment, intermarket, options structure,
   seasonality…), **in real time + via APIs**, continuously.
 - **Reason with the best available Claude everywhere** — as-built: Opus 4.8
-  (ADR-108); **owner decision 06-10: upgrade to Fable 5 at max effort** (§9) —
+  (ADR-108); **owner decision 06-11 (revising 06-10): Opus 4.8 at MAX EFFORT,
+  durably** — the 06-10 Fable-5 migration is cancelled because Fable 5 leaves
+  the Max-20x plan on June 22 (verified at primary source, §9 decision 3) —
   understand the market like an embodied market-intelligence with decades of
   experience, and **self-improve** from past lessons (the differentiator —
   currently inert, see §0.4).
@@ -173,8 +176,8 @@ focused 2026 sweep (StockBench, calibration-aware RL, narrative-bias studies).
 3. **Out-of-sample benchmark, non-negotiable** (StockBench: most LLM agents fail
    to beat buy-and-hold): impose buy-and-hold + a naïve baseline (momentum/ARIMA)
    as a **pass/fail gate**, evaluated strictly on periods _after_ the serving
-   engine's training cutoff — **Fable 5 (January 2026), not Opus 4.8**, since
-   the §9 engine upgrade lands before/with Chantier A. **Anti-leakage by design**: walk-forward only (never random
+   engine's training cutoff — **Opus 4.8** (engine decision revised 06-11, §9.3:
+   the Fable-5 migration is cancelled; Fable 5 leaves the Max plan on June 22). **Anti-leakage by design**: walk-forward only (never random
    CV on time series), latent-leakage test (recall-vs-forecast correlation),
    dynamic universe, costs/slippage included. Without this, the edge is a
    narrative.
@@ -210,6 +213,50 @@ focused 2026 sweep (StockBench, calibration-aware RL, narrative-bias studies).
 
 ---
 
+## 4bis · Target module architecture (added v4.1 — the spec's "découpage en modules interconnectés")
+
+The §4 principles become this concrete target shape (grounded in as-built
+names; the detailed interface design is Chantier C's first deliverable, this
+map is its contract):
+
+```
+S03  collectors (~47) + WebSocket FX + Opus web-research + newsletters
+        │  (systemd timers, feature-flagged, liveness-stamped)
+        ▼
+S04  data_pool — TODAY: one 6k-line module, 58 _section_* builders
+        TARGET: 9 dimension packages (one per S04 dimension:
+        fondamentale · macro · géopolitique · world-news ·
+        correlations/DXY · volume/microstructure · sentiment ·
+        positioning/acteurs · manipulation/liquidité)
+        each exposing BOTH:
+          build_context()  → LLM prose for the passes (as today)
+          vote()           → DimensionVote {direction_hint, strength,
+                             provenance, freshness, honest_absence}
+        ▼
+S05  technical module (Chantier E, post-§9.2): TradingView read via
+        tradingview-cdp + Pine indicators + the owner's method
+        → its own DimensionVote (sign allowed; no-BUY/SELL boundary in type)
+        ▼
+S06  fusion layer: fuse_conviction extended to consume ALL DimensionVotes
+        (vs 3 today) + adversarial Bull/Bear pass + DISTINCT risk agent
+        (daily exposure stance — spec S06 §10.4; never sizing orders)
+        → session_verdict_builder → Pass-6 scenarios → apex verdict
+        ▼
+S08  web2 frontend: verdict apex + per-dimension panels + coach FR
+        (poll 30 s → SSE push in Chantier D)
+
+FEEDBACK (Chantier B — the edge that makes it ONE system, not a pipeline):
+   reconciliation crons → Brier/Vovk/ADWIN → pocket_skill_reader
+   → fusion weights (per-dimension, audited via auto_improvement_log)
+TRANSVERSE: engine Opus 4.8 xhigh (§9.3) · feature flags fail-closed ·
+   source-stamping/Critic · ADR-017 safety gate · Prometheus alerting (D)
+```
+
+Migration rule: extract **one dimension at a time** from `data_pool` behind
+the golden-card diff gate (§5 gate C) — never a big-bang split.
+
+---
+
 ## 5 · Roadmap — ordered chantiers, mapped to canonical sessions
 
 > "Done" = **fresh + coherent content + a witnessed edge**, not just green tests.
@@ -232,20 +279,41 @@ narrative, not edge. B is the heart of the vision. E was gated on a human
 decision — **decided 06-10 (Option A, §9)**; it now waits only on the §9.2
 materials and on C. F plays the S09 sealing role.
 
-**Transverse chantier (owner decision 06-10, §9): engine upgrade Opus 4.8 →
-Fable 5 at max effort.** Config-level but witness-heavy: new ADR superseding
-ADR-108, runner CLI ≥ 2.1.170 (✅ host already on 2.1.170, witnessed 06-10),
-staged per-surface rollout (Pass-1..6, Couche-2, briefings) each with a live
-card witness. **Concrete scope found by the v4 audit:** the runner's
-`claude_default_model: Literal["opus","sonnet","haiku"]` does **not** accept
-`fable` (`apps/claude-runner/.../config.py:30-34`) → small runner code change
+**Sizing (added v4.1 — editorial estimates, 1 "session" ≈ one long working
+arc):** transverse engine ≈ ½–1 · A ≈ 1–2 · B ≈ 1–2 · C ≈ 3–5 (one dimension
+extraction at a time) · D ≈ 2–3 · E ≈ 3–5 (after §9.2 materials) · F ≈ 2–3.
+Total ≈ 13–21 sessions to the §5ter "seal". Treat as ranking of magnitude,
+not commitments.
 
-- all call sites (`orchestrator.py`, `run_briefing.py`, Couche-2 agents) pass
-  `model`/`effort` explicitly; the effort schema **already accepts
-  `xhigh`/`max`** (`models.py:28,104`) — the `high` ceiling is caller
-  convention, not enforced (§10.3). Execute as the opening task of the next
-  code session — before/alongside Chantier A so the benchmark measures the
-  final engine.
+**Session-file execution mapping (added v4.1):** when the owner re-fires a
+spec file `Ichor_Session_0N`, execute its §5ter chantier slice — 02 →
+transverse engine + D/F socle slices · 03 → D (+ newsletters expansion) ·
+04 → C · 05 → E (requires §9.2) · 06 → C+D verdict/reactivity slices · 07 →
+A then B · 08 → F élévation slice (its own §5ter-bis constraints) · 09 →
+A+D+F seal + vision-conformance audit. Each re-fire starts by re-reading this
+plan's §2 row and §5ter-bis entry for that session.
+
+**Transverse chantier — REVISED 06-11 (owner, §9 decision 3): engine = Opus
+4.8 at MAX EFFORT ("ultracode" doctrine), Fable-5 migration CANCELLED.**
+Rationale, verified at primary source (Anthropic announcement + press, 06-11):
+Fable 5 is included on Pro/Max plans **only June 9–22**; from June 23 it draws
+prepaid usage credits at API rates ($10/$50 MTok = 2× Opus 4.8) — a Fable-5
+engine would breach the **ZERO-Anthropic-spend invariant** on June 23 and die
+mid-flight (the §6.4 fragile-CLI risk, made certain). The revised scope is
+**smaller and ships sooner**: (a) raise effort `high` → `xhigh` at the
+generation call sites (`orchestrator.py:280,304,330,350` + `scenarios_effort`
+`:113` + `run_briefing.py:412-413` + `runner_client.py:128` default) — the
+runner schema **already accepts `xhigh`/`max`** (`models.py:28,104`), no model
+Literal change needed; Couche-2 stays `low` (ADR-108 cost/latency split);
+(b) one ADR recording the engine doctrine (Opus-4.8-max-effort; revisit a
+Mythos-class engine only when included in subscription plans again); (c) staged
+rollout + live card witness per surface, **watching batch duration and quota**
+— xhigh multiplies tokens/latency per card, so the §6.1 contention rule and
+the 540 s runner timeout must be re-validated on the first witnessed batch.
+Execute as the opening task of the next code session — before/alongside
+Chantier A so the benchmark measures the final engine. _(Interactive
+Claude-Code sessions may still use Fable 5 until June 22 — session model ≠
+engine; this cadrage itself ran on Fable 5.)_
 
 **Per-chantier pass/fail gates (added v4 — "done" must be falsifiable):**
 
@@ -322,7 +390,8 @@ ADR-017-safe (descriptive; Ichor surfaces, Eliot trades):
 > audit showed the premium OKLCH design system is already in place and a
 > rebuild would be destructive; the chantier is **continuous élévation**, not
 > rebuild. _(v4 honesty note: the spec phrase "conserver la même direction
-> artistique" governs the daily Fable-5 rework sessions, it is not itself a
+> artistique" governs the daily max-effort rework sessions (Fable 5 until
+> June 22, then the §9.3 engine doctrine — Opus 4.8 xhigh), it is not itself a
 > licence to skip the rebuild — the no-rebuild call rests on the audit, and
 > is re-submittable to the owner at any time.)_ (2) **S05's "Ichor fait toute
 > l'AT"** contradicted the as-built doctrine — GAP-4, **decided Option A
@@ -338,8 +407,9 @@ chantier** so no session rediscovers them. (LOW-severity wording nits omitted.)
 
 - **S02** → the engine requirement "intégration Claude Fable 5, full
   performance, effort maximal **pour toutes les analyses ET recherches**" is
-  carried by the **transverse Fable-5 chantier** (web-research passes
-  included); the persistence layer is "persistance/**mémoire**" (the memory
+  carried by the **transverse engine chantier** — _the spec's intent is "the
+  best engine at max effort"; per the 06-11 owner revision (§9.3) that is
+  **Opus 4.8 at xhigh**, web-research passes included_; the persistence layer is "persistance/**mémoire**" (the memory
   half anchors S07); "modulaire" and "points d'ancrage prêts" = Chantier C's
   refactor criteria.
 - **S03** → the **newsletters interconnexion** (repeated 3× in the spec) is
@@ -352,7 +422,7 @@ chantier** so no session rediscovers them. (LOW-severity wording nits omitted.)
 - **S04** → the "🎓 montée en compétence" block (spec:188-199) is **not**
   S05-only: web-research-driven mastery of fundamental/macro/announcement
   analysis + the transcripts' non-technical lessons feed **Chantier C** (and
-  the Fable-5 web-research passes). "Analyse exhaustive, **vérifiée et
+  the engine web-research passes — Opus 4.8 xhigh per §9.3). "Analyse exhaustive, **vérifiée et
   croisée**" per asset = Chantier C done-criterion (cross-dimension
   consistency, §4.5). "Calibrées à la réalité actuelle du marché" =
   regime-awareness of dimension modules (distinct from §4.2 probability
@@ -384,7 +454,8 @@ chantier** so no session rediscovers them. (LOW-severity wording nits omitted.)
   phrasing itself. The élévation chantier owns the spec's concrete visual
   deliverables (bespoke animated illustrations, embedded reference imagery,
   flawless charts, hover micro-interactions, zero overlap) and the **recurring
-  frontend rework mechanism** (local Fable-5 sessions at max effort, same DA).
+  frontend rework mechanism** (local max-effort Claude sessions — Fable 5
+  until June 22, then per the §9.3 engine doctrine — same DA).
 - **S09** → Chantier F's seal includes a **vision-conformance audit** (spec:
   "valide que la vision fondatrice est intégralement respectée") and the final
   bilan keeps its three spec components: where we are / what remains / **what
@@ -557,11 +628,26 @@ Pass-3) is unchanged; this doc uses the **spec numbering** throughout.
 >    modèle"), with maximum permanence engineering ("faire tout pour que tout
 >    soit ultra permanent"). Consequences: (a) reconcile the lying fallback
 >    docs (`run_briefing.py:22-25`, `ADR-009:61`) to fail-loud truth;
->    (b) new ADR superseding ADR-108: **full-Fable-5 everywhere, effort max**
->    via the local runner (CLI ≥ 2.1.170, model `claude-fable-5`/alias
->    `fable`) — staged rollout + live witness per surface (Pass-1..6,
->    Couche-2, briefings); (c) permanence hardening = collector-staleness
->    watchdog + runner auto-restart + alerting (folds into Chantier D).
+>    (b) ~~new ADR superseding ADR-108: full-Fable-5 everywhere~~ — **engine
+>    clause REVISED by decision 3 below (06-11)**; (c) permanence hardening =
+>    collector-staleness watchdog + runner auto-restart + alerting (folds into
+>    Chantier D). The premium-only/no-fallback and permanence clauses stand.
+>
+> **⚖️ DECIDED 2026-06-11 (owner, verbatim recorded — revises the engine
+> clause of decision 2):**
+>
+> 3. **Engine = Opus 4.8 at max effort ("ultracode"), Fable-5 migration
+>    CANCELLED** — "note bien toutes les analyses sont avec claude opus 4.8
+>    en ultra code ici manuellement sur terminal pour la meilleure qualité
+>    possible car fable 5 stop le 22 juin avec l'abonnement seul pro max
+>    x20". Verified at primary source the same day (Anthropic announcement:
+>    Fable 5 included on Pro/Max only June 9–22; from June 23 it draws
+>    prepaid usage credits at API rates, $10/$50 MTok = 2× Opus 4.8) — a
+>    Fable-5 engine would breach ZERO-spend on June 23 and silently die.
+>    Operational scope → §5 transverse chantier (effort `high`→`xhigh` at the
+>    generation call sites; runner schema already accepts it; Couche-2 stays
+>    `low`; ADR records the doctrine). Interactive sessions may use Fable 5
+>    until June 22 — session model ≠ engine.
 >
 > The arbitration analyses below are kept for the record.
 
@@ -686,5 +772,7 @@ attempt=1 model=claude:opus`, async through the tunnel in 15.6 s, exit 0** — t
 ARCHITECTURE.md → §7 · second `_VALID_ASSETS`=6 → §7 · third (LLM-channel)
 technical path to the apex sign → §3 · effort `high` = caller convention, not
 an enforced cap; runner schema already accepts `xhigh`/`max`, but its model
-Literal **lacks `fable`** → §5 transverse · per-instance semaphore + :8765
-zombie → §6.2 · three closed loops, not one → §3.
+Literal lacks `fable` (moot since the 06-11 engine revision §9.3 — kept as the
+fact that shrank the transverse chantier to an effort-only change) → §5
+transverse · per-instance semaphore + :8765 zombie → §6.2 · three closed
+loops, not one → §3.
