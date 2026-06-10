@@ -1,5 +1,10 @@
 # SPEC — Ichor
 
+> ⚠️ **HISTORICAL SPEC (Phase 0, 2026-05-02) — superseded.** Phase 0 closed in
+> early May 2026 (`PHASE_0_LOG.md`). Kept for archaeology; current truth:
+> [`PLAN_DIRECTEUR.md`](PLAN_DIRECTEUR.md) + [`ROADMAP.md`](ROADMAP.md) +
+> [`ARCHITECTURE.md`](ARCHITECTURE.md). Banner added 2026-06-10.
+
 **Date** : 2026-05-02
 **Auteur** : Eliot (interview Claude Code via skill `/spec`)
 **Référence amont** : [ICHOR_PLAN.md](./ICHOR_PLAN.md) (vision macro, 26 axes data, 12 moteurs, 15 instruments, archi multi-agent, roadmap 7 phases)

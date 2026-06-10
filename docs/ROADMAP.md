@@ -10,6 +10,14 @@
 
 ---
 
+## §1 — Current state (2026-06-10 — Session-01 re-run : PLAN_DIRECTEUR **v3** re-vérifié ; S04 depth arc 06-05→06-09 SHIPPED ; `main = 5699a90`)
+
+Since 06-03, four working arcs landed on main (PR #186→#217) : 06-05 S02 reliable-substrate + security deps ; 06-06 S03 honnêteté + Opus-driven web research (G1, flag ON) ; 06-07→06-09 S04 depth — conviction **fusion LIVE** (migration `0055`, the 50/50 killed in prod), 9th dimension manip/liquidité, RVOL volume layer, per-asset geopolitics, UST 10Y rate-positioning, full CFTC trader-category breakdown, per-asset news tone, COT/ECB/BLS/EIA collectors repaired, Couche-2 free-text self-heal hardened. **Session 01 re-run (06-10)** : [`PLAN_DIRECTEUR.md`](PLAN_DIRECTEUR.md) **v3** = v2 re-verified at source (15-agent adversarial workflow `wf_17c396c2` : 30 load-bearing claims → 26 CONFIRMED / 4 PARTIAL corrected) + full spec extraction 02→09 (§5ter) ; `README.md` refreshed (was head `0027`/24 ADRs/Opus 4.7 → real `0055`/95 ADRs/Opus 4.8) ; SUPERSEDED banners added on stale-authority docs (`ICHOR_PLAN`, `SESSION_HANDOFF`, root+docs `SPEC`, `ARCHITECTURE_FINALE`). Learning **act-loop still OPEN = #1 gap** (locked by `test_architecture_invariants.py:133-144`).
+
+**NEXT** : ⭐ Chantier **A** (out-of-sample benchmark gate — buy-and-hold + naïve baseline, walk-forward, post-cutoff) per PLAN_DIRECTEUR §5, then **B** (close the learning loop). Turnkey quick-win : collector staleness watchdog (designed 06-09, `auto_session_resume.md`). **Owner-gated** : GAP-4 S05 doctrine (§9.1) · S05 materials transcripts+hub (§9.2) · Couche-1 fallback (§9.3).
+
+### Pre-2026-06-10 line preserved
+
 ## §1 — Current state (2026-06-03 — quantum-leap Phases 0-7 ALL MERGED ; §10 deep-dive ELEVATION + content COHERENCE shipped ; `main = c877d04`)
 
 The 7-phase quantum-leap (pipeline rescue → Phase 7 streaming cadence) + the coach-FR content fix are all merged (`df5fa7c`). On top, the **2026-06-03 §10 frontend ELEVATION + content COHERENCE** is merged + deployed + witnessed (PR #177 elevation `b141b05` → #178 docs `5c715df` → #179 header↔verdict fix `c877d04`) — NOT a rebuild (OKLCH design system kept). Shipped: persistent `<VerdictStickyChip>` ; mobile section-nav (edge-fade + auto-scroll) ; GlowCard touch feedback ; 2-column dense sections (E/F) ; landing macro labels → coach-FR (+ `RISK_BAND_TONE` bug) ; `lib/fredLabels.ts` humanizing raw FRED codes (raw kept as tooltip) ; header bias/regime FR ; expired-verdict 410→200 "session terminée" ; **header now defers to the canonical verdict (kills the header↔verdict contradiction)**. typecheck 0 / vitest 675 / build OK / api 60 ; R-DEPLOY-6 api+web2 ; witnessed prod desktop+mobile 0 console error ; double-verified (independent verifier = CLEAN + hard-challenge audit). Voie D + ADR-017 + ADR-079 held ; ZERO Anthropic spend.
