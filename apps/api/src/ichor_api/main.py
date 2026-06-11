@@ -348,9 +348,58 @@ async def startupz() -> dict[str, object]:
     )
 
 
+# ADR-110 / Chantier D — runner probe for the standard /healthz.
+# The 2026-06-10 P0 stayed invisible because /healthz never tested the
+# runner (`claude_runner_reachable` was always null). We now probe it
+# with a short timeout behind a 60 s in-process cache so the endpoint
+# stays a cheap liveness check (worst case +3 s once per minute per
+# worker, only when the runner is down/slow).
+_RUNNER_PROBE_TTL_SEC = 60.0
+_runner_probe_cache: dict[str, float | bool | None] = {"at": 0.0, "ok": None}
+
+
+async def _probe_runner_cached() -> bool | None:
+    """Probe the claude-runner /healthz through the CF tunnel, cached 60 s.
+
+    Returns None when the runner URL / CF service-token credentials are
+    not configured (unit tests, local dev) — the field stays an honest
+    None, never a fabricated False.
+    """
+    import time as _time
+
+    runner_url = (_settings.claude_runner_url or "").rstrip("/")
+    if not (runner_url and _settings.cf_access_client_id and _settings.cf_access_client_secret):
+        return None
+    now = _time.monotonic()
+    cached_ok = _runner_probe_cache["ok"]
+    if (
+        cached_ok is not None
+        and now - float(_runner_probe_cache["at"] or 0.0) < _RUNNER_PROBE_TTL_SEC
+    ):
+        return bool(cached_ok)
+    ok = False
+    try:
+        import httpx
+
+        async with httpx.AsyncClient(timeout=3.0) as client:
+            r = await client.get(
+                f"{runner_url}/healthz",
+                headers={
+                    "CF-Access-Client-Id": _settings.cf_access_client_id,
+                    "CF-Access-Client-Secret": _settings.cf_access_client_secret,
+                },
+            )
+            ok = r.status_code == 200 and r.json().get("status") == "ok"
+    except Exception:  # noqa: BLE001 — a probe failure IS the signal
+        ok = False
+    _runner_probe_cache["at"] = now
+    _runner_probe_cache["ok"] = ok
+    return ok
+
+
 @app.get("/healthz", response_model=HealthOut)
 async def healthz() -> HealthOut:
-    """Cheap readiness check — Postgres ping + Redis ping (no claude-runner test)."""
+    """Cheap readiness check — Postgres + Redis ping + cached runner probe."""
     db_ok = False
     redis_ok = False
 
@@ -372,12 +421,19 @@ async def healthz() -> HealthOut:
     except Exception:
         pass
 
+    runner_ok = await _probe_runner_cached()
+
     overall = "ok" if (db_ok and redis_ok) else ("degraded" if db_ok or redis_ok else "down")
+    if overall == "ok" and runner_ok is False:
+        # Runner configured but unreachable/down — the LLM layer is out.
+        # HTTP stays 200 (liveness of the API itself), status says the truth.
+        overall = "degraded"
     return HealthOut(
         status=overall,  # type: ignore[arg-type]
         version=__version__,
         db_connected=db_ok,
         redis_connected=redis_ok,
+        claude_runner_reachable=runner_ok,
     )
 
 

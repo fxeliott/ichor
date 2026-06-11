@@ -14,13 +14,18 @@
        `python -m http.server 8766` held :8766, so the runner could not bind
        and clients got connection/501 errors).
     3. The runner is up but `/healthz` reports `status=down`
-       (claude CLI not reachable) -- restarting the same broken thing does
-       NOT help; a human must fix the binary path.
+       (claude CLI not reachable -- the WinError 2 class: reboot/npm-update
+       race freezes a stale claude.exe path in the RUNNING process env).
 
   This watchdog probes /healthz and self-heals cases 1 & 2 (our own hung
   runner is auto-restarted; a FOREIGN squatter is only killed with the
   explicit -KillRogue switch, so the default run is never destructive).
-  Case 3 is reported loudly, not loop-restarted.
+  Case 3 (ADR-110, third firing of the class on 2026-06-10): since the
+  canonical .bat re-probes the real claude.exe location at EVERY launch
+  (2026-05-29 durable fix), recycling through the .bat DOES repair the
+  stale-path class -- so the watchdog now recycles ONCE per 30-min window
+  (sentinel file anti-loop). If the recycle does not heal it (binary truly
+  gone), it reports loudly and stops retrying until the window expires.
 
   Designed to be run every ~5 min by Task Scheduler (see RUNBOOK-014
   "Self-heal watchdog"). Idempotent, single-shot, exits with a status code.
@@ -33,8 +38,9 @@
 
 .OUTPUTS
   Exit 0 = healthy or healed. 2 = restarted, still not healthy.
-  3 = status=down (claude CLI broken, human needed). 4 = foreign squatter,
-  -KillRogue not set (no action taken). 5 = unexpected error.
+  3 = status=down (claude CLI broken AFTER one .bat recycle attempt per
+  30-min window -- human needed). 4 = foreign squatter, -KillRogue not
+  set (no action taken). 5 = unexpected error.
 #>
 [CmdletBinding()]
 param(
@@ -126,7 +132,34 @@ try {
         $status = $h.Body.status
         $cli = $h.Body.claude_cli_available
         if ($status -eq 'down' -or $cli -eq $false) {
-            Write-WatchLog 'CRIT' "runner UP but status=$status claude_cli_available=$cli -- claude CLI unreachable. Restarting the same process will NOT fix this; check the claude.exe path (WinError 2 class). See RUNBOOK-014 Path D."
+            # WinError 2 class (stale claude.exe path frozen in the running
+            # process env). The canonical .bat re-probes the binary at every
+            # launch, so ONE recycle through it repairs this class. Sentinel
+            # file = anti-loop: at most one recycle attempt per 30 minutes.
+            $sentinel = Join-Path (Split-Path -Parent $LogFile) 'runner-watchdog.exit3-recycle.stamp'
+            $recentRecycle = $false
+            if (Test-Path $sentinel) {
+                $age = (Get-Date) - (Get-Item $sentinel).LastWriteTime
+                $recentRecycle = $age.TotalMinutes -lt 30
+            }
+            if ($recentRecycle) {
+                Write-WatchLog 'CRIT' "runner UP but status=$status claude_cli_available=$cli -- recycle already attempted <30min ago and did not heal. claude.exe is likely truly missing; human needed. See RUNBOOK-014 Path D."
+                exit 3
+            }
+            Write-WatchLog 'ACTION' "runner UP but status=$status claude_cli_available=$cli (WinError 2 class). Recycling through the self-probing .bat (ADR-110 spawn-failure re-resolution)."
+            New-Item -ItemType File -Force -Path $sentinel | Out-Null
+            $owner = Get-PortOwner
+            if ($owner -and (Test-IsOurRunner -CommandLine $owner.CommandLine)) {
+                try { Stop-Process -Id $owner.Pid -Force -ErrorAction Stop } catch { Write-WatchLog 'WARN' "stop failed: $_" }
+                Start-Sleep -Seconds 2
+            }
+            Start-Runner
+            $after = Wait-Healthy
+            if ($after.Ok -and $after.Body.status -ne 'down' -and $after.Body.claude_cli_available -ne $false) {
+                Write-WatchLog 'HEALED' "stale-claude-path runner recycled via .bat, status=$($after.Body.status) cli=$($after.Body.claude_cli_available)"
+                exit 0
+            }
+            Write-WatchLog 'CRIT' "recycled via .bat but claude CLI still unreachable (status=$($after.Body.status) cli=$($after.Body.claude_cli_available)). Binary truly missing -- human needed. See RUNBOOK-014 Path D."
             exit 3
         }
         Write-WatchLog 'OK' ("healthy status={0} in_flight={1} req_last_hour={2} version={3}" -f `

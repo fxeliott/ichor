@@ -25,6 +25,14 @@ The session_type maps to a cron name :
 Per ADR-017 capability #4 the brain runs 4 passes per asset per
 session — this CLI is the entrypoint for the autonomous "16 cards
 per day" production schedule.
+
+Exit-code contract (ADR-110 / 2026-06-10 P0 class kill) :
+  0 — every card generated (or nothing to do, market-closed gate).
+  1 — PARTIAL failure (≥1 ok, ≥1 failed). Whitelisted by the systemd
+      unit (`SuccessExitStatus=0 1`) as a warning, not a failure.
+  2 — TOTAL failure (0 ok) or bad invocation. NOT whitelisted →
+      systemd Result=failed → OnFailure=ichor-notify@ fires. A dead
+      runner / quota exhaustion can no longer pass silent.
 """
 
 from __future__ import annotations
@@ -185,6 +193,19 @@ async def _run_batch(
 
     elapsed = time.time() - started
     print(f"\n== batch done · {successes} ok / {failures} failed · elapsed {elapsed:.1f}s ==")
+    if failures and not successes:
+        # TOTAL failure (0 cards) — the 2026-06-10 P0 class: a dead
+        # runner / exhausted quota fails EVERY card, yet rc=1 was
+        # whitelisted by `SuccessExitStatus=0 1` on the systemd unit, so
+        # the unit showed Result=success and OnFailure never notified.
+        # rc=2 is NOT whitelisted → systemd marks the unit failed and
+        # fires ichor-notify@. Partial failure keeps rc=1 (warning):
+        # some cards shipped, the window is not silently lost.
+        print(
+            "!! TOTAL batch failure — 0 cards generated; exiting rc=2 "
+            "(systemd failure + OnFailure notify)",
+            file=sys.stderr,
+        )
 
     # G2 fix — push notification at end of LIVE batch. Closes the audit
     # gap "Eliot ne reçoit rien quand pre_londres est prêt à 06:30 Paris".
@@ -208,7 +229,9 @@ async def _run_batch(
             log.warning("batch.push_failed", error=str(e))
             print(f"   push: failed ({e}) — non-fatal", file=sys.stderr)
 
-    return 0 if failures == 0 else 1
+    if failures == 0:
+        return 0
+    return 2 if successes == 0 else 1
 
 
 async def _main(argv: list[str]) -> int:
