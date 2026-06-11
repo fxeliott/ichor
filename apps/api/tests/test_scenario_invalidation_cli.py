@@ -43,6 +43,10 @@ async def test_dry_run_evaluates_even_with_flag_off(monkeypatch, session) -> Non
     evaluate.assert_awaited()  # the validation evidence CAN accumulate
     session.rollback.assert_awaited()  # …read-only, rolled back
     session.commit.assert_not_awaited()
+    # A web push is NOT rollbackable — dry-run must pass notify=False
+    # (S03 verifier finding #4: flag-OFF validation runs would otherwise
+    # re-push the same hard invalidation on every tick).
+    assert evaluate.await_args.kwargs.get("notify") is False
 
 
 @pytest.mark.asyncio

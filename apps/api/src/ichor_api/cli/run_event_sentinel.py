@@ -40,7 +40,7 @@ async def _run(*, dry_run: bool, horizon_minutes: int) -> int:
     try:
         async with sm() as session:
             persisted = await check_upcoming_economic_events(
-                session, horizon_minutes=horizon_minutes
+                session, horizon_minutes=horizon_minutes, notify=not dry_run
             )
             if dry_run:
                 await session.rollback()

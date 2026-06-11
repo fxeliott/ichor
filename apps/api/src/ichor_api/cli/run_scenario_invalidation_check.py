@@ -123,6 +123,9 @@ async def _run(
             persisted = await check_scenario_invalidations(
                 session,
                 lookback_hours=lookback_hours,
+                # A web push is not rollbackable — dry-run (incl. flag-OFF
+                # validation runs) must never notify (S03 verifier #4).
+                notify=not dry_run,
             )
         except Exception as exc:
             log.error(

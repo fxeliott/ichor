@@ -39,7 +39,7 @@ the same day (7 fresh read-only agents + live prod witness):
 Five shippable slices, all Voie-D (zero LLM call added):
 
 1. **Proactive data-freshness monitor** —
-   `services/collector_freshness.py` (30-source registry: table,
+   `services/collector_freshness.py` (29-source registry: table,
    timestamp column, expected max-age, criticality tier, ADR-105 market
    gate) + `cli/run_data_freshness_check.py` on a 5-min timer. Emits
    `COLLECTOR_STALE` / `COLLECTOR_ABSENT` / `RSS_FEED_SILENT` through
@@ -99,6 +99,13 @@ DATA_FRESHNESS, +1 EVENT_SENTINEL).
   Manifold data_pool consumers + cross-market consensus (Chantier C
   dimension work), Prometheus rules (systemd+notify path meets the gate
   without a new infra layer — revisit if alert routing outgrows ntfy).
+- Known residual (pre-existing, verifier finding #5): `check_metric`
+  web-pushes BEFORE the caller's commit — if the commit later fails, the
+  push has left and the dedup row hasn't landed (possible re-push next
+  tick). The realistic trigger on this branch (VARCHAR(16) overflow) is
+  fixed at the source + a defensive truncate; moving to post-commit
+  notification means changing the contract for 15+ existing callers —
+  deliberately deferred to a dedicated pass.
 
 ## Verification
 

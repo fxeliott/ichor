@@ -64,7 +64,7 @@ DEFAULT_STATE_FILE = "/var/lib/ichor/data-freshness.state.json"
 _RSS_SILENT_WINDOW = timedelta(hours=48)
 # Slow feeds whose legitimate publication gaps exceed 48h would
 # permanently pollute the silent list — they get a wider window.
-_RSS_SLOW_FEEDS: frozenset[str] = frozenset({"boc_press", "nfib", "crisisgroup"})
+_RSS_SLOW_FEEDS: frozenset[str] = frozenset({"boc_press", "crisisgroup"})
 _RSS_SLOW_WINDOW = timedelta(days=8)
 
 

@@ -58,7 +58,7 @@ Criticality = Literal["critical", "warning"]
 MarketGate = Literal["none", "fx", "us_equity"]
 FreshnessStatus = Literal["fresh", "stale", "absent", "skipped_market_closed"]
 
-_IDENT_RE = re.compile(r"^[a-z][a-z0-9_]{2,63}$")
+_IDENT_RE = re.compile(r"^[a-z][a-z0-9_]{1,63}$")  # ≥2 chars ("ts" is real)
 
 
 @dataclass(frozen=True, slots=True)
@@ -79,6 +79,11 @@ class FreshnessSpec:
         # future typo can never become an injection surface.
         if not _IDENT_RE.match(self.table) or not _IDENT_RE.match(self.ts_column):
             raise ValueError(f"invalid SQL identifier in spec {self.source_key!r}")
+        # source_key lands in alerts.asset VARCHAR(16) via check_metric —
+        # an overlong key would crash the alert flush at exactly the moment
+        # the source degrades (verifier finding #1).
+        if len(self.source_key) > 16:
+            raise ValueError(f"source_key {self.source_key!r} exceeds alerts.asset VARCHAR(16)")
 
 
 @dataclass(frozen=True, slots=True)
@@ -117,18 +122,24 @@ def _D(n: int) -> timedelta:  # noqa: N802
 FRESHNESS_REGISTRY: tuple[FreshnessSpec, ...] = (
     # ── critical tier: the real-time promise itself ──
     FreshnessSpec(
+        # ts (not created_at): partition key of the hypertable — max() gets
+        # chunk exclusion + index; created_at is unindexed (~1.5M rows/day,
+        # columnar-compressed past 7d → max(created_at) would full-scan
+        # every 5 min). For a live stream ts ≈ created_at within seconds.
         "fx_ticks",
         "fx_ticks",
-        "created_at",
+        "ts",
         _M(15),
         "critical",
         "fx",
         "Polygon FX WebSocket stream — continuous while FX is open",
     ),
     FreshnessSpec(
+        # bar_ts (not fetched_at): same hypertable-partition-key reasoning,
+        # and the bar timestamp measures DATA freshness directly.
         "polygon_intraday",
         "polygon_intraday",
-        "fetched_at",
+        "bar_ts",
         _M(15),
         "critical",
         "fx",
@@ -229,7 +240,11 @@ FRESHNESS_REGISTRY: tuple[FreshnessSpec, ...] = (
     ),
     FreshnessSpec("cftc_tff", "cftc_tff_observations", "fetched_at", _D(9), "warning"),
     FreshnessSpec("eia_crude", "eia_crude_stocks", "fetched_at", _D(9), "warning"),
-    FreshnessSpec("cleveland_nowcast", "cleveland_fed_nowcasts", "fetched_at", _D(10), "warning"),
+    # source_key ≤ 16 chars HARD LIMIT — it lands in alerts.asset VARCHAR(16)
+    # (verifier finding #1: "cleveland_nowcast" = 17 chars would crash the
+    # flush → exit 3 masked by systemd → the monitor silently self-kills).
+    # Pinned by __post_init__ below + test_registry invariant.
+    FreshnessSpec("cleveland_now", "cleveland_fed_nowcasts", "fetched_at", _D(10), "warning"),
     FreshnessSpec(
         "gpr",
         "gpr_observations",

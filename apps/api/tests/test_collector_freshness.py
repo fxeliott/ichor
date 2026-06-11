@@ -75,6 +75,25 @@ def test_spec_rejects_sql_unsafe_identifiers() -> None:
         _spec(ts_column="1col")
 
 
+def test_source_keys_fit_alerts_asset_column() -> None:
+    """source_key lands in alerts.asset VARCHAR(16) — an overlong key
+    would crash the alert flush at exactly the moment the source
+    degrades (S03 verifier finding #1, 'cleveland_nowcast' = 17 chars)."""
+    for s in FRESHNESS_REGISTRY:
+        assert len(s.source_key) <= 16, s.source_key
+    with pytest.raises(ValueError):
+        _spec(source_key="seventeen_chars_x")
+
+
+def test_hypertable_probes_use_partition_keys() -> None:
+    """fx_ticks/polygon_intraday are Timescale hypertables — max() must
+    probe the partition key (chunk exclusion), never an unindexed column
+    (S03 verifier finding #2: max(created_at) full-scans ~1.5M rows/day)."""
+    by_key = {s.source_key: s for s in FRESHNESS_REGISTRY}
+    assert by_key["fx_ticks"].ts_column == "ts"
+    assert by_key["polygon_intraday"].ts_column == "bar_ts"
+
+
 # ── Classification ────────────────────────────────────────────────────
 
 

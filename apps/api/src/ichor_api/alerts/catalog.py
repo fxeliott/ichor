@@ -685,7 +685,7 @@ DATA_FRESHNESS_ALERTS: tuple[AlertDef, ...] = (
     AlertDef(
         "COLLECTOR_ABSENT",
         "critical",
-        "Collecte {source_key} n'a jamais livre — table {table} vide",
+        "Collecte {source_key} n'a jamais livré — table {table} vide",
         "collector_absent",
         0.5,
         "above",
@@ -698,7 +698,7 @@ DATA_FRESHNESS_ALERTS: tuple[AlertDef, ...] = (
     AlertDef(
         "RSS_FEED_SILENT",
         "warning",
-        "{value:.0f} flux RSS silencieux depuis 48h : {silent_feeds}",
+        "{value:.0f} flux RSS silencieux au-delà de leur fenêtre attendue : {silent_feeds}",
         "rss_silent_feeds",
         0.5,
         "above",
