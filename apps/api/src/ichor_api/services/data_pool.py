@@ -4902,6 +4902,15 @@ async def _section_prediction_markets(
 _GEO_GDELT_POOL = 400
 _GEO_MIN_ASSET_MATCHES = 3  # below this, GDELT negatives fall back to the global ranking
 
+# Column-vitality guard (2026-06-11): prod witness showed 13,607/13,607 GDELT
+# rows at tone=0.0 over 8 days — the ArtList JSON feed carries no per-article
+# tone (parser default 0.0), so a "most-negative" ranking over an all-zero
+# pool is fabricated order (recency in disguise) and per-asset filtering of
+# that unranked pool surfaces keyword noise. Below this sample size we do NOT
+# declare the column dead (a tiny genuinely-neutral pool stays on the normal
+# path); at/above it, 100% tone==0.0 → suspend the ranking honestly.
+_GEO_TONE_DEAD_MIN_N = 20
+
 
 async def _section_geopolitics(
     session: AsyncSession, asset: str | None = None
@@ -4975,7 +4984,28 @@ async def _section_geopolitics(
         .limit(_GEO_GDELT_POOL)
     )
     gdelt_rows = list((await session.execute(gdelt_stmt)).scalars().all())
-    if gdelt_rows:
+    tone_dead = len(gdelt_rows) >= _GEO_TONE_DEAD_MIN_N and all(r.tone == 0.0 for r in gdelt_rows)
+    if tone_dead:
+        # Honest absence > fabricated ranking (« sans zone d'ombre ») : with
+        # the tone column flat-zero, "most-negative" would silently mean
+        # "most-recent + keyword noise". Suspend the cluster, surface the
+        # upstream data-quality hole, keep AI-GPR (independent source) above.
+        lines.append(
+            f"- ⚠ GDELT tone ABSENT upstream ({len(gdelt_rows)} events in 24h, 100% tone=0.0) — "
+            "negative-event ranking suspended; per-asset headlines remain covered by the "
+            "News section"
+        )
+        degraded.append(
+            DegradedInput(
+                series_id="GDELT:tone",
+                status="absent",
+                latest_date=None,
+                age_days=None,
+                max_age_days=0,
+                impacted="geopolitics",
+            )
+        )
+    elif gdelt_rows:
 
         def _gd_key(r: GdeltEvent) -> tuple[str, str]:
             blob = " ".join([r.title or "", r.query_label or "", r.domain or ""])
