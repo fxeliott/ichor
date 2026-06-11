@@ -37,9 +37,10 @@ def test_catalog_breakdown() -> None:
     # Phase D.5 + Phase E shipped 21 alerts wave 1-22 (33→54 total).
     # r165 added 3 SCENARIO_INVALIDATION_ALERTS (HARD/SOFT/NOTE → critical/warning/info)
     # joining ALL_ALERTS 54→57 ; catalog expectation re-aligned r167-close round-2 audit.
+    # S03 Chantier D (2026-06-11) added 3 DATA_FRESHNESS + 1 EVENT_SENTINEL (57→61).
     assert len(PLAN_ALERTS) == 46
     assert len(AUDIT_V2_ALERTS) == 8
-    assert len(ALL_ALERTS) == 57
+    assert len(ALL_ALERTS) == 61
 
 
 def test_catalog_severity_values_valid() -> None:
