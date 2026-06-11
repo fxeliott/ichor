@@ -377,3 +377,41 @@ async def check_scenario_invalidations(
             card_id=hit.source_payload.get("card_id"),
         )
     return persisted
+
+
+# ── S03 Chantier D — pre-announcement sentinel ────────────────────────────
+
+
+async def check_upcoming_economic_events(
+    session: AsyncSession,
+    *,
+    now_utc: datetime | None = None,
+    horizon_minutes: int = 60,
+) -> list[AlertHit]:
+    """S03 — wrap the pre-announcement sentinel into the canonical alerts
+    pipeline. Dedup is EVENT-CLUSTER-level (handled inside the evaluator
+    via ``source_payload.event_key``, NOT the generic 2h window — a 16:00
+    print must not be masked by a 14:30 cluster on the same currency).
+    Caller MUST ``await session.commit()`` — same contract as
+    ``check_metric()``. Returns ``[]`` on a quiet calendar (no fabricated
+    "nothing upcoming" noise)."""
+    from ..alerts.event_sentinel import evaluate_upcoming_event_hits
+
+    hit_pairs = await evaluate_upcoming_event_hits(
+        session,
+        now_utc=now_utc,
+        horizon_minutes=horizon_minutes,
+    )
+    persisted: list[AlertHit] = []
+    for hit, currency in hit_pairs:
+        _persist_hit(session, hit, asset=currency)
+        persisted.append(hit)
+        await _maybe_notify(hit, asset=None)
+        log.info(
+            "eco_event_imminent.triggered",
+            currency=currency,
+            event_key=hit.source_payload.get("event_key"),
+            minutes_until=hit.metric_value,
+            n_events=hit.source_payload.get("n_events"),
+        )
+    return persisted

@@ -713,6 +713,29 @@ DATA_FRESHNESS_ALERTS: tuple[AlertDef, ...] = (
     ),
 )
 
+# S03 Chantier D — pre-announcement sentinel ("être prévenu de TOUTES les
+# annonces", spec S03 verbatim). Emitted by `cli/run_event_sentinel.py`
+# (10-min timer) via `alerts/event_sentinel.py`. Severity `critical` on
+# purpose: a high-impact print < 60 min away is the must-not-miss class and
+# `critical` is the web-push tier. Event-level dedup via payload event_key
+# (the generic 2h (code, asset) window would mask a 16:00 print behind a
+# 14:30 cluster). ADR-017: describes the calendar, never a direction.
+EVENT_SENTINEL_ALERTS: tuple[AlertDef, ...] = (
+    AlertDef(
+        "ECO_EVENT_IMMINENT",
+        "critical",
+        "{titles} ({currency}) dans {value:.0f} min — {local_paris} Paris",
+        "event_minutes_until",
+        60,
+        "below",
+        description=(
+            "Annonce économique à fort impact imminente sur une devise du "
+            "périmètre. Contexte : intitulés, heure Paris, consensus si "
+            "publié. Descriptif uniquement — jamais une direction."
+        ),
+    ),
+)
+
 # r165 Strand E — Scenario Invalidation alerts (3 severity tiers) joining
 # the canonical catalog. Defined in `alerts/scenario_invalidation.py` and
 # imported here to extend the registry via the same `+` concatenation
@@ -722,7 +745,11 @@ DATA_FRESHNESS_ALERTS: tuple[AlertDef, ...] = (
 from .scenario_invalidation import SCENARIO_INVALIDATION_ALERTS  # noqa: E402
 
 ALL_ALERTS: tuple[AlertDef, ...] = (
-    PLAN_ALERTS + AUDIT_V2_ALERTS + DATA_FRESHNESS_ALERTS + SCENARIO_INVALIDATION_ALERTS
+    PLAN_ALERTS
+    + AUDIT_V2_ALERTS
+    + DATA_FRESHNESS_ALERTS
+    + EVENT_SENTINEL_ALERTS
+    + SCENARIO_INVALIDATION_ALERTS
 )
 
 # Quick lookup
@@ -739,12 +766,12 @@ def get_alert_def(code: str) -> AlertDef:
 
 
 def assert_catalog_complete() -> None:
-    """Sanity check at startup: total = 60 alerts, all unique codes.
+    """Sanity check at startup: total = 61 alerts, all unique codes.
 
     r165 Strand E added 3 SCENARIO_INVALIDATION_* entries (54 → 57).
-    S03 Chantier D added 3 DATA_FRESHNESS entries (57 → 60).
+    S03 Chantier D added 3 DATA_FRESHNESS + 1 EVENT_SENTINEL (57 → 61).
     """
     codes = [a.code for a in ALL_ALERTS]
     assert len(codes) == len(set(codes)), f"Duplicate alert codes: {codes}"
-    assert len(ALL_ALERTS) == 60, f"Expected 60 alerts, got {len(ALL_ALERTS)}"
+    assert len(ALL_ALERTS) == 61, f"Expected 61 alerts, got {len(ALL_ALERTS)}"
     assert len(CRISIS_TRIGGERS) >= 5, f"Expected ≥5 crisis triggers, got {len(CRISIS_TRIGGERS)}"
