@@ -186,10 +186,13 @@ if _DSPY_AVAILABLE:
                 # call_agent_task_async returns the raw text (or a parsed
                 # Pydantic if output_type given). We use raw text + let
                 # DSPy adapters parse downstream.
+                # Signature is (cfg, *, system, prompt, ...) — the old
+                # system_prompt=/user_prompt= kwargs raised TypeError on
+                # the un-mocked path (caught by the ADR-110 verifier).
                 text = await call_agent_task_async(
                     cfg=self._runner_cfg,
-                    system_prompt=system_prompt,
-                    user_prompt=user_prompt,
+                    system=system_prompt,
+                    prompt=user_prompt,
                     output_type=None,
                 )
             except Exception as e:  # noqa: BLE001 — surface as DSPy-shape error

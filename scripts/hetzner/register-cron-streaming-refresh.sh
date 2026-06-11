@@ -39,16 +39,17 @@ Group=ichor
 WorkingDirectory=/opt/ichor/api
 EnvironmentFile=/etc/ichor/api.env
 ExecStart=/opt/ichor/api/.venv/bin/python -m ichor_api.cli.run_streaming_refresh
-# Up to max-per-fire (3) sequential 4-pass+Pass-6 Opus regens; each ~80-240s
-# (up to ~540s in the pathological runner-timeout tail). The old 600s cap
-# SIGTERM'd LEGITIMATE 2-3-regen fires mid-Opus-call (witnessed 2026-06-09:
-# 6/18 fires "start operation timed out" in 24h, last 3 consecutive) -> wasted
-# the Opus call + left the card half-written + marked the unit failed. Runtime
-# is ALREADY bounded internally (max_regens_per_fire=3 + per-asset 45min
-# cooldown + each regen's own runner timeout), and systemd serialises oneshot
-# starts so a long fire just coalesces the next 12-min tick (NO concurrent
-# runs). 1800s covers 3 worst-case regens while still killing a genuine hang.
-TimeoutStartSec=1800
+# Up to max-per-fire (3) sequential 4-pass+Pass-6 Opus regens. At effort
+# xhigh (ADR-110) the pathological runner-timeout tail per regen is now
+# 900-960s (runner kill 900 / poll budget 960) — the old 1800s cap (sized
+# for the 540s tail) would SIGTERM a legitimate 3-regen fire, repeating
+# the witnessed 2026-06-09 class (6/18 fires "start operation timed out").
+# Runtime is ALREADY bounded internally (max_regens_per_fire=3 + per-asset
+# 45min cooldown + each regen's own runner timeout), and systemd serialises
+# oneshot starts so a long fire just coalesces the next 12-min tick (NO
+# concurrent runs). 3600s covers 3 worst-case xhigh regens while still
+# killing a genuine hang.
+TimeoutStartSec=3600
 StandardOutput=journal
 StandardError=journal
 # Exit 1 = feature flag OFF (clean skip, not a failure)

@@ -66,6 +66,43 @@ class TestBatchExitCodeContract:
         assert rc == 2
 
     @pytest.mark.asyncio
+    async def test_market_closed_all_skipped_returns_0(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """ADR-105 gate suppressing every asset is a clean no-op, not a
+        failure — completes the docstring contract (verifier finding F9)."""
+
+        class _FakeFlagSession:
+            async def __aenter__(self) -> _FakeFlagSession:
+                return self
+
+            async def __aexit__(self, *args: object) -> bool:
+                return False
+
+        class _ClosedStatus:
+            market_closed_fx = True
+            market_closed_us_equity = True
+            state = "weekend"
+            holiday_name = None
+
+        async def _flag_on(session: object, flag: str) -> bool:
+            return True
+
+        monkeypatch.setattr(batch_mod, "get_sessionmaker", lambda: _FakeFlagSession)
+        monkeypatch.setattr(batch_mod, "is_enabled", _flag_on)
+        monkeypatch.setattr(batch_mod, "compute_session_status", lambda: _ClosedStatus())
+        monkeypatch.setattr(batch_mod, "market_closed_for_asset", lambda a, s: True)
+        monkeypatch.setattr(batch_mod, "run_one_card", _fake_card_factory({}))
+
+        rc = await batch_mod._run_batch(
+            session_type="pre_londres",
+            assets=_ASSETS,
+            live=False,
+            inter_card_sleep_s=0.0,
+        )
+        assert rc == 0
+
+    @pytest.mark.asyncio
     async def test_unknown_session_type_returns_2(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Bad invocation shares the hard-failure code (pre-existing contract)."""
         monkeypatch.setattr(batch_mod, "run_one_card", _fake_card_factory({}))

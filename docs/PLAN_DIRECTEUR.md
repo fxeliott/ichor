@@ -309,7 +309,8 @@ Literal change needed; Couche-2 stays `low` (ADR-108 cost/latency split);
 Mythos-class engine only when included in subscription plans again); (c) staged
 rollout + live card witness per surface, **watching batch duration and quota**
 — xhigh multiplies tokens/latency per card, so the §6.1 contention rule and
-the 540 s runner timeout must be re-validated on the first witnessed batch.
+the runner timeout (540 s → raised to 900 s by ADR-110, executed 2026-06-11)
+must be re-validated on the first witnessed batch.
 Execute as the opening task of the next code session — before/alongside
 Chantier A so the benchmark measures the final engine. _(Interactive
 Claude-Code sessions may still use Fable 5 until June 22 — session model ≠

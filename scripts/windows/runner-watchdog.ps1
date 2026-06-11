@@ -136,7 +136,13 @@ try {
             # process env). The canonical .bat re-probes the binary at every
             # launch, so ONE recycle through it repairs this class. Sentinel
             # file = anti-loop: at most one recycle attempt per 30 minutes.
-            $sentinel = Join-Path (Split-Path -Parent $LogFile) 'runner-watchdog.exit3-recycle.stamp'
+            # Sentinel survives a HEAL on purpose: a relapse <30 min after a
+            # successful recycle is a crash-loop signature -> report (exit 3),
+            # don't thrash. Guard the parent dir: a bare -LogFile name makes
+            # Split-Path return '' and Join-Path would throw (verifier F8).
+            $sentinelDir = Split-Path -Parent $LogFile
+            if (-not $sentinelDir) { $sentinelDir = '.' }
+            $sentinel = Join-Path $sentinelDir 'runner-watchdog.exit3-recycle.stamp'
             $recentRecycle = $false
             if (Test-Path $sentinel) {
                 $age = (Get-Date) - (Get-Item $sentinel).LastWriteTime

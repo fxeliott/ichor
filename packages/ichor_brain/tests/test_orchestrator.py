@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 
 import pytest
 from ichor_brain.orchestrator import Orchestrator
-from ichor_brain.runner_client import InMemoryRunnerClient, RunnerCall
+from ichor_brain.runner_client import InMemoryRunnerClient, RunnerCall, RunnerResponse
 
 from .fixtures import (
     ASSET_OK_JSON,
@@ -144,6 +144,47 @@ class TestEffortDoctrine:
         )
         assert orch._scenarios_effort == "xhigh"  # noqa: SLF001 — doctrine lockstep
         assert orch._scenarios_model == "opus"  # noqa: SLF001
+
+    @pytest.mark.asyncio
+    async def test_pass6_emitted_runner_call_is_opus_xhigh(self) -> None:
+        """Exercise the ACTUAL Pass-6 RunnerCall (enable_scenarios=True) —
+        asserting only the constructor default would let a hardcoded
+        effort at the call site slip through (verifier finding F6)."""
+
+        class _StubScenariosPass:
+            name = "pass6_scenarios"
+            system_prompt = "stub system"
+
+            def build_prompt(self, **kwargs: object) -> str:
+                return "stub scenarios prompt"
+
+            def parse(self, text: str) -> object:
+                class _Decomp:
+                    scenarios: list = []
+
+                return _Decomp()
+
+        responses = four_pass_responses()
+        responses.append(RunnerResponse(text="{}", raw={"stub": True}, duration_ms=1_000))
+        runner = InMemoryRunnerClient(responses)
+        orch = Orchestrator(
+            runner=runner,
+            critic_fn=stub_critic_fn(),
+            scenarios_pass=_StubScenariosPass(),
+            enable_scenarios=True,
+        )
+
+        result = await orch.run(
+            session_type="pre_londres",
+            asset="EUR_USD",
+            data_pool=_DATA_POOL,
+            asset_data=_ASSET_DATA,
+        )
+
+        assert len(result.runner_calls) == 5
+        call6 = result.runner_calls[4]
+        assert call6.model == "opus", f"Pass-6 model {call6.model!r} != opus (ADR-110)"
+        assert call6.effort == "xhigh", f"Pass-6 effort {call6.effort!r} != xhigh (ADR-110)"
 
     def test_runner_call_default_effort_is_xhigh(self) -> None:
         assert RunnerCall(prompt="p", system="s").effort == "xhigh"

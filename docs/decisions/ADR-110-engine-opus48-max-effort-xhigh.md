@@ -83,9 +83,14 @@ ichor-notify@` fires.
 4. **Win11 watchdog self-heals the WinError-2 class**: on `status=down /
 claude_cli_available=false` it now recycles ONCE per 30-min window
    through the self-probing `.bat` (which re-resolves `claude.exe` at every
-   launch), instead of only reporting. The `:8765` NSSM zombie instance is
-   retired (stopped + disabled) — one canonical supervised runner on
-   `:8766`.
+   launch), instead of only reporting. The `:8765` NSSM zombie
+   (`IchorClaudeRunner` service, SYSTEM): retirement is **decided but
+   pending an admin elevation only the owner can perform** (stop +
+   disable — the service held file locks inside `.venv`, which is why the
+   canonical runner now runs from the lock-clean `.venv-live`, isolating
+   prod from the zombie meanwhile). Until then: one canonical SERVING
+   runner on `:8766` (tunnel-routed, witnessed), one inert listener on
+   `:8765`.
 
 ## Consequences
 
@@ -103,7 +108,10 @@ claude_cli_available=false` it now recycles ONCE per 30-min window
 
 ## Invariant (test-guarded)
 
-`test_orchestrator.py::TestEffortDoctrine` locks every orchestrator
-RunnerCall (4 passes + Pass-6) to `effort="xhigh"`, and the batch CLI's
-total-failure path to rc=2. Couche-2 `low` remains guarded by
-`test_invariants_ichor.py` (ADR-108).
+- `test_orchestrator.py::TestEffortDoctrine` locks the 4 pass RunnerCalls
+  AND the emitted Pass-6 RunnerCall (`enable_scenarios=True` exercised
+  with a stub pass) to `effort="xhigh"`.
+- `test_session_cards_batch_exit_codes.py` locks the batch CLI exit-code
+  contract (0 / 1 partial / 2 total).
+- `test_invariants_ichor.py::test_couche2_agents_effort_low` locks the
+  five Couche-2 agents to `effort="low"` (ADR-108 split).

@@ -266,6 +266,41 @@ def test_couche2_agents_reference_opus() -> None:
     )
 
 
+_COUCHE2_AGENT_MODULES = ("cb_nlp.py", "news_nlp.py", "sentiment.py", "positioning.py", "macro.py")
+_EFFORT_LOW_RE = re.compile(r"""effort\s*=\s*['"]low['"]""")
+_EFFORT_HIGH_RE = re.compile(r"""effort\s*=\s*['"](?:x?high|max)['"]""")
+
+
+def test_couche2_agents_effort_low() -> None:
+    """ADR-108/ADR-110 split : the five Couche-2 agents are structured
+    extraction, not deep reasoning — they MUST wire `effort="low"`. The
+    ADR-110 xhigh uplift applies to Couche-1 generation surfaces ONLY;
+    a silent effort bump here would multiply latency/quota on the
+    highest-frequency call path for zero quality gain."""
+    if not _COUCHE2_AGENTS_DIR.exists():
+        pytest.skip("ichor_agents package not yet installed in this checkout")
+
+    missing_low: list[str] = []
+    high_offenders: list[str] = []
+    for name in _COUCHE2_AGENT_MODULES:
+        path = _COUCHE2_AGENTS_DIR / name
+        if not path.exists():
+            missing_low.append(f"{name} (file not found)")
+            continue
+        text = path.read_text(encoding="utf-8")
+        if not _EFFORT_LOW_RE.search(text):
+            missing_low.append(name)
+        if _EFFORT_HIGH_RE.search(text):
+            high_offenders.append(name)
+    assert missing_low == [], (
+        f"ADR-108 violated : Couche-2 agents without effort='low' wiring : {missing_low}"
+    )
+    assert high_offenders == [], (
+        f"ADR-110 boundary violated : Couche-2 agents wiring a high/xhigh/max "
+        f"effort : {high_offenders} (xhigh is Couche-1 generation ONLY)"
+    )
+
+
 # ────────────────────────── ADR-029 + ADR-077 ──────────────────────────
 
 # Two append-only audit tables exist in the schema, each backed by a
