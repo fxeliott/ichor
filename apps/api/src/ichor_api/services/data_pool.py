@@ -4964,10 +4964,14 @@ async def _section_geopolitics(
     from .asset_news_affinity import filter_rows_by_asset_affinity
 
     cutoff = datetime.now(UTC) - timedelta(hours=24)
+    # id.asc() tertiary tiebreak: (tone, seendate) is NOT a total order — the
+    # same article ingested under several query_labels ties on both, and
+    # Postgres gives no intra-tie guarantee (plan-dependent). Pinning the
+    # tiebreak keeps the candidate pool deterministic across LIMIT changes.
     gdelt_stmt = (
         select(GdeltEvent)
         .where(GdeltEvent.seendate >= cutoff)
-        .order_by(GdeltEvent.tone.asc(), GdeltEvent.seendate.desc())
+        .order_by(GdeltEvent.tone.asc(), GdeltEvent.seendate.desc(), GdeltEvent.id.asc())
         .limit(_GEO_GDELT_POOL)
     )
     gdelt_rows = list((await session.execute(gdelt_stmt)).scalars().all())

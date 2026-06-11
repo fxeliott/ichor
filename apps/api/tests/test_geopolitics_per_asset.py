@@ -146,14 +146,21 @@ def test_geo_candidate_pool_parity_brain_vs_router() -> None:
     the /v1/geopolitics/briefing router must draw the SAME candidate pool for
     the router's default top=5, or the brain's card and the frontend panel
     silently diverge on which events qualify as the asset's conversation."""
+    import inspect
+
     from ichor_api.routers.geopolitics import (
         _FILTER_FETCH_MULTIPLIER,
         _FILTER_MAX_FETCH,
         _MIN_ASSET_MATCHES,
+        briefing,
     )
     from ichor_api.services.data_pool import _GEO_GDELT_POOL
 
-    router_default_top = 5  # Query(5, ...) default in routers/geopolitics.briefing
+    # Introspect the route's actual default (reviewer MINOR 3): if someone
+    # changes Query(5, ...) the lockstep must follow the REAL default, not a
+    # stale hardcoded 5.
+    router_default_top = inspect.signature(briefing).parameters["top"].default.default
+    assert isinstance(router_default_top, int)
     router_pool = min(
         _FILTER_MAX_FETCH,
         max(router_default_top * _FILTER_FETCH_MULTIPLIER, _MIN_ASSET_MATCHES * 8),
