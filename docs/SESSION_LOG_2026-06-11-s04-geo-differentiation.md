@@ -104,7 +104,38 @@ ADR-017 (bands content-neutral, `is_adr017_clean` asserted + reviewer-executed)
 session interactive = Fable 5 jusqu'au 22/06, conforme décision owner §9.3)
 · brain↔panel parity pinned at the router's introspected default.
 
-## 8 · Ops notes
+## 8 · Re-fire #2 (06-12 ~01:00) — the tone column REPAIRED for real (ADR-112, PR #232 `090af3c`)
+
+The owner re-fired with « tu es sûr d'avoir tout traité à 100% ? ». Honest
+answer: no — §5 follow-up ① (real tone repair) was the highest-leverage
+untreated gap: the geopolitics dimension was honestly SUSPENDED, not alive.
+Shipped same night:
+
+- **NEW `run_gdelt_tone_scorer`** (mirrors `run_news_tone_scorer`): local
+  FinBERT scoring of unscored English titles (62% of rows/48h, prod
+  witness), `tone = (p_pos − p_neg) × 10` on the GDELT-like scale; 15-min
+  timer + OnFailure notify; no migration (`0.0` keeps meaning unscored/
+  non-English/balanced); 48h first-run backfill.
+- **Fresh reviewer (8 hunt axes): APPROVE, 0 blocker** — MAJOR-1 folded
+  pre-merge: `TARIFF_SHOCK` avg_tone now averages SCORED rows only
+  (unscored 0.0 excluded — a 62%-English mix would have made the −1.5
+  gate ~1.6× harder than calibrated); + backfill-before-enable, rowcount
+  guard, stale VADER comment, smoke test.
+- **Runtime witnesses (all live prod)**: backfill 2,158 rows scored ·
+  24h window now 877 neg / 419 pos / true −10..+10 distribution · service
+  `Result=success ExecMainStatus=0` · **geo section 5/5: guard
+  auto-disarmed, `applied=true`, degraded=[], REAL per-asset negative
+  events** (World Bank→EUR, RICS housing→GBP, Nasdaq chips→SPX/NAS) ·
+  heatmap `mean_tone` alive (US −0.66, India −1.3) · `tariff_shock`
+  computes `avg_tone=−0.213` on scored rows — the alert is fireable again
+  (no anomaly today, correct silence).
+- Residual NITs (named): FinBERT saturates clearly-negative headlines at
+  −10 (ranking unaffected; coarser granularity than a lexicon tone) ·
+  dispose() GC warning on CLI exit (non-fatal, exit 0 proven) · MINOR-1
+  noisy-notify on transient DB blips = follow-up with the column-vitality
+  probes.
+
+## 8bis · Ops notes
 
 - ny_close 22:00 batch ran 4/6 cards during the interactive session
   (contention §6.1 coexisted; durations 417-672s in xhigh norm); GDELT
