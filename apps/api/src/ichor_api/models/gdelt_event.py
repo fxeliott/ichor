@@ -34,6 +34,14 @@ class GdeltEvent(Base):
     domain: Mapped[str | None] = mapped_column(String(128), index=True)
     language: Mapped[str | None] = mapped_column(String(32))
     sourcecountry: Mapped[str | None] = mapped_column(String(32))
+    # Tone on a GDELT-like scale (~-10 negative .. +10 positive). HISTORY
+    # (ADR-112): the DOC 2.0 ArtList JSON feed carries NO per-article tone —
+    # the collector's parser default left 100% of rows at 0.0 (witnessed
+    # 2026-06-11: 13,607/13,607 over the full retention). Since 2026-06-12
+    # the tone is scored LOCALLY by run_gdelt_tone_scorer (FinBERT-tone,
+    # English titles only, (p_pos - p_neg) * 10). 0.0 means: not yet scored,
+    # non-English, or exactly balanced — consumers treating 0.0 as neutral
+    # stay correct.
     tone: Mapped[float] = mapped_column(Float, nullable=False)
     image_url: Mapped[str | None] = mapped_column(String(1024))
     fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
