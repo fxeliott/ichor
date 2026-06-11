@@ -49,6 +49,18 @@ class TestToneFromDistribution:
         assert tone <= -1.5
 
 
+class TestScorerSmoke:
+    """Parity with test_run_news_tone_scorer smoke coverage."""
+
+    def test_module_imports_and_main_parses_help(self) -> None:
+        import pytest as _pytest
+        from ichor_api.cli import run_gdelt_tone_scorer as mod
+
+        with _pytest.raises(SystemExit) as exc:
+            mod.main(["run_gdelt_tone_scorer", "--help"])
+        assert exc.value.code == 0
+
+
 class TestScorerContract:
     def test_language_filter_is_long_form_english(self) -> None:
         # Prod stores the long-form name (witnessed 'English' 2,181 rows/48h),

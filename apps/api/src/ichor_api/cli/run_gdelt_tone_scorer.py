@@ -137,12 +137,19 @@ async def run(
                 # would be a no-op — skip; the row re-enters the next scan.
                 n_zero_skipped += 1
                 continue
-            await session.execute(
+            result = await session.execute(
                 sa_text(
                     "UPDATE gdelt_events SET tone = :tone WHERE id = :id AND seendate = :seendate"
                 ),
                 {"tone": tone, "id": str(row_id), "seendate": seendate},
             )
+            if result.rowcount != 1:  # pragma: no cover - observability guard
+                # A 0-row UPDATE would silently lie in n_updated (reviewer
+                # PR #232 NIT) — surface it instead of counting it.
+                log.warning(
+                    "gdelt_tone_scorer.update_missed", id=str(row_id), rowcount=result.rowcount
+                )
+                continue
             n_updated += 1
         await session.commit()
     print(f"GDELT tone scorer · updated {n_updated} rows (skipped exact-zero: {n_zero_skipped})")

@@ -29,9 +29,13 @@ LLM call, CPU inference, warm HF cache):
   FinBERT-tone is an English financial-text model). Non-English rows stay
   at an honest neutral 0.0, documented on the model.
 - **Scale**: `tone = (p_positive − p_negative) × 10` — continuous signed
-  score on the GDELT-like −10..+10 scale every consumer was built for
-  (`TARIFF_SHOCK` −1.5 ≙ FinBERT −0.15). The softmax difference beats
-  label±confidence on ambivalent headlines.
+  score on the GDELT-like −10..+10 scale every consumer was built for.
+  The softmax difference beats label±confidence on ambivalent headlines.
+  NOTE (reviewer MAJOR-1): the `TARIFF_SHOCK −1.5 ≙ FinBERT −0.15`
+  equivalence only holds on SCORED rows — unscored rows (0.0) would
+  dilute the average ~1.6× on a 62%-English mix, so `_bucket_by_day`
+  now EXCLUDES `tone == 0.0` from `today_tones` (unscored ≠ neutral
+  vote; the empty-set → `avg_tone=None` fail-safe path is unchanged).
 - **No migration**: `tone = 0.0` keeps meaning "not scored / non-English /
   exactly balanced"; the 6h re-scan window (news-scorer pattern) bounds
   retries; exact-zero scores are skipped (re-enter next tick).

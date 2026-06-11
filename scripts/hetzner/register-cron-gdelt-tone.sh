@@ -58,12 +58,17 @@ WantedBy=timers.target
 EOF
 
 systemctl daemon-reload
-systemctl enable --now ichor-gdelt-tone-scorer.timer
 
-echo "=== Installed GDELT tone scorer timer (ADR-112) ==="
-systemctl list-timers ichor-gdelt-tone-scorer.timer --no-pager
-echo ""
+# Backfill BEFORE arming the timer (reviewer PR #232 MINOR-3): enabling a
+# monotonic timer whose OnBootSec already elapsed fires the service
+# immediately — running the 48h backfill first avoids two concurrent
+# FinBERT processes chewing the same rows at install time.
 echo "First-run 48h backfill (revives the 24h consumers immediately):"
 sudo -u ichor bash -c 'set -a; source /etc/ichor/api.env; set +a; \
   /opt/ichor/api/.venv/bin/python -m ichor_api.cli.run_gdelt_tone_scorer \
   --persist --max-age-hours 48 --max-rows 2500' || echo "(backfill exit $?)"
+
+systemctl enable --now ichor-gdelt-tone-scorer.timer
+
+echo "=== Installed GDELT tone scorer timer (ADR-112) ==="
+systemctl list-timers ichor-gdelt-tone-scorer.timer --no-pager
