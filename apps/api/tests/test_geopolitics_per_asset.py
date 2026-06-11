@@ -141,6 +141,54 @@ async def test_geopolitics_gpr_absent_is_degraded() -> None:
     assert "AI-GPR ABSENT" in md
 
 
+async def test_geopolitics_tone_dead_suspends_ranking() -> None:
+    """Column-vitality guard: ≥_GEO_TONE_DEAD_MIN_N events ALL at tone=0.0 ⇒
+    the 'most-negative' ranking is fabricated order → suspend honestly with a
+    GDELT:tone degraded trace (prod witness 2026-06-11: 13,607 rows / 8 days
+    / 100% tone=0.0)."""
+    pool = [_gdelt(i, f"Flat tone story {i}", 0.0) for i in range(1, 25)]
+    md, _, degraded = await _section_geopolitics(_session(gpr=_gpr(), gdelt=pool), "EUR_USD")
+    assert "GDELT tone ABSENT upstream" in md
+    assert "ranking suspended" in md
+    # No event list rendered — no fabricated 'most-negative' cluster.
+    assert "Flat tone story" not in md
+    assert any(d.series_id == "GDELT:tone" and d.status == "absent" for d in degraded)
+    assert is_adr017_clean(md)
+
+
+async def test_geopolitics_real_tones_keep_normal_path() -> None:
+    """A pool with ANY non-zero tone keeps the normal ranking path."""
+    pool = _mixed_pool()  # tones -4.0 … -1.0
+    md, _, degraded = await _section_geopolitics(_session(gpr=_gpr(), gdelt=pool), "EUR_USD")
+    assert "GDELT tone ABSENT" not in md
+    assert "ticker-linked to EUR_USD" in md
+    assert not any(d.series_id == "GDELT:tone" for d in degraded)
+
+
+async def test_geopolitics_small_neutral_pool_not_declared_dead() -> None:
+    """Below the sample-size floor a genuinely quiet/neutral window must NOT
+    be declared a dead column — normal path (here: scarce fallback)."""
+    pool = [_gdelt(i, f"Neutral story {i}", 0.0) for i in range(1, 5)]  # 4 < 20
+    md, _, degraded = await _section_geopolitics(_session(gpr=_gpr(), gdelt=pool), "EUR_USD")
+    assert "GDELT tone ABSENT" not in md
+    assert "match scarce" in md  # normal scarce-fallback path
+    assert not any(d.series_id == "GDELT:tone" for d in degraded)
+
+
+async def test_geopolitics_tone_dead_floor_is_exactly_20() -> None:
+    """Pin the exact boundary (reviewer #230 NIT): 19 all-zero rows = normal
+    path, 20 = suspended. Changing _GEO_TONE_DEAD_MIN_N must touch this test."""
+    pool19 = [_gdelt(i, f"Flat story {i}", 0.0) for i in range(1, 20)]
+    md19, _, deg19 = await _section_geopolitics(_session(gpr=_gpr(), gdelt=pool19), "EUR_USD")
+    assert "GDELT tone ABSENT" not in md19
+    assert not any(d.series_id == "GDELT:tone" for d in deg19)
+
+    pool20 = [_gdelt(i, f"Flat story {i}", 0.0) for i in range(1, 21)]
+    md20, _, deg20 = await _section_geopolitics(_session(gpr=_gpr(), gdelt=pool20), "EUR_USD")
+    assert "GDELT tone ABSENT" in md20
+    assert any(d.series_id == "GDELT:tone" for d in deg20)
+
+
 def test_geo_candidate_pool_parity_brain_vs_router() -> None:
     """Brain↔panel parity lockstep (S04 TIER-2 #3): the data_pool section and
     the /v1/geopolitics/briefing router must draw the SAME candidate pool for
