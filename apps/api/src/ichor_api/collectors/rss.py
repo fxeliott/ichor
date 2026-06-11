@@ -91,8 +91,11 @@ DEFAULT_FEEDS: tuple[FeedSource, ...] = (
         "central_bank",
     ),
     FeedSource(
+        # ForexLive rebranded to InvestingLive; the old URL 301-redirects.
+        # Point at the canonical URL (no dependency on redirect-following);
+        # the source NAME stays "forexlive" so guid_hash dedup history holds.
         "forexlive",
-        "https://www.forexlive.com/feed/",
+        "https://investinglive.com/feed/news",
         "news",
     ),
     FeedSource(
@@ -113,6 +116,73 @@ DEFAULT_FEEDS: tuple[FeedSource, ...] = (
     FeedSource(
         "investing_economy",
         "https://www.investing.com/rss/news_25.rss",
+        "news",
+    ),
+    # S03 second expansion (2026-06-11) — "interconnexion newsletters du
+    # monde" depth pass. Every URL below was fetch-verified (HTTP 200 +
+    # valid XML + items dated 2026-06-10/11) on 2026-06-11 before being
+    # added; HTTPS-only (MITM safety, MED-2). Rejected after live checks,
+    # never guessed: BLS news_release.rss (403 WAF), ReliefWeb (403 —
+    # use their REST API later), Foreign Affairs (403 + paywall),
+    # Treasury press (60s timeouts ×2), Reuters/AP (no public RSS since
+    # 2020), Fed press_monetary (subset of press_all — per-source
+    # guid_hash would duplicate every FOMC item), Eurostat news (feed
+    # currently serves an empty skeleton).
+    FeedSource(
+        # RSS 1.0 / RDF format (rdf:RDF root, namespaced items) — parser
+        # support added alongside (see the RSS 1.0 branch in parse_feed).
+        "boc_press",
+        "https://www.bankofcanada.ca/content_type/press-releases/feed/",
+        "central_bank",
+    ),
+    FeedSource(
+        "snb_news",
+        "https://www.snb.ch/public/en/rss/news",
+        "central_bank",
+    ),
+    FeedSource(
+        "bea_releases",
+        "https://apps.bea.gov/rss/rss.xml",
+        "news",
+    ),
+    FeedSource(
+        # Atom. The Daily = all StatCan releases, 08:30 ET — the USD_CAD
+        # macro surface (CPI, labour, GDP, trade).
+        "statcan_daily",
+        "https://www150.statcan.gc.ca/n1/rss/dai-quo/0-eng.atom",
+        "news",
+    ),
+    FeedSource(
+        # UK release calendar — publication times for GBP macro prints.
+        "ons_releases",
+        "https://www.ons.gov.uk/releasecalendar?rss",
+        "news",
+    ),
+    FeedSource(
+        "fxstreet_news",
+        "https://www.fxstreet.com/rss/news",
+        "news",
+    ),
+    FeedSource(
+        "eia_today_in_energy",
+        "https://www.eia.gov/rss/todayinenergy.xml",
+        "news",
+    ),
+    FeedSource(
+        "cnbc_economy",
+        "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=20910258",
+        "news",
+    ),
+    FeedSource(
+        "oilprice",
+        "https://oilprice.com/rss/main",
+        "news",
+    ),
+    FeedSource(
+        # Geopolitical risk surface (XAU + risk sentiment) — the only
+        # geopolitics-dedicated feed that survived live verification.
+        "crisisgroup",
+        "https://www.crisisgroup.org/rss",
         "news",
     ),
 )
@@ -136,6 +206,8 @@ class NewsItem:
 _NS = {
     "atom": "http://www.w3.org/2005/Atom",
     "dc": "http://purl.org/dc/elements/1.1/",
+    # RSS 1.0 (RDF) — used by Bank of Canada press releases among others.
+    "rss1": "http://purl.org/rss/1.0/",
 }
 
 _TAG_RE = re.compile(r"<[^>]+>")
@@ -192,7 +264,7 @@ def _hash(*parts: str) -> str:
 
 
 def parse_feed(source: FeedSource, body: bytes) -> list[NewsItem]:
-    """Parse RSS 2.0 OR Atom; return normalized items.
+    """Parse RSS 2.0, RSS 1.0 (RDF) OR Atom; return normalized items.
 
     Resilient to malformed feeds: on XML errors returns []. Logs the issue.
     """
@@ -228,6 +300,32 @@ def parse_feed(source: FeedSource, body: bytes) -> list[NewsItem]:
                 fetched_at=fetched,
                 guid_hash=_hash(source.name, guid),
                 raw_categories=cats,
+            )
+        )
+
+    # RSS 1.0 / RDF — <rdf:RDF><item xmlns="http://purl.org/rss/1.0/">.
+    # Items are namespaced (unlike RSS 2.0) and dates live in <dc:date>
+    # (ISO-8601). Bank of Canada press releases use this format.
+    for item in root.iterfind(".//rss1:item", _NS):
+        title = _strip_html(item.findtext("rss1:title", namespaces=_NS))
+        link = (item.findtext("rss1:link", namespaces=_NS) or "").strip()
+        about = item.get("{http://www.w3.org/1999/02/22-rdf-syntax-ns#}about") or ""
+        guid = (about or link or title).strip()
+        summary = _full_text(item.find("rss1:description", _NS))
+        pub = _parse_date(item.findtext("dc:date", namespaces=_NS))
+        if not title or not link:
+            continue
+        items.append(
+            NewsItem(
+                source=source.name,
+                source_kind=source.kind,
+                title=title,
+                summary=summary,
+                url=link,
+                published_at=pub,
+                fetched_at=fetched,
+                guid_hash=_hash(source.name, guid),
+                raw_categories=[],
             )
         )
 
