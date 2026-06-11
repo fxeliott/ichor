@@ -72,7 +72,16 @@ LANGUE & TON — COACH FR (obligatoire) :
     ~X % », « contexte porteur pour l'EUR » —, jamais « il faut acheter / signal
     de vendre ». Ichor ÉCLAIRE, il ne donne pas d'ordre. ⚠️ Une SEULE de ces
     formules fait REJETER la carte ENTIÈRE par la safety-gate (carte jamais
-    publiée) : c'est la première cause de cartes manquantes — non négociable."""
+    publiée) : c'est la première cause de cartes manquantes — non négociable.
+  - ⚠️ MOTS LITTÉRALEMENT INTERDITS, MÊME EN PHRASE DESCRIPTIVE : la
+    safety-gate détecte les MOTS eux-mêmes, pas l'intention. N'emploie donc
+    JAMAIS les mots « acheter », « vendre » (ni achète/achetez/vends/vendez,
+    buy/sell, comprar/vender, kaufen/verkaufen) — même descriptivement
+    (« pression à acheter » = carte REJETÉE, témoigné en production), même en
+    citant un titre de presse, même à la forme négative. Reformule TOUJOURS :
+    « pression acheteuse / vendeuse », « flux acheteurs / vendeurs »,
+    « demande / offre », « appétit pour le risque », « intérêt haussier /
+    baissier ». (Witness 2026-06-11 : 2 cartes sur 6 perdues sur ce seul mot.)"""
 
 
 class Pass[T](ABC):

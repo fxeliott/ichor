@@ -68,6 +68,21 @@ def test_pass_system_prompt_forbids_raw_codes_and_pipeline_refs_in_prose(pass_cl
     assert "plomberie" in sys
 
 
+@pytest.mark.parametrize("pass_cls", [RegimePass, AssetPass, StressPass, InvalidationPass])
+def test_pass_system_prompt_forbids_literal_order_tokens_in_any_context(pass_cls) -> None:
+    """ADR-017 × coach-FR : la safety-gate matche les TOKENS interdits
+    (« acheter », « vendre », buy/sell…) quel que soit le contexte
+    grammatical — witnessed 2026-06-11 pre_londres (premier batch xhigh) :
+    2/6 cartes REJETÉES sur un « acheter » purement DESCRIPTIF dans la
+    prose. La directive doit interdire les mots eux-mêmes (pas seulement
+    l'impératif) et imposer les reformulations (« pression acheteuse /
+    vendeuse »). Source-inspection lockstep so the prohibition can never
+    silently drop."""
+    sys = pass_cls().system_prompt
+    assert "MOTS LITTÉRALEMENT INTERDITS" in sys
+    assert "pression acheteuse" in sys
+
+
 def test_regime_build_prompt_inlines_data_pool() -> None:
     p = RegimePass()
     prompt = p.build_prompt(data_pool="DXY=105.3 VIX=18.2")
