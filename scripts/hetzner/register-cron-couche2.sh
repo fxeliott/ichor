@@ -42,7 +42,11 @@ Group=ichor
 WorkingDirectory=/opt/ichor/api/src
 EnvironmentFile=/etc/ichor/api.env
 ExecStart=/opt/ichor/api/.venv/bin/python -m ichor_api.cli.run_couche2_agent %i
-TimeoutStartSec=600
+# ADR-110 hierarchy: this wall must sit ABOVE the Couche-2 client poll
+# budget (960 s) which itself sits above the runner per-call kill (900 s),
+# so a stuck run is classified at the runner, then at the client — never
+# SIGTERM'd blind by systemd first. 600 s inverted that order.
+TimeoutStartSec=1200
 StandardOutput=journal
 StandardError=journal
 

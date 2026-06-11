@@ -24,7 +24,10 @@ Group=ichor
 WorkingDirectory=/opt/ichor/api
 EnvironmentFile=/etc/ichor/api.env
 ExecStart=/opt/ichor/api/.venv/bin/python -m ichor_api.cli.run_counterfactual_batch --persist
-TimeoutStartSec=900
+# ADR-110: wall above the brain poll budget (960 s) the counterfactual
+# router inherits by default — runs are haiku/low (~10-30 s), this is an
+# anti-hang guard only.
+TimeoutStartSec=1200
 StandardOutput=journal
 StandardError=journal
 SuccessExitStatus=0 1

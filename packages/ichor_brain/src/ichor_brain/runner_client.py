@@ -125,7 +125,7 @@ class RunnerCall:
     prompt: str
     system: str
     model: str = "opus"
-    effort: str = "high"
+    effort: str = "xhigh"
     cache_key: str | None = None
     """Optional opaque cache key (anthropic prompt-cache breakpoint)."""
     mcp_config: dict[str, Any] | None = None
@@ -249,7 +249,7 @@ class HttpRunnerClient(RunnerClient):
         default_assets: tuple[str, ...] = ("EUR_USD",),
         use_async_endpoint: bool = True,
         poll_interval_sec: float = 5.0,
-        poll_max_total_sec: float = 600.0,
+        poll_max_total_sec: float = 960.0,
     ):
         self._base_url = base_url.rstrip("/")
         self._headers = {
@@ -281,9 +281,11 @@ class HttpRunnerClient(RunnerClient):
         3. Each poll completes in <1s so Cloudflare 100s edge cap doesn't
            apply to the briefing's actual subprocess wall-time.
 
-        Total wall-time bounded by poll_max_total_sec (default 600s = 10min),
-        which is the upper bound on claude CLI processing for the largest
-        briefings (typical: 60-180s).
+        Total wall-time bounded by poll_max_total_sec (default 960s = 16min),
+        sized ABOVE the runner's per-call kill (claude_timeout_sec, 900 s)
+        so a stuck subprocess is classified at the runner (a real
+        `status="timeout"`), never as a consumer-side give-up — ADR-110
+        timeout hierarchy (effort xhigh lengthens Opus passes).
         """
         submit_url = f"{self._base_url}/v1/briefing-task/async"
         payload: dict[str, Any] = {

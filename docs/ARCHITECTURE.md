@@ -248,7 +248,7 @@ Couche-2 (`call_agent_task_async`) are its two consumers.
 now fails loud on an empty/error envelope instead of reporting `success` with
 no content; the brain client classifies runner failures (timeout / subprocess\_
 error) instead of silently yielding `""`; the timeout hierarchy is ordered
-(runner 540 < poll 600 < batch 1800); a Win11 self-heal watchdog
+(ADR-110: runner 900 < polls 960 < systemd walls 1200/3600/5400); a Win11 self-heal watchdog
 (`scripts/windows/runner-watchdog.ps1`) restarts the runner / evicts a port
 squatter. See [`SESSION_LOG_2026-06-05-session02-reliable-substrate.md`] +
 [`RUNBOOK-014`](runbooks/RUNBOOK-014-claude-runner-win11-down.md).

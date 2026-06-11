@@ -31,24 +31,25 @@ class Settings(BaseSettings):
     """Path to `claude` CLI. On Win11 default install: `claude` is on PATH."""
 
     claude_default_model: Literal["opus", "sonnet", "haiku"] = "opus"
-    """Maps to claude --model flag. Opus 4.7 = top quality for briefings."""
+    """Maps to claude --model flag. Opus 4.8 = top quality for briefings."""
 
-    claude_timeout_sec: int = 540
-    """Hard timeout per `claude -p` invocation. 9 min default.
+    claude_timeout_sec: int = 900
+    """Hard timeout per `claude -p` invocation. 15 min default.
 
-    TIMEOUT HIERARCHY (Session 02, 2026-06-05) — must stay ordered:
-        runner per-call  (this, 540 s)
-          <  brain per-pass poll budget (HttpRunnerClient.poll_max_total_sec, 600 s)
-          <  Couche-2 poll budget       (call_agent_task_async.poll_timeout_sec, 600 s)
-          <  systemd batch wall          (TimeoutStartSec=1800 s, 6 cards × passes)
+    TIMEOUT HIERARCHY (ADR-110 revision, 2026-06-11) — must stay ordered:
+        runner per-call  (this, 900 s)
+          <  brain per-pass poll budget (HttpRunnerClient.poll_max_total_sec, 960 s)
+          ≤  Couche-2 poll budget       (call_agent_task_async.poll_timeout_sec, 960 s)
+          <  systemd batch wall          (TimeoutStartSec=5400 s, 6 cards × passes)
     Rationale: the runner must kill a stuck subprocess and return a clean
     `status="timeout"` BEFORE the consumer's poll budget expires, so the
     failure is classified at the runner (a real timeout) instead of looking
-    like a consumer-side give-up. Bumped 360→540 because Opus 4.8 effort
-    `high` on a rich data_pool prompt (30 KB+) legitimately exceeds 6 min,
-    and the pre-S02 360 s false-killed valid runs under load (a contributor
-    to ny_close batch tails starving). Override via
-    ICHOR_RUNNER_CLAUDE_TIMEOUT_SEC ; keep it strictly below 600."""
+    like a consumer-side give-up. History: 360→540 (Session 02, 2026-06-05 —
+    Opus `high` legitimately exceeded 6 min on rich 30 KB+ data_pool prompts,
+    and 360 s false-killed valid runs under load) ; 540→900 (ADR-110 —
+    effort `xhigh` multiplies per-pass wall-time, the same false-kill class
+    would otherwise reappear). Override via
+    ICHOR_RUNNER_CLAUDE_TIMEOUT_SEC ; keep it strictly below 960."""
 
     persona_file: Path = Path(__file__).resolve().parent / "personas" / "ichor.md"
     """Persona prompt loaded into --append-system on every call."""

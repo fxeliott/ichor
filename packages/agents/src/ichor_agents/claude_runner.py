@@ -418,7 +418,7 @@ async def call_agent_task_async(
     prompt: str,
     output_type: type | None = None,
     poll_interval_sec: float = 5.0,
-    poll_timeout_sec: float = 600.0,
+    poll_timeout_sec: float = 960.0,
 ):
     """Submit a Couche-2 agent task via /v1/agent-task/async + poll until done.
 
@@ -432,7 +432,9 @@ async def call_agent_task_async(
         prompt: user prompt (data_pool context for Couche-2).
         output_type: optional Pydantic BaseModel subclass for typed return.
         poll_interval_sec: poll cadence (5s default — matches Hetzner cron).
-        poll_timeout_sec: total budget before giving up (10 min default).
+        poll_timeout_sec: total budget before giving up (16 min default —
+            sized above the runner's 900 s per-call kill so a stuck
+            subprocess is classified at the runner, ADR-110 hierarchy).
 
     Returns: raw text or validated output_type instance.
 

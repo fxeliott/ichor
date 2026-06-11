@@ -110,7 +110,7 @@ class Orchestrator:
         critic_fn: CriticFn | None = None,
         model_id: str = "claude-opus-4-8",
         scenarios_model: str = "opus",
-        scenarios_effort: str = "high",
+        scenarios_effort: str = "xhigh",
         enable_scenarios: bool = False,
         tool_config: ToolConfig | None = None,
     ):
@@ -127,11 +127,12 @@ class Orchestrator:
         # brain package stays importable without it.
         self._scenarios = scenarios_pass or ScenariosPass()
         self._enable_scenarios = enable_scenarios
-        # Pass-6 LLM knobs per W105 research 2026-05-12 (researcher
-        # subagent) : Sonnet 4.6 materially better than Haiku on
-        # structured probability emissions with cap-95 awareness.
-        # `effort=medium` keeps wall-time bounded (~30-60s) — `high`
-        # only if the calibration block is unusually rich.
+        # Pass-6 LLM knobs — ADR-110 engine doctrine (2026-06-11) :
+        # Opus 4.8 at effort `xhigh` for every Couche-1 generation
+        # surface, Pass-6 included (supersedes the W105 sonnet/medium
+        # recommendation, itself superseded by the 2026-06-02 §11
+        # full-Opus move). Wall-time is bounded by the runner's
+        # per-call timeout (config.claude_timeout_sec, 900 s).
         self._scenarios_model = scenarios_model
         self._scenarios_effort = scenarios_effort
         self._critic_fn = critic_fn or _default_critic_fn
@@ -277,7 +278,7 @@ class Orchestrator:
             ),
             system=self._regime.system_prompt,
             model="opus",
-            effort="high",
+            effort="xhigh",
             cache_key=f"framework::{self._regime.name}",
             **self._tool_fields_for("regime"),
         )
@@ -301,7 +302,7 @@ class Orchestrator:
             ),
             system=self._asset.system_prompt,
             model="opus",
-            effort="high",
+            effort="xhigh",
             cache_key=f"framework::{self._asset.name}::{asset.upper()}",
             **self._tool_fields_for("asset"),
         )
@@ -327,7 +328,7 @@ class Orchestrator:
             ),
             system=self._stress.system_prompt,
             model="opus",
-            effort="high",
+            effort="xhigh",
             cache_key=f"framework::{self._stress.name}",
             **self._tool_fields_for("stress"),
         )
@@ -347,7 +348,7 @@ class Orchestrator:
             prompt=self._invalidation.build_prompt(specialization=spec, stress=stress),
             system=self._invalidation.system_prompt,
             model="opus",
-            effort="high",
+            effort="xhigh",
             cache_key=f"framework::{self._invalidation.name}",
             **self._tool_fields_for("invalidation"),
         )
@@ -361,8 +362,8 @@ class Orchestrator:
         # Pass 6 — scenario_decompose 7-bucket (ADR-085, W105c).
         # Optional, gated on `enable_scenarios`. Output is a
         # `ScenarioDecomposition` (lazy-imported inside the pass).
-        # Routed through claude-runner with `model=sonnet,
-        # effort=medium` per W105 researcher 2026-05-12 review.
+        # Routed through claude-runner with `model=opus,
+        # effort=xhigh` per ADR-110 engine doctrine (2026-06-11).
         scenarios_payload: list[dict[str, Any]] | None = None
         if self._enable_scenarios:
             cal_block = calibration_block or (

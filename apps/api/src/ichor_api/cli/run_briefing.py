@@ -386,8 +386,8 @@ async def _post_to_claude_runner(
       1. POST /v1/briefing-task/async → 202 Accepted + task_id (fast)
       2. Poll /v1/briefing-task/async/{task_id} every 5s until status
          == 'done' or 'error'. Each poll <1s so Cloudflare doesn't cap.
-      3. Total wall-time bounded by 600s (10min) — upper bound on claude
-         CLI processing.
+      3. Total wall-time bounded by 960s (16min) — sized above the
+         runner's 900s per-call kill (ADR-110 timeout hierarchy).
 
     Returns the same BriefingTaskResponse JSON envelope as the legacy
     endpoint.
@@ -405,14 +405,18 @@ async def _post_to_claude_runner(
         "briefing_type": briefing_type,
         "assets": assets,
         "context_markdown": context,
-        # §11 full-Opus (2026-06-02) — every briefing runs on Opus 4.8 high,
-        # not just weekly/crisis. The async-polling path is CF-edge-immune so
-        # the longer Opus wall-time is fine; Voie D unchanged (Max 20x, no API
-        # spend). Degrades gracefully under shared-budget contention.
+        # ADR-110 engine doctrine (2026-06-11) — every briefing runs on
+        # Opus 4.8 at effort `xhigh` (max-effort owner decision, Fable-5
+        # migration cancelled). The async-polling path is CF-edge-immune so
+        # the longer Opus wall-time is fine; Voie D unchanged (Max 20x, no
+        # API spend). Degrades gracefully under shared-budget contention.
         "model": "opus",
-        "effort": "high",
+        "effort": "xhigh",
     }
-    max_total_sec = 600.0
+    # ADR-110 timeout hierarchy : consumer poll budget (960 s) sits ABOVE
+    # the runner's per-call kill (claude_timeout_sec, 900 s) so a stuck
+    # subprocess is classified at the runner, never as a consumer give-up.
+    max_total_sec = 960.0
     async with httpx.AsyncClient(timeout=30.0) as client:
         # 1. Submit
         r = await client.post(submit_url, headers=headers, json=payload)

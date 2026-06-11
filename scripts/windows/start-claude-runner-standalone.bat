@@ -42,4 +42,10 @@ REM Hetzner orchestrator polls /v1/.../async/{id} every 5s, so cloudflared
 REM reuses a connection right as uvicorn closes it -> EOF -> 502 -> the
 REM whole card aborts mid-generation. A keep-alive >> the 5s poll interval
 REM removes the race entirely (witnessed: full 4-pass+Pass-6 card, 0x 502).
-start "" /B "D:\Ichor\apps\claude-runner\.venv\Scripts\uvicorn.exe" ichor_claude_runner.main:app --host 127.0.0.1 --port 8766 --no-access-log --timeout-keep-alive 75
+REM 2026-06-11 (ADR-110 session) — .venv-live, not .venv: the NSSM zombie
+REM  (IchorClaudeRunner service, SYSTEM, port 8765) holds file locks inside
+REM  .venv (uvicorn.exe + loaded .pyd), which corrupted a `uv sync` mid-flight.
+REM  .venv-live is a clean lock-synced env the zombie has never touched.
+REM  After the NSSM service is stopped+disabled (needs admin), either venv
+REM  works; .venv-live stays canonical until then.
+start "" /B "D:\Ichor\apps\claude-runner\.venv-live\Scripts\uvicorn.exe" ichor_claude_runner.main:app --host 127.0.0.1 --port 8766 --no-access-log --timeout-keep-alive 75

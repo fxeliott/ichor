@@ -68,7 +68,9 @@ class HealthOut(BaseModel):
     version: str
     db_connected: bool
     redis_connected: bool
-    claude_runner_reachable: bool | None = None  # tested only when explicitly asked
+    claude_runner_reachable: bool | None = None
+    """Cached runner probe (60 s TTL, ADR-110). None = not configured
+    (tests/dev) ; False = configured but unreachable → status degraded."""
 
 
 class CollectorLag(BaseModel):

@@ -22,11 +22,13 @@ Two reliability behaviours were hardened — read these before diagnosing a
    inner status or empty text instead of silently yielding `""`. **Net
    effect:** a failed batch shows up as a loud error in logs (you can SEE
    the cause), never as a silent empty card.
-2. **Timeout hierarchy is documented & ordered** (`config.py`):
-   runner `claude_timeout_sec` (540 s) < brain poll budget (600 s) <
-   Couche-2 poll budget (600 s) < systemd batch wall (1800 s). The runner
-   must kill a stuck subprocess and return a clean `timeout` BEFORE the
-   consumer gives up, so the failure is classified at the runner.
+2. **Timeout hierarchy is documented & ordered** (`config.py`, revised by
+   ADR-110 for effort xhigh): runner `claude_timeout_sec` (900 s) < brain
+   poll budget (960 s) ≤ Couche-2 poll budget (960 s) < systemd walls
+   (couche2 1200 s · streaming-refresh 3600 s · session-cards batch
+   5400 s). The runner must kill a stuck subprocess and return a clean
+   `timeout` BEFORE the consumer gives up, so the failure is classified
+   at the runner.
 
 > Implication for triage: if you see `status="subprocess_error"` /
 > `RunnerResultError` in logs, that is the **new, correct** classification

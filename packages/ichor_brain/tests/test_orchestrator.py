@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 
 import pytest
 from ichor_brain.orchestrator import Orchestrator
-from ichor_brain.runner_client import InMemoryRunnerClient
+from ichor_brain.runner_client import InMemoryRunnerClient, RunnerCall, RunnerResponse
 
 from .fixtures import (
     ASSET_OK_JSON,
@@ -111,6 +111,83 @@ async def test_orchestrator_records_blocked_verdict_when_critic_blocks() -> None
 
     assert result.card.critic.verdict == "blocked"
     assert result.card.critic.confidence == pytest.approx(0.42)
+
+
+class TestEffortDoctrine:
+    """ADR-110 lockstep — every Couche-1 generation call runs Opus 4.8 at
+    effort `xhigh` (owner decision 2026-06-11; Fable-5 migration cancelled
+    — Fable 5 leaves the Max plan June 22, a Fable engine would breach the
+    ZERO-spend invariant). A silent regression to `high`/`medium` here
+    would halve the engine quality with zero test failing — lock it."""
+
+    @pytest.mark.asyncio
+    async def test_four_passes_emit_opus_xhigh(self) -> None:
+        runner = InMemoryRunnerClient(four_pass_responses())
+        orch = Orchestrator(runner=runner, critic_fn=stub_critic_fn())
+
+        result = await orch.run(
+            session_type="pre_londres",
+            asset="EUR_USD",
+            data_pool=_DATA_POOL,
+            asset_data=_ASSET_DATA,
+        )
+
+        assert len(result.runner_calls) == 4
+        for i, call in enumerate(result.runner_calls, start=1):
+            assert call.model == "opus", f"pass {i}: model {call.model!r} != opus (ADR-108)"
+            assert call.effort == "xhigh", f"pass {i}: effort {call.effort!r} != xhigh (ADR-110)"
+
+    def test_pass6_default_effort_is_xhigh(self) -> None:
+        orch = Orchestrator(
+            runner=InMemoryRunnerClient([]),
+            critic_fn=stub_critic_fn(),
+        )
+        assert orch._scenarios_effort == "xhigh"  # noqa: SLF001 — doctrine lockstep
+        assert orch._scenarios_model == "opus"  # noqa: SLF001
+
+    @pytest.mark.asyncio
+    async def test_pass6_emitted_runner_call_is_opus_xhigh(self) -> None:
+        """Exercise the ACTUAL Pass-6 RunnerCall (enable_scenarios=True) —
+        asserting only the constructor default would let a hardcoded
+        effort at the call site slip through (verifier finding F6)."""
+
+        class _StubScenariosPass:
+            name = "pass6_scenarios"
+            system_prompt = "stub system"
+
+            def build_prompt(self, **kwargs: object) -> str:
+                return "stub scenarios prompt"
+
+            def parse(self, text: str) -> object:
+                class _Decomp:
+                    scenarios: list = []
+
+                return _Decomp()
+
+        responses = four_pass_responses()
+        responses.append(RunnerResponse(text="{}", raw={"stub": True}, duration_ms=1_000))
+        runner = InMemoryRunnerClient(responses)
+        orch = Orchestrator(
+            runner=runner,
+            critic_fn=stub_critic_fn(),
+            scenarios_pass=_StubScenariosPass(),
+            enable_scenarios=True,
+        )
+
+        result = await orch.run(
+            session_type="pre_londres",
+            asset="EUR_USD",
+            data_pool=_DATA_POOL,
+            asset_data=_ASSET_DATA,
+        )
+
+        assert len(result.runner_calls) == 5
+        call6 = result.runner_calls[4]
+        assert call6.model == "opus", f"Pass-6 model {call6.model!r} != opus (ADR-110)"
+        assert call6.effort == "xhigh", f"Pass-6 effort {call6.effort!r} != xhigh (ADR-110)"
+
+    def test_runner_call_default_effort_is_xhigh(self) -> None:
+        assert RunnerCall(prompt="p", system="s").effort == "xhigh"
 
 
 @pytest.mark.asyncio

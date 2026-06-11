@@ -28,12 +28,18 @@
 #   17:00  ny_mid        (6 actifs D1)
 #   22:00  ny_close      (6 actifs D1)
 #
-# Per-card 4-pass + Pass 5 + Pass 6 + 30s inter-card sleep = ~25 min
-# wall-time per batch. TimeoutStartSec=1800 (30min) covers worst-case.
-# `SuccessExitStatus=0 1` whitelists rc=1 (run_session_cards_batch
-# returns 1 if any per-card failure, treated as warning not systemd
-# failure ; per-card failures are surfaced via batch.card_failed
-# structlog + the new safety_reject path from r51 commit a0a0324).
+# Per-card 4-pass + Pass 5 + Pass 6 + 30s inter-card sleep. At effort
+# `high` a batch ran ~25 min ; ADR-110 (2026-06-11) raises every
+# Couche-1 surface to `xhigh`, which multiplies per-pass wall-time →
+# TimeoutStartSec=5400 (90 min) so the wall is an anti-hang guard, not
+# a false-kill (the pre-S02 360 s runner timeout taught that lesson).
+# Re-validate against the witnessed batch duration (first xhigh batch).
+#
+# Exit-code contract (ADR-110, kills the 2026-06-10 silent-P0 class) :
+# `SuccessExitStatus=0 1` whitelists rc=1 = PARTIAL failure only
+# (≥1 card ok, ≥1 failed — warning, surfaced via batch.card_failed).
+# rc=2 = TOTAL failure (0 cards, e.g. dead runner / exhausted quota)
+# is NOT whitelisted → Result=failed → OnFailure=ichor-notify@ fires.
 
 set -euo pipefail
 
@@ -57,7 +63,7 @@ Group=ichor
 WorkingDirectory=/opt/ichor/api
 EnvironmentFile=/etc/ichor/api.env
 ExecStart=/opt/ichor/api/.venv/bin/python -m ichor_api.cli.run_session_cards_batch %i --live --enable-rag --enable-tools --inter-card-sleep 30
-TimeoutStartSec=1800
+TimeoutStartSec=5400
 StandardOutput=journal
 StandardError=journal
 SuccessExitStatus=0 1
