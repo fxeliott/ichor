@@ -158,11 +158,11 @@ DEFAULT_FEEDS: tuple[FeedSource, ...] = (
         "https://www.ons.gov.uk/releasecalendar?rss",
         "news",
     ),
-    FeedSource(
-        "fxstreet_news",
-        "https://www.fxstreet.com/rss/news",
-        "news",
-    ),
+    # fxstreet_news REMOVED 2026-06-11 same-day: 403 from the Hetzner host
+    # with bot AND browser UAs (datacenter-IP WAF block — the feed answers
+    # 200 from residential IPs). A permanently-403 entry would only pollute
+    # the RSS_FEED_SILENT monitor; continuous FX flow stays covered by
+    # forexlive/investinglive.
     FeedSource(
         "eia_today_in_energy",
         "https://www.eia.gov/rss/todayinenergy.xml",
@@ -331,7 +331,11 @@ def parse_feed(source: FeedSource, body: bytes) -> list[NewsItem]:
 
     # Atom — <feed><entry>
     for entry in root.iterfind("atom:entry", _NS):
-        title = _strip_html(entry.findtext("atom:title", namespaces=_NS))
+        # _full_text, not findtext: Atom allows <title type="xhtml"> whose
+        # text lives in a nested xhtml <div> (RFC 4287 §3.1.1) — findtext
+        # returns the title element's OWN (empty) text and the item is
+        # silently skipped (StatCan The Daily, witnessed prod 2026-06-11).
+        title = _full_text(entry.find("atom:title", _NS))
         link_el = entry.find("atom:link[@rel='alternate']", _NS)
         if link_el is None:
             link_el = entry.find("atom:link", _NS)
