@@ -51,6 +51,14 @@ class GdeltQuery:
 
 
 # Phase 1 keyword bucket — the topics we monitor for our 8 assets.
+# S03 (2026-06-11) — extended with per-asset slices (PER_ASSET_QUERIES below):
+# the 2026-06-09 S04 session proved per-asset geopolitics differentiation is
+# DATA-GATED on per-asset GDELT density (24h window yields 0-1 affinity
+# matches per asset → systematic global fallback). The fix lives HERE, at
+# the collector: asset-targeted queries whose labels AND article titles
+# carry the asset's NEWS_KEYWORDS vocabulary, so the downstream
+# `filter_rows_by_asset_affinity` (title + query_label + domain + url blob)
+# crosses its min_required threshold on real density, not on a loosened gate.
 DEFAULT_QUERIES: tuple[GdeltQuery, ...] = (
     GdeltQuery(
         "fed",
@@ -93,6 +101,54 @@ DEFAULT_QUERIES: tuple[GdeltQuery, ...] = (
         timespan="2h",
     ),
 )
+
+# S03 per-asset slices — close the asset-coverage holes the global bucket
+# left open (NO query existed for CAD, AUD, UK-economy-beyond-BoE,
+# eurozone-beyond-ECB, or US equity indices). Label naming contract:
+# each label embeds its asset's `NEWS_KEYWORDS` vocabulary (lowercase
+# substring match, see `services/asset_news_affinity.matches_asset`) so the
+# label itself contributes to downstream affinity matching — pinned by
+# `test_per_asset_query_labels_match_their_asset`. Query syntax constraints
+# (verified against the GDELT DOC 2.0 docs 2026-06-11): exact phrases in
+# double quotes, OR groups in parentheses (non-nestable), `sourcelang:`
+# filter, timespan >= 15min.
+PER_ASSET_QUERIES: tuple[GdeltQuery, ...] = (
+    GdeltQuery(
+        "eurusd_eurozone",
+        '(eurozone OR "euro area" OR Bundesbank OR "German economy") sourcelang:english',
+        timespan="2h",
+    ),
+    GdeltQuery(
+        "gbpusd_uk_economy",
+        '("UK economy" OR "pound sterling" OR "British economy" OR gilts) sourcelang:english',
+        timespan="2h",
+    ),
+    GdeltQuery(
+        "usdcad_boc_canada",
+        '("Bank of Canada" OR "Canadian dollar" OR "Canada economy" OR Macklem)',
+        timespan="2h",
+    ),
+    GdeltQuery(
+        "audusd_rba_china",
+        '("Reserve Bank of Australia" OR "Australian dollar" OR "China stimulus" OR "iron ore")',
+        timespan="2h",
+    ),
+    GdeltQuery(
+        "spx500_spx_us_equities",
+        '("S&P 500" OR "Wall Street" OR "US stocks") sourcelang:english',
+        timespan="1h",
+    ),
+    GdeltQuery(
+        "nas100_nasdaq_tech",
+        '(Nasdaq OR Nvidia OR "tech stocks" OR semiconductor) sourcelang:english',
+        timespan="1h",
+    ),
+)
+
+# What `poll_all` actually polls each cycle: 8 global + 6 per-asset = 14
+# queries / 30 min ≈ 672 req/day — far under GDELT's observed tolerance,
+# and the fetch path already backs off exponentially on 429 (1s/3s/9s).
+ALL_QUERIES: tuple[GdeltQuery, ...] = DEFAULT_QUERIES + PER_ASSET_QUERIES
 
 
 @dataclass
@@ -202,16 +258,26 @@ async def fetch_query(
 
 
 async def poll_all(
-    queries: Iterable[GdeltQuery] = DEFAULT_QUERIES,
+    queries: Iterable[GdeltQuery] = ALL_QUERIES,
     *,
-    concurrency: int = 4,
+    concurrency: int = 2,
+    politeness_delay_s: float = 2.0,
 ) -> list[GdeltArticle]:
-    """Fan out the queries in parallel. Dedupe by URL."""
+    """Fan out the queries in parallel. Dedupe by URL.
+
+    S03 — concurrency lowered 4 → 2 and a per-request politeness delay
+    added: the query count grew 8 → 14 per cycle and GDELT serves real
+    HTTP 429s under burst (observed 2026-06-11); ~1 req/2-5s keeps the
+    cycle under a minute while staying well inside observed tolerance.
+    """
     sem = asyncio.Semaphore(concurrency)
 
     async def _one(q: GdeltQuery, client: httpx.AsyncClient) -> list[GdeltArticle]:
         async with sem:
-            return await fetch_query(q, client=client)
+            out = await fetch_query(q, client=client)
+            if politeness_delay_s > 0:
+                await asyncio.sleep(politeness_delay_s)
+            return out
 
     async with httpx.AsyncClient() as client:
         results = await asyncio.gather(*(_one(q, client) for q in queries))
