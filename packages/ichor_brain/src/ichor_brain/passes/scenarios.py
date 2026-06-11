@@ -35,8 +35,9 @@ live canonically in `ichor_brain.scenarios` (sibling module) — `apps/api`
 re-exports for the ORM + tests + CI guards. Pass-6 imports natively, no
 lazy indirection needed.
 
-Pass-6 default model = `opus`, effort `high` (Couche-1 path, 2026-06-02 —
-§11 full-Opus). Pass-6 feeds the SessionVerdict scenario decomposition
+Pass-6 default model = `opus`, effort `xhigh` (Couche-1 path — §11
+full-Opus 2026-06-02, effort raised by ADR-110 engine doctrine
+2026-06-11). Pass-6 feeds the SessionVerdict scenario decomposition
 (the apex read), so it runs on the top model like the 4-pass. Voie D : same
 Max 20x subscription, no API spend. Degrades gracefully under contention
 (parse-retry then honest stale card).

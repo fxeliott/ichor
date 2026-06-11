@@ -43,8 +43,8 @@ from typing import Literal
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 # ADR-017 boundary regression guard — the `mechanism` string emitted by
-# Pass-6 (LLM Claude Sonnet 4.6 medium effort) must never reference a
-# trade instruction. Word-boundary case-insensitive. Catches: `BUY`,
+# Pass-6 (LLM Claude Opus 4.8 effort xhigh, ADR-110) must never reference
+# a trade instruction. Word-boundary case-insensitive. Catches: `BUY`,
 # `SELL`, `TP`, `SL`, `long entry`, `short entry`. Tested via
 # test_invariants_ichor.py + test_scenarios.py at construction time.
 _FORBIDDEN_MECHANISM_TOKENS_RE = re.compile(
