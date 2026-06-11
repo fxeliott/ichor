@@ -173,6 +173,71 @@ def test_default_feeds_https_only_and_s03_expansion() -> None:
     assert len(DEFAULT_FEEDS) >= 11
 
 
+RDF_BODY = b"""<?xml version="1.0" encoding="UTF-8"?>
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+         xmlns="http://purl.org/rss/1.0/"
+         xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <channel rdf:about="https://example.test/rdf">
+    <title>BoC-style RDF feed</title>
+    <link>https://example.test/</link>
+  </channel>
+  <item rdf:about="https://example.test/rdf/1">
+    <title>Bank of Canada holds policy rate</title>
+    <link>https://example.test/rdf/1</link>
+    <description>The Bank held its target for the overnight rate.</description>
+    <dc:date>2026-06-10T09:45:00-04:00</dc:date>
+  </item>
+  <item rdf:about="https://example.test/rdf/2">
+    <title>Monetary Policy Report</title>
+    <link>https://example.test/rdf/2</link>
+    <dc:date>2026-06-10T10:30:00-04:00</dc:date>
+  </item>
+</rdf:RDF>
+"""
+
+
+def test_parse_rss1_rdf_extracts_items() -> None:
+    """RSS 1.0 / RDF (Bank of Canada press releases): namespaced <item>
+    elements under <rdf:RDF>, ISO dates in <dc:date>. The RSS 2.0 branch
+    (`.//item`, namespace-less) cannot see these — S03 added a dedicated
+    branch; this pins it."""
+    src = FeedSource(name="boc_test", url="https://example.test/rdf", kind="central_bank")
+    items = parse_feed(src, RDF_BODY)
+    assert len(items) == 2
+    boc = next(it for it in items if "policy rate" in it.title)
+    assert boc.url == "https://example.test/rdf/1"
+    assert boc.summary.startswith("The Bank held")
+    assert boc.published_at.tzinfo is not None
+    assert boc.published_at.hour == 9  # -04:00 offset preserved through parse
+    # rdf:about is the dedup guid — distinct per item.
+    assert len({it.guid_hash for it in items}) == 2
+
+
+def test_s03_second_expansion_feeds_present() -> None:
+    """S03 depth pass (2026-06-11): the fetch-verified world-newsletter
+    surface — central banks (BoC RDF, SNB), official statistics (BEA,
+    StatCan, ONS), FX/markets flow (FXStreet), energy (EIA, OilPrice),
+    geopolitics (Crisis Group), economy (CNBC)."""
+    names = {f.name for f in DEFAULT_FEEDS}
+    assert {
+        "boc_press",
+        "snb_news",
+        "bea_releases",
+        "statcan_daily",
+        "ons_releases",
+        "fxstreet_news",
+        "eia_today_in_energy",
+        "cnbc_economy",
+        "oilprice",
+        "crisisgroup",
+    }.issubset(names), "S03 second-expansion feeds missing"
+    assert len(DEFAULT_FEEDS) >= 21
+    # ForexLive rebrand: canonical URL, no 301 dependency; name unchanged
+    # so guid_hash dedup history holds.
+    fl = next(f for f in DEFAULT_FEEDS if f.name == "forexlive")
+    assert fl.url == "https://investinglive.com/feed/news"
+
+
 def test_parse_date_always_timezone_aware() -> None:
     """Regression (S03 feed expansion, observed live 2026-06-06): every parsed
     date MUST be tz-aware. A naive datetime from the ISO fallback crashes

@@ -77,20 +77,15 @@ from ..services.scenario_invalidation_monitor import (
     InvalidationStatus,
     evaluate_scenario_invalidations,
 )
-from .catalog import AlertDef
 
-# r165 Strand E circular-import avoidance : AlertHit imported lazily inside
-# the evaluator function body. ``alerts/evaluator.py`` imports ``ALL_ALERTS``
-# from ``alerts/catalog.py``, and ``alerts/catalog.py`` imports
-# ``SCENARIO_INVALIDATION_ALERTS`` from THIS module. A direct
-# ``from .evaluator import AlertHit`` at module top would trigger
-# ``ImportError: cannot import name 'ALL_ALERTS'`` because catalog.py is
-# mid-load at the time evaluator.py is resolved. TYPE_CHECKING gives the
-# type checker AlertHit visibility without the runtime cycle.
+# S03 (2026-06-11) — AlertDef AND AlertHit now come from the leaf module
+# `defs`, killing BOTH halves of the r165 import cycle for good (this module
+# previously imported AlertDef back from the catalog that imports it, and
+# AlertHit lazily from the catalog-importing evaluator).
+from .defs import AlertDef, AlertHit
+
 if TYPE_CHECKING:
     from ichor_brain.session_verdict import BucketLabel  # noqa: F401
-
-    from .evaluator import AlertHit  # noqa: F401
 
 log = structlog.get_logger(__name__)
 
@@ -214,10 +209,7 @@ async def evaluate_scenario_invalidation_hits(
     pair within a recent window (5 min default). So if the same hard
     invalidation persists across two cron ticks, only ONE alert lands.
     """
-    # Lazy import to avoid the circular dep documented at module top.
     from datetime import timedelta
-
-    from .evaluator import AlertHit
 
     now = now_utc or datetime.now(UTC)
 

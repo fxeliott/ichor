@@ -4,12 +4,16 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
+import pytest
 from ichor_api.collectors.gdelt import (
+    ALL_QUERIES,
     DEFAULT_QUERIES,
+    PER_ASSET_QUERIES,
     GdeltQuery,
     _parse_response,
     _parse_seendate,
 )
+from ichor_api.services.asset_news_affinity import matches_asset
 
 
 def test_parse_seendate_valid() -> None:
@@ -101,3 +105,45 @@ def test_query_has_reasonable_defaults() -> None:
     q = GdeltQuery("test", "x AND y")
     assert q.timespan == "1h"
     assert q.max_records == 25
+
+
+# ── S03 per-asset slices ──────────────────────────────────────────────
+
+# Label → the asset whose NEWS_KEYWORDS vocabulary it must carry. This is
+# the load-bearing contract: `_section_geopolitics` matches the blob
+# (title + query_label + domain + url) against NEWS_KEYWORDS, so a label
+# drifting away from its asset's vocabulary silently kills the density
+# the per-asset query was added to provide.
+_LABEL_TO_ASSET = {
+    "eurusd_eurozone": "EUR_USD",
+    "gbpusd_uk_economy": "GBP_USD",
+    "usdcad_boc_canada": "USD_CAD",
+    "audusd_rba_china": "AUD_USD",
+    "spx500_spx_us_equities": "SPX500_USD",
+    "nas100_nasdaq_tech": "NAS100_USD",
+}
+
+
+def test_all_queries_is_global_plus_per_asset() -> None:
+    assert ALL_QUERIES == DEFAULT_QUERIES + PER_ASSET_QUERIES
+    labels = [q.label for q in ALL_QUERIES]
+    assert len(labels) == len(set(labels)), "duplicate query labels"
+
+
+def test_per_asset_queries_cover_the_uncovered_assets() -> None:
+    assert set(_LABEL_TO_ASSET) == {q.label for q in PER_ASSET_QUERIES}
+
+
+@pytest.mark.parametrize(("label", "asset"), sorted(_LABEL_TO_ASSET.items()))
+def test_per_asset_query_labels_match_their_asset(label: str, asset: str) -> None:
+    # The label alone (as part of the affinity blob) must match its asset.
+    assert matches_asset(label, "", asset), f"label {label!r} no longer matches {asset}"
+
+
+def test_per_asset_queries_respect_gdelt_syntax() -> None:
+    for q in PER_ASSET_QUERIES:
+        # OR groups must be parenthesised and non-nested (GDELT DOC 2.0).
+        assert q.query.count("(") == q.query.count(")")
+        assert q.query.count("(") == 1, f"{q.label}: GDELT forbids nested OR groups"
+        # timespan must be >= 15min — we only use hour buckets.
+        assert q.timespan.endswith("h")

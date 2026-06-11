@@ -78,7 +78,14 @@ async def _run(
     """
     sm = get_sessionmaker()
 
-    # Feature flag check — fail-closed if disabled.
+    # Feature flag check — fail-closed if disabled. S03 exception : a
+    # ``--dry-run`` evaluates EVEN with the flag OFF — that is the whole
+    # point of the ≥3-session empirical validation the flag's arming is
+    # gated on (ADR-106 §Carry-forward r166): the monitor must run against
+    # real prod cards, read-only + rolled back, to ACCUMULATE the evidence
+    # while staying un-armed. Before this exception the flag gated the
+    # dry-run too, so the validation could never start (S03 audit
+    # 2026-06-11). Persisting runs stay strictly flag-gated.
     try:
         async with sm() as flag_session:
             enabled = await is_enabled(flag_session, _FEATURE_FLAG_NAME)
@@ -88,16 +95,26 @@ async def _run(
         )
         return 3
 
-    if not enabled:
+    if not enabled and not dry_run:
         print(
             f"feature flag {_FEATURE_FLAG_NAME!r} is OFF — skipping "
             "scenario invalidation monitor cron. Activate via :\n"
             "  UPDATE feature_flags SET enabled = true "
             f"WHERE key = '{_FEATURE_FLAG_NAME}' ;\n"
             "(once Pass-6 populated path is empirically validated "
-            "≥3 production sessions per ADR-106 §Carry-forward r166)."
+            "≥3 production sessions per ADR-106 §Carry-forward r166 — "
+            "accumulate that evidence with --dry-run runs, which evaluate "
+            "flag-OFF and always roll back)."
         )
         return 1
+
+    if not enabled and dry_run:
+        print(
+            f"VALIDATION MODE — {_FEATURE_FLAG_NAME!r} is OFF, dry-run "
+            "forced evaluation (read-only, rolled back). Each such run is "
+            "one piece of the ≥3-session arming evidence (journalctl is "
+            "the validation log)."
+        )
 
     print(f"== scenario invalidation check · lookback={lookback_hours}h · dry_run={dry_run} ==")
 
@@ -106,6 +123,9 @@ async def _run(
             persisted = await check_scenario_invalidations(
                 session,
                 lookback_hours=lookback_hours,
+                # A web push is not rollbackable — dry-run (incl. flag-OFF
+                # validation runs) must never notify (S03 verifier #4).
+                notify=not dry_run,
             )
         except Exception as exc:
             log.error(

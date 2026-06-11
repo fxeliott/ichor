@@ -106,7 +106,7 @@ def _format_title_safe(template: str, *, value: float, payload: dict[str, Any] |
     instead of raising KeyError.
     """
 
-    class _SafeDict(dict):
+    class _SafeDict(dict[str, Any]):
         def __missing__(self, key: str) -> str:
             return "?"
 
@@ -124,6 +124,12 @@ def _format_title_safe(template: str, *, value: float, payload: dict[str, Any] |
 
 def _persist_hit(session: AsyncSession, hit: AlertHit, *, asset: str | None) -> None:
     """Add the Alert ORM row; commit is the caller's responsibility."""
+    if asset is not None:
+        # alerts.asset is VARCHAR(16); non-instrument tags (COT market
+        # codes, freshness source_keys) flow through here — an overlong
+        # value would crash the flush and take the whole sweep down with
+        # it (S03 verifier finding #1). Truncate defensively.
+        asset = asset[:16]
     now = datetime.now(UTC)
     title = _format_title_safe(
         hit.alert_def.title_template,
@@ -325,6 +331,7 @@ async def check_scenario_invalidations(
     *,
     now_utc: datetime | None = None,
     lookback_hours: int = 24,
+    notify: bool = True,
 ) -> list[AlertHit]:
     """r165 Strand E — Wrap the scenario-invalidation evaluator into the
     canonical Ichor alerts pipeline (dedup + persist + structlog).
@@ -366,7 +373,13 @@ async def check_scenario_invalidations(
             continue
         _persist_hit(session, hit, asset=asset)
         persisted.append(hit)
-        await _maybe_notify(hit, asset=asset)
+        if notify:
+            # notify=False on dry-run/validation paths: a web push is NOT
+            # rollbackable — without this gate every flag-OFF validation
+            # run would re-push the same hard invalidation (its alert row
+            # is rolled back, so the dedup never sees it). S03 verifier
+            # finding #4.
+            await _maybe_notify(hit, asset=asset)
         log.info(
             "scenario_invalidation_alert.triggered",
             code=hit.alert_def.code,
@@ -375,5 +388,49 @@ async def check_scenario_invalidations(
             buckets=hit.source_payload.get("buckets"),
             n_buckets=hit.source_payload.get("n_buckets"),
             card_id=hit.source_payload.get("card_id"),
+        )
+    return persisted
+
+
+# ── S03 Chantier D — pre-announcement sentinel ────────────────────────────
+
+
+async def check_upcoming_economic_events(
+    session: AsyncSession,
+    *,
+    now_utc: datetime | None = None,
+    horizon_minutes: int = 60,
+    notify: bool = True,
+) -> list[AlertHit]:
+    """S03 — wrap the pre-announcement sentinel into the canonical alerts
+    pipeline. Dedup is EVENT-CLUSTER-level (handled inside the evaluator
+    via ``source_payload.event_key``, NOT the generic 2h window — a 16:00
+    print must not be masked by a 14:30 cluster on the same currency).
+    Caller MUST ``await session.commit()`` — same contract as
+    ``check_metric()``. Returns ``[]`` on a quiet calendar (no fabricated
+    "nothing upcoming" noise)."""
+    from ..alerts.event_sentinel import evaluate_upcoming_event_hits
+
+    hit_pairs = await evaluate_upcoming_event_hits(
+        session,
+        now_utc=now_utc,
+        horizon_minutes=horizon_minutes,
+    )
+    persisted: list[AlertHit] = []
+    for hit, currency in hit_pairs:
+        _persist_hit(session, hit, asset=currency)
+        persisted.append(hit)
+        if notify:
+            # notify=False on the dry-run path: the push is not rollbackable
+            # and the event_key dedup only sees COMMITTED rows — a dry-run
+            # push would be re-pushed by the first real timer run (S03
+            # verifier finding #3).
+            await _maybe_notify(hit, asset=None)
+        log.info(
+            "eco_event_imminent.triggered",
+            currency=currency,
+            event_key=hit.source_payload.get("event_key"),
+            minutes_until=hit.metric_value,
+            n_events=hit.source_payload.get("n_events"),
         )
     return persisted

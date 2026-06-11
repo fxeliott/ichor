@@ -11,23 +11,21 @@ Each definition encodes :
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Literal
+# Primitive types live in the leaf module `defs` (S03 cycle break — see its
+# docstring); re-exported here so existing `from .catalog import AlertDef`
+# callers stay untouched.
+from .defs import AlertDef, Direction, Severity
 
-Severity = Literal["info", "warning", "critical"]
-Direction = Literal["above", "below", "cross_up", "cross_down"]
-
-
-@dataclass(frozen=True)
-class AlertDef:
-    code: str
-    severity: Severity
-    title_template: str
-    metric_name: str
-    default_threshold: float
-    default_direction: Direction
-    crisis_mode: bool = False
-    description: str = ""
+__all__ = [
+    "ALL_ALERTS",
+    "BY_CODE",
+    "CRISIS_TRIGGERS",
+    "AlertDef",
+    "Direction",
+    "Severity",
+    "assert_catalog_complete",
+    "get_alert_def",
+]
 
 
 # Original 28 alerts from PLAN
@@ -664,6 +662,78 @@ AUDIT_V2_ALERTS: tuple[AlertDef, ...] = (
     ),
 )
 
+# S03 Chantier D (2026-06-11) — proactive data-layer monitoring. Emitted by
+# `cli/run_data_freshness_check.py` (5-min timer) against the
+# `services/collector_freshness.FRESHNESS_REGISTRY` expectations, and by the
+# same CLI's per-feed RSS sweep. `asset` carries the source_key (precedent:
+# COT z-flip alerts carry raw market codes), so the 2h (code, asset) dedup
+# bounds spam per source while distinct sources alert independently.
+DATA_FRESHNESS_ALERTS: tuple[AlertDef, ...] = (
+    AlertDef(
+        "COLLECTOR_STALE",
+        "warning",
+        "Collecte {source_key} silencieuse depuis {age_hours}h (attendu <= {max_age_hours}h)",
+        "collector_age_ratio",
+        1.0,
+        "above",
+        description=(
+            "A monitored collect table stopped moving past its expected "
+            "freshness window (collector_freshness registry). Market-gated "
+            "sources are only evaluated while their market is open (ADR-105)."
+        ),
+    ),
+    AlertDef(
+        "COLLECTOR_ABSENT",
+        "critical",
+        "Collecte {source_key} n'a jamais livré — table {table} vide",
+        "collector_absent",
+        0.5,
+        "above",
+        description=(
+            "A monitored collect table is EMPTY — the collector never "
+            "delivered a single row. Critical: a whole input dimension of "
+            "the analysis engine is dark."
+        ),
+    ),
+    AlertDef(
+        "RSS_FEED_SILENT",
+        "warning",
+        "{value:.0f} flux RSS silencieux au-delà de leur fenêtre attendue : {silent_feeds}",
+        "rss_silent_feeds",
+        0.5,
+        "above",
+        description=(
+            "One or more configured world-newsletter feeds produced zero "
+            "items over 48h (dead URL, WAF block, format drift). The "
+            "aggregate news_items flow can stay fresh while individual "
+            "feeds die — this catches the per-feed silent class (BoE 403)."
+        ),
+    ),
+)
+
+# S03 Chantier D — pre-announcement sentinel ("être prévenu de TOUTES les
+# annonces", spec S03 verbatim). Emitted by `cli/run_event_sentinel.py`
+# (10-min timer) via `alerts/event_sentinel.py`. Severity `critical` on
+# purpose: a high-impact print < 60 min away is the must-not-miss class and
+# `critical` is the web-push tier. Event-level dedup via payload event_key
+# (the generic 2h (code, asset) window would mask a 16:00 print behind a
+# 14:30 cluster). ADR-017: describes the calendar, never a direction.
+EVENT_SENTINEL_ALERTS: tuple[AlertDef, ...] = (
+    AlertDef(
+        "ECO_EVENT_IMMINENT",
+        "critical",
+        "{titles} ({currency}) dans {value:.0f} min — {local_paris} Paris",
+        "event_minutes_until",
+        60,
+        "below",
+        description=(
+            "Annonce économique à fort impact imminente sur une devise du "
+            "périmètre. Contexte : intitulés, heure Paris, consensus si "
+            "publié. Descriptif uniquement — jamais une direction."
+        ),
+    ),
+)
+
 # r165 Strand E — Scenario Invalidation alerts (3 severity tiers) joining
 # the canonical catalog. Defined in `alerts/scenario_invalidation.py` and
 # imported here to extend the registry via the same `+` concatenation
@@ -672,7 +742,13 @@ AUDIT_V2_ALERTS: tuple[AlertDef, ...] = (
 # so the import lives here at module top via lazy resolution.
 from .scenario_invalidation import SCENARIO_INVALIDATION_ALERTS  # noqa: E402
 
-ALL_ALERTS: tuple[AlertDef, ...] = PLAN_ALERTS + AUDIT_V2_ALERTS + SCENARIO_INVALIDATION_ALERTS
+ALL_ALERTS: tuple[AlertDef, ...] = (
+    PLAN_ALERTS
+    + AUDIT_V2_ALERTS
+    + DATA_FRESHNESS_ALERTS
+    + EVENT_SENTINEL_ALERTS
+    + SCENARIO_INVALIDATION_ALERTS
+)
 
 # Quick lookup
 BY_CODE: dict[str, AlertDef] = {a.code: a for a in ALL_ALERTS}
@@ -688,11 +764,12 @@ def get_alert_def(code: str) -> AlertDef:
 
 
 def assert_catalog_complete() -> None:
-    """Sanity check at startup: total = 57 alerts, all unique codes.
+    """Sanity check at startup: total = 61 alerts, all unique codes.
 
     r165 Strand E added 3 SCENARIO_INVALIDATION_* entries (54 → 57).
+    S03 Chantier D added 3 DATA_FRESHNESS + 1 EVENT_SENTINEL (57 → 61).
     """
     codes = [a.code for a in ALL_ALERTS]
     assert len(codes) == len(set(codes)), f"Duplicate alert codes: {codes}"
-    assert len(ALL_ALERTS) == 57, f"Expected 57 alerts, got {len(ALL_ALERTS)}"
+    assert len(ALL_ALERTS) == 61, f"Expected 61 alerts, got {len(ALL_ALERTS)}"
     assert len(CRISIS_TRIGGERS) >= 5, f"Expected ≥5 crisis triggers, got {len(CRISIS_TRIGGERS)}"
