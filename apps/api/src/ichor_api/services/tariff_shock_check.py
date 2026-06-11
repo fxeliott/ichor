@@ -141,11 +141,14 @@ COUNT_ZSCORE_WINDOW_DAYS = 30
 # test_threshold_constant_matches_catalog.
 ALERT_COUNT_Z_FLOOR: float = 2.0
 
-# Tone is a GDELT VADER-lexicon score in [-10, +10]. Research
-# (knowledge4policy.ec.europa.eu Socioeconomic Tracker, GDELT GEG
-# benchmarks) indicates avg-tone <= -1.5 corresponds to clearly
-# "agitated" reporting. Combined with the count anomaly, this gate
-# eliminates false positives from neutral-tone newswire repetition.
+# Tone is on the GDELT-like [-10, +10] scale. Since ADR-112 (2026-06-12)
+# it is scored LOCALLY by run_gdelt_tone_scorer (FinBERT on English
+# titles, (p_pos - p_neg) * 10) — the ArtList feed never carried a
+# per-article tone and the column sat at 0.0 (the alert could never
+# fire). The original -1.5 calibration ("agitated" reporting per GDELT
+# GEG benchmarks) is kept; unscored rows (tone == 0.0: non-English /
+# not-yet-scored) are EXCLUDED from the average so they cannot dilute
+# the gate toward neutrality (reviewer PR #232 MAJOR-1).
 AVG_TONE_NEG_FLOOR: float = -1.5
 
 # Minimum sample for a credible z-score on the count series.
@@ -237,7 +240,12 @@ def _bucket_by_day(
         d = seen_dt.date()
         if d == today:
             today_count += 1
-            today_tones.append(tone)
+            # ADR-112: tone == 0.0 means unscored (non-English or not yet
+            # scored by run_gdelt_tone_scorer) — excluding it keeps the
+            # avg_tone gate calibrated on SCORED rows instead of being
+            # diluted toward neutrality by the unscored share.
+            if tone != 0.0:
+                today_tones.append(tone)
             if len(today_titles) < _TITLE_SAMPLE_CAP:
                 today_titles.append(title)
         elif d in history_buckets:
