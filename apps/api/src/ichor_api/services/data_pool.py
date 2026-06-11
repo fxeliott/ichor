@@ -4888,9 +4888,18 @@ async def _section_prediction_markets(
     return "\n".join(sections), sources
 
 
-_GEO_GDELT_POOL = (
-    40  # GDELT candidate pool before per-asset filter; = router top(5)*8 (brain↔panel parity)
-)
+# GDELT candidate pool before the per-asset filter — keep in lockstep with
+# routers/geopolitics.py default-top pool (brain↔panel parity, pinned by
+# test_geo_candidate_pool_parity_brain_vs_router).
+#
+# 2026-06-11 widened 40 → 400 (S04 TIER-2 #3 seal). Empirical prod witness:
+# the pool is the WHOLE-WINDOW most-negative ranking, so a narrow cap makes
+# per-asset differentiation depend on the day's tone mix, not on density —
+# with 2,387 events/24h (403 gold rows) the 40-cap matched XAU=0, GBP=0,
+# SPX=1 → systematic global fallback, while cap 400 matched XAU=48, GBP=9,
+# SPX=11, EUR=38, NAS=74 → 5/5 assets differentiate with margin. 400 rows
+# stays a bounded, index-friendly read (ix_gdelt_seendate + in-memory sort).
+_GEO_GDELT_POOL = 400
 _GEO_MIN_ASSET_MATCHES = 3  # below this, GDELT negatives fall back to the global ranking
 
 
@@ -4955,10 +4964,14 @@ async def _section_geopolitics(
     from .asset_news_affinity import filter_rows_by_asset_affinity
 
     cutoff = datetime.now(UTC) - timedelta(hours=24)
+    # id.asc() tertiary tiebreak: (tone, seendate) is NOT a total order — the
+    # same article ingested under several query_labels ties on both, and
+    # Postgres gives no intra-tie guarantee (plan-dependent). Pinning the
+    # tiebreak keeps the candidate pool deterministic across LIMIT changes.
     gdelt_stmt = (
         select(GdeltEvent)
         .where(GdeltEvent.seendate >= cutoff)
-        .order_by(GdeltEvent.tone.asc(), GdeltEvent.seendate.desc())
+        .order_by(GdeltEvent.tone.asc(), GdeltEvent.seendate.desc(), GdeltEvent.id.asc())
         .limit(_GEO_GDELT_POOL)
     )
     gdelt_rows = list((await session.execute(gdelt_stmt)).scalars().all())

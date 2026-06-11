@@ -47,7 +47,13 @@ _GPR_BASELINE = 100.0
 _MIN_ASSET_MATCHES = 3
 # r138 — pull a wider candidate pool for GDELT when filtering so the
 # keyword filter has options before we pick the top-N most-negative.
-_FILTER_FETCH_MULTIPLIER = 8
+# 2026-06-11 widened 8 → 80 (S04 TIER-2 #3 seal): with the default top=5 the
+# candidate pool becomes min(500, max(400, 24)) = 400, in lockstep with
+# services/data_pool._GEO_GDELT_POOL (brain↔panel parity, CI-pinned). The
+# old 40-row pool made per-asset differentiation depend on the day's global
+# tone mix: prod witness 2026-06-11 = XAU matched 0/40 despite 403 gold
+# rows in the 24h window, vs 48/400. See data_pool._GEO_GDELT_POOL comment.
+_FILTER_FETCH_MULTIPLIER = 80
 _FILTER_MAX_FETCH = 500
 # r138 — `_ASSET_REGEX` re-imported from SSOT (code-reviewer N3).
 
@@ -214,12 +220,19 @@ async def briefing(
     # (seendate DESC on tone-tie) so r137→r138 do NOT diverge when ties
     # exist in the integer-rounded GDELT tone bucket. Without this, the
     # top-N subset on tied tones is implementation-defined.
+    # id.asc() tertiary tiebreak mirrors data_pool._section_geopolitics —
+    # (tone, seendate) full-ties are structurally frequent (same URL under
+    # several query_labels) and Postgres gives no intra-tie order guarantee.
     base_stmt = (
         select(GdeltEvent)
         .where(GdeltEvent.seendate >= cutoff)
-        .order_by(GdeltEvent.tone.asc(), GdeltEvent.seendate.desc())
+        .order_by(GdeltEvent.tone.asc(), GdeltEvent.seendate.desc(), GdeltEvent.id.asc())
     )
     if asset:
+        # The `_MIN_ASSET_MATCHES * 8` floor is INDEPENDENT of the 80×
+        # multiplier above: it guarantees the filter a minimum 24-row pool
+        # even for tiny `top` values (top=1 → 80 would already clear it; the
+        # floor is the historical r138 safety net, keep as is).
         pool_cap = min(
             _FILTER_MAX_FETCH, max(top * _FILTER_FETCH_MULTIPLIER, _MIN_ASSET_MATCHES * 8)
         )
