@@ -77,7 +77,11 @@ from ..services.scenario_invalidation_monitor import (
     InvalidationStatus,
     evaluate_scenario_invalidations,
 )
-from .catalog import AlertDef
+
+# S03 (2026-06-11) — AlertDef now comes from the leaf module `defs`, killing
+# the catalog ↔ scenario_invalidation half of the r165 cycle for good (the
+# lazy AlertHit import below remains for the evaluator half).
+from .defs import AlertDef
 
 # r165 Strand E circular-import avoidance : AlertHit imported lazily inside
 # the evaluator function body. ``alerts/evaluator.py`` imports ``ALL_ALERTS``

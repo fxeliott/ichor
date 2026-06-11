@@ -119,7 +119,6 @@ def test_fx_gate_skips_monday_reopen_grace() -> None:
     """Seconds after the Sunday reopen, the latest fx tick is Friday-old.
     Window start (now - 15min) falls inside the weekend → skip. This is
     the Monday-reopen false-alarm kill."""
-    spec = _spec(gate="fx", max_age=timedelta(minutes=15))
     status_now = compute_session_status(MONDAY_EARLY)
     assert status_now.market_closed_fx is False  # market IS open again
     # 15 minutes before MONDAY_EARLY is still Sunday 21:45-ish Paris? No —

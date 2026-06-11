@@ -11,23 +11,21 @@ Each definition encodes :
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Literal
+# Primitive types live in the leaf module `defs` (S03 cycle break — see its
+# docstring); re-exported here so existing `from .catalog import AlertDef`
+# callers stay untouched.
+from .defs import AlertDef, Direction, Severity
 
-Severity = Literal["info", "warning", "critical"]
-Direction = Literal["above", "below", "cross_up", "cross_down"]
-
-
-@dataclass(frozen=True)
-class AlertDef:
-    code: str
-    severity: Severity
-    title_template: str
-    metric_name: str
-    default_threshold: float
-    default_direction: Direction
-    crisis_mode: bool = False
-    description: str = ""
+__all__ = [
+    "ALL_ALERTS",
+    "BY_CODE",
+    "CRISIS_TRIGGERS",
+    "AlertDef",
+    "Direction",
+    "Severity",
+    "assert_catalog_complete",
+    "get_alert_def",
+]
 
 
 # Original 28 alerts from PLAN
