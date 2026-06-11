@@ -213,9 +213,10 @@ async def fetch_query(
 ) -> list[GdeltArticle]:
     """One bucket → JSON → parsed list. Returns [] on any error.
 
-    Retries with exponential backoff on 429 / 5xx. GDELT occasionally
-    rate-limits (no documented limit, but ~1 req/s observed) so we
-    sleep 1s / 3s / 9s between attempts.
+    Retries with exponential backoff on 429 / 5xx — 5 s / 15 s / 45 s:
+    the original 1/3/9 ladder retried INSIDE the same rate-limit window
+    and burned its retries (429s on 6/14 queries witnessed prod
+    2026-06-11 21:33 evening peak).
     """
     params = {
         "query": q.query,
@@ -224,7 +225,7 @@ async def fetch_query(
         "timespan": q.timespan,
         "maxrecords": str(q.max_records),
     }
-    backoff = 1.0
+    backoff = 5.0
     for attempt in range(max_retries + 1):
         try:
             r = await client.get(
@@ -260,15 +261,16 @@ async def fetch_query(
 async def poll_all(
     queries: Iterable[GdeltQuery] = ALL_QUERIES,
     *,
-    concurrency: int = 2,
-    politeness_delay_s: float = 2.0,
+    concurrency: int = 1,
+    politeness_delay_s: float = 5.0,
 ) -> list[GdeltArticle]:
-    """Fan out the queries in parallel. Dedupe by URL.
+    """Run the queries strictly sequentially. Dedupe by URL.
 
-    S03 — concurrency lowered 4 → 2 and a per-request politeness delay
-    added: the query count grew 8 → 14 per cycle and GDELT serves real
-    HTTP 429s under burst (observed 2026-06-11); ~1 req/2-5s keeps the
-    cycle under a minute while staying well inside observed tolerance.
+    S03 hardening — concurrency 1 at ~1 req/5 s (the community-observed
+    polite rate): the first cut (concurrency 2 + 2 s delay) still drew
+    429s on 6/14 queries at the evening-peak run (witnessed prod
+    2026-06-11 21:33) and burned its retries. 14 queries ≈ 90-120 s per
+    cycle — trivial against the 30-min timer.
     """
     sem = asyncio.Semaphore(concurrency)
 

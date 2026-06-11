@@ -38,11 +38,17 @@ User=ichor
 Group=ichor
 WorkingDirectory=/opt/ichor/api
 EnvironmentFile=/etc/ichor/api.env
-ExecStart=/opt/ichor/api/.venv/bin/python -m ichor_api.cli.run_scenario_invalidation_check
+# VALIDATION MODE (S03 2026-06-11): --dry-run evaluates the day's real
+# cards with the flag OFF (read-only, rolled back, notify-gated) so the
+# >=3-session arming evidence accumulates automatically in journalctl —
+# without it the timer would exit-1 skip and the validation could never
+# progress. ARMING STEP (owner, after >=3 clean sessions): set the
+# feature flag to true AND remove --dry-run below, then re-register.
+ExecStart=/opt/ichor/api/.venv/bin/python -m ichor_api.cli.run_scenario_invalidation_check --dry-run
 TimeoutStartSec=300
 StandardOutput=journal
 StandardError=journal
-# Exit 1 = feature flag OFF (clean skip, not a failure)
+# Exit 1 = feature flag OFF without --dry-run (clean skip, not a failure)
 # Exit 3 = DB connection failure (transient, retry next tick)
 SuccessExitStatus=0 1
 EOF
