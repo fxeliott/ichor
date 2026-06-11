@@ -36,7 +36,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models import Alert, EconomicEvent
 from .catalog import get_alert_def
-from .evaluator import AlertHit
+from .defs import AlertHit
 
 log = structlog.get_logger(__name__)
 

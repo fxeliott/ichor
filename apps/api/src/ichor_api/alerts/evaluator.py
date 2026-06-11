@@ -12,19 +12,15 @@ crisis_mode-flagged alerts.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Literal
+from typing import Any
 
-from .catalog import ALL_ALERTS, AlertDef
+from .catalog import ALL_ALERTS
 
+# AlertHit moved to the leaf module `defs` (S03 cycle break) — re-exported
+# here so existing `from .evaluator import AlertHit` callers stay untouched.
+from .defs import AlertHit
 
-@dataclass
-class AlertHit:
-    alert_def: AlertDef
-    metric_value: float
-    threshold: float
-    direction_observed: Literal["above", "below", "cross_up", "cross_down"]
-    source_payload: dict
+__all__ = ["AlertHit", "evaluate_metric"]
 
 
 def _direction_matches(observed: str, expected: str) -> bool:
@@ -37,7 +33,7 @@ def evaluate_metric(
     *,
     previous_value: float | None = None,
     asset: str | None = None,
-    extra_payload: dict | None = None,
+    extra_payload: dict[str, Any] | None = None,
 ) -> list[AlertHit]:
     """Walk the alert catalog, return all alerts whose conditions match.
 

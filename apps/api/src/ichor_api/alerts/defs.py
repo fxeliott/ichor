@@ -14,7 +14,7 @@ partially-initialised module. Both now depend on THIS leaf instead;
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Literal
+from typing import Any, Literal
 
 Severity = Literal["info", "warning", "critical"]
 Direction = Literal["above", "below", "cross_up", "cross_down"]
@@ -30,3 +30,19 @@ class AlertDef:
     default_direction: Direction
     crisis_mode: bool = False
     description: str = ""
+
+
+@dataclass
+class AlertHit:
+    """One fired alert occurrence — built by ``evaluator.evaluate_metric``
+    or directly by the hit-building evaluators (scenario_invalidation,
+    event_sentinel), persisted by ``services/alerts_runner``. Lives here
+    (not in ``evaluator``) so hit-builders never need the
+    catalog-importing evaluator module — the r165 lazy-import workaround
+    is gone."""
+
+    alert_def: AlertDef
+    metric_value: float
+    threshold: float
+    direction_observed: Direction
+    source_payload: dict[str, Any]
