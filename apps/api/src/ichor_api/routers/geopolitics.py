@@ -47,7 +47,13 @@ _GPR_BASELINE = 100.0
 _MIN_ASSET_MATCHES = 3
 # r138 — pull a wider candidate pool for GDELT when filtering so the
 # keyword filter has options before we pick the top-N most-negative.
-_FILTER_FETCH_MULTIPLIER = 8
+# 2026-06-11 widened 8 → 80 (S04 TIER-2 #3 seal): with the default top=5 the
+# candidate pool becomes min(500, max(400, 24)) = 400, in lockstep with
+# services/data_pool._GEO_GDELT_POOL (brain↔panel parity, CI-pinned). The
+# old 40-row pool made per-asset differentiation depend on the day's global
+# tone mix: prod witness 2026-06-11 = XAU matched 0/40 despite 403 gold
+# rows in the 24h window, vs 48/400. See data_pool._GEO_GDELT_POOL comment.
+_FILTER_FETCH_MULTIPLIER = 80
 _FILTER_MAX_FETCH = 500
 # r138 — `_ASSET_REGEX` re-imported from SSOT (code-reviewer N3).
 

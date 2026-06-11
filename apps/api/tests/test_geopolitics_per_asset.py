@@ -139,3 +139,35 @@ async def test_geopolitics_gpr_absent_is_degraded() -> None:
     assert degraded[0].series_id == "AI-GPR"
     assert degraded[0].status == "absent"
     assert "AI-GPR ABSENT" in md
+
+
+def test_geo_candidate_pool_parity_brain_vs_router() -> None:
+    """Brain↔panel parity lockstep (S04 TIER-2 #3): the data_pool section and
+    the /v1/geopolitics/briefing router must draw the SAME candidate pool for
+    the router's default top=5, or the brain's card and the frontend panel
+    silently diverge on which events qualify as the asset's conversation."""
+    from ichor_api.routers.geopolitics import (
+        _FILTER_FETCH_MULTIPLIER,
+        _FILTER_MAX_FETCH,
+        _MIN_ASSET_MATCHES,
+    )
+    from ichor_api.services.data_pool import _GEO_GDELT_POOL
+
+    router_default_top = 5  # Query(5, ...) default in routers/geopolitics.briefing
+    router_pool = min(
+        _FILTER_MAX_FETCH,
+        max(router_default_top * _FILTER_FETCH_MULTIPLIER, _MIN_ASSET_MATCHES * 8),
+    )
+    assert _GEO_GDELT_POOL == router_pool
+
+
+def test_geo_candidate_pool_wide_enough_for_low_share_assets() -> None:
+    """Pin the 2026-06-11 widening (40 → 400). The pool is the whole-window
+    most-negative ranking; prod witness on a 2,387-event/24h window showed the
+    40-cap structurally starves low-share-of-voice assets (XAU matched 0
+    despite 403 gold rows; GBP 0; SPX 1 → systematic global fallback), while
+    400 gives 5/5 assets margin (XAU 48, GBP 9, SPX 11). Shrinking this back
+    re-opens the S04 'identical geopolitics block for all assets' gap."""
+    from ichor_api.services.data_pool import _GEO_GDELT_POOL
+
+    assert _GEO_GDELT_POOL == 400
