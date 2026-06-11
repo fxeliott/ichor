@@ -216,8 +216,10 @@ def test_parse_rss1_rdf_extracts_items() -> None:
 def test_s03_second_expansion_feeds_present() -> None:
     """S03 depth pass (2026-06-11): the fetch-verified world-newsletter
     surface — central banks (BoC RDF, SNB), official statistics (BEA,
-    StatCan, ONS), FX/markets flow (FXStreet), energy (EIA, OilPrice),
-    geopolitics (Crisis Group), economy (CNBC)."""
+    StatCan, ONS), energy (EIA, OilPrice), geopolitics (Crisis Group),
+    economy (CNBC). fxstreet_news was added then REMOVED same-day: 403
+    from the Hetzner host with bot AND browser UAs (datacenter-IP WAF) —
+    a permanently-dead entry would only pollute RSS_FEED_SILENT."""
     names = {f.name for f in DEFAULT_FEEDS}
     assert {
         "boc_press",
@@ -225,17 +227,48 @@ def test_s03_second_expansion_feeds_present() -> None:
         "bea_releases",
         "statcan_daily",
         "ons_releases",
-        "fxstreet_news",
         "eia_today_in_energy",
         "cnbc_economy",
         "oilprice",
         "crisisgroup",
     }.issubset(names), "S03 second-expansion feeds missing"
-    assert len(DEFAULT_FEEDS) >= 21
+    assert "fxstreet_news" not in names
+    assert len(DEFAULT_FEEDS) >= 20
     # ForexLive rebrand: canonical URL, no 301 dependency; name unchanged
     # so guid_hash dedup history holds.
     fl = next(f for f in DEFAULT_FEEDS if f.name == "forexlive")
     assert fl.url == "https://investinglive.com/feed/news"
+
+
+ATOM_XHTML_TITLE_BODY = b"""<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>StatCan-style feed</title>
+  <id>urn:test:xhtml</id>
+  <updated>2026-06-10T08:30:00-04:00</updated>
+  <entry>
+    <title type="xhtml">
+      <div xmlns="http://www.w3.org/1999/xhtml">Farm product prices, <span>April 2026</span></div>
+    </title>
+    <link href="https://example.test/daily/1"></link>
+    <id>https://example.test/daily/1</id>
+    <updated>2026-06-10T08:30:00-04:00</updated>
+    <summary type="xhtml"><div xmlns="http://www.w3.org/1999/xhtml">Prices rose.</div></summary>
+  </entry>
+</feed>
+"""
+
+
+def test_parse_atom_xhtml_title() -> None:
+    """Atom <title type="xhtml"> (RFC 4287 §3.1.1, StatCan The Daily):
+    the text lives in a nested xhtml <div> — findtext on the title
+    element returns "" and the item was silently skipped (witnessed prod
+    2026-06-11, statcan_daily = 0 rows while 9 sibling feeds delivered).
+    _full_text walks the subtree; this pins the fix."""
+    src = FeedSource(name="statcan_test", url="https://example.test/atom", kind="news")
+    items = parse_feed(src, ATOM_XHTML_TITLE_BODY)
+    assert len(items) == 1
+    assert items[0].title == "Farm product prices, April 2026"
+    assert items[0].url == "https://example.test/daily/1"
 
 
 def test_parse_date_always_timezone_aware() -> None:
