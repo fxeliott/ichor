@@ -36,9 +36,11 @@ import json
 import sys
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import Any
 
 import structlog
 from sqlalchemy import text as sa_text
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..collectors.rss import DEFAULT_FEEDS
 from ..db import get_engine, get_sessionmaker
@@ -73,7 +75,7 @@ def _fmt_age(age: timedelta | None) -> str:
     return f"{hours:.1f}h"
 
 
-async def _sweep_registry(session, *, now: datetime) -> list[FreshnessResult]:
+async def _sweep_registry(session: AsyncSession, *, now: datetime) -> list[FreshnessResult]:
     status_now = compute_session_status(now)
     results: list[FreshnessResult] = []
     for spec in FRESHNESS_REGISTRY:
@@ -91,7 +93,7 @@ async def _sweep_registry(session, *, now: datetime) -> list[FreshnessResult]:
     return results
 
 
-async def _emit_alerts(session, results: list[FreshnessResult]) -> int:
+async def _emit_alerts(session: AsyncSession, results: list[FreshnessResult]) -> int:
     n = 0
     for r in results:
         if not r.is_degraded:
@@ -104,7 +106,7 @@ async def _emit_alerts(session, results: list[FreshnessResult]) -> int:
             "criticality": r.spec.criticality,
             "note": r.spec.note,
         }
-        if r.status == "absent":
+        if r.status == "absent" or r.age is None:
             hits = await check_metric(
                 session,
                 metric_name="collector_absent",
@@ -125,7 +127,7 @@ async def _emit_alerts(session, results: list[FreshnessResult]) -> int:
     return n
 
 
-async def _sweep_rss_feeds(session, *, now: datetime) -> tuple[list[str], int]:
+async def _sweep_rss_feeds(session: AsyncSession, *, now: datetime) -> tuple[list[str], int]:
     """Per-feed silent sweep — the aggregate news_items flow can stay
     fresh while individual feeds die. Returns (silent_feeds, n_alerts)."""
     feed_names = [f.name for f in DEFAULT_FEEDS]
@@ -136,7 +138,9 @@ async def _sweep_rss_feeds(session, *, now: datetime) -> tuple[list[str], int]:
         ),
         {"names": feed_names},
     )
-    latest_by_feed = dict(rows.all())
+    latest_by_feed: dict[str, datetime | None] = {
+        str(source): latest for source, latest in rows.all()
+    }
     silent: list[str] = []
     for name in feed_names:
         window = _RSS_SLOW_WINDOW if name in _RSS_SLOW_FEEDS else _RSS_SILENT_WINDOW
@@ -158,14 +162,15 @@ async def _sweep_rss_feeds(session, *, now: datetime) -> tuple[list[str], int]:
     return silent, n_alerts
 
 
-def _load_state(path: Path) -> dict | None:
+def _load_state(path: Path) -> dict[str, Any] | None:
     try:
-        return json.loads(path.read_text(encoding="utf-8"))
+        loaded = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return None
+    return loaded if isinstance(loaded, dict) else None
 
 
-def _save_state(path: Path, state: dict) -> None:
+def _save_state(path: Path, state: dict[str, Any]) -> None:
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(state), encoding="utf-8")
@@ -180,8 +185,9 @@ async def _run(*, dry_run: bool, state_file: Path) -> int:
     try:
         async with sm() as session:
             results = await _sweep_registry(session, now=now)
+            silent: list[str] = []
             if dry_run:
-                n_alerts, silent = 0, []
+                n_alerts = 0
                 for r in results:
                     print(
                         f"  [{r.spec.source_key:18s}] {r.status:22s} "

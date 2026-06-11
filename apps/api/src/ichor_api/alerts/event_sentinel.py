@@ -28,6 +28,7 @@ tz-aware and CORRECT — US CPI stored `14:30+02` = 08:30 ET, BoC
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 import structlog
 from sqlalchemy import select
@@ -45,6 +46,8 @@ log = structlog.get_logger(__name__)
 RELEVANT_CURRENCIES: frozenset[str] = frozenset({"USD", "EUR", "GBP", "CAD"})
 
 DEFAULT_HORIZON_MINUTES = 60
+
+_PARIS = ZoneInfo("Europe/Paris")
 
 
 def _event_cluster_key(currency: str, scheduled_at: datetime) -> str:
@@ -103,6 +106,8 @@ async def evaluate_upcoming_event_hits(
     # Cluster by (currency, minute slot).
     clusters: dict[str, list[EconomicEvent]] = {}
     for ev in events:
+        if ev.scheduled_at is None:  # filtered by the query; type-narrowing
+            continue
         key = _event_cluster_key(ev.currency, ev.scheduled_at)
         clusters.setdefault(key, []).append(ev)
 
@@ -112,7 +117,10 @@ async def evaluate_upcoming_event_hits(
         if key in alerted:
             continue
         first = evs[0]
-        minutes_until = max(0.0, (first.scheduled_at - now).total_seconds() / 60.0)
+        sched = first.scheduled_at
+        if sched is None:  # unreachable post-clustering; type-narrowing
+            continue
+        minutes_until = max(0.0, (sched - now).total_seconds() / 60.0)
         titles = "; ".join(e.title for e in evs[:4]) + (" …" if len(evs) > 4 else "")
         consensus = next((e.forecast for e in evs if e.forecast), None)
         hits.append(
@@ -126,21 +134,13 @@ async def evaluate_upcoming_event_hits(
                         "event_key": key,
                         "currency": first.currency,
                         "titles": titles,
-                        "scheduled_at_utc": first.scheduled_at.astimezone(UTC).isoformat(),
+                        "scheduled_at_utc": sched.astimezone(UTC).isoformat(),
                         "n_events": len(evs),
                         "consensus": consensus,
-                        "local_paris": first.scheduled_at.astimezone(UTC)
-                        .astimezone(_paris())
-                        .strftime("%H:%M"),
+                        "local_paris": sched.astimezone(_PARIS).strftime("%H:%M"),
                     },
                 ),
                 first.currency,
             )
         )
     return hits
-
-
-def _paris():
-    from zoneinfo import ZoneInfo
-
-    return ZoneInfo("Europe/Paris")

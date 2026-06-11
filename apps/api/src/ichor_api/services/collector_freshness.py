@@ -50,7 +50,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
-from typing import Literal
+from typing import Any, Literal
 
 from .market_session import SessionStatus
 
@@ -101,9 +101,18 @@ class FreshnessResult:
 # publish monthly with multi-week lag — witnessed in prod 06-10/06-11,
 # "stale upstream" there is a publication calendar, not a fault).
 
-_M = lambda n: timedelta(minutes=n)  # noqa: E731
-_H = lambda n: timedelta(hours=n)  # noqa: E731
-_D = lambda n: timedelta(days=n)  # noqa: E731
+
+def _M(n: int) -> timedelta:  # noqa: N802 — registry shorthand
+    return timedelta(minutes=n)
+
+
+def _H(n: int) -> timedelta:  # noqa: N802
+    return timedelta(hours=n)
+
+
+def _D(n: int) -> timedelta:  # noqa: N802
+    return timedelta(days=n)
+
 
 FRESHNESS_REGISTRY: tuple[FreshnessSpec, ...] = (
     # ── critical tier: the real-time promise itself ──
@@ -300,12 +309,12 @@ RENOTIFY_SECONDS = 7200  # re-notify every 2h while degraded (not every 5 min)
 
 
 def decide_exit(
-    prev_state: dict | None,
+    prev_state: dict[str, Any] | None,
     *,
     critical_degraded: bool,
     now_epoch: int,
     renotify_seconds: int = RENOTIFY_SECONDS,
-) -> tuple[int, dict]:
+) -> tuple[int, dict[str, Any]]:
     """(exit_code, new_state). Exit 2 ONLY on the healthy→degraded
     transition or on the periodic re-notify while degraded — steady
     states exit 0 so ``OnFailure=ichor-notify@`` does not spam."""
