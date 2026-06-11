@@ -175,6 +175,20 @@ async def test_geopolitics_small_neutral_pool_not_declared_dead() -> None:
     assert not any(d.series_id == "GDELT:tone" for d in degraded)
 
 
+async def test_geopolitics_tone_dead_floor_is_exactly_20() -> None:
+    """Pin the exact boundary (reviewer #230 NIT): 19 all-zero rows = normal
+    path, 20 = suspended. Changing _GEO_TONE_DEAD_MIN_N must touch this test."""
+    pool19 = [_gdelt(i, f"Flat story {i}", 0.0) for i in range(1, 20)]
+    md19, _, deg19 = await _section_geopolitics(_session(gpr=_gpr(), gdelt=pool19), "EUR_USD")
+    assert "GDELT tone ABSENT" not in md19
+    assert not any(d.series_id == "GDELT:tone" for d in deg19)
+
+    pool20 = [_gdelt(i, f"Flat story {i}", 0.0) for i in range(1, 21)]
+    md20, _, deg20 = await _section_geopolitics(_session(gpr=_gpr(), gdelt=pool20), "EUR_USD")
+    assert "GDELT tone ABSENT" in md20
+    assert any(d.series_id == "GDELT:tone" for d in deg20)
+
+
 def test_geo_candidate_pool_parity_brain_vs_router() -> None:
     """Brain↔panel parity lockstep (S04 TIER-2 #3): the data_pool section and
     the /v1/geopolitics/briefing router must draw the SAME candidate pool for

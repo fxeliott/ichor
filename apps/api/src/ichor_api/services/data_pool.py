@@ -4990,11 +4990,17 @@ async def _section_geopolitics(
         # the tone column flat-zero, "most-negative" would silently mean
         # "most-recent + keyword noise". Suspend the cluster, surface the
         # upstream data-quality hole, keep AI-GPR (independent source) above.
+        # Pool-scoped wording (reviewer #230 MINOR 1): we measured the
+        # candidate pool, not the whole 24h window — say exactly that.
         lines.append(
-            f"- ⚠ GDELT tone ABSENT upstream ({len(gdelt_rows)} events in 24h, 100% tone=0.0) — "
-            "negative-event ranking suspended; per-asset headlines remain covered by the "
-            "News section"
+            f"- ⚠ GDELT tone ABSENT upstream (candidate pool {len(gdelt_rows)} rows, "
+            "100% tone=0.0) — negative-event ranking suspended; per-asset headlines "
+            "remain covered by the News section"
         )
+        # max_age_days=0 convention: no age window applies — this is a
+        # column-vitality absence, not a staleness verdict (reviewer #230
+        # MINOR 2; consumers are pass-through today, any future ratio
+        # consumer must special-case 0).
         degraded.append(
             DegradedInput(
                 series_id="GDELT:tone",
