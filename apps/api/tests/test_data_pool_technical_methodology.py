@@ -16,20 +16,17 @@ from __future__ import annotations
 
 import asyncio
 import inspect
-import re
 from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, patch
 
+# ADR-017 boundary checked against the CANONICAL filter — never a local copy
+# (adr017_filter.py doctrine ; review PR #234 M2).
 from ichor_api.services import data_pool as dp_mod
 from ichor_api.services import technical_analysis as ta_mod
+from ichor_api.services.adr017_filter import is_adr017_clean
 from ichor_api.services.data_pool import _section_technical_methodology
 from ichor_api.services.london_session import Bar
 from ichor_api.services.technical_analysis import compute_technical_reading
-
-_FORBIDDEN_TRADE_TOKENS_RE = re.compile(
-    r"\b(BUY|SELL|TP|SL|long entry|short entry|stop loss|take profit)\b",
-    re.IGNORECASE,
-)
 
 _NOW = datetime(2026, 6, 11, 9, 0, tzinfo=UTC)
 
@@ -86,7 +83,7 @@ class TestSectionHonestAbsence:
             assert "absence honnête" in md
             assert "ADR-017" in md
             assert sources == ["technical_reading:EUR_USD:absent"]
-            assert _FORBIDDEN_TRADE_TOKENS_RE.search(md) is None
+            assert is_adr017_clean(md)
 
         asyncio.run(_run())
 
@@ -103,9 +100,9 @@ class TestSectionPopulated:
                 )
             assert "Lecture technique" in md
             assert "Élan H1" in md
-            assert any(s.startswith("polygon:EUR_USD@") for s in sources)
+            assert any(s.startswith("polygon_intraday:EUR_USD@") for s in sources)
             assert "methodologie:ADR-113" in sources
-            assert _FORBIDDEN_TRADE_TOKENS_RE.search(md) is None
+            assert is_adr017_clean(md)
 
         asyncio.run(_run())
 

@@ -18,9 +18,12 @@ Doctrine #5 pure-module discipline : synthetic bars only, no DB.
 
 from __future__ import annotations
 
-import re
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 
+# ADR-017 boundary checked against the CANONICAL filter — never a local copy
+# (adr017_filter.py:50-54 : "any other module that ships its own copy is a P0
+# doctrinal regression" ; review PR #234 M2).
+from ichor_api.services.adr017_filter import is_adr017_clean
 from ichor_api.services.london_session import Bar
 from ichor_api.services.technical_analysis import (
     H1Candle,
@@ -31,14 +34,10 @@ from ichor_api.services.technical_analysis import (
     compute_technical_reading,
     detect_ny_origin_zones,
     golden_zone_of_latest_push,
+    ny_window_utc,
     read_trend,
     render_technical_reading_block,
     segment_pushes,
-)
-
-_FORBIDDEN_TRADE_TOKENS_RE = re.compile(
-    r"\b(BUY|SELL|TP|SL|long entry|short entry|stop loss|take profit)\b",
-    re.IGNORECASE,
 )
 
 # Fixed anchor : Wednesday 2026-06-10 (Paris = UTC+2, summer). NY window
@@ -202,6 +201,29 @@ class TestReadTrend:
     def test_indecis_on_empty(self) -> None:
         assert read_trend([]).state == "indecis"
 
+    def test_role_anomaly_alone_triggers_retournement(self) -> None:
+        """METHODOLOGIE §5.1 : l'anomalie de rôle est le détecteur PRINCIPAL,
+        autonome — sans essoufflement ni croissance des contraires (PR #234 M1)."""
+        pushes = [
+            self._push("baissiere", 0.0060, "nette", 0),
+            self._push("haussiere", 0.0070, "structuree", 1),
+            self._push("baissiere", 0.0080, "nette", 2),  # dom growing (no weakening)
+            self._push("haussiere", 0.0060, "nette", 3),  # counter NOT growing, but NETTE
+        ]
+        t = read_trend(pushes)
+        assert t.dominant_direction == "baissiere"
+        assert t.state == "retournement_potentiel_haussier"
+        assert "anomalie de rôle" in t.rationale_fr
+
+
+class TestNyWindow:
+    def test_winter_dst_paris(self) -> None:
+        """13h-20h Paris in January = 12:00-19:00 UTC (Paris = UTC+1)."""
+        open_utc, origin_end_utc, close_utc = ny_window_utc(date(2026, 1, 14))
+        assert open_utc == datetime(2026, 1, 14, 12, 0, tzinfo=UTC)
+        assert origin_end_utc == datetime(2026, 1, 14, 15, 0, tzinfo=UTC)
+        assert close_utc == datetime(2026, 1, 14, 19, 0, tzinfo=UTC)
+
 
 class TestNyOriginZones:
     def test_n1_and_n2_from_previous_completed_session(self) -> None:
@@ -239,6 +261,15 @@ class TestNyOriginZones:
         zones, session_date = detect_ny_origin_zones([], now_utc=_NOW)
         assert zones == [] and session_date is None
 
+    def test_in_progress_session_excluded(self) -> None:
+        """now inside the 06-10 session → the read must come from 06-09
+        (PR #234 m6 : the in-progress session is never read)."""
+        now = datetime(2026, 6, 10, 15, 0, tzinfo=UTC)  # 17h Paris, session live
+        candles = aggregate_hourly(_scenario_bars(), now_utc=now)
+        zones, session_date = detect_ny_origin_zones(candles, now_utc=now)
+        assert session_date == date(2026, 6, 9)
+        assert all(z.session_date == date(2026, 6, 9) for z in zones)
+
 
 class TestGoldenZone:
     def test_levels_of_latest_nette_push(self) -> None:
@@ -256,6 +287,22 @@ class TestGoldenZone:
 
     def test_none_without_nette_push(self) -> None:
         assert golden_zone_of_latest_push([], current_price=1.0) is None
+
+    def test_levels_of_bearish_push(self) -> None:
+        """Retracement of a DOWN push sits ABOVE its end (PR #234 m6 : pin the
+        sign so a regression cannot pass CI silently)."""
+        h = datetime(2026, 6, 10, 0, 0, tzinfo=UTC)
+        candles = [
+            _candle(h, 1.0200, 1.0201, 1.0095, 1.0100),
+            _candle(h + timedelta(hours=1), 1.0100, 1.0101, 0.9995, 1.0000),
+        ]
+        g = golden_zone_of_latest_push(segment_pushes(candles), current_price=1.0050)
+        assert g is not None
+        assert g.push_direction == "baissiere"
+        # Push 1.0200 → 1.0000 : 0.5 = 1.0100, 0.618 = 1.01236.
+        assert abs(g.zone_low - 1.0100) < 1e-9
+        assert abs(g.zone_high - 1.01236) < 1e-9
+        assert g.price_position == "en_dessous"
 
 
 class TestDayOpenRead:
@@ -275,13 +322,10 @@ class TestFullReading:
         assert r.origin_zones, "expected N1/N2 zones from the 06-10 NY session"
         assert r.golden_zone is not None
         assert r.day_open is not None
-        assert r.trend.state in {
-            "continuation_haussiere",
-            "continuation_baissiere",
-            "retournement_potentiel_haussier",
-            "retournement_potentiel_baissier",
-            "indecis",
-        }
+        # Deterministic pin (PR #234 M1) : the 06-10 session ends on a NETTE
+        # counter-push (16h-17h bulls) against a baissière-dominant window →
+        # anomalie de rôle → retournement potentiel haussier.
+        assert r.trend.state == "retournement_potentiel_haussier"
 
     def test_honest_absence_below_minimum(self) -> None:
         hour = datetime(2026, 6, 10, 5, 0, tzinfo=UTC)
@@ -293,17 +337,19 @@ class TestRender:
     def test_populated_prose_is_adr017_clean_and_french(self) -> None:
         r = compute_technical_reading(_scenario_bars(), asset="EUR_USD", now_utc=_NOW)
         md, sources = render_technical_reading_block(r, "EUR_USD")
-        assert _FORBIDDEN_TRADE_TOKENS_RE.search(md) is None
+        assert is_adr017_clean(md), "rendered prose must pass the CANONICAL ADR-017 filter"
         assert "Lecture technique" in md
         assert "Élan H1" in md
         assert "Origine" in md
         assert "ADR-017" in md
-        assert any(s.startswith("polygon:EUR_USD@") for s in sources)
+        # PR #234 m1 : accent-free Literal identifiers must never leak.
+        assert "haussiere" not in md and "baissiere" not in md
+        assert any(s.startswith("polygon_intraday:EUR_USD@") for s in sources)
         assert "methodologie:ADR-113" in sources
 
     def test_absence_prose_is_adr017_clean(self) -> None:
         md, sources = render_technical_reading_block(None, "GBP_USD")
-        assert _FORBIDDEN_TRADE_TOKENS_RE.search(md) is None
+        assert is_adr017_clean(md)
         assert "absence honnête" in md
         assert sources == ["technical_reading:GBP_USD:absent"]
 

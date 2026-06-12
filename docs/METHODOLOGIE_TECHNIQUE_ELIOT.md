@@ -458,7 +458,9 @@ provisoires se fait sur données récentes — les patterns se périment `[T-B]`
    extension mèche, zone précise) — reste à trancher : quelle clôture
    exactement, largeur maximale, quand une zone est consommée/invalidée.
 6. **Ancrage précis du Fibonacci** (quels swing high/low, quelle UT par
-   défaut pour l'analyse vs l'exécution).
+   défaut pour l'analyse vs l'exécution). Choix provisoire slice-1 : ancrage
+   sur le CORPS de la poussée (départ → terme), cohérent entre
+   `technical_analysis.py` et l'indicateur Pine — à confirmer vs mèches.
 7. **Seuils quantitatifs** : « fort rejet » (ratio mèche/corps ?), « poussée
    de plus en plus grande » (mesure ?), « aux alentours » de la golden zone
    (tolérance ?). Slice-1 utilise des seuils provisoires DOCUMENTÉS dans le

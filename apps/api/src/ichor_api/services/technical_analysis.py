@@ -90,6 +90,10 @@ TrendState = Literal[
 ZoneSide = Literal["acheteuse", "vendeuse"]
 ZoneLevel = Literal["N1", "N2"]
 
+# FR accents for rendered prose (the Literal values stay accent-free as code
+# identifiers ; review PR #234 m1 — never leak `haussiere` into Pass-2 text).
+_DIR_FR: Final = {"haussiere": "haussière", "baissiere": "baissière"}
+
 
 @dataclass(frozen=True)
 class H1Candle:
@@ -371,21 +375,27 @@ def read_trend(pushes: list[Push]) -> TrendRead:
 
     weakening = len(dom) >= 2 and dom[-1].magnitude < dom[-2].magnitude
     counter_growing = len(counter) >= 2 and counter[-1].magnitude > counter[-2].magnitude
+    # METHODOLOGIE §5.1 : l'anomalie de rôle (une « correction » qui devient
+    # NETTE) est LE détecteur de retournement principal — signal AUTONOME,
+    # il ne requiert pas l'essoufflement des poussées dominantes (review PR
+    # #234 M1 : l'exiger durcissait le SSOT).
     role_anomaly = bool(counter) and counter[-1].quality == "nette"
 
-    if weakening and (counter_growing or role_anomaly):
+    if role_anomaly or (weakening and counter_growing):
         state: TrendState = (
             "retournement_potentiel_haussier"
             if dominant == "baissiere"
             else "retournement_potentiel_baissier"
         )
-        bits = [f"poussées {dominant}s de moins en moins grandes"]
-        if counter_growing:
-            bits.append("poussées contraires de plus en plus grandes")
+        bits: list[str] = []
         if role_anomaly:
             bits.append(
                 "correction devenue nette (anomalie de rôle : le camp opposé prend la main)"
             )
+        if weakening:
+            bits.append(f"poussées {_DIR_FR[dominant]}s de moins en moins grandes")
+        if counter_growing:
+            bits.append("poussées contraires de plus en plus grandes")
         return TrendRead(
             state=state, dominant_direction=dominant, rationale_fr=" ; ".join(bits) + "."
         )
@@ -395,12 +405,15 @@ def read_trend(pushes: list[Push]) -> TrendRead:
         return TrendRead(
             state=f"continuation_{dominant}",  # type: ignore[arg-type]
             dominant_direction=dominant,
-            rationale_fr=f"Élan {dominant} dominant, dernière poussée {qual} dans le sens.",
+            rationale_fr=f"Élan {_DIR_FR[dominant]} dominant, dernière poussée {qual} dans le sens.",
         )
     return TrendRead(
         state="indecis",
         dominant_direction=dominant,
-        rationale_fr=f"Élan {dominant} dominant mais dernière poussée contraire sans essoufflement confirmé : lecture en attente de la prochaine clôture.",
+        rationale_fr=(
+            f"Élan {_DIR_FR[dominant]} dominant mais dernière poussée contraire structurée, "
+            "sans bascule de camp confirmée : lecture en attente de la prochaine clôture."
+        ),
     )
 
 
@@ -461,10 +474,14 @@ def detect_ny_origin_zones(
         session_candles = [c for c in candles if open_utc <= c.ts_open < close_utc]
         if len(session_candles) < 3:
             continue
+        # First COMPLETED readable session decides — METHODOLOGIE §7 « la
+        # session de New York précédente » + §3 proximité (review PR #234 m2 :
+        # no multi-day fallback presenting a stale zone with fresh authority).
+        # No nette push in it → honest absence for the day.
         pushes = segment_pushes(session_candles)
         real = [p for p in pushes if p.quality == "nette"]
         if not real:
-            continue
+            return [], d
         zones: list[OriginZone] = []
 
         # N1 — largest nette push departing inside the 13h-16h origin window.
@@ -512,13 +529,18 @@ def detect_ny_origin_zones(
                         )
                     )
                     break
-        if zones:
-            return zones, d
+        return zones, d
     return [], None
 
 
 def golden_zone_of_latest_push(pushes: list[Push], current_price: float) -> GoldenZoneRead | None:
-    """Golden zone 0,5-0,618 of the most recent NETTE push (METHODOLOGIE §8)."""
+    """Golden zone 0,5-0,618 of the most recent NETTE push (METHODOLOGIE §8).
+
+    Anchor choice PROVISIONAL under §13.6 (review PR #234 m3) : the
+    retracement is anchored on the push BODY (start_price → end_price), not
+    its wick extremes — consistent with the Pine companion. The exact anchor
+    is [TBD owner].
+    """
     nettes = [p for p in pushes if p.quality == "nette"]
     if not nettes:
         return None
@@ -558,7 +580,14 @@ def compute_day_open_read(bars: list[Bar], *, now_utc: datetime) -> DayOpenRead 
 def compute_technical_reading(
     bars: list[Bar], *, asset: str, now_utc: datetime
 ) -> TechnicalReading | None:
-    """Full pure slice-1 read. None = honest absence (doctrine #11)."""
+    """Full pure slice-1 read. None = honest absence (doctrine #11).
+
+    NB : the two data_pool call sites (build_data_pool + build_asset_data_only)
+    each run their own fetch with their own ``now`` — within one card the two
+    reads can differ only if an H1 candle closes between the two calls
+    (review PR #234 m4, accepted : the read changes only on hour close).
+    """
+    bars = sorted(bars, key=lambda b: b.ts)  # defensive : pure core contract
     candles = aggregate_hourly(bars, now_utc=now_utc)
     if len(candles) < _MIN_H1_CANDLES:
         return None
@@ -629,6 +658,10 @@ async def assess_technical_reading(
 _PROXY_CAVEATS: Final = {
     "SPX500_USD": "niveaux calculés sur le proxy ETF SPY (ADR-089), pas le cash S&P",
     "DXY": "niveaux calculés sur le proxy ETF UUP (ADR-089)",
+    "NAS100_USD": (
+        "données I:NDX en heures de cotation US uniquement (RTH) — fenêtres "
+        "pré-marché partielles, l'open du jour lu est l'open RTH"
+    ),
 }
 
 _STATE_FR: Final = {
@@ -684,7 +717,7 @@ def render_technical_reading_block(
                 f"- **Origine {z.side} {z.level}** (session NY du {z.session_date.isoformat()}) : "
                 f"zone {_fmt(z.bottom)} → {_fmt(z.top)}, {rel} du prix actuel "
                 f"(distance ≈ {_fmt(dist)}) ; retest pertinent entre {_fmt(z.retest_low)} et "
-                f"{_fmt(z.retest_high)} (division en tiers)."
+                f"{_fmt(z.retest_high)} (moitié côté approche, zone divisée en tiers)."
             )
     else:
         lines.append(
@@ -694,10 +727,13 @@ def render_technical_reading_block(
 
     if reading.golden_zone is not None:
         g = reading.golden_zone
+        pos_fr = {"dans": "dans", "au_dessus": "au-dessus", "en_dessous": "en-dessous"}[
+            g.price_position
+        ]
         lines.append(
-            f"- **Golden zone (0,5-0,618)** de la dernière poussée {g.push_direction} : "
+            f"- **Golden zone (0,5-0,618)** de la dernière poussée {_DIR_FR[g.push_direction]} : "
             f"{_fmt(g.zone_low)} → {_fmt(g.zone_high)} ; prix actuellement "
-            f"{g.price_position.replace('_', ' ')} de la zone."
+            f"{pos_fr} de la zone."
         )
 
     if reading.day_open is not None:
@@ -719,7 +755,10 @@ def render_technical_reading_block(
         "Jamais de signal d'exécution — la décision reste humaine (ADR-017)._"
     )
     sources = [
-        f"polygon:{asset}@{reading.last_bar_ts.isoformat()}",
+        # Same namespace as the london-session section (review PR #234 m5) :
+        # `polygon:` carries Polygon tickers elsewhere, `polygon_intraday:`
+        # carries our asset codes.
+        f"polygon_intraday:{asset}@{reading.last_bar_ts.isoformat()}",
         "methodologie:ADR-113",
     ]
     return "\n".join(lines), sources
