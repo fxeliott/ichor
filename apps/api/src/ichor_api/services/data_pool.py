@@ -5347,6 +5347,27 @@ async def _section_london_session(session: AsyncSession, asset: str) -> tuple[st
     return "\n".join(lines), [f"polygon_intraday:{asset}@london_morning"]
 
 
+async def _section_technical_methodology(
+    session: AsyncSession, asset: str
+) -> tuple[str, list[str]]:
+    """## Lecture technique — la méthodologie du trader exécutée par Ichor (ADR-113).
+
+    S05/Chantier E slice-1 : fills the prose slot reserved by
+    ``liquidity_proxy.py`` (« pure price-action liquidity zones … are the
+    technical reading (Session 05) »). Renders the H1 élan
+    (poussées/corrections, retournement potentiel), the origines
+    acheteuses/vendeuses N1/N2 of the previous NY session (3-tier retest
+    band, proximity-ranked), the golden zone 0,5-0,618 and the « mèche du
+    plongeur » day-open status — per docs/METHODOLOGIE_TECHNIQUE_ELIOT.md,
+    the codified SSOT. Always rendered (honest absence prose) ; descriptive
+    only, ADR-017 boundary self-affirmed in the closing line.
+    """
+    from .technical_analysis import assess_technical_reading, render_technical_reading_block
+
+    reading = await assess_technical_reading(session, asset)
+    return render_technical_reading_block(reading, asset)
+
+
 async def _section_calendar(session: AsyncSession, asset: str) -> tuple[str, list[str]]:
     """## Economic calendar — next 14 days affecting `asset`."""
     report = await assess_calendar(session, horizon_days=14)
@@ -5845,6 +5866,16 @@ async def build_data_pool(
     osz_md, osz_src = await _section_previous_session_context(session, asset)
     sections.append(("previous_session_origin_zone", osz_md, osz_src))
 
+    # S05 / Chantier E slice-1 (ADR-113) — la lecture technique exécutée par
+    # Ichor selon la méthodologie codifiée du trader (élan H1 poussées/
+    # corrections, origines acheteuses/vendeuses N1-N2 de la session NY
+    # précédente, golden zone 0,5-0,618, statut « mèche du plongeur »).
+    # Always-rendered : honest-absence prose quand l'intraday est
+    # insuffisant. ADR-017 boundary self-affirmed (lecture descriptive,
+    # jamais d'instruction d'exécution).
+    ta_md, ta_src = await _section_technical_methodology(session, asset)
+    sections.append(("technical_methodology", ta_md, ta_src))
+
     # r183 — N1 THEME CONSUMER WIRING : theme sous-jacent dominant
     # (Eliot Fathom transcript étape 1). Surfaces the r182 N1 EXECUTION
     # classifier output as plain-FR prose for Pass-2 narrative. The
@@ -6106,6 +6137,11 @@ async def build_asset_data_only(session: AsyncSession, asset: str) -> str:
         parts.append(diff_md)
     poly_md, _ = await _section_polygon_intraday(session, asset)
     parts.append(poly_md)
+    # S05 / ADR-113 — la lecture technique (méthodologie du trader) pour le
+    # slice asset-specific Pass-2.
+    ta_md, _ = await _section_technical_methodology(session, asset)
+    if ta_md:
+        parts.append(ta_md)
     # S04 TIER-2 — asset-specific relative-volume / participation for Pass-2.
     rvol_md, _, _ = await _section_volume_rvol(session, asset)
     if rvol_md:

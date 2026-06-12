@@ -1,0 +1,88 @@
+// Ichor — Lecture technique (méthodologie du trader) — ADR-113 / Session 05
+// Aide visuelle pour la PROPRE lecture d'Ichor (spec 5ter-bis : « aids, not
+// end-user deliverables »). Le calcul de référence (origines N1/N2, élan,
+// golden zone) vit côté serveur (services/technical_analysis.py, SSOT =
+// docs/METHODOLOGIE_TECHNIQUE_ELIOT.md) ; cet indicateur matérialise sur le
+// chart TradingView les repères de la méthodologie :
+//   - carrés bleus : session NY 13h-20h Paris + fenêtre d'exécution 13h-16h
+//   - open du jour 00h Paris + excursions (statut « mèche du plongeur »)
+//   - session NY précédente : haut / bas / direction
+//   - golden zone 0,5-0,618 du mouvement de la session NY précédente
+// Lecture descriptive uniquement — aucun signal d'ordre (ADR-017).
+//@version=6
+indicator("Ichor — Lecture technique (méthodologie)", overlay = true, max_boxes_count = 60, max_lines_count = 60, max_labels_count = 30)
+
+const string TZ = "Europe/Paris"
+
+// ── Fenêtres de session (heure de Paris, METHODOLOGIE §1) ────────────────
+bool inNySession = not na(time(timeframe.period, "1300-2000:23456", TZ))
+bool inExecWindow = not na(time(timeframe.period, "1300-1600:23456", TZ))
+
+color nyColor   = color.new(color.blue, 88)
+color execColor = color.new(color.blue, 78)
+
+bgcolor(inNySession ? nyColor : na, title = "Session NY (carrés bleus 13h-20h)")
+bgcolor(inExecWindow ? execColor : na, title = "Fenêtre d'exécution 13h-16h")
+
+// ── Open du jour 00h Paris — référence « mèche du plongeur » (§5.2) ──────
+bool newParisDay = ta.change(time("D", "", TZ)) != 0
+var float dayOpen = na
+var float dayHigh = na
+var float dayLow  = na
+if newParisDay
+    dayOpen := open
+    dayHigh := high
+    dayLow  := low
+else
+    dayHigh := math.max(nz(dayHigh, high), high)
+    dayLow  := math.min(nz(dayLow, low), low)
+
+plot(dayOpen, "Open du jour (00h Paris)", color = color.new(color.gray, 30), style = plot.style_linebr)
+
+// ── Session NY précédente : OHLC + golden zone 0,5-0,618 (§7/§8) ─────────
+var float sesOpen  = na
+var float sesHigh  = na
+var float sesLow   = na
+var float sesClose = na
+var float prevSesOpen  = na
+var float prevSesHigh  = na
+var float prevSesLow   = na
+var float prevSesClose = na
+
+bool nyStart = inNySession and not inNySession[1]
+bool nyEnd   = not inNySession and inNySession[1]
+
+if nyStart
+    sesOpen := open
+    sesHigh := high
+    sesLow  := low
+if inNySession
+    sesHigh := math.max(nz(sesHigh, high), high)
+    sesLow  := math.min(nz(sesLow, low), low)
+    sesClose := close
+if nyEnd
+    prevSesOpen  := sesOpen
+    prevSesHigh  := sesHigh
+    prevSesLow   := sesLow
+    prevSesClose := sesClose
+
+var line prevHighLine = na
+var line prevLowLine  = na
+var box goldenBox     = na
+var label sesLabel    = na
+
+if nyEnd and not na(prevSesHigh)
+    line.delete(prevHighLine)
+    line.delete(prevLowLine)
+    box.delete(goldenBox)
+    label.delete(sesLabel)
+    prevHighLine := line.new(bar_index, prevSesHigh, bar_index + 1, prevSesHigh, extend = extend.right, color = color.new(color.orange, 35), style = line.style_dashed)
+    prevLowLine  := line.new(bar_index, prevSesLow, bar_index + 1, prevSesLow, extend = extend.right, color = color.new(color.orange, 35), style = line.style_dashed)
+    // Golden zone 0,5-0,618 du mouvement net de la session NY précédente
+    // (du début au terme de son mouvement dominant : open → close de session).
+    float span = prevSesClose - prevSesOpen
+    float gzA = prevSesClose - span * 0.5
+    float gzB = prevSesClose - span * 0.618
+    goldenBox := box.new(bar_index, math.max(gzA, gzB), bar_index + 1, math.min(gzA, gzB), extend = extend.right, bgcolor = color.new(color.yellow, 85), border_color = color.new(color.yellow, 55))
+    string dirTxt = span > 0 ? "poussée haussière" : span < 0 ? "poussée baissière" : "session en range"
+    sesLabel := label.new(bar_index, prevSesHigh, "Session NY précédente — " + dirTxt + "\nH " + str.tostring(prevSesHigh, format.mintick) + " · B " + str.tostring(prevSesLow, format.mintick) + "\nGolden zone 0,5-0,618 en jaune", style = label.style_label_left, color = color.new(color.orange, 80), textcolor = color.white, size = size.small)
