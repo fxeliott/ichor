@@ -442,9 +442,10 @@ class TestGoldenZone:
         ]
         g = golden_zone_of_latest_push(segment_pushes(candles), current_price=1.0150)
         assert g is not None
-        # Push 1.0000 → 1.0200 : 0.5 = 1.0100, 0.618 = 1.00764.
-        assert abs(g.zone_high - 1.0100) < 1e-9
-        assert abs(g.zone_low - 1.00764) < 1e-9
+        # Ancrage MÈCHES (§13.6, owner 2026-06-13) : push high=1.0205 / low=0.9999,
+        # range 0.0206 → 0,5 = 1.0102, 0,618 = 1.0077692.
+        assert abs(g.zone_high - 1.0102) < 1e-9
+        assert abs(g.zone_low - 1.0077692) < 1e-9
         assert g.price_position == "au_dessus"
 
     def test_none_without_nette_push(self) -> None:
@@ -461,9 +462,10 @@ class TestGoldenZone:
         g = golden_zone_of_latest_push(segment_pushes(candles), current_price=1.0050)
         assert g is not None
         assert g.push_direction == "baissiere"
-        # Push 1.0200 → 1.0000 : 0.5 = 1.0100, 0.618 = 1.01236.
-        assert abs(g.zone_low - 1.0100) < 1e-9
-        assert abs(g.zone_high - 1.01236) < 1e-9
+        # Ancrage MÈCHES (§13.6) : push high=1.0201 / low=0.9995, range 0.0206
+        # → baissière retrace depuis le bas : 0,5 = 1.0098, 0,618 = 1.0122308.
+        assert abs(g.zone_low - 1.0098) < 1e-9
+        assert abs(g.zone_high - 1.0122308) < 1e-9
         assert g.price_position == "en_dessous"
 
     def test_price_inside_golden_zone(self) -> None:

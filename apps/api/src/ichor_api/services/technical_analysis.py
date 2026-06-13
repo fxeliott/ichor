@@ -623,23 +623,27 @@ def detect_structure_reversals_n3(candles: list[H1Candle]) -> list[OriginZone]:
 def golden_zone_of_latest_push(pushes: list[Push], current_price: float) -> GoldenZoneRead | None:
     """Golden zone 0,5-0,618 of the most recent NETTE push (METHODOLOGIE §8).
 
-    Anchor PROVISIONAL under §13.6 [TBD owner], two open axes (S05 re-fire M3) :
-      - body vs wick : retracement anchored on the push BODY (start_price →
-        end_price), not the wick extremes that §8's literal wording (« du
-        plus haut au plus bas du mouvement ») would imply ;
-      - object : this server read anchors on the LATEST nette H1 push, while
-        the Pine companion anchors on the previous-NY-session open→close swing.
-        Same 0,5/0,618 ratios and body philosophy, but DIFFERENT mouvements —
-        on a multi-push session the two zones diverge. Do NOT assume they match
-        on a chart ; reconcile both axes together when the owner arbitrates.
+    Anchor (owner-decided 2026-06-13, §13.6) : retracement on the push WICK
+    EXTREMES — « du plus haut au plus bas du mouvement » (§8 literal). For a
+    haussière push the zone retraces DOWN from the high ; for a baissière push
+    it retraces UP from the low. This matches the Pine companion, which anchors
+    on the previous-NY-session directional swing high↔low (§13.6b) — both now
+    use extremes/wicks, consistent on direction. Object axis : this server read
+    uses the latest nette H1 push ; the Pine uses the whole previous NY session
+    swing — they coincide on a single-push session and may differ on a
+    multi-push one (the server read is the faithful one).
     """
     nettes = [p for p in pushes if p.quality == "nette"]
     if not nettes:
         return None
     push = nettes[-1]
-    span = push.end_price - push.start_price
-    a = push.end_price - span * _GOLDEN_LOW_RATIO
-    b = push.end_price - span * _GOLDEN_HIGH_RATIO
+    rng = push.high - push.low
+    if push.direction == "haussiere":
+        a = push.high - rng * _GOLDEN_LOW_RATIO
+        b = push.high - rng * _GOLDEN_HIGH_RATIO
+    else:
+        a = push.low + rng * _GOLDEN_LOW_RATIO
+        b = push.low + rng * _GOLDEN_HIGH_RATIO
     zone_low, zone_high = min(a, b), max(a, b)
     if current_price > zone_high:
         pos: Literal["dans", "au_dessus", "en_dessous"] = "au_dessus"

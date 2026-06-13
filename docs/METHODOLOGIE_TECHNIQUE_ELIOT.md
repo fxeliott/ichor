@@ -506,7 +506,7 @@ BE / SL à BE · RR de X · TP/SL · re-entrée · risque ouvert · prop firm.
 | Origines H1 N1/N2 (+ retest, proximité)                                                                               | `technical_analysis.py` (detect_ny_origin_zones)                                                                                 | slice-1 — provisional (seuils §13.7)                                                        |
 | Origines **N3** (retournements de structure hors session NY)                                                          | `technical_analysis.py:detect_structure_reversals_n3` + cap proximité `_MAX_ORIGIN_ZONES`                                        | **slice-1bis S05** (§13.1 résolu) — provisional §13.7 ; à witness sur data réelle           |
 | Retest **3 sous-zones S/R** (au-delà du band binaire actuel)                                                          | `technical_analysis.py` (OriginZone — band binaire aujourd'hui)                                                                  | **slice-2** (spec workflow S05 ; §13.5)                                                     |
-| Golden zone 0,5-0,618 sur dernière poussée H1                                                                         | `technical_analysis.py` (code) ; Pine **corrigé** S05 (extrêmes session, §13.6b)                                                 | slice-1 — code OK (§13.6b tranché) ; ancrage corps↔mèches §13.6a INFÉRÉE [TBD owner]        |
+| Golden zone 0,5-0,618 sur dernière poussée H1 (ancrage MÈCHES)                                                        | `technical_analysis.py` (extrêmes) ; Pine corrigé (extrêmes session)                                                             | slice-1 — §13.6 TRANCHÉ owner (mèches + dernière poussée) ; code↔Pine cohérents             |
 | Indices de retournement gradués + état confirmation ; intention de bougie (§5.1)                                      | `technical_analysis.py` (read_trend / classify_candle — enrichissement)                                                          | **slice-2** (spec workflow S05)                                                             |
 | Rendu Pass-2                                                                                                          | `_section_technical_methodology` (data_pool)                                                                                     | slice-1                                                                                     |
 | Indicateur Pine (aide à la lecture d'Ichor)                                                                           | `docs/pine/ichor_lecture_technique.pine` + witness tradingview-cdp                                                               | slice-1                                                                                     |
@@ -539,14 +539,14 @@ provisoires se fait sur données récentes — les patterns se périment `[T-B]`
    divisée en 3 sous-zones S/R. STILL_OPEN : largeur maximale CHIFFRÉE +
    critère exact de consommation/invalidation (aujourd'hui exprimé seulement au
    niveau scénario H1 = nouveau plus haut au-dessus de la structure).
-6. **Ancrage précis du Fibonacci** — DEUX axes provisoires à trancher (S05
-   re-fire M3) : (a) **corps vs mèches** — slice-1 ancre sur le CORPS de la
-   poussée (départ → terme), alors que la formulation littérale §8 dit « du
-   plus haut au plus bas » (mèches) ; (b) **objet** — `technical_analysis.py`
-   ancre sur la DERNIÈRE poussée nette H1, l'indicateur Pine sur l'open→close
-   de la session NY précédente ENTIÈRE : ils DIVERGENT sur une session
-   multi-poussées (le commit slice-1 affirmait à tort leur cohérence). À
-   réconcilier ensemble — les screenshots d'analyse fournis trancheront.
+6. ✅ **TRANCHÉ owner 2026-06-13** : (a) **mèches** — golden zone ancrée sur les
+   EXTRÊMES (plus haut ↔ plus bas du mouvement, §8 littéral), PAS le corps ;
+   `golden_zone_of_latest_push` mis à jour (haussière retrace depuis le haut,
+   baissière depuis le bas). (b) **objet** — le serveur ancre sur la DERNIÈRE
+   poussée nette H1 (fidèle, confirmé screenshots) ; le Pine sur le swing
+   directionnel de la session NY précédente ; les deux utilisent désormais les
+   extrêmes/direction (cohérents single-push, peuvent différer multi-push — le
+   serveur fait foi).
 7. **Seuils quantitatifs** : « fort rejet » (ratio mèche/corps ?), « poussée
    de plus en plus grande » (mesure ?), « aux alentours » de la golden zone
    (tolérance ?). Slice-1 utilise des seuils provisoires DOCUMENTÉS dans le
