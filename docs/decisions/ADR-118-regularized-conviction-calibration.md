@@ -20,8 +20,8 @@ non-parametric fit on a thin sample:
 
 This is textbook isotonic overfitting on a small calibration set. The slice-1
 gate was therefore correctly held: the calibrator is **not wired live**. The
-named NEXT (auto_session_resume) was _"+ data + regularised calibration +
-re-witness OOS before wiring"_. This ADR delivers the **regularised calibration**
+named NEXT (auto*session_resume) was *"+ data + regularised calibration +
+re-witness OOS before wiring"\_. This ADR delivers the **regularised calibration**
 half — pure-core, locally verifiable, still gated.
 
 ### Evidence (web-verified, primary sources)
