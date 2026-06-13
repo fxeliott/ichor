@@ -124,7 +124,24 @@ report exists and is reproducible, NOT that Ichor wins") — and it tells the tr
 the verdict needs the learning loop (Chantier B) to earn an edge, it doesn't have
 one yet. This is the anti-50/50 honesty the project is built on.
 
-## 8. Deferred (own checkpoints — NOT this PR)
+## 8. Statistical-significance honesty upgrade (re-fire #5, commit `10bc33e`)
+
+Re-fire #5 "es-tu sûr 100% / qu'est-ce qui manque" → senior-quant self-challenge:
+the witness **concluded from 32 sessions with no significance test** — a real
+flaw. Added `hit_rate_ci95` (Wald 95% CI, pure stdlib / Voie D) + a
+"Significativité" section to `format_report_markdown` that prints the hit-rate's
+95% CI and warns when it spans 50% (indistinguishable from chance) or the sample
+is thin (< 60 sessions). 6 tests (CI hand-computed, clamping, rendering);
+re-witnessed read-only on real data:
+
+> Justesse Ichor 56.2% sur **16 positions — IC95 [31.9%, 80.6%]** → l'IC95 inclut
+> 50% (indistinguible du hasard) ; échantillon mince (32 < 60, insuffisant pour
+> conclure).
+
+The report now **proves** it can't conclude an edge instead of merely asserting
+"non confirmé" — the IC95 [31.9%, 80.6%] makes the 16-position emptiness visceral.
+
+## 9. Deferred (own checkpoints — NOT this PR)
 
 - **Merge + deploy** = production checkpoint (owner go, Hetzner guard) so the
   benchmark CLI ships and can run as a scheduled track-record on the server.
