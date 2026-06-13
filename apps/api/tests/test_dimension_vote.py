@@ -26,6 +26,8 @@ class TestContract:
     def test_rejects_out_of_range_freshness(self) -> None:
         with pytest.raises(ValueError, match="freshness"):
             DimensionVote("x", "up", 0.5, freshness=1.1)
+        with pytest.raises(ValueError, match="freshness"):
+            DimensionVote("x", "up", 0.5, freshness=-0.1)
 
     def test_non_directional_must_be_neutral(self) -> None:
         with pytest.raises(ValueError, match="non-directional"):
@@ -81,6 +83,12 @@ class TestUncertaintyCredit:
             pytest.approx(0.5)
         )
 
+    def test_freshness_scales_credit(self) -> None:
+        # neutral 0.8 × freshness 0.5 = 0.4 (freshness must scale the credit too)
+        assert DimensionVote("c", "neutral", 0.8, freshness=0.5).uncertainty_credit() == (
+            pytest.approx(0.4)
+        )
+
     def test_directional_vote_gives_no_uncertainty_credit(self) -> None:
         # an up/down vote contributes to direction, not to the uncertainty term
         assert DimensionVote("c", "up", 0.8).uncertainty_credit() == 0.0
@@ -120,3 +128,14 @@ class TestAggregation:
         assert net_dimension_vote([]) == 0.0
         assert total_uncertainty_credit([]) == 0.0
         assert effective_provenances([]) == ()
+        # honour the `-> float` return contract on empty (not int 0)
+        assert isinstance(net_dimension_vote([]), float)
+        assert isinstance(total_uncertainty_credit([]), float)
+
+    def test_output_contract_holds_under_field_tampering(self) -> None:
+        # object.__setattr__ defeats frozen=True; the METHOD must still honour
+        # its documented [-1,+1] / [0,1] output range (verifier MAJOR finding).
+        v = DimensionVote("c", "up", 1.0)
+        object.__setattr__(v, "strength", 5.0)  # bypass the frozen guard
+        assert -1.0 <= v.signed_contribution() <= 1.0
+        assert 0.0 <= DimensionVote("c", "neutral", 1.0).uncertainty_credit() <= 1.0

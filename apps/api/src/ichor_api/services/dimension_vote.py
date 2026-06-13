@@ -86,7 +86,9 @@ class DimensionVote:
         if not self.is_effective or not self.directional or self.direction_hint == "neutral":
             return 0.0
         sign = 1.0 if self.direction_hint == "up" else -1.0
-        return sign * self.strength * self.freshness
+        # Clamp so the documented [-1, +1] output contract holds even if a field
+        # was tampered with after construction (object.__setattr__ defeats frozen).
+        return max(-1.0, min(1.0, sign * self.strength * self.freshness))
 
     def uncertainty_credit(self) -> float:
         """Non-directional anti-uncertainty credit in ``[0, 1]`` (mirrors
@@ -99,19 +101,20 @@ class DimensionVote:
             return 0.0
         if self.directional and self.direction_hint != "neutral":
             return 0.0
-        return self.strength * self.freshness
+        # Clamp to the documented [0, 1] output contract (defensive vs field tampering).
+        return max(0.0, min(1.0, self.strength * self.freshness))
 
 
 def net_dimension_vote(votes: Sequence[DimensionVote]) -> float:
     """Sum of signed directional contributions across dimensions, in
     ``[-N, +N]``. The fuser will map this onto its agreement factor (a later
     gated slice). Absent / neutral dimensions contribute 0 — honest."""
-    return sum(v.signed_contribution() for v in votes)
+    return sum((v.signed_contribution() for v in votes), 0.0)
 
 
 def total_uncertainty_credit(votes: Sequence[DimensionVote]) -> float:
     """Sum of non-directional anti-uncertainty credits across dimensions."""
-    return sum(v.uncertainty_credit() for v in votes)
+    return sum((v.uncertainty_credit() for v in votes), 0.0)
 
 
 def effective_provenances(votes: Sequence[DimensionVote]) -> tuple[str, ...]:
