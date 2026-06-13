@@ -33,6 +33,7 @@ from ichor_api.services.technical_analysis import (
     compute_day_open_read,
     compute_technical_reading,
     detect_ny_origin_zones,
+    detect_structure_reversals_n3,
     golden_zone_of_latest_push,
     ny_window_utc,
     read_trend,
@@ -116,6 +117,13 @@ class TestAggregateHourly:
         bars = _hour_bars(hour, 1.1000, 1.1050, 1.0950, 1.1020)
         [c] = aggregate_hourly(bars, now_utc=_NOW)
         assert (c.open, c.high, c.low, c.close) == (1.1000, 1.1050, 1.0950, 1.1020)
+
+    def test_min_bars_per_hour_boundary(self) -> None:
+        """Pin the exact _MIN_BARS_PER_HOUR=20 threshold : n=20 kept, n=19
+        dropped (the prior test used n=5, far from the edge — S05 M7)."""
+        hour = datetime(2026, 6, 10, 5, 0, tzinfo=UTC)
+        assert len(aggregate_hourly(_hour_bars(hour, 1.1, 1.2, 1.0, 1.15, n=20), now_utc=_NOW)) == 1
+        assert aggregate_hourly(_hour_bars(hour, 1.1, 1.2, 1.0, 1.15, n=19), now_utc=_NOW) == []
 
 
 class TestCandleGrammar:
@@ -215,6 +223,52 @@ class TestReadTrend:
         assert t.state == "retournement_potentiel_haussier"
         assert "anomalie de rôle" in t.rationale_fr
 
+    def test_continuation_haussiere(self) -> None:
+        """Miroir haussier de la continuation (S05 re-fire M7)."""
+        pushes = [
+            self._push("haussiere", 0.0050, "nette", 0),
+            self._push("baissiere", 0.0010, "structuree", 1),
+            self._push("haussiere", 0.0080, "nette", 2),
+        ]
+        t = read_trend(pushes)
+        assert t.state == "continuation_haussiere"
+        assert t.dominant_direction == "haussiere"
+
+    def test_retournement_potentiel_baissier(self) -> None:
+        """Miroir baissier de l'anomalie de rôle (S05 re-fire M7)."""
+        pushes = [
+            self._push("haussiere", 0.0060, "nette", 0),
+            self._push("baissiere", 0.0070, "structuree", 1),
+            self._push("haussiere", 0.0080, "nette", 2),  # dom growing
+            self._push("baissiere", 0.0060, "nette", 3),  # counter NETTE = anomalie
+        ]
+        t = read_trend(pushes)
+        assert t.dominant_direction == "haussiere"
+        assert t.state == "retournement_potentiel_baissier"
+
+    def test_indecis_on_balanced_magnitudes(self) -> None:
+        """total_up == total_down → indécis, dominant_direction None (S05 M7)."""
+        pushes = [
+            self._push("haussiere", 0.0050, "structuree", 0),
+            self._push("baissiere", 0.0050, "structuree", 1),
+        ]
+        t = read_trend(pushes)
+        assert t.state == "indecis"
+        assert t.dominant_direction is None
+        assert "équilibr" in t.rationale_fr
+
+    def test_indecis_dominant_but_last_contrary_structuree(self) -> None:
+        """Dominant existe mais dernière poussée contraire structurée, sans
+        bascule → indécis AVEC dominant_direction non-None (distinct du vide,
+        S05 re-fire M7)."""
+        pushes = [
+            self._push("haussiere", 0.0090, "nette", 0),
+            self._push("baissiere", 0.0020, "structuree", 1),
+        ]
+        t = read_trend(pushes)
+        assert t.state == "indecis"
+        assert t.dominant_direction == "haussiere"
+
 
 class TestNyWindow:
     def test_winter_dst_paris(self) -> None:
@@ -223,6 +277,14 @@ class TestNyWindow:
         assert open_utc == datetime(2026, 1, 14, 12, 0, tzinfo=UTC)
         assert origin_end_utc == datetime(2026, 1, 14, 15, 0, tzinfo=UTC)
         assert close_utc == datetime(2026, 1, 14, 19, 0, tzinfo=UTC)
+
+    def test_summer_dst_paris(self) -> None:
+        """13h-20h Paris in June = 11:00-18:00 UTC (Paris = UTC+2) — the other
+        half of the DST pair, previously only exercised implicitly (S05 M7)."""
+        open_utc, origin_end_utc, close_utc = ny_window_utc(date(2026, 6, 10))
+        assert open_utc == datetime(2026, 6, 10, 11, 0, tzinfo=UTC)
+        assert origin_end_utc == datetime(2026, 6, 10, 14, 0, tzinfo=UTC)
+        assert close_utc == datetime(2026, 6, 10, 18, 0, tzinfo=UTC)
 
 
 class TestNyOriginZones:
@@ -234,12 +296,12 @@ class TestNyOriginZones:
         assert ("N1", "vendeuse") in levels
         assert ("N2", "acheteuse") in levels
         n1 = next(z for z in zones if z.level == "N1")
-        # Origin candle = the 11:00 UTC incertitude at the top of the move
-        # (leading incertitude attaches to the push — tolerated at push start,
-        # METHODOLOGIE §3) : zone from its body top 1.1002 (clôture) up to its
-        # wick high 1.1010 (« extensible jusqu'au haut de la mèche », [T-B]).
+        # Origin candle = the 12:00 UTC pleine baissière where the volume
+        # ENTERED (S05 re-fire M1 : the 11:00 incertitude is the segment head
+        # but NOT the origin — §7 « le niveau où le volume est ENTRÉ »).
+        # Vendeuse zone = body top 1.1002 (clôture) → wick high 1.1004.
         assert abs(n1.bottom - 1.1002) < 1e-9
-        assert abs(n1.top - 1.1010) < 1e-9
+        assert abs(n1.top - 1.1004) < 1e-9
 
     def test_retest_band_orientation(self) -> None:
         """Valid retest = the half of the zone on the price-approach side.
@@ -269,6 +331,106 @@ class TestNyOriginZones:
         zones, session_date = detect_ny_origin_zones(candles, now_utc=now)
         assert session_date == date(2026, 6, 9)
         assert all(z.session_date == date(2026, 6, 9) for z in zones)
+
+
+class TestN2Reversal:
+    """N2 = sortie de volume : momentum stoppé en début de session NY qui
+    repart en sens inverse ≥ _N2_REVERSAL_MIN_RATIO=0.5 (METHODOLOGIE §7).
+    Previously only the positive case was hit indirectly (S05 re-fire M7)."""
+
+    _D = datetime(2026, 6, 10, tzinfo=UTC)  # completed NY session before _NOW
+
+    def _down_then_up(self, reversal_close: float) -> list[H1Candle]:
+        """Down momentum 11h-12h UTC (mag 0.0150) then an up reversal at 13h ;
+        ``reversal_close`` sets nxt.magnitude vs the 0.5 threshold (0.0075)."""
+        return [
+            _candle(self._D.replace(hour=11), 1.1000, 1.1002, 1.0948, 1.0950),
+            _candle(self._D.replace(hour=12), 1.0950, 1.0952, 1.0848, 1.0850),
+            _candle(
+                self._D.replace(hour=13), 1.0850, reversal_close + 0.0002, 1.0849, reversal_close
+            ),
+        ]
+
+    def test_n2_accepted_at_threshold(self) -> None:
+        # reversal 0.0075 = exactly 0.5 × the 0.0150 stopped momentum.
+        zones, _ = detect_ny_origin_zones(self._down_then_up(1.0925), now_utc=_NOW)
+        assert ("N2", "acheteuse") in {(z.level, z.side) for z in zones}
+
+    def test_n2_rejected_when_reversal_too_small(self) -> None:
+        # reversal 0.0074 < 0.5 × 0.0150 → not a valid sortie de volume.
+        zones, _ = detect_ny_origin_zones(self._down_then_up(1.0924), now_utc=_NOW)
+        assert "N2" not in {z.level for z in zones}
+
+    def test_n2_polarity_up_momentum_gives_vendeuse(self) -> None:
+        """A stopped UP momentum that reverses down → origine VENDEUSE N2
+        (polarity inverted, §7) — pinned in isolation."""
+        candles = [
+            _candle(self._D.replace(hour=11), 1.0850, 1.0952, 1.0849, 1.0950),
+            _candle(self._D.replace(hour=12), 1.0950, 1.1052, 1.0949, 1.1050),
+            _candle(self._D.replace(hour=13), 1.1050, 1.1051, 1.0948, 1.0950),
+        ]
+        zones, _ = detect_ny_origin_zones(candles, now_utc=_NOW)
+        assert ("N2", "vendeuse") in {(z.level, z.side) for z in zones}
+
+
+class TestN3StructureReversal:
+    """N3 = retournement de structure HORS fenêtre NY 13h-16h Paris (§7, source
+    complète S05). Conservateur : 2 poussées nettes multi-bougies + retrace ≥0.5
+    + proximité (S05 finalisation §13.1)."""
+
+    _D = datetime(2026, 6, 10, tzinfo=UTC)
+
+    def test_n3_reversal_outside_ny_detected(self) -> None:
+        # Retournement Asie 02:00-05:00 UTC = 04h-07h Paris (hors 13h-16h).
+        candles = [
+            _candle(self._D.replace(hour=2), 1.1000, 1.1002, 1.0948, 1.0950),  # down
+            _candle(self._D.replace(hour=3), 1.0950, 1.0952, 1.0898, 1.0900),  # down
+            _candle(self._D.replace(hour=4), 1.0900, 1.0975, 1.0899, 1.0970),  # up reversal
+            _candle(self._D.replace(hour=5), 1.0970, 1.1000, 1.0969, 1.0998),  # up
+        ]
+        zones = detect_structure_reversals_n3(candles)
+        assert ("N3", "acheteuse") in {(z.level, z.side) for z in zones}
+
+    def test_n3_excludes_reversal_inside_ny_window(self) -> None:
+        # Même forme mais 11:00-14:00 UTC = 13h-16h Paris → N1/N2, PAS N3.
+        candles = [
+            _candle(self._D.replace(hour=11), 1.1000, 1.1002, 1.0948, 1.0950),
+            _candle(self._D.replace(hour=12), 1.0950, 1.0952, 1.0898, 1.0900),
+            _candle(self._D.replace(hour=13), 1.0900, 1.0975, 1.0899, 1.0970),
+            _candle(self._D.replace(hour=14), 1.0970, 1.1000, 1.0969, 1.0998),
+        ]
+        assert detect_structure_reversals_n3(candles) == []
+
+    def test_n3_excludes_reversal_in_ny_gestion_window(self) -> None:
+        """Pivot 16h-20h Paris = TOUJOURS dans la session NY → PAS N3 (sinon
+        doublon avec N2 ; S05 verifier MAJOR-1). 15:00-17:00 UTC = 17h-19h Paris."""
+        candles = [
+            _candle(self._D.replace(hour=15), 1.1000, 1.1002, 1.0948, 1.0950),  # down
+            _candle(self._D.replace(hour=16), 1.0950, 1.0952, 1.0898, 1.0900),  # down
+            _candle(
+                self._D.replace(hour=17), 1.0900, 1.0975, 1.0899, 1.0970
+            ),  # up (pivot 16:00=18h Paris)
+            _candle(self._D.replace(hour=18), 1.0970, 1.1000, 1.0969, 1.0998),  # up
+        ]
+        assert detect_structure_reversals_n3(candles) == []
+
+    def test_n3_does_not_duplicate_n2_on_scenario(self) -> None:
+        """Sur la fixture canonique, le pivot N2 (17h Paris, dans la session) ne
+        doit PAS réapparaître en N3 (S05 verifier MAJOR-1 : doublon corrigé)."""
+        r = compute_technical_reading(_scenario_bars(), asset="EUR_USD", now_utc=_NOW)
+        assert r is not None
+        n3_ts = {z.origin_ts for z in r.origin_zones if z.level == "N3"}
+        n2_ts = {z.origin_ts for z in r.origin_zones if z.level == "N2"}
+        assert not (n3_ts & n2_ts), "un pivot N2 ne doit pas être re-émis en N3"
+
+    def test_n3_rejects_single_candle_blip(self) -> None:
+        # Oscillations 1 bougie (n_candles < 2) → AUCUN N3 (anti-bruit).
+        candles = [
+            _candle(self._D.replace(hour=2), 1.1000, 1.1002, 1.0989, 1.0990),  # 1-bar down
+            _candle(self._D.replace(hour=3), 1.0990, 1.1001, 1.0989, 1.1000),  # 1-bar up
+            _candle(self._D.replace(hour=4), 1.1000, 1.1002, 1.0989, 1.0990),  # 1-bar down
+        ]
+        assert detect_structure_reversals_n3(candles) == []
 
 
 class TestGoldenZone:
@@ -304,6 +466,19 @@ class TestGoldenZone:
         assert abs(g.zone_high - 1.01236) < 1e-9
         assert g.price_position == "en_dessous"
 
+    def test_price_inside_golden_zone(self) -> None:
+        """price_position == 'dans' : le scénario central §8 (« confluence
+        golden zone + origine = zone de haute qualité ») jamais testé (S05 M7)."""
+        h = datetime(2026, 6, 10, 0, 0, tzinfo=UTC)
+        candles = [
+            _candle(h, 1.0000, 1.0105, 0.9999, 1.0100),
+            _candle(h + timedelta(hours=1), 1.0100, 1.0205, 1.0099, 1.0200),
+        ]
+        # Push 1.0000 → 1.0200 : zone 1.00764 (0,618) → 1.0100 (0,5).
+        g = golden_zone_of_latest_push(segment_pushes(candles), current_price=1.0090)
+        assert g is not None
+        assert g.price_position == "dans"
+
 
 class TestDayOpenRead:
     def test_excursions_since_paris_midnight(self) -> None:
@@ -312,6 +487,35 @@ class TestDayOpenRead:
         assert d.open_price == 1.0980
         assert d.upside_excursion > 0
         assert d.last_price == 1.0995
+        assert d.window_complete is False  # _NOW = 11h Paris, avant midi
+
+    def test_excursion_window_capped_at_noon(self) -> None:
+        """La mèche du plongeur est Asie+Londres (minuit-midi) — une barre NY
+        de l'après-midi ne doit PAS l'étendre (S05 re-fire M4, §5.2)."""
+        bars = [
+            # 07:00 UTC = 09h Paris (Londres) : dans la fenêtre.
+            Bar(
+                ts=datetime(2026, 6, 11, 7, 0, tzinfo=UTC),
+                open=1.10,
+                high=1.105,
+                low=1.099,
+                close=1.104,
+            ),
+            # 13:00 UTC = 15h Paris (NY) : un pic violent qui doit être ignoré.
+            Bar(
+                ts=datetime(2026, 6, 11, 13, 0, tzinfo=UTC),
+                open=1.104,
+                high=1.200,
+                low=1.000,
+                close=1.150,
+            ),
+        ]
+        now = datetime(2026, 6, 11, 14, 0, tzinfo=UTC)  # 16h Paris, après midi
+        d = compute_day_open_read(bars, now_utc=now)
+        assert d is not None
+        assert d.window_complete is True
+        assert d.high == 1.105 and d.low == 1.099  # pic NY exclu
+        assert d.last_price == 1.104  # dernière barre avant midi
 
 
 class TestFullReading:
@@ -357,3 +561,43 @@ class TestRender:
         r = compute_technical_reading(_scenario_bars(), asset="SPX500_USD", now_utc=_NOW)
         md, _ = render_technical_reading_block(r, "SPX500_USD")
         assert "SPY" in md
+
+    def test_proxy_caveats_for_dxy_and_nas_are_clean(self) -> None:
+        """The DXY (UUP) and NAS100 (RTH) caveats were never rendered nor
+        passed through the ADR-017 filter in tests (S05 re-fire M7)."""
+        for asset, needle in (("DXY", "UUP"), ("NAS100_USD", "RTH")):
+            r = compute_technical_reading(_scenario_bars(), asset=asset, now_utc=_NOW)
+            md, _ = render_technical_reading_block(r, asset)
+            assert needle in md, f"caveat for {asset} not rendered"
+            assert is_adr017_clean(md), f"caveat prose for {asset} must stay ADR-017-clean"
+
+    def test_plongeur_prose_downside_dominant_branch(self) -> None:
+        """The downside-dominant plongeur branch (« respiration baissière déjà
+        visible ») was never rendered — the scenario fixture is upside-dominant
+        (S05 re-fire M7). Pins the signature §5.2 mirror prose."""
+        from ichor_api.services.technical_analysis import (
+            DayOpenRead,
+            TechnicalReading,
+            TrendRead,
+        )
+
+        reading = TechnicalReading(
+            asset="EUR_USD",
+            computed_at=_NOW,
+            last_bar_ts=_NOW,
+            current_price=1.0970,
+            h1_candle_count=24,
+            trend=TrendRead(state="indecis", dominant_direction=None, rationale_fr="test."),
+            recent_pushes=(),
+            origin_zones=(),
+            golden_zone=None,
+            day_open=DayOpenRead(
+                open_price=1.1000, last_price=1.0970, high=1.1005, low=1.0950, window_complete=True
+            ),
+            ny_session_date=None,
+        )
+        md, _ = render_technical_reading_block(reading, "EUR_USD")
+        assert is_adr017_clean(md)
+        # downside excursion 0.0050 > upside 0.0005.
+        assert "la respiration baissière est déjà visible" in md
+        assert "la respiration haussière n’est pas encore marquée" in md

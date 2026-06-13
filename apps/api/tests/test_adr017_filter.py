@@ -73,6 +73,46 @@ def test_clean_macro_terms_pass() -> None:
         assert is_adr017_clean(text), f"Should pass : {text!r}"
 
 
+def test_clean_french_analysis_vocabulary_passes() -> None:
+    """S05 re-fire M2 : the FR signal-noun patterns MUST NOT block the
+    canonical FR analysis / macro vocabulary Ichor renders every day."""
+    for text in (
+        "Le prix s'approche d'une origine acheteuse de niveau 1.",
+        "Repli vers l'origine vendeuse N2 puis réaction.",
+        "La cible d'inflation de la BCE reste à 2%.",
+        "L'objectif de la Fed est la stabilité des prix.",
+        "Objectif de croissance révisé à la baisse.",
+        "Une entrée en récession technique est probable.",
+        "Le vendeur garde la main sur la séance.",
+        "Excursion haute depuis l'open, golden zone 0,5-0,618.",
+        "Point bas de la séance touché à 14h.",
+    ):
+        assert is_adr017_clean(text), f"FR analysis vocabulary should pass : {text!r}"
+
+
+@pytest.mark.parametrize(
+    "forbidden_text",
+    [
+        "Point d'entrée à 1.0850 confluent.",
+        "Niveau d'entrée sur le retest.",
+        "Prix d'entrée 1.0900 retenu.",
+        "Entrée en position dès la clôture.",
+        "Entrée à 1.0850 envisagée.",
+        "Cible de prix 1.0950 atteignable.",
+        "Objectif de prix relevé à 1.10.",
+        "Objectif de cours 1.0950.",
+        "Prendre une position longue maintenant.",
+        "Prendre des positions vendeuses sur le rebond.",
+    ],
+)
+def test_forbidden_french_signal_nouns_caught(forbidden_text: str) -> None:
+    """S05 re-fire M2 : French actionable signal NOUNS were a silent gap —
+    the regex caught EN nouns + FR/ES/DE imperative VERBS but not these."""
+    assert not is_adr017_clean(forbidden_text), (
+        f"Should reject the FR actionable signal noun : {forbidden_text!r}"
+    )
+
+
 @pytest.mark.parametrize(
     "forbidden_text",
     [
@@ -188,10 +228,10 @@ def test_count_positive_on_violation() -> None:
 def test_pattern_labels_present_and_nonempty() -> None:
     """The human-readable label set is consumed by diagnostics and
     fitness-function logging (ADR-091). It MUST stay non-empty and
-    cover the 22 distinct pattern labels post round-32 multilingual
-    extension (17 EN imperatives + 5 multilingual grouped labels)."""
+    cover the 26 distinct pattern labels : 17 EN imperatives + 5
+    round-32 multilingual + 4 S05 re-fire French actionable signal nouns."""
     assert isinstance(ADR017_FORBIDDEN_PATTERN_LABELS, frozenset)
-    assert len(ADR017_FORBIDDEN_PATTERN_LABELS) == 22
+    assert len(ADR017_FORBIDDEN_PATTERN_LABELS) == 26
 
 
 def test_pattern_labels_include_core_imperatives() -> None:

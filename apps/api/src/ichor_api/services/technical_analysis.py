@@ -76,6 +76,15 @@ _TREND_WINDOW_PUSHES: Final = 6
 _N2_REVERSAL_MIN_RATIO: Final = 0.5
 """A stopped momentum counts as an N2 origin only if the reversal push
 retraces ≥ this share of it (« se stoppe et repart en sens inverse »)."""
+_N3_REVERSAL_MIN_RATIO: Final = 0.5
+"""An out-of-NY structure reversal is an N3 origin only if the reversal push
+retraces ≥ this share of the stopped momentum (mirror of N2)."""
+_N3_MIN_PUSH_CANDLES: Final = 2
+"""N3 requires a multi-bougie momentum on BOTH legs (not a 1-bar blip) so minor
+oscillations don't flood the read — PROVISIONAL (§13.7)."""
+_MAX_ORIGIN_ZONES: Final = 4
+"""Render cap : the closest origins prime (METHODOLOGIE §7 « le plus proche
+prime ») once N3 widens the candidate set beyond the NY session."""
 
 CandleKind = Literal["pleine_haussiere", "pleine_baissiere", "incertitude"]
 PushDirection = Literal["haussiere", "baissiere"]
@@ -88,7 +97,7 @@ TrendState = Literal[
     "indecis",
 ]
 ZoneSide = Literal["acheteuse", "vendeuse"]
-ZoneLevel = Literal["N1", "N2"]
+ZoneLevel = Literal["N1", "N2", "N3"]
 
 # FR accents for rendered prose (the Literal values stay accent-free as code
 # identifiers ; review PR #234 m1 — never leak `haussiere` into Pass-2 text).
@@ -188,18 +197,21 @@ class GoldenZoneRead:
 
 @dataclass(frozen=True)
 class DayOpenRead:
-    """Day-open (00:00 Paris) read for the « mèche du plongeur » status.
+    """« Mèche du plongeur » : excursions de la fenêtre Asie+Londres
+    (00h-12h Paris) avant le sens final NY (METHODOLOGIE §5.2 « minuit-midi »).
+    Descriptive pour les DEUX directions hypothétiques — le biais directionnel
+    vient du fondamental (§9 : ~80% fondamental), cette lecture ne choisit
+    jamais de camp.
 
-    Asie + Londres build the contrarian wick before NY does the sens final
-    (METHODOLOGIE §5.2). Descriptive for BOTH hypothetical directions — the
-    directional bias itself comes from the fundamental layer (§9 : ~80%
-    fondamental), so this read never picks a side.
+    ``window_complete`` : la fenêtre minuit-midi est close (now ≥ 12h Paris) →
+    la mèche contraire est figée, jamais étendue par la session NY (S05 M4).
     """
 
     open_price: float
     last_price: float
     high: float
     low: float
+    window_complete: bool
 
     @property
     def upside_excursion(self) -> float:
@@ -448,6 +460,23 @@ def _zone_from_candle(c: H1Candle, side: ZoneSide) -> tuple[float, float]:
     return bottom, top
 
 
+def _first_momentum_candle(session_candles: list[H1Candle], push: Push) -> H1Candle:
+    """La bougie où le volume est réellement ENTRÉ pour ``push`` — sa première
+    bougie PLEINE dans le sens de la poussée (METHODOLOGIE §7 : l'origine est
+    le niveau où le volume est ENTRÉ, pas la bougie d'incertitude de tête qui
+    s'attache à la poussée, §3). ``detect_ny_origin_zones`` re-segmente sur les
+    bougies de la session NY seules, donc une incertitude de tête devient la
+    tête du segment (seg_dir None → incertitude ``append``) et ``push.start_ts``
+    peut la pointer. Repli sur la bougie de départ si le segment ne porte aucune
+    pleine (défensif ; une poussée NETTE en a toujours une) — S05 re-fire M1.
+    """
+    want: CandleKind = "pleine_haussiere" if push.direction == "haussiere" else "pleine_baissiere"
+    for c in session_candles:
+        if push.start_ts <= c.ts_open <= push.end_ts and classify_candle(c) == want:
+            return c
+    return next(c for c in session_candles if c.ts_open == push.start_ts)
+
+
 def detect_ny_origin_zones(
     candles: list[H1Candle], *, now_utc: datetime
 ) -> tuple[list[OriginZone], date | None]:
@@ -488,7 +517,10 @@ def detect_ny_origin_zones(
         n1_candidates = [p for p in real if open_utc <= p.start_ts < origin_end_utc]
         if n1_candidates:
             n1_push = max(n1_candidates, key=lambda p: p.magnitude)
-            origin_candle = next(c for c in session_candles if c.ts_open == n1_push.start_ts)
+            # Origine = la bougie de momentum (1re pleine dans le sens), pas
+            # l'incertitude de tête que segment_pushes attache au segment
+            # (S05 re-fire M1, §7 : « le niveau où le volume est ENTRÉ »).
+            origin_candle = _first_momentum_candle(session_candles, n1_push)
             side: ZoneSide = "vendeuse" if n1_push.direction == "baissiere" else "acheteuse"
             bottom, top = _zone_from_candle(origin_candle, side)
             zones.append(
@@ -497,7 +529,9 @@ def detect_ny_origin_zones(
                     level="N1",
                     top=top,
                     bottom=bottom,
-                    origin_ts=n1_push.start_ts,
+                    # Aligned on the momentum candle that sets the bounds, not the
+                    # head incertitude (S05 verifier NIT).
+                    origin_ts=origin_candle.ts_open,
                     session_date=d,
                     source_push_magnitude=n1_push.magnitude,
                 )
@@ -533,13 +567,71 @@ def detect_ny_origin_zones(
     return [], None
 
 
+def detect_structure_reversals_n3(candles: list[H1Candle]) -> list[OriginZone]:
+    """N3 origins (METHODOLOGIE §7, EXPLICITE — source complète S05) : market-
+    structure reversals OUTSIDE the NY origin window (Asie/Londres, toute heure
+    hors 13h-16h Paris). Eliot trace et nomme ces origines de niveau 3 (« tout
+    ce qui est retournement sur le marché » hors session NY, ex. 0h-1h).
+
+    A pivot where a NETTE multi-bougie push is followed by an opposite NETTE
+    multi-bougie push retracing ≥ ``_N3_REVERSAL_MIN_RATIO`` = the N3 origin
+    (polarity = the new push direction's side ; reversal up → origine
+    ACHETEUSE). Final priority is PROXIMITY, applied by the caller (§7 « le
+    plus proche prime », §3). Thresholds PROVISIONAL (§13.7).
+
+    Distinct from the « switch de canal » (§13.16) whose formal validation
+    criterion stays [TBD owner] — here we detect a structure reversal pivot,
+    not a channel switch.
+    """
+    if len(candles) < 3:
+        return []
+    pushes = segment_pushes(candles)
+    zones: list[OriginZone] = []
+    for i, p in enumerate(pushes[:-1]):
+        nxt = pushes[i + 1]
+        pivot_paris_hour = p.end_ts.astimezone(_PARIS_TZ).hour
+        if _NY_SESSION_OPEN.hour <= pivot_paris_hour < _NY_SESSION_CLOSE.hour:
+            continue  # inside the NY session 13h-20h Paris → N1/N2 territory,
+            # NOT N3 (§7 « hors session NY ») ; avoids the N2/N3 duplicate at
+            # a 16h-20h reversal pivot (S05 verifier MAJOR-1).
+        if (
+            p.quality == "nette"
+            and nxt.quality == "nette"
+            and p.n_candles >= _N3_MIN_PUSH_CANDLES
+            and nxt.n_candles >= _N3_MIN_PUSH_CANDLES
+            and nxt.direction != p.direction
+            and p.magnitude > 0
+            and nxt.magnitude / p.magnitude >= _N3_REVERSAL_MIN_RATIO
+        ):
+            pivot_candle = next(c for c in candles if c.ts_open == p.end_ts)
+            side: ZoneSide = "acheteuse" if p.direction == "baissiere" else "vendeuse"
+            bottom, top = _zone_from_candle(pivot_candle, side)
+            zones.append(
+                OriginZone(
+                    side=side,
+                    level="N3",
+                    top=top,
+                    bottom=bottom,
+                    origin_ts=p.end_ts,
+                    session_date=p.end_ts.astimezone(_PARIS_TZ).date(),
+                    source_push_magnitude=p.magnitude,
+                )
+            )
+    return zones
+
+
 def golden_zone_of_latest_push(pushes: list[Push], current_price: float) -> GoldenZoneRead | None:
     """Golden zone 0,5-0,618 of the most recent NETTE push (METHODOLOGIE §8).
 
-    Anchor choice PROVISIONAL under §13.6 (review PR #234 m3) : the
-    retracement is anchored on the push BODY (start_price → end_price), not
-    its wick extremes — consistent with the Pine companion. The exact anchor
-    is [TBD owner].
+    Anchor PROVISIONAL under §13.6 [TBD owner], two open axes (S05 re-fire M3) :
+      - body vs wick : retracement anchored on the push BODY (start_price →
+        end_price), not the wick extremes that §8's literal wording (« du
+        plus haut au plus bas du mouvement ») would imply ;
+      - object : this server read anchors on the LATEST nette H1 push, while
+        the Pine companion anchors on the previous-NY-session open→close swing.
+        Same 0,5/0,618 ratios and body philosophy, but DIFFERENT mouvements —
+        on a multi-push session the two zones diverge. Do NOT assume they match
+        on a chart ; reconcile both axes together when the owner arbitrates.
     """
     nettes = [p for p in pushes if p.quality == "nette"]
     if not nettes:
@@ -561,11 +653,15 @@ def golden_zone_of_latest_push(pushes: list[Push], current_price: float) -> Gold
 
 
 def compute_day_open_read(bars: list[Bar], *, now_utc: datetime) -> DayOpenRead | None:
-    """Excursions since today's 00:00 Paris open (mèche du plongeur status)."""
-    day_open_utc = datetime.combine(
-        now_utc.astimezone(_PARIS_TZ).date(), time(0, 0), tzinfo=_PARIS_TZ
-    ).astimezone(UTC)
-    todays = [b for b in bars if b.ts >= day_open_utc]
+    """Excursions de la mèche du plongeur sur la fenêtre Asie+Londres
+    (00h-12h Paris), figée à midi — jamais étendue dans la session NY qui fait
+    le « sens final » (METHODOLOGIE §5.2 « minuit-midi », S05 re-fire M4).
+    """
+    paris_day = now_utc.astimezone(_PARIS_TZ).date()
+    day_open_utc = datetime.combine(paris_day, time(0, 0), tzinfo=_PARIS_TZ).astimezone(UTC)
+    noon_utc = datetime.combine(paris_day, time(12, 0), tzinfo=_PARIS_TZ).astimezone(UTC)
+    window_end = min(now_utc, noon_utc)
+    todays = [b for b in bars if day_open_utc <= b.ts < window_end]
     if not todays:
         return None
     todays.sort(key=lambda b: b.ts)
@@ -574,6 +670,7 @@ def compute_day_open_read(bars: list[Bar], *, now_utc: datetime) -> DayOpenRead 
         last_price=todays[-1].close,
         high=max(b.high for b in todays),
         low=min(b.low for b in todays),
+        window_complete=now_utc >= noon_utc,
     )
 
 
@@ -594,10 +691,18 @@ def compute_technical_reading(
     pushes = segment_pushes(candles)
     current_price = bars[-1].close if bars else candles[-1].close
     zones, session_date = detect_ny_origin_zones(candles, now_utc=now_utc)
-    # Proximity ranking (METHODOLOGIE §3 : la zone la plus proche prime).
-    zones_sorted = sorted(
-        zones, key=lambda z: min(abs(current_price - z.top), abs(current_price - z.bottom))
-    )
+    n3_zones = detect_structure_reversals_n3(candles)
+
+    def _proximity(z: OriginZone) -> float:
+        return min(abs(current_price - z.top), abs(current_price - z.bottom))
+
+    # METHODOLOGIE §7 : la proximité prime POUR L'ORDRE d'affichage, mais les
+    # origines N1/N2 (tradables de la session NY) sont TOUJOURS conservées ; les
+    # N3 (contexte, hors session) ne complètent que les slots restants, par
+    # proximité — le cap pur évincerait sinon N1/N2 (S05 verifier MAJOR-2).
+    n1n2 = sorted(zones, key=_proximity)
+    n3_fill = sorted(n3_zones, key=_proximity)[: max(0, _MAX_ORIGIN_ZONES - len(n1n2))]
+    zones_sorted = sorted(n1n2 + n3_fill, key=_proximity)
     return TechnicalReading(
         asset=asset,
         computed_at=now_utc,
@@ -713,8 +818,13 @@ def render_technical_reading_block(
                 if z.bottom > reading.current_price
                 else ("en-dessous" if z.top < reading.current_price else "au contact")
             )
+            origine_ctx = (
+                f"session NY du {z.session_date.isoformat()}"
+                if z.level in ("N1", "N2")
+                else f"retournement hors session du {z.session_date.isoformat()}"
+            )
             lines.append(
-                f"- **Origine {z.side} {z.level}** (session NY du {z.session_date.isoformat()}) : "
+                f"- **Origine {z.side} {z.level}** ({origine_ctx}) : "
                 f"zone {_fmt(z.bottom)} → {_fmt(z.top)}, {rel} du prix actuel "
                 f"(distance ≈ {_fmt(dist)}) ; retest pertinent entre {_fmt(z.retest_low)} et "
                 f"{_fmt(z.retest_high)} (moitié côté approche, zone divisée en tiers)."
@@ -738,15 +848,21 @@ def render_technical_reading_block(
 
     if reading.day_open is not None:
         d = reading.day_open
+        phase = (
+            "mèche Asie/Londres figée à midi"
+            if d.window_complete
+            else "fenêtre Asie/Londres en cours, avant midi Paris"
+        )
         lines.append(
-            f"- **Mèche du plongeur (statut du jour)** : depuis l'open 00h Paris "
-            f"({_fmt(d.open_price)}), excursion haute +{_fmt(d.upside_excursion)} / "
-            f"excursion basse −{_fmt(d.downside_excursion)}, dernier prix {_fmt(d.last_price)}. "
+            f"- **Mèche du plongeur ({phase})** : depuis l'open 00h Paris "
+            f"({_fmt(d.open_price)}), sur la fenêtre minuit-midi excursion haute "
+            f"+{_fmt(d.upside_excursion)} / excursion basse −{_fmt(d.downside_excursion)}, "
+            f"dernier prix lu {_fmt(d.last_price)}. "
             f"Pour un sens final baissier en NY, la respiration haussière "
             f"{'est déjà visible' if d.upside_excursion > d.downside_excursion else 'n’est pas encore marquée'} ; "
             f"pour un sens final haussier, la respiration baissière "
             f"{'est déjà visible' if d.downside_excursion > d.upside_excursion else 'n’est pas encore marquée'}. "
-            f"(Asie + Londres construisent la mèche contraire ; New York fait le sens final.)"
+            f"(Asie + Londres construisent la mèche contraire minuit-midi ; New York fait le sens final.)"
         )
 
     lines.append(
