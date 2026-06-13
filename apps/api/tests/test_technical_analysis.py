@@ -29,6 +29,7 @@ from ichor_api.services.technical_analysis import (
     H1Candle,
     Push,
     aggregate_hourly,
+    candle_intention,
     classify_candle,
     compute_daily_read,
     compute_day_open_read,
@@ -269,6 +270,40 @@ class TestReadTrend:
         t = read_trend(pushes)
         assert t.state == "indecis"
         assert t.dominant_direction == "haussiere"
+
+    def test_indices_retournement_accumulated_and_confirmed(self) -> None:
+        """§5.1 : anomalie de rôle → indice listé + retournement CONFIRMÉ."""
+        pushes = [
+            self._push("baissiere", 0.0060, "nette", 0),
+            self._push("haussiere", 0.0070, "structuree", 1),
+            self._push("baissiere", 0.0080, "nette", 2),
+            self._push("haussiere", 0.0060, "nette", 3),  # counter nette = anomalie
+        ]
+        t = read_trend(pushes)
+        assert t.confirmed_retournement is True
+        assert any("anomalie de rôle" in i for i in t.indices_retournement)
+
+    def test_indices_accumulated_without_confirmation(self) -> None:
+        """§5.0 : indices accumulés (dominante décroissante) SANS bascule
+        confirmée (pas d'anomalie ni weakening+counter-growth)."""
+        pushes = [
+            self._push("haussiere", 0.0090, "nette", 0),
+            self._push("baissiere", 0.0010, "structuree", 1),
+            self._push("haussiere", 0.0060, "nette", 2),
+            self._push("baissiere", 0.0010, "structuree", 3),
+            self._push("haussiere", 0.0030, "nette", 4),
+        ]
+        t = read_trend(pushes)
+        assert t.state == "continuation_haussiere"
+        assert t.confirmed_retournement is False
+        assert len(t.indices_retournement) >= 1
+
+
+class TestCandleIntention:
+    def test_intention_labels(self) -> None:
+        assert "affirmation" in candle_intention("pleine_haussiere")
+        assert "affirmation" in candle_intention("pleine_baissiere")
+        assert "hésitation" in candle_intention("incertitude")
 
 
 class TestNyWindow:
@@ -712,3 +747,32 @@ class TestRender:
         # downside excursion 0.0050 > upside 0.0005.
         assert "la respiration baissière est déjà visible" in md
         assert "la respiration haussière n’est pas encore marquée" in md
+
+    def test_indices_line_rendered_when_not_confirmed(self) -> None:
+        """§5.1 : la ligne dédiée « Indices de retournement » apparaît quand des
+        indices sont accumulés SANS confirmation (S05 re-fire #3)."""
+        from ichor_api.services.technical_analysis import TechnicalReading, TrendRead
+
+        reading = TechnicalReading(
+            asset="EUR_USD",
+            computed_at=_NOW,
+            last_bar_ts=_NOW,
+            current_price=1.1000,
+            h1_candle_count=24,
+            trend=TrendRead(
+                state="continuation_haussiere",
+                dominant_direction="haussiere",
+                rationale_fr="t.",
+                indices_retournement=("amplitudes dominantes successives décroissantes",),
+                confirmed_retournement=False,
+            ),
+            recent_pushes=(),
+            origin_zones=(),
+            golden_zone=None,
+            day_open=None,
+            ny_session_date=None,
+        )
+        md, _ = render_technical_reading_block(reading, "EUR_USD")
+        assert "Indices de retournement" in md
+        assert "pas encore de confirmation" in md
+        assert is_adr017_clean(md)

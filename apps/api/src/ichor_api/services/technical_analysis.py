@@ -155,11 +155,18 @@ class Push:
 
 @dataclass(frozen=True)
 class TrendRead:
-    """Continuation / retournement read over the recent H1 pushes."""
+    """Continuation / retournement read over the recent H1 pushes.
+
+    ``indices_retournement`` = les indices de retournement accumulés (§5.0/§5.1 :
+    « un indice précède le mouvement, ne confirme pas seul, s'accumule ») ;
+    ``confirmed_retournement`` = la bascule est confirmée (état
+    retournement_potentiel) vs simple accumulation d'indices."""
 
     state: TrendState
     dominant_direction: PushDirection | None
     rationale_fr: str
+    indices_retournement: tuple[str, ...] = ()
+    confirmed_retournement: bool = False
 
 
 @dataclass(frozen=True)
@@ -336,6 +343,21 @@ def classify_candle(c: H1Candle) -> CandleKind:
     return "incertitude"
 
 
+_INTENTION_FR: Final = {
+    "pleine_haussiere": "affirmation (conviction acheteuse, momentum)",
+    "pleine_baissiere": "affirmation (conviction vendeuse, momentum)",
+    "incertitude": "hésitation / doute (transition ; une grande mèche = tentative ratée / rejet)",
+}
+
+
+def candle_intention(kind: CandleKind) -> str:
+    """Intention sémantique d'une bougie (METHODOLOGIE §5.0 `[CM]`) : pleine =
+    affirmation/conviction (momentum) ; incertitude = hésitation/doute — une
+    grande mèche se lit comme une tentative ratée / un rejet (côté lu via le
+    statut de rejet, §5.3). Lecture descriptive (ADR-017)."""
+    return _INTENTION_FR[kind]
+
+
 def segment_pushes(candles: list[H1Candle]) -> list[Push]:
     """Segment closed H1 candles into alternating directional pushes.
 
@@ -430,13 +452,26 @@ def read_trend(pushes: list[Push]) -> TrendRead:
     dom = [p for p in window if p.direction == dominant]
     counter = [p for p in window if p.direction != dominant]
 
+    # METHODOLOGIE §5.0/§5.1 : indices de retournement ACCUMULABLES (« un indice
+    # précède le mouvement, ne confirme pas seul »). L'anomalie de rôle (une
+    # « correction » devenue NETTE) est le détecteur AUTONOME (review PR #234
+    # M1) ; les autres s'accumulent comme indices.
+    role_anomaly = bool(counter) and counter[-1].quality == "nette"
     weakening = len(dom) >= 2 and dom[-1].magnitude < dom[-2].magnitude
     counter_growing = len(counter) >= 2 and counter[-1].magnitude > counter[-2].magnitude
-    # METHODOLOGIE §5.1 : l'anomalie de rôle (une « correction » qui devient
-    # NETTE) est LE détecteur de retournement principal — signal AUTONOME,
-    # il ne requiert pas l'essoufflement des poussées dominantes (review PR
-    # #234 M1 : l'exiger durcissait le SSOT).
-    role_anomaly = bool(counter) and counter[-1].quality == "nette"
+    dom_decreasing = len(dom) >= 3 and dom[-1].magnitude < dom[-2].magnitude < dom[-3].magnitude
+    indices: list[str] = []
+    if role_anomaly:
+        indices.append("anomalie de rôle (correction devenue nette : le camp opposé prend la main)")
+    # dom_decreasing (3 amplitudes décroissantes) est le sur-ensemble fort de
+    # weakening (2) → un seul libellé pour ne pas gonfler le compteur d'indices.
+    if dom_decreasing:
+        indices.append("amplitudes dominantes successives décroissantes")
+    elif weakening:
+        indices.append(f"poussées {_DIR_FR[dominant]}s de moins en moins grandes")
+    if counter_growing:
+        indices.append("poussées contraires de plus en plus grandes")
+    indices_t = tuple(indices)
 
     if role_anomaly or (weakening and counter_growing):
         state: TrendState = (
@@ -444,17 +479,12 @@ def read_trend(pushes: list[Push]) -> TrendRead:
             if dominant == "baissiere"
             else "retournement_potentiel_baissier"
         )
-        bits: list[str] = []
-        if role_anomaly:
-            bits.append(
-                "correction devenue nette (anomalie de rôle : le camp opposé prend la main)"
-            )
-        if weakening:
-            bits.append(f"poussées {_DIR_FR[dominant]}s de moins en moins grandes")
-        if counter_growing:
-            bits.append("poussées contraires de plus en plus grandes")
         return TrendRead(
-            state=state, dominant_direction=dominant, rationale_fr=" ; ".join(bits) + "."
+            state=state,
+            dominant_direction=dominant,
+            rationale_fr=" ; ".join(indices) + ".",
+            indices_retournement=indices_t,
+            confirmed_retournement=True,
         )
 
     if window[-1].direction == dominant:
@@ -463,6 +493,8 @@ def read_trend(pushes: list[Push]) -> TrendRead:
             state=f"continuation_{dominant}",  # type: ignore[arg-type]
             dominant_direction=dominant,
             rationale_fr=f"Élan {_DIR_FR[dominant]} dominant, dernière poussée {qual} dans le sens.",
+            indices_retournement=indices_t,
+            confirmed_retournement=False,
         )
     return TrendRead(
         state="indecis",
@@ -471,6 +503,8 @@ def read_trend(pushes: list[Push]) -> TrendRead:
             f"Élan {_DIR_FR[dominant]} dominant mais dernière poussée contraire structurée, "
             "sans bascule de camp confirmée : lecture en attente de la prochaine clôture."
         ),
+        indices_retournement=indices_t,
+        confirmed_retournement=False,
     )
 
 
@@ -935,6 +969,17 @@ def render_technical_reading_block(
         f"- **Élan H1** : {_STATE_FR[t.state]} — {t.rationale_fr} "
         f"(lecture sur {reading.h1_candle_count} bougies H1 clôturées)"
     )
+
+    # Ligne dédiée seulement quand le retournement n'est PAS encore confirmé
+    # (sur l'état confirmé, l'Élan H1 ci-dessus porte déjà le détail des indices
+    # via rationale_fr — pas de doublon, S05 verifier nice-to-have).
+    if t.indices_retournement and not t.confirmed_retournement:
+        lines.append(
+            f"- **Indices de retournement** ({len(t.indices_retournement)} accumulé(s), "
+            f"pas encore de confirmation) : "
+            + " ; ".join(t.indices_retournement)
+            + ". (Un indice ne confirme pas seul — accumulation puis confirmation, §5.0.)"
+        )
 
     if reading.daily is not None:
         dl = reading.daily
