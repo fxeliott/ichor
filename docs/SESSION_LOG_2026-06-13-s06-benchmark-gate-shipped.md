@@ -65,14 +65,38 @@ real execution (pytest probes, hand-recomputation, regex/grep traces):
 insertions), pre-commit hooks all Passed (incl. ADR-081 doctrinal invariants),
 **PR #242**.
 
-## 6. Deferred (own checkpoints — NOT this PR)
+## 6. Slice-2 shipped same session ("fais tout, focus S06") — ADR-116, commits `450ac5a` → `e78ec77`
 
-- **Merge + deploy** = production checkpoint → owner go (Hetzner deploy guard).
-  Pure-core has no live witnessable surface ; the real witness arrives with slice-2.
-- **Chantier A slice-2**: CLI joining `session_card_audit` verdicts + realised
-  NY-window returns (Polygon intraday 14h–20h Paris) → real `BenchmarkReport`.
-  **Needs production realised data** (verdict history young since ~late May → thin
-  OOS window ; will report `n_sessions` honestly, no over-claim).
+`cli/run_benchmark_gate.py` — the CLI that produces the **real** benchmark
+report. Scores **the apex `SessionVerdict` the user sees** (reproduced via the
+canonical `_extract_synthesis_primitives` + `_derive_direction_and_conviction`
+over the 7 buckets) over **Eliot's exact NY 14:00–20:00 Paris window**
+(recomputed from `polygon_intraday`, DST-correct). Output = markdown, no migration.
+
+Infra mapped first via a 4-agent exploration workflow (verdict persistence,
+Polygon path, CLI patterns, local access/deploy) — zero blind I/O.
+
+**Adversarial review caught 2 MAJOR design flaws in the v1 draft** (the value of
+fresh verification): (1) v1 read the `reconcile_outcomes` snapshot whose window
+≈13:30–21:30 ≠ the named 14h-20h; (2) v1 scored `bias_direction`, which can
+diverge from the apex verdict the user sees. **Both fixed in v2** (commit
+`e78ec77`): exact-window recompute from `polygon_intraday` + canonical apex
+reproduction. Re-verified fresh → `card_verdict(bullish)` byte-identical to the
+builder path; **0 blocker, 0 major, 2 nits** (CLI headers hold ADR-017 by
+construction; private-import documented).
+
+- Tests: `test_run_benchmark_gate` **21 passed** (window DST, apex derivation,
+  dedup, skip-no-window, stubbed orchestration); full suite **3418 passed, 34
+  skipped** (+21 = exactly the new tests, zero regression). ruff + mypy clean.
+- PR #242 now carries slice-1 (ADR-114) + per-scenario conviction (ADR-115) +
+  slice-2 (ADR-116). Working tree clean.
+
+## 7. Deferred (own checkpoints — NOT this PR)
+
+- **Merge + deploy + witness** = the production checkpoint (owner go, Hetzner
+  guard). The slice-2 **live run is the real witness**: server-side
+  `python -m ichor_api.cli.run_benchmark_gate` over the reconciled verdict + bar
+  history → the first real benchmark report (honest `n_sessions`, thin OOS).
 - Pass-6 prompt update to **populate** `conviction_pct` in prod + conviction-weighted
   aggregate (behaviour change → own deploy+witness).
 - Then Chantier **B** (learning loop) → unblocks **C** (≥9 dimension votes + risk
