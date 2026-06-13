@@ -201,3 +201,39 @@ cas particulier centré sur le milieu. Rendu mis à jour.
   (LuxAlgo exact), §13.9, §13.10 (No-Gap exact → fixe le bord 22h/23h daily),
   §13.16 (seuil formel switch), §13.17 ([T-F] identité). Pine chart-refresh
   (éditeur TV à ouvrir). Cleanup `PR_BODY_S05.md`/`.venv` (à confirmer).
+
+---
+
+# PART 4 — §5.1 (dernier enrichissement code) + Pine LIVE (PR #240, main `1511e3b`)
+
+Owner « fais tout ce qui reste » + « ouvre TV, regarde les params ». Fermé :
+
+## 16. §5.1 — indices gradués + confirmation + intention (IMPLÉMENTÉ)
+
+`read_trend` expose désormais `indices_retournement` (indices accumulés : anomalie
+de rôle, weakening, counter-growing, amplitudes-dominantes-décroissantes) +
+`confirmed_retournement` (True uniquement sur retournement_potentiel). Logique
+d'ÉTAT INCHANGÉE (additif). `candle_intention(kind)` : pleine=affirmation/momentum,
+incertitude=hésitation/rejet (§5.0 [CM]). Rendu : ligne dédiée « Indices de
+retournement » (seulement si NON confirmé — pas de doublon avec l'Élan H1).
+Vérificateur frais → CLEAN ; 2 nice-to-have pliés (label weakening sauté si
+dom_decreasing ; ligne conditionnée not-confirmed). +4 tests S05.
+
+## 17. TradingView LIVE
+
+Au 1er accès le chart était « Session disconnected » (compte ouvert ailleurs,
+1 session max). Owner a reconnecté lui-même. Ensuite : **indicateur Pine
+RAFRAÎCHI** (pine_open → set_source corrigé golden-zone extrêmes → smart_compile
+**0 err** → save) sur le chart GBPUSD H1 → ton chart affiche la version corrigée.
+Carrés bleus LuxAlgo + No-Gap confirmés visuellement (screenshot) cohérents avec
+le codifié (13h-20h Paris). Valeurs d'input LuxAlgo/No-Gap exactes (§13.8/13.10)
+= détail mineur non lu (params déjà EXPLICITE-sourcés transcripts + confirmés
+visuellement) — pas d'exploration JS CDP coûteuse.
+
+## 18. Validation + état final
+
+Suite **3355 passed / 0 failed** ; ruff clean ; mypy 0 ; deploy backup
+`ichor_api.20260613-124357` ; **witness prod 5/5 ADR-017-clean + Daily 5/5**.
+**Toutes les dimensions méthodo S05 sont implémentées + déployées + witnessées.**
+Restant = owner-only (seuils chiffrés de calibration §13.4/13.7, input strings
+exacts §13.8/13.10, identité [T-F] §13.17) — aucun livrable code en suspens.
