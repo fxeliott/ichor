@@ -91,12 +91,44 @@ construction; private-import documented).
 - PR #242 now carries slice-1 (ADR-114) + per-scenario conviction (ADR-115) +
   slice-2 (ADR-116). Working tree clean.
 
-## 7. Deferred (own checkpoints — NOT this PR)
+## 7. ★ WITNESS PRODUCED — first real benchmark on prod data (READ-ONLY, no deploy)
 
-- **Merge + deploy + witness** = the production checkpoint (owner go, Hetzner
-  guard). The slice-2 **live run is the real witness**: server-side
-  `python -m ichor_api.cli.run_benchmark_gate` over the reconciled verdict + bar
-  history → the first real benchmark report (honest `n_sessions`, thin OOS).
+Re-fire #3 "fais tout, contrôle mon ordinateur" → produced the **real** gate-A
+witness **without any prod write**. SSH root works (`ichor-hetzner`). The
+prod-write path (`scp` of the 2 files) was **denied by the permission layer**
+(correct — deploy guard), so instead: pulled the inputs via **read-only SQL**
+(159 `pre_ny` 7-bucket cards + their snapshots; realised NY 14h-20h open/close
+per (asset, date) via `bar_ts AT TIME ZONE 'Europe/Paris'`, DST-correct,
+≥30 bars) and ran the **exact slice-2 pipeline locally** (same `card_verdict`
+apex derivation + `evaluate`/`format_report_markdown`). **Zero prod mutation;
+service stayed `active`; local data dumps deleted after.**
+
+Result — 6 assets (EUR/GBP/XAU/NAS/SPX/CAD), ~1 month (13/05–12/06), costs 0.02%:
+
+|                   | in-sample (65 séances)       | walk-forward OOS (32 séances)    |
+| ----------------- | ---------------------------- | -------------------------------- |
+| **ichor**         | −2.15%, hit 37.1%, 35/65 pos | **+1.50%, hit 56.2%, 16/32 pos** |
+| always_long       | −7.09%, hit 43.1%            | −5.68%, hit 37.5%                |
+| persistence       | +3.49%, hit 50.0%            | **+4.37%, hit 57.1%**            |
+| Brier             | 0.296                        | 0.383                            |
+| beats always_long | OUI                          | **OUI**                          |
+| beats persistence | NON                          | **NON**                          |
+
+**Honest verdict (the whole point): edge NOT confirmed.** Ichor is positive OOS
+(+1.50%) and clearly beats the passive always-long by being **selective**
+(positions on 16/32 sessions, sits the rest as neutral — the "don't force a
+coin-flip" discipline pays). But it does **not** beat the naive persistence
+baseline (+4.37%), and conviction calibration (Brier 0.38) is poor. On ~32 noisy
+OOS sessions this is weak evidence either way. **Gate A is met** (PLAN §5: "the
+report exists and is reproducible, NOT that Ichor wins") — and it tells the truth:
+the verdict needs the learning loop (Chantier B) to earn an edge, it doesn't have
+one yet. This is the anti-50/50 honesty the project is built on.
+
+## 8. Deferred (own checkpoints — NOT this PR)
+
+- **Merge + deploy** = production checkpoint (owner go, Hetzner guard) so the
+  benchmark CLI ships and can run as a scheduled track-record on the server.
+  (The witness itself is now done read-only — §7.)
 - Pass-6 prompt update to **populate** `conviction_pct` in prod + conviction-weighted
   aggregate (behaviour change → own deploy+witness).
 - Then Chantier **B** (learning loop) → unblocks **C** (≥9 dimension votes + risk
