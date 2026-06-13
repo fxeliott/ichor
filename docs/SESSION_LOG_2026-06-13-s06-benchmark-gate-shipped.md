@@ -54,10 +54,8 @@ real execution (pytest probes, hand-recomputation, regex/grep traces):
 
 - Targeted post-fix: **77 passed** (`test_benchmark_gate` + `test_scenarios`).
 - Full suite pre-fix: **3393 passed, 34 skipped** (zero regression of prior work).
-- Full suite post-fix: re-run launched as final net (deductively green — the only
-  behaviour delta is `VerdictOutcomeSample.__post_init__`, and that type is
-  constructed only in `test_benchmark_gate.py`, all convictions ≤95) ; CI also
-  gates the merge.
+- Full suite post-fix: **3397 passed, 34 skipped** (692s, exit 0) — exactly +4
+  (the new tests), zero regression confirmed empirically, not just deductively.
 - `ruff` clean, `mypy` clean. **ZERO spend** (Voie D).
 
 ## 5. Shipped
