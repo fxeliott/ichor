@@ -88,6 +88,109 @@ def test_scenario_accepts_zero_probability() -> None:
     assert s.p == 0.0
 
 
+# ───────────────────── ADR-115 per-scenario conviction ─────────────────
+
+
+def test_scenario_conviction_defaults_none_backward_compat() -> None:
+    """Pre-ADR-115 emissions carry no conviction → None (invalidations pattern)."""
+    assert _valid_scenario().conviction_pct is None
+
+
+def test_scenario_conviction_accepts_valid_value() -> None:
+    s = Scenario(
+        label="base",  # type: ignore[arg-type]
+        p=0.5,
+        conviction_pct=72.0,
+        magnitude_pips=(-10.0, 10.0),
+        mechanism="Sideways consolidation absent a strong catalyst today",
+    )
+    assert s.conviction_pct == 72.0
+
+
+def test_scenario_conviction_caps_at_95() -> None:
+    # ADR-022 cap mirrored on the 0..95 scale (CAP_95 * 100)
+    with pytest.raises(ValidationError):
+        Scenario(
+            label="base",  # type: ignore[arg-type]
+            p=0.5,
+            conviction_pct=95.01,
+            magnitude_pips=(-10.0, 10.0),
+            mechanism="Sideways consolidation absent a strong catalyst today",
+        )
+
+
+def test_scenario_conviction_rejects_negative() -> None:
+    with pytest.raises(ValidationError):
+        Scenario(
+            label="base",  # type: ignore[arg-type]
+            p=0.5,
+            conviction_pct=-1.0,
+            magnitude_pips=(-10.0, 10.0),
+            mechanism="Sideways consolidation absent a strong catalyst today",
+        )
+
+
+def test_scenario_deserialises_legacy_dict_without_conviction() -> None:
+    """A pre-ADR-115 JSONB row (no conviction_pct key) deserialises to None
+    with no error — backward compatibility proven."""
+    legacy = {
+        "label": "base",
+        "p": 0.5,
+        "magnitude_pips": [-10.0, 10.0],
+        "mechanism": "Sideways consolidation absent a strong catalyst today",
+    }
+    assert Scenario.model_validate(legacy).conviction_pct is None
+
+
+def _seven_buckets_adr115(
+    convictions: dict[str, float | None] | None = None,
+) -> list[Scenario]:
+    convictions = convictions or {}
+    ps = {
+        "crash_flush": 0.05,
+        "strong_bear": 0.10,
+        "mild_bear": 0.15,
+        "base": 0.30,
+        "mild_bull": 0.20,
+        "strong_bull": 0.15,
+        "melt_up": 0.05,
+    }  # sum = 1.0
+    return [
+        Scenario(
+            label=lbl,  # type: ignore[arg-type]
+            p=p,
+            conviction_pct=convictions.get(lbl),
+            magnitude_pips=(-10.0, 10.0),
+            mechanism="Macro/structural reason this bucket might realize today",
+        )
+        for lbl, p in ps.items()
+    ]
+
+
+def test_per_scenario_conviction_helper_maps_each_bucket() -> None:
+    decomp = ScenarioDecomposition(
+        asset="EUR_USD",
+        session_type="pre_ny",
+        scenarios=_seven_buckets_adr115({"base": 80.0, "melt_up": 30.0}),
+    )
+    conv = decomp.per_scenario_conviction()
+    assert set(conv.keys()) == set(BUCKET_LABELS)
+    assert conv["base"] == 80.0
+    assert conv["melt_up"] == 30.0
+    assert conv["crash_flush"] is None  # not assessed → honest None
+
+
+def test_decomposition_sum_invariant_unaffected_by_conviction() -> None:
+    """Golden-card diff : adding conviction does not perturb the sum=1 verdict
+    derivation invariant."""
+    decomp = ScenarioDecomposition(
+        asset="EUR_USD",
+        session_type="pre_ny",
+        scenarios=_seven_buckets_adr115({"base": 90.0}),
+    )
+    assert abs(sum(s.p for s in decomp.scenarios) - 1.0) < 1e-9
+
+
 def test_scenario_rejects_magnitude_low_above_high() -> None:
     with pytest.raises(ValidationError):
         Scenario(
