@@ -78,11 +78,16 @@ if nyEnd and not na(prevSesHigh)
     label.delete(sesLabel)
     prevHighLine := line.new(bar_index, prevSesHigh, bar_index + 1, prevSesHigh, extend = extend.right, color = color.new(color.orange, 35), style = line.style_dashed)
     prevLowLine  := line.new(bar_index, prevSesLow, bar_index + 1, prevSesLow, extend = extend.right, color = color.new(color.orange, 35), style = line.style_dashed)
-    // Golden zone 0,5-0,618 du mouvement net de la session NY précédente
-    // (du début au terme de son mouvement dominant : open → close de session).
+    // Golden zone 0,5-0,618 du mouvement directionnel dominant de la session NY
+    // précédente, tracée du plus HAUT au plus BAS du mouvement (extrêmes/mèches,
+    // METHODOLOGIE §8 « du plus haut au plus bas du mouvement » — S05 fix §13.6b).
+    // Aide visuelle : le serveur (technical_analysis.py) ancre, lui, sur la
+    // DERNIÈRE poussée nette H1 isolée ; sur une session multi-poussées les deux
+    // peuvent différer (§13.6 corps-vs-mèches [TBD owner]).
     float span = prevSesClose - prevSesOpen
-    float gzA = prevSesClose - span * 0.5
-    float gzB = prevSesClose - span * 0.618
+    float sesRange = prevSesHigh - prevSesLow
+    float gzA = span >= 0 ? prevSesHigh - sesRange * 0.5 : prevSesLow + sesRange * 0.5
+    float gzB = span >= 0 ? prevSesHigh - sesRange * 0.618 : prevSesLow + sesRange * 0.618
     goldenBox := box.new(bar_index, math.max(gzA, gzB), bar_index + 1, math.min(gzA, gzB), extend = extend.right, bgcolor = color.new(color.yellow, 85), border_color = color.new(color.yellow, 55))
     string dirTxt = span > 0 ? "poussée haussière" : span < 0 ? "poussée baissière" : "session en range"
     sesLabel := label.new(bar_index, prevSesHigh, "Session NY précédente — " + dirTxt + "\nH " + str.tostring(prevSesHigh, format.mintick) + " · B " + str.tostring(prevSesLow, format.mintick) + "\nGolden zone 0,5-0,618 en jaune", style = label.style_label_left, color = color.new(color.orange, 80), textcolor = color.white, size = size.small)

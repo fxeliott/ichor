@@ -4,6 +4,13 @@
 > module technique (service, section data_pool, indicateurs Pine, futur
 > DimensionVote) dérive de CE document — jamais d'une autre source.
 >
+> **v1.2 (2026-06-13)** : finalisation S05 sur les matériaux owner COMPLETS
+> (transcript intégral non tronqué `[T-P COMPLET]`, vidéo « compréhension de
+> marché » `[CM]`, page 5-actifs, 11 screenshots). [TBD] §13 résolus (1,2,5,6,
+> 11,12,16) ; §7 hiérarchie 3 niveaux (N3 défini+codé), 3 sous-zones S/R,
+> fiabilité 70-80% ; §5.0 compréhension de marché. Détail : SESSION_LOG
+> 2026-06-13.
+>
 > **v1.1 (2026-06-12)** : v1.0 vérifiée par 6 agents adversariaux en contexte
 > frais contre les sources brutes (37 findings : 1 bloquant, 10 majeurs) —
 > TOUS pliés ici. Détail : SESSION_LOG du jour.
@@ -14,8 +21,10 @@
 > - `[T-C]` `transcript session ichor/analyse technique complémentaire.txt` — stratégie complète (63 min, 2 juin)
 > - `[T-B]` `transcript session ichor/backtest complet stratégie eliott technique.txt` — backtest live EUR/USD (Replay TradingView)
 > - `[T-G]` `transcript session ichor/gestion de trades technique.txt` — gestion de trade/risque
-> - `[T-F]` `transcript session ichor/transcript vidéo analyse fondamental et autres (connaissance).txt` — fondamental + fusion
+> - `[T-F]` `transcript session ichor/transcript vidéo analyse fondamental et autres (connaissance).txt` — ⚠ **source TIERCE / matériel de connaissance** (S05 re-fire M5) : compilation de vidéos marketing d'un persona « Hewi Capital / Panama / Macro Trader Accelerator » (co-présentation « Augustin »), **PAS une réunion live d'Eliot** comme T-P/T-C/T-B/T-G. À traiter comme contexte/connaissance externe — les règles [T-F] sont rétrogradées tant que l'owner n'a pas confirmé l'identité (§13.17). Ne jamais durcir une règle sur [T-F] seul.
 > - `[HUB]` hub des réunions trading (`D:\Projects\reunion-trading` + `D:\Projects\ichor beta\IchorBeta\pages-site`) — doctrine vécue, leçons, gestion des incohérences
+> - `[CM]` vidéo « compréhension de marché » (fournie S05, `transcript session ichor/_MATERIAUX_A_FOURNIR/videos/02_comprehension_de_marche.txt`) — série pédagogique d'Eliot : cadre indice/confirmation, définir→conséquence, intention des bougies (§5.0)
+> - `[T-P COMPLET]` transcript pédagogique INTÉGRAL non tronqué (fourni S05, `_MATERIAUX_A_FOURNIR/videos/01_transcript_analyse_technique_COMPLET.txt`) — lève la troncature de `[T-P]` (hiérarchie origines niveaux 2/3, §13.1)
 >
 > **Conventions** : chaque règle porte sa source et sa confiance —
 > **EXPLICITE** (dit dans la source ; les guillemets « » signalent du
@@ -47,7 +56,8 @@
   vs barres TimescaleDB : `[TBD owner]`, §13.10).
 - Anti-surcharge : « plus vous avez de niveaux, plus vous avez de friction
   d'analyse » `[T-B]` EXPLICITE ; analyses « guerre des étoiles » rejetées
-  `[T-F]` EXPLICITE. Tracer uniquement ce que voit le marché.
+  (`[T-F]` source tierce/duo — la règle TIENT sur `[T-B]`, le verbatim T-F est
+  secondaire, §13.17). Tracer uniquement ce que voit le marché.
 - Filtre de validité : « quand vous arrivez à faire de l'argent constamment
   avec votre stratégie, vous l'appelez comme vous voulez » `[T-P]` — le
   critère est la récurrence démontrée, pas le vocabulaire. Toute extension du
@@ -155,7 +165,43 @@ Signal H1 de plus forte valeur : bougie H1 (notamment la clôture 12h-13h) qui
 mèche fortement dans la zone ET clôture au-dessus/en-dessous de la structure —
 « ça veut presque tout dire » `[T-C]` EXPLICITE.
 
+**Règle critique — aucun pattern ne déclenche SEUL** : « une étoile du soir
+toute seule, sans compréhension de marché derrière, sans accumulation de
+confirmation, ça donne rien » `[T-P COMPLET]` EXPLICITE. Les deux patterns
+(avalement / étoile) sont exclusifs et TOUJOURS adossés à la compréhension de
+marché (§5.0) + l'accumulation d'indices (§5.1). Déclencheur prioritaire = rejet
+de création d'un nouveau plus haut/bas SUR la session (13h-14h), pas à l'open
+pré-manipulation (§5.2). Exécution en M5/M15 uniquement.
+
 ## 5. La lecture du prix (dimension 4/5)
+
+### 5.0 La compréhension de marché (cadre transversal — vidéo dédiée, S05)
+
+La « compréhension de marché » sous-tend toute la lecture technique (« on s'en
+sert beaucoup ») et a **deux branches** `[CM]` EXPLICITE (vidéo « compréhension
+de marché », fournie S05, série pédagogique d'Eliot) :
+
+1. **Compréhension de RETOURNEMENT** — comprendre où/quand le marché bascule
+   (« tout part d'un retournement ») : pivot de toute la lecture.
+2. **Compréhension de DÉFINITION & de BOUGIE** — « lire le marché au lieu de le
+   regarder » : DÉFINIR (décrire ce qui se passe, quoi + comment, SANS
+   interpréter) puis en déduire la CONSÉQUENCE logique (« interprète, pas
+   spectateur »), jamais au hasard. Ce diptyque **renforce** la frontière
+   ADR-017 (décrire + probabiliser, jamais prescrire).
+
+**Cadre gradué INDICE vs CONFIRMATION** `[CM]` EXPLICITE : un **indice** précède
+le mouvement, ne confirme pas seul, et s'**accumule** (plusieurs indices de
+retournement, ex. taille des poussées qui s'affaiblit, correction devenue forte
+en momentum, rejet de création d'un nouveau plus haut, cassure du dernier plus
+bas) ; une **confirmation** est postérieure et valide. On n'agit jamais
+sur un indice isolé — c'est l'accumulation d'indices PUIS la confirmation qui
+compte (cohérent §4 : aucun pattern ne déclenche seul).
+
+**Intention des bougies** `[CM]` : pleine = affirmation/conviction (momentum) ;
+doji/incertitude = hésitation/doute (transition) ; grande mèche = tentative
+ratée / rejet — la mèche se lit selon son emplacement (sur origine acheteuse /
+dernier plus bas → pression haussière ; sur origine vendeuse → pression
+baissière). Enrichit §3.
 
 ### 5.1 Grammaire poussée/correction
 
@@ -203,6 +249,11 @@ Application quotidienne (EXPLICITE, répétée sur chaque trade du backtest) :
   rapporte son statut sans la désactiver les jours de continuation.
 - Une bougie qui a énormément manipulé → la suivante prend normalement le
   momentum (« ça ne peut pas arriver deux fois ») `[T-B]` EXPLICITE.
+- **Manipulation pré-open US (~15h30)** : très souvent juste avant l'open US
+  (~15h30 Paris), le marché part dans le sens CONTRAIRE de son sens final puis
+  prend le momentum à l'open (manipulation / prise de liquidité attendue, PAS
+  un retournement de thèse) — « ça dépend des fois », non systématique. Distinct
+  de la mèche du plongeur Asie/Londres minuit-midi. `[T-P COMPLET]` EXPLICITE.
 
 ### 5.3 Lecture Daily
 
@@ -261,9 +312,12 @@ EXPLICITE : borne posée à la clôture de bougie, extension possible jusqu'au
 haut de la mèche (« les vendeurs et le volume de transactions se sont faits
 sur toute cette zone-là »), avec préférence pour une zone précise/étroite.
 
-**Hiérarchie** — les AOI ne sont placées QUE sur deux niveaux (« les AOI, je
-les place sur deux... une de niveau 1 ou une de niveau 2 ») `[T-C]`
-EXPLICITE :
+**Hiérarchie** — **TROIS niveaux** d'origines (transcript COMPLET S05 EXPLICITE :
+« c'est pour ça que je vous en ai fait trois »). Deux niveaux TRADABLES
+prioritaires (N1/N2, dans la session NY) + le niveau 3 (retournements hors
+session NY) comme contexte. **La proximité au prix prime sur le niveau**
+(« tout ce qui est le plus proche de mon marché actuel, ça va être les origines
+les plus importantes ») :
 
 - **Niveau 1** : origine d'un grand mouvement créé **pendant la session NY**
   (fenêtre 13h-16h, volume d'ouverture US) — « le plus haut niveau » ; en
@@ -275,17 +329,38 @@ EXPLICITE :
   sortent pas du marché comme ça, juste par prise de tête » `[T-C]`
   EXPLICITE). Polarité inversée : la sortie des acheteurs devient origine
   vendeuse de niveau 2.
-- **Niveau 3** : mentionné dans T-P (tronqué) mais jamais défini ; T-C borne
-  les zones placées à deux niveaux → non implémenté (`[TBD owner]` §13.1).
+- **Niveau 3** : TOUT retournement de structure de marché situé **hors de la
+  session NY** (donc hors 13h-20h Paris : session asiatique, Londres, ou toute
+  heure hors session — ex. retournement vendeurs/acheteurs à 0h-1h). Le point
+  de bascule est l'origine N3, tracé et nommé explicitement par Eliot (« tout
+  ce qui est retournement sur le marché... mais de niveau trois ») `[T-P COMPLET]`
+  EXPLICITE (fin non tronquée, S05). **Opérationnel** :
+  `technical_analysis.py:detect_structure_reversals_n3` (retournement de 2
+  poussées nettes multi-bougies hors session NY 13h-20h, complétant N1/N2 par
+  proximité sans jamais les évincer ; seuils PROVISIONAL §13.7).
 
 **Critère discriminant** : une origine valide est l'origine d'un **momentum
-réel** — pas la simple fin d'un mouvement adverse `[T-B]` EXPLICITE.
+réel** — pas la simple fin d'un mouvement adverse `[T-B]` EXPLICITE. Préférence
+pour une zone ÉTROITE ancrée sur la **concentration du volume** (le corps « pile
+sur cette zone ») ; une origine à grande mèche diluée est moins prioritaire et
+« créerait une zone beaucoup trop grande » à éviter (transcript COMPLET S05).
 
-**Mécanique du retest** : toute grande zone est divisée en **3 tiers** ;
-retest valide = **la moitié de la zone côté approche du prix** — démontré
-`[T-B]` EXPLICITE sur une origine ACHETEUSE (« un retest entre le haut et le
-milieu de ma zone, pas entre le bas et le milieu ») ; généralisation miroir
-au cas vendeur (entre le bas et le milieu) = INFÉRÉE, à valider (§13.13).
+**Fiabilité contextuelle** : dans **70 à 80 %** des cas, une origine se forme
+**par rapport à une origine/un mouvement passé** (une origine baissière naît du
+test d'une origine acheteuse antérieure) ; ~20-30 % « dans le vide ». Pour
+probabiliser une origine, chercher en priorité l'origine antérieure qu'elle
+teste (vidéo « compréhension de marché » S05 EXPLICITE).
+
+**Mécanique du retest** : toute zone est divisée en **3 sous-zones**
+(haut / milieu / bas) et **chaque sous-zone fait office de support/résistance
+individuel** (transcript COMPLET S05 EXPLICITE : « chaque zone fait office de
+support et de résistance... au-dessus → rebond à la hausse, en-dessous → rebond
+à la baisse »). Le retest valide « entre le haut et le milieu » (origine
+ACHETEUSE, démontré `[T-B]`) est un **cas particulier** de cette mécanique (le
+milieu = pivot S/R interne) ; le miroir vendeur (entre le bas et le milieu côté
+approche) reste INFÉRÉE mais appuyé par la symétrie S/R décrite (§13.13). NB :
+la sémantique complète 3-sous-zones-S/R au-delà du band binaire actuel =
+enrichissement code slice-2 (§12).
 
 **Priorisation** : proximité > taille (§3). Zone unique trop lointaine = pas
 d'intérêt aujourd'hui.
@@ -311,13 +386,16 @@ zone de retournement de haute qualité `[T-G]` EXPLICITE.
 > rendue comme règle de prise de position — elle gouverne le poids du vote
 > technique dans le verdict (Chantier C), pas une permission d'exécution.
 
-Architecture du système complet : **~80 % fondamental / ~20 % technique**
-`[T-B]` EXPLICITE (« on a 80 % de notre analyse qui est faite par l'analyse
-fondamentale ») ; version qualitative `[T-C]` EXPLICITE : stratégie reposant
+Architecture du système complet : **~80 % fondamental** `[T-B]` EXPLICITE
+(« on a 80 % de notre analyse qui est faite par l'analyse fondamentale ») ;
+les **~20 % techniques** = complément arithmétique INFÉRÉ (jamais énoncé
+verbatim) ; version qualitative `[T-C]` EXPLICITE : stratégie reposant
 « beaucoup » sur le fondamental, technique = adaptation + compréhension de
 marché + recherche d'origines. « L'analyse technique seule n'a aucun pouvoir
-prédictif » — la direction vient du courant (macro), le technique donne le OÙ
-(origines H1) et le QUAND (fenêtre NY) `[T-F]` EXPLICITE.
+prédictif » — la direction vient du courant (macro), le technique = exécution
+et timing (analogie de la rivière `[T-F]` EXPLICITE, source tierce §13.17). La
+précision « le OÙ = origines H1, le QUAND = fenêtre NY » est une SYNTHÈSE des
+sources live `[T-P]`,`[T-C]` (INFÉRÉE) — absente verbatim de T-F.
 
 Doctrine d'incohérence (hub, EXPLICITE — la règle cardinale) :
 
@@ -419,48 +497,56 @@ BE / SL à BE · RR de X · TP/SL · re-entrée · risque ouvert · prop firm.
 
 ## 12. Mapping vers l'implémentation (Chantier E)
 
-| Élément méthodo                                                                        | Implémentation                                                                    | Statut                                                 |
-| -------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- | ------------------------------------------------------ |
-| Grammaire bougies (pleine/incertitude, corps vs mèches)                                | `services/technical_analysis.py` pure core (+ `daily_candle_classifier` existant) | slice-1                                                |
-| Poussée/correction + anomalie de rôle (H1)                                             | `technical_analysis.py`                                                           | slice-1                                                |
-| Mèche du plongeur (statut quotidien Asie/Londres — toujours rapporté, cf. §5.2)        | `technical_analysis.py`                                                           | slice-1                                                |
-| Origines H1 N1/N2 (+ tiers, retest, proximité)                                         | `technical_analysis.py`                                                           | slice-1 — provisional (cf. §13.1/§13.13, seuils §13.7) |
-| Golden zone 0,5-0,618 sur dernière poussée H1                                          | `technical_analysis.py`                                                           | slice-1 — provisional (ancrage INFÉRÉE, cf. §13.6)     |
-| Rendu Pass-2                                                                           | `_section_technical_methodology` (data_pool)                                      | slice-1                                                |
-| Indicateur Pine (aide à la lecture d'Ichor)                                            | `docs/pine/ichor_lecture_technique.pine` + witness tradingview-cdp                | slice-1                                                |
-| Corrélations DXY recalculées en continu                                                | as-built : `services/correlations.py` + `cross_asset` sections                    | déjà LIVE                                              |
-| Séquence quotidienne complète (§6) + filtres no-trade + scénario/invalidation chiffrée | orchestration verdict (Chantier C/S06) — la section slice-1 fournit les briques   | différé                                                |
-| Signal H1 clôture 12h-13h (§4)                                                         | nécessite lecture event-driven à 13h                                              | slice-2                                                |
-| Déclencheurs 15m/5m (avalement, étoiles, 2-temps)                                      | slice-2 (agrégation 15m/5m + calibration)                                         | différé                                                |
-| Canaux / switch de canal (§5.4)                                                        | non défini par les sources — bloqué sur §13.16                                    | différé                                                |
-| DimensionVote technique (sign allowed)                                                 | post-Chantier C slice-1 (contrat figé, fusion intouchée)                          | différé                                                |
-| Doctrine incohérence/conviction (fusion §9)                                            | Chantier C (fusion layer)                                                         | différé                                                |
+| Élément méthodo                                                                                                       | Implémentation                                                                                                                   | Statut                                                                                      |
+| --------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| Grammaire bougies **H1** (pleine/incertitude, corps vs mèches)                                                        | `services/technical_analysis.py` pure core (H1 only ; `daily_candle_classifier` existant PAS encore branché — cf. Lecture Daily) | slice-1                                                                                     |
+| **Lecture Daily (§5.3)** : dernière bougie daily clôturée (22h-23h Paris, §13.15), pleine/incertitude + côté de rejet | brancher `daily_candle_classifier` existant dans `render_technical_reading_block`                                                | **slice-2** (NON couvert slice-1 ; S05 re-fire M6 — clôture §13.15 tranchée, No-Gap §13.10) |
+| Poussée/correction + anomalie de rôle (H1)                                                                            | `technical_analysis.py`                                                                                                          | slice-1                                                                                     |
+| Mèche du plongeur (statut quotidien Asie/Londres — toujours rapporté, cf. §5.2)                                       | `technical_analysis.py`                                                                                                          | slice-1                                                                                     |
+| Origines H1 N1/N2 (+ retest, proximité)                                                                               | `technical_analysis.py` (detect_ny_origin_zones)                                                                                 | slice-1 — provisional (seuils §13.7)                                                        |
+| Origines **N3** (retournements de structure hors session NY)                                                          | `technical_analysis.py:detect_structure_reversals_n3` + cap proximité `_MAX_ORIGIN_ZONES`                                        | **slice-1bis S05** (§13.1 résolu) — provisional §13.7 ; à witness sur data réelle           |
+| Retest **3 sous-zones S/R** (au-delà du band binaire actuel)                                                          | `technical_analysis.py` (OriginZone — band binaire aujourd'hui)                                                                  | **slice-2** (spec workflow S05 ; §13.5)                                                     |
+| Golden zone 0,5-0,618 sur dernière poussée H1 (ancrage MÈCHES)                                                        | `technical_analysis.py` (extrêmes) ; Pine corrigé (extrêmes session)                                                             | slice-1 — §13.6 TRANCHÉ owner (mèches + dernière poussée) ; code↔Pine cohérents             |
+| Indices de retournement gradués + état confirmation ; intention de bougie (§5.1)                                      | `technical_analysis.py` (read_trend / classify_candle — enrichissement)                                                          | **slice-2** (spec workflow S05)                                                             |
+| Rendu Pass-2                                                                                                          | `_section_technical_methodology` (data_pool)                                                                                     | slice-1                                                                                     |
+| Indicateur Pine (aide à la lecture d'Ichor)                                                                           | `docs/pine/ichor_lecture_technique.pine` + witness tradingview-cdp                                                               | slice-1                                                                                     |
+| Corrélations DXY recalculées en continu                                                                               | as-built : `services/correlations.py` + `cross_asset` sections                                                                   | déjà LIVE                                                                                   |
+| Séquence quotidienne complète (§6) + filtres no-trade + scénario/invalidation chiffrée                                | orchestration verdict (Chantier C/S06) — la section slice-1 fournit les briques                                                  | différé                                                                                     |
+| Signal H1 clôture 12h-13h (§4)                                                                                        | nécessite lecture event-driven à 13h                                                                                             | slice-2                                                                                     |
+| Déclencheurs 15m/5m (avalement, étoiles, 2-temps)                                                                     | slice-2 (agrégation 15m/5m + calibration)                                                                                        | différé                                                                                     |
+| Canaux / switch de canal (§5.4)                                                                                       | non défini par les sources — bloqué sur §13.16                                                                                   | différé                                                                                     |
+| DimensionVote technique (sign allowed)                                                                                | post-Chantier C slice-1 (contrat figé, fusion intouchée)                                                                         | différé                                                                                     |
+| Doctrine incohérence/conviction (fusion §9)                                                                           | Chantier C (fusion layer)                                                                                                        | différé                                                                                     |
 
 Note de calibration (§0 récence) : tout backtest/calibration des seuils
 provisoires se fait sur données récentes — les patterns se périment `[T-B]`.
 
 ## 13. Questions ouvertes `[TBD owner]` — à trancher par Eliot
 
-1. **Hiérarchie origines : fin du niveau 2 + niveau 3** : T-P tronqué à
-   ~30 min (TurboScribe gratuit). Indice `[T-C]` : les AOI ne sont placées
-   que sur 2 niveaux → le niveau 3 n'est peut-être pas opérationnel. →
-   Fournir la fin de la vidéo ou confirmer.
-2. **Cible : « RR de 3 » ou « RR 2,3 » ?** (transcription ambiguë, 4
-   occurrences). Évidence en faveur de RR 3 : « un RR de 1 ou un RR de 2 ou
-   un RR de 6, de 12 » `[T-C]` + usage hub « couper l'essentiel à R+3 »
-   (débrief 06-09). À confirmer.
-3. **Fenêtre d'exécution : 13h-16h ou 14h-16h ?** T-P ET T-C disent 13h-16h
-   (exécution) ; T-B valorise 14h-16h comme pic de qualité ; courbe de volume
-   T-C : pic absolu à l'open US 15h-15h30, déclin dès 17h. Lecture probable :
-   fenêtre = 13h-16h, qualité maximale 14h-16h. À confirmer.
+1. ✅ **RÉSOLU (transcript COMPLET S05, 2026-06-13)** : les 3 niveaux sont
+   définis (cf. §7). N1 = volume entrant à l'open NY ; N2 = volume sortant
+   (stoppé + rejet) ; N3 = retournement de structure HORS session NY. N3 est
+   OPÉRATIONNEL (codé `detect_structure_reversals_n3`). Priorité = proximité.
+2. ✅ **RÉSOLU (transcript COMPLET S05)** : **RR 3** — « pour le placement des
+   TP, je vise toujours un RR de trois » (dit deux fois, sans ambiguïté).
+   Confirme l'encodage `rr_analysis.py` (RR3) et l'usage hub.
+3. ✅ **TRANCHÉ owner 2026-06-13** : fenêtre d'exécution = **13h-16h, pic de
+   qualité 14h-16h**. Code conforme (`technical_analysis.py` \_NY_SESSION_OPEN
+   13h / \_NY_ORIGIN_WINDOW_END 16h).
 4. **Seuil BE fin de journée : 17h ou 18h30 ?** (les deux sont dits, T-C).
-5. **Bornes exactes des zones** : pratique T-B codifiée §7 (clôture →
-   extension mèche, zone précise) — reste à trancher : quelle clôture
-   exactement, largeur maximale, quand une zone est consommée/invalidée.
-6. **Ancrage précis du Fibonacci** (quels swing high/low, quelle UT par
-   défaut pour l'analyse vs l'exécution). Choix provisoire slice-1 : ancrage
-   sur le CORPS de la poussée (départ → terme), cohérent entre
-   `technical_analysis.py` et l'indicateur Pine — à confirmer vs mèches.
+5. 🟡 **PARTIEL (S05)** : tracé confirmé (clôture du corps + extension mèche,
+   préférence zone ÉTROITE sur la concentration du volume, cf. §7) + zone
+   divisée en 3 sous-zones S/R. STILL_OPEN : largeur maximale CHIFFRÉE +
+   critère exact de consommation/invalidation (aujourd'hui exprimé seulement au
+   niveau scénario H1 = nouveau plus haut au-dessus de la structure).
+6. ✅ **TRANCHÉ owner 2026-06-13** : (a) **mèches** — golden zone ancrée sur les
+   EXTRÊMES (plus haut ↔ plus bas du mouvement, §8 littéral), PAS le corps ;
+   `golden_zone_of_latest_push` mis à jour (haussière retrace depuis le haut,
+   baissière depuis le bas). (b) **objet** — le serveur ancre sur la DERNIÈRE
+   poussée nette H1 (fidèle, confirmé screenshots) ; le Pine sur le swing
+   directionnel de la session NY précédente ; les deux utilisent désormais les
+   extrêmes/direction (cohérents single-push, peuvent différer multi-push — le
+   serveur fait foi).
 7. **Seuils quantitatifs** : « fort rejet » (ratio mèche/corps ?), « poussée
    de plus en plus grande » (mesure ?), « aux alentours » de la golden zone
    (tolérance ?). Slice-1 utilise des seuils provisoires DOCUMENTÉS dans le
@@ -471,23 +557,56 @@ provisoires se fait sur données récentes — les patterns se périment `[T-B]`
 10. **No Gap Candles** : réglage exact et impact sur la classification des
     bougies — les barres TimescaleDB d'Ichor peuvent diverger du chart no-gap
     d'Eliot (gaps week-end/illiquidité).
-11. **Document « pourquoi ces 5 actifs / cette fenêtre »** : référencé par
-    T-P, non fourni.
-12. **Vidéo « compréhension de marché »** : dépendance explicite de la
-    stratégie (T-P « on s'en sert beaucoup »), non fournie — les exemples
-    codifiés en §5.1 en proviennent indirectement.
+11. 🟡 **PARTIEL (S05)** : volet « 5 actifs » documenté (page
+    les-5-actifs-trading.pages.dev — spécialisation + 4 critères : liquidité
+    max / coûts bas / horaires clairs / analyse abondante + rationale par actif
+    - exclusions crypto/exotiques/actions). ⚠ provenance .pages.dev NON
+      confirmée owner → même prudence que [T-F] (§13.17), ne pas durcir. Volet
+      « cette fenêtre » NON résolu par la page (la fenêtre reste sourcée sur les
+      transcripts live 13h-20h / exécution 13h-16h).
+12. ✅ **RÉSOLU (vidéo fournie S05)** : la « compréhension de marché » a DEUX
+    branches — (1) RETOURNEMENT et (2) DÉFINITION & BOUGIE (« lire le marché au
+    lieu de le regarder »). Cadre INDICE (avant, non confirmant, accumulable)
+    vs CONFIRMATION (postérieure, validante) ; diptyque DÉFINIR (décrire sans
+    interpréter) → CONSÉQUENCE (déduire par logique) — renforce ADR-017 ;
+    grammaire bougies enrichie (pleine=affirmation, doji=hésitation, grande
+    mèche=tentative ratée/rejet). Cf. §5.1. ⚠ collision de numérotation :
+    « §13.12 » désigne AUSSI la tension gestion 16h-20h (§1/§6) — distinct.
 13. **Polarité du retest pour une zone vendeuse** : T-B ne démontre que le
     cas acheteur (« entre le haut et le milieu ») ; le miroir vendeur (entre
     le bas et le milieu, côté approche) est INFÉRÉE. À confirmer.
-14. **Mèche du plongeur en continuation** : T-P/T-C disent « pas de mèche
-    requise » en continuation ; T-B montre Eliot l'exiger quand même sur une
-    continuation baissière. Laquelle prime ?
-15. **Heure de clôture daily faisant foi** : 22h ou 23h Paris (DST), et
-    quelle convention pour le module (le chart d'Eliot clôture 22h-23h, pas
-    minuit).
-16. **Canaux / switch de canal** : nommés comme partie du cœur H1, jamais
-    définis formellement (qu'est-ce qui valide un switch ?). → Définir ou
-    pointer la vidéo qui le couvre.
+14. ✅ **TRANCHÉ owner 2026-06-13** : mèche du plongeur en continuation =
+    **NON exigée** (T-P/T-C priment sur T-B). Code conforme : la lecture du
+    plongeur est descriptive-only et `read_trend` ne requiert aucune mèche
+    pour valider une continuation.
+15. ✅ **TRANCHÉ owner 2026-06-13** : clôture daily faisant foi = **22h-23h
+    Paris (clôture NY, selon DST), PAS minuit** — pour la LECTURE DAILY (§5.3,
+    dernière bougie daily clôturée). DISTINCT de la mèche du plongeur (§5.2)
+    qui reste ancrée minuit-midi. La lecture daily reste à implémenter (§12,
+    slice-2) ; l'heure exacte (22h vs 23h) + l'effet No-Gap-Candles seront
+    pinnés par les réglages chart fournis (§13.8/13.10).
+16. 🟡 **PARTIEL (S05)** : le switch de canal est DÉCRIT (passage canal
+    haussier↔baissier constaté a posteriori ; trendlines PUREMENT visuelles
+    JAMAIS tradées — « je trade pas du tout les cassures de Trendline » ; le
+    nouveau canal se lit via la compréhension de marché de retournement). MAIS
+    aucun **seuil objectif/chiffré** de validation d'un switch → reste un
+    jugement, NON implémenté comme règle déterministe (≠ détection N3 §7).
+17. **Identité de la source `[T-F]`** (S05 re-fire M5) : le fichier
+    « (connaissance) » est une compilation de vidéos marketing d'un persona
+    « Hewi Capital / Panama / Macro Trader Accelerator » co-présentées avec
+    « Augustin » — distinct des réunions live d'Eliot (T-P/T-C/T-B/T-G).
+    → **Confirmer** : ce persona est-il Eliot, ou du matériel de connaissance
+    tiers ? Tant que non confirmé, les règles [T-F] sont rétrogradées (source
+    tierce, jamais durcies) ; les règles co-portées par T-P/T-C/T-B/T-G/HUB
+    tiennent indépendamment.
+
+> **📥 Matériaux owner en cours de dépôt** (`transcript session ichor/_MATERIAUX_A_FOURNIR/`,
+> demandés 2026-06-13, owner a confirmé fournir TOUT) : fin vidéo hiérarchie
+> origines (§13.1), vidéo « compréhension de marché » (§13.12), réglages
+> LuxAlgo + No-Gap-Candles (§13.8/13.10), doc « pourquoi ces 5 actifs »
+> (§13.11), **+ screenshots d'analyse annotés** (placement exact des zones,
+> golden zone, retest, plongeur). Une passe de fidélité fraîche suivra leur
+> dépôt → résoudra §13.1, §13.5, §13.6, §13.8, §13.10, §13.11, §13.12, §13.16.
 
 ---
 

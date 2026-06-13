@@ -95,9 +95,11 @@ Execution remains Eliot, on TradingView, with his own risk management.
   (ADR-089) — technical levels computed on proxies are labeled as such; FX has
   no consolidated volume (honest-N/A); only 1-min and daily granularities
   exist (H1/H4 aggregated in Python).
-- 9 open methodology questions are parked as `[TBD owner]`
+- 17 open methodology questions are parked as `[TBD owner]`
   (METHODOLOGIE §13) — notably the truncated origin-hierarchy levels 2/3 and
-  the RR transcription ambiguity. The module must not guess them.
+  the RR transcription ambiguity. The module must not guess them. (S05 re-fire
+  2026-06-13 : §13.3/§13.14/§13.15 resolved by the owner ; §13.17 added on the
+  third-party identity of source [T-F].)
 
 ## References
 

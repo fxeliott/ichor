@@ -194,7 +194,17 @@ ADR017_FORBIDDEN_REGEX_SOURCE = (
     r"comprar|compra|comprad|"
     r"vender|vende|vended|"
     # German imperatives + infinitives (round-32)
-    r"kaufen|kauf|verkaufen|verkauf"
+    r"kaufen|kauf|verkaufen|verkauf|"
+    # French ACTIONABLE signal nouns (S05 re-fire M2) — the round-32 extension
+    # caught FR/ES/DE imperative VERBS but not the signal NOUNS. Kept narrow on
+    # purpose so the canonical FR analysis vocabulary stays clean : « origine
+    # acheteuse/vendeuse », « cible d'inflation », « objectif de la Fed »,
+    # « entrée en récession », « le vendeur » must NOT match — only the
+    # price-adjacent / explicit position-taking forms are trade signals.
+    r"points?\s+d['’ ]?\s*entr[ée]es?|niveaux?\s+d['’ ]?\s*entr[ée]es?|prix\s+d['’ ]?\s*entr[ée]es?|"
+    r"entr[ée]es?\s+en\s+positions?|entr[ée]es?\s+(?:à|a|au)\s+\d+[.,]\d+|"
+    r"cibles?\s+de\s+(?:prix|cours)|objectifs?\s+de\s+(?:prix|cours)|"
+    r"prendre\s+(?:une\s+|des\s+)?positions?\s+(?:longues?|courtes?|acheteuses?|vendeuses?)"
     r")\b"
 )
 
@@ -237,6 +247,11 @@ ADR017_FORBIDDEN_PATTERN_LABELS: frozenset[str] = frozenset(
         "ES : comprar / compra / comprad",
         "ES : vender / vende / vended",
         "DE : kaufen / kauf / verkaufen / verkauf",
+        # French actionable signal NOUNS (S05 re-fire M2) — 4 grouped labels
+        "FR : point / niveau / prix d'entrée",
+        "FR : entrée en position / entrée à <prix>",
+        "FR : cible de prix·cours / objectif de prix·cours",
+        "FR : prendre une position longue / courte / acheteuse / vendeuse",
     }
 )
 
