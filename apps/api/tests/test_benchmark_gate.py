@@ -22,6 +22,7 @@ from ichor_api.services.benchmark_gate import (
     evaluate,
     evaluate_walk_forward,
     format_report_markdown,
+    hit_rate_ci95,
     walk_forward_splits,
 )
 
@@ -363,3 +364,46 @@ class TestFormatReportMarkdown:
         md = format_report_markdown(evaluate([]))
         assert "Seances : **0**" in md
         assert "(aucun)" in md
+
+
+class TestHitRateCi95:
+    def test_hand_computed(self) -> None:
+        """hit 0.5, n 100 → se = sqrt(0.25/100) = 0.05 ; half = 1.96*0.05 ≈ 0.098
+        → CI ≈ [0.402, 0.598]."""
+        ci = hit_rate_ci95(0.5, 100)
+        assert ci is not None
+        lo, hi = ci
+        assert lo == pytest.approx(0.40200361, abs=1e-4)
+        assert hi == pytest.approx(0.59799639, abs=1e-4)
+
+    def test_none_without_positions(self) -> None:
+        assert hit_rate_ci95(None, 10) is None
+        assert hit_rate_ci95(0.5, 0) is None
+
+    def test_bounds_are_clamped(self) -> None:
+        # hit 0.95, n 4 → wide CI overshoots 1.0 → clamped
+        ci = hit_rate_ci95(0.95, 4)
+        assert ci is not None
+        assert ci[1] == 1.0
+        assert 0.0 <= ci[0] <= 1.0
+
+
+class TestSignificanceSection:
+    def test_thin_sample_warns(self) -> None:
+        # 4 sessions ≪ 60 → small-sample warning rendered
+        report = evaluate(_four_samples(["up", "down", "down", "up"]))
+        md = format_report_markdown(report)
+        assert "Significativite" in md
+        assert "echantillon mince" in md
+        assert "4 seances" in md
+
+    def test_no_positions_states_nothing_to_test(self) -> None:
+        report = evaluate(_four_samples(["neutral"] * 4))
+        md = format_report_markdown(report)
+        assert "aucune position directionnelle" in md
+
+    def test_ci_spanning_half_flags_chance(self) -> None:
+        # ichor wrong half the time on a tiny sample → CI spans 0.5
+        report = evaluate(_four_samples(["up", "down", "down", "up"]))
+        md = format_report_markdown(report)
+        assert "indistinguible du hasard" in md

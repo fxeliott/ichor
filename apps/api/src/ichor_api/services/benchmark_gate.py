@@ -30,6 +30,7 @@ intraday and persists the report is slice-2 (needs production data).
 
 from __future__ import annotations
 
+import math
 import re
 from dataclasses import dataclass
 from datetime import date
@@ -438,6 +439,56 @@ def _fmt_rate(v: float | None) -> str:
     return "n/a" if v is None else f"{v * 100:.1f}%"
 
 
+# Below this many sessions a directional hit-rate edge is reported as
+# statistically unestablished — a 95% CI on a thin sample is too wide to
+# distinguish from chance. A senior-quant honesty guard (doctrine #11), NOT a
+# hard cutoff: the report still renders, it just refuses to over-claim an edge.
+_MIN_SESSIONS_FOR_DIRECTIONAL_CLAIM = 60
+
+
+def hit_rate_ci95(hit_rate: float | None, n_positions: int) -> tuple[float, float] | None:
+    """Normal-approximation (Wald) 95% confidence interval on the directional
+    hit-rate over ``n_positions`` independent positional sessions. ``None`` if
+    there are no positions.
+
+    Voie D / ADR-009: pure stdlib (no scipy) — z = 1.959963984540054.
+    """
+    if hit_rate is None or n_positions <= 0:
+        return None
+    se = math.sqrt(hit_rate * (1.0 - hit_rate) / n_positions)
+    half = 1.959963984540054 * se
+    return (max(0.0, hit_rate - half), min(1.0, hit_rate + half))
+
+
+def _significance_lines(report: BenchmarkReport) -> list[str]:
+    """Honest statistical caveat on Ichor's directional read (doctrine #11): a
+    95% CI on the hit-rate plus an explicit small-sample warning, so a thin
+    window can never be read as a confirmed edge."""
+    m = report.ichor
+    ci = hit_rate_ci95(m.hit_rate, m.n_positions)
+    lines = ["", "### Significativite (honnetete statistique)"]
+    if ci is None:
+        lines.append("- Ichor n'a pris aucune position directionnelle — rien a tester.")
+        return lines
+    lo, hi = ci
+    lines.append(
+        f"- Justesse directionnelle Ichor : {_fmt_rate(m.hit_rate)} sur "
+        f"{m.n_positions} positions — IC95 [{_fmt_rate(lo)}, {_fmt_rate(hi)}]."
+    )
+    if lo <= 0.5 <= hi:
+        lines.append(
+            "- **Attention** — l'IC95 inclut 50 % : la justesse directionnelle est "
+            "indistinguible du hasard sur cet echantillon."
+        )
+    if report.n_sessions < _MIN_SESSIONS_FOR_DIRECTIONAL_CLAIM:
+        lines.append(
+            f"- **Attention** — echantillon mince ({report.n_sessions} seances < "
+            f"{_MIN_SESSIONS_FOR_DIRECTIONAL_CLAIM}) : insuffisant pour conclure a un "
+            f"edge. Resultat indicatif, a re-mesurer sur davantage de seances."
+        )
+    return lines
+
+
 def format_report_markdown(report: BenchmarkReport) -> str:
     """Render a :class:`BenchmarkReport` as a reproducible, human-readable
     French markdown report — the literal Chantier A gate deliverable
@@ -491,6 +542,7 @@ def format_report_markdown(report: BenchmarkReport) -> str:
         f"- Ichor bat persistance : **{'OUI' if report.ichor_beats_persistence else 'NON'}**",
         "",
         f"> {report.honest_verdict}",
+        *_significance_lines(report),
         "",
         "_Gate (PLAN §5 A) : le rapport existe et est reproductible — pas que Ichor gagne._",
     ]
