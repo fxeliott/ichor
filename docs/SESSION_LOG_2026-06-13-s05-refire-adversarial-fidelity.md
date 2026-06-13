@@ -152,3 +152,52 @@ screenshots VISION) + synthèse. Les 2 .docx extraits en .txt via zipfile stdlib
 - §13.6a : golden zone ancrée corps (actuel) ou mèches (les screenshots penchent
   mèches) ?
 - Deploy Hetzner des fixes .py (technical_analysis + adr017_filter) : à confirmer.
+
+---
+
+# PART 3 — Re-fire #3 : fermeture des gaps deferred (PR #238, main `9dce6fd`)
+
+Owner re-challenge « tu es sûr d'avoir tout traité à 100% ? ». Réponse honnête :
+NON — 2 vrais livrables avaient été reportés en « slice-2 ». Fermés ce turn (pas
+de re-assertion « done ») :
+
+## 12. Lecture Daily §5.3 — IMPLÉMENTÉE
+
+`compute_daily_read` (technical_analysis.py) : classifie la DERNIÈRE bougie daily
+clôturée (fenêtre [22h Paris J-1, 22h Paris J), §13.15 owner-confirmé) en
+**réutilisant le SSOT existant** `daily_candle_classifier.classify_daily_candle`
+(avec la bougie J-2 pour l'avalement) ; lit le **côté de rejet** (mèche dominante
+
+> corps ET ≥ 1.2× l'autre mèche = « fort rejet ») ; **pilote l'attente de la
+> mèche du plongeur** (§5.2/§5.3 : forte poussée → non requise ; rejet → attendue).
+> `DailyRead` câblé dans `TechnicalReading` (champ trailing défaut) + rendu
+> ADR-017-clean + absence honnête sous `_MIN_BARS_PER_DAY`.
+
+## 13. Retest 3 sous-zones S/R — IMPLÉMENTÉ
+
+`OriginZone.sub_zone_dividers` : paliers 1/3 et 2/3 internes, chacun S/R (§7
+transcript COMPLET) ; le band binaire « moitié côté approche » conservé comme
+cas particulier centré sur le milieu. Rendu mis à jour.
+
+## 14. Vérification + validation
+
+- Vérificateur frais (contexte neuf) sur Daily + sous-zones → **VERDICT CLEAN**
+  (fenêtre DST/contiguïté, réutilisation classify, rejection/plongeur fidèles
+  §5.3, ADR-017, régression défaut, Voie D) ; son seul nice-to-have (sensibilité
+  doji au tie) **plié** via le seuil de dominance 1.2 + test dédié.
+- Suite COMPLÈTE **3351 passed / 0 failed** ; ruff clean ; mypy 0 ; +6 tests S05.
+- Deploy Hetzner OK (backup `ichor_api.20260613-120232`) ; **witness prod 5/5
+  ADR-017-clean + Lecture Daily présente 5/5** (EUR/GBP uncertainty rejet-bas
+  plongeur-attendu · XAU rejet-aucun · SPX neutral · NAS rejet-bas) — la Daily +
+  les sous-zones tournent réellement, différenciées par actif.
+
+## 15. Restant (honnête)
+
+- **Slice-2 POLISH (non core)** : indices de retournement gradués + état
+  confirmation + intention de bougie (§5.1) — enrichissement d'un `read_trend`
+  déjà fonctionnel+testé (l'anomalie de rôle + signaux y sont déjà), PAS une
+  dimension manquante. Spec dans la synthèse workflow.
+- **STILL_OPEN owner** : §13.4 (BE 17h/18h30), §13.7 (seuils chiffrés), §13.8
+  (LuxAlgo exact), §13.9, §13.10 (No-Gap exact → fixe le bord 22h/23h daily),
+  §13.16 (seuil formel switch), §13.17 ([T-F] identité). Pine chart-refresh
+  (éditeur TV à ouvrir). Cleanup `PR_BODY_S05.md`/`.venv` (à confirmer).
