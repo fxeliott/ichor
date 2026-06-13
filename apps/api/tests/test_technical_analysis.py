@@ -30,6 +30,7 @@ from ichor_api.services.technical_analysis import (
     Push,
     aggregate_hourly,
     classify_candle,
+    compute_daily_read,
     compute_day_open_read,
     compute_technical_reading,
     detect_ny_origin_zones,
@@ -319,6 +320,17 @@ class TestNyOriginZones:
             else:
                 assert (z.retest_low, z.retest_high) == (z.bottom, mid)
 
+    def test_sub_zone_dividers_are_thirds(self) -> None:
+        """3 sous-zones S/R : paliers à 1/3 et 2/3, strictement ordonnés (S05)."""
+        candles = aggregate_hourly(_scenario_bars(), now_utc=_NOW)
+        zones, _ = detect_ny_origin_zones(candles, now_utc=_NOW)
+        z = zones[0]
+        t1, t2 = z.sub_zone_dividers
+        third = (z.top - z.bottom) / 3.0
+        assert abs(t1 - (z.bottom + third)) < 1e-12
+        assert abs(t2 - (z.bottom + 2 * third)) < 1e-12
+        assert z.bottom < t1 < t2 < z.top
+
     def test_honest_absence_without_completed_session(self) -> None:
         zones, session_date = detect_ny_origin_zones([], now_utc=_NOW)
         assert zones == [] and session_date is None
@@ -518,6 +530,103 @@ class TestDayOpenRead:
         assert d.window_complete is True
         assert d.high == 1.105 and d.low == 1.099  # pic NY exclu
         assert d.last_price == 1.104  # dernière barre avant midi
+
+
+def _day_window_bars(
+    start_utc: datetime, o: float, h: float, lo: float, c: float, n: int = 80
+) -> list[Bar]:
+    """n 1-min bars in a daily window [start, ...) aggregating to OHLC (o,h,lo,c)."""
+    bars: list[Bar] = []
+    for i in range(n):
+        ts = start_utc + timedelta(minutes=i)
+        if i == 0:
+            bars.append(Bar(ts=ts, open=o, high=max(o, c), low=min(o, c), close=o))
+        elif i == 1:
+            bars.append(Bar(ts=ts, open=o, high=h, low=o, close=o))
+        elif i == 2:
+            bars.append(Bar(ts=ts, open=o, high=o, low=lo, close=o))
+        elif i == n - 1:
+            bars.append(Bar(ts=ts, open=o, high=max(o, c), low=min(o, c), close=c))
+        else:
+            bars.append(Bar(ts=ts, open=o, high=o, low=o, close=o))
+    return bars
+
+
+class TestDailyRead:
+    """Lecture Daily §5.3 (S05 re-fire #3). _NOW = 06-11 11h Paris → dernière
+    clôture daily = 06-10 22h Paris = 06-10 20:00 UTC ; D-1 = [06-09 20:00 UTC,
+    06-10 20:00 UTC)."""
+
+    _D1_START = datetime(2026, 6, 9, 20, 0, tzinfo=UTC)
+
+    def test_daily_momentum_bull_no_plongeur(self) -> None:
+        bars = _day_window_bars(self._D1_START, 1.0900, 1.1010, 1.0890, 1.1000)
+        d = compute_daily_read(bars, now_utc=_NOW)
+        assert d is not None
+        assert d.classification.kind == "momentum_bull"
+        assert d.plongeur_wick_expected is False  # forte poussée → pas de mèche
+        assert d.session_date == date(2026, 6, 10)
+
+    def test_daily_rejection_expects_plongeur(self) -> None:
+        # Petit corps + grande mèche basse = rejet acheteur (incertitude).
+        bars = _day_window_bars(self._D1_START, 1.1000, 1.1010, 1.0900, 1.1005)
+        d = compute_daily_read(bars, now_utc=_NOW)
+        assert d is not None
+        assert d.classification.kind == "uncertainty"
+        assert d.rejection_side == "bas"
+        assert d.plongeur_wick_expected is True
+
+    def test_daily_symmetric_doji_no_rejection(self) -> None:
+        """Mèches quasi-symétriques → PAS de rejet marqué (dominance ≥1.2 non
+        atteinte) → pas de mèche du plongeur forcée (S05 verifier nice-to-have)."""
+        bars = _day_window_bars(self._D1_START, 1.1000, 1.1050, 1.0950, 1.1001)
+        d = compute_daily_read(bars, now_utc=_NOW)
+        assert d is not None
+        assert d.rejection_side == "aucun"
+        assert d.plongeur_wick_expected is False
+
+    def test_daily_honest_absence_below_min_bars(self) -> None:
+        bars = _day_window_bars(self._D1_START, 1.09, 1.10, 1.089, 1.10, n=30)
+        assert compute_daily_read(bars, now_utc=_NOW) is None
+
+    def test_daily_prose_is_adr017_clean(self) -> None:
+        from ichor_api.services.daily_candle_classifier import classify_daily_candle
+        from ichor_api.services.technical_analysis import (
+            DailyRead,
+            TechnicalReading,
+            TrendRead,
+        )
+
+        cls = classify_daily_candle(prev_ohlc=None, curr_ohlc=(1.1000, 1.1010, 1.0900, 1.1005))
+        daily = DailyRead(
+            classification=cls,
+            open=1.1000,
+            high=1.1010,
+            low=1.0900,
+            close=1.1005,
+            rejection_side="bas",
+            plongeur_wick_expected=True,
+            session_date=date(2026, 6, 10),
+        )
+        reading = TechnicalReading(
+            asset="EUR_USD",
+            computed_at=_NOW,
+            last_bar_ts=_NOW,
+            current_price=1.1000,
+            h1_candle_count=24,
+            trend=TrendRead(state="indecis", dominant_direction=None, rationale_fr="t."),
+            recent_pushes=(),
+            origin_zones=(),
+            golden_zone=None,
+            day_open=None,
+            ny_session_date=None,
+            daily=daily,
+        )
+        md, _ = render_technical_reading_block(reading, "EUR_USD")
+        assert "Lecture Daily" in md
+        assert "rejet acheteur" in md
+        assert "mèche du plongeur attendue" in md
+        assert is_adr017_clean(md)
 
 
 class TestFullReading:

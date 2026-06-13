@@ -42,6 +42,7 @@ from zoneinfo import ZoneInfo
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from .daily_candle_classifier import DailyCandleClassification, classify_daily_candle
 from .london_session import Bar
 
 _PARIS_TZ = ZoneInfo("Europe/Paris")
@@ -85,6 +86,18 @@ oscillations don't flood the read — PROVISIONAL (§13.7)."""
 _MAX_ORIGIN_ZONES: Final = 4
 """Render cap : the closest origins prime (METHODOLOGIE §7 « le plus proche
 prime ») once N3 widens the candidate set beyond the NY session."""
+_DAILY_CLOSE_PARIS: Final = time(22, 0)
+"""Daily candle close faisant foi = clôture NY/FX ~22h Paris (METHODOLOGIE
+§5.3/§13.15, owner-confirmé verbatim « il est exactement 22h… la clôture
+journalière en daily »). PROVISIONAL sur le bord 22h vs 23h DST / No-Gap (§13.10)."""
+_MIN_BARS_PER_DAY: Final = 60
+"""En-dessous, une fenêtre daily a trop peu de couverture intraday (proxy RTH /
+week-end / férié) → absence honnête sur la Lecture Daily (§5.3)."""
+_REJECTION_DOMINANCE: Final = 1.2
+"""Un « fort rejet » daily (§5.3) exige une mèche CLAIREMENT dominante : la
+mèche rejetante doit dépasser le corps ET valoir ≥ ce facteur × l'autre mèche —
+sinon un quasi-doji symétrique basculerait en rejet sur un écart pip-level
+(S05 verifier nice-to-have). PROVISIONAL (§13.7)."""
 
 CandleKind = Literal["pleine_haussiere", "pleine_baissiere", "incertitude"]
 PushDirection = Literal["haussiere", "baissiere"]
@@ -184,6 +197,17 @@ class OriginZone:
         mid = (self.top + self.bottom) / 2.0
         return self.top if self.side == "acheteuse" else mid
 
+    @property
+    def sub_zone_dividers(self) -> tuple[float, float]:
+        """Les 2 paliers internes (1/3 et 2/3) divisant la zone en 3 sous-zones
+        S/R (METHODOLOGIE §7, transcript COMPLET S05 : « ma zone est divisée en
+        trois zones… chaque zone fait office de support et de résistance »).
+        Au-dessus d'un palier → rebond haussier probable ; en-dessous → baissier.
+        Le retest « moitié côté approche » (retest_low/high) reste un cas
+        particulier centré sur le milieu."""
+        third = (self.top - self.bottom) / 3.0
+        return (self.bottom + third, self.bottom + 2.0 * third)
+
 
 @dataclass(frozen=True)
 class GoldenZoneRead:
@@ -223,8 +247,28 @@ class DayOpenRead:
 
 
 @dataclass(frozen=True)
+class DailyRead:
+    """Lecture Daily (METHODOLOGIE §5.3) : la DERNIÈRE bougie daily clôturée
+    (à 22h Paris, §13.15 owner-confirmé). On lit UNIQUEMENT COMMENT elle s'est
+    clôturée (mèches/rejet), jamais la direction globale (§5.3). Classification
+    via le SSOT existant ``classify_daily_candle``. Pilote l'attente de la mèche
+    du plongeur (§5.2/§5.3) : clôture en rejet → mèche attendue ; clôture en
+    forte poussée → non requise. Descriptive (ADR-017) — ne choisit pas de camp.
+    """
+
+    classification: DailyCandleClassification
+    open: float
+    high: float
+    low: float
+    close: float
+    rejection_side: Literal["haut", "bas", "aucun"]
+    plongeur_wick_expected: bool
+    session_date: date
+
+
+@dataclass(frozen=True)
 class TechnicalReading:
-    """Full slice-1 technical read for one asset (descriptive, ADR-017)."""
+    """Full technical read for one asset (descriptive, ADR-017)."""
 
     asset: str
     computed_at: datetime
@@ -237,6 +281,7 @@ class TechnicalReading:
     golden_zone: GoldenZoneRead | None
     day_open: DayOpenRead | None
     ny_session_date: date | None
+    daily: DailyRead | None = None
 
 
 # --------------------------------------------------------------------------
@@ -678,6 +723,67 @@ def compute_day_open_read(bars: list[Bar], *, now_utc: datetime) -> DayOpenRead 
     )
 
 
+def _aggregate_daily_candle(
+    bars: list[Bar], start_utc: datetime, end_utc: datetime
+) -> tuple[float, float, float, float] | None:
+    """(open, high, low, close) des barres dans [start, end), ou None sous le
+    minimum de couverture intraday (jour gappy/férié/proxy RTH)."""
+    win = sorted((b for b in bars if start_utc <= b.ts < end_utc), key=lambda b: b.ts)
+    if len(win) < _MIN_BARS_PER_DAY:
+        return None
+    return win[0].open, max(b.high for b in win), min(b.low for b in win), win[-1].close
+
+
+def compute_daily_read(bars: list[Bar], *, now_utc: datetime) -> DailyRead | None:
+    """Lecture Daily §5.3 : classifie la DERNIÈRE bougie daily clôturée (à 22h
+    Paris, §13.15) via le SSOT ``classify_daily_candle`` (avec la bougie daily
+    précédente pour la détection d'avalement), lit le côté de rejet et l'attente
+    de la mèche du plongeur (§5.2/§5.3). Absence honnête si la bougie close n'a
+    pas assez de couverture intraday."""
+    paris_now = now_utc.astimezone(_PARIS_TZ)
+    today_close = datetime.combine(paris_now.date(), _DAILY_CLOSE_PARIS, tzinfo=_PARIS_TZ)
+    last_close = today_close if paris_now >= today_close else today_close - timedelta(days=1)
+    d1_end = last_close.astimezone(UTC)
+    d1_start = (last_close - timedelta(days=1)).astimezone(UTC)
+    d2_start = (last_close - timedelta(days=2)).astimezone(UTC)
+    curr = _aggregate_daily_candle(bars, d1_start, d1_end)
+    if curr is None:
+        return None
+    prev = _aggregate_daily_candle(bars, d2_start, d1_start)
+    classification = classify_daily_candle(prev_ohlc=prev, curr_ohlc=curr)
+    o, h, low_, c = curr
+    body = abs(c - o)
+    upper_wick = h - max(o, c)
+    lower_wick = min(o, c) - low_
+    # « Fort rejet » = mèche clairement dominante (> corps ET ≥ dominance ×
+    # l'autre mèche) — un quasi-doji symétrique reste « aucun » (S05 verifier).
+    if lower_wick > body and lower_wick >= upper_wick * _REJECTION_DOMINANCE:
+        rejection: Literal["haut", "bas", "aucun"] = "bas"
+    elif upper_wick > body and upper_wick >= lower_wick * _REJECTION_DOMINANCE:
+        rejection = "haut"
+    else:
+        rejection = "aucun"
+    # §5.3 : forte poussée directionnelle (momentum/avalement) → mèche non
+    # requise ; clôture en rejet (grande mèche) → mèche du plongeur attendue.
+    strong = classification.kind in (
+        "momentum_bull",
+        "momentum_bear",
+        "engulfing_bull",
+        "engulfing_bear",
+    )
+    plongeur_expected = (not strong) and rejection != "aucun"
+    return DailyRead(
+        classification=classification,
+        open=o,
+        high=h,
+        low=low_,
+        close=c,
+        rejection_side=rejection,
+        plongeur_wick_expected=plongeur_expected,
+        session_date=last_close.date(),
+    )
+
+
 def compute_technical_reading(
     bars: list[Bar], *, asset: str, now_utc: datetime
 ) -> TechnicalReading | None:
@@ -719,6 +825,7 @@ def compute_technical_reading(
         golden_zone=golden_zone_of_latest_push(pushes, current_price),
         day_open=compute_day_open_read(bars, now_utc=now_utc),
         ny_session_date=session_date,
+        daily=compute_daily_read(bars, now_utc=now_utc),
     )
 
 
@@ -781,6 +888,21 @@ _STATE_FR: Final = {
     "indecis": "indécis",
 }
 
+_DAILY_KIND_FR: Final = {
+    "momentum_bull": "poussée haussière nette",
+    "momentum_bear": "poussée baissière nette",
+    "uncertainty": "incertitude (doji)",
+    "engulfing_bull": "avalement haussier",
+    "engulfing_bear": "avalement baissier",
+    "neutral": "corps moyen (neutre)",
+}
+
+_DAILY_REJET_FR: Final = {
+    "bas": "rejet acheteur (grande mèche basse)",
+    "haut": "rejet vendeur (grande mèche haute)",
+    "aucun": "pas de rejet marqué",
+}
+
 
 def _fmt(p: float) -> str:
     return f"{p:.5f}".rstrip("0").rstrip(".") if abs(p) < 100 else f"{p:.2f}"
@@ -814,6 +936,20 @@ def render_technical_reading_block(
         f"(lecture sur {reading.h1_candle_count} bougies H1 clôturées)"
     )
 
+    if reading.daily is not None:
+        dl = reading.daily
+        plong = (
+            "mèche du plongeur attendue à l'ouverture (continuation du rejet avant le sens final)"
+            if dl.plongeur_wick_expected
+            else "pas de mèche du plongeur requise (clôture déjà directionnelle)"
+        )
+        lines.append(
+            f"- **Lecture Daily (dernière bougie clôturée ~22h Paris, "
+            f"{dl.session_date.isoformat()})** : {_DAILY_KIND_FR.get(dl.classification.kind, dl.classification.kind)} ; "
+            f"{_DAILY_REJET_FR[dl.rejection_side]} ; {plong}. "
+            f"(Contexte du jour — on lit COMMENT la bougie s'est clôturée, pas la direction globale.)"
+        )
+
     if reading.origin_zones:
         for z in reading.origin_zones:
             dist = min(abs(reading.current_price - z.top), abs(reading.current_price - z.bottom))
@@ -827,11 +963,13 @@ def render_technical_reading_block(
                 if z.level in ("N1", "N2")
                 else f"retournement hors session du {z.session_date.isoformat()}"
             )
+            t1, t2 = z.sub_zone_dividers
             lines.append(
                 f"- **Origine {z.side} {z.level}** ({origine_ctx}) : "
                 f"zone {_fmt(z.bottom)} → {_fmt(z.top)}, {rel} du prix actuel "
                 f"(distance ≈ {_fmt(dist)}) ; retest pertinent entre {_fmt(z.retest_low)} et "
-                f"{_fmt(z.retest_high)} (moitié côté approche, zone divisée en tiers)."
+                f"{_fmt(z.retest_high)} (moitié côté approche) ; 3 sous-zones S/R aux paliers "
+                f"{_fmt(t1)} et {_fmt(t2)}."
             )
     else:
         lines.append(
