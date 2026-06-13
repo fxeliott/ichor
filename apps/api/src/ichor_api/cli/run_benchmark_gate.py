@@ -1,36 +1,37 @@
 """run_benchmark_gate.py — Chantier A slice-2 (ADR-116).
 
 The CLI that turns the pure-core benchmark gate (ADR-114) into a **real**
-reproducible report: it joins historical session verdicts
-(``session_card_audit``) with their realised NY-window outcomes and feeds them
-to ``services.benchmark_gate`` (``evaluate`` / ``evaluate_walk_forward`` /
-``format_report_markdown``).
+reproducible report: it scores, over historical sessions, the **apex
+``SessionVerdict``** Ichor actually surfaced to the user against passive and
+naive baselines, on Eliot's own NY trading window.
 
 Gate semantics (PLAN_DIRECTEUR §5 gate A, verbatim): the gate is that **the
 report exists and is reproducible, NOT that Ichor wins.** This CLI fabricates
-no win and surfaces thin-history / unreconciled-data honestly.
+no win and surfaces thin-history / missing-data honestly.
 
-Realised-return source (design decision, ADR-116): the realised NY-window
-open/close is read from the **already-reconciled** ``realized_open_session`` /
-``realized_close_session`` columns on ``session_card_audit`` (written by
-``cli/reconcile_outcomes.py`` from Polygon intraday bars over the card's timing
-window). This is preferred over re-querying ``polygon_intraday`` here because
-the reconciled snapshot is persisted permanently (immune to 1-min bar
-retention), is the **same** realised outcome the Brier calibration already
-uses, and removes all timezone/missing-bar handling from this slice. Rows whose
-window is not yet reconciled (NULL realised prices) are skipped and counted —
-never imputed.
+Two faithfulness decisions (ADR-116), both fixing a "benchmark that lies by
+construction" trap caught by adversarial review:
 
-Verdict source: ``bias_direction`` (post ``card_coherence``, i.e. the read Ichor
-actually emitted) on the ``pre_ny`` card — the verdict that anticipates the NY
-session Eliot trades. ``bias_direction`` is the DB enum ``long``/``short``/
-``neutral``; it is mapped to the pure-core ``up``/``down``/``neutral``.
+1. **Verdict = the apex direction + conviction the user sees**, NOT the per-card
+   ``bias_direction`` column. The apex `/v1/verdict` derives direction from the
+   7 Pass-6 scenario buckets fused with the synthesis snapshots frozen on the
+   card (ADR-106 D2 + S04). This CLI reproduces that EXACT derivation per
+   historical card by reusing the canonical
+   ``session_verdict_builder._extract_synthesis_primitives`` +
+   ``_derive_direction_and_conviction`` (so the benchmark cannot drift from the
+   verdict). Malformed/dormant scenarios → ``neutral``/0 (the builder fallback).
 
-ADR-009 (Voie D): zero LLM, zero spend — pure DB read + arithmetic.
-ADR-017: the report prose comes from ``format_report_markdown`` (regex-guarded);
+2. **Realised return = the exact NY window Eliot trades** (14:00→20:00 Paris,
+   DST-correct), recomputed from ``polygon_intraday`` 1-min bars — NOT the
+   ``reconcile_outcomes`` snapshot whose window is ``[generated_at,
+   timing_window_end OR generated_at+8h]`` (≈13:30→21:30 for a pre-NY card, a
+   different window than the one the report names). ``realized_return_pct =
+   (close/open − 1) × 100`` over the bars in [14:00, 20:00) Paris.
+
+ADR-009 (Voie D): zero LLM, zero spend — DB read + arithmetic.
+ADR-017: report prose comes from ``format_report_markdown`` (regex-guarded);
 this CLI adds only descriptive headers (no trade tokens).
-ADR-022: ``conviction_pct`` is clamped to ``0..95`` before the pure-core
-boundary (prod never exceeds 95, but the CLI defends the boundary).
+ADR-022: conviction is the 0..95 apex value (clamped defensively).
 
 Usage :
   python -m ichor_api.cli.run_benchmark_gate [--asset CODE] [--since YYYY-MM-DD]
@@ -38,7 +39,7 @@ Usage :
       [--train-size 20] [--test-size 5] [--step 5] [--output report.md]
 
 A live run needs the production database (``ICHOR_API_DATABASE_URL``); the
-pure-core (ADR-114) and every helper here are unit-tested without a DB.
+pure-core (ADR-114) and every pure helper here are unit-tested without a DB.
 """
 
 from __future__ import annotations
@@ -46,7 +47,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import sys
-from collections.abc import Iterable
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, time
 from pathlib import Path
@@ -55,7 +56,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..db import get_engine, get_sessionmaker
-from ..models import SessionCardAudit
+from ..models import PolygonIntradayBar, SessionCardAudit
 from ..services.benchmark_gate import (
     Direction,
     VerdictOutcomeSample,
@@ -65,52 +66,30 @@ from ..services.benchmark_gate import (
 )
 from ..services.market_session import PARIS
 
-# bias_direction (DB enum) -> pure-core Direction. The only mapping; kept here
-# because neither the pure-core nor any existing helper carries it.
-_BIAS_TO_DIRECTION: dict[str, Direction] = {
-    "long": "up",
-    "short": "down",
-    "neutral": "neutral",
-}
-_CONVICTION_CAP = 95.0  # ADR-022 (mirror of CAP_95 * 100)
+# Canonical apex-verdict derivation — reused (not re-implemented) so the
+# benchmark scores BYTE-IDENTICALLY what `/v1/verdict` surfaces to the user.
+# These are module-private but are the single source of truth for the
+# verdict; importing them keeps the benchmark from silently drifting from the
+# apex it claims to measure.
+from ..services.session_verdict_builder import (  # noqa: PLC2701
+    _derive_direction_and_conviction,
+    _extract_synthesis_primitives,
+)
+
+# Eliot's NY trading window (verbatim r161 directive): enters 14h–16h Paris,
+# cuts at 20h. The realised move benchmarked = open→close of [14:00, 20:00) Paris.
+_NY_WINDOW_OPEN = time(14, 0)
+_NY_WINDOW_CLOSE = time(20, 0)
+# Min 1-min bars in the 6h window for an honest open/close (mirror of
+# london_session._MIN_BARS). A short window (e.g. SPY RTH opening late) → skip.
+_MIN_BARS = 30
+_CONVICTION_CAP = 95.0  # ADR-022
 _DEFAULT_SESSION_TYPE = "pre_ny"
 
 
-def bias_to_direction(bias_direction: str) -> Direction:
-    """Map the DB ``long``/``short``/``neutral`` to the pure-core
-    ``up``/``down``/``neutral``. Fail-closed on an unknown value (the DB CHECK
-    guarantees the three, so an unknown is a data-integrity bug, not a verdict)."""
-    try:
-        return _BIAS_TO_DIRECTION[bias_direction]
-    except KeyError as exc:
-        raise ValueError(
-            f"unknown bias_direction {bias_direction!r} (expected long/short/neutral)"
-        ) from exc
-
-
 def clamp_conviction(conviction_pct: float) -> float:
-    """Clamp to the ADR-022 0..95 band before the pure-core boundary."""
+    """Defensive ADR-022 clamp (the apex value is already 0..95)."""
     return min(max(conviction_pct, 0.0), _CONVICTION_CAP)
-
-
-def realized_return_pct(open_px: float, close_px: float) -> float:
-    """Signed NY-window return in percent: ``(close/open - 1) * 100``."""
-    if open_px == 0.0:
-        raise ValueError("realized_open_session is zero — cannot compute a return")
-    return (close_px / open_px - 1.0) * 100.0
-
-
-@dataclass(frozen=True, slots=True)
-class VerdictRow:
-    """A raw ``session_card_audit`` projection — decouples the DB read from the
-    pure transform so the join logic is unit-testable without a database."""
-
-    asset: str
-    generated_at: datetime
-    bias_direction: str
-    conviction_pct: float
-    realized_open_session: float | None
-    realized_close_session: float | None
 
 
 def _session_date(generated_at: datetime) -> date:
@@ -119,56 +98,83 @@ def _session_date(generated_at: datetime) -> date:
     return generated_at.astimezone(PARIS).date()
 
 
-def rows_to_samples(
-    rows: Iterable[VerdictRow],
-) -> tuple[list[VerdictOutcomeSample], int]:
-    """Pure transform: dedup to the latest card per ``(asset, session_date)``,
-    drop rows whose NY window is not reconciled yet (NULL/zero realised prices),
-    and build sorted :class:`VerdictOutcomeSample`s.
+def ny_window_utc(session_date: date) -> tuple[datetime, datetime]:
+    """UTC bounds of Eliot's NY window (14:00–20:00 Paris) for ``session_date``.
+    DST-correct via ZoneInfo (Europe/Paris)."""
+    start = datetime.combine(session_date, _NY_WINDOW_OPEN, tzinfo=PARIS).astimezone(UTC)
+    end = datetime.combine(session_date, _NY_WINDOW_CLOSE, tzinfo=PARIS).astimezone(UTC)
+    return start, end
 
-    Returns ``(samples, n_skipped_unreconciled)`` — the skip count is reported
-    honestly rather than the rows being imputed.
-    """
-    latest: dict[tuple[str, date], VerdictRow] = {}
-    for row in rows:
-        key = (row.asset, _session_date(row.generated_at))
+
+@dataclass(frozen=True, slots=True)
+class _Bar:
+    ts: datetime
+    open: float
+    close: float
+
+
+def window_return_pct(bars: Sequence[_Bar]) -> float | None:
+    """Signed open→close return in percent over the window's bars (ascending),
+    or ``None`` if fewer than ``_MIN_BARS`` or a non-positive open (honest
+    absence rather than a fabricated number)."""
+    if len(bars) < _MIN_BARS:
+        return None
+    open_px = bars[0].open
+    close_px = bars[-1].close
+    if open_px <= 0.0:
+        return None
+    return (close_px / open_px - 1.0) * 100.0
+
+
+def card_verdict(card: SessionCardAudit) -> tuple[Direction, float]:
+    """Reproduce the apex ``SessionVerdict`` (direction + conviction) the user
+    sees — bucket-derived via the canonical conviction fusion with the synthesis
+    snapshots frozen on the card. Malformed/dormant scenarios → ``neutral``/0
+    (mirror of the ``build_session_verdict`` fallback guard)."""
+    scenarios = list(card.scenarios or [])
+    if len(scenarios) != 7 or not all(
+        isinstance(s, dict) and "label" in s and "p" in s for s in scenarios
+    ):
+        return "neutral", 0.0
+    confluence_lean, theme_present, dollar_consensus, dollar_strength = (
+        _extract_synthesis_primitives(card)
+    )
+    direction, conviction_pct, _rationale = _derive_direction_and_conviction(
+        scenarios,
+        asset=card.asset,
+        confluence_lean=confluence_lean,
+        theme_present=theme_present,
+        dollar_consensus=dollar_consensus,
+        dollar_strength=dollar_strength,
+    )
+    return direction, clamp_conviction(conviction_pct)
+
+
+def dedup_latest_per_session(cards: Sequence[SessionCardAudit]) -> list[SessionCardAudit]:
+    """Keep the latest-generated card per ``(asset, session_date)`` — one verdict
+    per asset per NY session."""
+    latest: dict[tuple[str, date], SessionCardAudit] = {}
+    for card in cards:
+        key = (card.asset, _session_date(card.generated_at))
         current = latest.get(key)
-        if current is None or row.generated_at > current.generated_at:
-            latest[key] = row
-
-    samples: list[VerdictOutcomeSample] = []
-    skipped = 0
-    for (asset, session_date), row in latest.items():
-        open_px = row.realized_open_session
-        close_px = row.realized_close_session
-        if open_px is None or close_px is None or open_px == 0.0:
-            skipped += 1
-            continue
-        samples.append(
-            VerdictOutcomeSample(
-                asset=asset,
-                session_date=session_date,
-                predicted_direction=bias_to_direction(row.bias_direction),
-                conviction_pct=clamp_conviction(row.conviction_pct),
-                realized_return_pct=realized_return_pct(open_px, close_px),
-            )
-        )
-    samples.sort(key=lambda s: (s.asset, s.session_date))
-    return samples, skipped
+        if current is None or card.generated_at > current.generated_at:
+            latest[key] = card
+    return list(latest.values())
 
 
 def render_report(
     samples: list[VerdictOutcomeSample],
     *,
-    n_skipped: int,
+    n_cards: int,
+    n_skipped_no_window: int,
     cost_pct: float,
     dead_band_pct: float,
     train_size: int,
     test_size: int,
     step: int,
 ) -> str:
-    """Render the in-sample report plus the walk-forward OOS report (or an
-    honest "insufficient history" note when no asset has enough sessions)."""
+    """Render the in-sample + walk-forward OOS reports (or an honest
+    "insufficient history" note when no asset has enough sessions)."""
     in_sample = evaluate(samples, cost_pct=cost_pct, dead_band_pct=dead_band_pct)
     oos = evaluate_walk_forward(
         samples,
@@ -178,9 +184,15 @@ def render_report(
         cost_pct=cost_pct,
         dead_band_pct=dead_band_pct,
     )
+    skip_note = (
+        f", {n_skipped_no_window} sans fenêtre NY 14h-20h exploitable (barres manquantes) ignoré(s)"
+        if n_skipped_no_window
+        else ""
+    )
     parts = [
-        f"_Source : {len(samples)} verdict(s) `{_DEFAULT_SESSION_TYPE}` réconcilié(s)"
-        + (f", {n_skipped} non réconcilié(s) ignoré(s)._" if n_skipped else "._"),
+        f"_Source : {len(samples)} verdict(s) apex `{_DEFAULT_SESSION_TYPE}` sur "
+        f"{n_cards} séance(s){skip_note}. Verdict = direction/conviction apex "
+        f"(7 buckets fusionnés) ; rendement = open→close 14h-20h Paris._",
         "",
         "## In-sample (diagnostic)",
         format_report_markdown(in_sample),
@@ -204,45 +216,77 @@ def _parse_since(value: str) -> datetime:
     return datetime.combine(d, time.min, tzinfo=PARIS).astimezone(UTC)
 
 
-async def _load_verdict_rows(
+async def _load_cards(
     session: AsyncSession,
     *,
     session_type: str,
     asset_filter: str | None,
     since: datetime | None,
-) -> list[VerdictRow]:
-    stmt = select(
-        SessionCardAudit.asset,
-        SessionCardAudit.generated_at,
-        SessionCardAudit.bias_direction,
-        SessionCardAudit.conviction_pct,
-        SessionCardAudit.realized_open_session,
-        SessionCardAudit.realized_close_session,
-    ).where(SessionCardAudit.session_type == session_type)
+) -> list[SessionCardAudit]:
+    stmt = select(SessionCardAudit).where(SessionCardAudit.session_type == session_type)
     if asset_filter is not None:
         stmt = stmt.where(SessionCardAudit.asset == asset_filter)
     if since is not None:
         stmt = stmt.where(SessionCardAudit.generated_at >= since)
     stmt = stmt.order_by(SessionCardAudit.asset, SessionCardAudit.generated_at)
     result = await session.execute(stmt)
-    return [
-        VerdictRow(
-            asset=asset,
-            generated_at=generated_at,
-            bias_direction=bias_direction,
-            conviction_pct=conviction_pct,
-            realized_open_session=realized_open_session,
-            realized_close_session=realized_close_session,
+    return list(result.scalars().all())
+
+
+async def _load_window_bars(
+    session: AsyncSession, *, asset: str, start_utc: datetime, end_utc: datetime
+) -> list[_Bar]:
+    rows = (
+        await session.execute(
+            select(
+                PolygonIntradayBar.bar_ts,
+                PolygonIntradayBar.open,
+                PolygonIntradayBar.close,
+            )
+            .where(PolygonIntradayBar.asset == asset)
+            .where(PolygonIntradayBar.bar_ts >= start_utc)
+            .where(PolygonIntradayBar.bar_ts < end_utc)
+            .order_by(PolygonIntradayBar.bar_ts.asc())
         )
-        for (
-            asset,
-            generated_at,
-            bias_direction,
-            conviction_pct,
-            realized_open_session,
-            realized_close_session,
-        ) in result.all()
+    ).all()
+    return [
+        _Bar(ts=ts, open=float(open_px), close=float(close_px))
+        for (ts, open_px, close_px) in rows
+        if open_px is not None and close_px is not None
     ]
+
+
+async def _build_samples(
+    session: AsyncSession, cards: Sequence[SessionCardAudit]
+) -> tuple[list[VerdictOutcomeSample], int, int]:
+    """Join each deduped card's apex verdict with its realised NY-window return.
+    Returns ``(samples, n_cards, n_skipped_no_window)`` — skips (no usable bar
+    window) are counted, never imputed."""
+    deduped = dedup_latest_per_session(cards)
+    samples: list[VerdictOutcomeSample] = []
+    skipped_no_window = 0
+    for card in deduped:
+        session_date = _session_date(card.generated_at)
+        start_utc, end_utc = ny_window_utc(session_date)
+        bars = await _load_window_bars(
+            session, asset=card.asset, start_utc=start_utc, end_utc=end_utc
+        )
+        realized = window_return_pct(bars)
+        if realized is None:
+            skipped_no_window += 1
+            continue
+        direction, conviction_pct = card_verdict(card)
+        samples.append(
+            VerdictOutcomeSample(
+                asset=card.asset,
+                session_date=session_date,
+                predicted_direction=direction,
+                conviction_pct=conviction_pct,
+                realized_return_pct=realized,
+            )
+        )
+    samples.sort(key=lambda s: (s.asset, s.session_date))
+    return samples, len(deduped), skipped_no_window
 
 
 async def _run(
@@ -259,23 +303,24 @@ async def _run(
 ) -> int:
     sm = get_sessionmaker()
     async with sm() as session:
-        rows = await _load_verdict_rows(
+        cards = await _load_cards(
             session,
             session_type=session_type,
             asset_filter=asset_filter,
             since=since,
         )
-    samples, skipped = rows_to_samples(rows)
+        samples, n_cards, skipped_no_window = await _build_samples(session, cards)
     if not samples:
         print(
-            "Aucun verdict réconcilié sur la fenêtre demandée — rien à "
-            "benchmarker. (Honnête : pas de données, pas de rapport fabriqué. "
-            f"{skipped} verdict(s) en attente de réconciliation.)"
+            "Aucun verdict avec fenêtre NY 14h-20h exploitable sur la période "
+            f"demandée ({n_cards} séance(s), {skipped_no_window} sans barres). "
+            "Honnête : pas de données, pas de rapport fabriqué."
         )
         return 0
     report = render_report(
         samples,
-        n_skipped=skipped,
+        n_cards=n_cards,
+        n_skipped_no_window=skipped_no_window,
         cost_pct=cost_pct,
         dead_band_pct=dead_band_pct,
         train_size=train_size,
@@ -297,8 +342,8 @@ async def _main(argv: list[str]) -> int:
         prog="run_benchmark_gate",
         description=(
             "Chantier A slice-2 (ADR-116) — reproducible out-of-sample benchmark "
-            "of Ichor's session verdict vs passive/naive baselines, from "
-            "reconciled session_card_audit history."
+            "of Ichor's apex session verdict vs passive/naive baselines, over the "
+            "real NY 14h-20h window from session_card_audit + polygon_intraday."
         ),
     )
     parser.add_argument("--asset", default=None, help="restrict to one asset code")
