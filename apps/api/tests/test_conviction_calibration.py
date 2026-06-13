@@ -115,26 +115,24 @@ class TestCalibrateConviction:
 
 
 class TestBrierImprovement:
-    def test_in_sample_never_worsens(self) -> None:
-        """Isotonic minimises in-sample Brier → calibrated ≤ raw on the fit set."""
-        pairs = [
-            (0.9, 0),
-            (0.9, 1),
-            (0.9, 0),
-            (0.9, 0),  # over-confident longs
-            (0.6, 1),
-            (0.6, 1),
-            (0.6, 0),
-            (0.6, 1),
-            (0.3, 0),
-            (0.3, 0),
-            (0.3, 1),
-            (0.3, 0),
-        ]
+    def test_computes_raw_per_sample_brier(self) -> None:
+        pairs = [(0.9, 0), (0.6, 1), (0.3, 0)]
         cal = fit_from_pairs(pairs, n_bins=10)
-        raw, calibrated = brier_improvement(pairs, cal)
-        assert calibrated <= raw + 1e-9
+        raw, _calibrated = brier_improvement(pairs, cal)
         assert raw == pytest.approx(sum(brier_score(p, y) for p, y in pairs) / len(pairs))
+
+    def test_calibration_can_worsen_in_sample_brier(self) -> None:
+        """Honest property (NOT 'never worsens'): the PAV fits BUCKET means, but
+        Brier is scored PER SAMPLE through a clamping/interpolating map — a raw
+        forecast below the first knot is clamped UP and can be hurt. (0.1, 0):
+        raw Brier 0.01 → apply(0.1)=0.4 (clamped) → 0.16, strictly worse."""
+        cal = ConvictionCalibrator(
+            points=(CalibrationPoint(0.55, 0.4, 5), CalibrationPoint(0.72, 1.0, 1))
+        )
+        raw, calibrated = brier_improvement([(0.1, 0)], cal)
+        assert raw == pytest.approx(0.01)
+        assert calibrated == pytest.approx(0.16)
+        assert calibrated > raw
 
     def test_identity_leaves_brier_unchanged(self) -> None:
         pairs = [(0.7, 1), (0.4, 0)]

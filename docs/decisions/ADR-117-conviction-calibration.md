@@ -65,10 +65,13 @@ integration later).
 - **−** No live effect yet; the headline "does it help OUT-OF-SAMPLE" number
   needs a train/test witness on real data (this session: read-only) and, before
   any live wiring, a deploy+witness gate.
-- **Risk:** thin history (~65 in-sample / 32 OOS sessions) → the fit is noisy;
-  isotonic guarantees in-sample improvement trivially, so ONLY the OOS witness is
-  meaningful, and it must report N honestly (a small-sample improvement is
-  suggestive, not conclusive — same discipline as ADR-116's IC95 guard).
+- **Risk:** thin history (~65 in-sample / 32 OOS sessions) → the fit is noisy.
+  In-sample Brier is TYPICALLY but **not guaranteed** improved: the PAV fits
+  bucket means, while per-sample Brier is scored through a clamping/interpolating
+  map, so an in-sample forecast below the first knot can be hurt (verifier-
+  confirmed). Therefore ONLY the OOS witness is meaningful, reporting N honestly
+  (a small-sample delta is suggestive, not conclusive — same discipline as
+  ADR-116's IC95 guard).
 
 ## Gate (pass/fail, falsifiable)
 

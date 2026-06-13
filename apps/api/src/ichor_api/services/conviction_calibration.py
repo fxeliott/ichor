@@ -152,9 +152,13 @@ def brier_improvement(
     """``(raw_mean_brier, calibrated_mean_brier)`` over ``(p_up, y)`` pairs — the
     headline "does calibration help" number.
 
-    NOTE: in-sample improvement is guaranteed by construction (isotonic
-    minimises in-sample Brier), so the honest test is OUT-OF-SAMPLE — the caller
-    fits on a train split and measures on a disjoint test split (the witness).
+    NOTE: in-sample is TYPICALLY but **NOT guaranteed** improved. The PAV fit
+    minimises weighted error on the BUCKET MEANS, whereas this scores PER-SAMPLE
+    Brier through a clamping + interpolating map — a raw forecast below the first
+    knot (or between knots) can be moved adversely, so the calibrated in-sample
+    Brier can be strictly worse (verifier-confirmed). The honest test is
+    therefore OUT-OF-SAMPLE: the caller fits on a train split and measures on a
+    disjoint test split (the witness).
     """
     if not pairs:
         return (0.0, 0.0)
