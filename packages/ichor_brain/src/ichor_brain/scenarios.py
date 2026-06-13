@@ -263,6 +263,22 @@ class Scenario(BaseModel):
     p: float = Field(ge=0.0, le=CAP_95)
     """Probability of this bucket realizing. Capped at 0.95 (ADR-022)."""
 
+    conviction_pct: float | None = Field(default=None, ge=0.0, le=CAP_95 * 100.0)
+    """ADR-115 — per-scenario conviction. Literal S06 spec requirement
+    (« chacun assorti de sa conviction ET de sa probabilité » + PLAN §5ter-bis
+    "per-scenario conviction AND probability").
+
+    DISTINCT from ``p`` : ``p`` is the probability this bucket realizes ;
+    ``conviction_pct`` (0..95, ADR-022 scale) is how confident Ichor is in that
+    probability estimate — the evidence strength behind the bucket. A bucket can
+    have low ``p`` yet high conviction ("confident it will NOT fire").
+
+    Backward-compat (exact ``invalidations`` r161 Strand-A pattern) : ``None`` =
+    Pass-6 has not assessed per-scenario conviction yet. Pre-ADR-115 JSONB rows
+    deserialise to ``None`` ; the existing verdict derivation reads ``p`` only and
+    is byte-unchanged (golden-card diff preserved). A future Pass-6 prompt update
+    populates this field ; downstream consumers no-op on ``None``."""
+
     magnitude_pips: tuple[float, float]
     """[low, high] realized-return range for this bucket in the asset's
     pip/point unit. Sourced from `scenario_calibration_bins` for the
@@ -350,6 +366,14 @@ class ScenarioDecomposition(BaseModel):
                 f"scenarios probabilities must sum to 1.0 (±{SUM_TOLERANCE}); got {total:.9f}"
             )
         return self
+
+    def per_scenario_conviction(self) -> dict[BucketLabel, float | None]:
+        """ADR-115 — expose each bucket's per-scenario conviction (``None`` until
+        a future Pass-6 prompt populates it). Pure read ; does NOT affect the
+        verdict derivation, which still aggregates ``p`` only (golden-card diff
+        preserved). The S06 spec's "per-scenario conviction AND probability"
+        granularity surface."""
+        return {s.label: s.conviction_pct for s in self.scenarios}
 
 
 def cap_and_normalize(probs: list[float], cap: float = CAP_95) -> list[float]:

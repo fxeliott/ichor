@@ -132,3 +132,7 @@ tmp/
 .tmp/
 .cache/
 .claude/
+
+# --- Local reference docs (session prompts, transcripts) — not source ---
+ichor session prompt/
+transcript session ichor/
