@@ -4,7 +4,14 @@ version = "0.0.0"
 description = "Ichor — FastAPI backend (Hetzner). Briefings, alerts, websockets, ML serving."
 requires-python = ">=3.12,<3.13"
 dependencies = [
-    "fastapi>=0.118.0",
+    # Cap <0.137 : FastAPI 0.137.0 (released 2026-06-14) puts _IncludedRouter route
+    # objects (no `.path` attribute) into app.routes, breaking route iteration
+    # (test_app_import_sanity + ~120 router tests fail with AttributeError). CI
+    # re-resolves from this floor (uv pip install -e, not the lock), so an open
+    # upper bound silently pulled the broken release. 0.136.x is the verified-working
+    # line (cf the starlette note below). Lift the cap once the router tests are
+    # adapted to FastAPI 0.137's _IncludedRouter structure.
+    "fastapi>=0.118.0,<0.137",
     "uvicorn[standard]>=0.34.0",
     "pydantic>=2.10.0",
     "pydantic-settings>=2.7.0",
