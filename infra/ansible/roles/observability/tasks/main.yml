@@ -42,10 +42,41 @@
     group: root
   no_log: true
 
+# The Ichor Postgres password is machine-generated and persisted to
+# /etc/ichor/db-password by the ichor_api role (openssl rand, idempotent). That
+# role runs AFTER observability in site.yml, so the value is not yet an Ansible
+# fact here — read it straight from the file the cluster already uses. On an
+# already-provisioned host (every real deploy) the file exists; on a first-ever
+# bootstrap it does not yet (ichor_api runs later), so the read is best-effort
+# and the secret write below is skipped (the Grafana → Postgres datasource then
+# wires on the next provision pass — non-fatal for the monitoring stack).
+# BUGFIX : this task previously templated `{{ ICHOR_DB_PASSWORD }}` (uppercase),
+# a variable defined NOWHERE (not SOPS, not group_vars) → undefined → the play
+# aborted here (any_errors_fatal) → the full auto-deploy has failed at this step
+# since 2026-05. `ichor_db_password` (lowercase) is the real, existing value.
+- name: Read the machine-generated Ichor DB password (provisioned by ichor_api)
+  ansible.builtin.slurp:
+    src: /etc/ichor/db-password
+  register: _ichor_db_pw_b64
+  failed_when: false # absent on a first-ever bootstrap — handled by the guards below
+  no_log: true
+
+- name: Set ichor_db_password fact for the Grafana datasource secret
+  ansible.builtin.set_fact:
+    ichor_db_password: "{{ _ichor_db_pw_b64.content | b64decode | trim }}"
+  when: _ichor_db_pw_b64.content is defined
+  no_log: true
+
+# Always write the secret FILE (docker-compose declares it as a file-secret, so a
+# missing file would break `docker compose up`). On prod the password is the real
+# value; only on a first-ever bootstrap (before ichor_api has generated the file)
+# is it empty — Grafana then starts but its Postgres datasource fails auth until
+# the next provision pass picks up the generated password (non-fatal monitoring
+# degradation, never a play abort).
 - name: Write Docker secret (Postgres ichor password, used by Grafana datasource)
   ansible.builtin.copy:
     dest: /opt/ichor/observability/secrets/ichor_db_password.txt
-    content: "{{ ICHOR_DB_PASSWORD }}"
+    content: "{{ ichor_db_password | default('') }}"
     mode: "0644" # readable by grafana UID 472
     owner: root
     group: root
