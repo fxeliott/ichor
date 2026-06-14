@@ -115,6 +115,7 @@ from .liquidity_proxy import (
     render_liquidity_proxy_block,
 )
 from .microstructure import (
+    RelativeVolumeReading,
     assess_microstructure,
     assess_relative_volume,
     classify_relative_volume,
@@ -4784,6 +4785,76 @@ async def build_cot_vote_for_asset(
     )
     rows = list((await session.execute(stmt)).scalars().all())
     return _cot_vote_from_rows(asset, market, rows, now_date=now_date)
+
+
+def _volume_vote_from_reading(
+    asset: str,
+    reading: RelativeVolumeReading,
+    *,
+    now_date: date,
+) -> DimensionVote:
+    """Pure mapper : a ``RelativeVolumeReading`` (the SAME read ``_section_volume_rvol``
+    feeds the LLM with) → one Chantier-C **non-directional** ``DimensionVote`` (C-3
+    volume). Split out of the async fetch so the read→vote logic is unit-testable
+    WITHOUT a DB (the suite stubs DB 503).
+
+    Liveness is recomputed from ``reading.latest_date`` exactly as
+    ``_section_volume_rvol`` does, so the vote's ``status``/``age_days`` match the
+    volume band the LLM saw. The heavy lifting (above-baseline magnitude, freshness
+    decay, fail-closed gates, non-directional contract — volume confirms
+    participation, never direction) lives in the pure ``volume_vote.build_volume_vote``
+    — this only adapts the reading to its contract.
+    """
+    from .volume_vote import VOLUME_MAX_AGE_DAYS, build_volume_vote
+
+    live = classify_liveness(
+        f"market_data:{asset}:volume",
+        reading.latest_date,
+        now=now_date,
+        max_age_days=_VOLUME_RVOL_MAX_AGE_DAYS,
+        impacted=f"volume_rvol:{asset}",
+    )
+    return build_volume_vote(
+        asset=asset,
+        status=live.status,
+        volume_available=reading.volume_available,
+        rvol_ratio=reading.rvol_ratio,
+        age_days=live.age_days,
+        volume_zscore=reading.volume_zscore,
+        max_age_days=VOLUME_MAX_AGE_DAYS,
+    )
+
+
+async def build_volume_vote_for_asset(
+    session: AsyncSession, asset: str, *, now_utc: datetime
+) -> DimensionVote:
+    """C-3 volume write-side — read the relative-volume participation for ``asset``
+    (the SAME read ``_section_volume_rvol`` feeds the LLM prompt with) and map it to
+    ONE **non-directional** Chantier-C ``DimensionVote`` via the pure
+    ``volume_vote.build_volume_vote``.
+
+    Pure persistence of an already-computable structure (Voie D) : no LLM, no new
+    feed. An asset with no consolidated venue volume (FX), an empty / stale daily
+    series, or any read error all resolve to an honest-absence vote (contributes
+    EXACTLY 0 to the fuser — ADR-103) ; the caller wraps this best-effort so card
+    generation never fails on a volume read.
+    """
+    from .volume_vote import VOLUME_MAX_AGE_DAYS, build_volume_vote
+
+    now_date = now_utc.astimezone(UTC).date()
+    if asset not in _VOLUME_ASSETS:
+        # FX / no consolidated venue volume → abstain (no DB I/O), mirror the
+        # honest-N/A path of _section_volume_rvol.
+        return build_volume_vote(
+            asset=asset,
+            status="absent",
+            volume_available=False,
+            rvol_ratio=None,
+            age_days=None,
+            max_age_days=VOLUME_MAX_AGE_DAYS,
+        )
+    reading = await assess_relative_volume(session, asset)
+    return _volume_vote_from_reading(asset, reading, now_date=now_date)
 
 
 async def _section_prediction_markets(

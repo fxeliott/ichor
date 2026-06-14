@@ -649,18 +649,23 @@ async def build_session_verdict(
         dollar_strength,
     ) = _extract_synthesis_primitives(card)
 
-    # S06 Chantier C (C-3b) — fold the COT DimensionVote frozen on the card at
-    # generation into the fusion, gated by the `cot_dimension_vote_enabled`
-    # feature flag (fail-closed → OFF ⇒ votes stays () ⇒ byte-identical to the
-    # legacy 3-layer path, C-2a). votes_from_snapshot is defensive: a NULL /
-    # legacy / malformed `dimension_votes` degrades to () or honest-absence
-    # entries that contribute EXACTLY 0 (ADR-103) — never raises. Lazy import
-    # mirrors the fuse_conviction import below (collection-time cycle avoidance).
+    # S06 Chantier C — fold the DimensionVotes frozen on the card at generation
+    # into the fusion (COT directional + volume non-directional), gated by their
+    # feature flags (fail-closed → both OFF ⇒ votes stays () ⇒ byte-identical to
+    # the legacy 3-layer path, C-2a). The read fires when ANY dimension flag is on
+    # and reads every frozen vote; the write side only froze the votes whose flags
+    # were on, so the set is consistent. votes_from_snapshot is defensive: a NULL /
+    # legacy / malformed `dimension_votes` degrades to () or honest-absence entries
+    # that contribute EXACTLY 0 (ADR-103) — never raises. Lazy import mirrors the
+    # fuse_conviction import below (collection-time cycle avoidance).
     votes: Sequence[DimensionVote] = ()
     from .cot_vote import COT_DIMENSION_VOTE_FLAG
     from .feature_flags import is_enabled
+    from .volume_vote import VOLUME_DIMENSION_VOTE_FLAG
 
-    if await is_enabled(session, COT_DIMENSION_VOTE_FLAG):
+    if await is_enabled(session, COT_DIMENSION_VOTE_FLAG) or await is_enabled(
+        session, VOLUME_DIMENSION_VOTE_FLAG
+    ):
         from .dimension_vote import votes_from_snapshot
 
         votes = votes_from_snapshot(card.dimension_votes)

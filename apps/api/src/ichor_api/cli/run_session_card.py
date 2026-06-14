@@ -596,28 +596,38 @@ async def _run(
             now_utc=datetime.now(UTC),
         )
 
-        # S06 Chantier C (C-3b) — freeze the COT DimensionVote on the card,
-        # gated by the `cot_dimension_vote_enabled` feature flag (fail-closed →
-        # OFF ⇒ this block is a no-op ⇒ dimension_votes stays NULL ⇒ the verdict
-        # fuser is byte-identical to the legacy path, votes_from_snapshot(None)
-        # == () — C-2a). Best-effort like the synthesis snapshots above: any
-        # failure leaves dimension_votes NULL rather than failing the persist.
-        # Voie D: pure persistence of the COT positioning the LLM already saw —
-        # ZERO LLM call, ZERO new feed.
+        # S06 Chantier C — freeze the enabled DimensionVotes on the card (COT
+        # directional + volume non-directional), EACH gated by its own feature
+        # flag (fail-closed → all OFF ⇒ this block is a no-op ⇒ dimension_votes
+        # stays NULL ⇒ the verdict fuser is byte-identical to the legacy path,
+        # votes_from_snapshot(None) == () — C-2a). Best-effort like the synthesis
+        # snapshots above: any failure leaves dimension_votes NULL rather than
+        # failing the persist. Voie D: pure persistence of positioning /
+        # participation the LLM already saw — ZERO LLM call, ZERO new feed.
         try:
             from ..services.cot_vote import COT_DIMENSION_VOTE_FLAG
+            from ..services.dimension_vote import DimensionVote
             from ..services.feature_flags import is_enabled
+            from ..services.volume_vote import VOLUME_DIMENSION_VOTE_FLAG
 
+            _now_utc = datetime.now(UTC)
+            _votes: list[DimensionVote] = []
             if await is_enabled(session, COT_DIMENSION_VOTE_FLAG):
                 from ..services.data_pool import build_cot_vote_for_asset
+
+                _votes.append(await build_cot_vote_for_asset(session, row.asset, now_utc=_now_utc))
+            if await is_enabled(session, VOLUME_DIMENSION_VOTE_FLAG):
+                from ..services.data_pool import build_volume_vote_for_asset
+
+                _votes.append(
+                    await build_volume_vote_for_asset(session, row.asset, now_utc=_now_utc)
+                )
+            if _votes:
                 from ..services.dimension_vote import votes_to_snapshot
 
-                _cot_vote = await build_cot_vote_for_asset(
-                    session, row.asset, now_utc=datetime.now(UTC)
-                )
-                row.dimension_votes = votes_to_snapshot([_cot_vote])
+                row.dimension_votes = votes_to_snapshot(_votes)
         except Exception as e:  # noqa: BLE001 — never fail the persist on vote capture
-            log.warning("dimension_votes.cot_capture_failed", asset=row.asset, error=str(e))
+            log.warning("dimension_votes.capture_failed", asset=row.asset, error=str(e))
 
         session.add(row)
         await session.commit()
