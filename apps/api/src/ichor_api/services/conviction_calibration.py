@@ -48,9 +48,13 @@ from .brier import (
 
 class SupportsApply(Protocol):
     """Structural type for any fitted calibration map ``P_up -> P_up`` — lets the
-    OOS scorer and selector treat the isotonic and Platt calibrators uniformly."""
+    OOS scorer and selector treat the isotonic and Platt calibrators uniformly.
+    Both concrete calibrators also expose ``calibrate_conviction`` (the live C-5
+    apply path needs it), so it is part of the unified interface."""
 
     def apply(self, p_up: float) -> float: ...
+
+    def calibrate_conviction(self, bias: BiasDirection, conviction_pct: float) -> float: ...
 
 
 def _conviction_from_p_up(bias: BiasDirection, calibrated_p_up: float) -> float:
@@ -496,3 +500,65 @@ def select_calibrator_oos(
         improved=best_label != "identity",
         table=tuple(table),
     )
+
+
+# ───────────────── Live OOS-gated calibrator (C-5, ADR-118/119) ─────────────────
+#
+# The single PURE function the live verdict uses (S06 C-5). Given the pooled
+# realised track-record as ``(p_up, y)`` pairs (oldest-first), it decides
+# OUT-OF-SAMPLE whether ANY calibration family beats "do not calibrate" on a
+# conclusive held-out split, and if so returns a calibrator REFIT on the full
+# history to apply to today's conviction. It returns ``None`` — the verdict keeps
+# its RAW conviction — whenever the data does not CONCLUSIVELY support calibrating.
+# That is the honesty gate (ADR-118/119): never calibrate on faith / a thin split.
+
+CONVICTION_CALIBRATOR_FLAG = "conviction_calibrator_oos_enabled"
+"""Feature-flag key gating the C-5 live wiring in ``build_session_verdict``.
+Fail-closed (absent flag ⇒ ``is_enabled`` False ⇒ no calibration ⇒ the verdict emits
+its RAW conviction, byte-identical to today). Defined here — the calibrator's home —
+as the single source of truth so the gate site can never typo-diverge. Mirrors
+``cot_vote.COT_DIMENSION_VOTE_FLAG`` / ``volume_vote.VOLUME_DIMENSION_VOTE_FLAG``."""
+
+
+def select_and_fit_live_calibrator(
+    pairs: list[tuple[float, int]],
+    *,
+    train_frac: float = 0.6,
+    ks: tuple[float, ...] = (0.0, 5.0, 20.0, 50.0),
+    n_bins: int = 10,
+    min_conclusive: int = 30,
+) -> SupportsApply | None:
+    """Pure C-5 brain: from the pooled realised ``(p_up, y)`` track-record
+    (oldest-first), return a calibrator to apply to the live conviction — or
+    ``None`` to keep the raw conviction.
+
+    Honesty gate (ADR-118/119): a calibration family must STRICTLY beat
+    'do not calibrate' on a DISJOINT, chronological held-out split whose size is
+    ``>= min_conclusive`` — otherwise return ``None`` (never calibrate on a thin /
+    unconvincing split). When a winner is found, it is REFIT on the FULL history
+    (the held-out split only DECIDES; the applied fit uses all data, mirroring the
+    standard train-to-validate-then-refit-on-all protocol). Self-adapts: re-deciding
+    + re-fitting each call tolerates the fusion inputs changing (e.g. a newly
+    activated dimension) without a stale frozen fit.
+
+    Pure: no I/O, no DB — the caller loads the pairs. The split mirrors
+    ``calibration_witness`` so the live decision matches the read-only witness report.
+    """
+    n = len(pairs)
+    n_train = int(n * train_frac)
+    train = pairs[:n_train]
+    test = pairs[n_train:]
+    if len(test) < min_conclusive or not train:
+        return None  # not enough held-out evidence → honest no-calibration
+    sel = select_calibrator_oos(train, test, ks=ks, n_bins=n_bins)
+    if sel is None or not sel.improved:
+        return None  # nothing beat identity OOS → keep the raw conviction
+    label = sel.best_label
+    if label.startswith("isotonic_k="):
+        k = float(label.split("=", 1)[1])
+        cal = fit_regularized_from_pairs(pairs, k=k, n_bins=n_bins)
+        return None if cal.is_identity else cal
+    if label == "platt":
+        # A degenerate full-history refit (single-class) returns None → no calibration.
+        return fit_platt(pairs)
+    return None  # identity / unknown label → no calibration
