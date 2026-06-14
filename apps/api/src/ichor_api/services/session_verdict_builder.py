@@ -648,6 +648,23 @@ async def build_session_verdict(
         dollar_consensus,
         dollar_strength,
     ) = _extract_synthesis_primitives(card)
+
+    # S06 Chantier C (C-3b) — fold the COT DimensionVote frozen on the card at
+    # generation into the fusion, gated by the `cot_dimension_vote_enabled`
+    # feature flag (fail-closed → OFF ⇒ votes stays () ⇒ byte-identical to the
+    # legacy 3-layer path, C-2a). votes_from_snapshot is defensive: a NULL /
+    # legacy / malformed `dimension_votes` degrades to () or honest-absence
+    # entries that contribute EXACTLY 0 (ADR-103) — never raises. Lazy import
+    # mirrors the fuse_conviction import below (collection-time cycle avoidance).
+    votes: Sequence[DimensionVote] = ()
+    from .cot_vote import COT_DIMENSION_VOTE_FLAG
+    from .feature_flags import is_enabled
+
+    if await is_enabled(session, COT_DIMENSION_VOTE_FLAG):
+        from .dimension_vote import votes_from_snapshot
+
+        votes = votes_from_snapshot(card.dimension_votes)
+
     direction, conviction_pct, conviction_rationale_fr = _derive_direction_and_conviction(
         scenarios_raw,
         asset=asset,
@@ -655,6 +672,7 @@ async def build_session_verdict(
         theme_present=theme_present,
         dollar_consensus=dollar_consensus,
         dollar_strength=dollar_strength,
+        votes=votes,
     )
     nature = _derive_nature(scenarios_raw)
 

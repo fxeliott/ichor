@@ -19,6 +19,7 @@ gap surfaced by the first --live run on 2026-05-04 (id 93903a14).
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, timedelta
 from typing import Literal
@@ -93,6 +94,7 @@ from .daily_levels import (
     render_daily_levels_block,
 )
 from .data_liveness import classify_liveness
+from .dimension_vote import DimensionVote
 from .divergence import render_divergence_block
 from .economic_calendar import (
     assess_calendar,
@@ -4706,6 +4708,82 @@ async def _section_cot(
         f"{stale_band}"
     )
     return md, sources, degraded
+
+
+def _cot_vote_from_rows(
+    asset: str,
+    market: str,
+    rows: Sequence[CotPosition],
+    *,
+    now_date: date,
+) -> DimensionVote:
+    """Pure mapper : recent ``CotPosition`` rows (newest-first) → one
+    Chantier-C ``DimensionVote`` (C-3b). Split out of the async fetch so the
+    row→vote logic is unit-testable WITHOUT a DB (the suite stubs DB 503).
+
+    Liveness is recomputed from the freshest ``report_date`` exactly as
+    ``_section_cot`` does, so the vote's ``status``/``age_days`` match the COT
+    band the LLM saw. The heavy lifting (band-aligned Δ4w/Δ1w, OI normalisation,
+    per-asset polarity, fail-closed gates) lives in the pure
+    ``cot_vote.build_cot_vote`` — this only adapts the ORM rows to its contract.
+    """
+    from .cot_vote import COT_MAX_AGE_DAYS, build_cot_vote
+
+    latest_date = rows[0].report_date if rows else None
+    live = classify_liveness(
+        f"CFTC:COT:{market}",
+        latest_date,
+        now=now_date,
+        max_age_days=COT_MAX_AGE_DAYS,
+        impacted=f"cot:{asset}",
+    )
+    history = [(r.report_date, r.managed_money_net) for r in rows]
+    open_interest = rows[0].open_interest if rows else None
+    return build_cot_vote(
+        asset=asset,
+        status=live.status,
+        history=history,
+        open_interest=open_interest,
+        age_days=live.age_days,
+        max_age_days=COT_MAX_AGE_DAYS,
+    )
+
+
+async def build_cot_vote_for_asset(
+    session: AsyncSession, asset: str, *, now_utc: datetime
+) -> DimensionVote:
+    """C-3b write-side — fetch the recent COT rows for ``asset`` (the SAME query
+    ``_section_cot`` feeds the LLM prompt with) and map them to ONE Chantier-C
+    ``DimensionVote`` via the pure ``cot_vote.build_cot_vote``.
+
+    Pure persistence of an already-computable structure (Voie D) : no LLM, no new
+    feed. An asset outside the COT whitelist, an empty / stale table, or any
+    read error all resolve to an honest-absence vote (contributes EXACTLY 0 to
+    the fuser — ADR-103) ; the caller wraps this best-effort so card generation
+    never fails on a COT read.
+    """
+    from .cot_vote import COT_MAX_AGE_DAYS, build_cot_vote
+
+    now_date = now_utc.astimezone(UTC).date()
+    market = _COT_MARKET_BY_ASSET.get(asset)
+    if market is None:
+        # Outside the COT whitelist → no source expected → abstain (status gate).
+        return build_cot_vote(
+            asset=asset,
+            status="absent",
+            history=(),
+            open_interest=None,
+            age_days=None,
+            max_age_days=COT_MAX_AGE_DAYS,
+        )
+    stmt = (
+        select(CotPosition)
+        .where(CotPosition.market_code == market)
+        .order_by(desc(CotPosition.report_date))
+        .limit(13)  # mirror _section_cot — same rows the LLM prompt saw
+    )
+    rows = list((await session.execute(stmt)).scalars().all())
+    return _cot_vote_from_rows(asset, market, rows, now_date=now_date)
 
 
 async def _section_prediction_markets(

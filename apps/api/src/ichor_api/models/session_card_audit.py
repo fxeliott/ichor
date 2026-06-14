@@ -141,3 +141,21 @@ class SessionCardAudit(Base):
     {"consensus": "usd_up"|"usd_down"|"mixed"|"neutral",
     "consensus_strength": float}. Feeds fuse_conviction ``dollar_consensus``
     + ``dollar_strength``."""
+
+    # S06 Chantier C (migration 0056) — the Chantier-C ``DimensionVote`` layers
+    # (COT positioning today ; rates / volume / geopolitics next) frozen at card
+    # generation as ``services.dimension_vote.votes_to_snapshot(votes)``. Same
+    # write-time-snapshot rationale as the 0055 synthesis snapshots above
+    # (reproducible apex under the 60 s /v1/verdict poll + the Chantier-A
+    # benchmark replay). DELIBERATELY NULLABLE with NO server_default (mirror of
+    # confluence/theme/dollar above) : NULL = "votes not captured at this card's
+    # generation" (every pre-0056 card + any card generated with the
+    # ``cot_dimension_vote_enabled`` flag OFF + any best-effort capture failure)
+    # → ``votes_from_snapshot(None)`` == ``()`` → the fuser is byte-identical to
+    # the legacy path (C-2a ``votes=()``). A '[]'::jsonb backfill would falsely
+    # assert "votes computed, all abstained". Shape : list of
+    # {"provenance", "direction_hint", "strength", "freshness", "honest_absence",
+    # "directional"} (ADR-120 contract).
+    dimension_votes: Mapped[Any | None] = mapped_column(JSONB, nullable=True)
+    """Chantier-C DimensionVote snapshot list. Feeds fuse_conviction ``votes``
+    (gated by feature flag ``cot_dimension_vote_enabled``)."""
