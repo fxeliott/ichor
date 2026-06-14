@@ -95,6 +95,14 @@ from .dimension_vote import DimensionVote, VoteDirection
 PROVENANCE = "cot"
 """Dimension id surfaced in the transparent ``agreeing`` / coach surface."""
 
+COT_DIMENSION_VOTE_FLAG = "cot_dimension_vote_enabled"
+"""Feature-flag key gating the C-3b live wiring (write-side capture in
+``run_session_card`` + read-side fuse in ``build_session_verdict``). Defined
+here — the dimension's home — as the SINGLE source of truth so the write site
+and the read site can never typo-diverge (feature_flags has no central registry).
+Absent flag ⇒ ``is_enabled`` returns False ⇒ both sides no-op ⇒ byte-identical
+to the legacy path (``votes=()`` — C-2a)."""
+
 COT_MAX_AGE_DAYS = 14
 """Freshness window. Mirrors ``data_pool._COT_MAX_AGE_DAYS`` (data_pool.py:3512) so
 the vote's freshness window matches the section's S04 liveness gate exactly."""

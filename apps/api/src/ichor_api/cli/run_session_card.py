@@ -596,6 +596,29 @@ async def _run(
             now_utc=datetime.now(UTC),
         )
 
+        # S06 Chantier C (C-3b) — freeze the COT DimensionVote on the card,
+        # gated by the `cot_dimension_vote_enabled` feature flag (fail-closed →
+        # OFF ⇒ this block is a no-op ⇒ dimension_votes stays NULL ⇒ the verdict
+        # fuser is byte-identical to the legacy path, votes_from_snapshot(None)
+        # == () — C-2a). Best-effort like the synthesis snapshots above: any
+        # failure leaves dimension_votes NULL rather than failing the persist.
+        # Voie D: pure persistence of the COT positioning the LLM already saw —
+        # ZERO LLM call, ZERO new feed.
+        try:
+            from ..services.cot_vote import COT_DIMENSION_VOTE_FLAG
+            from ..services.feature_flags import is_enabled
+
+            if await is_enabled(session, COT_DIMENSION_VOTE_FLAG):
+                from ..services.data_pool import build_cot_vote_for_asset
+                from ..services.dimension_vote import votes_to_snapshot
+
+                _cot_vote = await build_cot_vote_for_asset(
+                    session, row.asset, now_utc=datetime.now(UTC)
+                )
+                row.dimension_votes = votes_to_snapshot([_cot_vote])
+        except Exception as e:  # noqa: BLE001 — never fail the persist on vote capture
+            log.warning("dimension_votes.cot_capture_failed", asset=row.asset, error=str(e))
+
         session.add(row)
         await session.commit()
         log.info(
