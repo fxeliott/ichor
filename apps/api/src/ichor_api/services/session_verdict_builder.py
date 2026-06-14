@@ -36,8 +36,9 @@ ADR refs : ADR-106 §D2 (derivation rule), §D3 (refresh cycle), §D4
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import UTC, datetime, time, timedelta
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from zoneinfo import ZoneInfo
 
 import structlog
@@ -52,6 +53,9 @@ from .session_verdict import (
     VerdictDirection,
     VerdictNature,
 )
+
+if TYPE_CHECKING:
+    from .dimension_vote import DimensionVote
 
 log = structlog.get_logger(__name__)
 
@@ -155,6 +159,7 @@ def _derive_direction_and_conviction(
     theme_present: bool = False,
     dollar_consensus: str | None = None,
     dollar_strength: float = 0.0,
+    votes: Sequence[DimensionVote] = (),
 ) -> tuple[VerdictDirection, float, str]:
     """S04 (« kill the 50/50 ») — delegate the apex conviction to the
     evidence-weighted fusion core (``services.conviction_fusion``).
@@ -171,6 +176,10 @@ def _derive_direction_and_conviction(
     intended S04 change : a weak 0.05–0.15 edge survives iff corroborated,
     dies if contradicted, instead of cliff-dropping straight to neutral).
 
+    ``votes`` (Chantier C) are extra ``DimensionVote`` layers forwarded verbatim
+    to the fuser ; the default ``()`` keeps the output byte-identical (the real
+    layers are wired behind a feature flag in a later slice, C-2b/C-3).
+
     Returns ``(direction, conviction_pct, rationale_fr)``. ``direction`` is
     ``up``/``down``/``neutral`` ; ``conviction_pct`` is in ``[0, 95]`` ;
     ``rationale_fr`` is the plain-French coach grounding (zero trade tokens).
@@ -186,6 +195,7 @@ def _derive_direction_and_conviction(
         theme_present=theme_present,
         dollar_consensus=dollar_consensus,  # type: ignore[arg-type]
         dollar_strength=dollar_strength,
+        votes=votes,
     )
     direction: VerdictDirection = grounding.direction
     return (direction, grounding.conviction_pct, grounding.rationale_fr)

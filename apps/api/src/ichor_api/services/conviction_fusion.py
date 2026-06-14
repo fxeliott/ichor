@@ -29,8 +29,10 @@ Design contract (deliberately pure)
 ``fuse_conviction`` operates on **primitives** that the caller extracts from
 the heavy service dataclasses, so the core is unit-testable in isolation and
 carries **no** I/O, no LLM call, no pydantic / brain import — Voie-D clean
-(ADR-009). The verdict builder will, in a later (gated) integration step,
-delegate to this function and surface ``rationale_fr`` in the coach text.
+(ADR-009). The only intra-package import is ``dimension_vote`` (itself stdlib-only,
+designed to be fuser-importable without breaking that purity — ADR-120). The verdict
+builder will, in a later (gated) integration step, delegate to this function and
+surface ``rationale_fr`` in the coach text.
 
 Invariants honoured
 -------------------
@@ -59,6 +61,8 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any, Literal
+
+from .dimension_vote import DimensionVote, net_dimension_vote, total_uncertainty_credit
 
 # --------------------------------------------------------------------------- #
 # Types                                                                       #
@@ -226,6 +230,7 @@ def fuse_conviction(
     theme_present: bool = False,
     dollar_consensus: DollarConsensus | None = None,
     dollar_strength: float = 0.0,
+    votes: Sequence[DimensionVote] = (),
 ) -> ConvictionGrounding:
     """Fuse the bucket-derived edge with the synthesis evidence.
 
@@ -240,6 +245,12 @@ def fuse_conviction(
     * ``dollar_consensus`` / ``dollar_strength`` —
       ``DollarCoherenceVerdict.consensus`` + ``.consensus_strength``
       (``cross_asset_dollar_coherence.py:148-161``).
+    * ``votes`` — Chantier C ``DimensionVote`` layers (rates, positioning,
+      geopolitics, …). Default ``()`` ⇒ byte-identical to the legacy 3-layer path.
+      When populated, each layer feeds the SAME agreement-factor math
+      (``net_dimension_vote`` directional, ``total_uncertainty_credit``
+      non-directional). The real layers are wired in a later slice (C-3); this
+      parameter is the additive seam they plug into.
 
     Returns a :class:`ConvictionGrounding`. With **no** evidence supplied the
     direction matches the legacy path exactly; only the dead-zone becomes
@@ -315,6 +326,27 @@ def fuse_conviction(
     if theme_present:
         net_vote += THEME_PRESENCE_VOTE
         agreeing.append("theme")
+
+    # dimension votes (Chantier C): each extra analysis layer feeds the SAME
+    # agreement-factor math additively. Direction stays bucket-derived (ADR-017):
+    # ``signed_contribution()`` is absolute (+up / -down), so multiplying the net by
+    # ``direction_num`` turns it into "agreement with the bucket edge"; a present
+    # non-directional / neutral vote contributes only its ``uncertainty_credit()``
+    # (>= 0), exactly like ``theme``. With ``votes == ()`` every term below is 0, so
+    # the result is byte-identical to the legacy 3-layer path (proven by the golden
+    # harness, ``tests/test_fuser_golden_harness.assert_fuser_golden``).
+    net_vote += net_dimension_vote(votes) * direction_num
+    net_vote += total_uncertainty_credit(votes)
+    for vote in votes:
+        if not vote.is_effective:
+            continue
+        contribution = vote.signed_contribution() * direction_num
+        if contribution > 0:
+            agreeing.append(vote.provenance)
+        elif contribution < 0:
+            disagreeing.append(vote.provenance)
+        else:  # present but non-directional → anti-uncertainty credit only (ADR-017)
+            agreeing.append(vote.provenance)
 
     agreement_factor = _clamp(1.0 + VOTE_GAIN_K * net_vote, AGREEMENT_FLOOR, AGREEMENT_CEIL)
 
