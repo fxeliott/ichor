@@ -28,9 +28,10 @@ Doctrine:
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+import math
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from typing import Literal
+from typing import Any, Literal
 
 # Identical string values to ``conviction_fusion.Direction`` by design, so the
 # fuser maps one onto the other at the integration seam with no translation.
@@ -121,3 +122,111 @@ def effective_provenances(votes: Sequence[DimensionVote]) -> tuple[str, ...]:
     """Provenances of the dimensions that actually contributed (for the
     transparent ``agreeing`` / coach surface), order preserved."""
     return tuple(v.provenance for v in votes if v.is_effective)
+
+
+# --------------------------------------------------------------------------- #
+# Card snapshot codec (Chantier C-3b prerequisite — reproducibility)           #
+# --------------------------------------------------------------------------- #
+#
+# The verdict must be REPRODUCIBLE from the persisted card: the benchmark gate
+# (Chantier A) replays the apex verdict from the card's frozen synthesis snapshots
+# (``session_verdict_builder._extract_synthesis_primitives`` →
+# ``_derive_direction_and_conviction``), NOT from a live re-fetch. So a dimension
+# vote, once computed at card generation, must be FROZEN onto the card (a
+# ``dimension_votes`` JSONB column, like the confluence/theme/dollar snapshots of
+# migration 0055) and read back verbatim — otherwise the live verdict and the
+# benchmark replay would diverge. This codec is that freeze/thaw, kept here in the
+# pure contract module so both the write-side (run_session_card) and the read-side
+# (build_session_verdict) share one serialization (the migration + wiring is the
+# next, gated, slice).
+
+_VALID_DIRECTIONS = ("up", "down", "neutral")
+
+
+def to_snapshot(vote: DimensionVote) -> dict[str, Any]:
+    """Serialize ONE vote to a JSON-safe dict for the card's ``dimension_votes``
+    snapshot. All fields are plain JSON scalars (no dates / objects)."""
+    return {
+        "provenance": vote.provenance,
+        "direction_hint": vote.direction_hint,
+        "strength": vote.strength,
+        "freshness": vote.freshness,
+        "honest_absence": vote.honest_absence,
+        "directional": vote.directional,
+    }
+
+
+def from_snapshot(data: Mapping[str, Any] | None) -> DimensionVote:
+    """Reconstruct ONE vote from a card snapshot dict (read-side, verdict time).
+
+    Defensive (mirrors ``_extract_synthesis_primitives``): a ``None`` / legacy /
+    malformed snapshot degrades to an honest-absence vote — which contributes
+    EXACTLY 0 (ADR-103), byte-identical to passing no vote — rather than raising.
+    A well-formed snapshot round-trips to an equal vote.
+    """
+    absent = DimensionVote(
+        provenance="unknown",
+        direction_hint="neutral",
+        strength=0.0,
+        freshness=0.0,
+        honest_absence=True,
+        directional=True,
+    )
+    if not isinstance(data, Mapping):
+        return absent
+    try:
+        direction_hint = data["direction_hint"]
+        if direction_hint not in _VALID_DIRECTIONS:
+            return absent
+        provenance = data["provenance"]
+        directional = data.get("directional", True)
+        honest_absence = data.get("honest_absence", False)
+        # Strict types (fail-closed): a snapshot we wrote always carries str / bool;
+        # a tampered one with the wrong type must ABSTAIN, never be silently coerced
+        # (e.g. directional "no" → bool("no") == True would wrongly turn a
+        # non-directional layer into a long/short tilt — ADR-017).
+        if not (
+            isinstance(provenance, str)
+            and isinstance(directional, bool)
+            and isinstance(honest_absence, bool)
+        ):
+            return absent
+        # Enforce ADR-017: a non-directional layer can never carry a tilt.
+        if not directional and direction_hint != "neutral":
+            return absent
+        # Fail-closed on a corrupted magnitude: reject NaN / inf EXPLICITLY (not by
+        # the side-effect of the range comparison) and enforce the [0, 1] contract —
+        # never clamp a corrupted value to full strength (which would amplify it).
+        strength = float(data["strength"])
+        freshness = float(data.get("freshness", 1.0))
+        if not (math.isfinite(strength) and math.isfinite(freshness)):
+            return absent
+        if not (0.0 <= strength <= 1.0 and 0.0 <= freshness <= 1.0):
+            return absent
+        return DimensionVote(
+            provenance=provenance,
+            direction_hint=direction_hint,
+            strength=strength,
+            freshness=freshness,
+            honest_absence=honest_absence,
+            directional=directional,
+        )
+    except (KeyError, TypeError, ValueError):
+        return absent
+
+
+def votes_to_snapshot(votes: Sequence[DimensionVote]) -> list[dict[str, Any]]:
+    """Serialize the dimension votes to the card's ``dimension_votes`` JSONB list
+    (write-side, card generation)."""
+    return [to_snapshot(v) for v in votes]
+
+
+def votes_from_snapshot(data: Any) -> tuple[DimensionVote, ...]:
+    """Reconstruct the dimension votes from the card snapshot (read-side).
+
+    ``None`` / legacy / non-list (a card generated before the column existed) →
+    ``()`` so the fuser stays byte-identical to the no-votes path. Each malformed
+    entry degrades to honest-absence rather than dropping the whole list."""
+    if not isinstance(data, list):
+        return ()
+    return tuple(from_snapshot(entry) for entry in data)
