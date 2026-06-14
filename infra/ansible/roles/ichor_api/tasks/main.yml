@@ -160,7 +160,7 @@
       ICHOR_API_DATABASE_URL=postgresql+asyncpg://ichor:{{ ichor_db_password }}@127.0.0.1:5432/ichor
       ICHOR_API_REDIS_URL=redis://127.0.0.1:6379/0
       ICHOR_API_TOOL_SERVICE_TOKEN={{ ichor_tool_service_token }}
-      ICHOR_API_CLAUDE_RUNNER_URL={{ CF_TUNNEL_UUID | default('placeholder') }}.cfargotunnel.com
+      ICHOR_API_CLAUDE_RUNNER_URL=https://claude-runner.fxmilyapp.com
       ICHOR_API_CF_ACCESS_CLIENT_ID={{ CF_ACCESS_CLIENT_ID | default('') }}
       ICHOR_API_CF_ACCESS_CLIENT_SECRET={{ CF_ACCESS_CLIENT_SECRET | default('') }}
       ICHOR_API_CEREBRAS_API_KEY={{ CEREBRAS_API_KEY | default('') }}
