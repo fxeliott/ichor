@@ -201,6 +201,45 @@ def _derive_direction_and_conviction(
     return (direction, grounding.conviction_pct, grounding.rationale_fr)
 
 
+async def _load_reconciled_p_up_y(session: Any) -> list[tuple[float, int]]:
+    """C-5 (ADR-118/119) — pooled realised ``(p_up, y)`` from reconciled cards
+    (oldest-first), READ-ONLY. Mirrors ``run_calibration_witness._load_samples`` but
+    POOLED across all assets/sessions (the Chantier-B witness found the pooled fit
+    conclusive on 368 cards). Skips neutral / ambiguous cards (``y is None``). Used
+    only on the flag-ON calibration path; the verdict never writes here."""
+    from sqlalchemy import select as _select
+
+    from ..models import SessionCardAudit
+    from .brier import conviction_to_p_up
+    from .brier_optimizer import derive_realized_outcome
+
+    # Bound the apex-path query (durability — prompt ⑥ "permanent, sans fragilité"):
+    # take the MOST-RECENT reconciled window (most relevant for a self-adapting
+    # calibrator), then re-sort oldest-first for the chronological train/test split.
+    # 5000 reconciled cards ≈ years of history at the project's cadence.
+    _CALIBRATION_HISTORY_CAP = 5000
+    stmt = (
+        _select(
+            SessionCardAudit.bias_direction,
+            SessionCardAudit.conviction_pct,
+            SessionCardAudit.brier_contribution,
+        )
+        .where(SessionCardAudit.brier_contribution.is_not(None))
+        .order_by(SessionCardAudit.generated_at.desc())
+        .limit(_CALIBRATION_HISTORY_CAP)
+    )
+    rows = list(reversed((await session.execute(stmt)).all()))
+    pairs: list[tuple[float, int]] = []
+    for bias, conviction, brier in rows:
+        if brier is None:
+            continue
+        y = derive_realized_outcome(bias, conviction, brier)
+        if y is None:  # neutral bias carried no directional forecast
+            continue
+        pairs.append((conviction_to_p_up(bias, conviction), y))
+    return pairs
+
+
 def _derive_nature(scenarios: list[dict[str, Any]]) -> VerdictNature:
     """Apply ADR-106 D2 nature classification rule.
 
@@ -679,6 +718,28 @@ async def build_session_verdict(
         dollar_strength=dollar_strength,
         votes=votes,
     )
+
+    # S06 C-5 (ADR-118/119) — recalibrate the apex conviction against Ichor's OWN
+    # realised track-record, gated by `conviction_calibrator_oos_enabled` (fail-closed
+    # → OFF ⇒ raw conviction ⇒ byte-identical to today, golden-harness-guarded). The
+    # calibrator is chosen + refit ON-THE-FLY from reconciled outcomes and returns None
+    # (no change) unless a family CONCLUSIVELY beats raw OOS (the honesty gate). Direction
+    # is NEVER changed (ADR-017): calibration only shrinks/grows the magnitude, and a
+    # cross-side calibration collapses conviction to 0 rather than flipping (cap-95 held).
+    if direction != "neutral":
+        from .brier import BiasDirection
+        from .conviction_calibration import (
+            CONVICTION_CALIBRATOR_FLAG,
+            select_and_fit_live_calibrator,
+        )
+        from .feature_flags import is_enabled
+
+        if await is_enabled(session, CONVICTION_CALIBRATOR_FLAG):
+            calibrator = select_and_fit_live_calibrator(await _load_reconciled_p_up_y(session))
+            if calibrator is not None:
+                _bias: BiasDirection = "long" if direction == "up" else "short"
+                conviction_pct = calibrator.calibrate_conviction(_bias, conviction_pct)
+
     nature = _derive_nature(scenarios_raw)
 
     coach_explanation = _build_coach_explanation_populated(
