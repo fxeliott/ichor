@@ -1,0 +1,298 @@
+{
+  "_meta": {
+    "case_count": 32,
+    "contract": "S06 Chantier C full-card golden harness. Frozen deterministic card assembly (direction/conviction/nature/coach/Paris windows) over build_input_matrix(). Complements the C-1 fuser golden. Regenerate ONLY via ICHOR_REGEN_GOLDEN=1 after an INTENDED change.",
+    "float_ndigits": 9,
+    "now_utc": "2026-06-09T12:00:00+00:00"
+  },
+  "cases": {
+    "asset_probe/near_cap_up/EUR_USD": {
+      "coach_explanation": "Verdict NY session pour EUR_USD : biais haussier avec 90 % de conviction, de type mouvement de momentum (impulsif, probablement post-événement). Le bucket Pass-6 dominant est strong_bull (45.0 % de masse). Cette lecture est calibrée pour la fenêtre 14h00→20h00 Paris ; toute prise de position hors fenêtre doit se baser sur un verdict distinct. La conviction est plafonnée à 95 % par construction (ADR-022) — aucun verdict ne peut exprimer une certitude absolue. Conviction 90 % (biais haussier). Aucune preuve de synthèse disponible (conviction issue des seuls scénarios).",
+      "conviction_pct": 90.0,
+      "direction": "up",
+      "expires_at_utc": "2026-06-09T18:15:00+00:00",
+      "nature": "momentum",
+      "window_close_paris": "2026-06-09T20:00:00+02:00",
+      "window_open_paris": "2026-06-09T14:00:00+02:00"
+    },
+    "asset_probe/near_cap_up/GBP_USD": {
+      "coach_explanation": "Verdict NY session pour GBP_USD : biais haussier avec 90 % de conviction, de type mouvement de momentum (impulsif, probablement post-événement). Le bucket Pass-6 dominant est strong_bull (45.0 % de masse). Cette lecture est calibrée pour la fenêtre 14h00→20h00 Paris ; toute prise de position hors fenêtre doit se baser sur un verdict distinct. La conviction est plafonnée à 95 % par construction (ADR-022) — aucun verdict ne peut exprimer une certitude absolue. Conviction 90 % (biais haussier). Aucune preuve de synthèse disponible (conviction issue des seuls scénarios).",
+      "conviction_pct": 90.0,
+      "direction": "up",
+      "expires_at_utc": "2026-06-09T18:15:00+00:00",
+      "nature": "momentum",
+      "window_close_paris": "2026-06-09T20:00:00+02:00",
+      "window_open_paris": "2026-06-09T14:00:00+02:00"
+    },
+    "asset_probe/near_cap_up/NAS100_USD": {
+      "coach_explanation": "Verdict NY session pour NAS100_USD : biais haussier avec 90 % de conviction, de type mouvement de momentum (impulsif, probablement post-événement). Le bucket Pass-6 dominant est strong_bull (45.0 % de masse). Cette lecture est calibrée pour la fenêtre 14h00→20h00 Paris ; toute prise de position hors fenêtre doit se baser sur un verdict distinct. La conviction est plafonnée à 95 % par construction (ADR-022) — aucun verdict ne peut exprimer une certitude absolue. Conviction 90 % (biais haussier). Aucune preuve de synthèse disponible (conviction issue des seuls scénarios).",
+      "conviction_pct": 90.0,
+      "direction": "up",
+      "expires_at_utc": "2026-06-09T18:15:00+00:00",
+      "nature": "momentum",
+      "window_close_paris": "2026-06-09T20:00:00+02:00",
+      "window_open_paris": "2026-06-09T14:00:00+02:00"
+    },
+    "asset_probe/near_cap_up/SPX500_USD": {
+      "coach_explanation": "Verdict NY session pour SPX500_USD : biais haussier avec 90 % de conviction, de type mouvement de momentum (impulsif, probablement post-événement). Le bucket Pass-6 dominant est strong_bull (45.0 % de masse). Cette lecture est calibrée pour la fenêtre 14h00→20h00 Paris ; toute prise de position hors fenêtre doit se baser sur un verdict distinct. La conviction est plafonnée à 95 % par construction (ADR-022) — aucun verdict ne peut exprimer une certitude absolue. Conviction 90 % (biais haussier). Aucune preuve de synthèse disponible (conviction issue des seuls scénarios).",
+      "conviction_pct": 90.0,
+      "direction": "up",
+      "expires_at_utc": "2026-06-09T18:15:00+00:00",
+      "nature": "momentum",
+      "window_close_paris": "2026-06-09T20:00:00+02:00",
+      "window_open_paris": "2026-06-09T14:00:00+02:00"
+    },
+    "asset_probe/near_cap_up/XAU_USD": {
+      "coach_explanation": "Verdict NY session pour XAU_USD : biais haussier avec 90 % de conviction, de type mouvement de momentum (impulsif, probablement post-événement). Le bucket Pass-6 dominant est strong_bull (45.0 % de masse). Cette lecture est calibrée pour la fenêtre 14h00→20h00 Paris ; toute prise de position hors fenêtre doit se baser sur un verdict distinct. La conviction est plafonnée à 95 % par construction (ADR-022) — aucun verdict ne peut exprimer une certitude absolue. Conviction 90 % (biais haussier). Aucune preuve de synthèse disponible (conviction issue des seuls scénarios).",
+      "conviction_pct": 90.0,
+      "direction": "up",
+      "expires_at_utc": "2026-06-09T18:15:00+00:00",
+      "nature": "momentum",
+      "window_close_paris": "2026-06-09T20:00:00+02:00",
+      "window_open_paris": "2026-06-09T14:00:00+02:00"
+    },
+    "behaviour/coinflip_hard/all_aligned_up": {
+      "coach_explanation": "Verdict NY session pour EUR_USD : biais neutre avec 0 % de conviction, de type mouvement de nature incertaine (décomposition mixte). Le bucket Pass-6 dominant est base (30.0 % de masse). Cette lecture est calibrée pour la fenêtre 14h00→20h00 Paris ; toute prise de position hors fenêtre doit se baser sur un verdict distinct. La conviction est plafonnée à 95 % par construction (ADR-022) — aucun verdict ne peut exprimer une certitude absolue. Conviction nulle : la décomposition des scénarios est trop équilibrée (écart 2.0 pts < 5 pts) — aucune direction tranchée. Honnêteté calibrée : Ichor ne force pas un pile ou face.",
+      "conviction_pct": 0.0,
+      "direction": "neutral",
+      "expires_at_utc": "2026-06-09T18:15:00+00:00",
+      "nature": "uncertain",
+      "window_close_paris": "2026-06-09T20:00:00+02:00",
+      "window_open_paris": "2026-06-09T14:00:00+02:00"
+    },
+    "behaviour/coinflip_hard/all_opposed_up": {
+      "coach_explanation": "Verdict NY session pour EUR_USD : biais neutre avec 0 % de conviction, de type mouvement de nature incertaine (décomposition mixte). Le bucket Pass-6 dominant est base (30.0 % de masse). Cette lecture est calibrée pour la fenêtre 14h00→20h00 Paris ; toute prise de position hors fenêtre doit se baser sur un verdict distinct. La conviction est plafonnée à 95 % par construction (ADR-022) — aucun verdict ne peut exprimer une certitude absolue. Conviction nulle : la décomposition des scénarios est trop équilibrée (écart 2.0 pts < 5 pts) — aucune direction tranchée. Honnêteté calibrée : Ichor ne force pas un pile ou face.",
+      "conviction_pct": 0.0,
+      "direction": "neutral",
+      "expires_at_utc": "2026-06-09T18:15:00+00:00",
+      "nature": "uncertain",
+      "window_close_paris": "2026-06-09T20:00:00+02:00",
+      "window_open_paris": "2026-06-09T14:00:00+02:00"
+    },
+    "behaviour/coinflip_hard/no_evidence": {
+      "coach_explanation": "Verdict NY session pour EUR_USD : biais neutre avec 0 % de conviction, de type mouvement de nature incertaine (décomposition mixte). Le bucket Pass-6 dominant est base (30.0 % de masse). Cette lecture est calibrée pour la fenêtre 14h00→20h00 Paris ; toute prise de position hors fenêtre doit se baser sur un verdict distinct. La conviction est plafonnée à 95 % par construction (ADR-022) — aucun verdict ne peut exprimer une certitude absolue. Conviction nulle : la décomposition des scénarios est trop équilibrée (écart 2.0 pts < 5 pts) — aucune direction tranchée. Honnêteté calibrée : Ichor ne force pas un pile ou face.",
+      "conviction_pct": 0.0,
+      "direction": "neutral",
+      "expires_at_utc": "2026-06-09T18:15:00+00:00",
+      "nature": "uncertain",
+      "window_close_paris": "2026-06-09T20:00:00+02:00",
+      "window_open_paris": "2026-06-09T14:00:00+02:00"
+    },
+    "behaviour/momentum_down/all_aligned_up": {
+      "coach_explanation": "Verdict NY session pour EUR_USD : biais baissier avec 68 % de conviction, de type mouvement de momentum (impulsif, probablement post-événement). Le bucket Pass-6 dominant est crash_flush (50.0 % de masse). Cette lecture est calibrée pour la fenêtre 14h00→20h00 Paris ; toute prise de position hors fenêtre doit se baser sur un verdict distinct. La conviction est plafonnée à 95 % par construction (ADR-022) — aucun verdict ne peut exprimer une certitude absolue. Conviction 68 % (biais baissier). Preuves concordantes : thème dominant ; en désaccord : confluence des facteurs et cohérence dollar.",
+      "conviction_pct": 68.0,
+      "direction": "down",
+      "expires_at_utc": "2026-06-09T18:15:00+00:00",
+      "nature": "momentum",
+      "window_close_paris": "2026-06-09T20:00:00+02:00",
+      "window_open_paris": "2026-06-09T14:00:00+02:00"
+    },
+    "behaviour/momentum_down/all_opposed_up": {
+      "coach_explanation": "Verdict NY session pour EUR_USD : biais baissier avec 95 % de conviction, de type mouvement de momentum (impulsif, probablement post-événement). Le bucket Pass-6 dominant est crash_flush (50.0 % de masse). Cette lecture est calibrée pour la fenêtre 14h00→20h00 Paris ; toute prise de position hors fenêtre doit se baser sur un verdict distinct. La conviction est plafonnée à 95 % par construction (ADR-022) — aucun verdict ne peut exprimer une certitude absolue. Conviction 95 % (biais baissier). Preuves concordantes : confluence des facteurs et cohérence dollar ; aucun désaccord.",
+      "conviction_pct": 95.0,
+      "direction": "down",
+      "expires_at_utc": "2026-06-09T18:15:00+00:00",
+      "nature": "momentum",
+      "window_close_paris": "2026-06-09T20:00:00+02:00",
+      "window_open_paris": "2026-06-09T14:00:00+02:00"
+    },
+    "behaviour/momentum_down/no_evidence": {
+      "coach_explanation": "Verdict NY session pour EUR_USD : biais baissier avec 80 % de conviction, de type mouvement de momentum (impulsif, probablement post-événement). Le bucket Pass-6 dominant est crash_flush (50.0 % de masse). Cette lecture est calibrée pour la fenêtre 14h00→20h00 Paris ; toute prise de position hors fenêtre doit se baser sur un verdict distinct. La conviction est plafonnée à 95 % par construction (ADR-022) — aucun verdict ne peut exprimer une certitude absolue. Conviction 80 % (biais baissier). Aucune preuve de synthèse disponible (conviction issue des seuls scénarios).",
+      "conviction_pct": 80.0,
+      "direction": "down",
+      "expires_at_utc": "2026-06-09T18:15:00+00:00",
+      "nature": "momentum",
+      "window_close_paris": "2026-06-09T20:00:00+02:00",
+      "window_open_paris": "2026-06-09T14:00:00+02:00"
+    },
+    "behaviour/momentum_up/all_aligned_up": {
+      "coach_explanation": "Verdict NY session pour EUR_USD : biais haussier avec 95 % de conviction, de type mouvement de momentum (impulsif, probablement post-événement). Le bucket Pass-6 dominant est melt_up (50.0 % de masse). Cette lecture est calibrée pour la fenêtre 14h00→20h00 Paris ; toute prise de position hors fenêtre doit se baser sur un verdict distinct. La conviction est plafonnée à 95 % par construction (ADR-022) — aucun verdict ne peut exprimer une certitude absolue. Conviction 95 % (biais haussier). Preuves concordantes : confluence des facteurs, cohérence dollar et thème dominant ; aucun désaccord.",
+      "conviction_pct": 95.0,
+      "direction": "up",
+      "expires_at_utc": "2026-06-09T18:15:00+00:00",
+      "nature": "momentum",
+      "window_close_paris": "2026-06-09T20:00:00+02:00",
+      "window_open_paris": "2026-06-09T14:00:00+02:00"
+    },
+    "behaviour/momentum_up/all_opposed_up": {
+      "coach_explanation": "Verdict NY session pour EUR_USD : biais haussier avec 64 % de conviction, de type mouvement de momentum (impulsif, probablement post-événement). Le bucket Pass-6 dominant est melt_up (50.0 % de masse). Cette lecture est calibrée pour la fenêtre 14h00→20h00 Paris ; toute prise de position hors fenêtre doit se baser sur un verdict distinct. La conviction est plafonnée à 95 % par construction (ADR-022) — aucun verdict ne peut exprimer une certitude absolue. Conviction 64 % (biais haussier). Aucune preuve concordante ; en désaccord : confluence des facteurs et cohérence dollar.",
+      "conviction_pct": 64.0,
+      "direction": "up",
+      "expires_at_utc": "2026-06-09T18:15:00+00:00",
+      "nature": "momentum",
+      "window_close_paris": "2026-06-09T20:00:00+02:00",
+      "window_open_paris": "2026-06-09T14:00:00+02:00"
+    },
+    "behaviour/momentum_up/no_evidence": {
+      "coach_explanation": "Verdict NY session pour EUR_USD : biais haussier avec 80 % de conviction, de type mouvement de momentum (impulsif, probablement post-événement). Le bucket Pass-6 dominant est melt_up (50.0 % de masse). Cette lecture est calibrée pour la fenêtre 14h00→20h00 Paris ; toute prise de position hors fenêtre doit se baser sur un verdict distinct. La conviction est plafonnée à 95 % par construction (ADR-022) — aucun verdict ne peut exprimer une certitude absolue. Conviction 80 % (biais haussier). Aucune preuve de synthèse disponible (conviction issue des seuls scénarios).",
+      "conviction_pct": 80.0,
+      "direction": "up",
+      "expires_at_utc": "2026-06-09T18:15:00+00:00",
+      "nature": "momentum",
+      "window_close_paris": "2026-06-09T20:00:00+02:00",
+      "window_open_paris": "2026-06-09T14:00:00+02:00"
+    },
+    "behaviour/near_cap_up/all_aligned_up": {
+      "coach_explanation": "Verdict NY session pour EUR_USD : biais haussier avec 95 % de conviction, de type mouvement de momentum (impulsif, probablement post-événement). Le bucket Pass-6 dominant est strong_bull (45.0 % de masse). Cette lecture est calibrée pour la fenêtre 14h00→20h00 Paris ; toute prise de position hors fenêtre doit se baser sur un verdict distinct. La conviction est plafonnée à 95 % par construction (ADR-022) — aucun verdict ne peut exprimer une certitude absolue. Conviction 95 % (biais haussier). Preuves concordantes : confluence des facteurs, cohérence dollar et thème dominant ; aucun désaccord.",
+      "conviction_pct": 95.0,
+      "direction": "up",
+      "expires_at_utc": "2026-06-09T18:15:00+00:00",
+      "nature": "momentum",
+      "window_close_paris": "2026-06-09T20:00:00+02:00",
+      "window_open_paris": "2026-06-09T14:00:00+02:00"
+    },
+    "behaviour/near_cap_up/all_opposed_up": {
+      "coach_explanation": "Verdict NY session pour EUR_USD : biais haussier avec 72 % de conviction, de type mouvement de momentum (impulsif, probablement post-événement). Le bucket Pass-6 dominant est strong_bull (45.0 % de masse). Cette lecture est calibrée pour la fenêtre 14h00→20h00 Paris ; toute prise de position hors fenêtre doit se baser sur un verdict distinct. La conviction est plafonnée à 95 % par construction (ADR-022) — aucun verdict ne peut exprimer une certitude absolue. Conviction 72 % (biais haussier). Aucune preuve concordante ; en désaccord : confluence des facteurs et cohérence dollar.",
+      "conviction_pct": 72.0,
+      "direction": "up",
+      "expires_at_utc": "2026-06-09T18:15:00+00:00",
+      "nature": "momentum",
+      "window_close_paris": "2026-06-09T20:00:00+02:00",
+      "window_open_paris": "2026-06-09T14:00:00+02:00"
+    },
+    "behaviour/near_cap_up/no_evidence": {
+      "coach_explanation": "Verdict NY session pour EUR_USD : biais haussier avec 90 % de conviction, de type mouvement de momentum (impulsif, probablement post-événement). Le bucket Pass-6 dominant est strong_bull (45.0 % de masse). Cette lecture est calibrée pour la fenêtre 14h00→20h00 Paris ; toute prise de position hors fenêtre doit se baser sur un verdict distinct. La conviction est plafonnée à 95 % par construction (ADR-022) — aucun verdict ne peut exprimer une certitude absolue. Conviction 90 % (biais haussier). Aucune preuve de synthèse disponible (conviction issue des seuls scénarios).",
+      "conviction_pct": 90.0,
+      "direction": "up",
+      "expires_at_utc": "2026-06-09T18:15:00+00:00",
+      "nature": "momentum",
+      "window_close_paris": "2026-06-09T20:00:00+02:00",
+      "window_open_paris": "2026-06-09T14:00:00+02:00"
+    },
+    "behaviour/range_bound/all_aligned_up": {
+      "coach_explanation": "Verdict NY session pour EUR_USD : biais neutre avec 0 % de conviction, de type mouvement range-bound (faible volatilité, fade des extrêmes). Le bucket Pass-6 dominant est base (70.0 % de masse). Cette lecture est calibrée pour la fenêtre 14h00→20h00 Paris ; toute prise de position hors fenêtre doit se baser sur un verdict distinct. La conviction est plafonnée à 95 % par construction (ADR-022) — aucun verdict ne peut exprimer une certitude absolue. Conviction nulle : la décomposition des scénarios est trop équilibrée (écart 0.0 pts < 5 pts) — aucune direction tranchée. Honnêteté calibrée : Ichor ne force pas un pile ou face.",
+      "conviction_pct": 0.0,
+      "direction": "neutral",
+      "expires_at_utc": "2026-06-09T18:15:00+00:00",
+      "nature": "range_bound",
+      "window_close_paris": "2026-06-09T20:00:00+02:00",
+      "window_open_paris": "2026-06-09T14:00:00+02:00"
+    },
+    "behaviour/range_bound/all_opposed_up": {
+      "coach_explanation": "Verdict NY session pour EUR_USD : biais neutre avec 0 % de conviction, de type mouvement range-bound (faible volatilité, fade des extrêmes). Le bucket Pass-6 dominant est base (70.0 % de masse). Cette lecture est calibrée pour la fenêtre 14h00→20h00 Paris ; toute prise de position hors fenêtre doit se baser sur un verdict distinct. La conviction est plafonnée à 95 % par construction (ADR-022) — aucun verdict ne peut exprimer une certitude absolue. Conviction nulle : la décomposition des scénarios est trop équilibrée (écart 0.0 pts < 5 pts) — aucune direction tranchée. Honnêteté calibrée : Ichor ne force pas un pile ou face.",
+      "conviction_pct": 0.0,
+      "direction": "neutral",
+      "expires_at_utc": "2026-06-09T18:15:00+00:00",
+      "nature": "range_bound",
+      "window_close_paris": "2026-06-09T20:00:00+02:00",
+      "window_open_paris": "2026-06-09T14:00:00+02:00"
+    },
+    "behaviour/range_bound/no_evidence": {
+      "coach_explanation": "Verdict NY session pour EUR_USD : biais neutre avec 0 % de conviction, de type mouvement range-bound (faible volatilité, fade des extrêmes). Le bucket Pass-6 dominant est base (70.0 % de masse). Cette lecture est calibrée pour la fenêtre 14h00→20h00 Paris ; toute prise de position hors fenêtre doit se baser sur un verdict distinct. La conviction est plafonnée à 95 % par construction (ADR-022) — aucun verdict ne peut exprimer une certitude absolue. Conviction nulle : la décomposition des scénarios est trop équilibrée (écart 0.0 pts < 5 pts) — aucune direction tranchée. Honnêteté calibrée : Ichor ne force pas un pile ou face.",
+      "conviction_pct": 0.0,
+      "direction": "neutral",
+      "expires_at_utc": "2026-06-09T18:15:00+00:00",
+      "nature": "range_bound",
+      "window_close_paris": "2026-06-09T20:00:00+02:00",
+      "window_open_paris": "2026-06-09T14:00:00+02:00"
+    },
+    "behaviour/soft_zone_up/all_aligned_up": {
+      "coach_explanation": "Verdict NY session pour EUR_USD : biais haussier avec 19 % de conviction, de type mouvement structuré (rythme mesuré, niveaux identifiables). Le bucket Pass-6 dominant est base (30.0 % de masse). Cette lecture est calibrée pour la fenêtre 14h00→20h00 Paris ; toute prise de position hors fenêtre doit se baser sur un verdict distinct. La conviction est plafonnée à 95 % par construction (ADR-022) — aucun verdict ne peut exprimer une certitude absolue. Conviction 19 % (biais haussier). Preuves concordantes : confluence des facteurs, cohérence dollar et thème dominant ; aucun désaccord. Bord directionnel faible (zone tampon) : conviction atténuée.",
+      "conviction_pct": 18.75,
+      "direction": "up",
+      "expires_at_utc": "2026-06-09T18:15:00+00:00",
+      "nature": "structured",
+      "window_close_paris": "2026-06-09T20:00:00+02:00",
+      "window_open_paris": "2026-06-09T14:00:00+02:00"
+    },
+    "behaviour/soft_zone_up/all_opposed_up": {
+      "coach_explanation": "Verdict NY session pour EUR_USD : biais haussier avec 12 % de conviction, de type mouvement structuré (rythme mesuré, niveaux identifiables). Le bucket Pass-6 dominant est base (30.0 % de masse). Cette lecture est calibrée pour la fenêtre 14h00→20h00 Paris ; toute prise de position hors fenêtre doit se baser sur un verdict distinct. La conviction est plafonnée à 95 % par construction (ADR-022) — aucun verdict ne peut exprimer une certitude absolue. Conviction 12 % (biais haussier). Aucune preuve concordante ; en désaccord : confluence des facteurs et cohérence dollar. Bord directionnel faible (zone tampon) : conviction atténuée.",
+      "conviction_pct": 12.0,
+      "direction": "up",
+      "expires_at_utc": "2026-06-09T18:15:00+00:00",
+      "nature": "structured",
+      "window_close_paris": "2026-06-09T20:00:00+02:00",
+      "window_open_paris": "2026-06-09T14:00:00+02:00"
+    },
+    "behaviour/soft_zone_up/no_evidence": {
+      "coach_explanation": "Verdict NY session pour EUR_USD : biais haussier avec 15 % de conviction, de type mouvement structuré (rythme mesuré, niveaux identifiables). Le bucket Pass-6 dominant est base (30.0 % de masse). Cette lecture est calibrée pour la fenêtre 14h00→20h00 Paris ; toute prise de position hors fenêtre doit se baser sur un verdict distinct. La conviction est plafonnée à 95 % par construction (ADR-022) — aucun verdict ne peut exprimer une certitude absolue. Conviction 15 % (biais haussier). Aucune preuve de synthèse disponible (conviction issue des seuls scénarios). Bord directionnel faible (zone tampon) : conviction atténuée.",
+      "conviction_pct": 15.0,
+      "direction": "up",
+      "expires_at_utc": "2026-06-09T18:15:00+00:00",
+      "nature": "structured",
+      "window_close_paris": "2026-06-09T20:00:00+02:00",
+      "window_open_paris": "2026-06-09T14:00:00+02:00"
+    },
+    "behaviour/structured_down/all_aligned_up": {
+      "coach_explanation": "Verdict NY session pour EUR_USD : biais baissier avec 60 % de conviction, de type mouvement structuré (rythme mesuré, niveaux identifiables). Le bucket Pass-6 dominant est mild_bear (45.0 % de masse). Cette lecture est calibrée pour la fenêtre 14h00→20h00 Paris ; toute prise de position hors fenêtre doit se baser sur un verdict distinct. La conviction est plafonnée à 95 % par construction (ADR-022) — aucun verdict ne peut exprimer une certitude absolue. Conviction 60 % (biais baissier). Preuves concordantes : thème dominant ; en désaccord : confluence des facteurs et cohérence dollar.",
+      "conviction_pct": 59.5,
+      "direction": "down",
+      "expires_at_utc": "2026-06-09T18:15:00+00:00",
+      "nature": "structured",
+      "window_close_paris": "2026-06-09T20:00:00+02:00",
+      "window_open_paris": "2026-06-09T14:00:00+02:00"
+    },
+    "behaviour/structured_down/all_opposed_up": {
+      "coach_explanation": "Verdict NY session pour EUR_USD : biais baissier avec 84 % de conviction, de type mouvement structuré (rythme mesuré, niveaux identifiables). Le bucket Pass-6 dominant est mild_bear (45.0 % de masse). Cette lecture est calibrée pour la fenêtre 14h00→20h00 Paris ; toute prise de position hors fenêtre doit se baser sur un verdict distinct. La conviction est plafonnée à 95 % par construction (ADR-022) — aucun verdict ne peut exprimer une certitude absolue. Conviction 84 % (biais baissier). Preuves concordantes : confluence des facteurs et cohérence dollar ; aucun désaccord.",
+      "conviction_pct": 84.0,
+      "direction": "down",
+      "expires_at_utc": "2026-06-09T18:15:00+00:00",
+      "nature": "structured",
+      "window_close_paris": "2026-06-09T20:00:00+02:00",
+      "window_open_paris": "2026-06-09T14:00:00+02:00"
+    },
+    "behaviour/structured_down/no_evidence": {
+      "coach_explanation": "Verdict NY session pour EUR_USD : biais baissier avec 70 % de conviction, de type mouvement structuré (rythme mesuré, niveaux identifiables). Le bucket Pass-6 dominant est mild_bear (45.0 % de masse). Cette lecture est calibrée pour la fenêtre 14h00→20h00 Paris ; toute prise de position hors fenêtre doit se baser sur un verdict distinct. La conviction est plafonnée à 95 % par construction (ADR-022) — aucun verdict ne peut exprimer une certitude absolue. Conviction 70 % (biais baissier). Aucune preuve de synthèse disponible (conviction issue des seuls scénarios).",
+      "conviction_pct": 70.0,
+      "direction": "down",
+      "expires_at_utc": "2026-06-09T18:15:00+00:00",
+      "nature": "structured",
+      "window_close_paris": "2026-06-09T20:00:00+02:00",
+      "window_open_paris": "2026-06-09T14:00:00+02:00"
+    },
+    "behaviour/structured_up/all_aligned_up": {
+      "coach_explanation": "Verdict NY session pour EUR_USD : biais haussier avec 88 % de conviction, de type mouvement structuré (rythme mesuré, niveaux identifiables). Le bucket Pass-6 dominant est mild_bull (45.0 % de masse). Cette lecture est calibrée pour la fenêtre 14h00→20h00 Paris ; toute prise de position hors fenêtre doit se baser sur un verdict distinct. La conviction est plafonnée à 95 % par construction (ADR-022) — aucun verdict ne peut exprimer une certitude absolue. Conviction 88 % (biais haussier). Preuves concordantes : confluence des facteurs, cohérence dollar et thème dominant ; aucun désaccord.",
+      "conviction_pct": 87.5,
+      "direction": "up",
+      "expires_at_utc": "2026-06-09T18:15:00+00:00",
+      "nature": "structured",
+      "window_close_paris": "2026-06-09T20:00:00+02:00",
+      "window_open_paris": "2026-06-09T14:00:00+02:00"
+    },
+    "behaviour/structured_up/all_opposed_up": {
+      "coach_explanation": "Verdict NY session pour EUR_USD : biais haussier avec 56 % de conviction, de type mouvement structuré (rythme mesuré, niveaux identifiables). Le bucket Pass-6 dominant est mild_bull (45.0 % de masse). Cette lecture est calibrée pour la fenêtre 14h00→20h00 Paris ; toute prise de position hors fenêtre doit se baser sur un verdict distinct. La conviction est plafonnée à 95 % par construction (ADR-022) — aucun verdict ne peut exprimer une certitude absolue. Conviction 56 % (biais haussier). Aucune preuve concordante ; en désaccord : confluence des facteurs et cohérence dollar.",
+      "conviction_pct": 56.0,
+      "direction": "up",
+      "expires_at_utc": "2026-06-09T18:15:00+00:00",
+      "nature": "structured",
+      "window_close_paris": "2026-06-09T20:00:00+02:00",
+      "window_open_paris": "2026-06-09T14:00:00+02:00"
+    },
+    "behaviour/structured_up/no_evidence": {
+      "coach_explanation": "Verdict NY session pour EUR_USD : biais haussier avec 70 % de conviction, de type mouvement structuré (rythme mesuré, niveaux identifiables). Le bucket Pass-6 dominant est mild_bull (45.0 % de masse). Cette lecture est calibrée pour la fenêtre 14h00→20h00 Paris ; toute prise de position hors fenêtre doit se baser sur un verdict distinct. La conviction est plafonnée à 95 % par construction (ADR-022) — aucun verdict ne peut exprimer une certitude absolue. Conviction 70 % (biais haussier). Aucune preuve de synthèse disponible (conviction issue des seuls scénarios).",
+      "conviction_pct": 70.0,
+      "direction": "up",
+      "expires_at_utc": "2026-06-09T18:15:00+00:00",
+      "nature": "structured",
+      "window_close_paris": "2026-06-09T20:00:00+02:00",
+      "window_open_paris": "2026-06-09T14:00:00+02:00"
+    },
+    "behaviour/uncertain_mixed_up/all_aligned_up": {
+      "coach_explanation": "Verdict NY session pour EUR_USD : biais haussier avec 65 % de conviction, de type mouvement de momentum (impulsif, probablement post-événement). Le bucket Pass-6 dominant est melt_up (25.0 % de masse). Cette lecture est calibrée pour la fenêtre 14h00→20h00 Paris ; toute prise de position hors fenêtre doit se baser sur un verdict distinct. La conviction est plafonnée à 95 % par construction (ADR-022) — aucun verdict ne peut exprimer une certitude absolue. Conviction 65 % (biais haussier). Preuves concordantes : confluence des facteurs, cohérence dollar et thème dominant ; aucun désaccord.",
+      "conviction_pct": 65.0,
+      "direction": "up",
+      "expires_at_utc": "2026-06-09T18:15:00+00:00",
+      "nature": "momentum",
+      "window_close_paris": "2026-06-09T20:00:00+02:00",
+      "window_open_paris": "2026-06-09T14:00:00+02:00"
+    },
+    "behaviour/uncertain_mixed_up/all_opposed_up": {
+      "coach_explanation": "Verdict NY session pour EUR_USD : biais haussier avec 42 % de conviction, de type mouvement de momentum (impulsif, probablement post-événement). Le bucket Pass-6 dominant est melt_up (25.0 % de masse). Cette lecture est calibrée pour la fenêtre 14h00→20h00 Paris ; toute prise de position hors fenêtre doit se baser sur un verdict distinct. La conviction est plafonnée à 95 % par construction (ADR-022) — aucun verdict ne peut exprimer une certitude absolue. Conviction 42 % (biais haussier). Aucune preuve concordante ; en désaccord : confluence des facteurs et cohérence dollar.",
+      "conviction_pct": 41.6,
+      "direction": "up",
+      "expires_at_utc": "2026-06-09T18:15:00+00:00",
+      "nature": "momentum",
+      "window_close_paris": "2026-06-09T20:00:00+02:00",
+      "window_open_paris": "2026-06-09T14:00:00+02:00"
+    },
+    "behaviour/uncertain_mixed_up/no_evidence": {
+      "coach_explanation": "Verdict NY session pour EUR_USD : biais haussier avec 52 % de conviction, de type mouvement de momentum (impulsif, probablement post-événement). Le bucket Pass-6 dominant est melt_up (25.0 % de masse). Cette lecture est calibrée pour la fenêtre 14h00→20h00 Paris ; toute prise de position hors fenêtre doit se baser sur un verdict distinct. La conviction est plafonnée à 95 % par construction (ADR-022) — aucun verdict ne peut exprimer une certitude absolue. Conviction 52 % (biais haussier). Aucune preuve de synthèse disponible (conviction issue des seuls scénarios).",
+      "conviction_pct": 52.0,
+      "direction": "up",
+      "expires_at_utc": "2026-06-09T18:15:00+00:00",
+      "nature": "momentum",
+      "window_close_paris": "2026-06-09T20:00:00+02:00",
+      "window_open_paris": "2026-06-09T14:00:00+02:00"
+    }
+  }
+}
