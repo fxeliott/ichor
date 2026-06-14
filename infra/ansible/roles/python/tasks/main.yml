@@ -33,11 +33,20 @@
   environment:
     UV_INSTALL_DIR: /root/.local/bin
 
-- name: Symlink uv into /usr/local/bin
-  ansible.builtin.file:
+# Install uv as a REAL binary in /usr/local/bin (NOT a symlink into /root/.local).
+# The deploy installs the editable package as the non-root `ichor` user
+# (ichor_api role, become_user: ichor); a symlink target under /root/ (mode 700)
+# is unreadable to ichor -> `uv pip install` fails with `Permission denied`
+# (rc 126), which silently broke every ichor_api deploy. A copied binary owned
+# root:root 0755 is executable by any user.
+- name: Install uv into /usr/local/bin (real binary — readable by the non-root deploy user)
+  ansible.builtin.copy:
     src: /root/.local/bin/uv
     dest: /usr/local/bin/uv
-    state: link
+    remote_src: true
+    mode: "0755"
+    owner: root
+    group: root
 
 - name: Verify uv version
   ansible.builtin.command: uv --version
