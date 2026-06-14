@@ -53,6 +53,33 @@
     ichor_db_password: "{{ _db_pw_b64.content | b64decode | trim }}"
   no_log: true
 
+# ADR-077 — /v1/tools/* service-token. The app (main.py) REFUSES to start in
+# production if ICHOR_API_TOOL_SERVICE_TOKEN is unset. Machine-generated +
+# persisted on the box (same idempotent file pattern as the db-password above),
+# so it is stable across deploys and survives the api.env rewrite below.
+# The Win11 ichor_mcp runner MUST use the SAME value for its /v1/tools/* calls.
+- name: Generate ICHOR_API_TOOL_SERVICE_TOKEN (idempotent — file exists check, ADR-077)
+  ansible.builtin.shell: |
+    if [ ! -f /etc/ichor/tool-service-token ]; then
+      mkdir -p /etc/ichor
+      chmod 700 /etc/ichor
+      openssl rand -hex 32 > /etc/ichor/tool-service-token
+      chmod 600 /etc/ichor/tool-service-token
+    fi
+  args:
+    creates: /etc/ichor/tool-service-token
+
+- name: Read ICHOR_API_TOOL_SERVICE_TOKEN
+  ansible.builtin.slurp:
+    src: /etc/ichor/tool-service-token
+  register: _tool_token_b64
+  no_log: true
+
+- name: Set ichor_tool_service_token fact
+  ansible.builtin.set_fact:
+    ichor_tool_service_token: "{{ _tool_token_b64.content | b64decode | trim }}"
+  no_log: true
+
 - name: Create Postgres role 'ichor'
   community.postgresql.postgresql_user:
     name: ichor
@@ -132,6 +159,7 @@
       ICHOR_API_PORT=8000
       ICHOR_API_DATABASE_URL=postgresql+asyncpg://ichor:{{ ichor_db_password }}@127.0.0.1:5432/ichor
       ICHOR_API_REDIS_URL=redis://127.0.0.1:6379/0
+      ICHOR_API_TOOL_SERVICE_TOKEN={{ ichor_tool_service_token }}
       ICHOR_API_CLAUDE_RUNNER_URL={{ CF_TUNNEL_UUID | default('placeholder') }}.cfargotunnel.com
       ICHOR_API_CF_ACCESS_CLIENT_ID={{ CF_ACCESS_CLIENT_ID | default('') }}
       ICHOR_API_CF_ACCESS_CLIENT_SECRET={{ CF_ACCESS_CLIENT_SECRET | default('') }}
