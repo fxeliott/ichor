@@ -1,0 +1,1799 @@
+{
+  "_meta": {
+    "case_count": 179,
+    "contract": "S06 Chantier C / C-1 golden-card diff harness. Frozen fuse_conviction(ConvictionGrounding) over build_input_matrix(). Slice C-2 must keep this byte-identical with the votes flag OFF (assert_fuser_golden). Regenerate ONLY via ICHOR_REGEN_GOLDEN=1 after an INTENDED fusion change.",
+    "float_ndigits": 9
+  },
+  "cases": {
+    "asset_sign/full_edge_down/usd_down/AUD_USD": {
+      "agreeing": [],
+      "agreement_factor": 0.9,
+      "base_conviction_pct": 60.0,
+      "conviction_pct": 54.0,
+      "direction": "down",
+      "disagreeing": ["dollar_coherence"],
+      "rationale_fr": "Conviction 54 % (biais baissier). Aucune preuve concordante ; en désaccord : cohérence dollar.",
+      "soft_zone_scale": 1.0
+    },
+    "asset_sign/full_edge_down/usd_down/EUR_USD": {
+      "agreeing": [],
+      "agreement_factor": 0.9,
+      "base_conviction_pct": 60.0,
+      "conviction_pct": 54.0,
+      "direction": "down",
+      "disagreeing": ["dollar_coherence"],
+      "rationale_fr": "Conviction 54 % (biais baissier). Aucune preuve concordante ; en désaccord : cohérence dollar.",
+      "soft_zone_scale": 1.0
+    },
+    "asset_sign/full_edge_down/usd_down/GBP_USD": {
+      "agreeing": [],
+      "agreement_factor": 0.9,
+      "base_conviction_pct": 60.0,
+      "conviction_pct": 54.0,
+      "direction": "down",
+      "disagreeing": ["dollar_coherence"],
+      "rationale_fr": "Conviction 54 % (biais baissier). Aucune preuve concordante ; en désaccord : cohérence dollar.",
+      "soft_zone_scale": 1.0
+    },
+    "asset_sign/full_edge_down/usd_down/NAS100_USD": {
+      "agreeing": [],
+      "agreement_factor": 0.9,
+      "base_conviction_pct": 60.0,
+      "conviction_pct": 54.0,
+      "direction": "down",
+      "disagreeing": ["dollar_coherence"],
+      "rationale_fr": "Conviction 54 % (biais baissier). Aucune preuve concordante ; en désaccord : cohérence dollar.",
+      "soft_zone_scale": 1.0
+    },
+    "asset_sign/full_edge_down/usd_down/SPX500_USD": {
+      "agreeing": [],
+      "agreement_factor": 0.9,
+      "base_conviction_pct": 60.0,
+      "conviction_pct": 54.0,
+      "direction": "down",
+      "disagreeing": ["dollar_coherence"],
+      "rationale_fr": "Conviction 54 % (biais baissier). Aucune preuve concordante ; en désaccord : cohérence dollar.",
+      "soft_zone_scale": 1.0
+    },
+    "asset_sign/full_edge_down/usd_down/USD_CAD": {
+      "agreeing": ["dollar_coherence"],
+      "agreement_factor": 1.1,
+      "base_conviction_pct": 60.0,
+      "conviction_pct": 66.0,
+      "direction": "down",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 66 % (biais baissier). Preuves concordantes : cohérence dollar ; aucun désaccord.",
+      "soft_zone_scale": 1.0
+    },
+    "asset_sign/full_edge_down/usd_down/USD_JPY": {
+      "agreeing": ["dollar_coherence"],
+      "agreement_factor": 1.1,
+      "base_conviction_pct": 60.0,
+      "conviction_pct": 66.0,
+      "direction": "down",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 66 % (biais baissier). Preuves concordantes : cohérence dollar ; aucun désaccord.",
+      "soft_zone_scale": 1.0
+    },
+    "asset_sign/full_edge_down/usd_down/XAU_USD": {
+      "agreeing": [],
+      "agreement_factor": 0.9,
+      "base_conviction_pct": 60.0,
+      "conviction_pct": 54.0,
+      "direction": "down",
+      "disagreeing": ["dollar_coherence"],
+      "rationale_fr": "Conviction 54 % (biais baissier). Aucune preuve concordante ; en désaccord : cohérence dollar.",
+      "soft_zone_scale": 1.0
+    },
+    "asset_sign/full_edge_down/usd_down/ZZZ_ZZZ": {
+      "agreeing": [],
+      "agreement_factor": 1.0,
+      "base_conviction_pct": 60.0,
+      "conviction_pct": 60.0,
+      "direction": "down",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 60 % (biais baissier). Aucune preuve de synthèse disponible (conviction issue des seuls scénarios).",
+      "soft_zone_scale": 1.0
+    },
+    "asset_sign/full_edge_down/usd_up/AUD_USD": {
+      "agreeing": ["dollar_coherence"],
+      "agreement_factor": 1.1,
+      "base_conviction_pct": 60.0,
+      "conviction_pct": 66.0,
+      "direction": "down",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 66 % (biais baissier). Preuves concordantes : cohérence dollar ; aucun désaccord.",
+      "soft_zone_scale": 1.0
+    },
+    "asset_sign/full_edge_down/usd_up/EUR_USD": {
+      "agreeing": ["dollar_coherence"],
+      "agreement_factor": 1.1,
+      "base_conviction_pct": 60.0,
+      "conviction_pct": 66.0,
+      "direction": "down",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 66 % (biais baissier). Preuves concordantes : cohérence dollar ; aucun désaccord.",
+      "soft_zone_scale": 1.0
+    },
+    "asset_sign/full_edge_down/usd_up/GBP_USD": {
+      "agreeing": ["dollar_coherence"],
+      "agreement_factor": 1.1,
+      "base_conviction_pct": 60.0,
+      "conviction_pct": 66.0,
+      "direction": "down",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 66 % (biais baissier). Preuves concordantes : cohérence dollar ; aucun désaccord.",
+      "soft_zone_scale": 1.0
+    },
+    "asset_sign/full_edge_down/usd_up/NAS100_USD": {
+      "agreeing": ["dollar_coherence"],
+      "agreement_factor": 1.1,
+      "base_conviction_pct": 60.0,
+      "conviction_pct": 66.0,
+      "direction": "down",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 66 % (biais baissier). Preuves concordantes : cohérence dollar ; aucun désaccord.",
+      "soft_zone_scale": 1.0
+    },
+    "asset_sign/full_edge_down/usd_up/SPX500_USD": {
+      "agreeing": ["dollar_coherence"],
+      "agreement_factor": 1.1,
+      "base_conviction_pct": 60.0,
+      "conviction_pct": 66.0,
+      "direction": "down",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 66 % (biais baissier). Preuves concordantes : cohérence dollar ; aucun désaccord.",
+      "soft_zone_scale": 1.0
+    },
+    "asset_sign/full_edge_down/usd_up/USD_CAD": {
+      "agreeing": [],
+      "agreement_factor": 0.9,
+      "base_conviction_pct": 60.0,
+      "conviction_pct": 54.0,
+      "direction": "down",
+      "disagreeing": ["dollar_coherence"],
+      "rationale_fr": "Conviction 54 % (biais baissier). Aucune preuve concordante ; en désaccord : cohérence dollar.",
+      "soft_zone_scale": 1.0
+    },
+    "asset_sign/full_edge_down/usd_up/USD_JPY": {
+      "agreeing": [],
+      "agreement_factor": 0.9,
+      "base_conviction_pct": 60.0,
+      "conviction_pct": 54.0,
+      "direction": "down",
+      "disagreeing": ["dollar_coherence"],
+      "rationale_fr": "Conviction 54 % (biais baissier). Aucune preuve concordante ; en désaccord : cohérence dollar.",
+      "soft_zone_scale": 1.0
+    },
+    "asset_sign/full_edge_down/usd_up/XAU_USD": {
+      "agreeing": ["dollar_coherence"],
+      "agreement_factor": 1.1,
+      "base_conviction_pct": 60.0,
+      "conviction_pct": 66.0,
+      "direction": "down",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 66 % (biais baissier). Preuves concordantes : cohérence dollar ; aucun désaccord.",
+      "soft_zone_scale": 1.0
+    },
+    "asset_sign/full_edge_down/usd_up/ZZZ_ZZZ": {
+      "agreeing": [],
+      "agreement_factor": 1.0,
+      "base_conviction_pct": 60.0,
+      "conviction_pct": 60.0,
+      "direction": "down",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 60 % (biais baissier). Aucune preuve de synthèse disponible (conviction issue des seuls scénarios).",
+      "soft_zone_scale": 1.0
+    },
+    "asset_sign/full_edge_up/usd_down/AUD_USD": {
+      "agreeing": ["dollar_coherence"],
+      "agreement_factor": 1.1,
+      "base_conviction_pct": 60.0,
+      "conviction_pct": 66.0,
+      "direction": "up",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 66 % (biais haussier). Preuves concordantes : cohérence dollar ; aucun désaccord.",
+      "soft_zone_scale": 1.0
+    },
+    "asset_sign/full_edge_up/usd_down/EUR_USD": {
+      "agreeing": ["dollar_coherence"],
+      "agreement_factor": 1.1,
+      "base_conviction_pct": 60.0,
+      "conviction_pct": 66.0,
+      "direction": "up",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 66 % (biais haussier). Preuves concordantes : cohérence dollar ; aucun désaccord.",
+      "soft_zone_scale": 1.0
+    },
+    "asset_sign/full_edge_up/usd_down/GBP_USD": {
+      "agreeing": ["dollar_coherence"],
+      "agreement_factor": 1.1,
+      "base_conviction_pct": 60.0,
+      "conviction_pct": 66.0,
+      "direction": "up",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 66 % (biais haussier). Preuves concordantes : cohérence dollar ; aucun désaccord.",
+      "soft_zone_scale": 1.0
+    },
+    "asset_sign/full_edge_up/usd_down/NAS100_USD": {
+      "agreeing": ["dollar_coherence"],
+      "agreement_factor": 1.1,
+      "base_conviction_pct": 60.0,
+      "conviction_pct": 66.0,
+      "direction": "up",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 66 % (biais haussier). Preuves concordantes : cohérence dollar ; aucun désaccord.",
+      "soft_zone_scale": 1.0
+    },
+    "asset_sign/full_edge_up/usd_down/SPX500_USD": {
+      "agreeing": ["dollar_coherence"],
+      "agreement_factor": 1.1,
+      "base_conviction_pct": 60.0,
+      "conviction_pct": 66.0,
+      "direction": "up",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 66 % (biais haussier). Preuves concordantes : cohérence dollar ; aucun désaccord.",
+      "soft_zone_scale": 1.0
+    },
+    "asset_sign/full_edge_up/usd_down/USD_CAD": {
+      "agreeing": [],
+      "agreement_factor": 0.9,
+      "base_conviction_pct": 60.0,
+      "conviction_pct": 54.0,
+      "direction": "up",
+      "disagreeing": ["dollar_coherence"],
+      "rationale_fr": "Conviction 54 % (biais haussier). Aucune preuve concordante ; en désaccord : cohérence dollar.",
+      "soft_zone_scale": 1.0
+    },
+    "asset_sign/full_edge_up/usd_down/USD_JPY": {
+      "agreeing": [],
+      "agreement_factor": 0.9,
+      "base_conviction_pct": 60.0,
+      "conviction_pct": 54.0,
+      "direction": "up",
+      "disagreeing": ["dollar_coherence"],
+      "rationale_fr": "Conviction 54 % (biais haussier). Aucune preuve concordante ; en désaccord : cohérence dollar.",
+      "soft_zone_scale": 1.0
+    },
+    "asset_sign/full_edge_up/usd_down/XAU_USD": {
+      "agreeing": ["dollar_coherence"],
+      "agreement_factor": 1.1,
+      "base_conviction_pct": 60.0,
+      "conviction_pct": 66.0,
+      "direction": "up",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 66 % (biais haussier). Preuves concordantes : cohérence dollar ; aucun désaccord.",
+      "soft_zone_scale": 1.0
+    },
+    "asset_sign/full_edge_up/usd_down/ZZZ_ZZZ": {
+      "agreeing": [],
+      "agreement_factor": 1.0,
+      "base_conviction_pct": 60.0,
+      "conviction_pct": 60.0,
+      "direction": "up",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 60 % (biais haussier). Aucune preuve de synthèse disponible (conviction issue des seuls scénarios).",
+      "soft_zone_scale": 1.0
+    },
+    "asset_sign/full_edge_up/usd_up/AUD_USD": {
+      "agreeing": [],
+      "agreement_factor": 0.9,
+      "base_conviction_pct": 60.0,
+      "conviction_pct": 54.0,
+      "direction": "up",
+      "disagreeing": ["dollar_coherence"],
+      "rationale_fr": "Conviction 54 % (biais haussier). Aucune preuve concordante ; en désaccord : cohérence dollar.",
+      "soft_zone_scale": 1.0
+    },
+    "asset_sign/full_edge_up/usd_up/EUR_USD": {
+      "agreeing": [],
+      "agreement_factor": 0.9,
+      "base_conviction_pct": 60.0,
+      "conviction_pct": 54.0,
+      "direction": "up",
+      "disagreeing": ["dollar_coherence"],
+      "rationale_fr": "Conviction 54 % (biais haussier). Aucune preuve concordante ; en désaccord : cohérence dollar.",
+      "soft_zone_scale": 1.0
+    },
+    "asset_sign/full_edge_up/usd_up/GBP_USD": {
+      "agreeing": [],
+      "agreement_factor": 0.9,
+      "base_conviction_pct": 60.0,
+      "conviction_pct": 54.0,
+      "direction": "up",
+      "disagreeing": ["dollar_coherence"],
+      "rationale_fr": "Conviction 54 % (biais haussier). Aucune preuve concordante ; en désaccord : cohérence dollar.",
+      "soft_zone_scale": 1.0
+    },
+    "asset_sign/full_edge_up/usd_up/NAS100_USD": {
+      "agreeing": [],
+      "agreement_factor": 0.9,
+      "base_conviction_pct": 60.0,
+      "conviction_pct": 54.0,
+      "direction": "up",
+      "disagreeing": ["dollar_coherence"],
+      "rationale_fr": "Conviction 54 % (biais haussier). Aucune preuve concordante ; en désaccord : cohérence dollar.",
+      "soft_zone_scale": 1.0
+    },
+    "asset_sign/full_edge_up/usd_up/SPX500_USD": {
+      "agreeing": [],
+      "agreement_factor": 0.9,
+      "base_conviction_pct": 60.0,
+      "conviction_pct": 54.0,
+      "direction": "up",
+      "disagreeing": ["dollar_coherence"],
+      "rationale_fr": "Conviction 54 % (biais haussier). Aucune preuve concordante ; en désaccord : cohérence dollar.",
+      "soft_zone_scale": 1.0
+    },
+    "asset_sign/full_edge_up/usd_up/USD_CAD": {
+      "agreeing": ["dollar_coherence"],
+      "agreement_factor": 1.1,
+      "base_conviction_pct": 60.0,
+      "conviction_pct": 66.0,
+      "direction": "up",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 66 % (biais haussier). Preuves concordantes : cohérence dollar ; aucun désaccord.",
+      "soft_zone_scale": 1.0
+    },
+    "asset_sign/full_edge_up/usd_up/USD_JPY": {
+      "agreeing": ["dollar_coherence"],
+      "agreement_factor": 1.1,
+      "base_conviction_pct": 60.0,
+      "conviction_pct": 66.0,
+      "direction": "up",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 66 % (biais haussier). Preuves concordantes : cohérence dollar ; aucun désaccord.",
+      "soft_zone_scale": 1.0
+    },
+    "asset_sign/full_edge_up/usd_up/XAU_USD": {
+      "agreeing": [],
+      "agreement_factor": 0.9,
+      "base_conviction_pct": 60.0,
+      "conviction_pct": 54.0,
+      "direction": "up",
+      "disagreeing": ["dollar_coherence"],
+      "rationale_fr": "Conviction 54 % (biais haussier). Aucune preuve concordante ; en désaccord : cohérence dollar.",
+      "soft_zone_scale": 1.0
+    },
+    "asset_sign/full_edge_up/usd_up/ZZZ_ZZZ": {
+      "agreeing": [],
+      "agreement_factor": 1.0,
+      "base_conviction_pct": 60.0,
+      "conviction_pct": 60.0,
+      "direction": "up",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 60 % (biais haussier). Aucune preuve de synthèse disponible (conviction issue des seuls scénarios).",
+      "soft_zone_scale": 1.0
+    },
+    "behaviour/boundary_hard/all_aligned_up_bias": {
+      "agreeing": [],
+      "agreement_factor": 1.0,
+      "base_conviction_pct": 5.0,
+      "conviction_pct": 0.0,
+      "direction": "neutral",
+      "disagreeing": [],
+      "rationale_fr": "Conviction nulle : la décomposition des scénarios est trop équilibrée (écart 5.0 pts < 5 pts) — aucune direction tranchée. Honnêteté calibrée : Ichor ne force pas un pile ou face.",
+      "soft_zone_scale": 0.0
+    },
+    "behaviour/boundary_hard/all_opposed_up_bias": {
+      "agreeing": [],
+      "agreement_factor": 1.0,
+      "base_conviction_pct": 5.0,
+      "conviction_pct": 0.0,
+      "direction": "neutral",
+      "disagreeing": [],
+      "rationale_fr": "Conviction nulle : la décomposition des scénarios est trop équilibrée (écart 5.0 pts < 5 pts) — aucune direction tranchée. Honnêteté calibrée : Ichor ne force pas un pile ou face.",
+      "soft_zone_scale": 0.0
+    },
+    "behaviour/boundary_hard/conf_long": {
+      "agreeing": [],
+      "agreement_factor": 1.0,
+      "base_conviction_pct": 5.0,
+      "conviction_pct": 0.0,
+      "direction": "neutral",
+      "disagreeing": [],
+      "rationale_fr": "Conviction nulle : la décomposition des scénarios est trop équilibrée (écart 5.0 pts < 5 pts) — aucune direction tranchée. Honnêteté calibrée : Ichor ne force pas un pile ou face.",
+      "soft_zone_scale": 0.0
+    },
+    "behaviour/boundary_hard/conf_neutral": {
+      "agreeing": [],
+      "agreement_factor": 1.0,
+      "base_conviction_pct": 5.0,
+      "conviction_pct": 0.0,
+      "direction": "neutral",
+      "disagreeing": [],
+      "rationale_fr": "Conviction nulle : la décomposition des scénarios est trop équilibrée (écart 5.0 pts < 5 pts) — aucune direction tranchée. Honnêteté calibrée : Ichor ne force pas un pile ou face.",
+      "soft_zone_scale": 0.0
+    },
+    "behaviour/boundary_hard/conf_short": {
+      "agreeing": [],
+      "agreement_factor": 1.0,
+      "base_conviction_pct": 5.0,
+      "conviction_pct": 0.0,
+      "direction": "neutral",
+      "disagreeing": [],
+      "rationale_fr": "Conviction nulle : la décomposition des scénarios est trop équilibrée (écart 5.0 pts < 5 pts) — aucune direction tranchée. Honnêteté calibrée : Ichor ne force pas un pile ou face.",
+      "soft_zone_scale": 0.0
+    },
+    "behaviour/boundary_hard/conf_short_usd_opp_no_theme": {
+      "agreeing": [],
+      "agreement_factor": 1.0,
+      "base_conviction_pct": 5.0,
+      "conviction_pct": 0.0,
+      "direction": "neutral",
+      "disagreeing": [],
+      "rationale_fr": "Conviction nulle : la décomposition des scénarios est trop équilibrée (écart 5.0 pts < 5 pts) — aucune direction tranchée. Honnêteté calibrée : Ichor ne force pas un pile ou face.",
+      "soft_zone_scale": 0.0
+    },
+    "behaviour/boundary_hard/no_evidence": {
+      "agreeing": [],
+      "agreement_factor": 1.0,
+      "base_conviction_pct": 5.0,
+      "conviction_pct": 0.0,
+      "direction": "neutral",
+      "disagreeing": [],
+      "rationale_fr": "Conviction nulle : la décomposition des scénarios est trop équilibrée (écart 5.0 pts < 5 pts) — aucune direction tranchée. Honnêteté calibrée : Ichor ne force pas un pile ou face.",
+      "soft_zone_scale": 0.0
+    },
+    "behaviour/boundary_hard/theme_only": {
+      "agreeing": [],
+      "agreement_factor": 1.0,
+      "base_conviction_pct": 5.0,
+      "conviction_pct": 0.0,
+      "direction": "neutral",
+      "disagreeing": [],
+      "rationale_fr": "Conviction nulle : la décomposition des scénarios est trop équilibrée (écart 5.0 pts < 5 pts) — aucune direction tranchée. Honnêteté calibrée : Ichor ne force pas un pile ou face.",
+      "soft_zone_scale": 0.0
+    },
+    "behaviour/boundary_hard/usd_down_full": {
+      "agreeing": [],
+      "agreement_factor": 1.0,
+      "base_conviction_pct": 5.0,
+      "conviction_pct": 0.0,
+      "direction": "neutral",
+      "disagreeing": [],
+      "rationale_fr": "Conviction nulle : la décomposition des scénarios est trop équilibrée (écart 5.0 pts < 5 pts) — aucune direction tranchée. Honnêteté calibrée : Ichor ne force pas un pile ou face.",
+      "soft_zone_scale": 0.0
+    },
+    "behaviour/boundary_hard/usd_mixed": {
+      "agreeing": [],
+      "agreement_factor": 1.0,
+      "base_conviction_pct": 5.0,
+      "conviction_pct": 0.0,
+      "direction": "neutral",
+      "disagreeing": [],
+      "rationale_fr": "Conviction nulle : la décomposition des scénarios est trop équilibrée (écart 5.0 pts < 5 pts) — aucune direction tranchée. Honnêteté calibrée : Ichor ne force pas un pile ou face.",
+      "soft_zone_scale": 0.0
+    },
+    "behaviour/boundary_hard/usd_neutral_consensus": {
+      "agreeing": [],
+      "agreement_factor": 1.0,
+      "base_conviction_pct": 5.0,
+      "conviction_pct": 0.0,
+      "direction": "neutral",
+      "disagreeing": [],
+      "rationale_fr": "Conviction nulle : la décomposition des scénarios est trop équilibrée (écart 5.0 pts < 5 pts) — aucune direction tranchée. Honnêteté calibrée : Ichor ne force pas un pile ou face.",
+      "soft_zone_scale": 0.0
+    },
+    "behaviour/boundary_hard/usd_up_full": {
+      "agreeing": [],
+      "agreement_factor": 1.0,
+      "base_conviction_pct": 5.0,
+      "conviction_pct": 0.0,
+      "direction": "neutral",
+      "disagreeing": [],
+      "rationale_fr": "Conviction nulle : la décomposition des scénarios est trop équilibrée (écart 5.0 pts < 5 pts) — aucune direction tranchée. Honnêteté calibrée : Ichor ne force pas un pile ou face.",
+      "soft_zone_scale": 0.0
+    },
+    "behaviour/boundary_hard/usd_up_half": {
+      "agreeing": [],
+      "agreement_factor": 1.0,
+      "base_conviction_pct": 5.0,
+      "conviction_pct": 0.0,
+      "direction": "neutral",
+      "disagreeing": [],
+      "rationale_fr": "Conviction nulle : la décomposition des scénarios est trop équilibrée (écart 5.0 pts < 5 pts) — aucune direction tranchée. Honnêteté calibrée : Ichor ne force pas un pile ou face.",
+      "soft_zone_scale": 0.0
+    },
+    "behaviour/coinflip_hard/all_aligned_up_bias": {
+      "agreeing": [],
+      "agreement_factor": 1.0,
+      "base_conviction_pct": 50.0,
+      "conviction_pct": 0.0,
+      "direction": "neutral",
+      "disagreeing": [],
+      "rationale_fr": "Conviction nulle : la décomposition des scénarios est trop équilibrée (écart 2.0 pts < 5 pts) — aucune direction tranchée. Honnêteté calibrée : Ichor ne force pas un pile ou face.",
+      "soft_zone_scale": 0.0
+    },
+    "behaviour/coinflip_hard/all_opposed_up_bias": {
+      "agreeing": [],
+      "agreement_factor": 1.0,
+      "base_conviction_pct": 50.0,
+      "conviction_pct": 0.0,
+      "direction": "neutral",
+      "disagreeing": [],
+      "rationale_fr": "Conviction nulle : la décomposition des scénarios est trop équilibrée (écart 2.0 pts < 5 pts) — aucune direction tranchée. Honnêteté calibrée : Ichor ne force pas un pile ou face.",
+      "soft_zone_scale": 0.0
+    },
+    "behaviour/coinflip_hard/conf_long": {
+      "agreeing": [],
+      "agreement_factor": 1.0,
+      "base_conviction_pct": 50.0,
+      "conviction_pct": 0.0,
+      "direction": "neutral",
+      "disagreeing": [],
+      "rationale_fr": "Conviction nulle : la décomposition des scénarios est trop équilibrée (écart 2.0 pts < 5 pts) — aucune direction tranchée. Honnêteté calibrée : Ichor ne force pas un pile ou face.",
+      "soft_zone_scale": 0.0
+    },
+    "behaviour/coinflip_hard/conf_neutral": {
+      "agreeing": [],
+      "agreement_factor": 1.0,
+      "base_conviction_pct": 50.0,
+      "conviction_pct": 0.0,
+      "direction": "neutral",
+      "disagreeing": [],
+      "rationale_fr": "Conviction nulle : la décomposition des scénarios est trop équilibrée (écart 2.0 pts < 5 pts) — aucune direction tranchée. Honnêteté calibrée : Ichor ne force pas un pile ou face.",
+      "soft_zone_scale": 0.0
+    },
+    "behaviour/coinflip_hard/conf_short": {
+      "agreeing": [],
+      "agreement_factor": 1.0,
+      "base_conviction_pct": 50.0,
+      "conviction_pct": 0.0,
+      "direction": "neutral",
+      "disagreeing": [],
+      "rationale_fr": "Conviction nulle : la décomposition des scénarios est trop équilibrée (écart 2.0 pts < 5 pts) — aucune direction tranchée. Honnêteté calibrée : Ichor ne force pas un pile ou face.",
+      "soft_zone_scale": 0.0
+    },
+    "behaviour/coinflip_hard/conf_short_usd_opp_no_theme": {
+      "agreeing": [],
+      "agreement_factor": 1.0,
+      "base_conviction_pct": 50.0,
+      "conviction_pct": 0.0,
+      "direction": "neutral",
+      "disagreeing": [],
+      "rationale_fr": "Conviction nulle : la décomposition des scénarios est trop équilibrée (écart 2.0 pts < 5 pts) — aucune direction tranchée. Honnêteté calibrée : Ichor ne force pas un pile ou face.",
+      "soft_zone_scale": 0.0
+    },
+    "behaviour/coinflip_hard/no_evidence": {
+      "agreeing": [],
+      "agreement_factor": 1.0,
+      "base_conviction_pct": 50.0,
+      "conviction_pct": 0.0,
+      "direction": "neutral",
+      "disagreeing": [],
+      "rationale_fr": "Conviction nulle : la décomposition des scénarios est trop équilibrée (écart 2.0 pts < 5 pts) — aucune direction tranchée. Honnêteté calibrée : Ichor ne force pas un pile ou face.",
+      "soft_zone_scale": 0.0
+    },
+    "behaviour/coinflip_hard/theme_only": {
+      "agreeing": [],
+      "agreement_factor": 1.0,
+      "base_conviction_pct": 50.0,
+      "conviction_pct": 0.0,
+      "direction": "neutral",
+      "disagreeing": [],
+      "rationale_fr": "Conviction nulle : la décomposition des scénarios est trop équilibrée (écart 2.0 pts < 5 pts) — aucune direction tranchée. Honnêteté calibrée : Ichor ne force pas un pile ou face.",
+      "soft_zone_scale": 0.0
+    },
+    "behaviour/coinflip_hard/usd_down_full": {
+      "agreeing": [],
+      "agreement_factor": 1.0,
+      "base_conviction_pct": 50.0,
+      "conviction_pct": 0.0,
+      "direction": "neutral",
+      "disagreeing": [],
+      "rationale_fr": "Conviction nulle : la décomposition des scénarios est trop équilibrée (écart 2.0 pts < 5 pts) — aucune direction tranchée. Honnêteté calibrée : Ichor ne force pas un pile ou face.",
+      "soft_zone_scale": 0.0
+    },
+    "behaviour/coinflip_hard/usd_mixed": {
+      "agreeing": [],
+      "agreement_factor": 1.0,
+      "base_conviction_pct": 50.0,
+      "conviction_pct": 0.0,
+      "direction": "neutral",
+      "disagreeing": [],
+      "rationale_fr": "Conviction nulle : la décomposition des scénarios est trop équilibrée (écart 2.0 pts < 5 pts) — aucune direction tranchée. Honnêteté calibrée : Ichor ne force pas un pile ou face.",
+      "soft_zone_scale": 0.0
+    },
+    "behaviour/coinflip_hard/usd_neutral_consensus": {
+      "agreeing": [],
+      "agreement_factor": 1.0,
+      "base_conviction_pct": 50.0,
+      "conviction_pct": 0.0,
+      "direction": "neutral",
+      "disagreeing": [],
+      "rationale_fr": "Conviction nulle : la décomposition des scénarios est trop équilibrée (écart 2.0 pts < 5 pts) — aucune direction tranchée. Honnêteté calibrée : Ichor ne force pas un pile ou face.",
+      "soft_zone_scale": 0.0
+    },
+    "behaviour/coinflip_hard/usd_up_full": {
+      "agreeing": [],
+      "agreement_factor": 1.0,
+      "base_conviction_pct": 50.0,
+      "conviction_pct": 0.0,
+      "direction": "neutral",
+      "disagreeing": [],
+      "rationale_fr": "Conviction nulle : la décomposition des scénarios est trop équilibrée (écart 2.0 pts < 5 pts) — aucune direction tranchée. Honnêteté calibrée : Ichor ne force pas un pile ou face.",
+      "soft_zone_scale": 0.0
+    },
+    "behaviour/coinflip_hard/usd_up_half": {
+      "agreeing": [],
+      "agreement_factor": 1.0,
+      "base_conviction_pct": 50.0,
+      "conviction_pct": 0.0,
+      "direction": "neutral",
+      "disagreeing": [],
+      "rationale_fr": "Conviction nulle : la décomposition des scénarios est trop équilibrée (écart 2.0 pts < 5 pts) — aucune direction tranchée. Honnêteté calibrée : Ichor ne force pas un pile ou face.",
+      "soft_zone_scale": 0.0
+    },
+    "behaviour/full_edge_down/all_aligned_up_bias": {
+      "agreeing": ["theme"],
+      "agreement_factor": 0.85,
+      "base_conviction_pct": 60.0,
+      "conviction_pct": 51.0,
+      "direction": "down",
+      "disagreeing": ["confluence", "dollar_coherence"],
+      "rationale_fr": "Conviction 51 % (biais baissier). Preuves concordantes : thème dominant ; en désaccord : confluence des facteurs et cohérence dollar.",
+      "soft_zone_scale": 1.0
+    },
+    "behaviour/full_edge_down/all_opposed_up_bias": {
+      "agreeing": ["confluence", "dollar_coherence", "theme"],
+      "agreement_factor": 1.25,
+      "base_conviction_pct": 60.0,
+      "conviction_pct": 75.0,
+      "direction": "down",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 75 % (biais baissier). Preuves concordantes : confluence des facteurs, cohérence dollar et thème dominant ; aucun désaccord.",
+      "soft_zone_scale": 1.0
+    },
+    "behaviour/full_edge_down/conf_long": {
+      "agreeing": [],
+      "agreement_factor": 0.9,
+      "base_conviction_pct": 60.0,
+      "conviction_pct": 54.0,
+      "direction": "down",
+      "disagreeing": ["confluence"],
+      "rationale_fr": "Conviction 54 % (biais baissier). Aucune preuve concordante ; en désaccord : confluence des facteurs.",
+      "soft_zone_scale": 1.0
+    },
+    "behaviour/full_edge_down/conf_neutral": {
+      "agreeing": [],
+      "agreement_factor": 1.0,
+      "base_conviction_pct": 60.0,
+      "conviction_pct": 60.0,
+      "direction": "down",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 60 % (biais baissier). Aucune preuve de synthèse disponible (conviction issue des seuls scénarios).",
+      "soft_zone_scale": 1.0
+    },
+    "behaviour/full_edge_down/conf_short": {
+      "agreeing": ["confluence"],
+      "agreement_factor": 1.1,
+      "base_conviction_pct": 60.0,
+      "conviction_pct": 66.0,
+      "direction": "down",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 66 % (biais baissier). Preuves concordantes : confluence des facteurs ; aucun désaccord.",
+      "soft_zone_scale": 1.0
+    },
+    "behaviour/full_edge_down/conf_short_usd_opp_no_theme": {
+      "agreeing": ["confluence", "dollar_coherence"],
+      "agreement_factor": 1.2,
+      "base_conviction_pct": 60.0,
+      "conviction_pct": 72.0,
+      "direction": "down",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 72 % (biais baissier). Preuves concordantes : confluence des facteurs et cohérence dollar ; aucun désaccord.",
+      "soft_zone_scale": 1.0
+    },
+    "behaviour/full_edge_down/no_evidence": {
+      "agreeing": [],
+      "agreement_factor": 1.0,
+      "base_conviction_pct": 60.0,
+      "conviction_pct": 60.0,
+      "direction": "down",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 60 % (biais baissier). Aucune preuve de synthèse disponible (conviction issue des seuls scénarios).",
+      "soft_zone_scale": 1.0
+    },
+    "behaviour/full_edge_down/theme_only": {
+      "agreeing": ["theme"],
+      "agreement_factor": 1.05,
+      "base_conviction_pct": 60.0,
+      "conviction_pct": 63.0,
+      "direction": "down",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 63 % (biais baissier). Preuves concordantes : thème dominant ; aucun désaccord.",
+      "soft_zone_scale": 1.0
+    },
+    "behaviour/full_edge_down/usd_down_full": {
+      "agreeing": [],
+      "agreement_factor": 0.9,
+      "base_conviction_pct": 60.0,
+      "conviction_pct": 54.0,
+      "direction": "down",
+      "disagreeing": ["dollar_coherence"],
+      "rationale_fr": "Conviction 54 % (biais baissier). Aucune preuve concordante ; en désaccord : cohérence dollar.",
+      "soft_zone_scale": 1.0
+    },
+    "behaviour/full_edge_down/usd_mixed": {
+      "agreeing": [],
+      "agreement_factor": 1.0,
+      "base_conviction_pct": 60.0,
+      "conviction_pct": 60.0,
+      "direction": "down",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 60 % (biais baissier). Aucune preuve de synthèse disponible (conviction issue des seuls scénarios).",
+      "soft_zone_scale": 1.0
+    },
+    "behaviour/full_edge_down/usd_neutral_consensus": {
+      "agreeing": [],
+      "agreement_factor": 1.0,
+      "base_conviction_pct": 60.0,
+      "conviction_pct": 60.0,
+      "direction": "down",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 60 % (biais baissier). Aucune preuve de synthèse disponible (conviction issue des seuls scénarios).",
+      "soft_zone_scale": 1.0
+    },
+    "behaviour/full_edge_down/usd_up_full": {
+      "agreeing": ["dollar_coherence"],
+      "agreement_factor": 1.1,
+      "base_conviction_pct": 60.0,
+      "conviction_pct": 66.0,
+      "direction": "down",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 66 % (biais baissier). Preuves concordantes : cohérence dollar ; aucun désaccord.",
+      "soft_zone_scale": 1.0
+    },
+    "behaviour/full_edge_down/usd_up_half": {
+      "agreeing": ["dollar_coherence"],
+      "agreement_factor": 1.05,
+      "base_conviction_pct": 60.0,
+      "conviction_pct": 63.0,
+      "direction": "down",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 63 % (biais baissier). Preuves concordantes : cohérence dollar ; aucun désaccord.",
+      "soft_zone_scale": 1.0
+    },
+    "behaviour/full_edge_up/all_aligned_up_bias": {
+      "agreeing": ["confluence", "dollar_coherence", "theme"],
+      "agreement_factor": 1.25,
+      "base_conviction_pct": 60.0,
+      "conviction_pct": 75.0,
+      "direction": "up",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 75 % (biais haussier). Preuves concordantes : confluence des facteurs, cohérence dollar et thème dominant ; aucun désaccord.",
+      "soft_zone_scale": 1.0
+    },
+    "behaviour/full_edge_up/all_opposed_up_bias": {
+      "agreeing": ["theme"],
+      "agreement_factor": 0.85,
+      "base_conviction_pct": 60.0,
+      "conviction_pct": 51.0,
+      "direction": "up",
+      "disagreeing": ["confluence", "dollar_coherence"],
+      "rationale_fr": "Conviction 51 % (biais haussier). Preuves concordantes : thème dominant ; en désaccord : confluence des facteurs et cohérence dollar.",
+      "soft_zone_scale": 1.0
+    },
+    "behaviour/full_edge_up/conf_long": {
+      "agreeing": ["confluence"],
+      "agreement_factor": 1.1,
+      "base_conviction_pct": 60.0,
+      "conviction_pct": 66.0,
+      "direction": "up",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 66 % (biais haussier). Preuves concordantes : confluence des facteurs ; aucun désaccord.",
+      "soft_zone_scale": 1.0
+    },
+    "behaviour/full_edge_up/conf_neutral": {
+      "agreeing": [],
+      "agreement_factor": 1.0,
+      "base_conviction_pct": 60.0,
+      "conviction_pct": 60.0,
+      "direction": "up",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 60 % (biais haussier). Aucune preuve de synthèse disponible (conviction issue des seuls scénarios).",
+      "soft_zone_scale": 1.0
+    },
+    "behaviour/full_edge_up/conf_short": {
+      "agreeing": [],
+      "agreement_factor": 0.9,
+      "base_conviction_pct": 60.0,
+      "conviction_pct": 54.0,
+      "direction": "up",
+      "disagreeing": ["confluence"],
+      "rationale_fr": "Conviction 54 % (biais haussier). Aucune preuve concordante ; en désaccord : confluence des facteurs.",
+      "soft_zone_scale": 1.0
+    },
+    "behaviour/full_edge_up/conf_short_usd_opp_no_theme": {
+      "agreeing": [],
+      "agreement_factor": 0.8,
+      "base_conviction_pct": 60.0,
+      "conviction_pct": 48.0,
+      "direction": "up",
+      "disagreeing": ["confluence", "dollar_coherence"],
+      "rationale_fr": "Conviction 48 % (biais haussier). Aucune preuve concordante ; en désaccord : confluence des facteurs et cohérence dollar.",
+      "soft_zone_scale": 1.0
+    },
+    "behaviour/full_edge_up/no_evidence": {
+      "agreeing": [],
+      "agreement_factor": 1.0,
+      "base_conviction_pct": 60.0,
+      "conviction_pct": 60.0,
+      "direction": "up",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 60 % (biais haussier). Aucune preuve de synthèse disponible (conviction issue des seuls scénarios).",
+      "soft_zone_scale": 1.0
+    },
+    "behaviour/full_edge_up/theme_only": {
+      "agreeing": ["theme"],
+      "agreement_factor": 1.05,
+      "base_conviction_pct": 60.0,
+      "conviction_pct": 63.0,
+      "direction": "up",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 63 % (biais haussier). Preuves concordantes : thème dominant ; aucun désaccord.",
+      "soft_zone_scale": 1.0
+    },
+    "behaviour/full_edge_up/usd_down_full": {
+      "agreeing": ["dollar_coherence"],
+      "agreement_factor": 1.1,
+      "base_conviction_pct": 60.0,
+      "conviction_pct": 66.0,
+      "direction": "up",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 66 % (biais haussier). Preuves concordantes : cohérence dollar ; aucun désaccord.",
+      "soft_zone_scale": 1.0
+    },
+    "behaviour/full_edge_up/usd_mixed": {
+      "agreeing": [],
+      "agreement_factor": 1.0,
+      "base_conviction_pct": 60.0,
+      "conviction_pct": 60.0,
+      "direction": "up",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 60 % (biais haussier). Aucune preuve de synthèse disponible (conviction issue des seuls scénarios).",
+      "soft_zone_scale": 1.0
+    },
+    "behaviour/full_edge_up/usd_neutral_consensus": {
+      "agreeing": [],
+      "agreement_factor": 1.0,
+      "base_conviction_pct": 60.0,
+      "conviction_pct": 60.0,
+      "direction": "up",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 60 % (biais haussier). Aucune preuve de synthèse disponible (conviction issue des seuls scénarios).",
+      "soft_zone_scale": 1.0
+    },
+    "behaviour/full_edge_up/usd_up_full": {
+      "agreeing": [],
+      "agreement_factor": 0.9,
+      "base_conviction_pct": 60.0,
+      "conviction_pct": 54.0,
+      "direction": "up",
+      "disagreeing": ["dollar_coherence"],
+      "rationale_fr": "Conviction 54 % (biais haussier). Aucune preuve concordante ; en désaccord : cohérence dollar.",
+      "soft_zone_scale": 1.0
+    },
+    "behaviour/full_edge_up/usd_up_half": {
+      "agreeing": [],
+      "agreement_factor": 0.95,
+      "base_conviction_pct": 60.0,
+      "conviction_pct": 57.0,
+      "direction": "up",
+      "disagreeing": ["dollar_coherence"],
+      "rationale_fr": "Conviction 57 % (biais haussier). Aucune preuve concordante ; en désaccord : cohérence dollar.",
+      "soft_zone_scale": 1.0
+    },
+    "behaviour/near_cap_down/all_aligned_up_bias": {
+      "agreeing": ["theme"],
+      "agreement_factor": 0.85,
+      "base_conviction_pct": 90.0,
+      "conviction_pct": 76.5,
+      "direction": "down",
+      "disagreeing": ["confluence", "dollar_coherence"],
+      "rationale_fr": "Conviction 76 % (biais baissier). Preuves concordantes : thème dominant ; en désaccord : confluence des facteurs et cohérence dollar.",
+      "soft_zone_scale": 1.0
+    },
+    "behaviour/near_cap_down/all_opposed_up_bias": {
+      "agreeing": ["confluence", "dollar_coherence", "theme"],
+      "agreement_factor": 1.25,
+      "base_conviction_pct": 90.0,
+      "conviction_pct": 95.0,
+      "direction": "down",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 95 % (biais baissier). Preuves concordantes : confluence des facteurs, cohérence dollar et thème dominant ; aucun désaccord.",
+      "soft_zone_scale": 1.0
+    },
+    "behaviour/near_cap_down/conf_long": {
+      "agreeing": [],
+      "agreement_factor": 0.9,
+      "base_conviction_pct": 90.0,
+      "conviction_pct": 81.0,
+      "direction": "down",
+      "disagreeing": ["confluence"],
+      "rationale_fr": "Conviction 81 % (biais baissier). Aucune preuve concordante ; en désaccord : confluence des facteurs.",
+      "soft_zone_scale": 1.0
+    },
+    "behaviour/near_cap_down/conf_neutral": {
+      "agreeing": [],
+      "agreement_factor": 1.0,
+      "base_conviction_pct": 90.0,
+      "conviction_pct": 90.0,
+      "direction": "down",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 90 % (biais baissier). Aucune preuve de synthèse disponible (conviction issue des seuls scénarios).",
+      "soft_zone_scale": 1.0
+    },
+    "behaviour/near_cap_down/conf_short": {
+      "agreeing": ["confluence"],
+      "agreement_factor": 1.1,
+      "base_conviction_pct": 90.0,
+      "conviction_pct": 95.0,
+      "direction": "down",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 95 % (biais baissier). Preuves concordantes : confluence des facteurs ; aucun désaccord.",
+      "soft_zone_scale": 1.0
+    },
+    "behaviour/near_cap_down/conf_short_usd_opp_no_theme": {
+      "agreeing": ["confluence", "dollar_coherence"],
+      "agreement_factor": 1.2,
+      "base_conviction_pct": 90.0,
+      "conviction_pct": 95.0,
+      "direction": "down",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 95 % (biais baissier). Preuves concordantes : confluence des facteurs et cohérence dollar ; aucun désaccord.",
+      "soft_zone_scale": 1.0
+    },
+    "behaviour/near_cap_down/no_evidence": {
+      "agreeing": [],
+      "agreement_factor": 1.0,
+      "base_conviction_pct": 90.0,
+      "conviction_pct": 90.0,
+      "direction": "down",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 90 % (biais baissier). Aucune preuve de synthèse disponible (conviction issue des seuls scénarios).",
+      "soft_zone_scale": 1.0
+    },
+    "behaviour/near_cap_down/theme_only": {
+      "agreeing": ["theme"],
+      "agreement_factor": 1.05,
+      "base_conviction_pct": 90.0,
+      "conviction_pct": 94.5,
+      "direction": "down",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 94 % (biais baissier). Preuves concordantes : thème dominant ; aucun désaccord.",
+      "soft_zone_scale": 1.0
+    },
+    "behaviour/near_cap_down/usd_down_full": {
+      "agreeing": [],
+      "agreement_factor": 0.9,
+      "base_conviction_pct": 90.0,
+      "conviction_pct": 81.0,
+      "direction": "down",
+      "disagreeing": ["dollar_coherence"],
+      "rationale_fr": "Conviction 81 % (biais baissier). Aucune preuve concordante ; en désaccord : cohérence dollar.",
+      "soft_zone_scale": 1.0
+    },
+    "behaviour/near_cap_down/usd_mixed": {
+      "agreeing": [],
+      "agreement_factor": 1.0,
+      "base_conviction_pct": 90.0,
+      "conviction_pct": 90.0,
+      "direction": "down",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 90 % (biais baissier). Aucune preuve de synthèse disponible (conviction issue des seuls scénarios).",
+      "soft_zone_scale": 1.0
+    },
+    "behaviour/near_cap_down/usd_neutral_consensus": {
+      "agreeing": [],
+      "agreement_factor": 1.0,
+      "base_conviction_pct": 90.0,
+      "conviction_pct": 90.0,
+      "direction": "down",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 90 % (biais baissier). Aucune preuve de synthèse disponible (conviction issue des seuls scénarios).",
+      "soft_zone_scale": 1.0
+    },
+    "behaviour/near_cap_down/usd_up_full": {
+      "agreeing": ["dollar_coherence"],
+      "agreement_factor": 1.1,
+      "base_conviction_pct": 90.0,
+      "conviction_pct": 95.0,
+      "direction": "down",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 95 % (biais baissier). Preuves concordantes : cohérence dollar ; aucun désaccord.",
+      "soft_zone_scale": 1.0
+    },
+    "behaviour/near_cap_down/usd_up_half": {
+      "agreeing": ["dollar_coherence"],
+      "agreement_factor": 1.05,
+      "base_conviction_pct": 90.0,
+      "conviction_pct": 94.5,
+      "direction": "down",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 94 % (biais baissier). Preuves concordantes : cohérence dollar ; aucun désaccord.",
+      "soft_zone_scale": 1.0
+    },
+    "behaviour/near_cap_up/all_aligned_up_bias": {
+      "agreeing": ["confluence", "dollar_coherence", "theme"],
+      "agreement_factor": 1.25,
+      "base_conviction_pct": 90.0,
+      "conviction_pct": 95.0,
+      "direction": "up",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 95 % (biais haussier). Preuves concordantes : confluence des facteurs, cohérence dollar et thème dominant ; aucun désaccord.",
+      "soft_zone_scale": 1.0
+    },
+    "behaviour/near_cap_up/all_opposed_up_bias": {
+      "agreeing": ["theme"],
+      "agreement_factor": 0.85,
+      "base_conviction_pct": 90.0,
+      "conviction_pct": 76.5,
+      "direction": "up",
+      "disagreeing": ["confluence", "dollar_coherence"],
+      "rationale_fr": "Conviction 76 % (biais haussier). Preuves concordantes : thème dominant ; en désaccord : confluence des facteurs et cohérence dollar.",
+      "soft_zone_scale": 1.0
+    },
+    "behaviour/near_cap_up/conf_long": {
+      "agreeing": ["confluence"],
+      "agreement_factor": 1.1,
+      "base_conviction_pct": 90.0,
+      "conviction_pct": 95.0,
+      "direction": "up",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 95 % (biais haussier). Preuves concordantes : confluence des facteurs ; aucun désaccord.",
+      "soft_zone_scale": 1.0
+    },
+    "behaviour/near_cap_up/conf_neutral": {
+      "agreeing": [],
+      "agreement_factor": 1.0,
+      "base_conviction_pct": 90.0,
+      "conviction_pct": 90.0,
+      "direction": "up",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 90 % (biais haussier). Aucune preuve de synthèse disponible (conviction issue des seuls scénarios).",
+      "soft_zone_scale": 1.0
+    },
+    "behaviour/near_cap_up/conf_short": {
+      "agreeing": [],
+      "agreement_factor": 0.9,
+      "base_conviction_pct": 90.0,
+      "conviction_pct": 81.0,
+      "direction": "up",
+      "disagreeing": ["confluence"],
+      "rationale_fr": "Conviction 81 % (biais haussier). Aucune preuve concordante ; en désaccord : confluence des facteurs.",
+      "soft_zone_scale": 1.0
+    },
+    "behaviour/near_cap_up/conf_short_usd_opp_no_theme": {
+      "agreeing": [],
+      "agreement_factor": 0.8,
+      "base_conviction_pct": 90.0,
+      "conviction_pct": 72.0,
+      "direction": "up",
+      "disagreeing": ["confluence", "dollar_coherence"],
+      "rationale_fr": "Conviction 72 % (biais haussier). Aucune preuve concordante ; en désaccord : confluence des facteurs et cohérence dollar.",
+      "soft_zone_scale": 1.0
+    },
+    "behaviour/near_cap_up/no_evidence": {
+      "agreeing": [],
+      "agreement_factor": 1.0,
+      "base_conviction_pct": 90.0,
+      "conviction_pct": 90.0,
+      "direction": "up",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 90 % (biais haussier). Aucune preuve de synthèse disponible (conviction issue des seuls scénarios).",
+      "soft_zone_scale": 1.0
+    },
+    "behaviour/near_cap_up/theme_only": {
+      "agreeing": ["theme"],
+      "agreement_factor": 1.05,
+      "base_conviction_pct": 90.0,
+      "conviction_pct": 94.5,
+      "direction": "up",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 94 % (biais haussier). Preuves concordantes : thème dominant ; aucun désaccord.",
+      "soft_zone_scale": 1.0
+    },
+    "behaviour/near_cap_up/usd_down_full": {
+      "agreeing": ["dollar_coherence"],
+      "agreement_factor": 1.1,
+      "base_conviction_pct": 90.0,
+      "conviction_pct": 95.0,
+      "direction": "up",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 95 % (biais haussier). Preuves concordantes : cohérence dollar ; aucun désaccord.",
+      "soft_zone_scale": 1.0
+    },
+    "behaviour/near_cap_up/usd_mixed": {
+      "agreeing": [],
+      "agreement_factor": 1.0,
+      "base_conviction_pct": 90.0,
+      "conviction_pct": 90.0,
+      "direction": "up",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 90 % (biais haussier). Aucune preuve de synthèse disponible (conviction issue des seuls scénarios).",
+      "soft_zone_scale": 1.0
+    },
+    "behaviour/near_cap_up/usd_neutral_consensus": {
+      "agreeing": [],
+      "agreement_factor": 1.0,
+      "base_conviction_pct": 90.0,
+      "conviction_pct": 90.0,
+      "direction": "up",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 90 % (biais haussier). Aucune preuve de synthèse disponible (conviction issue des seuls scénarios).",
+      "soft_zone_scale": 1.0
+    },
+    "behaviour/near_cap_up/usd_up_full": {
+      "agreeing": [],
+      "agreement_factor": 0.9,
+      "base_conviction_pct": 90.0,
+      "conviction_pct": 81.0,
+      "direction": "up",
+      "disagreeing": ["dollar_coherence"],
+      "rationale_fr": "Conviction 81 % (biais haussier). Aucune preuve concordante ; en désaccord : cohérence dollar.",
+      "soft_zone_scale": 1.0
+    },
+    "behaviour/near_cap_up/usd_up_half": {
+      "agreeing": [],
+      "agreement_factor": 0.95,
+      "base_conviction_pct": 90.0,
+      "conviction_pct": 85.5,
+      "direction": "up",
+      "disagreeing": ["dollar_coherence"],
+      "rationale_fr": "Conviction 86 % (biais haussier). Aucune preuve concordante ; en désaccord : cohérence dollar.",
+      "soft_zone_scale": 1.0
+    },
+    "behaviour/soft_zone_deep_up/all_aligned_up_bias": {
+      "agreeing": ["confluence", "dollar_coherence", "theme"],
+      "agreement_factor": 1.25,
+      "base_conviction_pct": 31.0,
+      "conviction_pct": 27.125,
+      "direction": "up",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 27 % (biais haussier). Preuves concordantes : confluence des facteurs, cohérence dollar et thème dominant ; aucun désaccord. Bord directionnel faible (zone tampon) : conviction atténuée.",
+      "soft_zone_scale": 0.7
+    },
+    "behaviour/soft_zone_deep_up/all_opposed_up_bias": {
+      "agreeing": ["theme"],
+      "agreement_factor": 0.85,
+      "base_conviction_pct": 31.0,
+      "conviction_pct": 18.445,
+      "direction": "up",
+      "disagreeing": ["confluence", "dollar_coherence"],
+      "rationale_fr": "Conviction 18 % (biais haussier). Preuves concordantes : thème dominant ; en désaccord : confluence des facteurs et cohérence dollar. Bord directionnel faible (zone tampon) : conviction atténuée.",
+      "soft_zone_scale": 0.7
+    },
+    "behaviour/soft_zone_deep_up/conf_long": {
+      "agreeing": ["confluence"],
+      "agreement_factor": 1.1,
+      "base_conviction_pct": 31.0,
+      "conviction_pct": 23.87,
+      "direction": "up",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 24 % (biais haussier). Preuves concordantes : confluence des facteurs ; aucun désaccord. Bord directionnel faible (zone tampon) : conviction atténuée.",
+      "soft_zone_scale": 0.7
+    },
+    "behaviour/soft_zone_deep_up/conf_neutral": {
+      "agreeing": [],
+      "agreement_factor": 1.0,
+      "base_conviction_pct": 31.0,
+      "conviction_pct": 21.7,
+      "direction": "up",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 22 % (biais haussier). Aucune preuve de synthèse disponible (conviction issue des seuls scénarios). Bord directionnel faible (zone tampon) : conviction atténuée.",
+      "soft_zone_scale": 0.7
+    },
+    "behaviour/soft_zone_deep_up/conf_short": {
+      "agreeing": [],
+      "agreement_factor": 0.9,
+      "base_conviction_pct": 31.0,
+      "conviction_pct": 19.53,
+      "direction": "up",
+      "disagreeing": ["confluence"],
+      "rationale_fr": "Conviction 20 % (biais haussier). Aucune preuve concordante ; en désaccord : confluence des facteurs. Bord directionnel faible (zone tampon) : conviction atténuée.",
+      "soft_zone_scale": 0.7
+    },
+    "behaviour/soft_zone_deep_up/conf_short_usd_opp_no_theme": {
+      "agreeing": [],
+      "agreement_factor": 0.8,
+      "base_conviction_pct": 31.0,
+      "conviction_pct": 17.36,
+      "direction": "up",
+      "disagreeing": ["confluence", "dollar_coherence"],
+      "rationale_fr": "Conviction 17 % (biais haussier). Aucune preuve concordante ; en désaccord : confluence des facteurs et cohérence dollar. Bord directionnel faible (zone tampon) : conviction atténuée.",
+      "soft_zone_scale": 0.7
+    },
+    "behaviour/soft_zone_deep_up/no_evidence": {
+      "agreeing": [],
+      "agreement_factor": 1.0,
+      "base_conviction_pct": 31.0,
+      "conviction_pct": 21.7,
+      "direction": "up",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 22 % (biais haussier). Aucune preuve de synthèse disponible (conviction issue des seuls scénarios). Bord directionnel faible (zone tampon) : conviction atténuée.",
+      "soft_zone_scale": 0.7
+    },
+    "behaviour/soft_zone_deep_up/theme_only": {
+      "agreeing": ["theme"],
+      "agreement_factor": 1.05,
+      "base_conviction_pct": 31.0,
+      "conviction_pct": 22.785,
+      "direction": "up",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 23 % (biais haussier). Preuves concordantes : thème dominant ; aucun désaccord. Bord directionnel faible (zone tampon) : conviction atténuée.",
+      "soft_zone_scale": 0.7
+    },
+    "behaviour/soft_zone_deep_up/usd_down_full": {
+      "agreeing": ["dollar_coherence"],
+      "agreement_factor": 1.1,
+      "base_conviction_pct": 31.0,
+      "conviction_pct": 23.87,
+      "direction": "up",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 24 % (biais haussier). Preuves concordantes : cohérence dollar ; aucun désaccord. Bord directionnel faible (zone tampon) : conviction atténuée.",
+      "soft_zone_scale": 0.7
+    },
+    "behaviour/soft_zone_deep_up/usd_mixed": {
+      "agreeing": [],
+      "agreement_factor": 1.0,
+      "base_conviction_pct": 31.0,
+      "conviction_pct": 21.7,
+      "direction": "up",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 22 % (biais haussier). Aucune preuve de synthèse disponible (conviction issue des seuls scénarios). Bord directionnel faible (zone tampon) : conviction atténuée.",
+      "soft_zone_scale": 0.7
+    },
+    "behaviour/soft_zone_deep_up/usd_neutral_consensus": {
+      "agreeing": [],
+      "agreement_factor": 1.0,
+      "base_conviction_pct": 31.0,
+      "conviction_pct": 21.7,
+      "direction": "up",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 22 % (biais haussier). Aucune preuve de synthèse disponible (conviction issue des seuls scénarios). Bord directionnel faible (zone tampon) : conviction atténuée.",
+      "soft_zone_scale": 0.7
+    },
+    "behaviour/soft_zone_deep_up/usd_up_full": {
+      "agreeing": [],
+      "agreement_factor": 0.9,
+      "base_conviction_pct": 31.0,
+      "conviction_pct": 19.53,
+      "direction": "up",
+      "disagreeing": ["dollar_coherence"],
+      "rationale_fr": "Conviction 20 % (biais haussier). Aucune preuve concordante ; en désaccord : cohérence dollar. Bord directionnel faible (zone tampon) : conviction atténuée.",
+      "soft_zone_scale": 0.7
+    },
+    "behaviour/soft_zone_deep_up/usd_up_half": {
+      "agreeing": [],
+      "agreement_factor": 0.95,
+      "base_conviction_pct": 31.0,
+      "conviction_pct": 20.615,
+      "direction": "up",
+      "disagreeing": ["dollar_coherence"],
+      "rationale_fr": "Conviction 21 % (biais haussier). Aucune preuve concordante ; en désaccord : cohérence dollar. Bord directionnel faible (zone tampon) : conviction atténuée.",
+      "soft_zone_scale": 0.7
+    },
+    "behaviour/soft_zone_down/all_aligned_up_bias": {
+      "agreeing": ["theme"],
+      "agreement_factor": 0.85,
+      "base_conviction_pct": 30.0,
+      "conviction_pct": 12.75,
+      "direction": "down",
+      "disagreeing": ["confluence", "dollar_coherence"],
+      "rationale_fr": "Conviction 13 % (biais baissier). Preuves concordantes : thème dominant ; en désaccord : confluence des facteurs et cohérence dollar. Bord directionnel faible (zone tampon) : conviction atténuée.",
+      "soft_zone_scale": 0.5
+    },
+    "behaviour/soft_zone_down/all_opposed_up_bias": {
+      "agreeing": ["confluence", "dollar_coherence", "theme"],
+      "agreement_factor": 1.25,
+      "base_conviction_pct": 30.0,
+      "conviction_pct": 18.75,
+      "direction": "down",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 19 % (biais baissier). Preuves concordantes : confluence des facteurs, cohérence dollar et thème dominant ; aucun désaccord. Bord directionnel faible (zone tampon) : conviction atténuée.",
+      "soft_zone_scale": 0.5
+    },
+    "behaviour/soft_zone_down/conf_long": {
+      "agreeing": [],
+      "agreement_factor": 0.9,
+      "base_conviction_pct": 30.0,
+      "conviction_pct": 13.5,
+      "direction": "down",
+      "disagreeing": ["confluence"],
+      "rationale_fr": "Conviction 13 % (biais baissier). Aucune preuve concordante ; en désaccord : confluence des facteurs. Bord directionnel faible (zone tampon) : conviction atténuée.",
+      "soft_zone_scale": 0.5
+    },
+    "behaviour/soft_zone_down/conf_neutral": {
+      "agreeing": [],
+      "agreement_factor": 1.0,
+      "base_conviction_pct": 30.0,
+      "conviction_pct": 15.0,
+      "direction": "down",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 15 % (biais baissier). Aucune preuve de synthèse disponible (conviction issue des seuls scénarios). Bord directionnel faible (zone tampon) : conviction atténuée.",
+      "soft_zone_scale": 0.5
+    },
+    "behaviour/soft_zone_down/conf_short": {
+      "agreeing": ["confluence"],
+      "agreement_factor": 1.1,
+      "base_conviction_pct": 30.0,
+      "conviction_pct": 16.5,
+      "direction": "down",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 16 % (biais baissier). Preuves concordantes : confluence des facteurs ; aucun désaccord. Bord directionnel faible (zone tampon) : conviction atténuée.",
+      "soft_zone_scale": 0.5
+    },
+    "behaviour/soft_zone_down/conf_short_usd_opp_no_theme": {
+      "agreeing": ["confluence", "dollar_coherence"],
+      "agreement_factor": 1.2,
+      "base_conviction_pct": 30.0,
+      "conviction_pct": 18.0,
+      "direction": "down",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 18 % (biais baissier). Preuves concordantes : confluence des facteurs et cohérence dollar ; aucun désaccord. Bord directionnel faible (zone tampon) : conviction atténuée.",
+      "soft_zone_scale": 0.5
+    },
+    "behaviour/soft_zone_down/no_evidence": {
+      "agreeing": [],
+      "agreement_factor": 1.0,
+      "base_conviction_pct": 30.0,
+      "conviction_pct": 15.0,
+      "direction": "down",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 15 % (biais baissier). Aucune preuve de synthèse disponible (conviction issue des seuls scénarios). Bord directionnel faible (zone tampon) : conviction atténuée.",
+      "soft_zone_scale": 0.5
+    },
+    "behaviour/soft_zone_down/theme_only": {
+      "agreeing": ["theme"],
+      "agreement_factor": 1.05,
+      "base_conviction_pct": 30.0,
+      "conviction_pct": 15.75,
+      "direction": "down",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 16 % (biais baissier). Preuves concordantes : thème dominant ; aucun désaccord. Bord directionnel faible (zone tampon) : conviction atténuée.",
+      "soft_zone_scale": 0.5
+    },
+    "behaviour/soft_zone_down/usd_down_full": {
+      "agreeing": [],
+      "agreement_factor": 0.9,
+      "base_conviction_pct": 30.0,
+      "conviction_pct": 13.5,
+      "direction": "down",
+      "disagreeing": ["dollar_coherence"],
+      "rationale_fr": "Conviction 13 % (biais baissier). Aucune preuve concordante ; en désaccord : cohérence dollar. Bord directionnel faible (zone tampon) : conviction atténuée.",
+      "soft_zone_scale": 0.5
+    },
+    "behaviour/soft_zone_down/usd_mixed": {
+      "agreeing": [],
+      "agreement_factor": 1.0,
+      "base_conviction_pct": 30.0,
+      "conviction_pct": 15.0,
+      "direction": "down",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 15 % (biais baissier). Aucune preuve de synthèse disponible (conviction issue des seuls scénarios). Bord directionnel faible (zone tampon) : conviction atténuée.",
+      "soft_zone_scale": 0.5
+    },
+    "behaviour/soft_zone_down/usd_neutral_consensus": {
+      "agreeing": [],
+      "agreement_factor": 1.0,
+      "base_conviction_pct": 30.0,
+      "conviction_pct": 15.0,
+      "direction": "down",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 15 % (biais baissier). Aucune preuve de synthèse disponible (conviction issue des seuls scénarios). Bord directionnel faible (zone tampon) : conviction atténuée.",
+      "soft_zone_scale": 0.5
+    },
+    "behaviour/soft_zone_down/usd_up_full": {
+      "agreeing": ["dollar_coherence"],
+      "agreement_factor": 1.1,
+      "base_conviction_pct": 30.0,
+      "conviction_pct": 16.5,
+      "direction": "down",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 16 % (biais baissier). Preuves concordantes : cohérence dollar ; aucun désaccord. Bord directionnel faible (zone tampon) : conviction atténuée.",
+      "soft_zone_scale": 0.5
+    },
+    "behaviour/soft_zone_down/usd_up_half": {
+      "agreeing": ["dollar_coherence"],
+      "agreement_factor": 1.05,
+      "base_conviction_pct": 30.0,
+      "conviction_pct": 15.75,
+      "direction": "down",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 16 % (biais baissier). Preuves concordantes : cohérence dollar ; aucun désaccord. Bord directionnel faible (zone tampon) : conviction atténuée.",
+      "soft_zone_scale": 0.5
+    },
+    "behaviour/soft_zone_shallow_up/all_aligned_up_bias": {
+      "agreeing": ["confluence", "dollar_coherence", "theme"],
+      "agreement_factor": 1.25,
+      "base_conviction_pct": 29.0,
+      "conviction_pct": 10.875,
+      "direction": "up",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 11 % (biais haussier). Preuves concordantes : confluence des facteurs, cohérence dollar et thème dominant ; aucun désaccord. Bord directionnel faible (zone tampon) : conviction atténuée.",
+      "soft_zone_scale": 0.3
+    },
+    "behaviour/soft_zone_shallow_up/all_opposed_up_bias": {
+      "agreeing": ["theme"],
+      "agreement_factor": 0.85,
+      "base_conviction_pct": 29.0,
+      "conviction_pct": 7.395,
+      "direction": "up",
+      "disagreeing": ["confluence", "dollar_coherence"],
+      "rationale_fr": "Conviction 7 % (biais haussier). Preuves concordantes : thème dominant ; en désaccord : confluence des facteurs et cohérence dollar. Bord directionnel faible (zone tampon) : conviction atténuée.",
+      "soft_zone_scale": 0.3
+    },
+    "behaviour/soft_zone_shallow_up/conf_long": {
+      "agreeing": ["confluence"],
+      "agreement_factor": 1.1,
+      "base_conviction_pct": 29.0,
+      "conviction_pct": 9.57,
+      "direction": "up",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 10 % (biais haussier). Preuves concordantes : confluence des facteurs ; aucun désaccord. Bord directionnel faible (zone tampon) : conviction atténuée.",
+      "soft_zone_scale": 0.3
+    },
+    "behaviour/soft_zone_shallow_up/conf_neutral": {
+      "agreeing": [],
+      "agreement_factor": 1.0,
+      "base_conviction_pct": 29.0,
+      "conviction_pct": 8.7,
+      "direction": "up",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 9 % (biais haussier). Aucune preuve de synthèse disponible (conviction issue des seuls scénarios). Bord directionnel faible (zone tampon) : conviction atténuée.",
+      "soft_zone_scale": 0.3
+    },
+    "behaviour/soft_zone_shallow_up/conf_short": {
+      "agreeing": [],
+      "agreement_factor": 0.9,
+      "base_conviction_pct": 29.0,
+      "conviction_pct": 7.83,
+      "direction": "up",
+      "disagreeing": ["confluence"],
+      "rationale_fr": "Conviction 8 % (biais haussier). Aucune preuve concordante ; en désaccord : confluence des facteurs. Bord directionnel faible (zone tampon) : conviction atténuée.",
+      "soft_zone_scale": 0.3
+    },
+    "behaviour/soft_zone_shallow_up/conf_short_usd_opp_no_theme": {
+      "agreeing": [],
+      "agreement_factor": 0.8,
+      "base_conviction_pct": 29.0,
+      "conviction_pct": 6.96,
+      "direction": "up",
+      "disagreeing": ["confluence", "dollar_coherence"],
+      "rationale_fr": "Conviction 7 % (biais haussier). Aucune preuve concordante ; en désaccord : confluence des facteurs et cohérence dollar. Bord directionnel faible (zone tampon) : conviction atténuée.",
+      "soft_zone_scale": 0.3
+    },
+    "behaviour/soft_zone_shallow_up/no_evidence": {
+      "agreeing": [],
+      "agreement_factor": 1.0,
+      "base_conviction_pct": 29.0,
+      "conviction_pct": 8.7,
+      "direction": "up",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 9 % (biais haussier). Aucune preuve de synthèse disponible (conviction issue des seuls scénarios). Bord directionnel faible (zone tampon) : conviction atténuée.",
+      "soft_zone_scale": 0.3
+    },
+    "behaviour/soft_zone_shallow_up/theme_only": {
+      "agreeing": ["theme"],
+      "agreement_factor": 1.05,
+      "base_conviction_pct": 29.0,
+      "conviction_pct": 9.135,
+      "direction": "up",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 9 % (biais haussier). Preuves concordantes : thème dominant ; aucun désaccord. Bord directionnel faible (zone tampon) : conviction atténuée.",
+      "soft_zone_scale": 0.3
+    },
+    "behaviour/soft_zone_shallow_up/usd_down_full": {
+      "agreeing": ["dollar_coherence"],
+      "agreement_factor": 1.1,
+      "base_conviction_pct": 29.0,
+      "conviction_pct": 9.57,
+      "direction": "up",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 10 % (biais haussier). Preuves concordantes : cohérence dollar ; aucun désaccord. Bord directionnel faible (zone tampon) : conviction atténuée.",
+      "soft_zone_scale": 0.3
+    },
+    "behaviour/soft_zone_shallow_up/usd_mixed": {
+      "agreeing": [],
+      "agreement_factor": 1.0,
+      "base_conviction_pct": 29.0,
+      "conviction_pct": 8.7,
+      "direction": "up",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 9 % (biais haussier). Aucune preuve de synthèse disponible (conviction issue des seuls scénarios). Bord directionnel faible (zone tampon) : conviction atténuée.",
+      "soft_zone_scale": 0.3
+    },
+    "behaviour/soft_zone_shallow_up/usd_neutral_consensus": {
+      "agreeing": [],
+      "agreement_factor": 1.0,
+      "base_conviction_pct": 29.0,
+      "conviction_pct": 8.7,
+      "direction": "up",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 9 % (biais haussier). Aucune preuve de synthèse disponible (conviction issue des seuls scénarios). Bord directionnel faible (zone tampon) : conviction atténuée.",
+      "soft_zone_scale": 0.3
+    },
+    "behaviour/soft_zone_shallow_up/usd_up_full": {
+      "agreeing": [],
+      "agreement_factor": 0.9,
+      "base_conviction_pct": 29.0,
+      "conviction_pct": 7.83,
+      "direction": "up",
+      "disagreeing": ["dollar_coherence"],
+      "rationale_fr": "Conviction 8 % (biais haussier). Aucune preuve concordante ; en désaccord : cohérence dollar. Bord directionnel faible (zone tampon) : conviction atténuée.",
+      "soft_zone_scale": 0.3
+    },
+    "behaviour/soft_zone_shallow_up/usd_up_half": {
+      "agreeing": [],
+      "agreement_factor": 0.95,
+      "base_conviction_pct": 29.0,
+      "conviction_pct": 8.265,
+      "direction": "up",
+      "disagreeing": ["dollar_coherence"],
+      "rationale_fr": "Conviction 8 % (biais haussier). Aucune preuve concordante ; en désaccord : cohérence dollar. Bord directionnel faible (zone tampon) : conviction atténuée.",
+      "soft_zone_scale": 0.3
+    },
+    "behaviour/soft_zone_up/all_aligned_up_bias": {
+      "agreeing": ["confluence", "dollar_coherence", "theme"],
+      "agreement_factor": 1.25,
+      "base_conviction_pct": 30.0,
+      "conviction_pct": 18.75,
+      "direction": "up",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 19 % (biais haussier). Preuves concordantes : confluence des facteurs, cohérence dollar et thème dominant ; aucun désaccord. Bord directionnel faible (zone tampon) : conviction atténuée.",
+      "soft_zone_scale": 0.5
+    },
+    "behaviour/soft_zone_up/all_opposed_up_bias": {
+      "agreeing": ["theme"],
+      "agreement_factor": 0.85,
+      "base_conviction_pct": 30.0,
+      "conviction_pct": 12.75,
+      "direction": "up",
+      "disagreeing": ["confluence", "dollar_coherence"],
+      "rationale_fr": "Conviction 13 % (biais haussier). Preuves concordantes : thème dominant ; en désaccord : confluence des facteurs et cohérence dollar. Bord directionnel faible (zone tampon) : conviction atténuée.",
+      "soft_zone_scale": 0.5
+    },
+    "behaviour/soft_zone_up/conf_long": {
+      "agreeing": ["confluence"],
+      "agreement_factor": 1.1,
+      "base_conviction_pct": 30.0,
+      "conviction_pct": 16.5,
+      "direction": "up",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 16 % (biais haussier). Preuves concordantes : confluence des facteurs ; aucun désaccord. Bord directionnel faible (zone tampon) : conviction atténuée.",
+      "soft_zone_scale": 0.5
+    },
+    "behaviour/soft_zone_up/conf_neutral": {
+      "agreeing": [],
+      "agreement_factor": 1.0,
+      "base_conviction_pct": 30.0,
+      "conviction_pct": 15.0,
+      "direction": "up",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 15 % (biais haussier). Aucune preuve de synthèse disponible (conviction issue des seuls scénarios). Bord directionnel faible (zone tampon) : conviction atténuée.",
+      "soft_zone_scale": 0.5
+    },
+    "behaviour/soft_zone_up/conf_short": {
+      "agreeing": [],
+      "agreement_factor": 0.9,
+      "base_conviction_pct": 30.0,
+      "conviction_pct": 13.5,
+      "direction": "up",
+      "disagreeing": ["confluence"],
+      "rationale_fr": "Conviction 13 % (biais haussier). Aucune preuve concordante ; en désaccord : confluence des facteurs. Bord directionnel faible (zone tampon) : conviction atténuée.",
+      "soft_zone_scale": 0.5
+    },
+    "behaviour/soft_zone_up/conf_short_usd_opp_no_theme": {
+      "agreeing": [],
+      "agreement_factor": 0.8,
+      "base_conviction_pct": 30.0,
+      "conviction_pct": 12.0,
+      "direction": "up",
+      "disagreeing": ["confluence", "dollar_coherence"],
+      "rationale_fr": "Conviction 12 % (biais haussier). Aucune preuve concordante ; en désaccord : confluence des facteurs et cohérence dollar. Bord directionnel faible (zone tampon) : conviction atténuée.",
+      "soft_zone_scale": 0.5
+    },
+    "behaviour/soft_zone_up/no_evidence": {
+      "agreeing": [],
+      "agreement_factor": 1.0,
+      "base_conviction_pct": 30.0,
+      "conviction_pct": 15.0,
+      "direction": "up",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 15 % (biais haussier). Aucune preuve de synthèse disponible (conviction issue des seuls scénarios). Bord directionnel faible (zone tampon) : conviction atténuée.",
+      "soft_zone_scale": 0.5
+    },
+    "behaviour/soft_zone_up/theme_only": {
+      "agreeing": ["theme"],
+      "agreement_factor": 1.05,
+      "base_conviction_pct": 30.0,
+      "conviction_pct": 15.75,
+      "direction": "up",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 16 % (biais haussier). Preuves concordantes : thème dominant ; aucun désaccord. Bord directionnel faible (zone tampon) : conviction atténuée.",
+      "soft_zone_scale": 0.5
+    },
+    "behaviour/soft_zone_up/usd_down_full": {
+      "agreeing": ["dollar_coherence"],
+      "agreement_factor": 1.1,
+      "base_conviction_pct": 30.0,
+      "conviction_pct": 16.5,
+      "direction": "up",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 16 % (biais haussier). Preuves concordantes : cohérence dollar ; aucun désaccord. Bord directionnel faible (zone tampon) : conviction atténuée.",
+      "soft_zone_scale": 0.5
+    },
+    "behaviour/soft_zone_up/usd_mixed": {
+      "agreeing": [],
+      "agreement_factor": 1.0,
+      "base_conviction_pct": 30.0,
+      "conviction_pct": 15.0,
+      "direction": "up",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 15 % (biais haussier). Aucune preuve de synthèse disponible (conviction issue des seuls scénarios). Bord directionnel faible (zone tampon) : conviction atténuée.",
+      "soft_zone_scale": 0.5
+    },
+    "behaviour/soft_zone_up/usd_neutral_consensus": {
+      "agreeing": [],
+      "agreement_factor": 1.0,
+      "base_conviction_pct": 30.0,
+      "conviction_pct": 15.0,
+      "direction": "up",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 15 % (biais haussier). Aucune preuve de synthèse disponible (conviction issue des seuls scénarios). Bord directionnel faible (zone tampon) : conviction atténuée.",
+      "soft_zone_scale": 0.5
+    },
+    "behaviour/soft_zone_up/usd_up_full": {
+      "agreeing": [],
+      "agreement_factor": 0.9,
+      "base_conviction_pct": 30.0,
+      "conviction_pct": 13.5,
+      "direction": "up",
+      "disagreeing": ["dollar_coherence"],
+      "rationale_fr": "Conviction 13 % (biais haussier). Aucune preuve concordante ; en désaccord : cohérence dollar. Bord directionnel faible (zone tampon) : conviction atténuée.",
+      "soft_zone_scale": 0.5
+    },
+    "behaviour/soft_zone_up/usd_up_half": {
+      "agreeing": [],
+      "agreement_factor": 0.95,
+      "base_conviction_pct": 30.0,
+      "conviction_pct": 14.25,
+      "direction": "up",
+      "disagreeing": ["dollar_coherence"],
+      "rationale_fr": "Conviction 14 % (biais haussier). Aucune preuve concordante ; en désaccord : cohérence dollar. Bord directionnel faible (zone tampon) : conviction atténuée.",
+      "soft_zone_scale": 0.5
+    },
+    "behaviour/strong_up/all_aligned_up_bias": {
+      "agreeing": ["confluence", "dollar_coherence", "theme"],
+      "agreement_factor": 1.25,
+      "base_conviction_pct": 70.0,
+      "conviction_pct": 87.5,
+      "direction": "up",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 88 % (biais haussier). Preuves concordantes : confluence des facteurs, cohérence dollar et thème dominant ; aucun désaccord.",
+      "soft_zone_scale": 1.0
+    },
+    "behaviour/strong_up/all_opposed_up_bias": {
+      "agreeing": ["theme"],
+      "agreement_factor": 0.85,
+      "base_conviction_pct": 70.0,
+      "conviction_pct": 59.5,
+      "direction": "up",
+      "disagreeing": ["confluence", "dollar_coherence"],
+      "rationale_fr": "Conviction 60 % (biais haussier). Preuves concordantes : thème dominant ; en désaccord : confluence des facteurs et cohérence dollar.",
+      "soft_zone_scale": 1.0
+    },
+    "behaviour/strong_up/conf_long": {
+      "agreeing": ["confluence"],
+      "agreement_factor": 1.1,
+      "base_conviction_pct": 70.0,
+      "conviction_pct": 77.0,
+      "direction": "up",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 77 % (biais haussier). Preuves concordantes : confluence des facteurs ; aucun désaccord.",
+      "soft_zone_scale": 1.0
+    },
+    "behaviour/strong_up/conf_neutral": {
+      "agreeing": [],
+      "agreement_factor": 1.0,
+      "base_conviction_pct": 70.0,
+      "conviction_pct": 70.0,
+      "direction": "up",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 70 % (biais haussier). Aucune preuve de synthèse disponible (conviction issue des seuls scénarios).",
+      "soft_zone_scale": 1.0
+    },
+    "behaviour/strong_up/conf_short": {
+      "agreeing": [],
+      "agreement_factor": 0.9,
+      "base_conviction_pct": 70.0,
+      "conviction_pct": 63.0,
+      "direction": "up",
+      "disagreeing": ["confluence"],
+      "rationale_fr": "Conviction 63 % (biais haussier). Aucune preuve concordante ; en désaccord : confluence des facteurs.",
+      "soft_zone_scale": 1.0
+    },
+    "behaviour/strong_up/conf_short_usd_opp_no_theme": {
+      "agreeing": [],
+      "agreement_factor": 0.8,
+      "base_conviction_pct": 70.0,
+      "conviction_pct": 56.0,
+      "direction": "up",
+      "disagreeing": ["confluence", "dollar_coherence"],
+      "rationale_fr": "Conviction 56 % (biais haussier). Aucune preuve concordante ; en désaccord : confluence des facteurs et cohérence dollar.",
+      "soft_zone_scale": 1.0
+    },
+    "behaviour/strong_up/no_evidence": {
+      "agreeing": [],
+      "agreement_factor": 1.0,
+      "base_conviction_pct": 70.0,
+      "conviction_pct": 70.0,
+      "direction": "up",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 70 % (biais haussier). Aucune preuve de synthèse disponible (conviction issue des seuls scénarios).",
+      "soft_zone_scale": 1.0
+    },
+    "behaviour/strong_up/theme_only": {
+      "agreeing": ["theme"],
+      "agreement_factor": 1.05,
+      "base_conviction_pct": 70.0,
+      "conviction_pct": 73.5,
+      "direction": "up",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 74 % (biais haussier). Preuves concordantes : thème dominant ; aucun désaccord.",
+      "soft_zone_scale": 1.0
+    },
+    "behaviour/strong_up/usd_down_full": {
+      "agreeing": ["dollar_coherence"],
+      "agreement_factor": 1.1,
+      "base_conviction_pct": 70.0,
+      "conviction_pct": 77.0,
+      "direction": "up",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 77 % (biais haussier). Preuves concordantes : cohérence dollar ; aucun désaccord.",
+      "soft_zone_scale": 1.0
+    },
+    "behaviour/strong_up/usd_mixed": {
+      "agreeing": [],
+      "agreement_factor": 1.0,
+      "base_conviction_pct": 70.0,
+      "conviction_pct": 70.0,
+      "direction": "up",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 70 % (biais haussier). Aucune preuve de synthèse disponible (conviction issue des seuls scénarios).",
+      "soft_zone_scale": 1.0
+    },
+    "behaviour/strong_up/usd_neutral_consensus": {
+      "agreeing": [],
+      "agreement_factor": 1.0,
+      "base_conviction_pct": 70.0,
+      "conviction_pct": 70.0,
+      "direction": "up",
+      "disagreeing": [],
+      "rationale_fr": "Conviction 70 % (biais haussier). Aucune preuve de synthèse disponible (conviction issue des seuls scénarios).",
+      "soft_zone_scale": 1.0
+    },
+    "behaviour/strong_up/usd_up_full": {
+      "agreeing": [],
+      "agreement_factor": 0.9,
+      "base_conviction_pct": 70.0,
+      "conviction_pct": 63.0,
+      "direction": "up",
+      "disagreeing": ["dollar_coherence"],
+      "rationale_fr": "Conviction 63 % (biais haussier). Aucune preuve concordante ; en désaccord : cohérence dollar.",
+      "soft_zone_scale": 1.0
+    },
+    "behaviour/strong_up/usd_up_half": {
+      "agreeing": [],
+      "agreement_factor": 0.95,
+      "base_conviction_pct": 70.0,
+      "conviction_pct": 66.5,
+      "direction": "up",
+      "disagreeing": ["dollar_coherence"],
+      "rationale_fr": "Conviction 66 % (biais haussier). Aucune preuve concordante ; en désaccord : cohérence dollar.",
+      "soft_zone_scale": 1.0
+    }
+  }
+}
