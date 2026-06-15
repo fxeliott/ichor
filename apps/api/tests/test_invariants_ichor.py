@@ -155,6 +155,83 @@ def test_no_buy_sell_in_python_code_tokens() -> None:
     )
 
 
+# Actionable trade-order fields ADR-017 forbids on ANY mounted API
+# surface. This is the "order ticket" signature (a hard stop + RR
+# take-profits + entry zone) that the removed `/v1/trade-plan` endpoint
+# (+ services/rr_analysis.py) exposed — it was added 2026-05-04, one day
+# after the 2026-05-03 ADR-017 reset, never consumed by any frontend, and
+# slipped past the BUY/SELL token guard above. These names are DISTINCT
+# from the descriptive card field `schemas.TradePlan` (invalidation_level
+# / invalidation_condition / tp_rr3 / tp_rr15 / partial_scheme), which
+# carries NONE of them — so this guard never false-positives on the
+# legitimate descriptive surface.
+_ADR017_ACTIONABLE_ORDER_FIELDS = frozenset(
+    {"stop_loss", "tp1", "tp3", "tp_extended", "entry_zone_low", "entry_zone_high"}
+)
+
+
+def _basemodel_types_in(annotation: object) -> list[type]:
+    """Pydantic BaseModel subclasses reachable from a type annotation
+    (unwraps Optional / Union / list / dict generics)."""
+    import typing
+
+    from pydantic import BaseModel
+
+    found: list[type] = []
+
+    def rec(a: object) -> None:
+        if isinstance(a, type) and issubclass(a, BaseModel):
+            found.append(a)
+            return
+        for arg in typing.get_args(a):
+            rec(arg)
+
+    rec(annotation)
+    return found
+
+
+def test_no_actionable_order_endpoint() -> None:
+    """ADR-017 : no mounted route may expose an actionable order ticket
+    (stop_loss / tp1 / tp3 / tp_extended / entry zone). Ichor emits a
+    probabilistic READ (direction + conviction + nature), NEVER an order.
+
+    Walks every route's response_model (and nested models) and fails if
+    any field name matches the forbidden order-ticket set. Closes the
+    gap that let `/v1/trade-plan` ship a full SL/TP/entry plan unnoticed
+    by the BUY/SELL-token guard.
+    """
+    from ichor_api.main import app
+    from pydantic import BaseModel
+
+    offenders: list[str] = []
+    seen: set[type] = set()
+
+    def walk(model: type, route_path: str) -> None:
+        if model in seen:
+            return
+        seen.add(model)
+        for name, field in model.model_fields.items():
+            if name in _ADR017_ACTIONABLE_ORDER_FIELDS:
+                offenders.append(f"{route_path} → {model.__name__}.{name}")
+            for sub in _basemodel_types_in(field.annotation):
+                walk(sub, route_path)
+
+    for route in app.routes:
+        rm = getattr(route, "response_model", None)
+        if isinstance(rm, type) and issubclass(rm, BaseModel):
+            walk(rm, getattr(route, "path", "?"))
+
+    # Non-vacuity guard : the walk MUST have visited response models
+    # (incl. SessionCardOut → descriptive TradePlan, which legitimately
+    # carries tp_rr3/entry_low and must NOT match the forbidden set).
+    assert seen, "ADR-017 order-field guard walked 0 response models — vacuous"
+
+    assert offenders == [], (
+        "ADR-017 violated : a mounted API route exposes actionable order "
+        f"fields (stop_loss/tp1/tp3/entry zone). Found {len(offenders)} :\n" + "\n".join(offenders)
+    )
+
+
 # ────────────────────────── ADR-009 ──────────────────────────
 
 # Voie D : the production code MUST NOT import the `anthropic` Python

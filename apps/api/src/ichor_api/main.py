@@ -58,7 +58,6 @@ from .routers import (
     theme_dominant_router,
     today_router,
     tools_router,
-    trade_plan_router,
     verdict_router,
     well_known_router,
     ws_router,
@@ -220,7 +219,6 @@ app.include_router(geopolitics_router)
 app.include_router(counterfactual_router)
 app.include_router(data_pool_router)
 app.include_router(divergence_router)
-app.include_router(trade_plan_router)
 app.include_router(confluence_router)
 app.include_router(currency_strength_router)
 app.include_router(calendar_router)

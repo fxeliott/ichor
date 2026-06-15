@@ -1,4 +1,11 @@
-"""Pure tests for daily_levels + session_scenarios + rr_analysis."""
+"""Pure tests for daily_levels + session_scenarios.
+
+NOTE (ADR-017) : the former ``rr_analysis`` tests were removed together
+with ``services/rr_analysis.py`` and the ``/v1/trade-plan`` router — that
+surface emitted actionable order tickets (stop_loss / tp1 / tp3 / entry
+zone), which ADR-017 forbids. See ``test_no_actionable_order_endpoint``
+in ``test_invariants_ichor.py`` for the regression guard.
+"""
 
 from __future__ import annotations
 
@@ -8,10 +15,6 @@ from ichor_api.services.daily_levels import (
     _classic_pivots,
     _round_levels_near,
     render_daily_levels_block,
-)
-from ichor_api.services.rr_analysis import (
-    assess_rr_plan,
-    render_rr_block,
 )
 from ichor_api.services.session_scenarios import (
     assess_session_scenarios,
@@ -213,114 +216,3 @@ def test_render_session_scenarios_includes_triggers() -> None:
     assert "%" in md
     assert "EUR_USD" in md
     assert sources == ["empirical_model:session_scenarios:EUR_USD"]
-
-
-# ─────────────────────── rr_analysis ──────────────────────────────────
-
-
-def test_rr_plan_long_eur_usd_typical() -> None:
-    plan = assess_rr_plan(
-        asset="EUR_USD",
-        spot=1.0734,
-        bias="long",
-        conviction_pct=70,
-        magnitude_pips_low=30,
-        magnitude_pips_high=80,
-    )
-    assert plan.bias == "long"
-    assert plan.entry_zone_low is not None
-    assert plan.entry_zone_high is not None
-    assert plan.stop_loss is not None and plan.stop_loss < 1.0734
-    assert plan.tp1 is not None and plan.tp1 > 1.0734
-    assert plan.tp3 is not None and plan.tp3 > plan.tp1
-    assert plan.tp_extended is not None and plan.tp_extended > plan.tp3
-    assert plan.risk_pips == 15.0  # 30 / 2
-    assert plan.reward_pips_tp3 == 45.0  # 15 * 3
-
-
-def test_rr_plan_short_usd_jpy() -> None:
-    plan = assess_rr_plan(
-        asset="USD_JPY",
-        spot=152.34,
-        bias="short",
-        conviction_pct=60,
-        magnitude_pips_low=40,
-        magnitude_pips_high=120,
-    )
-    assert plan.bias == "short"
-    assert plan.stop_loss is not None and plan.stop_loss > 152.34
-    assert plan.tp3 is not None and plan.tp3 < 152.34
-    assert plan.risk_pips == 20.0
-
-
-def test_rr_plan_neutral_returns_blank() -> None:
-    plan = assess_rr_plan(
-        asset="EUR_USD",
-        spot=1.0734,
-        bias="neutral",
-        conviction_pct=15,
-        magnitude_pips_low=10,
-        magnitude_pips_high=30,
-    )
-    assert plan.entry_zone_low is None
-    assert plan.stop_loss is None
-    assert plan.tp3 is None
-    assert "neutral" in plan.notes.lower() or "n/c" in plan.notes.lower()
-
-
-def test_rr_plan_low_conviction_warning() -> None:
-    plan = assess_rr_plan(
-        asset="EUR_USD",
-        spot=1.0734,
-        bias="long",
-        conviction_pct=20,
-        magnitude_pips_low=30,
-        magnitude_pips_high=80,
-    )
-    assert "size" in plan.notes.lower() or "réduire" in plan.notes.lower()
-
-
-def test_rr_plan_min_risk_5_pips() -> None:
-    """Even when magnitude is tiny, risk floor at 5 pips."""
-    plan = assess_rr_plan(
-        asset="EUR_USD",
-        spot=1.0734,
-        bias="long",
-        conviction_pct=70,
-        magnitude_pips_low=4,
-        magnitude_pips_high=10,
-    )
-    assert plan.risk_pips == 5.0
-
-
-def test_render_rr_plan_full() -> None:
-    plan = assess_rr_plan(
-        asset="EUR_USD",
-        spot=1.0734,
-        bias="long",
-        conviction_pct=70,
-        magnitude_pips_low=30,
-        magnitude_pips_high=80,
-    )
-    md, sources = render_rr_block(plan)
-    assert "RR plan" in md
-    assert "EUR_USD" in md
-    assert "LONG" in md
-    assert "Stop" in md
-    assert "TP1" in md
-    assert "TP3" in md
-    assert sources == ["empirical_model:rr_plan:EUR_USD"]
-
-
-def test_render_rr_plan_neutral() -> None:
-    plan = assess_rr_plan(
-        asset="EUR_USD",
-        spot=1.0734,
-        bias="neutral",
-        conviction_pct=15,
-        magnitude_pips_low=None,
-        magnitude_pips_high=None,
-    )
-    md, sources = render_rr_block(plan)
-    assert "neutral" in md or "magnitude" in md
-    assert sources == []
