@@ -1,6 +1,6 @@
 # ADR-119 — Conviction-calibration out-of-sample witness (Chantier B, slice-4)
 
-- **Status:** Accepted (pure-core + read-only CLI, NOT live-wired) — 2026-06-13
+- **Status:** Accepted — 2026-06-13 · **UPDATE 2026-06-15** : the OOS calibrator is now WIRED into the live verdict behind `conviction_calibrator_oos_enabled` (fail-closed OFF) via S06 C-5 (`session_verdict_builder.py:729-751` + `conviction_calibration.select_and_fit_live_calibrator`). The "NOT live-wired" qualifier below describes the slice-4 (measurement-only) state, not current code.
 - **Deciders:** owner (delegated "fais tout, décide seul"), engine (Opus 4.8)
 - **Supersedes:** none
 - **Extends:** ADR-117 (isotonic), ADR-118 (regularised isotonic + Platt + OOS selector)

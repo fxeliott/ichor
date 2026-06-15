@@ -87,15 +87,15 @@ class TestParseSince:
 
 class TestNyWindowUtc:
     def test_summer_paris_to_utc(self) -> None:
-        # 2026-06-10 summer (+02:00): 14:00 Paris = 12:00 UTC, 20:00 = 18:00 UTC
+        # 2026-06-10 summer (+02:00): 13:00 Paris = 11:00 UTC, 20:00 = 18:00 UTC
         start, end = ny_window_utc(date(2026, 6, 10))
-        assert start == datetime(2026, 6, 10, 12, 0, tzinfo=UTC)
+        assert start == datetime(2026, 6, 10, 11, 0, tzinfo=UTC)
         assert end == datetime(2026, 6, 10, 18, 0, tzinfo=UTC)
 
     def test_winter_paris_to_utc(self) -> None:
-        # 2026-01-15 winter (+01:00): 14:00 Paris = 13:00 UTC, 20:00 = 19:00 UTC
+        # 2026-01-15 winter (+01:00): 13:00 Paris = 12:00 UTC, 20:00 = 19:00 UTC
         start, end = ny_window_utc(date(2026, 1, 15))
-        assert start == datetime(2026, 1, 15, 13, 0, tzinfo=UTC)
+        assert start == datetime(2026, 1, 15, 12, 0, tzinfo=UTC)
         assert end == datetime(2026, 1, 15, 19, 0, tzinfo=UTC)
 
 
@@ -186,7 +186,7 @@ class TestRenderReport:
         )
         assert "## In-sample (diagnostic)" in md
         assert "## Walk-forward out-of-sample" in md
-        assert "sans fenêtre NY 14h-20h exploitable" in md
+        assert "sans fenêtre NY 13h-20h exploitable" in md
         assert "BUY" not in md.upper()
         assert "SELL" not in md.upper()
 

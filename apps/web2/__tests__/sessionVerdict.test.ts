@@ -43,7 +43,7 @@ const ALL_FLAGS: readonly TradeabilityFlag[] = [
 function mkVerdict(flag: TradeabilityFlag): SessionVerdict {
   return {
     asset: "EUR_USD",
-    session_window: "ny_14h_to_20h_paris",
+    session_window: "ny_13h_to_20h_paris",
     direction: "up",
     conviction_pct: 0,
     nature: "uncertain",

@@ -12,7 +12,7 @@
  * intuitivity — explanation is integrated into the hierarchy itself) :
  *
  *   [DIRECTION GLYPH] [DIRECTION FR] · [CONVICTION %] · [NATURE FR]
- *   fenêtre opératoire : 14h00 → 20h00 Paris  ·  updated N min ago
+ *   fenêtre opératoire : 13h00 → 20h00 Paris  ·  updated N min ago
  *
  *   [Coach explanation paragraph — 80..800 chars FR beginner-friendly]
  *

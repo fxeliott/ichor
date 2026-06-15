@@ -91,7 +91,7 @@ export const THEME_DRIVER_HINT_FR: Record<ThemeDriverKey, string> = {
 };
 
 /** Tailwind v4 tone token per driver — colored by intensity / impact
- *  pour Eliot's NY 14h-20h window. Strong-signal drivers (monétaire,
+ *  pour Eliot's NY 13h-20h window. Strong-signal drivers (monétaire,
  *  géopolitique, data, fiscal) = accent vif ; flow + supply_demand =
  *  muted (régime contextual not directly actionable pre-position). */
 export const THEME_DRIVER_TONE: Record<ThemeDriverKey, string> = {

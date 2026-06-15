@@ -6,8 +6,13 @@ no LLM call, no external dependency — Voie D-clean. The builder reads the
 latest ``session_card_audit`` row for a given (asset, today's NY session)
 tuple and derives the verdict deterministically.
 
+**Production path** : the 4×/day batch cron runs ``run_session_card`` with
+``--live`` → ``enable_scenarios=True`` (``run_session_card.py:407``), so Pass-6
+emits the 7 buckets and the POPULATED path below is the live default.
+
 **Fallback path (doctrine #11 calibrated honesty)** : when Pass-6 is gated
-off (``enable_scenarios=False`` per ``orchestrator.py:114``) the
+off (``enable_scenarios=False`` — the bare ``Orchestrator`` default at
+``orchestrator.py:114``, i.e. a dry-run / non-``--live`` invocation) the
 ``session_card_audit.scenarios`` JSONB column persists as ``[]``. The
 builder honestly returns a downgraded verdict (``derived_from_scenarios=
 False``, ``direction="neutral"``, ``conviction_pct=0``,
@@ -79,10 +84,13 @@ _RANGE_BOUND_NEUTRAL_THRESHOLD = 0.45
 ``base`` bucket dominates the decomposition, indicating low directional
 conviction and a fade-extremes regime)."""
 
-# Window stamps per Eliot's r161 directive : "Je prends position entre
-# 14h et 16h, et je coupe tout à 20h. C'est ma fenêtre, c'est mon mode
-# opératoire." The verdict is calibrated for this window explicitly.
-_NY_WINDOW_OPEN_HOUR_PARIS = 14
+# Window stamps per Eliot's execution-window ruling (owner TRANCHE 2026-06-13,
+# METHODOLOGIE_TECHNIQUE_ELIOT.md §"Fenêtre d'exécution" + confirmed 2026-06-15) :
+# the NY execution window OPENS at 13h Paris (quality peak 14h-16h) and the trader
+# cuts everything at 20h. This supersedes the earlier "14h-16h" reading. The verdict
+# stamps ``ne_pas_actionner_avant_paris`` at the 13h open so the trader is not told
+# to wait past the real start of the window.
+_NY_WINDOW_OPEN_HOUR_PARIS = 13
 _NY_WINDOW_CLOSE_HOUR_PARIS = 20
 _VERDICT_EXPIRY_BUFFER_MINUTES = 15  # 20h00 + 15min = 20h15 Paris stale
 
@@ -300,7 +308,7 @@ def _build_coach_explanation_populated(
         f"Verdict NY session pour {asset} : {direction_fr} avec "
         f"{conviction_pct:.0f} % de conviction, de type {nature_fr}. "
         f"Le bucket Pass-6 dominant est {top_label} ({top_pct} % de masse). "
-        f"Cette lecture est calibrée pour la fenêtre 14h00→20h00 Paris ; "
+        f"Cette lecture est calibrée pour la fenêtre 13h00→20h00 Paris ; "
         f"toute prise de position hors fenêtre doit se baser sur un verdict "
         f"distinct. La conviction est plafonnée à 95 % par construction "
         f"(ADR-022) — aucun verdict ne peut exprimer une certitude absolue."
@@ -735,10 +743,25 @@ async def build_session_verdict(
         from .feature_flags import is_enabled
 
         if await is_enabled(session, CONVICTION_CALIBRATOR_FLAG):
-            calibrator = select_and_fit_live_calibrator(await _load_reconciled_p_up_y(session))
-            if calibrator is not None:
-                _bias: BiasDirection = "long" if direction == "up" else "short"
-                conviction_pct = calibrator.calibrate_conviction(_bias, conviction_pct)
+            # Defensive fail-open (prompt ⑥ « robuste, fiable et permanent ; rien ne
+            # doit pouvoir casser ») — mirror the invalidation-monitor guard (:797) and
+            # `_safe_evaluate_tradeability`. The only I/O here is the pooled READ-ONLY
+            # `_load_reconciled_p_up_y` fetch ; a transient DB error (or any calibrator
+            # fault) must NOT 500 the verdict endpoint — fall back to the raw
+            # bucket-derived conviction. This flag is owner-gated, so the guard makes
+            # flipping it ON a SAFE operation. ADR-017 untouched (direction unchanged ;
+            # the raw conviction_pct is already cap-95 compliant).
+            try:
+                calibrator = select_and_fit_live_calibrator(await _load_reconciled_p_up_y(session))
+                if calibrator is not None:
+                    _bias: BiasDirection = "long" if direction == "up" else "short"
+                    conviction_pct = calibrator.calibrate_conviction(_bias, conviction_pct)
+            except Exception:
+                log.warning(
+                    "session_verdict_builder.calibrator_failed_open",
+                    asset=asset,
+                    exc_info=True,
+                )
 
     nature = _derive_nature(scenarios_raw)
 

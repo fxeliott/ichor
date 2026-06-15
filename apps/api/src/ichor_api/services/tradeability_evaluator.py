@@ -21,11 +21,11 @@ Derivation rule (priority-ordered — first match wins) :
      rolling 30-day ``hourly_volatility`` window for the asset is below
      a threshold (``_LOW_VOLATILITY_THRESHOLD_BP = 5.0`` default). Market
      is structurally inert ; momentum unlikely in NY session window.
-  4. **range** — r167 honest gap (always False). r168 G4 wires daily
-     candle classification (momentum_bullish / momentum_bearish /
-     uncertainty) → ``range`` would fire when the last 3 daily candles
-     all show small body (body/range < 0.3). Schema is forward-compat ;
-     the literal value exists so r168 only updates the evaluator.
+  4. **range** — WIRED (r168b G4). The evaluator's Gate 4 calls
+     ``daily_candle_classifier.is_range_bound`` (uncertainty daily candle
+     AND Garman-Klass variance < 80% of the trailing-30d mean), replacing
+     the original r167 "always False" honest-gap. Fires on a structurally
+     range-bound / volatility-compressed day.
   5. **no_setup** — verdict ``conviction_pct < 30`` — read is too weak ;
      trader passes without an external cause. This is the "everything
      else passed but the verdict is just flat" honest disclosure.
@@ -377,8 +377,7 @@ async def evaluate_tradeability(
 
 def all_tradeability_values_dispatched() -> tuple[bool, list[str]]:
     """CI invariant helper. Returns ``(True, [])`` if every value in the
-    ``TradeabilityFlag`` Literal is reachable from ``evaluate_tradeability``,
-    OR explicitly documented as honest-gap r167 (range).
+    ``TradeabilityFlag`` Literal is reachable from ``evaluate_tradeability``.
 
     Symmetric pin to the schema-side Literal contract. Failure to update
     the dispatcher when a new Literal value is added would silently
@@ -393,7 +392,7 @@ def all_tradeability_values_dispatched() -> tuple[bool, list[str]]:
         "holiday",
         "event_freeze",
         "low_volatility",
-        "range",  # honest gap r167, but still reachable in dispatch tree
+        "range",  # WIRED r168b — Gate 4 via daily_candle_classifier.is_range_bound
         "no_setup",
         "tradeable",
     }

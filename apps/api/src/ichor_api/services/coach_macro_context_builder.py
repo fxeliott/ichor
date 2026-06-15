@@ -548,7 +548,7 @@ def _build_coach_paragraph(
         sentence_3 = (
             f"Surveille « {next_event.event_label} » "
             f"({next_event.scheduled_at_paris.strftime('%A %d %B %Hh%M').lower()} Paris) "
-            f"pour ta session NY 14h-20h."
+            f"pour ta session NY 13h-20h."
         )
 
     paragraph = " ".join([sentence_1, sentence_2, sentence_3])

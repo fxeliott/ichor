@@ -9,7 +9,7 @@
  * Asset-agnostic : the theme drives the GLOBAL macro regime (not per-
  * asset). One panel renders on every priority asset briefing — Eliot
  * sees "Thème dominant aujourd'hui : Politique monétaire 95% (FOMC)"
- * as a CONTEXT layer his NY 14h-20h position-taking must respect.
+ * as a CONTEXT layer his NY 13h-20h position-taking must respect.
  *
  * ADR-017 boundary : descriptive labels for the GLOBAL macro regime
  * driver, NEVER directional bias for any asset. The panel renders

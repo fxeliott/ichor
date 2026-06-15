@@ -1283,7 +1283,7 @@ export interface ScenarioInvalidationState {
 
 export interface SessionVerdict {
   asset: PriorityAsset;
-  session_window: "ny_14h_to_20h_paris";
+  session_window: "ny_13h_to_20h_paris";
   direction: VerdictDirection;
   conviction_pct: number;
   nature: VerdictNature;
