@@ -26,6 +26,7 @@ Exit codes (mirror ``run_scenario_invalidation_check``) :
 
     0 : success (zero or more cards regenerated)
     1 : feature flag OFF — clean skip, NOT a failure
+    2 : ≥1 stale-verdict regen FAILED — OnFailure notify path (S02 audit)
     3 : DB connection / runtime failure — cron retries next tick
 
 ADR refs : ADR-109 (streaming cadence), ADR-106 §D2/§D4, ADR-085 Pass-6,
@@ -129,6 +130,17 @@ async def _run(
         detail = f" — {o.detail}" if o.detail else ""
         push_tag = " [push]" if o.pushed else ""
         print(f"  · {o.asset:<11} {o.action:<12} {o.reason:<14}{push_tag}{detail}")
+    # S02 socle audit (2026-06-18) — honest failure signalling. A stale verdict
+    # whose regen FAILED (result.failed > 0) used to exit 0 = silent : the card
+    # stayed stale and nobody was paged. Exit 2 (distinct from 3 = DB-transient,
+    # tolerated by the unit's SuccessExitStatus) so the systemd OnFailure path
+    # fires. Dry-run never regenerates, so failed is always 0 there.
+    if result.failed > 0:
+        print(
+            f"streaming refresh: {result.failed} regen(s) FAILED — exit 2 "
+            "(stale verdict not refreshed; OnFailure notify path)"
+        )
+        return 2
     return 0
 
 
