@@ -38,9 +38,10 @@ def test_catalog_breakdown() -> None:
     # r165 added 3 SCENARIO_INVALIDATION_ALERTS (HARD/SOFT/NOTE → critical/warning/info)
     # joining ALL_ALERTS 54→57 ; catalog expectation re-aligned r167-close round-2 audit.
     # S03 Chantier D (2026-06-11) added 3 DATA_FRESHNESS + 1 EVENT_SENTINEL (57→61).
+    # S02 socle audit (2026-06-18) added 1 DATA_FRESHNESS FRED_SERIES_SILENT (61→62).
     assert len(PLAN_ALERTS) == 46
     assert len(AUDIT_V2_ALERTS) == 8
-    assert len(ALL_ALERTS) == 61
+    assert len(ALL_ALERTS) == 62
 
 
 def test_catalog_severity_values_valid() -> None:

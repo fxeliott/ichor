@@ -709,6 +709,21 @@ DATA_FRESHNESS_ALERTS: tuple[AlertDef, ...] = (
             "feeds die — this catches the per-feed silent class (BoE 403)."
         ),
     ),
+    AlertDef(
+        "FRED_SERIES_SILENT",
+        "warning",
+        "{value:.0f} séries FRED quotidiennes silencieuses au-delà de 5j : {silent_series}",
+        "fred_series_silent",
+        0.5,
+        "above",
+        description=(
+            "One or more daily business-day FRED series stopped advancing past "
+            "5 days while the global `fred` spec stayed fresh (VIX_LIVE keeps the "
+            "whole-table MAX recent every 5 min). Catches the per-series silent "
+            "class — DGS2 dies while VIXCLS lives — invisible to the whole-table "
+            "MAX() freshness check (S02 socle audit 2026-06-18)."
+        ),
+    ),
 )
 
 # S03 Chantier D — pre-announcement sentinel ("être prévenu de TOUTES les
@@ -764,12 +779,13 @@ def get_alert_def(code: str) -> AlertDef:
 
 
 def assert_catalog_complete() -> None:
-    """Sanity check at startup: total = 61 alerts, all unique codes.
+    """Sanity check at startup: total = 62 alerts, all unique codes.
 
     r165 Strand E added 3 SCENARIO_INVALIDATION_* entries (54 → 57).
     S03 Chantier D added 3 DATA_FRESHNESS + 1 EVENT_SENTINEL (57 → 61).
+    S02 socle audit 2026-06-18 added 1 DATA_FRESHNESS FRED_SERIES_SILENT (61 → 62).
     """
     codes = [a.code for a in ALL_ALERTS]
     assert len(codes) == len(set(codes)), f"Duplicate alert codes: {codes}"
-    assert len(ALL_ALERTS) == 61, f"Expected 61 alerts, got {len(ALL_ALERTS)}"
+    assert len(ALL_ALERTS) == 62, f"Expected 62 alerts, got {len(ALL_ALERTS)}"
     assert len(CRISIS_TRIGGERS) >= 5, f"Expected ≥5 crisis triggers, got {len(CRISIS_TRIGGERS)}"

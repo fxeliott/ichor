@@ -54,11 +54,11 @@ def _rows_returning(rows: list[tuple]) -> MagicMock:
 class TestCatalogExtension:
     """The 3 NEW SCENARIO_INVALIDATION_* alerts join the canonical catalog."""
 
-    def test_all_alerts_count_is_61_after_s03_extension(self) -> None:
+    def test_all_alerts_count_is_62_after_s02_extension(self) -> None:
         """r164 baseline = 54 ; r165 + 3 = 57 ; S03 Chantier D + 3
-        DATA_FRESHNESS + 1 EVENT_SENTINEL = 61. assert_catalog_complete
-        pins it."""
-        assert len(ALL_ALERTS) == 61
+        DATA_FRESHNESS + 1 EVENT_SENTINEL = 61 ; S02 socle audit + 1
+        DATA_FRESHNESS FRED_SERIES_SILENT = 62. assert_catalog_complete pins it."""
+        assert len(ALL_ALERTS) == 62
 
     def test_assert_catalog_complete_passes(self) -> None:
         """Sanity : the canonical catalog assertion still passes post-r165."""
