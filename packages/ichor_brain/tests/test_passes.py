@@ -13,6 +13,7 @@ from ichor_brain.passes import (
     StressPass,
 )
 from ichor_brain.passes.asset import supported_assets
+from ichor_brain.passes.counterfactual import CounterfactualPass
 from ichor_brain.types import AssetSpecialization, StressTest
 
 from .fixtures import (
@@ -37,7 +38,9 @@ def test_regime_system_prompt_lists_quadrants() -> None:
         assert quadrant in sys
 
 
-@pytest.mark.parametrize("pass_cls", [RegimePass, AssetPass, StressPass, InvalidationPass])
+@pytest.mark.parametrize(
+    "pass_cls", [RegimePass, AssetPass, StressPass, InvalidationPass, CounterfactualPass]
+)
 def test_pass_system_prompt_carries_french_coach_directive(pass_cls) -> None:
     """Pass-1/2/3/4 trader-facing free-text (rationale / claim / condition /
     mechanism / notes) must render in plain-French coach tone (Prompt_Ichor
@@ -51,7 +54,9 @@ def test_pass_system_prompt_carries_french_coach_directive(pass_cls) -> None:
     assert "Aucune phrase explicative en anglais" in sys
 
 
-@pytest.mark.parametrize("pass_cls", [RegimePass, AssetPass, StressPass, InvalidationPass])
+@pytest.mark.parametrize(
+    "pass_cls", [RegimePass, AssetPass, StressPass, InvalidationPass, CounterfactualPass]
+)
 def test_pass_system_prompt_forbids_raw_codes_and_pipeline_refs_in_prose(pass_cls) -> None:
     """The coach directive must explicitly forbid raw machine codes (snake_case
     enum identifiers like ``usd_complacency``) AND internal pipeline references
@@ -68,7 +73,9 @@ def test_pass_system_prompt_forbids_raw_codes_and_pipeline_refs_in_prose(pass_cl
     assert "plomberie" in sys
 
 
-@pytest.mark.parametrize("pass_cls", [RegimePass, AssetPass, StressPass, InvalidationPass])
+@pytest.mark.parametrize(
+    "pass_cls", [RegimePass, AssetPass, StressPass, InvalidationPass, CounterfactualPass]
+)
 def test_pass_system_prompt_forbids_literal_order_tokens_in_any_context(pass_cls) -> None:
     """ADR-017 × coach-FR : la safety-gate matche les TOKENS interdits
     (« acheter », « vendre », buy/sell…) quel que soit le contexte
@@ -81,6 +88,51 @@ def test_pass_system_prompt_forbids_literal_order_tokens_in_any_context(pass_cls
     sys = pass_cls().system_prompt
     assert "MOTS LITTÉRALEMENT INTERDITS" in sys
     assert "pression acheteuse" in sys
+
+
+# ─────────────────── Pass 5 — counterfactual (ADR-017) ──────────────────
+
+
+def test_counterfactual_parse_rejects_forbidden_trade_tokens() -> None:
+    """ADR-017 : the user-facing counterfactual narrative is a descriptive
+    read, never an order ticket. A forbidden trade-signal token in
+    ``delta_narrative`` must make parsing fail — mirror of the Pass-6
+    ``Scenario`` boundary, reusing the SSOT regex from ``ichor_brain.scenarios``
+    (the field had NO ADR-017 validator before the S02 audit, 2026-06-17)."""
+    p = CounterfactualPass()
+    bad = _wrap(
+        {
+            "scrubbed_event": "FOMC",
+            "counterfactual_bias": "long",
+            "counterfactual_conviction_pct": 40,
+            "delta_narrative": "Without the FOMC, BUY EUR with TP at 1.10 and SL below.",
+            "new_dominant_drivers": [],
+            "confidence_delta": 0.0,
+        }
+    )
+    with pytest.raises(PassError):
+        p.parse(bad)
+
+
+def test_counterfactual_parse_accepts_clean_narrative() -> None:
+    """A clean descriptive narrative parses fine — the ADR-017 validator must
+    not over-reject legitimate macro prose."""
+    p = CounterfactualPass()
+    ok = _wrap(
+        {
+            "scrubbed_event": "FOMC",
+            "counterfactual_bias": "neutral",
+            "counterfactual_conviction_pct": 30,
+            "delta_narrative": (
+                "Sans la réunion FOMC, le dollar perd son pilier haussier de fond "
+                "et le biais se tasse vers le neutre."
+            ),
+            "new_dominant_drivers": ["géopolitique"],
+            "confidence_delta": -0.1,
+        }
+    )
+    reading = p.parse(ok)
+    assert reading.counterfactual_bias == "neutral"
 
 
 def test_regime_build_prompt_inlines_data_pool() -> None:
