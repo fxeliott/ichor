@@ -26,8 +26,8 @@ Doctrine alignment :
     questions (cycle = "what macro phase" / regime = "what risk
     environment"). The ``stagflation`` label overlaps lexically but
     not algorithmically.
-  * **ADR-017 boundary** : ``coach_paragraph`` is regex-checked
-    against ``_FORBIDDEN_COACH_TOKENS_RE`` at construction time
+  * **ADR-017 boundary** : ``coach_paragraph`` is checked via the canonical
+    SSOT ``contains_trade_signal`` (``ichor_brain.adr017``) at construction time
     (mirror of ``Scenario._reject_trade_tokens`` discipline). The
     paragraph explains the macro story ; it never prescribes a
     trade action.
@@ -46,11 +46,12 @@ ADR-017 (no BUY/SELL boundary).
 
 from __future__ import annotations
 
-import re
 from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
+
+from .adr017 import contains_trade_signal
 
 # Doctrine #4 SSOT : reuse the canonical MacroTheme literal from the
 # packages/agents domain ; the 8 themes are anchored to ``MacroAgent``'s
@@ -74,18 +75,11 @@ except ImportError:
     ]
 
 
-# r161 Stride 8 — ADR-017 boundary regex applied to ``coach_paragraph``.
-# Mirror of ``packages/ichor_brain/scenarios.py:50-53``
-# ``_FORBIDDEN_MECHANISM_TOKENS_RE`` ; the regex source-of-truth lives in
-# scenarios.py and is duplicated here only to avoid a circular-import
-# risk once frontend consumers wire the coach paragraph alongside
-# ``SessionVerdict.coach_explanation`` (same coach-surface contract).
-# Both regexes MUST stay byte-identical — CI guard via
-# ``test_invariants_ichor.py`` extension (r161 carry-forward).
-_FORBIDDEN_COACH_TOKENS_RE = re.compile(
-    r"\b(BUY|SELL|TP|SL|long entry|short entry|stop loss|take profit)\b",
-    re.IGNORECASE,
-)
+# r161 Stride 8 — ADR-017 boundary applied to ``coach_paragraph`` (LLM-emitted
+# coach prose) via the canonical SSOT ``contains_trade_signal``
+# (``ichor_brain.adr017``). Relocated 2026-06-18 (S02 socle audit) from a local
+# weak ASCII regex that silently passed full-width / Cyrillic / FR-imperative
+# obfuscations — same coach-surface contract as ``SessionVerdict.coach_explanation``.
 
 
 # The 4 business-cycle phases per the Hewi Capital trader-coach transcript
@@ -244,7 +238,7 @@ class CalendarSurprise(BaseModel):
     def _reject_trade_tokens_in_why(cls, v: str) -> str:
         """ADR-017 boundary mirror. The ``why_it_matters`` explains the
         macro relevance ; it never instructs a trade."""
-        if _FORBIDDEN_COACH_TOKENS_RE.search(v):
+        if contains_trade_signal(v):
             raise ValueError(
                 f"ADR-017 boundary violated : CalendarSurprise.why_it_matters "
                 f"contains a forbidden trade-signal token. Got: {v!r}. The "
@@ -355,7 +349,7 @@ class CoachMacroContext(BaseModel):
         narrative ; it never prescribes a trade action. Mirror of
         ``Scenario._reject_trade_tokens`` + ``SessionVerdict._reject_
         trade_tokens_in_coach`` discipline."""
-        if _FORBIDDEN_COACH_TOKENS_RE.search(v):
+        if contains_trade_signal(v):
             raise ValueError(
                 "ADR-017 boundary violated : CoachMacroContext.coach_paragraph "
                 f"contains a forbidden trade-signal token. Got: {v!r}. The "

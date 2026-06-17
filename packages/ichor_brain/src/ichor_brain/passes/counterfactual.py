@@ -21,7 +21,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from ..scenarios import _FORBIDDEN_MECHANISM_TOKENS_RE
+from ..adr017 import contains_trade_signal
 from .base import FRENCH_COACH_DIRECTIVE, Pass, PassError, extract_json_block
 
 BiasDirection = Literal["long", "short", "neutral"]
@@ -54,7 +54,7 @@ class CounterfactualReading(BaseModel):
         """ADR-017 boundary (mirror of ``Scenario._reject_trade_tokens``) — the
         user-facing counterfactual narrative is a DESCRIPTIVE read of how the
         macro picture shifts, never a trade instruction."""
-        if _FORBIDDEN_MECHANISM_TOKENS_RE.search(v):
+        if contains_trade_signal(v):
             raise ValueError(
                 "ADR-017 boundary violated : CounterfactualReading.delta_narrative "
                 f"contains a forbidden trade-signal token. Got: {v!r}. The narrative "
@@ -68,7 +68,7 @@ class CounterfactualReading(BaseModel):
     def _reject_trade_tokens_in_drivers(cls, v: list[str]) -> list[str]:
         """ADR-017 boundary on the user-facing driver labels."""
         for item in v:
-            if _FORBIDDEN_MECHANISM_TOKENS_RE.search(item):
+            if contains_trade_signal(item):
                 raise ValueError(
                     "ADR-017 boundary violated : a CounterfactualReading."
                     f"new_dominant_drivers entry contains a forbidden trade-signal "

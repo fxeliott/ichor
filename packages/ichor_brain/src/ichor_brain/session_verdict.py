@@ -57,27 +57,22 @@ ADR refs :
 
 from __future__ import annotations
 
-import re
 from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
+from .adr017 import contains_trade_signal
 from .scenarios import BUCKET_LABELS, CAP_95, BucketLabel
 
-# r161 Strand H — ADR-017 boundary regex applied to ``coach_explanation`` +
-# ``live_triggers[*].description``. Same forbidden-token set as the canonical
-# ``_FORBIDDEN_MECHANISM_TOKENS_RE`` in ``scenarios.py:50-53`` (single source
-# of truth on regex shape ; the constant is re-defined here only because
-# importing across module boundaries would create a circular-import risk
-# once the verdict consumer side wires ``ScenarioDecomposition`` into a
-# verdict aggregator). Both regexes MUST stay byte-identical — if one is
-# updated, the other follows. CI-guarded via ``test_invariants_ichor.py``
-# extension (r161 follow-up).
-_FORBIDDEN_VERDICT_TOKENS_RE = re.compile(
-    r"\b(BUY|SELL|TP|SL|long entry|short entry|stop loss|take profit)\b",
-    re.IGNORECASE,
-)
+# r161 Strand H — ADR-017 boundary applied to ``coach_explanation`` +
+# ``live_triggers[*].description`` via the canonical SSOT
+# ``contains_trade_signal`` (``ichor_brain.adr017``). Relocated 2026-06-18
+# (S02 socle audit) from a local weak ASCII regex that silently passed
+# full-width / Cyrillic / zero-width / FR-imperative obfuscations — critical
+# because ``LiveTrigger.description`` ingests EXTERNAL text (news / GDELT /
+# eco-event titles). The gate normalizes then matches the imperative set ;
+# CI-guarded via ``test_adr017_ssot.py`` + ``test_invariants_ichor.py``.
 
 
 # The 5 priority assets the verdict supports. Mirror of
@@ -207,7 +202,7 @@ class LiveTrigger(BaseModel):
     def _reject_trade_tokens_in_trigger_description(cls, v: str) -> str:
         """ADR-017 boundary mirror. The trigger describes the world,
         never prescribes a trade action."""
-        if _FORBIDDEN_VERDICT_TOKENS_RE.search(v):
+        if contains_trade_signal(v):
             raise ValueError(
                 "ADR-017 boundary violated : LiveTrigger.description contains "
                 f"a forbidden trade-signal token. Got: {v!r}. The description "
@@ -414,7 +409,7 @@ class SessionVerdict(BaseModel):
         trader about the macro/structural reason for the verdict ; it
         never prescribes a trade action. Mirror of
         ``Scenario._reject_trade_tokens`` in ``scenarios.py:115-129``."""
-        if _FORBIDDEN_VERDICT_TOKENS_RE.search(v):
+        if contains_trade_signal(v):
             raise ValueError(
                 "ADR-017 boundary violated : SessionVerdict.coach_explanation "
                 f"contains a forbidden trade-signal token. Got: {v!r}. The "
