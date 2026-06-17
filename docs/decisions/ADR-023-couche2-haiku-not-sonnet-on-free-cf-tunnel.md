@@ -1,6 +1,11 @@
 # ADR-023: Couche-2 routes via Claude Haiku low effort, not Sonnet medium
 
-- **Status**: Accepted
+- **Status**: Superseded (model choice) by [ADR-108](ADR-108-full-opus-everywhere.md)
+  — Couche-2 now runs **Opus 4.8 low** (§11 full-Opus, 2026-06-02). ADR-023's
+  Cloudflare Free 100 s edge-cap reasoning is still historically valid but no
+  longer binding: Wave 67 moved Couche-2 to the CF-edge-immune async-polling
+  path, so Opus's longer wall-time no longer trips the cap. `sonnet` stays
+  forbidden (it breaches the cap AND is no better than Opus).
 - **Date**: 2026-05-06
 - **Decider**: Eliot (validated 2026-05-06 during the Couche-2 → Claude
   end-to-end activation sprint)

@@ -9,8 +9,9 @@ fail the build instead of relying on human code review :
                    Python code (identifiers, attributes, dict keys).
   2. ADR-009     — No `anthropic` SDK consumption in production code
                    (Voie D : Max 20x flat, subprocess `claude -p` only).
-  3. ADR-023     — Couche-2 agents use Claude Haiku low, not Sonnet
-                   (Sonnet medium hits CF Free 100s edge timeout).
+  3. ADR-023/108 — Couche-2 agents run Opus 4.8 low, never Sonnet
+                   (ADR-108 §11 full-Opus supersedes ADR-023's Haiku;
+                   the async-polling path is CF-edge-immune).
   4. ADR-029     — `audit_log` table has immutable BEFORE-UPDATE/DELETE
                    trigger (MiFID Article 16 + EU AI Act §50 logging).
   5. ADR-077     — `tool_call_audit` table has the same immutable
@@ -263,6 +264,43 @@ def test_couche2_agents_reference_opus() -> None:
     assert found_opus, (
         "ADR-108 sanity : no Couche-2 agent module references 'opus' anywhere. "
         "The model selection wiring may have been deleted accidentally."
+    )
+
+
+def test_adr081_primary_invariant_table_test_names_exist() -> None:
+    """ADR-081 completeness guard — every ``test_*`` named in the ADR-081
+    primary "Tracked invariants" table MUST be defined in this module.
+
+    Catches doc<->code drift in the invariant register itself : a row
+    pointing at a renamed or deleted test. Concretely this would have
+    caught the ``test_couche2_agents_reference_haiku`` phantom that lived
+    in the ADR-081 table after ADR-108 superseded ADR-023's model choice
+    (Haiku -> Opus low) and the real positive guard became
+    ``test_couche2_agents_reference_opus``.
+
+    Scope : the *primary* table only — its rows map to THIS module. The
+    separate "already CI-guarded elsewhere" cross-reference table names
+    tests that live in other files and is intentionally excluded.
+    """
+    adr = _REPO_ROOT / "docs" / "decisions" / "ADR-081-doctrinal-invariant-ci-guards.md"
+    if not adr.exists():
+        pytest.skip("ADR-081 not present in this checkout")
+    text = adr.read_text(encoding="utf-8")
+    header = "### Tracked invariants (W90 initial set + W91 extension)"
+    start = text.find(header)
+    assert start != -1, f"ADR-081 primary table header not found: {header!r}"
+    end = text.find("\n### ", start + len(header))
+    section = text[start:end] if end != -1 else text[start:]
+    referenced = set(re.findall(r"`(test_[a-z0-9_]+)`", section))
+    assert referenced, "no `test_*` names parsed from the ADR-081 primary table"
+
+    this_file = Path(__file__).read_text(encoding="utf-8")
+    defined = set(re.findall(r"^def (test_[a-z0-9_]+)\(", this_file, re.MULTILINE))
+    missing = sorted(referenced - defined)
+    assert not missing, (
+        "ADR-081 primary 'Tracked invariants' table references test(s) not "
+        f"defined in {Path(__file__).name}: {missing}. Fix the ADR-081 table "
+        "or the test name (doc<->code drift — cf. ADR-108 superseding ADR-023)."
     )
 
 
