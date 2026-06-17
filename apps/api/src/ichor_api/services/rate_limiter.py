@@ -39,7 +39,6 @@ _DEFAULT_BUDGET_PER_MIN = 120
 PER_ROUTE_LIMITS: dict[str, int] = {
     "predictions": 60,  # Couche-2 outputs
     "counterfactual": 20,  # Pass 5 — expensive Claude call per request
-    "trade-plan": 30,
     "scenarios": 30,
 }
 

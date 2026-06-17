@@ -12,9 +12,9 @@ no win.
 
 ADR-017 boundary: this module scores DIRECTION + CONVICTION only. It maps a
 directional read to a hypothetical **signed window return for measurement**,
-never to a trade order; the human-readable ``honest_verdict`` is regex-guarded
-against BUY/SELL/TP/SL tokens (mirror of ``session_verdict._FORBIDDEN_VERDICT_
-TOKENS_RE``).
+never to a trade order; the human-readable ``honest_verdict`` is guarded against
+trade-signal tokens via the canonical SSOT ``contains_trade_signal``
+(``ichor_brain.adr017``, obfuscation-resistant).
 
 ADR-009 (Voie D): zero LLM call, zero network, zero spend — pure arithmetic.
 
@@ -31,14 +31,14 @@ intraday and persists the report is slice-2 (needs production data).
 from __future__ import annotations
 
 import math
-import re
 from dataclasses import dataclass
 from datetime import date
-
-# Mirror of ``ichor_brain.session_verdict.VerdictDirection`` — kept local to
-# keep this pure-core module dependency-light (no cross-package import).
 from typing import Literal
 
+from ichor_brain.adr017 import contains_trade_signal
+
+# Mirror of ``ichor_brain.session_verdict.VerdictDirection`` — kept local to
+# keep the directional Literal dependency-light.
 Direction = Literal["up", "down", "neutral"]
 
 # ADR-022 cap mirror — conviction is a percentage on the 0..95 scale, like
@@ -46,20 +46,14 @@ Direction = Literal["up", "down", "neutral"]
 # Kept local to preserve this module's pure-core independence.
 _CONVICTION_PCT_MAX = 95.0
 
-# ADR-017 boundary mirror — byte-identical PATTERN to the forbidden-token set
-# in ``session_verdict._FORBIDDEN_VERDICT_TOKENS_RE`` (session_verdict.py:77-80)
-# and ``scenarios._FORBIDDEN_MECHANISM_TOKENS_RE`` (scenarios.py:50-53). The two
-# upstream constants differ in NAME but share this exact pattern.
-_FORBIDDEN_VERDICT_TOKENS_RE = re.compile(
-    r"\b(BUY|SELL|TP|SL|long entry|short entry|stop loss|take profit)\b",
-    re.IGNORECASE,
-)
-
 
 def _assert_adr017_clean(text: str) -> str:
     """Raise if ``text`` smuggles a trade-instruction token. The benchmark
-    describes measured outcomes; it never prescribes an action."""
-    if _FORBIDDEN_VERDICT_TOKENS_RE.search(text):
+    describes measured outcomes; it never prescribes an action. Uses the
+    canonical SSOT ``contains_trade_signal`` (``ichor_brain.adr017``,
+    obfuscation-resistant) — relocated 2026-06-18 (S02 socle audit) from a
+    local weak ASCII regex byte-mirror."""
+    if contains_trade_signal(text):
         raise ValueError(
             "ADR-017 boundary violated : benchmark prose contains a forbidden "
             f"trade-signal token. Got: {text!r}."

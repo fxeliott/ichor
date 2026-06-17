@@ -9,8 +9,9 @@ fail the build instead of relying on human code review :
                    Python code (identifiers, attributes, dict keys).
   2. ADR-009     — No `anthropic` SDK consumption in production code
                    (Voie D : Max 20x flat, subprocess `claude -p` only).
-  3. ADR-023     — Couche-2 agents use Claude Haiku low, not Sonnet
-                   (Sonnet medium hits CF Free 100s edge timeout).
+  3. ADR-023/108 — Couche-2 agents run Opus 4.8 low, never Sonnet
+                   (ADR-108 §11 full-Opus supersedes ADR-023's Haiku;
+                   the async-polling path is CF-edge-immune).
   4. ADR-029     — `audit_log` table has immutable BEFORE-UPDATE/DELETE
                    trigger (MiFID Article 16 + EU AI Act §50 logging).
   5. ADR-077     — `tool_call_audit` table has the same immutable
@@ -116,6 +117,10 @@ _ADR017_PROD_ROOTS = [
     _REPO_ROOT / "packages" / "ichor_brain" / "src",
     _REPO_ROOT / "packages" / "agents" / "src",
     _REPO_ROOT / "packages" / "ml" / "src",
+    # Migrations are production schema — a `stop_loss` / `take_profit` column is
+    # an actionable-order surface too. Scanning them closes a gap found by the
+    # S02 architecture audit (2026-06-17).
+    _REPO_ROOT / "apps" / "api" / "migrations",
 ]
 
 # Word-boundary BUY/SELL pattern (case-sensitive — lowercase "buy" /
@@ -149,6 +154,143 @@ def test_no_buy_sell_in_python_code_tokens() -> None:
     assert offenders == [], (
         "ADR-017 violated : BUY/SELL appears in Python code tokens "
         f"(not strings/comments). Found {len(offenders)} :\n"
+        + "\n".join(offenders[:20])
+        + ("\n..." if len(offenders) > 20 else "")
+    )
+
+
+# Actionable trade-order fields ADR-017 forbids on ANY mounted API
+# surface. This is the "order ticket" signature (a hard stop + RR
+# take-profits + entry zone) that the removed `/v1/trade-plan` endpoint
+# (+ services/rr_analysis.py) exposed — it was added 2026-05-04, one day
+# after the 2026-05-03 ADR-017 reset, never consumed by any frontend, and
+# slipped past the BUY/SELL token guard above. These names are DISTINCT
+# from the descriptive card field `schemas.TradePlan` (invalidation_level
+# / invalidation_condition / tp_rr3 / tp_rr15 / partial_scheme), which
+# carries NONE of them — so this guard never false-positives on the
+# legitimate descriptive surface.
+_ADR017_ACTIONABLE_ORDER_FIELDS = frozenset(
+    {"stop_loss", "tp1", "tp3", "tp_extended", "entry_zone_low", "entry_zone_high"}
+)
+
+
+def _basemodel_types_in(annotation: object) -> list[type]:
+    """Pydantic BaseModel subclasses reachable from a type annotation
+    (unwraps Optional / Union / list / dict generics)."""
+    import typing
+
+    from pydantic import BaseModel
+
+    found: list[type] = []
+
+    def rec(a: object) -> None:
+        if isinstance(a, type) and issubclass(a, BaseModel):
+            found.append(a)
+            return
+        for arg in typing.get_args(a):
+            rec(arg)
+
+    rec(annotation)
+    return found
+
+
+def test_no_actionable_order_endpoint() -> None:
+    """ADR-017 : no mounted route may expose an actionable order ticket
+    (stop_loss / tp1 / tp3 / tp_extended / entry zone). Ichor emits a
+    probabilistic READ (direction + conviction + nature), NEVER an order.
+
+    Walks every route's response_model (and nested models) and fails if
+    any field name matches the forbidden order-ticket set. Closes the
+    gap that let `/v1/trade-plan` ship a full SL/TP/entry plan unnoticed
+    by the BUY/SELL-token guard.
+    """
+    from ichor_api.main import app
+    from pydantic import BaseModel
+
+    offenders: list[str] = []
+    seen: set[type] = set()
+
+    def walk(model: type, route_path: str) -> None:
+        if model in seen:
+            return
+        seen.add(model)
+        for name, field in model.model_fields.items():
+            if name in _ADR017_ACTIONABLE_ORDER_FIELDS:
+                offenders.append(f"{route_path} → {model.__name__}.{name}")
+            for sub in _basemodel_types_in(field.annotation):
+                walk(sub, route_path)
+
+    for route in app.routes:
+        rm = getattr(route, "response_model", None)
+        if isinstance(rm, type) and issubclass(rm, BaseModel):
+            walk(rm, getattr(route, "path", "?"))
+
+    # Non-vacuity guard : the walk MUST have visited response models
+    # (incl. SessionCardOut → descriptive TradePlan, which legitimately
+    # carries tp_rr3/entry_low and must NOT match the forbidden set).
+    assert seen, "ADR-017 order-field guard walked 0 response models — vacuous"
+
+    assert offenders == [], (
+        "ADR-017 violated : a mounted API route exposes actionable order "
+        f"fields (stop_loss/tp1/tp3/entry zone). Found {len(offenders)} :\n" + "\n".join(offenders)
+    )
+
+
+# Source-token complement to the route-model walker above. `test_no_actionable_
+# order_endpoint` catches order-ticket FIELDS on mounted response models ;
+# this catches the same class earlier — as bare CODE IDENTIFIERS anywhere in
+# production sources + migrations — so a `stop_loss` variable / column never
+# even reaches a response model. Exact-identifier match (case-insensitive) on
+# unambiguous compounds ONLY ; deliberately NOT `tp`/`sl`/`entry`/`exit`/
+# `leverage`/`long`/`short`, which have pervasive legitimate uses (sys.exit,
+# log entry, financial leverage) and would drown the guard in false positives —
+# those stay covered at runtime by the card safety-gate (adr017_filter).
+# Descriptive card fields are NOT order tickets and are intentionally excluded :
+# `tp_rr3`, `entry_low`, `invalidation_level` (schemas.TradePlan).
+_ORDER_TICKET_TOKENS = frozenset(
+    {
+        "take_profit",
+        "takeprofit",
+        "stop_loss",
+        "stoploss",
+        "tp1",
+        "tp2",
+        "tp3",
+        "tp_extended",
+        "entry_zone",
+    }
+)
+
+
+def test_no_order_ticket_tokens_in_python_code() -> None:
+    """ADR-017 : order-ticket identifiers are forbidden as Python code tokens
+    across production sources AND migrations.
+
+    Forbidden : ``take_profit`` / ``stop_loss`` / ``tp1`` / ``tp2`` / ``tp3`` /
+    ``tp_extended`` / ``entry_zone`` (and case variants). These name the legs of
+    an actionable order ticket — exactly what ADR-017 forbids Ichor from emitting
+    (it produces a probabilistic READ : direction + conviction, never an order).
+
+    Complements ``test_no_buy_sell_in_python_code_tokens`` (bare BUY/SELL) and
+    ``test_no_actionable_order_endpoint`` (route response-model walker). This is
+    the source-token layer that would have flagged ``routers/trade_plan.py`` +
+    ``services/rr_analysis.py`` at write time — they emitted these fields and
+    were invisible to the BUY/SELL-only guard until ad967ff removed them.
+
+    String / comment mentions are ALLOWED : the ``adr017_filter`` SSOT lists
+    these exact tokens as forbidden *patterns* (boundary description, not an
+    executable order), and ``_code_tokens`` already skips STRING/COMMENT tokens.
+    """
+    offenders: list[str] = []
+    for path in _iter_python_sources(_ADR017_PROD_ROOTS):
+        for tok in _code_tokens(path):
+            if tok.string.lower() in _ORDER_TICKET_TOKENS:
+                rel = path.relative_to(_REPO_ROOT)
+                offenders.append(f"{rel}:{tok.start[0]} — token {tok.string!r}")
+    assert offenders == [], (
+        "ADR-017 violated : order-ticket identifier(s) appear in Python code "
+        "tokens (not strings/comments). Ichor emits a probabilistic READ, never "
+        f"an actionable order. Found {len(offenders)} :\n"
         + "\n".join(offenders[:20])
         + ("\n..." if len(offenders) > 20 else "")
     )
@@ -263,6 +405,43 @@ def test_couche2_agents_reference_opus() -> None:
     assert found_opus, (
         "ADR-108 sanity : no Couche-2 agent module references 'opus' anywhere. "
         "The model selection wiring may have been deleted accidentally."
+    )
+
+
+def test_adr081_primary_invariant_table_test_names_exist() -> None:
+    """ADR-081 completeness guard — every ``test_*`` named in the ADR-081
+    primary "Tracked invariants" table MUST be defined in this module.
+
+    Catches doc<->code drift in the invariant register itself : a row
+    pointing at a renamed or deleted test. Concretely this would have
+    caught the ``test_couche2_agents_reference_haiku`` phantom that lived
+    in the ADR-081 table after ADR-108 superseded ADR-023's model choice
+    (Haiku -> Opus low) and the real positive guard became
+    ``test_couche2_agents_reference_opus``.
+
+    Scope : the *primary* table only — its rows map to THIS module. The
+    separate "already CI-guarded elsewhere" cross-reference table names
+    tests that live in other files and is intentionally excluded.
+    """
+    adr = _REPO_ROOT / "docs" / "decisions" / "ADR-081-doctrinal-invariant-ci-guards.md"
+    if not adr.exists():
+        pytest.skip("ADR-081 not present in this checkout")
+    text = adr.read_text(encoding="utf-8")
+    header = "### Tracked invariants (W90 initial set + W91 extension)"
+    start = text.find(header)
+    assert start != -1, f"ADR-081 primary table header not found: {header!r}"
+    end = text.find("\n### ", start + len(header))
+    section = text[start:end] if end != -1 else text[start:]
+    referenced = set(re.findall(r"`(test_[a-z0-9_]+)`", section))
+    assert referenced, "no `test_*` names parsed from the ADR-081 primary table"
+
+    this_file = Path(__file__).read_text(encoding="utf-8")
+    defined = set(re.findall(r"^def (test_[a-z0-9_]+)\(", this_file, re.MULTILINE))
+    missing = sorted(referenced - defined)
+    assert not missing, (
+        "ADR-081 primary 'Tracked invariants' table references test(s) not "
+        f"defined in {Path(__file__).name}: {missing}. Fix the ADR-081 table "
+        "or the test name (doc<->code drift — cf. ADR-108 superseding ADR-023)."
     )
 
 
@@ -1559,4 +1738,41 @@ def test_pass6_system_prompt_enforces_adr017_on_invalidations_description() -> N
         "validator (`scenarios.py:231-245`). Fix : add "
         "`invalidations[*].description` to the ABSOLUTE BAN scope "
         "in rule 6 of the _SYSTEM prompt."
+    )
+
+
+# ──────────────── S02 permanence — runner self-heal watchdog ───────────────
+
+
+def test_runner_watchdog_registered_as_scheduled_task() -> None:
+    """Permanence (S02 audit, 2026-06-17) : `scripts/windows/runner-watchdog.ps1`
+    self-heals the single-host runner SPOF (the whole Voie-D engine), but a
+    self-heal script is inert unless it is SCHEDULED. The from-scratch
+    reconstruction script `register-user-tasks.ps1` MUST register it — before
+    this guard the watchdog existed yet no script scheduled it, so a rebuild
+    from the repo produced a runner with zero auto-repair (the 2026-06-10 P0
+    outage class Hetzner detects but cannot repair).
+
+    This is a source-presence lockstep (mirror of the `*_register_cron_present`
+    guards) — it cannot assert the live Task Scheduler state (machine-side), but
+    it guarantees the reconstruction path always wires the watchdog.
+    """
+    scripts_dir = _REPO_ROOT / "scripts" / "windows"
+    watchdog = scripts_dir / "runner-watchdog.ps1"
+    register = scripts_dir / "register-user-tasks.ps1"
+    assert watchdog.exists(), "runner-watchdog.ps1 is missing — the SPOF self-heal is gone."
+    if not register.exists():
+        pytest.skip("register-user-tasks.ps1 not present in this checkout")
+    text = register.read_text(encoding="utf-8")
+    assert "runner-watchdog.ps1" in text, (
+        "register-user-tasks.ps1 does not reference runner-watchdog.ps1 — the "
+        "self-heal watchdog would never be scheduled (runner SPOF un-mitigated "
+        "on a reconstruct-from-repo)."
+    )
+    assert "IchorRunnerWatchdog" in text, (
+        "register-user-tasks.ps1 does not register an IchorRunnerWatchdog task."
+    )
+    assert "RepetitionInterval" in text, (
+        "the watchdog task has no repetition — it must re-probe periodically "
+        "(designed for a ~5-min cadence per runner-watchdog.ps1 .SYNOPSIS)."
     )

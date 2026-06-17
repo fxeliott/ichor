@@ -42,6 +42,7 @@ import structlog
 from sqlalchemy import text as sa_text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ..collectors.fred_extended import merged_series
 from ..collectors.rss import DEFAULT_FEEDS
 from ..db import get_engine, get_sessionmaker
 from ..services.alerts_runner import check_metric
@@ -66,6 +67,99 @@ _RSS_SILENT_WINDOW = timedelta(hours=48)
 # permanently pollute the silent list — they get a wider window.
 _RSS_SLOW_FEEDS: frozenset[str] = frozenset({"boc_press", "crisisgroup"})
 _RSS_SLOW_WINDOW = timedelta(days=8)
+
+# Per-series FRED freshness (S02 socle audit 2026-06-18). `fred_observations`
+# holds dozens of series; the global `fred` FreshnessSpec checks only the
+# whole-table MAX(fetched_at), which VIX_LIVE (5-min poll) keeps perpetually
+# fresh — so a daily series that silently dies (DGS2, a Treasury yield, an FX
+# pair…) is INVISIBLE to it. We sweep the DAILY business-day series per-series.
+#
+# The daily set is an EXPLICIT curated allowlist intersected with the actually-
+# collected series (`merged_series()`). We do NOT derive it as "everything minus
+# the slow-age registry": that registry is INCOMPLETE (e.g. CPIAUCSL, a MONTHLY
+# series, is absent from it), so the subtraction would wrongly classify monthly
+# series as daily and false-positive every month between prints. The allowlist
+# only holds series whose publication cadence is genuinely daily-business-day
+# (Treasury yields, TIPS, breakevens, credit OAS, policy rates, the broad-dollar
+# index, vol indices, energy spot, FX rates, daily EPU). The intersection drops
+# any that this deployment doesn't collect (→ no false "absent").
+#
+# The 5-day window absorbs weekend + back-to-back US holidays: `fetched_at` only
+# advances when a NEW observation_date prints (persist dedup), so it legitimately
+# freezes over a long weekend even on a healthy daily series — a tighter window
+# would false-positive every Monday. The aggregated `fred` spec still catches a
+# TOTAL collector outage; this per-series sweep is the additive warning tier.
+_FRED_SERIES_WINDOW = timedelta(days=5)
+_FRED_DAILY_CANDIDATES: frozenset[str] = frozenset(
+    {
+        # Treasury nominal constant-maturity yields (daily BD)
+        "DGS1MO",
+        "DGS3MO",
+        "DGS6MO",
+        "DGS1",
+        "DGS2",
+        "DGS3",
+        "DGS5",
+        "DGS7",
+        "DGS10",
+        "DGS20",
+        "DGS30",
+        # Treasury spreads / curve
+        "T10Y2Y",
+        "T10Y3M",
+        "T10YFF",
+        # TIPS real yields + term premium + breakevens
+        "DFII5",
+        "DFII10",
+        "DFII30",
+        "THREEFYTP10",
+        "T5YIE",
+        "T10YIE",
+        "T5YIFR",
+        # Credit OAS
+        "BAMLH0A0HYM2",
+        "BAMLC0A0CM",
+        # Policy / overnight rates
+        "SOFR",
+        "DFF",
+        "EFFR",
+        "OBFR",
+        # Broad-dollar indices
+        "DTWEXBGS",
+        "DTWEXAFEGS",
+        # Volatility indices (CBOE, daily BD)
+        "VIXCLS",
+        "VXVCLS",
+        "GVZCLS",
+        "OVXCLS",
+        "RVXCLS",
+        # Energy spot
+        "DCOILWTICO",
+        "DCOILBRENTEU",
+        "DHHNGSP",
+        # FX spot rates
+        "DEXJPUS",
+        "DEXUSEU",
+        "DEXCHUS",
+        "DEXCAUS",
+        "DEXSZUS",
+        "DEXUSAL",
+        "DEXUSNZ",
+        "DEXHKUS",
+        "DEXKOUS",
+        "DEXSDUS",
+        # Daily economic-policy-uncertainty
+        "USEPUINDXD",
+    }
+)
+# Only monitor series this deployment actually collects (avoids a false "absent"
+# on a candidate that is not in the collector's series list).
+_FRED_DAILY_SERIES: tuple[str, ...] = tuple(
+    s for s in merged_series() if s in _FRED_DAILY_CANDIDATES
+)
+# Defensive: a per-series alert key would land in alerts.asset VARCHAR(16) if we
+# ever switch from the aggregated asset=None payload to per-series rows.
+assert all(len(s) <= 16 for s in _FRED_DAILY_SERIES), "FRED series_id exceeds 16 chars"
 
 
 def _fmt_age(age: timedelta | None) -> str:
@@ -162,6 +256,45 @@ async def _sweep_rss_feeds(session: AsyncSession, *, now: datetime) -> tuple[lis
     return silent, n_alerts
 
 
+async def _sweep_fred_series(session: AsyncSession, *, now: datetime) -> tuple[list[str], int]:
+    """Per-series FRED silent sweep (S02 socle audit) — mirror of
+    ``_sweep_rss_feeds``. The whole-table ``MAX(fetched_at)`` (global ``fred``
+    spec) stays fresh on VIX_LIVE while a daily series can die unseen ; this
+    GROUP-BYs the DAILY series and flags any that stopped advancing past the
+    5-day window. WHERE-filtered to ``_FRED_DAILY_SERIES`` so the table's
+    synthetic non-FRED keys (VIX_LIVE, BLS_*, EIA_*…) are never evaluated with a
+    daily threshold. Returns (silent_series, n_alerts)."""
+    names = list(_FRED_DAILY_SERIES)
+    rows = await session.execute(
+        sa_text(
+            "SELECT series_id, max(fetched_at) FROM fred_observations "
+            "WHERE series_id = ANY(:names) GROUP BY series_id"
+        ),
+        {"names": names},
+    )
+    latest_by_series: dict[str, datetime | None] = {
+        str(series_id): latest for series_id, latest in rows.all()
+    }
+    silent: list[str] = []
+    for name in names:
+        latest = latest_by_series.get(name)
+        if latest is not None and latest.tzinfo is None:
+            latest = latest.replace(tzinfo=UTC)
+        if latest is None or (now - latest) > _FRED_SERIES_WINDOW:
+            silent.append(name)
+    n_alerts = 0
+    if silent:
+        hits = await check_metric(
+            session,
+            metric_name="fred_series_silent",
+            current_value=float(len(silent)),
+            asset=None,
+            extra_payload={"silent_series": ", ".join(sorted(silent))},
+        )
+        n_alerts = len(hits)
+    return silent, n_alerts
+
+
 def _load_state(path: Path) -> dict[str, Any] | None:
     try:
         loaded = json.loads(path.read_text(encoding="utf-8"))
@@ -186,6 +319,7 @@ async def _run(*, dry_run: bool, state_file: Path) -> int:
         async with sm() as session:
             results = await _sweep_registry(session, now=now)
             silent: list[str] = []
+            fred_silent: list[str] = []
             if dry_run:
                 n_alerts = 0
                 for r in results:
@@ -195,11 +329,14 @@ async def _run(*, dry_run: bool, state_file: Path) -> int:
                         f"tier={r.spec.criticality}"
                     )
                 silent, _ = await _sweep_rss_feeds(session, now=now)
+                fred_silent, _ = await _sweep_fred_series(session, now=now)
                 await session.rollback()
             else:
                 n_alerts = await _emit_alerts(session, results)
                 silent, n_rss = await _sweep_rss_feeds(session, now=now)
                 n_alerts += n_rss
+                fred_silent, n_fred = await _sweep_fred_series(session, now=now)
+                n_alerts += n_fred
                 await session.commit()
     except Exception as exc:
         print(f"DB failure during freshness sweep : {exc!s}. Cron will retry next tick.")
@@ -213,7 +350,8 @@ async def _run(*, dry_run: bool, state_file: Path) -> int:
         f"freshness · {len(results)} sources checked · "
         f"{len(degraded)} degraded ({len(critical)} critical) · "
         f"{len(skipped)} skipped (market closed) · "
-        f"{len(silent)} silent feeds · {n_alerts} alerts emitted"
+        f"{len(silent)} silent feeds · {len(fred_silent)} silent FRED series · "
+        f"{n_alerts} alerts emitted"
     )
     for r in degraded:
         print(
@@ -222,6 +360,8 @@ async def _run(*, dry_run: bool, state_file: Path) -> int:
         )
     if silent:
         print(f"  SILENT FEEDS (48h+): {', '.join(sorted(silent))}")
+    if fred_silent:
+        print(f"  SILENT FRED SERIES (5d+): {', '.join(sorted(fred_silent))}")
 
     log.info(
         "data_freshness.complete",
@@ -229,6 +369,7 @@ async def _run(*, dry_run: bool, state_file: Path) -> int:
         degraded=[r.spec.source_key for r in degraded],
         critical=[r.spec.source_key for r in critical],
         silent_feeds=silent,
+        silent_fred_series=fred_silent,
         n_alerts=n_alerts,
         dry_run=dry_run,
     )

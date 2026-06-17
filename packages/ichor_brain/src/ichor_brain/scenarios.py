@@ -37,20 +37,21 @@ pulling SQLAlchemy, and CI-guarded against the ADR-017 boundary.
 
 from __future__ import annotations
 
-import re
 from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 # ADR-017 boundary regression guard — the `mechanism` string emitted by
-# Pass-6 (LLM Claude Opus 4.8 effort xhigh, ADR-110) must never reference
-# a trade instruction. Word-boundary case-insensitive. Catches: `BUY`,
-# `SELL`, `TP`, `SL`, `long entry`, `short entry`. Tested via
-# test_invariants_ichor.py + test_scenarios.py at construction time.
-_FORBIDDEN_MECHANISM_TOKENS_RE = re.compile(
-    r"\b(BUY|SELL|TP|SL|long entry|short entry|stop loss|take profit)\b",
-    re.IGNORECASE,
-)
+# Pass-6 (LLM Claude Opus 4.8 effort xhigh, ADR-110) must never PRESCRIBE a
+# trade instruction. The check is the NARROW, obfuscation-resistant
+# `contains_trade_signal` from the canonical SSOT (`ichor_brain.adr017`) —
+# normalizes (NFKC + zero-width + Cyrillic/Greek fold) then matches the
+# imperative set + multilingual verbs, WITHOUT the price-level patterns so a
+# legitimate "referenced not prescribed" technical level stays constructible.
+# Relocated from the local weak ASCII regex 2026-06-18 (S02 socle audit) which
+# silently passed full-width / Cyrillic / FR-imperative obfuscations. Tested via
+# test_adr017_ssot.py + test_invariants_ichor.py + test_scenarios.py.
+from .adr017 import contains_trade_signal
 
 BucketLabel = Literal[
     "crash_flush",
@@ -147,9 +148,8 @@ INVALIDATION_METRIC_NAMES: frozenset[str] = frozenset(
 
 
 # r161 Strand A — descriptive-only ADR-017 boundary applied to InvalidationCondition
-# `description` field. Same forbidden-token set as `_FORBIDDEN_MECHANISM_TOKENS_RE`
-# but reused at the validator site below for clarity (single source of truth on
-# regex pattern remains :50-53).
+# `description` field via the canonical SSOT `contains_trade_signal`
+# (`ichor_brain.adr017`), same gate as `Scenario.mechanism` below.
 
 
 class InvalidationCondition(BaseModel):
@@ -234,7 +234,7 @@ class InvalidationCondition(BaseModel):
         """ADR-017 boundary mirror of ``Scenario._reject_trade_tokens``.
         The description explains the mechanism of invalidation ; never
         prescribes a trade action."""
-        if _FORBIDDEN_MECHANISM_TOKENS_RE.search(v):
+        if contains_trade_signal(v):
             raise ValueError(
                 "ADR-017 boundary violated : InvalidationCondition.description "
                 f"contains a forbidden trade-signal token. Got: {v!r}. The "
@@ -315,7 +315,7 @@ class Scenario(BaseModel):
         realize, never WHAT to do. Reject any trade-signal token at
         construction time so the boundary is enforced regardless of
         whether the LLM cooperated with the prompt instruction."""
-        if _FORBIDDEN_MECHANISM_TOKENS_RE.search(v):
+        if contains_trade_signal(v):
             raise ValueError(
                 "ADR-017 boundary violated : mechanism contains a forbidden "
                 f"trade-signal token. Got: {v!r}. The mechanism explains the "

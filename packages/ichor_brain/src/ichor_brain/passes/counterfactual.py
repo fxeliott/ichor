@@ -19,9 +19,10 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from .base import Pass, PassError, extract_json_block
+from ..adr017 import contains_trade_signal
+from .base import FRENCH_COACH_DIRECTIVE, Pass, PassError, extract_json_block
 
 BiasDirection = Literal["long", "short", "neutral"]
 
@@ -47,6 +48,35 @@ class CounterfactualReading(BaseModel):
     """How much less / more confident the counterfactual is vs the original.
     +0.2 = counterfactual is more confident, -0.2 = less."""
 
+    @field_validator("delta_narrative")
+    @classmethod
+    def _reject_trade_tokens_in_narrative(cls, v: str) -> str:
+        """ADR-017 boundary (mirror of ``Scenario._reject_trade_tokens``) — the
+        user-facing counterfactual narrative is a DESCRIPTIVE read of how the
+        macro picture shifts, never a trade instruction."""
+        if contains_trade_signal(v):
+            raise ValueError(
+                "ADR-017 boundary violated : CounterfactualReading.delta_narrative "
+                f"contains a forbidden trade-signal token. Got: {v!r}. The narrative "
+                "explains what changes in the macro read when the event is scrubbed ; "
+                "it never prescribes BUY/SELL/TP/SL or entry/exit."
+            )
+        return v
+
+    @field_validator("new_dominant_drivers")
+    @classmethod
+    def _reject_trade_tokens_in_drivers(cls, v: list[str]) -> list[str]:
+        """ADR-017 boundary on the user-facing driver labels."""
+        for item in v:
+            if contains_trade_signal(item):
+                raise ValueError(
+                    "ADR-017 boundary violated : a CounterfactualReading."
+                    f"new_dominant_drivers entry contains a forbidden trade-signal "
+                    f"token. Got: {item!r}. Drivers are macro/structural labels, "
+                    "never trade instructions."
+                )
+        return v
+
 
 _SYSTEM = """\
 You are Ichor's counterfactual analyst. You receive :
@@ -61,8 +91,12 @@ changed and which drivers rise to dominance in its absence.
 CRITICAL RULES :
   1. Never invent sources. Cite only items still present in the pool.
   2. Conviction capped at 95 %.
-  3. Output JSON only, fenced with ```json ... ```.
-  4. Schema :
+  3. ADR-017 boundary : `delta_narrative` and `new_dominant_drivers` are a
+     DESCRIPTIVE read of how the macro picture shifts — never a trade
+     instruction. No BUY/SELL/TP/SL, no entry/exit, no stop/target ; a
+     forbidden token makes the whole output rejected.
+  4. Output JSON only, fenced with ```json ... ```.
+  5. Schema :
      {
        "scrubbed_event": "<the event removed>",
        "counterfactual_bias": "long" | "short" | "neutral",
@@ -79,7 +113,7 @@ class CounterfactualPass(Pass[CounterfactualReading]):
 
     @property
     def system_prompt(self) -> str:
-        return _SYSTEM
+        return _SYSTEM + FRENCH_COACH_DIRECTIVE
 
     def build_prompt(
         self,

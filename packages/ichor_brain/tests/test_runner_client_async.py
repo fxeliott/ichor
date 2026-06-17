@@ -158,8 +158,14 @@ async def test_async_poll_gives_up_after_max_consecutive(monkeypatch) -> None:
 
 
 @pytest.mark.asyncio
-async def test_async_poll_404_aborts_immediately(monkeypatch) -> None:
-    """404 = task expired/GC'd = a real failure, not a transient blip."""
+async def test_async_poll_404_raises_classified_task_lost(monkeypatch) -> None:
+    """404 on a poll = the runner no longer knows this task (it restarted
+    mid-flight and reset its in-memory async-task table, or the task was
+    garbage-collected). It is a real, UNRECOVERABLE failure — not a transient
+    blip — so it aborts immediately, but as a CLASSIFIED ``RunnerResultError``
+    carrying the honest cause, NOT an opaque ``httpx.HTTPStatusError`` the
+    orchestrator can only surface as a mystery (S02 audit rank 9 — closes the
+    §10.2 silent-outage class on the restart-mid-flight failure mode)."""
     monkeypatch.setattr("ichor_brain.runner_client.asyncio.sleep", lambda *a, **kw: _no_op())
     state = {"polls": 0}
 
@@ -170,9 +176,9 @@ async def test_async_poll_404_aborts_immediately(monkeypatch) -> None:
         return httpx.Response(404, text="task_id unknown")
 
     with patch("ichor_brain.runner_client.httpx.AsyncClient", _run_with_handler(handler)):
-        with pytest.raises(httpx.HTTPStatusError):
+        with pytest.raises(RunnerResultError, match="unknown to the runner"):
             await _make_client().run(RunnerCall(prompt="p", system="s"))
-    assert state["polls"] == 1  # no retry on 404
+    assert state["polls"] == 1  # no retry on 404 — fail fast, but classified
 
 
 @pytest.mark.asyncio

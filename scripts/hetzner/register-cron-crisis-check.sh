@@ -19,6 +19,9 @@ cat > /etc/systemd/system/ichor-crisis-check.service <<'EOF'
 Description=Ichor Crisis Mode auto-trigger (composite check)
 After=network-online.target postgresql.service
 Wants=network-online.target
+# S02 socle audit (2026-06-18) — the crisis DETECTOR going blind must not be
+# silent. notify-failure fires on any non-whitelisted exit (real bug).
+OnFailure=ichor-notify@%n.service
 
 [Service]
 Type=oneshot
@@ -30,7 +33,11 @@ ExecStart=/opt/ichor/api/.venv/bin/python -m ichor_api.cli.run_crisis_check --pe
 TimeoutStartSec=120
 StandardOutput=journal
 StandardError=journal
-SuccessExitStatus=0 1
+# Exit 0 = ok ; 3 = transient DB/runtime failure (tolerated — the data-freshness
+# monitor pages on sustained DB-down, so a single blip here stays quiet). Any
+# OTHER non-zero (a real crisis-check bug) → Result=failed → OnFailure notify.
+# The old `0 1` MASKED an uncaught exit-1 crash of the crisis detector (S02 fix).
+SuccessExitStatus=0 3
 EOF
 
 cat > /etc/systemd/system/ichor-crisis-check.timer <<'EOF'

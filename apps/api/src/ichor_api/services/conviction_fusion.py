@@ -39,8 +39,8 @@ Invariants honoured
 * ADR-017 — ``direction`` comes from the buckets only. ``theme`` is
   structurally non-directional here (a plain ``bool`` presence flag — it
   *cannot* carry a long/short vote). ``rationale_fr`` is plain French and
-  contains zero trade-signal tokens (mirror of
-  ``scenarios.py:50-53`` ``_FORBIDDEN_MECHANISM_TOKENS_RE``).
+  contains zero trade-signal tokens (canonical SSOT
+  ``ichor_brain.adr017.contains_trade_signal``).
 * ADR-022 (cap-95) — ``conviction_pct`` is clamped to ``[0.0, 95.0]``.
   Promotion is bounded (``AGREEMENT_CEIL``) so corroboration can *strengthen*
   a real edge but never *manufacture* certainty.

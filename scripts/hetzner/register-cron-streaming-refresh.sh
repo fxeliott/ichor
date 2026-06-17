@@ -31,6 +31,9 @@ cat > /etc/systemd/system/ichor-streaming-refresh.service <<'EOF'
 Description=Ichor Streaming-cadence verdict refresh (Phase 7, ADR-109)
 After=network-online.target postgresql.service
 Wants=network-online.target
+# S02 socle audit (2026-06-18) — a stale verdict whose regen FAILED (exit 2)
+# must page instead of silently leaving the trader on a stale card.
+OnFailure=ichor-notify@%n.service
 
 [Service]
 Type=oneshot
@@ -52,9 +55,10 @@ ExecStart=/opt/ichor/api/.venv/bin/python -m ichor_api.cli.run_streaming_refresh
 TimeoutStartSec=3600
 StandardOutput=journal
 StandardError=journal
-# Exit 1 = feature flag OFF (clean skip, not a failure)
-# Exit 3 = DB/runtime failure (transient, retry next tick)
-SuccessExitStatus=0 1
+# Exit 1 = feature flag OFF (clean skip) ; Exit 3 = DB/runtime transient (retry).
+# Exit 2 = >=1 stale-verdict regen FAILED → NOT whitelisted → Result=failed →
+# OnFailure notify (S02 socle audit: a failed regen used to exit 0 = silent).
+SuccessExitStatus=0 1 3
 EOF
 
 cat > /etc/systemd/system/ichor-streaming-refresh.timer <<'EOF'

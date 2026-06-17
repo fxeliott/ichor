@@ -237,6 +237,15 @@ async def _main(persist: bool, min_concurrent: int, lookback_min: int) -> int:
             min_concurrent=min_concurrent,
             lookback_min=lookback_min,
         )
+    except Exception as exc:
+        # S02 socle audit (2026-06-18) — honest failure signalling. The crisis
+        # DETECTOR used to let a DB/assessment failure escape as an uncaught
+        # traceback (exit 1), which the unit's `SuccessExitStatus=0 1` then
+        # masked → the crisis monitor could be BLIND and nobody knew. Return a
+        # distinct honest exit 3 (not 0/1) so the systemd OnFailure path fires
+        # and the failure is visible instead of silently swallowed.
+        print(f"crisis check failed : {exc!s}. Cron will retry next tick.")
+        return 3
     finally:
         if persist:
             await get_engine().dispose()

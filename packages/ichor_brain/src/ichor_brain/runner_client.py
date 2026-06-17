@@ -370,6 +370,29 @@ class HttpRunnerClient(RunnerClient):
                             task_id=task_id,
                         )
                         continue
+                    if pr.status_code == 404:
+                        # The runner no longer knows this task_id. Two honest,
+                        # unrecoverable causes: it restarted mid-flight (the
+                        # in-memory async-task table reset) OR the task was
+                        # garbage-collected (too old). Classify it as a clear
+                        # runner failure instead of a bare 404 that the
+                        # orchestrator surfaces as an opaque HTTPStatusError —
+                        # the §10.2 silent-outage class wants honest causes, not
+                        # mysteries. The card fails this cycle and regenerates
+                        # on the next batch (the watchdog has already restarted
+                        # the runner). Mirrors the runner-side failure-status
+                        # guard (`_unwrap_runner_result`).
+                        log.info(
+                            "runner_client.async.task_lost",
+                            status=404,
+                            task_id=task_id,
+                            poll_count=poll_count,
+                        )
+                        raise RunnerResultError(
+                            f"async task {task_id} is unknown to the runner (HTTP 404) "
+                            "— the runner most likely restarted mid-flight, or the task "
+                            "was garbage-collected; the task is lost (regenerate next cycle)."
+                        )
                     pr.raise_for_status()
                 except httpx.TransportError as exc:
                     consecutive_poll_errors += 1
