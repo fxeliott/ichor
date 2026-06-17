@@ -1739,3 +1739,40 @@ def test_pass6_system_prompt_enforces_adr017_on_invalidations_description() -> N
         "`invalidations[*].description` to the ABSOLUTE BAN scope "
         "in rule 6 of the _SYSTEM prompt."
     )
+
+
+# ──────────────── S02 permanence — runner self-heal watchdog ───────────────
+
+
+def test_runner_watchdog_registered_as_scheduled_task() -> None:
+    """Permanence (S02 audit, 2026-06-17) : `scripts/windows/runner-watchdog.ps1`
+    self-heals the single-host runner SPOF (the whole Voie-D engine), but a
+    self-heal script is inert unless it is SCHEDULED. The from-scratch
+    reconstruction script `register-user-tasks.ps1` MUST register it — before
+    this guard the watchdog existed yet no script scheduled it, so a rebuild
+    from the repo produced a runner with zero auto-repair (the 2026-06-10 P0
+    outage class Hetzner detects but cannot repair).
+
+    This is a source-presence lockstep (mirror of the `*_register_cron_present`
+    guards) — it cannot assert the live Task Scheduler state (machine-side), but
+    it guarantees the reconstruction path always wires the watchdog.
+    """
+    scripts_dir = _REPO_ROOT / "scripts" / "windows"
+    watchdog = scripts_dir / "runner-watchdog.ps1"
+    register = scripts_dir / "register-user-tasks.ps1"
+    assert watchdog.exists(), "runner-watchdog.ps1 is missing — the SPOF self-heal is gone."
+    if not register.exists():
+        pytest.skip("register-user-tasks.ps1 not present in this checkout")
+    text = register.read_text(encoding="utf-8")
+    assert "runner-watchdog.ps1" in text, (
+        "register-user-tasks.ps1 does not reference runner-watchdog.ps1 — the "
+        "self-heal watchdog would never be scheduled (runner SPOF un-mitigated "
+        "on a reconstruct-from-repo)."
+    )
+    assert "IchorRunnerWatchdog" in text, (
+        "register-user-tasks.ps1 does not register an IchorRunnerWatchdog task."
+    )
+    assert "RepetitionInterval" in text, (
+        "the watchdog task has no repetition — it must re-probe periodically "
+        "(designed for a ~5-min cadence per runner-watchdog.ps1 .SYNOPSIS)."
+    )
