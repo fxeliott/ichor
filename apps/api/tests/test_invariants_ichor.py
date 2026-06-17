@@ -117,6 +117,10 @@ _ADR017_PROD_ROOTS = [
     _REPO_ROOT / "packages" / "ichor_brain" / "src",
     _REPO_ROOT / "packages" / "agents" / "src",
     _REPO_ROOT / "packages" / "ml" / "src",
+    # Migrations are production schema — a `stop_loss` / `take_profit` column is
+    # an actionable-order surface too. Scanning them closes a gap found by the
+    # S02 architecture audit (2026-06-17).
+    _REPO_ROOT / "apps" / "api" / "migrations",
 ]
 
 # Word-boundary BUY/SELL pattern (case-sensitive — lowercase "buy" /
@@ -229,6 +233,66 @@ def test_no_actionable_order_endpoint() -> None:
     assert offenders == [], (
         "ADR-017 violated : a mounted API route exposes actionable order "
         f"fields (stop_loss/tp1/tp3/entry zone). Found {len(offenders)} :\n" + "\n".join(offenders)
+    )
+
+
+# Source-token complement to the route-model walker above. `test_no_actionable_
+# order_endpoint` catches order-ticket FIELDS on mounted response models ;
+# this catches the same class earlier — as bare CODE IDENTIFIERS anywhere in
+# production sources + migrations — so a `stop_loss` variable / column never
+# even reaches a response model. Exact-identifier match (case-insensitive) on
+# unambiguous compounds ONLY ; deliberately NOT `tp`/`sl`/`entry`/`exit`/
+# `leverage`/`long`/`short`, which have pervasive legitimate uses (sys.exit,
+# log entry, financial leverage) and would drown the guard in false positives —
+# those stay covered at runtime by the card safety-gate (adr017_filter).
+# Descriptive card fields are NOT order tickets and are intentionally excluded :
+# `tp_rr3`, `entry_low`, `invalidation_level` (schemas.TradePlan).
+_ORDER_TICKET_TOKENS = frozenset(
+    {
+        "take_profit",
+        "takeprofit",
+        "stop_loss",
+        "stoploss",
+        "tp1",
+        "tp2",
+        "tp3",
+        "tp_extended",
+        "entry_zone",
+    }
+)
+
+
+def test_no_order_ticket_tokens_in_python_code() -> None:
+    """ADR-017 : order-ticket identifiers are forbidden as Python code tokens
+    across production sources AND migrations.
+
+    Forbidden : ``take_profit`` / ``stop_loss`` / ``tp1`` / ``tp2`` / ``tp3`` /
+    ``tp_extended`` / ``entry_zone`` (and case variants). These name the legs of
+    an actionable order ticket — exactly what ADR-017 forbids Ichor from emitting
+    (it produces a probabilistic READ : direction + conviction, never an order).
+
+    Complements ``test_no_buy_sell_in_python_code_tokens`` (bare BUY/SELL) and
+    ``test_no_actionable_order_endpoint`` (route response-model walker). This is
+    the source-token layer that would have flagged ``routers/trade_plan.py`` +
+    ``services/rr_analysis.py`` at write time — they emitted these fields and
+    were invisible to the BUY/SELL-only guard until ad967ff removed them.
+
+    String / comment mentions are ALLOWED : the ``adr017_filter`` SSOT lists
+    these exact tokens as forbidden *patterns* (boundary description, not an
+    executable order), and ``_code_tokens`` already skips STRING/COMMENT tokens.
+    """
+    offenders: list[str] = []
+    for path in _iter_python_sources(_ADR017_PROD_ROOTS):
+        for tok in _code_tokens(path):
+            if tok.string.lower() in _ORDER_TICKET_TOKENS:
+                rel = path.relative_to(_REPO_ROOT)
+                offenders.append(f"{rel}:{tok.start[0]} — token {tok.string!r}")
+    assert offenders == [], (
+        "ADR-017 violated : order-ticket identifier(s) appear in Python code "
+        "tokens (not strings/comments). Ichor emits a probabilistic READ, never "
+        f"an actionable order. Found {len(offenders)} :\n"
+        + "\n".join(offenders[:20])
+        + ("\n..." if len(offenders) > 20 else "")
     )
 
 
