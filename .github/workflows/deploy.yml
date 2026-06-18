@@ -56,9 +56,9 @@ jobs:
           tar -czf - \
               --exclude='.venv' --exclude='node_modules' --exclude='.next' \
               --exclude='__pycache__' --exclude='.pytest_cache' --exclude='.ruff_cache' \
-              infra apps packages | \
+              infra apps packages scripts | \
             ssh -i ~/.ssh/id_ed25519 "$SSH_USER@$SSH_HOST" \
-              "rm -rf /root/infra /root/apps /root/packages && \
+              "rm -rf /root/infra /root/apps /root/packages /root/scripts && \
                mkdir -p /root && tar -xzf - -C /root/"
 
       - name: Run Ansible
