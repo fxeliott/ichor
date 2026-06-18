@@ -37,6 +37,7 @@ NOT retried :
 from __future__ import annotations
 
 import asyncio
+import random
 from abc import ABC, abstractmethod
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -108,6 +109,21 @@ _TRANSIENT_STATUSES = frozenset({429, 502, 503, 504, 520, 521, 522, 523, 525, 53
 # on submit, because the task keeps running on the runner regardless.
 _POLL_RETRY_STATUSES = _TRANSIENT_STATUSES | frozenset({524})
 _MAX_CONSECUTIVE_POLL_ERRORS = 12
+
+# Submission/retry backoff jitter (S02 socle round 4, 2026-06-18). The fixed
+# (5, 15, 45) s submit backoff is the CLIENT layer of the very thundering-herd
+# the module docstring names: when the HH:00 briefing timer and the HH:01
+# session-cards batch overlap, all 6 per-asset RunnerClients collide on the
+# runner's single-subprocess 503 lock and, on a fixed cadence, re-hit in
+# lock-step. ±25 % jitter de-synchronises them (the orchestrator-level jitter
+# only fires AFTER the client has already exhausted this backoff). random.uniform
+# is the patchable seam for deterministic tests.
+_BACKOFF_JITTER_FRAC = 0.25
+
+
+def _jittered(delay: float) -> float:
+    """Return ``delay`` scaled by ``1 ± _BACKOFF_JITTER_FRAC`` (uniform)."""
+    return delay * (1.0 + random.uniform(-_BACKOFF_JITTER_FRAC, _BACKOFF_JITTER_FRAC))
 
 
 @dataclass(frozen=True)
@@ -312,7 +328,7 @@ class HttpRunnerClient(RunnerClient):
         async with httpx.AsyncClient(timeout=30.0) as client:
             for attempt, delay in enumerate((0.0,) + backoff):
                 if delay > 0:
-                    await asyncio.sleep(delay)
+                    await asyncio.sleep(_jittered(delay))
                 r = await client.post(submit_url, headers=self._headers, json=payload)
                 last_status = r.status_code
                 if r.status_code in _TRANSIENT_STATUSES:
@@ -452,7 +468,7 @@ class HttpRunnerClient(RunnerClient):
         async with httpx.AsyncClient(timeout=self._timeout_sec) as client:
             for attempt, delay in enumerate((0.0,) + backoff):
                 if delay > 0:
-                    await asyncio.sleep(delay)
+                    await asyncio.sleep(_jittered(delay))
                 r = await client.post(url, headers=self._headers, json=payload)
                 last_status = r.status_code
                 if r.status_code in _TRANSIENT_STATUSES:
