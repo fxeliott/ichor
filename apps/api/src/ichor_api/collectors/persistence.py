@@ -70,6 +70,14 @@ async def persist_news_items(session: AsyncSession, items: Iterable[NewsItemData
     De-dup is on `(source, guid_hash)`: a given headline is stored at most once
     even if the cron polls every minute. Returns the number of NEW rows
     inserted.
+
+    NOTE (S02 socle round 5) — dedup is BEST-EFFORT, not constraint-backed: the
+    only DB UNIQUE is `(source, guid_hash, fetched_at)` (a TimescaleDB hypertable
+    must include the partition column `fetched_at` in its key), so two concurrent
+    polls with different `fetched_at` both pass the in-Python skip AND both
+    insert — a rare silent duplicate, not an IntegrityError. Accepted as
+    best-effort (same philosophy as the snapshot tables); a true `(source,
+    guid_hash)` uniqueness would require taking news_items off the hypertable.
     """
     items = list(items)
     if not items:
@@ -254,6 +262,29 @@ def _build_fred_insert_rows(
     return list(rows_by_key.values())
 
 
+async def _bulk_insert_ignore_conflicts(
+    session: AsyncSession,
+    model: type,
+    rows: list[dict[str, object]],
+    *,
+    conflict_cols: list[str],
+) -> int:
+    """Bulk INSERT ... ON CONFLICT (conflict_cols) DO NOTHING. De-dups the batch
+    on conflict_cols first (Postgres rejects a duplicate arbiter within one
+    VALUES batch). Returns rows actually inserted (rowcount; falls back to the
+    deduped length only if the driver reports None/-1). Empty -> 0, no statement."""
+    if not rows:
+        return 0
+    by_key: dict[tuple, dict[str, object]] = {}
+    for r in rows:
+        by_key[tuple(r[c] for c in conflict_cols)] = r
+    deduped = list(by_key.values())
+    stmt = pg_insert(model).values(deduped).on_conflict_do_nothing(index_elements=conflict_cols)
+    result = await session.execute(stmt)
+    await session.commit()
+    return result.rowcount if result.rowcount is not None and result.rowcount >= 0 else len(deduped)
+
+
 async def persist_fred_observations(
     session: AsyncSession, obs: Iterable[FredObservationData]
 ) -> int:
@@ -395,76 +426,67 @@ async def persist_polygon_bars(session: AsyncSession, bars: Iterable[PolygonBar]
 
 
 async def persist_gdelt_articles(session: AsyncSession, articles: Iterable[GdeltArticle]) -> int:
-    """Insert GDELT articles, skipping (url, query_label, seendate) dupes."""
+    """Insert GDELT articles, skipping (url, query_label, seendate) dupes.
+
+    Atomic idempotent upsert (S02 socle-reliability): the former
+    check-then-insert was not atomic and had no try/except, so an overlapping
+    poll could trip the unique constraint and lose the whole batch. ON CONFLICT
+    (url, query_label, seendate) DO NOTHING makes it race-safe. ``id`` is
+    supplied explicitly (no DB server_default; bulk pg_insert does not apply the
+    ORM ``default=uuid4``).
+    """
     articles = list(articles)
     if not articles:
         return 0
-    urls = {a.url for a in articles}
-    existing_rows = (
-        await session.execute(
-            select(GdeltEvent.url, GdeltEvent.query_label, GdeltEvent.seendate).where(
-                GdeltEvent.url.in_(urls)
-            )
-        )
-    ).all()
-    existing: set[tuple[str, str, datetime]] = {(r[0], r[1], r[2]) for r in existing_rows}
     now = datetime.now(UTC)
-    inserted = 0
-    for a in articles:
-        if (a.url, a.query_label, a.seendate) in existing:
-            continue
-        session.add(
-            GdeltEvent(
-                seendate=a.seendate,
-                created_at=now,
-                query_label=a.query_label[:64],
-                url=a.url[:1024],
-                title=a.title[:512],
-                domain=(a.domain or None) and a.domain[:128],
-                language=(a.language or None) and a.language[:32],
-                sourcecountry=(a.sourcecountry or None) and a.sourcecountry[:32],
-                tone=a.tone,
-                image_url=(a.image_url or None) and a.image_url[:1024],
-                fetched_at=a.fetched_at,
-            )
-        )
-        inserted += 1
-    if inserted:
-        await session.commit()
+    rows = [
+        {
+            "id": uuid4(),
+            "seendate": a.seendate,
+            "created_at": now,
+            "query_label": a.query_label[:64],
+            "url": a.url[:1024],
+            "title": a.title[:512],
+            "domain": (a.domain or None) and a.domain[:128],
+            "language": (a.language or None) and a.language[:32],
+            "sourcecountry": (a.sourcecountry or None) and a.sourcecountry[:32],
+            "tone": a.tone,
+            "image_url": (a.image_url or None) and a.image_url[:1024],
+            "fetched_at": a.fetched_at,
+        }
+        for a in articles
+    ]
+    inserted = await _bulk_insert_ignore_conflicts(
+        session, GdeltEvent, rows, conflict_cols=["url", "query_label", "seendate"]
+    )
     log.info("gdelt.persisted", total=len(articles), inserted=inserted)
     return inserted
 
 
 async def persist_gpr_observations(session: AsyncSession, obs: Iterable[AiGprObservation]) -> int:
-    """Insert AI-GPR daily observations, skipping existing dates."""
+    """Insert AI-GPR daily observations, skipping existing dates.
+
+    Atomic idempotent upsert (S02 socle-reliability) via ON CONFLICT
+    (observation_date) DO NOTHING. ``id`` is supplied explicitly (no DB
+    server_default; bulk pg_insert does not apply the ORM ``default=uuid4``).
+    """
     obs = list(obs)
     if not obs:
         return 0
-    dates = {o.observation_date for o in obs}
-    existing_rows = (
-        await session.execute(
-            select(GprObservation.observation_date).where(
-                GprObservation.observation_date.in_(dates)
-            )
-        )
-    ).all()
-    existing: set[date_type] = {r[0] for r in existing_rows}
     now = datetime.now(UTC)
-    inserted = 0
-    for o in obs:
-        if o.observation_date in existing:
-            continue
-        session.add(
-            GprObservation(
-                observation_date=o.observation_date,
-                created_at=now,
-                ai_gpr=o.ai_gpr,
-                fetched_at=o.fetched_at,
-            )
-        )
-        inserted += 1
-    if inserted:
-        await session.commit()
+    rows = [
+        {
+            "id": uuid4(),
+            "observation_date": o.observation_date,
+            "created_at": now,
+            "ai_gpr": o.ai_gpr,
+            "fetched_at": o.fetched_at,
+        }
+        for o in obs
+    ]
+    inserted = await _bulk_insert_ignore_conflicts(
+        session, GprObservation, rows, conflict_cols=["observation_date"]
+    )
     log.info("gpr.persisted", total=len(obs), inserted=inserted)
     return inserted
 
@@ -475,34 +497,23 @@ async def persist_cboe_skew_observations(
     """Insert CBOE SKEW daily observations, skipping existing dates.
 
     Same dedup pattern as AI-GPR: one row per `observation_date`.
-    Idempotent — re-running the same poll inserts zero rows.
+    Atomic idempotent upsert (S02 socle-reliability) via ON CONFLICT
+    (observation_date) DO NOTHING — re-running the same poll inserts zero rows.
     """
     obs = list(obs)
     if not obs:
         return 0
-    dates = {o.observation_date for o in obs}
-    existing_rows = (
-        await session.execute(
-            select(CboeSkewObservation.observation_date).where(
-                CboeSkewObservation.observation_date.in_(dates)
-            )
-        )
-    ).all()
-    existing: set[date_type] = {r[0] for r in existing_rows}
-    inserted = 0
-    for o in obs:
-        if o.observation_date in existing:
-            continue
-        session.add(
-            CboeSkewObservation(
-                observation_date=o.observation_date,
-                skew_value=o.skew_value,
-                fetched_at=o.fetched_at,
-            )
-        )
-        inserted += 1
-    if inserted:
-        await session.commit()
+    rows = [
+        {
+            "observation_date": o.observation_date,
+            "skew_value": o.skew_value,
+            "fetched_at": o.fetched_at,
+        }
+        for o in obs
+    ]
+    inserted = await _bulk_insert_ignore_conflicts(
+        session, CboeSkewObservation, rows, conflict_cols=["observation_date"]
+    )
     log.info(
         "cboe_skew.persisted",
         total=len(obs),
@@ -518,34 +529,23 @@ async def persist_cboe_vvix_observations(
     """Insert CBOE VVIX daily observations, skipping existing dates.
 
     Same dedup pattern as cboe_skew: one row per `observation_date`.
-    Idempotent — re-running the same poll inserts zero rows.
+    Atomic idempotent upsert (S02 socle-reliability) via ON CONFLICT
+    (observation_date) DO NOTHING — re-running the same poll inserts zero rows.
     """
     obs = list(obs)
     if not obs:
         return 0
-    dates = {o.observation_date for o in obs}
-    existing_rows = (
-        await session.execute(
-            select(CboeVvixObservation.observation_date).where(
-                CboeVvixObservation.observation_date.in_(dates)
-            )
-        )
-    ).all()
-    existing: set[date_type] = {r[0] for r in existing_rows}
-    inserted = 0
-    for o in obs:
-        if o.observation_date in existing:
-            continue
-        session.add(
-            CboeVvixObservation(
-                observation_date=o.observation_date,
-                vvix_value=o.vvix_value,
-                fetched_at=o.fetched_at,
-            )
-        )
-        inserted += 1
-    if inserted:
-        await session.commit()
+    rows = [
+        {
+            "observation_date": o.observation_date,
+            "vvix_value": o.vvix_value,
+            "fetched_at": o.fetched_at,
+        }
+        for o in obs
+    ]
+    inserted = await _bulk_insert_ignore_conflicts(
+        session, CboeVvixObservation, rows, conflict_cols=["observation_date"]
+    )
     log.info(
         "cboe_vvix.persisted",
         total=len(obs),
@@ -560,53 +560,38 @@ async def persist_cftc_tff_observations(
 ) -> int:
     """Insert CFTC TFF weekly rows, skipping (report_date, market_code) dupes.
 
-    Per-row commit is overkill (rows are independent + small) — single
-    bulk commit at end. ~15 markets × 8 weeks lookback = ~120 rows max
-    per poll, well under the bulk-commit safe band.
+    Atomic idempotent upsert (S02 socle-reliability) via ON CONFLICT
+    (report_date, market_code) DO NOTHING — re-running the same poll inserts
+    zero rows. ~15 markets × 8 weeks lookback = ~120 rows max per poll.
     """
     obs = list(obs)
     if not obs:
         return 0
 
-    dates = {o.report_date for o in obs}
-    codes = {o.market_code for o in obs}
-    existing_rows = (
-        await session.execute(
-            select(CftcTffObservation.report_date, CftcTffObservation.market_code).where(
-                CftcTffObservation.report_date.in_(dates),
-                CftcTffObservation.market_code.in_(codes),
-            )
-        )
-    ).all()
-    existing: set[tuple[date_type, str]] = {(r[0], r[1]) for r in existing_rows}
-
-    inserted = 0
-    for o in obs:
-        if (o.report_date, o.market_code) in existing:
-            continue
-        session.add(
-            CftcTffObservation(
-                report_date=o.report_date,
-                market_code=o.market_code,
-                market_name=o.market_name,
-                commodity_name=o.commodity_name,
-                open_interest=o.open_interest,
-                dealer_long=o.dealer_long,
-                dealer_short=o.dealer_short,
-                asset_mgr_long=o.asset_mgr_long,
-                asset_mgr_short=o.asset_mgr_short,
-                lev_money_long=o.lev_money_long,
-                lev_money_short=o.lev_money_short,
-                other_rept_long=o.other_rept_long,
-                other_rept_short=o.other_rept_short,
-                nonrept_long=o.nonrept_long,
-                nonrept_short=o.nonrept_short,
-                fetched_at=o.fetched_at,
-            )
-        )
-        inserted += 1
-    if inserted:
-        await session.commit()
+    rows = [
+        {
+            "report_date": o.report_date,
+            "market_code": o.market_code,
+            "market_name": o.market_name,
+            "commodity_name": o.commodity_name,
+            "open_interest": o.open_interest,
+            "dealer_long": o.dealer_long,
+            "dealer_short": o.dealer_short,
+            "asset_mgr_long": o.asset_mgr_long,
+            "asset_mgr_short": o.asset_mgr_short,
+            "lev_money_long": o.lev_money_long,
+            "lev_money_short": o.lev_money_short,
+            "other_rept_long": o.other_rept_long,
+            "other_rept_short": o.other_rept_short,
+            "nonrept_long": o.nonrept_long,
+            "nonrept_short": o.nonrept_short,
+            "fetched_at": o.fetched_at,
+        }
+        for o in obs
+    ]
+    inserted = await _bulk_insert_ignore_conflicts(
+        session, CftcTffObservation, rows, conflict_cols=["report_date", "market_code"]
+    )
     log.info(
         "cftc_tff.persisted",
         total=len(obs),
@@ -620,44 +605,38 @@ async def persist_cot_positions(
     session: AsyncSession,
     positions: Iterable[CotPositionData | None],
 ) -> int:
-    """Insert COT weekly positions, skipping (market_code, report_date) dupes."""
+    """Insert COT weekly positions, skipping (market_code, report_date) dupes.
+
+    Atomic idempotent upsert (S02 socle-reliability) via ON CONFLICT
+    (market_code, report_date) DO NOTHING. ``id`` is supplied explicitly (no DB
+    server_default; bulk pg_insert does not apply the ORM ``default=uuid4``).
+    The market_code value is the ``[:16]`` truncation so the arbiter key matches
+    the stored column.
+    """
     positions = [p for p in positions if p is not None]
     if not positions:
         return 0
-    codes = {p.market_code for p in positions}
-    dates = {p.report_date for p in positions}
-    existing_rows = (
-        await session.execute(
-            select(CotPosition.market_code, CotPosition.report_date).where(
-                CotPosition.market_code.in_(codes),
-                CotPosition.report_date.in_(dates),
-            )
-        )
-    ).all()
-    existing: set[tuple[str, date_type]] = {(r[0], r[1]) for r in existing_rows}
     now = datetime.now(UTC)
-    inserted = 0
-    for p in positions:
-        if (p.market_code, p.report_date) in existing:
-            continue
-        session.add(
-            CotPosition(
-                report_date=p.report_date,
-                created_at=now,
-                market_code=p.market_code[:16],
-                market_name=(p.market_name or None) and p.market_name[:128],
-                producer_net=p.producer_net,
-                swap_dealer_net=p.swap_dealer_net,
-                managed_money_net=p.managed_money_net,
-                other_reportable_net=p.other_reportable_net,
-                non_reportable_net=p.non_reportable_net,
-                open_interest=p.open_interest,
-                fetched_at=p.fetched_at or now,
-            )
-        )
-        inserted += 1
-    if inserted:
-        await session.commit()
+    rows = [
+        {
+            "id": uuid4(),
+            "report_date": p.report_date,
+            "created_at": now,
+            "market_code": p.market_code[:16],
+            "market_name": (p.market_name or None) and p.market_name[:128],
+            "producer_net": p.producer_net,
+            "swap_dealer_net": p.swap_dealer_net,
+            "managed_money_net": p.managed_money_net,
+            "other_reportable_net": p.other_reportable_net,
+            "non_reportable_net": p.non_reportable_net,
+            "open_interest": p.open_interest,
+            "fetched_at": p.fetched_at or now,
+        }
+        for p in positions
+    ]
+    inserted = await _bulk_insert_ignore_conflicts(
+        session, CotPosition, rows, conflict_cols=["market_code", "report_date"]
+    )
     log.info("cot.persisted", total=len(positions), inserted=inserted)
     return inserted
 
@@ -667,39 +646,27 @@ async def persist_treasury_tic_holdings(
 ) -> int:
     """Insert TIC monthly foreign holdings, skipping (country, month) dupes.
 
-    Idempotent: re-running the same poll inserts zero rows. Re-runs after
-    a new TIC release add only the newest period for every country.
+    Atomic idempotent upsert (S02 socle-reliability) via ON CONFLICT
+    (country, observation_month) DO NOTHING — re-running the same poll inserts
+    zero rows. The country value is the ``[:64]`` truncation so the arbiter key
+    matches the stored column.
     """
     holdings = list(holdings)
     if not holdings:
         return 0
-    countries = {h.country for h in holdings}
-    months = {h.observation_month for h in holdings}
-    existing_rows = (
-        await session.execute(
-            select(TreasuryTicHolding.country, TreasuryTicHolding.observation_month).where(
-                TreasuryTicHolding.country.in_(countries),
-                TreasuryTicHolding.observation_month.in_(months),
-            )
-        )
-    ).all()
-    existing: set[tuple[str, date_type]] = {(r[0], r[1]) for r in existing_rows}
     now = datetime.now(UTC)
-    inserted = 0
-    for h in holdings:
-        if (h.country, h.observation_month) in existing:
-            continue
-        session.add(
-            TreasuryTicHolding(
-                observation_month=h.observation_month,
-                country=h.country[:64],
-                holdings_bn_usd=h.holdings_bn_usd,
-                fetched_at=h.fetched_at or now,
-            )
-        )
-        inserted += 1
-    if inserted:
-        await session.commit()
+    rows = [
+        {
+            "observation_month": h.observation_month,
+            "country": h.country[:64],
+            "holdings_bn_usd": h.holdings_bn_usd,
+            "fetched_at": h.fetched_at or now,
+        }
+        for h in holdings
+    ]
+    inserted = await _bulk_insert_ignore_conflicts(
+        session, TreasuryTicHolding, rows, conflict_cols=["country", "observation_month"]
+    )
     log.info(
         "treasury_tic.persisted",
         total=len(holdings),
@@ -715,52 +682,32 @@ async def persist_cleveland_fed_nowcasts(
     """Insert Cleveland Fed nowcast rows, skipping
     (measure, horizon, target_period, revision_date) tuples already known.
 
-    Idempotent: re-running the same poll inserts zero rows.
+    Atomic idempotent upsert (S02 socle-reliability) via ON CONFLICT
+    (measure, horizon, target_period, revision_date) DO NOTHING — re-running
+    the same poll inserts zero rows. The measure/horizon values are the
+    ``[:32]``/``[:8]`` truncations so the arbiter keys match the stored columns.
     """
     observations = list(observations)
     if not observations:
         return 0
-    measures = {o.measure for o in observations}
-    horizons = {o.horizon for o in observations}
-    targets = {o.target_period for o in observations}
-    revisions = {o.revision_date for o in observations}
-    existing_rows = (
-        await session.execute(
-            select(
-                ClevelandFedNowcast.measure,
-                ClevelandFedNowcast.horizon,
-                ClevelandFedNowcast.target_period,
-                ClevelandFedNowcast.revision_date,
-            ).where(
-                ClevelandFedNowcast.measure.in_(measures),
-                ClevelandFedNowcast.horizon.in_(horizons),
-                ClevelandFedNowcast.target_period.in_(targets),
-                ClevelandFedNowcast.revision_date.in_(revisions),
-            )
-        )
-    ).all()
-    existing: set[tuple[str, str, date_type, date_type]] = {
-        (r[0], r[1], r[2], r[3]) for r in existing_rows
-    }
     now = datetime.now(UTC)
-    inserted = 0
-    for o in observations:
-        key = (o.measure, o.horizon, o.target_period, o.revision_date)
-        if key in existing:
-            continue
-        session.add(
-            ClevelandFedNowcast(
-                revision_date=o.revision_date,
-                measure=o.measure[:32],
-                horizon=o.horizon[:8],
-                target_period=o.target_period,
-                nowcast_value=o.nowcast_value,
-                fetched_at=o.fetched_at or now,
-            )
-        )
-        inserted += 1
-    if inserted:
-        await session.commit()
+    rows = [
+        {
+            "revision_date": o.revision_date,
+            "measure": o.measure[:32],
+            "horizon": o.horizon[:8],
+            "target_period": o.target_period,
+            "nowcast_value": o.nowcast_value,
+            "fetched_at": o.fetched_at or now,
+        }
+        for o in observations
+    ]
+    inserted = await _bulk_insert_ignore_conflicts(
+        session,
+        ClevelandFedNowcast,
+        rows,
+        conflict_cols=["measure", "horizon", "target_period", "revision_date"],
+    )
     log.info(
         "cleveland_fed_nowcast.persisted",
         total=len(observations),
@@ -800,36 +747,28 @@ async def persist_myfxbook_outlooks(
 async def persist_nfib_sbet(
     session: AsyncSession, observations: Iterable[NfibSbetObservationData]
 ) -> int:
-    """Insert NFIB SBET monthly rows, skipping report_month already known."""
+    """Insert NFIB SBET monthly rows, skipping report_month already known.
+
+    Atomic idempotent upsert (S02 socle-reliability) via ON CONFLICT
+    (report_month) DO NOTHING — re-running the same poll inserts zero rows.
+    """
     observations = list(observations)
     if not observations:
         return 0
-    months = {o.report_month for o in observations}
-    existing_rows = (
-        await session.execute(
-            select(NfibSbetObservation.report_month).where(
-                NfibSbetObservation.report_month.in_(months),
-            )
-        )
-    ).all()
-    existing: set[date_type] = {r[0] for r in existing_rows}
     now = datetime.now(UTC)
-    inserted = 0
-    for o in observations:
-        if o.report_month in existing:
-            continue
-        session.add(
-            NfibSbetObservation(
-                report_month=o.report_month,
-                sboi=o.sboi,
-                uncertainty_index=o.uncertainty_index,
-                source_pdf_url=o.source_pdf_url[:512],
-                fetched_at=o.fetched_at or now,
-            )
-        )
-        inserted += 1
-    if inserted:
-        await session.commit()
+    rows = [
+        {
+            "report_month": o.report_month,
+            "sboi": o.sboi,
+            "uncertainty_index": o.uncertainty_index,
+            "source_pdf_url": o.source_pdf_url[:512],
+            "fetched_at": o.fetched_at or now,
+        }
+        for o in observations
+    ]
+    inserted = await _bulk_insert_ignore_conflicts(
+        session, NfibSbetObservation, rows, conflict_cols=["report_month"]
+    )
     log.info(
         "nfib_sbet.persisted",
         total=len(observations),
@@ -844,41 +783,30 @@ async def persist_nyfed_mct(
 ) -> int:
     """Insert NY Fed MCT monthly observations, skipping months already known.
 
-    Idempotent: re-running the same poll inserts zero rows. Re-runs after
-    a new MCT release add only the newest month(s).
+    Atomic idempotent upsert (S02 socle-reliability) via ON CONFLICT
+    (observation_month) DO NOTHING — re-running the same poll inserts zero rows.
+    Re-runs after a new MCT release add only the newest month(s).
     """
     observations = list(observations)
     if not observations:
         return 0
-    months = {o.observation_month for o in observations}
-    existing_rows = (
-        await session.execute(
-            select(NyfedMctObservation.observation_month).where(
-                NyfedMctObservation.observation_month.in_(months),
-            )
-        )
-    ).all()
-    existing: set[date_type] = {r[0] for r in existing_rows}
     now = datetime.now(UTC)
-    inserted = 0
-    for o in observations:
-        if o.observation_month in existing:
-            continue
-        session.add(
-            NyfedMctObservation(
-                observation_month=o.observation_month,
-                mct_trend_pct=o.mct_trend_pct,
-                headline_pce_yoy=o.headline_pce_yoy,
-                core_pce_yoy=o.core_pce_yoy,
-                goods_pct=o.goods_pct,
-                services_ex_housing_pct=o.services_ex_housing_pct,
-                housing_pct=o.housing_pct,
-                fetched_at=o.fetched_at or now,
-            )
-        )
-        inserted += 1
-    if inserted:
-        await session.commit()
+    rows = [
+        {
+            "observation_month": o.observation_month,
+            "mct_trend_pct": o.mct_trend_pct,
+            "headline_pce_yoy": o.headline_pce_yoy,
+            "core_pce_yoy": o.core_pce_yoy,
+            "goods_pct": o.goods_pct,
+            "services_ex_housing_pct": o.services_ex_housing_pct,
+            "housing_pct": o.housing_pct,
+            "fetched_at": o.fetched_at or now,
+        }
+        for o in observations
+    ]
+    inserted = await _bulk_insert_ignore_conflicts(
+        session, NyfedMctObservation, rows, conflict_cols=["observation_month"]
+    )
     log.info(
         "nyfed_mct.persisted",
         total=len(observations),
@@ -889,7 +817,13 @@ async def persist_nyfed_mct(
 
 
 async def persist_cb_speeches(session: AsyncSession, speeches: Iterable[CentralBankSpeech]) -> int:
-    """Insert central-bank speeches, skipping URLs already known."""
+    """Insert central-bank speeches, skipping URLs already known.
+
+    NOTE (S02 socle round 5) — like persist_news_items, dedup is BEST-EFFORT:
+    the only DB UNIQUE is `(url, published_at)` (TimescaleDB partition key), not
+    `(url)` alone, so the in-Python url-skip is the real dedup and a concurrent
+    poll could insert a rare silent duplicate. Accepted as best-effort.
+    """
     speeches = list(speeches)
     if not speeches:
         return 0
