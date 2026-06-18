@@ -38,7 +38,7 @@ services:
     networks: [langfuse]
 
   langfuse-clickhouse:
-    image: clickhouse/clickhouse-server:24.12.6.70-alpine
+    image: clickhouse/clickhouse-server:26.5.1.882-alpine
     container_name: ichor-langfuse-clickhouse
     restart: unless-stopped
     user: "101:101"
