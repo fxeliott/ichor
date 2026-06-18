@@ -10,7 +10,7 @@
  * ADR-017 boundary : GEOMETRIC/PROBABILISTIC labels for the PREVIOUS
  * session, NEVER directional bias for the CURRENT session. The panel
  * renders « session précédente Londres haussière 36 pips » as a
- * CONTEXT pane, not a directional signal for Eliot's NY 14h-20h.
+ * CONTEXT pane, not a directional signal for Eliot's NY 13h-20h.
  *
  * Doctrine #5 (RSC client-boundary) : this is a PURE module (no React,
  * no JSX, no "use client").

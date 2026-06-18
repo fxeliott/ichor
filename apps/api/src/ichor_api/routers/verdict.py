@@ -2,7 +2,7 @@
 endpoint per ADR-106 D5.
 
 Returns the latest ``SessionVerdict`` for the given priority-5 asset's
-current-day NY session (14h00-20h00 Paris window). Pure read endpoint —
+current-day NY session (13h00-20h00 Paris window). Pure read endpoint —
 the verdict is built deterministically by
 ``services/session_verdict_builder.py`` from the latest
 ``session_card_audit`` row (no LLM call, no external dep, Voie D-clean).

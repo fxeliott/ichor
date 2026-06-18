@@ -30,22 +30,22 @@ ADR-106 is the architectural locus where the system commits to delivering **one 
 
 A new Pydantic model `SessionVerdict` (canonical home : `packages/ichor_brain/src/ichor_brain/session_verdict.py`) carries the trader-facing verdict for one (asset, NY session day) tuple. Its fields are the **minimum sufficient set** to answer Eliot's verbatim spec :
 
-| Field                          | Type                                | Meaning                                                                                                                               |
-| ------------------------------ | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| `asset`                        | `PriorityAsset` Literal             | One of the 5 frontend-shipped assets (EUR_USD, GBP_USD, XAU_USD, SPX500_USD, NAS100_USD)                                              |
-| `session_window`               | Literal `"ny_14h_to_20h_paris"`     | Eliot's canonical window stamp (prend position 14h-16h, coupe tout 20h Paris)                                                         |
-| `direction`                    | `VerdictDirection` Literal          | `up`, `down`, or `neutral` (neutral is a **legitimate** doctrine #11 calibrated-honesty output)                                       |
-| `conviction_pct`               | float `[0, CAP_95*100]`             | 0..95 percent. Cap-95 per ADR-022, tracked through `CAP_95` constant from `scenarios.py`                                              |
-| `nature`                       | `VerdictNature` Literal             | `structured`, `momentum`, `range_bound`, or `uncertain`                                                                               |
-| `derived_from_scenarios`       | bool                                | True if aggregated from Pass-6 emission ; False = downgraded fallback (`conviction_pct` capped at 50, `nature` forced to `uncertain`) |
-| `scenario_decomposition_id`    | str \| None                         | UUID pointer to source `session_card_audit.scenarios` row for drill-down                                                              |
-| `invalidation_state`           | `ScenarioInvalidationState` \| None | Hard/soft/note invalidation buckets at refresh time (r161 Strand A `Scenario.invalidations`-driven)                                   |
-| `live_triggers`                | list[`LiveTrigger`] (≤10)           | Real-time events that fired since emission, ordered most-recent-first                                                                 |
-| `coach_explanation`            | str (80..800 chars)                 | Plain-French beginner-friendly WHY explanation. ADR-017 regex-checked                                                                 |
-| `ne_pas_actionner_avant_paris` | datetime                            | Typically 14h00 Paris (window start)                                                                                                  |
-| `couper_au_plus_tard_paris`    | datetime                            | Typically 20h00 Paris (window close)                                                                                                  |
-| `last_updated_utc`             | datetime                            | Wall-clock of last verdict refresh                                                                                                    |
-| `expires_at_utc`               | datetime                            | Verdict stale-after timestamp ; UI banner switches to "verdict expiré" past this                                                      |
+| Field                          | Type                                | Meaning                                                                                                                                                         |
+| ------------------------------ | ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `asset`                        | `PriorityAsset` Literal             | One of the 5 frontend-shipped assets (EUR_USD, GBP_USD, XAU_USD, SPX500_USD, NAS100_USD)                                                                        |
+| `session_window`               | Literal `"ny_13h_to_20h_paris"`     | Eliot's canonical execution window (owner TRANCHE 2026-06-13, confirmed 2026-06-15) : fenêtre d'exécution 13h-16h, pic de qualité 14h-16h, coupe tout 20h Paris |
+| `direction`                    | `VerdictDirection` Literal          | `up`, `down`, or `neutral` (neutral is a **legitimate** doctrine #11 calibrated-honesty output)                                                                 |
+| `conviction_pct`               | float `[0, CAP_95*100]`             | 0..95 percent. Cap-95 per ADR-022, tracked through `CAP_95` constant from `scenarios.py`                                                                        |
+| `nature`                       | `VerdictNature` Literal             | `structured`, `momentum`, `range_bound`, or `uncertain`                                                                                                         |
+| `derived_from_scenarios`       | bool                                | True if aggregated from Pass-6 emission ; False = downgraded fallback (`conviction_pct` capped at 50, `nature` forced to `uncertain`)                           |
+| `scenario_decomposition_id`    | str \| None                         | UUID pointer to source `session_card_audit.scenarios` row for drill-down                                                                                        |
+| `invalidation_state`           | `ScenarioInvalidationState` \| None | Hard/soft/note invalidation buckets at refresh time (r161 Strand A `Scenario.invalidations`-driven)                                                             |
+| `live_triggers`                | list[`LiveTrigger`] (≤10)           | Real-time events that fired since emission, ordered most-recent-first                                                                                           |
+| `coach_explanation`            | str (80..800 chars)                 | Plain-French beginner-friendly WHY explanation. ADR-017 regex-checked                                                                                           |
+| `ne_pas_actionner_avant_paris` | datetime                            | Typically 13h00 Paris (execution-window start ; quality peak 14h-16h)                                                                                           |
+| `couper_au_plus_tard_paris`    | datetime                            | Typically 20h00 Paris (window close)                                                                                                                            |
+| `last_updated_utc`             | datetime                            | Wall-clock of last verdict refresh                                                                                                                              |
+| `expires_at_utc`               | datetime                            | Verdict stale-after timestamp ; UI banner switches to "verdict expiré" past this                                                                                |
 
 ADR-017 boundary applied via `_FORBIDDEN_VERDICT_TOKENS_RE` mirror regex on `coach_explanation` + every `LiveTrigger.description`. Cap-95 enforced via Pydantic `Field(le=CAP_95 * 100.0)` — if `CAP_95` ever changes in `scenarios.py`, the verdict cap follows automatically.
 
@@ -99,7 +99,7 @@ The verdict surfaces in the frontend via a new `<SessionVerdictPanel>` component
 EUR/USD — Session NY mardi 26 mai 2026
 
   ▲ HAUSSE        conviction 73%        structurée
-  fenêtre : 14h00 → 20h00 Paris (coupe tout 20h00)
+  fenêtre : 13h00 → 20h00 Paris (coupe tout 20h00)
 
   Pourquoi : (coach_explanation 80-800 chars FR débutant)
 

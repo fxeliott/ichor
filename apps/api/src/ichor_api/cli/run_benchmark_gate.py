@@ -76,9 +76,11 @@ from ..services.session_verdict_builder import (  # noqa: PLC2701
     _extract_synthesis_primitives,
 )
 
-# Eliot's NY trading window (verbatim r161 directive): enters 14h–16h Paris,
-# cuts at 20h. The realised move benchmarked = open→close of [14:00, 20:00) Paris.
-_NY_WINDOW_OPEN = time(14, 0)
+# Eliot's NY execution window (owner TRANCHE 2026-06-13, confirmed 2026-06-15):
+# enters 13h–16h Paris (quality peak 14h-16h), cuts at 20h. The realised move
+# benchmarked = open→close of [13:00, 20:00) Paris, scoring the full window the
+# trader can hold from.
+_NY_WINDOW_OPEN = time(13, 0)
 _NY_WINDOW_CLOSE = time(20, 0)
 # Min 1-min bars in the 6h window for an honest open/close (mirror of
 # london_session._MIN_BARS). A short window (e.g. SPY RTH opening late) → skip.
@@ -185,14 +187,14 @@ def render_report(
         dead_band_pct=dead_band_pct,
     )
     skip_note = (
-        f", {n_skipped_no_window} sans fenêtre NY 14h-20h exploitable (barres manquantes) ignoré(s)"
+        f", {n_skipped_no_window} sans fenêtre NY 13h-20h exploitable (barres manquantes) ignoré(s)"
         if n_skipped_no_window
         else ""
     )
     parts = [
         f"_Source : {len(samples)} verdict(s) apex `{_DEFAULT_SESSION_TYPE}` sur "
         f"{n_cards} séance(s){skip_note}. Verdict = direction/conviction apex "
-        f"(7 buckets fusionnés) ; rendement = open→close 14h-20h Paris._",
+        f"(7 buckets fusionnés) ; rendement = open→close 13h-20h Paris._",
         "",
         "## In-sample (diagnostic)",
         format_report_markdown(in_sample),
@@ -312,7 +314,7 @@ async def _run(
         samples, n_cards, skipped_no_window = await _build_samples(session, cards)
     if not samples:
         print(
-            "Aucun verdict avec fenêtre NY 14h-20h exploitable sur la période "
+            "Aucun verdict avec fenêtre NY 13h-20h exploitable sur la période "
             f"demandée ({n_cards} séance(s), {skipped_no_window} sans barres). "
             "Honnête : pas de données, pas de rapport fabriqué."
         )
@@ -343,7 +345,7 @@ async def _main(argv: list[str]) -> int:
         description=(
             "Chantier A slice-2 (ADR-116) — reproducible out-of-sample benchmark "
             "of Ichor's apex session verdict vs passive/naive baselines, over the "
-            "real NY 14h-20h window from session_card_audit + polygon_intraday."
+            "real NY 13h-20h window from session_card_audit + polygon_intraday."
         ),
     )
     parser.add_argument("--asset", default=None, help="restrict to one asset code")

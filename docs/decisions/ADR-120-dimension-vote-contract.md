@@ -1,6 +1,6 @@
 # ADR-120 — DimensionVote contract (Chantier C slice-0)
 
-- **Status:** Accepted (pure-core contract, NOT wired) — 2026-06-14
+- **Status:** Accepted — 2026-06-14 · **UPDATE 2026-06-15** : the DimensionVote layers are now WIRED into `fuse_conviction` behind `cot_dimension_vote_enabled` / `volume_dimension_vote_enabled` (fail-closed OFF) via S06 C-2a/C-3b (`session_verdict_builder.py:700-720`). The "NOT wired" qualifier below describes the slice-0 contract state, not current code.
 - **Deciders:** owner (explicit "go pousser Chantier C pour un 85% honnête"), engine (Opus 4.8)
 - **Related:** ADR-017 (direction from buckets only) · ADR-103 (honest absence) ·
   ADR-022 (cap-95) · ADR-009 (Voie D) · `services/conviction_fusion.py` ·

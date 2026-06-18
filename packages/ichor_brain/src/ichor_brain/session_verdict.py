@@ -13,7 +13,7 @@ emitted. The verdict's shape was crystallised by Eliot in the r161 directive :
 The verdict is NOT a trade signal (ADR-017 boundary). It is a probability-
 calibrated directional bias + nature classification + invalidation state
 snapshot that the trader consults BEFORE applying his/her own technical
-read on TradingView. The trader's window is 14h-20h Paris ; the verdict is
+read on TradingView. The trader's window is 13h-20h Paris ; the verdict is
 calibrated for that window and stamps the verdict's window boundaries
 explicitly so it cannot be misapplied to other timeframes.
 
@@ -29,9 +29,19 @@ Architectural alignment :
     (mild_bull + mild_bear) : tail-heavy = momentum, mid-heavy = structured.
   * The verdict is LIVE — ``invalidation_state`` carries the current
     invalidation status of each underlying scenario (per r161 Strand A
-    ``Scenario.invalidations`` field + Strand D monitor service). When a
-    hard invalidation fires, the verdict's ``conviction_pct`` is
-    auto-reduced and ``live_triggers`` surfaces the cascade reason.
+    ``Scenario.invalidations`` field + Strand D monitor service) and
+    ``live_triggers`` surfaces the events that have fired since emission.
+    HONEST STATE (2026-06-15 adversarial audit) : the *in-place* conviction
+    reaction specified in ADR-106 §D3.1 — on a ``hard`` invalidation, zero
+    the offending bucket's ``p``, ``cap_and_normalize``, re-derive — is NOT
+    yet wired into ``build_session_verdict``. The invalidation status is
+    DISPLAYED, but ``conviction_pct`` is not auto-reduced in place. Today the
+    only event-driven conviction change is a full Pass-6 card regen via
+    ``services/streaming_refresh.py`` (flag-gated, fail-closed). Wiring the
+    in-place reaction is a scoped next increment : it needs the ADR-106
+    §D3.1 re-distribution semantics disambiguated (``cap_and_normalize``
+    preserves the sum, so "redistributes mass" is ambiguous vs a
+    renormalise-to-1) AND a live witness once the monitor is armed.
   * ADR-017 boundary preserved : ``coach_explanation`` is regex-checked
     for trade-instruction tokens (BUY/SELL/TP/SL) ; ``live_triggers[*]
     .description`` likewise. The verdict has no entry/exit price, no
@@ -129,9 +139,10 @@ VerdictNature = Literal["structured", "momentum", "range_bound", "uncertain"]
 #                           default) — market is structurally inert, momentum
 #                           unlikely.
 #   - ``range``           : last N daily candles all small body (range-bound
-#                           inertia). r167 honest gap : always False until
-#                           r168 wires G4 daily-candle classification ; the
-#                           literal is shipped now for forward-compat schema.
+#                           inertia). WIRED since r168b — the evaluator's
+#                           Gate 4 calls ``daily_candle_classifier.is_range_bound``
+#                           (uncertainty candle + Garman-Klass variance
+#                           compression). No longer the r167 "always False" gap.
 #
 # Derivation logic lives in ``services/tradeability_evaluator.py`` (r167 G1).
 # Frontend surfaces ``<SessionVerdictPanel>`` disclosure banner via r167 G8
@@ -298,11 +309,12 @@ class SessionVerdict(BaseModel):
 
     asset: PriorityAsset
 
-    session_window: Literal["ny_14h_to_20h_paris"] = "ny_14h_to_20h_paris"
-    """Eliot's canonical window per r161 directive : prend position 14h-16h,
-    coupe tout à 20h Paris. The verdict is calibrated for this window
-    explicitly so consumers cannot misapply it to other timeframes
-    (e.g., the London-session pulse uses a different verdict shape)."""
+    session_window: Literal["ny_13h_to_20h_paris"] = "ny_13h_to_20h_paris"
+    """Eliot's canonical execution window (owner TRANCHE 2026-06-13, confirmed
+    2026-06-15) : fenêtre d'exécution 13h-16h (pic de qualité 14h-16h), coupe
+    tout à 20h Paris. The verdict is calibrated for this window explicitly so
+    consumers cannot misapply it to other timeframes (e.g., the London-session
+    pulse uses a different verdict shape)."""
 
     direction: VerdictDirection
     """Direction the system reads as more probable for the session.
@@ -362,7 +374,8 @@ class SessionVerdict(BaseModel):
 
     ne_pas_actionner_avant_paris: datetime
     """Paris-local datetime BEFORE which the trader should not act on
-    this verdict. Typically 14h00 Paris (Eliot's window start)."""
+    this verdict. Typically 13h00 Paris (Eliot's execution-window start ;
+    quality peak 14h-16h)."""
 
     couper_au_plus_tard_paris: datetime
     """Paris-local datetime BY WHICH the trader closes all positions.

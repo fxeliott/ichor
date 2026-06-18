@@ -15,7 +15,7 @@ systemd timer. Cadence rationale per ADR-106 §D3 :
   - 08h : pre-London opening, captures pre-EU-session repricing.
   - 12h : peri-briefing, captures the pre-NY session window.
   - 16h : mid-NY session, captures invalidations DURING the trader's
-    14h-20h Paris execution window.
+    13h-20h Paris execution window.
   - 20h : end-of-NY-session, captures final-hour moves before the
     verdict expires_at_utc (20h15 Paris).
 

@@ -67,7 +67,7 @@ class VerdictOutcomeSample:
     what the NY window actually did.
 
     ``realized_return_pct`` is the realised return of Eliot's NY window
-    (open→close of the ``ny_14h_to_20h_paris`` window) expressed in **percent**
+    (open→close of the ``ny_13h_to_20h_paris`` window) expressed in **percent**
     (``+0.42`` = +0.42 %). It is computed upstream (slice-2 CLI) from Polygon
     intraday bars; the pure-core only needs the number.
     """

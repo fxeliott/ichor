@@ -15,7 +15,7 @@
  * ADR-017 boundary : geometric/probabilistic labels for the PREVIOUS
  * session, NEVER directional bias for the CURRENT session. The panel
  * renders « session précédente Londres haussière 36 pips » as a
- * CONTEXT pane Eliot's NY 14h-20h position-taking respects.
+ * CONTEXT pane Eliot's NY 13h-20h position-taking respects.
  *
  * Doctrine #11 calibrated honesty : the API returns 404 when no bars
  * in window OR dominant zone bar_count < 30 (Cohen 1988 §3.3). The

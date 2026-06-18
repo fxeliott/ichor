@@ -163,7 +163,7 @@ export const TRADEABILITY_FR: Record<TradeabilityFlag, string> = {
  *  Ichor signals "ne trade pas aujourd'hui" (Eliot's discipline
  *  transcript §VIII). Pedagogical — never imperative. */
 export const TRADEABILITY_HINT_FR: Record<TradeabilityFlag, string> = {
-  tradeable: "Toutes les conditions structurelles sont remplies pour un setup NY 14h-20h.",
+  tradeable: "Toutes les conditions structurelles sont remplies pour un setup NY 13h-20h.",
   no_setup:
     "La conviction probabiliste est trop faible pour déclencher une lecture exploitable — verdict en mode dormant.",
   holiday:
@@ -197,7 +197,7 @@ export function isTradeable(verdict: SessionVerdict): boolean {
 /* ──────────────────────── PURE HELPERS (continued) ─────────────── */
 
 /** Format the verdict's window stamps into a single Paris-time line :
- *  "fenêtre opératoire : 14h00 → 20h00 Paris". Pure function. */
+ *  "fenêtre opératoire : 13h00 → 20h00 Paris". Pure function. */
 export function formatWindow(verdict: SessionVerdict): string {
   const open = new Date(verdict.ne_pas_actionner_avant_paris);
   const close = new Date(verdict.couper_au_plus_tard_paris);

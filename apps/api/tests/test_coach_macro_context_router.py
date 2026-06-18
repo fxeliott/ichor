@@ -71,7 +71,7 @@ def _build_sample_context() -> CoachMacroContext:
             "Aujourd'hui mardi 26 mai 2026, on est en cycle de expansion (Goldilocks) "
             "(confiance 75 %). Le driver dominant est l'inflation — intensité marquée "
             "(|z| ≥ 2). Surveille « Core PCE Price Index m/m » (jeudi 28 mai 14h30 Paris) "
-            "pour ta session NY 14h-20h."
+            "pour ta session NY 13h-20h."
         ),
         data_freshness_days=3,
         generated_at_utc=datetime(2026, 5, 26, 12, 0, tzinfo=UTC),
