@@ -13,7 +13,7 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID, uuid4
 
-from sqlalchemy import DateTime, Float, Integer, String, Text, text
+from sqlalchemy import DateTime, Float, Integer, String, Text, func, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column
@@ -35,7 +35,9 @@ class SessionCardAudit(Base):
     generated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), primary_key=True, index=True
     )
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
 
     session_type: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
     asset: Mapped[str] = mapped_column(String(16), nullable=False, index=True)
