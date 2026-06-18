@@ -8,10 +8,12 @@ so this move is byte-identical at every public import path.
 
 The 3 shared constants (``_COT_MARKET_BY_ASSET``, ``_VOLUME_ASSETS``,
 ``_VOLUME_RVOL_MAX_AGE_DAYS``) STAY in ``data_pool`` because ``_section_*``
-read-side blocks there also read them ; we import them back here. That makes a
-one-way pair (this module ← data_pool for constants ; data_pool ← this module
-for the re-export) — the re-export line in data_pool sits AFTER the constants
-are defined, so no partial-init cycle.
+read-side blocks there also read them. We import them back **lazily, inside the
+functions that use them** (mirroring the lazy ``cot_vote`` / ``volume_vote``
+imports below) so this module carries NO module-level edge back to ``data_pool``.
+It is therefore import-safe from ANY entry point — not only when ``data_pool`` is
+imported first (a module-level back-import would deadlock a standalone
+``import dimension_vote_builders``; this keeps the re-export the single direction).
 """
 
 from __future__ import annotations
@@ -24,11 +26,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models import CotPosition
 from .data_liveness import classify_liveness
-from .data_pool import (
-    _COT_MARKET_BY_ASSET,
-    _VOLUME_ASSETS,
-    _VOLUME_RVOL_MAX_AGE_DAYS,
-)
 from .dimension_vote import DimensionVote
 from .microstructure import RelativeVolumeReading, assess_relative_volume
 
@@ -86,6 +83,7 @@ async def build_cot_vote_for_asset(
     never fails on a COT read.
     """
     from .cot_vote import COT_MAX_AGE_DAYS, build_cot_vote
+    from .data_pool import _COT_MARKET_BY_ASSET
 
     now_date = now_utc.astimezone(UTC).date()
     market = _COT_MARKET_BY_ASSET.get(asset)
@@ -127,6 +125,7 @@ def _volume_vote_from_reading(
     participation, never direction) lives in the pure ``volume_vote.build_volume_vote``
     — this only adapts the reading to its contract.
     """
+    from .data_pool import _VOLUME_RVOL_MAX_AGE_DAYS
     from .volume_vote import VOLUME_MAX_AGE_DAYS, build_volume_vote
 
     live = classify_liveness(
@@ -161,6 +160,7 @@ async def build_volume_vote_for_asset(
     EXACTLY 0 to the fuser — ADR-103) ; the caller wraps this best-effort so card
     generation never fails on a volume read.
     """
+    from .data_pool import _VOLUME_ASSETS
     from .volume_vote import VOLUME_MAX_AGE_DAYS, build_volume_vote
 
     now_date = now_utc.astimezone(UTC).date()
