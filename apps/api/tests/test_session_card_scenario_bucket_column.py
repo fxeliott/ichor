@@ -50,6 +50,31 @@ def test_scenarios_sibling_column_not_null_jsonb() -> None:
     assert col.nullable is False
 
 
+def test_scenarios_and_key_levels_carry_jsonb_server_default() -> None:
+    """ORM ↔ migration drift guard (S02 socle round-8). `scenarios` (migration
+    0039:66-69) and `key_levels` (0049:64-67) are NOT NULL JSONB with
+    server_default ``'[]'::jsonb`` in the DB; the ORM must mirror that
+    server_default or ``alembic revision --autogenerate`` emits a spurious
+    'drop server default' diff — the same drift class as the
+    realized_scenario_bucket String(16) fixed above. The deliberately-nullable
+    snapshot JSONB columns are EXEMPT (no server_default, by design)."""
+    from sqlalchemy.dialects.postgresql import JSONB
+
+    cols = _cols()
+    for name in ("scenarios", "key_levels"):
+        col = cols[name]
+        assert isinstance(col.type, JSONB), f"{name} must be JSONB"
+        assert col.nullable is False, f"{name} must be NOT NULL"
+        assert col.server_default is not None, (
+            f"{name} must carry an ORM server_default mirroring its migration "
+            "('[]'::jsonb) — None means the ORM↔migration drift came back."
+        )
+        rendered = str(col.server_default.arg)
+        assert "[]" in rendered and "jsonb" in rendered.lower(), (
+            f"{name} server_default must be '[]'::jsonb ; got {rendered!r}"
+        )
+
+
 def test_realized_scenario_bucket_is_the_sole_string_drift() -> None:
     """The 7 String-typed columns keep the lengths set by creation migration
     0005 — documents that realized_scenario_bucket was the only drift."""

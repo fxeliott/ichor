@@ -124,6 +124,11 @@ _FRED_DAILY_CANDIDATES: frozenset[str] = frozenset(
         "DFF",
         "EFFR",
         "OBFR",
+        # Fed liquidity / overnight RRP (daily BD) — sole RRP input to the
+        # liquidity proxy (liq_proxy_d). WTREGEN (TGA) is deliberately NOT here:
+        # FRED publishes it weekly (week-ending Wednesday) so a daily window
+        # would false-positive every day between prints.
+        "RRPONTSYD",
         # Broad-dollar indices
         "DTWEXBGS",
         "DTWEXAFEGS",

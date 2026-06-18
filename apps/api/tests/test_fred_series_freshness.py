@@ -54,6 +54,11 @@ def test_daily_series_excludes_monthly_series() -> None:
     assert "DGS2" in daily
     assert "DGS10" in daily
     assert "VIXCLS" in daily
+    # RRPONTSYD (overnight RRP) is daily and the sole RRP input to liq_proxy_d;
+    # it must be per-series monitored so a silent stop can't be masked by the
+    # whole-table MAX(fetched_at). WTREGEN (TGA) stays excluded (weekly print).
+    assert "RRPONTSYD" in daily, "daily overnight-RRP series must be monitored"
+    assert "WTREGEN" not in daily, "weekly TGA series must NOT be per-series-monitored"
 
 
 def test_daily_series_keys_fit_alerts_asset_column() -> None:

@@ -31,8 +31,10 @@ the heavy service dataclasses, so the core is unit-testable in isolation and
 carries **no** I/O, no LLM call, no pydantic / brain import — Voie-D clean
 (ADR-009). The only intra-package import is ``dimension_vote`` (itself stdlib-only,
 designed to be fuser-importable without breaking that purity — ADR-120). The verdict
-builder will, in a later (gated) integration step, delegate to this function and
-surface ``rationale_fr`` in the coach text.
+builder ``session_verdict_builder._derive_direction_and_conviction`` **already**
+delegates to this function and surfaces ``rationale_fr`` in the coach text — this
+is LIVE (the 50/50 is killed in production), not a future gated step. The dormant
+piece on top is the C-5 calibrator (ADR-120, flag-OFF), not this base fusion.
 
 Invariants honoured
 -------------------
