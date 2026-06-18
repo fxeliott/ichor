@@ -110,9 +110,10 @@ async def poll_all(api_key: str, series: tuple[str, ...] = SERIES_TO_POLL) -> li
 # (composite=None) : its z-score needs ≥6 prints per series to form ≥5
 # period-changes, but the table only ever held 1-2 rows. `fetch_history`
 # pulls the last `limit` observations so a one-shot backfill gives the
-# index real depth. `persist_fred_observations` dedups read-then-insert
-# (not a SQL ON CONFLICT — idempotent for sequential re-runs, but do NOT
-# run two backfills concurrently), so re-running this is safe + cheap.
+# index real depth. `persist_fred_observations` uses SQL `INSERT ...
+# ON CONFLICT (series_id, observation_date) DO NOTHING` (uq_fred_series_date)
+# — idempotent on re-run AND race-safe, so overlapping/concurrent backfills
+# are fine; re-running this is safe + cheap.
 
 # The headline macro series the Economic Surprise Index z-scores. Monthly
 # (PAYEMS/UNRATE/CPIAUCSL/PCEPI/INDPRO) + quarterly (GDPC1) → limit=120
