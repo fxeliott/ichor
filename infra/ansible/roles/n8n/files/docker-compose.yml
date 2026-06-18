@@ -7,7 +7,13 @@ services:
     # docs/audits/dependencies-2026-05-03.md (CRITICAL-DEPS-1). Verify
     # the digest at https://hub.docker.com/r/n8nio/n8n/tags before
     # rolling forward.
-    image: docker.n8n.io/n8nio/n8n:1.123.27
+    # Reverted 1.123.27 → 1.78.1 (S02 round 7): the 1.78→1.123 jump fails to
+    # START (breaking changes / migration), which red-failed the deploy at the
+    # n8n role. 1.78.1 is the version that deployed cleanly before the bump.
+    # NOTE: n8n has been crash-looping at runtime independently (pre-existing,
+    # ~2 weeks) — a separate issue from this deploy-blocker. A proper 1.123
+    # upgrade needs its own migration round.
+    image: docker.n8n.io/n8nio/n8n:1.78.1
     container_name: ichor-n8n
     restart: unless-stopped
     depends_on: [n8n-postgres]

@@ -48,16 +48,19 @@
     # ichor_packages MUST come after ichor_api: it uses the venv created
     # by ichor_api to pip install -e the 3 internal packages.
     - { role: ichor_packages, tags: [api, ichor_api, packages, ichor_packages] }
+    # ── Cron/timer fleet permanence — CORE. The real-time interconnection (the
+    #    collector/detector/briefing/freshness timers) IS the product, so it runs
+    #    right after the core api+packages and BEFORE the optional aux stacks, so a
+    #    flaky observability/langfuse/n8n can never block timer registration. The
+    #    role is internally non-fatal (a bad register-cron script can't abort the
+    #    play). A rebuild now re-registers every timer (incl. round-6 OnFailure)
+    #    instead of bringing up API+DB with ZERO real-time interconnection.
+    - { role: ichor_crons, tags: [crons, timers] }
     # ── Auxiliary observability / automation stacks LAST (non-core). A failure
-    #    here is now post-deploy: the api is already live.
+    #    here is now post-deploy: the api + timers are already live.
     - { role: observability, tags: [observability, loki, grafana, prometheus] }
     - { role: langfuse, tags: [langfuse] }
     - { role: n8n, tags: [n8n] }
-    # ── Cron/timer fleet permanence (S02 round 7). Runs ABSOLUTELY LAST and is
-    #    internally non-fatal: a rebuild now re-registers every collector/
-    #    detector/briefing/freshness timer (incl. the round-6 OnFailure) instead
-    #    of bringing up API+DB with ZERO real-time interconnection.
-    - { role: ichor_crons, tags: [crons, timers] }
 
   post_tasks:
     - name: Final health check — services must be running
