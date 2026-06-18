@@ -27,6 +27,7 @@ set -euo pipefail
 cat > /etc/systemd/system/ichor-hy-ig-spread-check.service <<'EOF'
 [Unit]
 Description=Ichor HY_IG_SPREAD_DIVERGENCE credit-cycle alert
+OnFailure=ichor-notify@%n.service
 After=network-online.target postgresql.service ichor-collector@fred_extended.service
 Wants=network-online.target
 

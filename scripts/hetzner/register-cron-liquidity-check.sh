@@ -13,6 +13,7 @@ set -euo pipefail
 cat > /etc/systemd/system/ichor-liquidity-check.service <<'EOF'
 [Unit]
 Description=Ichor LIQUIDITY_TIGHTENING proxy delta alert
+OnFailure=ichor-notify@%n.service
 After=network-online.target postgresql.service ichor-collector-dts_treasury.service
 Wants=network-online.target
 

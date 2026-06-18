@@ -29,6 +29,7 @@ set -euo pipefail
 cat > /etc/systemd/system/ichor-scenario-invalidation-check.service <<'EOF'
 [Unit]
 Description=Ichor Scenario Invalidation Monitor cron (r165 Strand F)
+OnFailure=ichor-notify@%n.service
 After=network-online.target postgresql.service
 Wants=network-online.target
 

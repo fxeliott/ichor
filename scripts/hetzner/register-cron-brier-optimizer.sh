@@ -16,6 +16,7 @@ set -euo pipefail
 cat > /etc/systemd/system/ichor-brier-optimizer.service <<'EOF'
 [Unit]
 Description=Ichor Brier→weights optimizer (nightly)
+OnFailure=ichor-notify@%n.service
 After=network-online.target postgresql.service ichor-reconciler.service
 Wants=network-online.target
 

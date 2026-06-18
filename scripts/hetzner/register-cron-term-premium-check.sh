@@ -19,6 +19,7 @@ set -euo pipefail
 cat > /etc/systemd/system/ichor-term-premium-check.service <<'EOF'
 [Unit]
 Description=Ichor TERM_PREMIUM_REPRICING 10y term premium z-score alert
+OnFailure=ichor-notify@%n.service
 After=network-online.target postgresql.service
 Wants=network-online.target
 

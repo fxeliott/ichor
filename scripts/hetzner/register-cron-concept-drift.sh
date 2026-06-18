@@ -14,6 +14,7 @@ set -euo pipefail
 cat > /etc/systemd/system/ichor-concept-drift.service <<'EOF'
 [Unit]
 Description=Ichor concept-drift detector (ADWIN on Brier stream)
+OnFailure=ichor-notify@%n.service
 After=network-online.target postgresql.service ichor-brier-drift.service
 Wants=network-online.target
 

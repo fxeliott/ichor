@@ -13,6 +13,7 @@ set -euo pipefail
 cat > /etc/systemd/system/ichor-treasury-auction.service <<'EOF'
 [Unit]
 Description=Ichor US Treasury auction results poller
+OnFailure=ichor-notify@%n.service
 After=network-online.target postgresql.service
 Wants=network-online.target
 

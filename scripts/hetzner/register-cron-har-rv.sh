@@ -14,6 +14,7 @@ set -euo pipefail
 cat > /etc/systemd/system/ichor-har-rv.service <<'EOF'
 [Unit]
 Description=Ichor HAR-RV daily forecast (Corsi 2009)
+OnFailure=ichor-notify@%n.service
 After=network-online.target postgresql.service
 Wants=network-online.target
 

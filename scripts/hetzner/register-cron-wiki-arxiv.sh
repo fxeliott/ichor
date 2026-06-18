@@ -10,6 +10,7 @@ set -euo pipefail
 cat > /etc/systemd/system/ichor-wikipedia-pageviews.service <<'EOF'
 [Unit]
 Description=Ichor Wikipedia pageviews poller (macro article watchlist)
+OnFailure=ichor-notify@%n.service
 After=network-online.target postgresql.service
 Wants=network-online.target
 
@@ -44,6 +45,7 @@ EOF
 cat > /etc/systemd/system/ichor-arxiv-qfin.service <<'EOF'
 [Unit]
 Description=Ichor arXiv q-fin papers poller
+OnFailure=ichor-notify@%n.service
 After=network-online.target postgresql.service
 Wants=network-online.target
 

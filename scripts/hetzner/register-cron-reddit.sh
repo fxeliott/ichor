@@ -13,6 +13,7 @@ set -euo pipefail
 cat > /etc/systemd/system/ichor-reddit.service <<'EOF'
 [Unit]
 Description=Ichor Reddit watchlist poller (4 subreddits)
+OnFailure=ichor-notify@%n.service
 After=network-online.target postgresql.service
 Wants=network-online.target
 

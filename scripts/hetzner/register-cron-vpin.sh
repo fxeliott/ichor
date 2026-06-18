@@ -12,6 +12,7 @@ set -euo pipefail
 cat > /etc/systemd/system/ichor-vpin-compute.service <<'EOF'
 [Unit]
 Description=Ichor FX VPIN flow-toxicity compute
+OnFailure=ichor-notify@%n.service
 After=network-online.target postgresql.service ichor-fx-stream.service
 Wants=network-online.target
 

@@ -13,6 +13,7 @@ set -euo pipefail
 cat > /etc/systemd/system/ichor-brier-drift.service <<'EOF'
 [Unit]
 Description=Ichor Brier-degradation monitor (per asset×model, weekly delta)
+OnFailure=ichor-notify@%n.service
 After=network-online.target postgresql.service ichor-brier-optimizer.service
 Wants=network-online.target
 

@@ -31,6 +31,7 @@ set -euo pipefail
 cat > /etc/systemd/system/ichor-actuals-reconciler.service <<'EOF'
 [Unit]
 Description=Ichor FRED ALFRED economic_events.actual reconciler (r144)
+OnFailure=ichor-notify@%n.service
 After=network-online.target postgresql.service
 Wants=network-online.target
 

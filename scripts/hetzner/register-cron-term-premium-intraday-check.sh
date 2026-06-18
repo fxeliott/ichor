@@ -19,6 +19,7 @@ set -euo pipefail
 cat > /etc/systemd/system/ichor-term-premium-intraday-check.service <<'EOF'
 [Unit]
 Description=Ichor TERM_PREMIUM_INTRADAY_30D acute fiscal stress alert
+OnFailure=ichor-notify@%n.service
 After=network-online.target postgresql.service ichor-collector@fred_extended.service
 Wants=network-online.target
 

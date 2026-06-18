@@ -10,6 +10,7 @@ set -euo pipefail
 cat > /etc/systemd/system/ichor-news-burst.service <<'EOF'
 [Unit]
 Description=Ichor news-negative-burst scanner (5-min window)
+OnFailure=ichor-notify@%n.service
 After=network-online.target postgresql.service
 Wants=network-online.target
 

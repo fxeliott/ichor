@@ -17,6 +17,7 @@ set -euo pipefail
 cat > /etc/systemd/system/ichor-dtw-analogue.service <<'EOF'
 [Unit]
 Description=Ichor DTW analogue matcher (VIX vs 8 historical archetypes)
+OnFailure=ichor-notify@%n.service
 After=network-online.target postgresql.service ichor-prediction-outlier.service
 Wants=network-online.target
 

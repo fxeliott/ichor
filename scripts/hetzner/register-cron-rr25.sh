@@ -13,6 +13,7 @@ set -euo pipefail
 cat > /etc/systemd/system/ichor-rr25-check.service <<'EOF'
 [Unit]
 Description=Ichor RISK_REVERSAL_25D options-skew alert
+OnFailure=ichor-notify@%n.service
 After=network-online.target postgresql.service
 Wants=network-online.target
 

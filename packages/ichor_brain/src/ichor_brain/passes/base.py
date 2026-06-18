@@ -104,7 +104,46 @@ class Pass[T](ABC):
 
 
 _FENCED_JSON_RE = re.compile(r"```(?:json)?\s*(\{.*?\})\s*```", re.DOTALL | re.IGNORECASE)
+# Greedy first '{' → last '}' — kept only as a last-ditch fallback. It
+# OVER-captures when prose carries stray braces (S02 round 6 audit), so the
+# brace-balanced scan below is tried first.
 _BARE_JSON_RE = re.compile(r"(\{.*\})", re.DOTALL)
+
+
+def _balanced_json_candidates(text: str) -> list[str]:
+    """Every brace-balanced ``{...}`` substring, one per top-level ``{`` start,
+    string-aware (a ``{``/``}`` inside a JSON string value or after a backslash
+    escape does not change the depth). Lets ``extract_json_block`` recover the
+    real object even when prose carries stray brace pairs BEFORE it (the greedy
+    first-{-to-last-} regex captures a non-JSON blob in that case) — the caller
+    tries ``json.loads`` on each in order and returns the first that parses."""
+    out: list[str] = []
+    i, n = 0, len(text)
+    while i < n:
+        if text[i] != "{":
+            i += 1
+            continue
+        depth = 0
+        in_str = False
+        escape = False
+        for j in range(i, n):
+            c = text[j]
+            if escape:
+                escape = False
+            elif c == "\\":
+                escape = True
+            elif c == '"':
+                in_str = not in_str
+            elif not in_str:
+                if c == "{":
+                    depth += 1
+                elif c == "}":
+                    depth -= 1
+                    if depth == 0:
+                        out.append(text[i : j + 1])
+                        break
+        i += 1
+    return out
 
 
 def extract_json_block(text: str) -> dict[str, Any]:
@@ -113,13 +152,17 @@ def extract_json_block(text: str) -> dict[str, Any]:
     Tolerates the common shapes :
       - fenced ```json {...}``` block (preferred output format)
       - bare {...} object on its own line
-      - prose around a JSON object
+      - prose around a JSON object (incl. stray brace pairs before it)
     Raises `PassError` if nothing parses.
     """
     candidates: list[str] = []
     m = _FENCED_JSON_RE.search(text)
     if m:
         candidates.append(m.group(1))
+    # Brace-balanced scan (one per top-level '{') — recovers the real object
+    # past stray braces ; supersedes the greedy regex, which stays as a last
+    # fallback for any shape this misses.
+    candidates.extend(_balanced_json_candidates(text))
     m = _BARE_JSON_RE.search(text)
     if m:
         candidates.append(m.group(1))

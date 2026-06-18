@@ -17,6 +17,7 @@ set -euo pipefail
 cat > /etc/systemd/system/ichor-news-tone.service <<'EOF'
 [Unit]
 Description=Ichor news tone scorer (FinBERT)
+OnFailure=ichor-notify@%n.service
 After=network-online.target postgresql.service
 Wants=network-online.target
 

@@ -18,6 +18,7 @@ set -euo pipefail
 cat > /etc/systemd/system/ichor-real-yield-gold-check.service <<'EOF'
 [Unit]
 Description=Ichor REAL_YIELD_GOLD_DIVERGENCE alert (XAU/DFII10 corr breakdown)
+OnFailure=ichor-notify@%n.service
 After=network-online.target postgresql.service
 Wants=network-online.target
 

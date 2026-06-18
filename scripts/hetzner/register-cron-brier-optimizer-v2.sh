@@ -20,6 +20,7 @@ set -euo pipefail
 cat > /etc/systemd/system/ichor-brier-optimizer-v2.service <<'EOF'
 [Unit]
 Description=Ichor Brier→weights optimizer V2 (projected SGD on drivers JSONB)
+OnFailure=ichor-notify@%n.service
 After=network-online.target postgresql.service ichor-brier-optimizer.service
 Wants=network-online.target
 

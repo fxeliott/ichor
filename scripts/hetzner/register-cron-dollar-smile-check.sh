@@ -19,6 +19,7 @@ set -euo pipefail
 cat > /etc/systemd/system/ichor-dollar-smile-check.service <<'EOF'
 [Unit]
 Description=Ichor DOLLAR_SMILE_BREAK US-driven instability detector
+OnFailure=ichor-notify@%n.service
 After=network-online.target postgresql.service
 Wants=network-online.target
 

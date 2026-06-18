@@ -19,6 +19,7 @@ set -euo pipefail
 cat > /etc/systemd/system/ichor-data-surprise-check.service <<'EOF'
 [Unit]
 Description=Ichor DATA_SURPRISE_Z macro-release surprise alert
+OnFailure=ichor-notify@%n.service
 After=network-online.target postgresql.service
 Wants=network-online.target
 

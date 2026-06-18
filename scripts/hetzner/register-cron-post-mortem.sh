@@ -17,6 +17,7 @@ chmod 0755 /var/lib/ichor /var/lib/ichor/post-mortems
 cat > /etc/systemd/system/ichor-post-mortem.service <<'EOF'
 [Unit]
 Description=Ichor weekly post-mortem (8-section AUTOEVO report)
+OnFailure=ichor-notify@%n.service
 After=network-online.target postgresql.service ichor-briefing@weekly.service
 Wants=network-online.target
 

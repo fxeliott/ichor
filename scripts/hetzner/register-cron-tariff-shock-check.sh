@@ -21,6 +21,7 @@ set -euo pipefail
 cat > /etc/systemd/system/ichor-tariff-shock-check.service <<'EOF'
 [Unit]
 Description=Ichor TARIFF_SHOCK GDELT tariff narrative burst alert
+OnFailure=ichor-notify@%n.service
 After=network-online.target postgresql.service
 Wants=network-online.target
 

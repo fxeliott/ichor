@@ -66,6 +66,16 @@ class RunnerResultError(RuntimeError):
     """
 
 
+class RunnerTaskLost(RunnerResultError):
+    """The async task is unknown to the runner (HTTP 404 on a poll) — the runner
+    restarted mid-flight (its in-memory task table reset) or garbage-collected
+    the task. UNRECOVERABLE within this attempt (a retry submits a brand-new
+    task, it cannot recover the lost one), so a consumer should fail FAST rather
+    than burn a jittered backoff sleep before re-submitting. A subclass of
+    RunnerResultError so existing ``except RunnerResultError`` paths still catch
+    it; the orchestrator adds a dedicated non-retryable arm (S02 round 6)."""
+
+
 # Runner-side result statuses that mean the generation FAILED even though
 # the async task itself completed (HTTP 200, task_status="done"). Mirrors
 # BriefingTaskResponse.status / AgentTaskResponse.status literals.
@@ -404,7 +414,7 @@ class HttpRunnerClient(RunnerClient):
                             task_id=task_id,
                             poll_count=poll_count,
                         )
-                        raise RunnerResultError(
+                        raise RunnerTaskLost(
                             f"async task {task_id} is unknown to the runner (HTTP 404) "
                             "— the runner most likely restarted mid-flight, or the task "
                             "was garbage-collected; the task is lost (regenerate next cycle)."

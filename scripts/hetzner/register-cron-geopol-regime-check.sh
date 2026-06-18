@@ -18,6 +18,7 @@ set -euo pipefail
 cat > /etc/systemd/system/ichor-geopol-regime-check.service <<'EOF'
 [Unit]
 Description=Ichor GEOPOL_REGIME_STRUCTURAL 252d structural geopol regime alert
+OnFailure=ichor-notify@%n.service
 After=network-online.target postgresql.service
 Wants=network-online.target
 

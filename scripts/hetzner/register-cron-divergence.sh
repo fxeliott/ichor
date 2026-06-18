@@ -15,6 +15,7 @@ set -euo pipefail
 cat > /etc/systemd/system/ichor-divergence-scan.service <<'EOF'
 [Unit]
 Description=Ichor cross-venue prediction-market divergence scan
+OnFailure=ichor-notify@%n.service
 After=network-online.target postgresql.service
 Wants=network-online.target
 

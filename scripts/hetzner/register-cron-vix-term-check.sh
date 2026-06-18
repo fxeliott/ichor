@@ -17,6 +17,7 @@ set -euo pipefail
 cat > /etc/systemd/system/ichor-vix-term-check.service <<'EOF'
 [Unit]
 Description=Ichor VIX_TERM_INVERSION term-structure backwardation detector
+OnFailure=ichor-notify@%n.service
 After=network-online.target postgresql.service
 Wants=network-online.target
 

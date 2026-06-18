@@ -16,6 +16,7 @@ set -euo pipefail
 cat > /etc/systemd/system/ichor-collector@.service <<'EOF'
 [Unit]
 Description=Ichor collector runner (%i)
+OnFailure=ichor-notify@%n.service
 After=network-online.target postgresql.service
 Wants=network-online.target
 

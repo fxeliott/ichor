@@ -39,6 +39,7 @@ set -euo pipefail
 cat > /etc/systemd/system/ichor-rag-incremental-embed.service <<'EOF'
 [Unit]
 Description=Ichor RAG incremental embed (W110g ADR-086 Phase C)
+OnFailure=ichor-notify@%n.service
 After=network-online.target postgresql.service ichor-reconciler.service
 Wants=network-online.target
 
