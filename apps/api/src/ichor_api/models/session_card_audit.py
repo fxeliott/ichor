@@ -13,7 +13,7 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID, uuid4
 
-from sqlalchemy import DateTime, Float, Integer, String
+from sqlalchemy import DateTime, Float, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column
@@ -90,7 +90,12 @@ class SessionCardAudit(Base):
     # (or NULL while the session window is still open). CHECK
     # constraint enforced at DB level (migration 0039) ; the writer
     # uses `services/scenarios.bucket_for_zscore` to derive the label.
-    realized_scenario_bucket: Mapped[str | None] = mapped_column(String(16))
+    # Type is Text() (NOT String(16)) to match migration 0039:72-79
+    # `sa.Column("realized_scenario_bucket", sa.Text(), nullable=True)`
+    # — DB is the source of truth ; the label whitelist is enforced by the
+    # CHECK constraint, not a varchar length (the String(16) was ORM-only
+    # drift that produced a spurious alembic-autogenerate diff).
+    realized_scenario_bucket: Mapped[str | None] = mapped_column(Text())
 
     # r62 (migration 0049) — ADR-083 D3 KeyLevel snapshot at orchestrator
     # finalization. Shape : list[{asset, level, kind, side, source, note}]

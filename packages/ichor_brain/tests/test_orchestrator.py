@@ -191,8 +191,19 @@ class TestEffortDoctrine:
 
 
 @pytest.mark.asyncio
-async def test_orchestrator_propagates_pass_validation_error() -> None:
+async def test_orchestrator_propagates_pass_validation_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """A malformed Pass 1 response should bubble up — no silent fallback."""
+    # The single retry on the parse error would otherwise sleep the real
+    # jittered ~30 s backoff — patch the seam so the test stays fast.
+    import ichor_brain.orchestrator as orch_mod
+
+    async def _no_sleep(_delay: float) -> None:
+        return None
+
+    monkeypatch.setattr(orch_mod.asyncio, "sleep", _no_sleep)
+
     bad_responses = four_pass_responses(
         regime={"quadrant": "made_up", "rationale": "x" * 30, "confidence_pct": 50},
     )
@@ -207,3 +218,92 @@ async def test_orchestrator_propagates_pass_validation_error() -> None:
             asset_data=_ASSET_DATA,
         )
     assert "regime pass" in str(excinfo.value).lower()
+
+
+class TestRetryBackoffJitter:
+    """S02 socle-reliability (2026-06-18) — the pass-retry backoff is base
+    30 s ± 25 % jitter, not a fixed 30 s, so that when a fleet-wide cause
+    (runner restart, CF-tunnel blip, Claude auth expiry) fails every
+    per-asset orchestrator in lock-step they do NOT re-hit the runner at the
+    same instant (thundering herd)."""
+
+    @staticmethod
+    def _one_retry_then_ok_runner() -> InMemoryRunnerClient:
+        # A malformed regime ({} → missing required fields → PassError) on the
+        # first attempt, then a valid 4-pass script → exactly one retry.
+        first_bad = RunnerResponse(text="{}", raw={}, duration_ms=0)
+        return InMemoryRunnerClient([first_bad, *four_pass_responses()])
+
+    @pytest.mark.asyncio
+    async def test_retry_sleep_is_jittered_within_band(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import ichor_brain.orchestrator as orch_mod
+
+        slept: list[float] = []
+
+        async def _capture(delay: float) -> None:
+            slept.append(delay)
+
+        monkeypatch.setattr(orch_mod.asyncio, "sleep", _capture)
+
+        orch = Orchestrator(runner=self._one_retry_then_ok_runner(), critic_fn=stub_critic_fn())
+        result = await orch.run(
+            session_type="pre_londres",
+            asset="EUR_USD",
+            data_pool=_DATA_POOL,
+            asset_data=_ASSET_DATA,
+        )
+
+        # Recovered after exactly one retry, and that retry slept a jittered
+        # value inside 30 s ± 25 % (22.5–37.5 s) — never the bare 30.0.
+        assert result.card.asset == "EUR_USD"
+        assert len(slept) == 1
+        assert 22.5 <= slept[0] <= 37.5
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("uniform_ret", "expected_delay"),
+        # delay == 30 * (1 + uniform_ret) : +0.2→36.0, -0.2→24.0, 0.0→30.0.
+        [(0.2, 36.0), (-0.2, 24.0), (0.0, 30.0)],
+    )
+    async def test_retry_sleep_delay_tracks_jitter_seam(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        uniform_ret: float,
+        expected_delay: float,
+    ) -> None:
+        """The slept delay MUST be base * (1 + random.uniform(-frac, +frac)).
+
+        Mutation guard : a fixed ``asyncio.sleep(30.0)`` (jitter removed) must
+        NOT survive — for uniform=+0.2 the delay must be 36.0 (not 30.0), and
+        for -0.2 it must be 28.8. A band-only assertion (22.5–37.5) would let
+        the fixed-30 regression through, so we pin the exact multiplicative
+        relationship and assert the jitter band passed to uniform is (-0.25,
+        0.25)."""
+        import ichor_brain.orchestrator as orch_mod
+
+        slept: list[float] = []
+        seen_args: list[tuple[float, float]] = []
+
+        async def _capture(delay: float) -> None:
+            slept.append(delay)
+
+        def _uniform(low: float, high: float) -> float:
+            seen_args.append((low, high))
+            return uniform_ret
+
+        monkeypatch.setattr(orch_mod.asyncio, "sleep", _capture)
+        monkeypatch.setattr(orch_mod.random, "uniform", _uniform)
+
+        orch = Orchestrator(runner=self._one_retry_then_ok_runner(), critic_fn=stub_critic_fn())
+        await orch.run(
+            session_type="pre_londres",
+            asset="EUR_USD",
+            data_pool=_DATA_POOL,
+            asset_data=_ASSET_DATA,
+        )
+        # delay == base 30 * (1 + uniform_ret) — fixed-30 mutant dies here.
+        assert slept == [pytest.approx(expected_delay)]
+        # jitter fraction band is exactly ±_RETRY_JITTER_FRAC (0.25).
+        assert seen_args == [(-0.25, 0.25)]

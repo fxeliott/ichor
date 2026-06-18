@@ -9,9 +9,11 @@ from __future__ import annotations
 from collections.abc import Iterable, Sequence
 from datetime import UTC, datetime
 from datetime import date as date_type
+from uuid import uuid4
 
 import structlog
 from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models import (
@@ -221,23 +223,55 @@ async def persist_market_data(session: AsyncSession, bars: Iterable[MarketDataPo
     return total_inserted
 
 
+def _build_fred_insert_rows(
+    parsed: list[tuple[FredObservationData, date_type]],
+    now: datetime,
+) -> list[dict[str, object]]:
+    """De-duplicate `parsed` on (series_id, observation_date) and build the
+    value dicts for a bulk ``INSERT ... ON CONFLICT DO NOTHING``.
+
+    Intra-batch de-dup is mandatory : PostgreSQL's ON CONFLICT DO NOTHING
+    raises "command cannot affect row a second time" when the same arbiter
+    key appears twice in one VALUES batch. A poll normally emits unique
+    (series, date) pairs ; a malformed upstream window could repeat one —
+    last occurrence wins. ``id`` and ``fetched_at`` are set explicitly here
+    because they have NO DB server_default, and a bulk
+    ``pg_insert(...).values([...])`` does NOT apply the ORM-side
+    ``default=uuid4`` (id) that the old ``session.add(FredObservation(...))``
+    path relied on. ``created_at`` is supplied for consistency too, though
+    the DB column also carries ``server_default=now()`` (migration 0005).
+    """
+    rows_by_key: dict[tuple[str, date_type], dict[str, object]] = {}
+    for o, d in parsed:
+        rows_by_key[(o.series_id, d)] = {
+            "id": uuid4(),
+            "observation_date": d,
+            "created_at": now,
+            "series_id": o.series_id,
+            "value": o.value,
+            "fetched_at": o.fetched_at,
+        }
+    return list(rows_by_key.values())
+
+
 async def persist_fred_observations(
     session: AsyncSession, obs: Iterable[FredObservationData]
 ) -> int:
-    """Insert FRED observations, skipping (series_id, observation_date)
-    pairs already in the table.
+    """Insert FRED observations idempotently (re-runs insert zero rows).
 
     The collector emits dataclasses with `observation_date: str` (ISO
-    "YYYY-MM-DD") — we parse to date here for the DB column.
+    "YYYY-MM-DD") — we parse to date here for the DB column. Concurrency-
+    and re-run-safe via ``INSERT ... ON CONFLICT (series_id,
+    observation_date) DO NOTHING`` (uq_fred_series_date, migration 0005).
+    Returns the number of NEW rows actually inserted.
     """
     obs = list(obs)
     if not obs:
         return 0
 
-    # Build the (series_id, parsed_date) set we'll need to check for dupes
+    # Parse the ISO observation_date strings to dates, dropping malformed
+    # ones (logged, never silently coerced).
     parsed: list[tuple[FredObservationData, date_type]] = []
-    series_ids: set[str] = set()
-    dates: set[date_type] = set()
     for o in obs:
         try:
             d = date_type.fromisoformat(o.observation_date)
@@ -245,40 +279,36 @@ async def persist_fred_observations(
             log.warning("fred.skip_bad_date", series=o.series_id, date=o.observation_date)
             continue
         parsed.append((o, d))
-        series_ids.add(o.series_id)
-        dates.add(d)
 
     if not parsed:
         return 0
 
-    existing_rows = (
-        await session.execute(
-            select(FredObservation.series_id, FredObservation.observation_date).where(
-                FredObservation.series_id.in_(series_ids),
-                FredObservation.observation_date.in_(dates),
-            )
-        )
-    ).all()
-    existing: set[tuple[str, date_type]] = {(r[0], r[1]) for r in existing_rows}
-
     now = datetime.now(UTC)
-    inserted = 0
-    for o, d in parsed:
-        if (o.series_id, d) in existing:
-            continue
-        session.add(
-            FredObservation(
-                observation_date=d,
-                created_at=now,
-                series_id=o.series_id,
-                value=o.value,
-                fetched_at=o.fetched_at,
-            )
-        )
-        inserted += 1
-
-    if inserted:
-        await session.commit()
+    rows = _build_fred_insert_rows(parsed, now)
+    # Atomic idempotent upsert (S02 socle-reliability, 2026-06-18). The
+    # former check-then-insert (SELECT existing → Python skip → per-row
+    # session.add) was NOT atomic : two concurrent polls (the 5-min FRED
+    # freshness cron + an overlapping/manual run) could both read the same
+    # "existing" set and both INSERT the same (series_id, observation_date),
+    # tripping uq_fred_series_date (the unique constraint lives only in
+    # migration 0005, not the ORM) → IntegrityError that — unlike its
+    # sibling persist_* functions — was NOT caught here and lost the whole
+    # batch. ON CONFLICT DO NOTHING makes the insert race-safe and
+    # idempotent on re-run. Mirrors cli/run_eia_crude_stocks.py:78-79
+    # (columns, not constraint name, as the conflict arbiter).
+    stmt = (
+        pg_insert(FredObservation)
+        .values(rows)
+        .on_conflict_do_nothing(index_elements=["series_id", "observation_date"])
+    )
+    result = await session.execute(stmt)
+    await session.commit()
+    # rowcount = rows actually inserted (conflicts excluded) on asyncpg ;
+    # fall back to len(rows) only if the driver reports None/-1 (0 is a
+    # valid "all conflicted" outcome and must NOT trigger the fallback).
+    inserted = (
+        result.rowcount if result.rowcount is not None and result.rowcount >= 0 else len(rows)
+    )
     log.info(
         "fred.persisted",
         total=len(obs),
