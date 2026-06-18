@@ -161,6 +161,34 @@ _FRED_DAILY_SERIES: tuple[str, ...] = tuple(
 # ever switch from the aggregated asset=None payload to per-series rows.
 assert all(len(s) <= 16 for s in _FRED_DAILY_SERIES), "FRED series_id exceeds 16 chars"
 
+# Per-SOURCE synthetic-series sweep (S02 socle round 5 audit). ~10 collectors
+# write into fred_observations under SYNTHETIC (non-FRED) series_id prefixes —
+# BLS_*, ECB_*, ZQ_*, AAII_*, BOE_*, WIKI_PV_*, TREASURY_AUC_*, DTS_TGA_CLOSE.
+# The global `fred` spec only MAX()es the whole table (kept fresh by VIX_LIVE),
+# and _FRED_DAILY_CANDIDATES holds ONLY genuine FRED codes — so any of these
+# synthetic sources can silently die for weeks and NOTHING alerts (the exact
+# dead-collector class collector_freshness exists to kill). We sweep each
+# scheduled synthetic source by its series_id PREFIX (LIKE) with a window sized
+# to its real publication cadence + a missed-runs grace.
+#
+# DELIBERATELY EXCLUDED: DEFILLAMA_*, CRYPTO_FNG, BINANCE_FUNDING_* — these
+# collectors have NO systemd timer in scripts/hetzner/register-cron-*.sh (only
+# reachable via an `all` run that is itself unscheduled), so monitoring them
+# would emit a PERMANENT false "silent" alert. If they get scheduled, add them
+# here. Windows honour publication lag (a tighter window false-positives between
+# legitimately-spaced prints — fetched_at only advances on a NEW observation).
+_FRED_SYNTHETIC_TIERS: tuple[tuple[str, str, timedelta], ...] = (
+    # (label, series_id LIKE pattern, max_age)
+    ("bls", "BLS_%", timedelta(days=45)),  # monthly employment/ECI
+    ("ecb_sdmx", "ECB_%", timedelta(days=45)),  # monthly HICP/M3 + event MRO
+    ("dts_treasury", "DTS_TGA_CLOSE", timedelta(days=5)),  # daily business day
+    ("cme_zq", "ZQ_%", timedelta(days=5)),  # daily fed-funds futures settle
+    ("aaii", "AAII_%", timedelta(days=10)),  # weekly Thursday sentiment
+    ("boe_iadb", "BOE_%", timedelta(days=10)),  # mixed daily/monthly UK rates
+    ("wiki_pv", "WIKI_PV_%", timedelta(days=5)),  # daily Wikimedia pageviews
+    ("treasury_auc", "TREASURY_AUC_%", timedelta(days=12)),  # event-driven auctions
+)
+
 
 def _fmt_age(age: timedelta | None) -> str:
     if age is None:
@@ -295,6 +323,39 @@ async def _sweep_fred_series(session: AsyncSession, *, now: datetime) -> tuple[l
     return silent, n_alerts
 
 
+async def _sweep_fred_synthetic_sources(
+    session: AsyncSession, *, now: datetime
+) -> tuple[list[str], int]:
+    """Per-SOURCE synthetic-series silent sweep (S02 socle round 5). The
+    synthetic collectors (BLS_/ECB_/ZQ_/AAII_/BOE_/WIKI_PV_/TREASURY_AUC_/DTS_)
+    write into fred_observations but are covered by NEITHER the global ``fred``
+    spec (whole-table MAX, kept fresh by VIX_LIVE) NOR ``_sweep_fred_series``
+    (genuine FRED codes only). MAX(fetched_at) per prefix vs its cadence window;
+    flag absent/stale. Returns (silent_labels, n_alerts)."""
+    silent: list[str] = []
+    for label, pattern, window in _FRED_SYNTHETIC_TIERS:
+        row = await session.execute(
+            sa_text("SELECT max(fetched_at) FROM fred_observations WHERE series_id LIKE :pat"),
+            {"pat": pattern},
+        )
+        latest = row.scalar_one_or_none()
+        if latest is not None and latest.tzinfo is None:
+            latest = latest.replace(tzinfo=UTC)
+        if latest is None or (now - latest) > window:
+            silent.append(label)
+    n_alerts = 0
+    if silent:
+        hits = await check_metric(
+            session,
+            metric_name="fred_synthetic_silent",
+            current_value=float(len(silent)),
+            asset=None,
+            extra_payload={"silent_sources": ", ".join(sorted(silent))},
+        )
+        n_alerts = len(hits)
+    return silent, n_alerts
+
+
 def _load_state(path: Path) -> dict[str, Any] | None:
     try:
         loaded = json.loads(path.read_text(encoding="utf-8"))
@@ -320,6 +381,7 @@ async def _run(*, dry_run: bool, state_file: Path) -> int:
             results = await _sweep_registry(session, now=now)
             silent: list[str] = []
             fred_silent: list[str] = []
+            synth_silent: list[str] = []
             if dry_run:
                 n_alerts = 0
                 for r in results:
@@ -330,6 +392,7 @@ async def _run(*, dry_run: bool, state_file: Path) -> int:
                     )
                 silent, _ = await _sweep_rss_feeds(session, now=now)
                 fred_silent, _ = await _sweep_fred_series(session, now=now)
+                synth_silent, _ = await _sweep_fred_synthetic_sources(session, now=now)
                 await session.rollback()
             else:
                 n_alerts = await _emit_alerts(session, results)
@@ -337,6 +400,8 @@ async def _run(*, dry_run: bool, state_file: Path) -> int:
                 n_alerts += n_rss
                 fred_silent, n_fred = await _sweep_fred_series(session, now=now)
                 n_alerts += n_fred
+                synth_silent, n_synth = await _sweep_fred_synthetic_sources(session, now=now)
+                n_alerts += n_synth
                 await session.commit()
     except Exception as exc:
         print(f"DB failure during freshness sweep : {exc!s}. Cron will retry next tick.")
@@ -351,6 +416,7 @@ async def _run(*, dry_run: bool, state_file: Path) -> int:
         f"{len(degraded)} degraded ({len(critical)} critical) · "
         f"{len(skipped)} skipped (market closed) · "
         f"{len(silent)} silent feeds · {len(fred_silent)} silent FRED series · "
+        f"{len(synth_silent)} silent synthetic sources · "
         f"{n_alerts} alerts emitted"
     )
     for r in degraded:
@@ -362,6 +428,8 @@ async def _run(*, dry_run: bool, state_file: Path) -> int:
         print(f"  SILENT FEEDS (48h+): {', '.join(sorted(silent))}")
     if fred_silent:
         print(f"  SILENT FRED SERIES (5d+): {', '.join(sorted(fred_silent))}")
+    if synth_silent:
+        print(f"  SILENT SYNTHETIC SOURCES: {', '.join(sorted(synth_silent))}")
 
     log.info(
         "data_freshness.complete",
@@ -370,6 +438,7 @@ async def _run(*, dry_run: bool, state_file: Path) -> int:
         critical=[r.spec.source_key for r in critical],
         silent_feeds=silent,
         silent_fred_series=fred_silent,
+        silent_synthetic_sources=synth_silent,
         n_alerts=n_alerts,
         dry_run=dry_run,
     )

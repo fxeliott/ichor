@@ -47,6 +47,39 @@ _in_flight = 0
 _async_tasks: dict[str, dict] = {}
 _ASYNC_TASK_TTL_SEC = 1800  # 30 min : task results purged after that
 _ASYNC_TASK_MAX = 100  # keep last 100 max
+# Pending+running tasks allowed to QUEUE behind the running one before the
+# async submit endpoints reject with 503 (S02 socle round 5, 2026-06-18). The
+# async path used to accept EVERY submit and pile background tasks behind the
+# single subprocess slot in an UNBOUNDED in-process queue, so the consumer's
+# 503-backoff was dead code and a deep backlog masqueraded as 'pending' until a
+# 960s consumer timeout mis-blamed a queue-depth problem on a stuck subprocess.
+# Bounding the queue makes the 503 reachable and the backlog observable.
+_QUEUE_DEPTH = 2
+
+
+def _active_async_task_count() -> int:
+    """Number of async tasks still pending or running (queue occupancy)."""
+    return sum(1 for t in _async_tasks.values() if t["status"] in ("pending", "running"))
+
+
+def _admit_async_task(task_id: str, *, max_concurrent: int) -> None:
+    """Admission guard for the async submit endpoints. Raises 409 if
+    ``task_id`` is already in flight (a client retry that actually went
+    through would otherwise OVERWRITE the live task's store entry and lose its
+    result), or 503 if the pending+running queue is at capacity
+    (``max_concurrent + _QUEUE_DEPTH``) so the consumer's submit-backoff
+    becomes effective instead of polling an unbounded silent backlog."""
+    existing = _async_tasks.get(task_id)
+    if existing is not None and existing["status"] in ("pending", "running"):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"task_id {task_id} already in flight (status={existing['status']})",
+        )
+    if _active_async_task_count() >= max_concurrent + _QUEUE_DEPTH:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="claude-runner queue full — retry shortly",
+        )
 
 
 def _async_task_gc() -> None:
@@ -64,11 +97,16 @@ def _async_task_gc() -> None:
     ]
     for tid in expired:
         _async_tasks.pop(tid, None)
-    # Cap MAX
+    # Cap MAX — evict ONLY terminal (done/error) entries, oldest first. NEVER
+    # evict a still-pending/running task: its poller would get a spurious 404,
+    # the orchestrator would classify it task-lost, and the background task
+    # would later re-insert a ghost 'done' entry that leaks (round-5 audit).
     if len(_async_tasks) > _ASYNC_TASK_MAX:
-        # sort by started_at, drop oldest
-        sorted_tids = sorted(_async_tasks.items(), key=lambda kv: kv[1]["started_at"])
-        for tid, _ in sorted_tids[: len(_async_tasks) - _ASYNC_TASK_MAX]:
+        terminal = sorted(
+            ((tid, t) for tid, t in _async_tasks.items() if t["status"] in ("done", "error")),
+            key=lambda kv: kv[1]["started_at"],
+        )
+        for tid, _ in terminal[: len(_async_tasks) - _ASYNC_TASK_MAX]:
             _async_tasks.pop(tid, None)
 
 
@@ -549,6 +587,9 @@ async def briefing_task_async(
     _async_task_gc()
 
     task_id = str(req.task_id)
+    # Bound the queue (409 on a duplicate in-flight id, 503 when full) so the
+    # consumer's submit-backoff is effective instead of polling a silent backlog.
+    _admit_async_task(task_id, max_concurrent=settings.max_concurrent_subprocess)
     _async_tasks[task_id] = {
         "status": "pending",
         "result": None,
@@ -687,7 +728,9 @@ async def _run_agent_background(
     responses={
         202: {"description": "Task accepted, poll status via /v1/agent-task/async/{task_id}"},
         401: {"description": "Cloudflare Access JWT invalid"},
+        409: {"description": "task_id already in flight"},
         429: {"description": "Rate limit exceeded"},
+        503: {"description": "Queue full — retry shortly"},
     },
 )
 async def agent_task_async(
@@ -716,6 +759,7 @@ async def agent_task_async(
     _async_task_gc()
 
     task_id = str(req.task_id)
+    _admit_async_task(task_id, max_concurrent=settings.max_concurrent_subprocess)
     _async_tasks[task_id] = {
         "status": "pending",
         "result": None,
