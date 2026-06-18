@@ -20,9 +20,12 @@ Workflow (all error-handled with structured logging):
 
 Failure modes handled:
   - claude-runner timeout/error → status='failed', error_message stored,
-    fallback to Cerebras+Groq (Couche 2) for a degraded briefing
-  - DB unreachable → exit 1 (systemd will retry next cycle)
-  - All providers fail → store a static template "Service degradation" briefing
+    return non-zero. This path FAILS HARD (no Cerebras/Groq fallback and no
+    static-template briefing are wired in this CLI — the docstring previously
+    over-promised both). The window's timer does not re-fire, so recovery is
+    the NEXT scheduled briefing window, not an in-cycle degraded briefing.
+  - context assemble error → status='failed', return 3
+  - DB unreachable → exit non-zero (systemd retries next cycle)
 """
 
 from __future__ import annotations
