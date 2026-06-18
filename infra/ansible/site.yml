@@ -34,14 +34,25 @@
     # secrets must run before any role that consumes credentials
     - { role: secrets, tags: [secrets, walg, observability, langfuse, n8n, cloudflared, always] }
     - { role: walg, tags: [walg, backup] }
-    - { role: observability, tags: [observability, loki, grafana, prometheus] }
-    - { role: langfuse, tags: [langfuse] }
-    - { role: n8n, tags: [n8n] }
     - { role: cloudflared, tags: [cloudflared, tunnel] }
+    # ── Core product FIRST. The prediction API + its packages must deploy
+    #    BEFORE the optional auxiliary stacks (observability/langfuse/n8n) so a
+    #    flaky Grafana / Docker-network issue can NEVER block a core api deploy.
+    #    `any_errors_fatal: true` aborts the whole play on the first role failure,
+    #    so when observability previously ran first (2026-06-18 incident: its
+    #    `ichor-obs` network failed to create on an exhausted Docker address pool)
+    #    the play died BEFORE ichor_api ran and the api never picked up the
+    #    merged fixes. Ordering the core before the auxiliary stacks makes the
+    #    api deploy resilient to any optional-stack failure.
     - { role: ichor_api, tags: [api, ichor_api] }
     # ichor_packages MUST come after ichor_api: it uses the venv created
     # by ichor_api to pip install -e the 3 internal packages.
     - { role: ichor_packages, tags: [api, ichor_api, packages, ichor_packages] }
+    # ── Auxiliary observability / automation stacks LAST (non-core). A failure
+    #    here is now post-deploy: the api is already live.
+    - { role: observability, tags: [observability, loki, grafana, prometheus] }
+    - { role: langfuse, tags: [langfuse] }
+    - { role: n8n, tags: [n8n] }
 
   post_tasks:
     - name: Final health check — services must be running
