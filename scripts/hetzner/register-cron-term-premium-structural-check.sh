@@ -15,6 +15,7 @@ set -euo pipefail
 cat > /etc/systemd/system/ichor-term-premium-structural-check.service <<'EOF'
 [Unit]
 Description=Ichor TERM_PREMIUM_STRUCTURAL_252D structural fiscal regime alert
+OnFailure=ichor-notify@%n.service
 After=network-online.target postgresql.service
 Wants=network-online.target
 

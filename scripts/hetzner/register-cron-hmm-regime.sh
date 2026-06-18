@@ -14,6 +14,7 @@ set -euo pipefail
 cat > /etc/systemd/system/ichor-hmm-regime.service <<'EOF'
 [Unit]
 Description=Ichor HMM 3-state regime detection (per asset, daily)
+OnFailure=ichor-notify@%n.service
 After=network-online.target postgresql.service ichor-har-rv.service
 Wants=network-online.target
 

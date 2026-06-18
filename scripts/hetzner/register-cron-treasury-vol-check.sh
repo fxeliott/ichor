@@ -10,6 +10,7 @@ set -euo pipefail
 cat > /etc/systemd/system/ichor-treasury-vol-check.service <<'EOF'
 [Unit]
 Description=Ichor TREASURY_VOL_SPIKE realized vol MOVE proxy alert
+OnFailure=ichor-notify@%n.service
 After=network-online.target postgresql.service
 Wants=network-online.target
 

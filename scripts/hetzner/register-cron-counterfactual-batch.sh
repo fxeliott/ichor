@@ -14,6 +14,7 @@ set -euo pipefail
 cat > /etc/systemd/system/ichor-counterfactual-batch.service <<'EOF'
 [Unit]
 Description=Ichor weekly Pass 5 counterfactual batch (8 cards/week)
+OnFailure=ichor-notify@%n.service
 After=network-online.target postgresql.service ichor-api.service ichor-post-mortem.service
 Wants=network-online.target
 

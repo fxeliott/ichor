@@ -18,6 +18,7 @@ set -euo pipefail
 cat > /etc/systemd/system/ichor-macro-quartet-check.service <<'EOF'
 [Unit]
 Description=Ichor MACRO_QUARTET_STRESS 4-dim composite stress alert
+OnFailure=ichor-notify@%n.service
 After=network-online.target postgresql.service
 Wants=network-online.target
 

@@ -15,6 +15,7 @@ set -euo pipefail
 cat > /etc/systemd/system/ichor-quad-witching-check.service <<'EOF'
 [Unit]
 Description=Ichor QUAD_WITCHING + OPEX_GAMMA_PEAK proximity alerts
+OnFailure=ichor-notify@%n.service
 After=network-online.target postgresql.service
 Wants=network-online.target
 

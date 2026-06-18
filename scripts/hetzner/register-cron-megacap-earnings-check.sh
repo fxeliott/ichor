@@ -19,6 +19,7 @@ set -euo pipefail
 cat > /etc/systemd/system/ichor-megacap-earnings-check.service <<'EOF'
 [Unit]
 Description=Ichor MEGACAP_EARNINGS_T-1 Mag-7 earnings proximity alert
+OnFailure=ichor-notify@%n.service
 After=network-online.target postgresql.service
 Wants=network-online.target
 

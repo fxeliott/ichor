@@ -14,6 +14,7 @@ set -euo pipefail
 cat > /etc/systemd/system/ichor-yield-curve-inversion-check.service <<'EOF'
 [Unit]
 Description=Ichor YIELD_CURVE_INVERSION_DEEP T10Y2Y recession leading indicator
+OnFailure=ichor-notify@%n.service
 After=network-online.target postgresql.service
 Wants=network-online.target
 

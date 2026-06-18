@@ -15,6 +15,7 @@ set -euo pipefail
 cat > /etc/systemd/system/ichor-prediction-outlier.service <<'EOF'
 [Unit]
 Description=Ichor model prediction outlier detector (z-score on bias_signals)
+OnFailure=ichor-notify@%n.service
 After=network-online.target postgresql.service ichor-concept-drift.service
 Wants=network-online.target
 

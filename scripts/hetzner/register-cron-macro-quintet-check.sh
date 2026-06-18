@@ -19,6 +19,7 @@ set -euo pipefail
 cat > /etc/systemd/system/ichor-macro-quintet-check.service <<'EOF'
 [Unit]
 Description=Ichor MACRO_QUINTET_STRESS 5-dim composite stress alert
+OnFailure=ichor-notify@%n.service
 After=network-online.target postgresql.service ichor-collector@fred_extended.service
 Wants=network-online.target
 

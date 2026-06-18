@@ -29,6 +29,7 @@ set -euo pipefail
 cat > /etc/systemd/system/ichor-cb-tone.service <<'EOF'
 [Unit]
 Description=Ichor multi-CB tone-shift alerts (FED + ECB + BOE + BOJ)
+OnFailure=ichor-notify@%n.service
 After=network-online.target postgresql.service ichor-collector-cb_speeches.service ichor-collector-central_bank_speeches.service
 Wants=network-online.target
 

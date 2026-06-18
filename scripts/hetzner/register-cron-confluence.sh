@@ -18,6 +18,7 @@ set -euo pipefail
 cat > /etc/systemd/system/ichor-snapshot-confluence.service <<'EOF'
 [Unit]
 Description=Ichor confluence snapshot (8 assets)
+OnFailure=ichor-notify@%n.service
 After=network-online.target postgresql.service redis.service
 Wants=network-online.target
 

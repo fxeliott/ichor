@@ -18,6 +18,7 @@ set -euo pipefail
 cat > /etc/systemd/system/ichor-geopol-flash-check.service <<'EOF'
 [Unit]
 Description=Ichor GEOPOL_FLASH AI-GPR geopolitical risk burst alert
+OnFailure=ichor-notify@%n.service
 After=network-online.target postgresql.service
 Wants=network-online.target
 
