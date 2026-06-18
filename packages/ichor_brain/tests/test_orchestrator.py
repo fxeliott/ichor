@@ -307,3 +307,36 @@ class TestRetryBackoffJitter:
         assert slept == [pytest.approx(expected_delay)]
         # jitter fraction band is exactly ±_RETRY_JITTER_FRAC (0.25).
         assert seen_args == [(-0.25, 0.25)]
+
+
+@pytest.mark.asyncio
+async def test_runner_task_lost_fails_fast_without_backoff(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A 404 task-lost (RunnerTaskLost) is unrecoverable — the orchestrator must
+    re-raise IMMEDIATELY, NOT burn its jittered retry backoff first (a retry
+    would only submit a brand-new task). S02 socle round 6."""
+    import ichor_brain.orchestrator as orch_mod
+    from ichor_brain.runner_client import RunnerTaskLost
+
+    slept: list[float] = []
+
+    async def _capture(delay: float) -> None:
+        slept.append(delay)
+
+    monkeypatch.setattr(orch_mod.asyncio, "sleep", _capture)
+
+    def _raise_task_lost(_call: RunnerCall) -> RunnerResponse:
+        raise RunnerTaskLost("async task X is unknown to the runner (HTTP 404)")
+
+    orch = Orchestrator(runner=InMemoryRunnerClient(_raise_task_lost), critic_fn=stub_critic_fn())
+
+    with pytest.raises(RunnerTaskLost):
+        await orch.run(
+            session_type="pre_londres",
+            asset="EUR_USD",
+            data_pool=_DATA_POOL,
+            asset_data=_ASSET_DATA,
+        )
+    # No jittered backoff sleep on an unrecoverable 404 — fail fast.
+    assert slept == []

@@ -32,7 +32,7 @@ from .passes import (
     StressPass,
 )
 from .passes.base import PassError
-from .runner_client import RunnerCall, RunnerClient, ToolConfig
+from .runner_client import RunnerCall, RunnerClient, RunnerTaskLost, ToolConfig
 from .types import (
     AssetSpecialization,
     CriticDecision,
@@ -214,6 +214,12 @@ class Orchestrator:
                     )
                     await self._retry_backoff_sleep()
                     continue
+                raise
+            except RunnerTaskLost:
+                # The runner lost the task (404) — unrecoverable; a retry would
+                # only submit a brand-new task. Fail fast (no jittered backoff
+                # sleep) so the fan-out moves to the next asset instead of
+                # stalling ~30 s on a failure with zero chance of recovery.
                 raise
             except Exception as e:  # noqa: BLE001 — runner transient errors
                 last_error = e
