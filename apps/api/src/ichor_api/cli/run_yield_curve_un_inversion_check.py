@@ -14,7 +14,6 @@ Usage :
 from __future__ import annotations
 
 import argparse
-import asyncio
 import sys
 
 import structlog
@@ -23,6 +22,7 @@ from ..db import get_engine, get_sessionmaker
 from ..services.yield_curve_un_inversion_check import (
     evaluate_yield_curve_un_inversion,
 )
+from ._exit import cron_main
 
 log = structlog.get_logger(__name__)
 
@@ -57,7 +57,7 @@ def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(prog="run_yield_curve_un_inversion_check")
     parser.add_argument("--persist", action="store_true")
     args = parser.parse_args(argv[1:])
-    return asyncio.run(_main(persist=args.persist))
+    return cron_main(lambda: _main(persist=args.persist))
 
 
 if __name__ == "__main__":

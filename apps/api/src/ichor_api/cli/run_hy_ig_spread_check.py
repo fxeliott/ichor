@@ -6,11 +6,11 @@ Daily 22:48 Paris (after MACRO_QUARTET 22:35, before VIX_TERM 22:45).
 from __future__ import annotations
 
 import argparse
-import asyncio
 import sys
 
 from ..db import get_engine, get_sessionmaker
 from ..services.hy_ig_spread_check import evaluate_hy_ig_spread_divergence
+from ._exit import cron_main
 
 
 async def run(*, persist: bool = True) -> None:
@@ -47,7 +47,7 @@ def main(argv: list[str]) -> int:
     )
     parser.set_defaults(persist=True)
     args = parser.parse_args(argv[1:])
-    return asyncio.run(_main(persist=args.persist))
+    return cron_main(lambda: _main(persist=args.persist))
 
 
 if __name__ == "__main__":

@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 import argparse
-import asyncio
 import sys
 
 from ..db import get_engine, get_sessionmaker
 from ..services.term_premium_intraday_check import evaluate_term_premium_intraday
+from ._exit import cron_main
 
 
 async def run(*, persist: bool = True) -> None:
@@ -35,7 +35,7 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--no-persist", dest="persist", action="store_false", help="Dry-run")
     parser.set_defaults(persist=True)
     args = parser.parse_args(argv[1:])
-    return asyncio.run(_main(persist=args.persist))
+    return cron_main(lambda: _main(persist=args.persist))
 
 
 if __name__ == "__main__":

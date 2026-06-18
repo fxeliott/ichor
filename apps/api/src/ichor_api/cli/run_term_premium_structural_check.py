@@ -13,7 +13,6 @@ Usage :
 from __future__ import annotations
 
 import argparse
-import asyncio
 import sys
 
 import structlog
@@ -22,6 +21,7 @@ from ..db import get_engine, get_sessionmaker
 from ..services.term_premium_structural_check import (
     evaluate_term_premium_structural,
 )
+from ._exit import cron_main
 
 log = structlog.get_logger(__name__)
 
@@ -55,7 +55,7 @@ def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(prog="run_term_premium_structural_check")
     parser.add_argument("--persist", action="store_true")
     args = parser.parse_args(argv[1:])
-    return asyncio.run(_main(persist=args.persist))
+    return cron_main(lambda: _main(persist=args.persist))
 
 
 if __name__ == "__main__":
