@@ -53,6 +53,11 @@
     - { role: observability, tags: [observability, loki, grafana, prometheus] }
     - { role: langfuse, tags: [langfuse] }
     - { role: n8n, tags: [n8n] }
+    # ── Cron/timer fleet permanence (S02 round 7). Runs ABSOLUTELY LAST and is
+    #    internally non-fatal: a rebuild now re-registers every collector/
+    #    detector/briefing/freshness timer (incl. the round-6 OnFailure) instead
+    #    of bringing up API+DB with ZERO real-time interconnection.
+    - { role: ichor_crons, tags: [crons, timers] }
 
   post_tasks:
     - name: Final health check — services must be running

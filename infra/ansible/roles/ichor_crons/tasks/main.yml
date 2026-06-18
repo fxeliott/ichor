@@ -1,0 +1,65 @@
+---
+# ichor_crons — make the systemd timer fleet PERMANENT (S02 socle round 7).
+#
+# Before this role, scripts/hetzner/register-cron-*.sh (the 60+ timer/unit
+# definitions, incl. the round-6 OnFailure additions) were run BY HAND on the
+# host and were NOT in any playbook — so an ansible rebuild brought up API+DB
+# but ZERO collectors/detectors/briefings/freshness-monitor, and the OnFailure
+# hardening never reached the host. This role syncs the scripts and (re)applies
+# them idempotently on every deploy.
+#
+# SAFETY: every script run is non-fatal (failed_when: false) so a single bad
+# script can never abort the deploy, and the role is placed LAST in site.yml
+# (after the core api + the optional stacks). The register-cron-*.sh scripts
+# are idempotent by design (they rewrite the unit + timer, daemon-reload, and
+# enable --now); re-running re-applies the known-good setup.
+
+- name: Ensure /opt/ichor/scripts/hetzner exists
+  ansible.builtin.file:
+    path: /opt/ichor/scripts/hetzner
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Sync register-cron + helper scripts to the host (from the synced repo)
+  ansible.builtin.copy:
+    src: /root/scripts/hetzner/
+    dest: /opt/ichor/scripts/hetzner/
+    remote_src: true
+    mode: "0755"
+
+- name: Ensure the ichor-notify@ template exists FIRST (OnFailure target)
+  ansible.builtin.command: bash /opt/ichor/scripts/hetzner/register-notify-template.sh
+  register: notify_template
+  changed_when: false
+  failed_when: false
+
+- name: Discover register-cron scripts
+  ansible.builtin.find:
+    paths: /opt/ichor/scripts/hetzner
+    patterns: "register-cron-*.sh"
+  register: ichor_cron_scripts
+
+- name: (Re)apply each register-cron unit + timer (idempotent, non-fatal)
+  ansible.builtin.command: "bash {{ item.path }}"
+  loop: "{{ ichor_cron_scripts.files | sort(attribute='path') }}"
+  loop_control:
+    label: "{{ item.path | basename }}"
+  register: cron_apply
+  changed_when: false
+  failed_when: false
+
+- name: Report any register-cron script that exited non-zero (visibility, not fatal)
+  ansible.builtin.debug:
+    msg: "register-cron FAILED rc={{ item.rc }} : {{ item.item.path | basename }}"
+  loop: "{{ cron_apply.results }}"
+  loop_control:
+    label: "{{ item.item.path | basename }}"
+  when: item.rc is defined and item.rc != 0
+
+- name: Install OnFailure drop-ins across all loaded ichor-*.service (last, non-fatal)
+  ansible.builtin.command: bash /opt/ichor/scripts/hetzner/install-onfailure-dropins.sh
+  register: onfailure_dropins
+  changed_when: false
+  failed_when: false
