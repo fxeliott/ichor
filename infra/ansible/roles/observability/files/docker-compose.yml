@@ -67,3 +67,12 @@ networks:
   obs:
     name: ichor-obs
     driver: bridge
+    # Pin an explicit subnet OUTSIDE the daemon default-address-pool
+    # (172.20.0.0/16) — that pool is fully claimed by the ichor-n8n stack's /16
+    # network, so without this pin compose tries to allocate ichor-obs from the
+    # exhausted pool and the whole stack fails to start ("all predefined address
+    # pools have been fully subnetted", 2026-06-18 incident). 172.22.0.0/24 is
+    # free (bridge=172.17, langfuse=172.19, n8n=172.20, searxng=172.21).
+    ipam:
+      config:
+        - subnet: 172.22.0.0/24
