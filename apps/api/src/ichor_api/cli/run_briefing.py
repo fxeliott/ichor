@@ -36,6 +36,19 @@ from typing import Any
 
 import httpx
 import structlog
+
+# SSOT for the claude-runner async-polling resilience contract. These are
+# the same module-level primitives HttpRunnerClient._run_async_polling uses
+# (and the runner-client tests import) — reused here (rather than re-defined,
+# which is exactly the drift that left this hand-rolled poll loop unhardened)
+# so the briefing CLI and the orchestrator share ONE tunnel-resilience policy.
+from ichor_brain.runner_client import (  # noqa: PLC2701 — deliberate SSOT reuse
+    _MAX_CONSECUTIVE_POLL_ERRORS,
+    _POLL_RETRY_STATUSES,
+    _TRANSIENT_STATUSES,
+    RunnerResultError,
+    _unwrap_runner_result,
+)
 from sqlalchemy import and_, desc, func, select
 
 from ..briefing.context_builder import build_rich_context
@@ -417,11 +430,41 @@ async def _post_to_claude_runner(
     # the runner's per-call kill (claude_timeout_sec, 900 s) so a stuck
     # subprocess is classified at the runner, never as a consumer give-up.
     max_total_sec = 960.0
+    # Submission backoff for transient CF-tunnel / runner statuses (429
+    # rate-limit, 503 busy concurrency, 502/504/52x origin blips). Mirrors
+    # HttpRunnerClient._run_async_polling so the two async-polling paths
+    # share one resilience contract.
+    submit_backoff = (5.0, 15.0, 45.0)
     async with httpx.AsyncClient(timeout=30.0) as client:
-        # 1. Submit
-        r = await client.post(submit_url, headers=headers, json=payload)
-        r.raise_for_status()
-        accepted = r.json()
+        # 1. Submit — retry transient statuses with bounded backoff before
+        #    giving up (a single tunnel blip on submit shouldn't fail the
+        #    whole briefing window, which the timer does not re-fire).
+        accepted: dict[str, Any] | None = None
+        last_status: int | None = None
+        for attempt, delay in enumerate((0.0,) + submit_backoff):
+            if delay > 0:
+                await asyncio.sleep(delay)
+            r = await client.post(submit_url, headers=headers, json=payload)
+            last_status = r.status_code
+            if r.status_code in _TRANSIENT_STATUSES:
+                log.info(
+                    "cli.briefing.submit_retry",
+                    status=r.status_code,
+                    attempt=attempt + 1,
+                )
+                if attempt < len(submit_backoff):
+                    continue
+            if 200 <= r.status_code < 300:
+                accepted = r.json()
+                break
+            r.raise_for_status()
+        if accepted is None:
+            raise httpx.HTTPStatusError(
+                f"claude-runner busy after retries (last status={last_status})",
+                request=httpx.Request("POST", submit_url),
+                response=httpx.Response(last_status or 503),
+            )
+
         task_id = accepted["task_id"]
         poll_path = accepted.get("poll_url") or f"/v1/briefing-task/async/{task_id}"
         poll_url = f"{base_url}{poll_path}"
@@ -429,9 +472,18 @@ async def _post_to_claude_runner(
 
         log.info("cli.briefing.async_submitted", task_id=task_id)
 
-        # 2. Poll until done or error
+        # 2. Poll until done or error. A single transient tunnel blip on a
+        #    poll (cloudflared keep-alive race after an origin restart, CF
+        #    edge hiccup, dropped connection) must NOT abort an in-flight
+        #    Opus xhigh briefing mid-generation — tolerate _POLL_RETRY_STATUSES
+        #    + httpx.TransportError up to _MAX_CONSECUTIVE_POLL_ERRORS in a row
+        #    (a clean poll resets the counter; poll budget still bounds total
+        #    wait). A 404 = the runner lost the task (restart / GC) → classified
+        #    RunnerResultError, not an opaque give-up. Mirrors
+        #    HttpRunnerClient._run_async_polling (SSOT).
         started = time.monotonic()
         poll_count = 0
+        consecutive_poll_errors = 0
         while True:
             poll_count += 1
             if time.monotonic() - started > max_total_sec:
@@ -440,18 +492,65 @@ async def _post_to_claude_runner(
                     f"{max_total_sec}s (poll_count={poll_count})"
                 )
             await asyncio.sleep(poll_interval)
-            pr = await client.get(poll_url, headers=headers)
-            pr.raise_for_status()
+            try:
+                pr = await client.get(poll_url, headers=headers)
+                if pr.status_code in _POLL_RETRY_STATUSES:
+                    consecutive_poll_errors += 1
+                    if consecutive_poll_errors > _MAX_CONSECUTIVE_POLL_ERRORS:
+                        pr.raise_for_status()
+                    log.info(
+                        "cli.briefing.poll_transient",
+                        status=pr.status_code,
+                        consecutive=consecutive_poll_errors,
+                        task_id=task_id,
+                    )
+                    continue
+                if pr.status_code == 404:
+                    log.info(
+                        "cli.briefing.task_lost",
+                        status=404,
+                        task_id=task_id,
+                        poll_count=poll_count,
+                    )
+                    raise RunnerResultError(
+                        f"async briefing task {task_id} is unknown to the runner "
+                        "(HTTP 404) — the runner most likely restarted mid-flight, "
+                        "or the task was garbage-collected; the task is lost "
+                        "(regenerate next cycle)."
+                    )
+                pr.raise_for_status()
+            except httpx.TransportError as exc:
+                consecutive_poll_errors += 1
+                if consecutive_poll_errors > _MAX_CONSECUTIVE_POLL_ERRORS:
+                    raise
+                log.info(
+                    "cli.briefing.poll_transport_retry",
+                    error=type(exc).__name__,
+                    consecutive=consecutive_poll_errors,
+                    task_id=task_id,
+                )
+                continue
+            consecutive_poll_errors = 0
             status_body = pr.json()
             task_status = status_body.get("status")
             if task_status == "done":
+                result = status_body.get("result") or {}
+                # Silent-failure guard (Session 02) — validate the INNER
+                # result envelope (status_body['result'], NOT status_body):
+                # _unwrap_runner_result raises RunnerResultError on a
+                # runner-failure status ({timeout, subprocess_error,
+                # throttled, auth_failed}) or empty/whitespace
+                # briefing_markdown, so an empty/garbage "done" task becomes
+                # a claude_runner_call_failed at the caller (return 4) instead
+                # of being persisted as a fresh "completed" briefing.
+                _unwrap_runner_result(result)
                 log.info(
                     "cli.briefing.async_completed",
                     task_id=task_id,
                     poll_count=poll_count,
                     elapsed_sec=status_body.get("elapsed_sec"),
                 )
-                return status_body.get("result") or {}
+                return result
             if task_status == "error":
                 raise RuntimeError(
                     f"async briefing task {task_id} crashed: {status_body.get('error')}"
