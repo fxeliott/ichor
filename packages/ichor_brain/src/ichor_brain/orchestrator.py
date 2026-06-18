@@ -12,6 +12,8 @@ is still written to `session_card_audit` for observability).
 
 from __future__ import annotations
 
+import asyncio
+import random
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -98,6 +100,17 @@ class Orchestrator:
     parallel for different assets (the runner client must be safe).
     """
 
+    # Pass-retry backoff (S02 socle-reliability, 2026-06-18). Base 30 s,
+    # jittered ±25 % (→ 22.5–37.5 s). The fan-out runs one Orchestrator per
+    # asset ; when a fleet-wide cause (runner restart, CF-tunnel blip,
+    # Claude auth expiry — the scenarios in `_run_pass_with_retry`'s
+    # docstring) fails them in lock-step, a FIXED 30 s sleep re-hits the
+    # runner simultaneously = thundering herd. The jitter de-synchronises
+    # the retries. Base preserved at 30 s so the documented backoff intent
+    # is unchanged.
+    _RETRY_BASE_SLEEP_SEC: float = 30.0
+    _RETRY_JITTER_FRAC: float = 0.25
+
     def __init__(
         self,
         runner: RunnerClient,
@@ -139,6 +152,23 @@ class Orchestrator:
         self._model_id = model_id
         self._tool_config = tool_config
 
+    async def _retry_backoff_sleep(self) -> None:
+        """Sleep the jittered pass-retry backoff (base ±25 %).
+
+        Reaches the stdlib ``random.uniform`` and ``asyncio.sleep`` via this
+        module's imports, so a test can ``monkeypatch.setattr`` either
+        (``ichor_brain.orchestrator.random.uniform`` /
+        ``ichor_brain.orchestrator.asyncio.sleep`` — the same module objects,
+        patched for the test's duration) for a deterministic, instant retry.
+        See the ``_RETRY_BASE_SLEEP_SEC`` / ``_RETRY_JITTER_FRAC`` rationale
+        above (thundering-herd de-synchronisation across the per-asset
+        fan-out).
+        """
+        delay = self._RETRY_BASE_SLEEP_SEC * (
+            1.0 + random.uniform(-self._RETRY_JITTER_FRAC, self._RETRY_JITTER_FRAC)
+        )
+        await asyncio.sleep(delay)
+
     async def _run_pass_with_retry(
         self,
         call: RunnerCall,
@@ -161,8 +191,6 @@ class Orchestrator:
         Returns the parser output + `(elapsed_ms, attempt_count)` so
         the orchestrator can sum durations correctly.
         """
-        import asyncio
-
         last_error: Exception | None = None
         for attempt in range(max_retries + 1):
             try:
@@ -184,7 +212,7 @@ class Orchestrator:
                         attempt=attempt + 1,
                         error=str(e)[:200],
                     )
-                    await asyncio.sleep(30.0)
+                    await self._retry_backoff_sleep()
                     continue
                 raise
             except Exception as e:  # noqa: BLE001 — runner transient errors
@@ -196,7 +224,7 @@ class Orchestrator:
                         attempt=attempt + 1,
                         error=str(e)[:200],
                     )
-                    await asyncio.sleep(30.0)
+                    await self._retry_backoff_sleep()
                     continue
                 raise
         # Unreachable but satisfies type-checker.
