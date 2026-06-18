@@ -282,3 +282,32 @@ async def test_async_raises_on_empty_markdown(monkeypatch) -> None:
     with patch("ichor_brain.runner_client.httpx.AsyncClient", _run_with_handler(handler)):
         with pytest.raises(RunnerResultError):
             await _make_client().run(RunnerCall(prompt="p", system="s"))
+
+
+@pytest.mark.asyncio
+async def test_submit_backoff_is_jittered(monkeypatch) -> None:
+    """The 503 submit backoff is jittered (de-sync the 6-asset fan-out herd),
+    not a fixed 5/15/45 s. With random.uniform pinned to +0.2 the first retry
+    delay is 5.0 * 1.2 = 6.0 — a fixed-backoff regression would sleep exactly
+    5.0, so this assertion kills that mutant."""
+    slept: list[float] = []
+
+    async def _capture(delay: float, *a: object, **kw: object) -> None:
+        slept.append(delay)
+
+    monkeypatch.setattr("ichor_brain.runner_client.asyncio.sleep", _capture)
+    monkeypatch.setattr("ichor_brain.runner_client.random.uniform", lambda _a, _b: 0.2)
+    state = {"posts": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.method == "POST":
+            state["posts"] += 1
+            return httpx.Response(503, text="busy") if state["posts"] == 1 else _accepted()
+        return _done()
+
+    with patch("ichor_brain.runner_client.httpx.AsyncClient", _run_with_handler(handler)):
+        resp = await _make_client().run(RunnerCall(prompt="p", system="s"))
+    assert resp.text == "ok briefing"
+    assert state["posts"] == 2  # first 503 retried, second accepted
+    # the FIRST sleep is the submit backoff: 5.0 * (1 + 0.2) = 6.0 (jittered).
+    assert slept[0] == pytest.approx(6.0)

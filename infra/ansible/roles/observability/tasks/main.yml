@@ -108,6 +108,17 @@
     mode: "0644"
   register: prom_config
 
+- name: Prune unused Docker networks (free the address pool before stack start)
+  community.docker.docker_prune:
+    networks: true
+  # Orphaned compose networks accumulate and exhaust Docker's predefined
+  # address pool ("all predefined address pools have been fully subnetted"),
+  # which blocks creating the ichor-obs network and aborts the deploy
+  # (2026-06-18 incident). docker_prune networks=true removes ONLY networks not
+  # attached to any container, so the live api / cloudflared tunnel / langfuse /
+  # n8n stacks are untouched — it just reclaims the leaked subnets.
+  failed_when: false
+
 - name: Start observability stack
   community.docker.docker_compose_v2:
     project_src: /opt/ichor/observability
