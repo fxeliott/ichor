@@ -22,6 +22,7 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 import structlog
+from sqlalchemy import exc as sa_exc
 from sqlalchemy import select
 
 from ..config import get_settings
@@ -30,6 +31,59 @@ from ..schemas import DegradedInputOut
 from ..services.confluence_engine import assess_confluence
 
 log = structlog.get_logger(__name__)
+
+# Bounded inline commit-retry backoff (S02 socle-reliability, 2026-06-18).
+# Shorter than the runner's 5/15/45 s HTTP backoff — a DB blip is
+# shorter-lived, and this runs on a cron tick we don't want to stall.
+_COMMIT_RETRY_BACKOFF: tuple[float, ...] = (0.5, 2.0, 5.0)
+
+
+async def _commit_with_retry(session: Any, row: Any) -> None:
+    """Add ``row`` and commit, retrying the commit on TRANSIENT DB errors.
+
+    The session-card commit is the single moment a fully-computed card
+    (through safety gate + coherence reconcile + synthesis snapshots +
+    dimension votes) becomes durable. A transient DB blip at commit time
+    used to lose the whole card. We retry on connection-level errors only
+    (``OperationalError`` / ``InterfaceError``) — never on deterministic
+    ones (``IntegrityError`` / ``ProgrammingError``), which retrying would
+    only mask. An async session that errored mid-commit MUST be rolled
+    back before re-commit (else ``InvalidRequestError``) ; the rollback
+    expunges the pending ``row`` so it is re-``add``ed each attempt. The
+    last failure is re-raised so a true outage still surfaces as a
+    non-zero CLI exit (the cron logs a real failure) rather than a
+    silently dropped card. Inline backoff is the repo idiom
+    (runner_client.py:307, gdelt.py) — deliberately no shared util.
+
+    Rare lost-ack edge (accepted): if the FIRST commit actually persisted
+    but its ack was lost and a transient error fired, the retry re-adds the
+    SAME fixed PK (row.id is a frozen uuid4) → the next commit raises a
+    duplicate-key IntegrityError, which is NOT caught here → re-raised as a
+    non-zero exit. That is a benign false-negative (the card IS durable, no
+    duplicate is written — the composite PK blocks it) ; never data loss.
+    """
+    for attempt, delay in enumerate((0.0,) + _COMMIT_RETRY_BACKOFF):
+        if delay:
+            await asyncio.sleep(delay)
+        try:
+            session.add(row)
+            await session.commit()
+            return
+        except (sa_exc.OperationalError, sa_exc.InterfaceError) as exc:
+            try:
+                await session.rollback()
+            except Exception:  # noqa: BLE001 — rollback on a dead connection can itself fail
+                pass
+            if attempt == len(_COMMIT_RETRY_BACKOFF):
+                log.error(
+                    "session_card.commit_failed_final",
+                    id=str(getattr(row, "id", "?")),
+                    attempts=attempt + 1,
+                    error=str(exc),
+                )
+                raise
+            log.warning("session_card.commit_retry", attempt=attempt, error=str(exc))
+
 
 # S04 — Paris-midnight reference for the cross-asset dollar snapshot window
 # (mirror of session_verdict_builder._PARIS_TZ ; Eliot's working timezone).
@@ -629,8 +683,7 @@ async def _run(
         except Exception as e:  # noqa: BLE001 — never fail the persist on vote capture
             log.warning("dimension_votes.capture_failed", asset=row.asset, error=str(e))
 
-        session.add(row)
-        await session.commit()
+        await _commit_with_retry(session, row)
         log.info(
             "session_card.persisted",
             id=str(row.id),
