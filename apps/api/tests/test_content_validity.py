@@ -16,6 +16,12 @@ def test_insufficient_sample_never_flags() -> None:
     assert classify_content(sample_size=19, non_null=0, distinct=0) == "insufficient_sample"
 
 
+def test_zero_sample_short_circuits_before_division() -> None:
+    # sample_size=0 must return before the non_null/sample_size division
+    # (guards against ZeroDivisionError on an empty recent window).
+    assert classify_content(sample_size=0, non_null=0, distinct=0) == "insufficient_sample"
+
+
 def test_kalshi_all_null_is_null_dead() -> None:
     # The exact Kalshi incident: 60 rows persisted, every yes_price NULL.
     assert classify_content(sample_size=60, non_null=0, distinct=0) == "null_dead"
