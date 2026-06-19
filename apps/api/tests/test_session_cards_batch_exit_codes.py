@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import pytest
 from ichor_api.cli import run_session_cards_batch as batch_mod
+from ichor_api.cli._exit import ExitCode, cron_main
 
 _ASSETS = ("EUR_USD", "GBP_USD")
 
@@ -113,3 +114,35 @@ class TestBatchExitCodeContract:
             inter_card_sleep_s=0.0,
         )
         assert rc == 2
+
+
+class TestBatchOuterEntrypointSilentDeathGuard:
+    """S02 socle residual audit 2026-06-19 — the per-card loop already maps
+    0/1/2 correctly, but the OUTER entrypoint used a bare
+    `sys.exit(asyncio.run(_main(...)))`. An exception escaping OUTSIDE the loop
+    (argparse/setup, an unexpected `_run_batch` error, or the engine-dispose
+    `finally`) exited 1 and was MASKED by `SuccessExitStatus=0 1` → silent
+    batch death — exactly the class `_exit.cron_main` was built to close for the
+    `_check` CLIs. The entrypoint now delegates to `cron_main`."""
+
+    def test_entrypoint_wires_cron_main(self) -> None:
+        # Wiring guard : the bare asyncio.run path is what masked exit-1.
+        assert batch_mod.cron_main is cron_main
+
+    def test_uncaught_exception_maps_to_transient_3_not_masked_1(self) -> None:
+        async def _boom() -> int:
+            raise RuntimeError("engine dispose blew up (transient asyncpg)")
+
+        rc = cron_main(lambda: _boom())
+        # 3 is NOT whitelisted by SuccessExitStatus=0 1 → OnFailure fires.
+        assert rc == ExitCode.TRANSIENT == 3
+
+    def test_int_contract_propagated_unchanged(self) -> None:
+        # The 0/1/2 batch return must pass through cron_main untouched so the
+        # existing per-card contract (and rc=2 "page" semantics) is preserved.
+        for code in (0, 1, 2):
+
+            async def _ret(c: int = code) -> int:
+                return c
+
+            assert cron_main(lambda: _ret()) == code

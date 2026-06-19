@@ -120,7 +120,9 @@ async def run_claude(
     # §10 (2026-05-29) — Opus 4.8 upgrade. The CLI alias `opus` still resolves
     # to opus-4-7; pin briefings/session-cards to the released claude-opus-4-8
     # (verified: local CLI accepts the tag, websearch-confirmed id). Couche-2
-    # stays on `haiku` (ADR-023) untouched; explicit full tags pass through.
+    # also runs Opus 4.8 at effort=low (ADR-108 §11 supersedes ADR-023's Haiku;
+    # the Wave 67 async-polling path is CF-edge-immune); explicit full tags
+    # pass through this alias resolution untouched.
     _model_aliases = {"opus": "claude-opus-4-8"}
     cli_model = _model_aliases.get(model, model)
 

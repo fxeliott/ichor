@@ -94,3 +94,22 @@ async def test_naive_timestamp_coerced_to_utc() -> None:
     session = _StubSession(naive_fresh)
     silent, _ = await m._sweep_fred_synthetic_sources(session, now=_NOW)
     assert silent == []
+
+
+def test_catalog_has_fred_synthetic_silent_alert() -> None:
+    """Regression guard (S02 socle residual audit 2026-06-19) : the synthetic
+    sweep emits on metric_name 'fred_synthetic_silent' [run_data_freshness_check
+    :355]. There MUST be an AlertDef bound to that metric — otherwise
+    evaluate_metric matches nothing, returns [], and the 8 synthetic collectors
+    die SILENTLY. The autouse `_no_alert_write` fixture above stubs check_metric,
+    so the sweep tests stay green even with no AlertDef — this catalog-level
+    assertion is the missing mirror of the twin `fred_series_silent` (which had
+    its own catalog test ; the synthetic twin did not)."""
+    from ichor_api.alerts.catalog import BY_CODE
+
+    alert = BY_CODE["FRED_SYNTHETIC_SILENT"]
+    assert alert.metric_name == "fred_synthetic_silent"
+    assert alert.severity == "warning"
+    # The exact bug class : the emitted metric_name must resolve to >=1 AlertDef.
+    bound = [d for d in BY_CODE.values() if d.metric_name == "fred_synthetic_silent"]
+    assert bound, "no AlertDef bound to the emitted 'fred_synthetic_silent' metric"

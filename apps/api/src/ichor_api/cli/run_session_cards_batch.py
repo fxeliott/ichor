@@ -33,6 +33,14 @@ Exit-code contract (ADR-110 / 2026-06-10 P0 class kill) :
   2 — TOTAL failure (0 ok) or bad invocation. NOT whitelisted →
       systemd Result=failed → OnFailure=ichor-notify@ fires. A dead
       runner / quota exhaustion can no longer pass silent.
+  3 — TRANSIENT : an uncaught exception escaped OUTSIDE the per-card loop
+      (argument/setup error, an unexpected failure in `_run_batch`, or the
+      engine-dispose `finally`). Pre-2026-06-19 this exited 1 and was MASKED
+      by `SuccessExitStatus=0 1` → silent batch death (exactly the class
+      `_exit.cron_main` was built to close for the `_check` CLIs). The batch
+      now delegates to `cron_main`, which PROPAGATES the 0/1/2 return
+      unchanged and converts only an uncaught exception into a distinct
+      honest 3 so OnFailure fires (S02 socle residual audit 2026-06-19).
 """
 
 from __future__ import annotations
@@ -47,6 +55,7 @@ import structlog
 from ..db import get_engine, get_sessionmaker
 from ..services.feature_flags import is_enabled
 from ..services.market_session import compute_session_status, market_closed_for_asset
+from ._exit import cron_main
 from .run_session_card import _run as run_one_card
 
 log = structlog.get_logger(__name__)
@@ -292,4 +301,8 @@ async def _main(argv: list[str]) -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(asyncio.run(_main(sys.argv[1:])))
+    # cron_main runs `_main` (which disposes the engine in its own finally,
+    # same event loop — ADR-024), PROPAGATES the 0/1/2 contract unchanged, and
+    # converts an otherwise exit-1 uncaught traceback into a distinct honest
+    # exit 3 (TRANSIENT) so the unit's OnFailure fires instead of masking it.
+    sys.exit(cron_main(lambda: _main(sys.argv[1:])))

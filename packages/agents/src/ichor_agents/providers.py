@@ -7,8 +7,10 @@ Free-tier limits (verified 2026-05 — see docs/AUDIT_V3.md §7):
   - Cerebras: 30 RPM Llama 3.3-70B (primary for high-quality automation)
   - Groq:     1000 RPD most models, 14400 RPD Llama 3.1-8B-instant (high-volume News-NLP)
 
-Failover chain (per ADR-009 risk mitigation):
-  Cerebras (primary)  →  Groq (fallback)  →  static template (last resort)
+Failover chain (ADR-108 §11 puts Couche-2 on Claude Opus 4.8 effort=low as
+primary, via the local claude-runner subprocess; this module wraps the
+free-tier fallback tiers kept from ADR-009's Voie-D mitigation):
+  Opus 4.8 low  →  Cerebras (first fallback)  →  Groq  →  static template (last resort)
 """
 
 from __future__ import annotations
