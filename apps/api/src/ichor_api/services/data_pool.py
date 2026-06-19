@@ -4739,10 +4739,10 @@ from .dimension_vote_builders import (  # noqa: E402
 async def _section_prediction_markets(
     session: AsyncSession,
 ) -> tuple[str, list[str]]:
-    """## Prediction markets — top 5 fresh entries from each venue."""
+    """## Prediction markets — top priced markets per venue, ranked by volume."""
     cutoff = datetime.now(UTC) - timedelta(hours=12)
     sources: list[str] = []
-    sections: list[str] = ["## Prediction markets (last 12h, top 5 per venue)"]
+    sections: list[str] = ["## Prediction markets (last 12h, top priced per venue by volume)"]
 
     # Polymarket — wave 33: dedup per slug (latest snapshot only) +
     # rank by volume_usd DESC. With wave 31 top-100 macro discovery,
@@ -4886,12 +4886,18 @@ async def _section_prediction_markets(
         .scalars()
         .all()
     )
+    # Dedup on the LATEST snapshot per ticker (rows arrive fetched_at DESC),
+    # then drop tickers whose latest snapshot is unpriced — never fall back to
+    # a stale older price (mirrors the Polymarket block's true-latest dedup; a
+    # now-unpriced market is dropped, not shown at its last-known value).
     seen_tickers: set[str] = set()
     kal_unique: list[KalshiMarket] = []
     for kr in kal_raw:
-        if kr.ticker in seen_tickers or kr.yes_price is None:
+        if kr.ticker in seen_tickers:
             continue
         seen_tickers.add(kr.ticker)
+        if kr.yes_price is None:
+            continue
         kal_unique.append(kr)
     kal_unique.sort(key=lambda x: -(x.volume_24h or 0))
     kal_top = kal_unique[:12]
@@ -4930,12 +4936,16 @@ async def _section_prediction_markets(
         .scalars()
         .all()
     )
+    # Same true-latest dedup as Kalshi: latest snapshot per slug wins, drop if
+    # that latest is unpriced (no stale fallback).
     seen_slugs_man: set[str] = set()
     man_unique: list[ManifoldMarket] = []
     for mr in man_raw:
-        if mr.slug in seen_slugs_man or mr.probability is None:
+        if mr.slug in seen_slugs_man:
             continue
         seen_slugs_man.add(mr.slug)
+        if mr.probability is None:
+            continue
         man_unique.append(mr)
     man_unique.sort(key=lambda x: -(x.volume or 0))
     man_top = man_unique[:8]
