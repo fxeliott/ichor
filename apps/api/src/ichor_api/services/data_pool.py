@@ -103,7 +103,7 @@ from .daily_levels import (
     render_daily_levels_block,
 )
 from .data_liveness import classify_liveness
-from .divergence import render_divergence_block
+from .divergence import render_consensus_block, render_divergence_block
 from .economic_calendar import (
     assess_calendar,
     render_calendar_block,
@@ -6087,6 +6087,13 @@ async def build_data_pool(
     # Phase 2 — divergence cross-venue (Polymarket vs Kalshi vs Manifold)
     div_md, div_src = await render_divergence_block(session)
     sections.append(("divergence", div_md, div_src))
+
+    # S03 Chantier D — cross-venue consensus: one reliability-weighted
+    # probability per matched macro event (complements divergence's spread).
+    # Real-money venues carry it, play-money Manifold discounted. Descriptive
+    # macro prior for Pass-2 (ADR-017 — never a trade signal).
+    cons_md, cons_src = await render_consensus_block(session)
+    sections.append(("prediction_consensus", cons_md, cons_src))
 
     # Phase 2 — Dealer GEX (only emits when asset has options coverage)
     gex_md, gex_src = await render_gex_block(session, asset)
