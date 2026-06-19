@@ -98,11 +98,19 @@ async def test_recent_actuals_filters_low_impact_and_offshore_ccy(monkeypatch) -
         )
 
     async def _fake(session, **kw):  # noqa: ANN001, ANN002, ANN003
-        return [_row("JPY", "high"), _row("USD", "low"), _row("EUR", "high")]
+        return [
+            _row("JPY", "high"),
+            _row("USD", "low"),
+            _row("EUR", "high"),
+            _row("CAD", "high"),
+        ]
 
     monkeypatch.setattr(_PATH, _fake)
     md, _ = await data_pool._section_recent_actuals(None)
-    # JPY (offshore) + USD-low filtered out; only the EUR-high row remains.
+    # JPY (offshore) + USD-low filtered out; EUR-high kept.
     assert "EUR [high]" in md
     assert "JPY" not in md
     assert "[low]" not in md
+    # CAD is a traded currency (USD_CAD) → its high-impact print must surface
+    # (regression guard for the recent-actuals CAD gap, S03 audit 2026-06-19).
+    assert "CAD [high]" in md

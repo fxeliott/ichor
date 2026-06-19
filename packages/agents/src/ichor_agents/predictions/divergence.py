@@ -34,6 +34,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal
 
+from .event_key import event_key as _derive_event_key
+from .event_key import is_laddered_key
+
 Venue = Literal["polymarket", "kalshi", "manifold"]
 
 
@@ -165,6 +168,7 @@ def match_across_venues(
     manifold: list[PredictionMarket],
     *,
     threshold: float = 0.55,
+    use_event_key: bool = False,
 ) -> list[MatchedMarket]:
     """Greedy match : for each Polymarket question, find the best
     Kalshi + Manifold candidates above `threshold`.
@@ -176,38 +180,71 @@ def match_across_venues(
 
     Greedy is fine because the universe is small (~100s markets per
     venue). For 1000s+ a Hungarian assignment would be cleaner.
+
+    ``use_event_key`` (default off → byte-identical to the Jaccard-only
+    matcher) layers a deterministic comparable-event key (see
+    ``event_key.py``) on top of the token Jaccard:
+
+    * **Precision gate** — two markets carrying two *different* non-``None``
+      event keys are never matched, no matter their token overlap. This kills
+      the cross-class false-positive (a Fed market spuriously Jaccard-matched
+      to a recession or unrelated market). Pure tightening.
+    * **Recall floor** — for a *binary-equivalent* class (e.g. recession), two
+      markets sharing the *same* key qualify even if phrasing diverges below
+      ``threshold``. Laddered classes (Fed/CPI/unemployment per-strike on
+      Kalshi) get **no** floor: a single strike must not be cross-matched to a
+      binary event price (the ladder→event reduction is intentionally out of
+      scope), so they only match on genuine token overlap.
+
+    The flag is wired off-by-default and gated fail-closed at the service
+    layer so the live behavior changes only behind a feature flag, leaving the
+    golden card byte-identical until the flag is flipped.
     """
     if threshold < 0 or threshold > 1:
         raise ValueError("threshold must be in [0, 1]")
 
-    poly_tokens = [(m, tokenize(m.question)) for m in polymarket]
-    kal_tokens = [(m, tokenize(m.question)) for m in kalshi]
-    man_tokens = [(m, tokenize(m.question)) for m in manifold]
+    def key_of(m: PredictionMarket) -> str | None:
+        return _derive_event_key(m.venue, m.market_id, m.question) if use_event_key else None
+
+    poly_tokens = [(m, tokenize(m.question), key_of(m)) for m in polymarket]
+    kal_tokens = [(m, tokenize(m.question), key_of(m)) for m in kalshi]
+    man_tokens = [(m, tokenize(m.question), key_of(m)) for m in manifold]
 
     used_kalshi: set[str] = set()
     used_manifold: set[str] = set()
     out: list[MatchedMarket] = []
 
     def best_match(
-        pool: list[tuple[PredictionMarket, list[str]]],
+        pool: list[tuple[PredictionMarket, list[str], str | None]],
         used: set[str],
         anchor_tokens: list[str],
+        anchor_key: str | None,
     ) -> tuple[PredictionMarket | None, float]:
         best_m: PredictionMarket | None = None
         best_s = 0.0
-        for m, toks in pool:
+        for m, toks, cand_key in pool:
             if m.market_id in used:
                 continue
+            # Precision gate: two different known events never match.
+            if anchor_key is not None and cand_key is not None and anchor_key != cand_key:
+                continue
             s = jaccard_similarity(anchor_tokens, toks)
+            # Recall floor for confirmed binary-equivalent same-event pairs.
+            if (
+                anchor_key is not None
+                and anchor_key == cand_key
+                and not is_laddered_key(anchor_key)
+            ):
+                s = max(s, threshold)
             if s > best_s:
                 best_s = s
                 best_m = m
         return (best_m, best_s) if best_s >= threshold else (None, best_s)
 
     # 1) Polymarket-anchored matches
-    for poly_m, poly_toks in poly_tokens:
-        kal_m, kal_s = best_match(kal_tokens, used_kalshi, poly_toks)
-        man_m, man_s = best_match(man_tokens, used_manifold, poly_toks)
+    for poly_m, poly_toks, poly_key in poly_tokens:
+        kal_m, kal_s = best_match(kal_tokens, used_kalshi, poly_toks, poly_key)
+        man_m, man_s = best_match(man_tokens, used_manifold, poly_toks, poly_key)
         if kal_m is None and man_m is None:
             continue  # solo polymarket — no cross-venue signal
         by_venue: dict[Venue, PredictionMarket] = {"polymarket": poly_m}
@@ -229,10 +266,10 @@ def match_across_venues(
         )
 
     # 2) Kalshi ↔ Manifold orphan matches (no Polymarket)
-    for kal_m, kal_toks in kal_tokens:
+    for kal_m, kal_toks, kal_key in kal_tokens:
         if kal_m.market_id in used_kalshi:
             continue
-        man_m, man_s = best_match(man_tokens, used_manifold, kal_toks)
+        man_m, man_s = best_match(man_tokens, used_manifold, kal_toks, kal_key)
         if man_m is None:
             continue
         used_manifold.add(man_m.market_id)
