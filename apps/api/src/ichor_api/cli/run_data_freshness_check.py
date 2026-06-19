@@ -49,6 +49,7 @@ from ..services.alerts_runner import check_metric
 from ..services.collector_freshness import (
     FRESHNESS_REGISTRY,
     FreshnessResult,
+    classify_content,
     decide_exit,
     evaluate_freshness,
     should_check,
@@ -361,6 +362,66 @@ async def _sweep_fred_synthetic_sources(
     return silent, n_alerts
 
 
+# Per-COLUMN content-validity probes (S03, added 2026-06-19 after the Kalshi
+# silent-death). Every sweep above answers "are rows arriving?"; NONE answers
+# "do the arriving rows carry real VALUES?". The Kalshi yes_price-all-NULL rot
+# (collector GREEN, every value NULL after an upstream schema migration) stayed
+# invisible to MAX(ts) until a manual audit. Each probe classifies a value
+# column's NULL/degenerate rate over a RECENT window (a wide window would
+# false-flag a freshly-fixed collector's aged NULL history; recent also bounds
+# detection latency). Warning-tier (does NOT drive the critical exit-2 path).
+# (label, table, ts_column, value_column, window, min_sample)
+_CONTENT_PROBES: tuple[tuple[str, str, str, str, timedelta, int], ...] = (
+    ("kalshi_price", "kalshi_markets", "fetched_at", "yes_price", timedelta(hours=3), 20),
+    ("manifold_prob", "manifold_markets", "fetched_at", "probability", timedelta(hours=3), 20),
+    # gdelt.tone is NOT NULL (FinBERT-scored locally) → the degenerate branch
+    # catches the all-0.0 dead-scorer incident (2026-06-11, ADR-112), not NULL.
+    ("gdelt_tone", "gdelt_events", "fetched_at", "tone", timedelta(hours=24), 20),
+)
+
+
+async def _sweep_content_validity(session: AsyncSession, *, now: datetime) -> tuple[list[str], int]:
+    """Per-COLUMN content-validity sweep (S03 2026-06-19). The freshness +
+    silent sweeps answer "are rows arriving?"; this answers "do they carry real
+    values?" — closing the Kalshi silent-death blind spot. Each probe evaluates
+    a value column's NULL/degenerate rate over a RECENT window via
+    ``classify_content``; per-probe try/except so a content probe can NEVER
+    break the freshness run. Warning-tier alert. Returns (degraded, n_alerts)."""
+    degraded: list[str] = []
+    for label, table, ts_col, value_col, window, min_sample in _CONTENT_PROBES:
+        try:
+            row = await session.execute(
+                sa_text(  # noqa: S608 — identifiers are code-owned constants
+                    f"SELECT count(*), count({value_col}), count(distinct {value_col}) "
+                    f"FROM {table} WHERE {ts_col} >= :cutoff"
+                ),
+                {"cutoff": now - window},
+            )
+            sample, non_null, distinct = row.first() or (0, 0, 0)
+        except Exception as exc:  # noqa: BLE001 — a probe must never break the run
+            log.warning("data_freshness.content_probe_failed", probe=label, error=str(exc))
+            continue
+        verdict = classify_content(
+            sample_size=int(sample),
+            non_null=int(non_null),
+            distinct=int(distinct),
+            min_sample=min_sample,
+        )
+        if verdict in ("null_dead", "degenerate"):
+            degraded.append(f"{label}:{verdict}")
+    n_alerts = 0
+    if degraded:
+        hits = await check_metric(
+            session,
+            metric_name="collector_content_degraded",
+            current_value=float(len(degraded)),
+            asset=None,
+            extra_payload={"degraded_columns": ", ".join(sorted(degraded))},
+        )
+        n_alerts = len(hits)
+    return degraded, n_alerts
+
+
 def _load_state(path: Path) -> dict[str, Any] | None:
     try:
         loaded = json.loads(path.read_text(encoding="utf-8"))
@@ -387,6 +448,7 @@ async def _run(*, dry_run: bool, state_file: Path) -> int:
             silent: list[str] = []
             fred_silent: list[str] = []
             synth_silent: list[str] = []
+            content_degraded: list[str] = []
             if dry_run:
                 n_alerts = 0
                 for r in results:
@@ -398,6 +460,7 @@ async def _run(*, dry_run: bool, state_file: Path) -> int:
                 silent, _ = await _sweep_rss_feeds(session, now=now)
                 fred_silent, _ = await _sweep_fred_series(session, now=now)
                 synth_silent, _ = await _sweep_fred_synthetic_sources(session, now=now)
+                content_degraded, _ = await _sweep_content_validity(session, now=now)
                 await session.rollback()
             else:
                 n_alerts = await _emit_alerts(session, results)
@@ -407,6 +470,8 @@ async def _run(*, dry_run: bool, state_file: Path) -> int:
                 n_alerts += n_fred
                 synth_silent, n_synth = await _sweep_fred_synthetic_sources(session, now=now)
                 n_alerts += n_synth
+                content_degraded, n_content = await _sweep_content_validity(session, now=now)
+                n_alerts += n_content
                 await session.commit()
     except Exception as exc:
         print(f"DB failure during freshness sweep : {exc!s}. Cron will retry next tick.")
@@ -422,6 +487,7 @@ async def _run(*, dry_run: bool, state_file: Path) -> int:
         f"{len(skipped)} skipped (market closed) · "
         f"{len(silent)} silent feeds · {len(fred_silent)} silent FRED series · "
         f"{len(synth_silent)} silent synthetic sources · "
+        f"{len(content_degraded)} content-degraded columns · "
         f"{n_alerts} alerts emitted"
     )
     for r in degraded:
@@ -435,6 +501,8 @@ async def _run(*, dry_run: bool, state_file: Path) -> int:
         print(f"  SILENT FRED SERIES (5d+): {', '.join(sorted(fred_silent))}")
     if synth_silent:
         print(f"  SILENT SYNTHETIC SOURCES: {', '.join(sorted(synth_silent))}")
+    if content_degraded:
+        print(f"  CONTENT-DEGRADED COLUMNS: {', '.join(sorted(content_degraded))}")
 
     log.info(
         "data_freshness.complete",
@@ -444,6 +512,7 @@ async def _run(*, dry_run: bool, state_file: Path) -> int:
         silent_feeds=silent,
         silent_fred_series=fred_silent,
         silent_synthetic_sources=synth_silent,
+        content_degraded=content_degraded,
         n_alerts=n_alerts,
         dry_run=dry_run,
     )
