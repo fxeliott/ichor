@@ -154,6 +154,25 @@ async def test_section_prediction_markets_kalshi_dedup_group_drop_none() -> None
 
 
 @pytest.mark.asyncio
+async def test_section_prediction_markets_drops_ticker_whose_latest_is_unpriced() -> None:
+    """No stale-price fallback: a ticker whose LATEST snapshot is unpriced is
+    dropped, even if an older in-window snapshot had a price. Rows arrive
+    newest-first (fetched_at DESC, as the real query orders them)."""
+    from ichor_api.services.data_pool import _section_prediction_markets
+
+    k_latest_none = _kalshi("KXFED-27APR-T4.25", None, "Fed <= 4.25% (latest, no bid)")
+    k_older_priced = _kalshi("KXFED-27APR-T4.25", 0.40, "Fed <= 4.25% (older STALE price)")
+    k_ok = _kalshi("KXFED-27APR-T4.00", 0.59, "Fed <= 4.00% priced")
+    session = _ThreeQuerySession([], [k_latest_none, k_older_priced, k_ok], [])
+    md, sources = await _section_prediction_markets(session)  # type: ignore[arg-type]
+    # unpriced-latest ticker dropped entirely — the 40% stale value never shown
+    assert "kalshi:KXFED-27APR-T4.25" not in sources
+    assert "STALE" not in md
+    # genuinely-priced ticker kept
+    assert "kalshi:KXFED-27APR-T4.00" in sources
+
+
+@pytest.mark.asyncio
 async def test_section_prediction_markets_manifold_dedup() -> None:
     from ichor_api.services.data_pool import _section_prediction_markets
 
