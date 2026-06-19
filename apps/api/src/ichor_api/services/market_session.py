@@ -6,7 +6,8 @@ ferié mais aussi le weekend pour adapter". The 4-pass timers fire 365
 d/yr ; this module is the honest signal the dashboard surfaces instead
 of the crude DST-naive UTC heuristic that was in SessionStatus.tsx.
 
-Scope (YAGNI — exactly the 5-asset briefing universe) :
+Scope (YAGNI — the traded asset universe: the 5 briefing assets EUR_USD /
+GBP_USD / XAU_USD / SPX500 / NAS100, plus USD_CAD which shares the FX rule) :
   - FX / XAU trade 24/5 → closed weekends only.
   - SPX500 / NAS100 are US equities → closed weekends AND US market
     (NYSE/Nasdaq) holidays.
