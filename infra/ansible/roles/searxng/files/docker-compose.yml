@@ -7,7 +7,13 @@
 # from `openssl rand -hex 32` into settings.yml — never committed.
 services:
   searxng:
-    image: searxng/searxng:latest
+    # Pinned (was :latest — the only floating image in the fleet ; S02 socle
+    # residual audit 2026-06-19). A date+hash tag is immutable, unlike :latest
+    # whose content mutates under the tag on every recreate. Verify a newer tag
+    # at https://hub.docker.com/r/searxng/searxng/tags (or docker manifest
+    # inspect) before rolling forward — cf. #266: a tag retired from the Hub
+    # red-fails the deploy.
+    image: searxng/searxng:2026.6.17-4dfdc822c
     container_name: ichor-searxng
     restart: unless-stopped
     ports:
