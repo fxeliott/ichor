@@ -46,7 +46,7 @@ services:
     networks: [n8n]
 
   n8n-postgres:
-    image: postgres:16-alpine
+    image: postgres:18-alpine
     container_name: ichor-n8n-postgres
     restart: unless-stopped
     environment:
