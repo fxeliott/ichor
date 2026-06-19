@@ -57,6 +57,7 @@ from .market_session import SessionStatus
 Criticality = Literal["critical", "warning"]
 MarketGate = Literal["none", "fx", "us_equity"]
 FreshnessStatus = Literal["fresh", "stale", "absent", "skipped_market_closed"]
+ContentVerdict = Literal["ok", "null_dead", "degenerate", "insufficient_sample"]
 
 _IDENT_RE = re.compile(r"^[a-z][a-z0-9_]{1,63}$")  # ≥2 chars ("ts" is real)
 
@@ -98,6 +99,40 @@ class FreshnessResult:
     @property
     def is_degraded(self) -> bool:
         return self.status in ("stale", "absent")
+
+
+def classify_content(
+    *,
+    sample_size: int,
+    non_null: int,
+    distinct: int,
+    min_sample: int = 20,
+    max_null_rate: float = 0.95,
+) -> ContentVerdict:
+    """Content-validity verdict for a value column over a RECENT window.
+
+    The freshness sweep above answers "are rows still arriving?"; this answers
+    "do the arriving rows carry real values?". It closes the blind spot proven
+    by the Kalshi incident (2026-06-19): the collector kept persisting rows
+    (freshness GREEN) but every ``yes_price`` was NULL after an upstream schema
+    migration — undetectable by a MAX(ts) check. Catches both classes:
+
+    - ``null_dead``   : > ``max_null_rate`` of the sample is NULL (Kalshi class).
+    - ``degenerate``  : every value is identical (distinct ≤ 1) — e.g. the
+      GDELT ``tone`` = 0.0-everywhere incident (2026-06-11, fixed ADR-112).
+
+    A RECENT window + ``min_sample`` floor are mandatory: a wide window would
+    false-flag a freshly-fixed collector on its aged-out NULL history, and a
+    thin sample cannot distinguish a dead column from a quiet one.
+    """
+    if sample_size < min_sample:
+        return "insufficient_sample"
+    null_rate = 1.0 - (non_null / sample_size)
+    if null_rate > max_null_rate:
+        return "null_dead"
+    if distinct <= 1:
+        return "degenerate"
+    return "ok"
 
 
 # ── Registry ──────────────────────────────────────────────────────────
