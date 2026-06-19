@@ -40,9 +40,10 @@ def test_catalog_breakdown() -> None:
     # S03 Chantier D (2026-06-11) added 3 DATA_FRESHNESS + 1 EVENT_SENTINEL (57→61).
     # S02 socle audit (2026-06-18) added 1 DATA_FRESHNESS FRED_SERIES_SILENT (61→62).
     # S02 socle residual audit (2026-06-19) added 1 DATA_FRESHNESS FRED_SYNTHETIC_SILENT (62→63).
+    # S03 residual audit (2026-06-19) added 1 DATA_FRESHNESS COLLECTOR_CONTENT_DEGRADED (63→64).
     assert len(PLAN_ALERTS) == 46
     assert len(AUDIT_V2_ALERTS) == 8
-    assert len(ALL_ALERTS) == 63
+    assert len(ALL_ALERTS) == 64
 
 
 def test_catalog_severity_values_valid() -> None:
