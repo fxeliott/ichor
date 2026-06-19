@@ -21,7 +21,7 @@
 ## 0 · The one-paragraph truth
 
 Ichor **is** already a large interconnected system — the spine
-`collectors → data_pool (54 sections) → Couche-2 → 4-pass+Pass-6 brain →
+`collectors → data_pool (59 sections) → Couche-2 → 4-pass+Pass-6 brain →
 session_card_audit → frontend` is real, mathematical, and runs 24h/24 on ~59
 systemd timers. Two interconnections used to be open and made the product feel
 like "isolated cards / 50-50"; **Session 04 closed the first**, one remains:
@@ -46,21 +46,21 @@ next sessions plug into.
 
 ---
 
-## 1 · Topology (verified counts, 2026-06-05)
+## 1 · Topology (verified counts, 2026-06-18)
 
-| Layer                                     | Count                                                                               | Verified                                         |
-| ----------------------------------------- | ----------------------------------------------------------------------------------- | ------------------------------------------------ |
-| API routers (`apps/api/.../routers/*.py`) | **~49**                                                                             | ✓ Glob                                           |
-| Services (`.../services/*.py`)            | **104**                                                                             | (§2.1)                                           |
-| `data_pool.py` `_section_*` builders      | **54**                                                                              | ✓ Grep `async def _section_`                     |
-| Collectors (`.../collectors/*.py`)        | **47**                                                                              | (§2.1)                                           |
-| CLI runners (`.../cli/*.py`)              | **58**                                                                              | (§2.1)                                           |
-| Alembic migrations / head                 | **55 / `0055`**                                                                     | ✓ Glob (`0055_session_card_synthesis_snapshots`) |
-| systemd cron register scripts             | **59**                                                                              | ✓ Glob `register-cron-*.sh`                      |
-| Brain passes                              | **6** (Régime→Asset→Stress→Invalidation + Pass-5 counterfactual + Pass-6 scenarios) | (§2.2)                                           |
-| Couche-2 agents                           | **5** (cb_nlp, news_nlp, sentiment, positioning, macro)                             | (§2.2)                                           |
-| web2 routes / `/learn` pages              | **46 / 15**                                                                         | ✓ Glob `app/**/page.tsx`                         |
-| Priority asset universe                   | **6** (EUR_USD, GBP_USD, USD_CAD, XAU_USD, SPX500_USD, NAS100_USD)                  | code                                             |
+| Layer                                     | Count                                                                               | Verified                           |
+| ----------------------------------------- | ----------------------------------------------------------------------------------- | ---------------------------------- |
+| API routers (`apps/api/.../routers/*.py`) | **48**                                                                              | ✓ Glob                             |
+| Services (`.../services/*.py`)            | **113**                                                                             | (§2.1)                             |
+| `data_pool.py` `_section_*` builders      | **59**                                                                              | ✓ Grep `async def _section_`       |
+| Collectors (`.../collectors/*.py`)        | **47**                                                                              | (§2.1)                             |
+| CLI runners (`.../cli/*.py`)              | **63**                                                                              | (§2.1)                             |
+| Alembic migrations / head                 | **58 / `0058`**                                                                     | ✓ Glob (`0058_fx_ticks_retention`) |
+| systemd cron register scripts             | **62**                                                                              | ✓ Glob `register-cron-*.sh`        |
+| Brain passes                              | **6** (Régime→Asset→Stress→Invalidation + Pass-5 counterfactual + Pass-6 scenarios) | (§2.2)                             |
+| Couche-2 agents                           | **5** (cb_nlp, news_nlp, sentiment, positioning, macro)                             | (§2.2)                             |
+| web2 routes / `/learn` pages              | **46 / 15**                                                                         | ✓ Glob `app/**/page.tsx`           |
+| Priority asset universe                   | **6** (EUR_USD, GBP_USD, USD_CAD, XAU_USD, SPX500_USD, NAS100_USD)                  | code                               |
 
 Stack: Turborepo + pnpm monorepo · FastAPI/Python 3.12 (async SQLAlchemy 2 +
 Alembic) · Next.js 15 / React 19 / Tailwind v4 (OKLCH design system) ·
@@ -77,7 +77,7 @@ through the local Win11 `claude-runner` (Max 20x, zero Anthropic SDK).
    central_bank_speeches / rss / eia_petroleum ...
         │  async fetch → persistence.py bulk-upsert → dedicated ORM tables
         ▼
- [WORLD-MEMORY]  data_pool.py — 54 `async def _section_*` builders
+ [WORLD-MEMORY]  data_pool.py — 59 `async def _section_*` builders
         │  each returns (markdown, sources);  build_data_pool() joins them
         │  → DataPool(markdown=...) frozen dataclass        [data_pool.py:233-251]
         │  ⚠ DataPool.markdown is the ONLY thing the brain consumes

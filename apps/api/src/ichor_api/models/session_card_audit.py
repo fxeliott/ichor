@@ -13,7 +13,7 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID, uuid4
 
-from sqlalchemy import DateTime, Float, Integer, String, Text
+from sqlalchemy import DateTime, Float, Integer, String, Text, func, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column
@@ -35,7 +35,9 @@ class SessionCardAudit(Base):
     generated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), primary_key=True, index=True
     )
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
 
     session_type: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
     asset: Mapped[str] = mapped_column(String(16), nullable=False, index=True)
@@ -83,8 +85,13 @@ class SessionCardAudit(Base):
     # Shape : list[{label, p, magnitude_pips: [low, high], mechanism}]
     # — 7 entries exactly, sum(p) == 1.0, all p in [0, 0.95]. Defaults
     # to empty list for legacy rows. NOT NULL with server_default per
-    # migration 0039 so existing rows backfill cleanly.
-    scenarios: Mapped[Any] = mapped_column(JSONB, nullable=False)
+    # migration 0039 so existing rows backfill cleanly. The server_default is
+    # mirrored ORM-side (matching migration 0039:66-69) so alembic autogenerate
+    # does not emit a spurious "drop server default" diff — same discipline as
+    # realized_scenario_bucket below.
+    scenarios: Mapped[Any] = mapped_column(
+        JSONB, nullable=False, server_default=text("'[]'::jsonb")
+    )
 
     # W105g/W108 reconciler — one of the 7 canonical bucket labels
     # (or NULL while the session window is still open). CHECK
@@ -105,7 +112,11 @@ class SessionCardAudit(Base):
     # migration 0049 so existing rows backfill cleanly. Closes the
     # ADR-083 D3 -> D4 architectural bridge : Pass-2 prompt enrichment
     # + D4 frontend replay read this snapshot rather than recomputing.
-    key_levels: Mapped[Any] = mapped_column(JSONB, nullable=False)
+    # server_default mirrored ORM-side (migration 0049:64-67) to keep
+    # alembic autogenerate clean (see scenarios above).
+    key_levels: Mapped[Any] = mapped_column(
+        JSONB, nullable=False, server_default=text("'[]'::jsonb")
+    )
 
     # r95 (migration 0050) — ADR-104 (ADR-099 §T3.2) FRED-liveness
     # degraded-input manifest (the ADR-103 runtime

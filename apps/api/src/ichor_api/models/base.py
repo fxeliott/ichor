@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import DateTime, MetaData
+from sqlalchemy import DateTime, MetaData, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 # Naming convention: improves Alembic autogenerate diffs
@@ -23,15 +23,24 @@ class Base(DeclarativeBase):
 
 
 class TimestampMixin:
+    # server_default mirrors migration 0001 (created_at/updated_at
+    # server_default=sa.func.now()) on every consumer — briefings (0001:29-33),
+    # alerts (0001:56-60), predictions_audit (0001:95-99), bias_signals
+    # (0001:130-134). Without it, env.py compare_server_default=True makes
+    # alembic autogenerate emit a spurious "drop server default" diff. The
+    # Python `default`/`onupdate` still win at INSERT/UPDATE — this is
+    # metadata-only (same discipline as the per-model created_at alignments).
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(UTC),
+        server_default=func.now(),
         nullable=False,
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(UTC),
         onupdate=lambda: datetime.now(UTC),
+        server_default=func.now(),
         nullable=False,
     )
 

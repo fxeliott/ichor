@@ -174,53 +174,49 @@ async def persist_market_data(session: AsyncSession, bars: Iterable[MarketDataPo
     total_inserted = 0
     total_skipped = 0
 
+    # Atomic idempotent upsert per asset (S02 socle-reliability, 2026-06-18).
+    # The former check-then-insert (SELECT existing → Python skip → per-row
+    # session.add → commit) was NOT atomic: two overlapping polls could both
+    # read the same "existing" set and both INSERT the same
+    # (asset, bar_date, source), tripping uq_market_data_asset_date_source
+    # (migration 0003) → an IntegrityError that rolled back — and LOST — the
+    # whole asset's batch, including the non-conflicting rows. ON CONFLICT DO
+    # NOTHING makes it race-safe + re-run idempotent. Kept PER ASSET (not one
+    # global statement) so a row tripping ck_market_data_ohlc_consistent still
+    # only fails its own asset, exactly as before. Mirrors
+    # persist_fred_observations. id/created_at/fetched_at are set explicitly
+    # because pg_ins(...).values([...]) does NOT apply the ORM-side defaults.
     for asset, asset_bars in by_asset.items():
-        dates = {b.bar_date for b in asset_bars}
-        sources = {b.source for b in asset_bars}
-        existing_rows = (
-            await session.execute(
-                select(MarketDataBar.bar_date, MarketDataBar.source).where(
-                    MarketDataBar.asset == asset,
-                    MarketDataBar.bar_date.in_(dates),
-                    MarketDataBar.source.in_(sources),
-                )
+        rows = [
+            {
+                "id": uuid4(),
+                "bar_date": b.bar_date,
+                "created_at": now,
+                "asset": b.asset,
+                "source": b.source,
+                "open": b.open,
+                "high": b.high,
+                "low": b.low,
+                "close": b.close,
+                "volume": b.volume,
+                "fetched_at": b.fetched_at,
+            }
+            for b in asset_bars
+        ]
+        try:
+            inserted = await _bulk_insert_ignore_conflicts(
+                session, MarketDataBar, rows, conflict_cols=["asset", "bar_date", "source"]
             )
-        ).all()
-        existing: set[tuple[object, str]] = {(r[0], r[1]) for r in existing_rows}
-
-        new_rows = 0
-        for b in asset_bars:
-            if (b.bar_date, b.source) in existing:
-                total_skipped += 1
-                continue
-            session.add(
-                MarketDataBar(
-                    bar_date=b.bar_date,
-                    created_at=now,
-                    asset=b.asset,
-                    source=b.source,
-                    open=b.open,
-                    high=b.high,
-                    low=b.low,
-                    close=b.close,
-                    volume=b.volume,
-                    fetched_at=b.fetched_at,
-                )
+            total_inserted += inserted
+            total_skipped += len(rows) - inserted
+        except Exception as e:
+            await session.rollback()
+            log.error(
+                "market_data.persist_asset_failed",
+                asset=asset,
+                rows=len(rows),
+                error=str(e),
             )
-            new_rows += 1
-
-        if new_rows:
-            try:
-                await session.commit()
-                total_inserted += new_rows
-            except Exception as e:
-                await session.rollback()
-                log.error(
-                    "market_data.persist_asset_failed",
-                    asset=asset,
-                    rows=new_rows,
-                    error=str(e),
-                )
 
     log.info(
         "market_data.persisted",
@@ -368,53 +364,45 @@ async def persist_polygon_bars(session: AsyncSession, bars: Iterable[PolygonBar]
     total_inserted = 0
     total_skipped = 0
 
+    # Atomic idempotent upsert per asset (S02 socle-reliability, 2026-06-18) —
+    # see persist_market_data for the rationale. The former check-then-insert
+    # could lose a whole asset's 1-min batch when two overlapping polls both
+    # passed the in-Python skip and the 2nd tripped uq_polygon_asset_ts
+    # (migration 0006). ON CONFLICT (asset, bar_ts) DO NOTHING is race-safe +
+    # idempotent; kept per-asset to preserve OHLC-failure isolation.
     for asset, asset_bars in by_asset.items():
-        ts_set = {b.bar_ts for b in asset_bars}
-        existing_rows = (
-            await session.execute(
-                select(PolygonIntradayBar.bar_ts).where(
-                    PolygonIntradayBar.asset == asset,
-                    PolygonIntradayBar.bar_ts.in_(ts_set),
-                )
+        rows = [
+            {
+                "id": uuid4(),
+                "bar_ts": b.bar_ts,
+                "created_at": now,
+                "asset": b.asset,
+                "ticker": b.ticker,
+                "open": b.open,
+                "high": b.high,
+                "low": b.low,
+                "close": b.close,
+                "volume": b.volume,
+                "vwap": b.vwap,
+                "transactions": b.transactions,
+                "fetched_at": now,
+            }
+            for b in asset_bars
+        ]
+        try:
+            inserted = await _bulk_insert_ignore_conflicts(
+                session, PolygonIntradayBar, rows, conflict_cols=["asset", "bar_ts"]
             )
-        ).all()
-        existing: set = {r[0] for r in existing_rows}
-
-        new_rows = 0
-        for b in asset_bars:
-            if b.bar_ts in existing:
-                total_skipped += 1
-                continue
-            session.add(
-                PolygonIntradayBar(
-                    bar_ts=b.bar_ts,
-                    created_at=now,
-                    asset=b.asset,
-                    ticker=b.ticker,
-                    open=b.open,
-                    high=b.high,
-                    low=b.low,
-                    close=b.close,
-                    volume=b.volume,
-                    vwap=b.vwap,
-                    transactions=b.transactions,
-                    fetched_at=now,
-                )
+            total_inserted += inserted
+            total_skipped += len(rows) - inserted
+        except Exception as e:
+            await session.rollback()
+            log.error(
+                "polygon_intraday.persist_asset_failed",
+                asset=asset,
+                rows=len(rows),
+                error=str(e),
             )
-            new_rows += 1
-
-        if new_rows:
-            try:
-                await session.commit()
-                total_inserted += new_rows
-            except Exception as e:
-                await session.rollback()
-                log.error(
-                    "polygon_intraday.persist_asset_failed",
-                    asset=asset,
-                    rows=new_rows,
-                    error=str(e),
-                )
 
     log.info(
         "polygon_intraday.persisted",

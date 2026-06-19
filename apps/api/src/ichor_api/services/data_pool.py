@@ -19,7 +19,6 @@ gap surfaced by the first --live run on 2026-05-04 (id 93903a14).
 
 from __future__ import annotations
 
-from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, timedelta
 from typing import Literal
@@ -74,7 +73,17 @@ from .asset_news_affinity import (
 # (r139 recurrence after the S4 _section_news → filter_rows_by_asset_affinity
 # migration left _matches_asset un-referenced ; ruff stripped it twice
 # despite per-line noqa).
-__all__ = ("_NEWS_KEYWORDS", "_matches_asset")
+# r-round8 — the 4 Chantier-C write-side builders moved VERBATIM to
+# dimension_vote_builders are re-exported below (cli + C-3 wiring tests) ; pinned
+# here so ruff F401 cannot strip the re-export. (RUF022-sorted.)
+__all__ = (
+    "_NEWS_KEYWORDS",
+    "_cot_vote_from_rows",
+    "_matches_asset",
+    "_volume_vote_from_reading",
+    "build_cot_vote_for_asset",
+    "build_volume_vote_for_asset",
+)
 from .confluence_engine import (
     assess_confluence,
     render_confluence_block,
@@ -94,7 +103,6 @@ from .daily_levels import (
     render_daily_levels_block,
 )
 from .data_liveness import classify_liveness
-from .dimension_vote import DimensionVote
 from .divergence import render_divergence_block
 from .economic_calendar import (
     assess_calendar,
@@ -115,7 +123,6 @@ from .liquidity_proxy import (
     render_liquidity_proxy_block,
 )
 from .microstructure import (
-    RelativeVolumeReading,
     assess_microstructure,
     assess_relative_volume,
     classify_relative_volume,
@@ -4711,150 +4718,22 @@ async def _section_cot(
     return md, sources, degraded
 
 
-def _cot_vote_from_rows(
-    asset: str,
-    market: str,
-    rows: Sequence[CotPosition],
-    *,
-    now_date: date,
-) -> DimensionVote:
-    """Pure mapper : recent ``CotPosition`` rows (newest-first) → one
-    Chantier-C ``DimensionVote`` (C-3b). Split out of the async fetch so the
-    row→vote logic is unit-testable WITHOUT a DB (the suite stubs DB 503).
-
-    Liveness is recomputed from the freshest ``report_date`` exactly as
-    ``_section_cot`` does, so the vote's ``status``/``age_days`` match the COT
-    band the LLM saw. The heavy lifting (band-aligned Δ4w/Δ1w, OI normalisation,
-    per-asset polarity, fail-closed gates) lives in the pure
-    ``cot_vote.build_cot_vote`` — this only adapts the ORM rows to its contract.
-    """
-    from .cot_vote import COT_MAX_AGE_DAYS, build_cot_vote
-
-    latest_date = rows[0].report_date if rows else None
-    live = classify_liveness(
-        f"CFTC:COT:{market}",
-        latest_date,
-        now=now_date,
-        max_age_days=COT_MAX_AGE_DAYS,
-        impacted=f"cot:{asset}",
-    )
-    history = [(r.report_date, r.managed_money_net) for r in rows]
-    open_interest = rows[0].open_interest if rows else None
-    return build_cot_vote(
-        asset=asset,
-        status=live.status,
-        history=history,
-        open_interest=open_interest,
-        age_days=live.age_days,
-        max_age_days=COT_MAX_AGE_DAYS,
-    )
-
-
-async def build_cot_vote_for_asset(
-    session: AsyncSession, asset: str, *, now_utc: datetime
-) -> DimensionVote:
-    """C-3b write-side — fetch the recent COT rows for ``asset`` (the SAME query
-    ``_section_cot`` feeds the LLM prompt with) and map them to ONE Chantier-C
-    ``DimensionVote`` via the pure ``cot_vote.build_cot_vote``.
-
-    Pure persistence of an already-computable structure (Voie D) : no LLM, no new
-    feed. An asset outside the COT whitelist, an empty / stale table, or any
-    read error all resolve to an honest-absence vote (contributes EXACTLY 0 to
-    the fuser — ADR-103) ; the caller wraps this best-effort so card generation
-    never fails on a COT read.
-    """
-    from .cot_vote import COT_MAX_AGE_DAYS, build_cot_vote
-
-    now_date = now_utc.astimezone(UTC).date()
-    market = _COT_MARKET_BY_ASSET.get(asset)
-    if market is None:
-        # Outside the COT whitelist → no source expected → abstain (status gate).
-        return build_cot_vote(
-            asset=asset,
-            status="absent",
-            history=(),
-            open_interest=None,
-            age_days=None,
-            max_age_days=COT_MAX_AGE_DAYS,
-        )
-    stmt = (
-        select(CotPosition)
-        .where(CotPosition.market_code == market)
-        .order_by(desc(CotPosition.report_date))
-        .limit(13)  # mirror _section_cot — same rows the LLM prompt saw
-    )
-    rows = list((await session.execute(stmt)).scalars().all())
-    return _cot_vote_from_rows(asset, market, rows, now_date=now_date)
-
-
-def _volume_vote_from_reading(
-    asset: str,
-    reading: RelativeVolumeReading,
-    *,
-    now_date: date,
-) -> DimensionVote:
-    """Pure mapper : a ``RelativeVolumeReading`` (the SAME read ``_section_volume_rvol``
-    feeds the LLM with) → one Chantier-C **non-directional** ``DimensionVote`` (C-3
-    volume). Split out of the async fetch so the read→vote logic is unit-testable
-    WITHOUT a DB (the suite stubs DB 503).
-
-    Liveness is recomputed from ``reading.latest_date`` exactly as
-    ``_section_volume_rvol`` does, so the vote's ``status``/``age_days`` match the
-    volume band the LLM saw. The heavy lifting (above-baseline magnitude, freshness
-    decay, fail-closed gates, non-directional contract — volume confirms
-    participation, never direction) lives in the pure ``volume_vote.build_volume_vote``
-    — this only adapts the reading to its contract.
-    """
-    from .volume_vote import VOLUME_MAX_AGE_DAYS, build_volume_vote
-
-    live = classify_liveness(
-        f"market_data:{asset}:volume",
-        reading.latest_date,
-        now=now_date,
-        max_age_days=_VOLUME_RVOL_MAX_AGE_DAYS,
-        impacted=f"volume_rvol:{asset}",
-    )
-    return build_volume_vote(
-        asset=asset,
-        status=live.status,
-        volume_available=reading.volume_available,
-        rvol_ratio=reading.rvol_ratio,
-        age_days=live.age_days,
-        volume_zscore=reading.volume_zscore,
-        max_age_days=VOLUME_MAX_AGE_DAYS,
-    )
-
-
-async def build_volume_vote_for_asset(
-    session: AsyncSession, asset: str, *, now_utc: datetime
-) -> DimensionVote:
-    """C-3 volume write-side — read the relative-volume participation for ``asset``
-    (the SAME read ``_section_volume_rvol`` feeds the LLM prompt with) and map it to
-    ONE **non-directional** Chantier-C ``DimensionVote`` via the pure
-    ``volume_vote.build_volume_vote``.
-
-    Pure persistence of an already-computable structure (Voie D) : no LLM, no new
-    feed. An asset with no consolidated venue volume (FX), an empty / stale daily
-    series, or any read error all resolve to an honest-absence vote (contributes
-    EXACTLY 0 to the fuser — ADR-103) ; the caller wraps this best-effort so card
-    generation never fails on a volume read.
-    """
-    from .volume_vote import VOLUME_MAX_AGE_DAYS, build_volume_vote
-
-    now_date = now_utc.astimezone(UTC).date()
-    if asset not in _VOLUME_ASSETS:
-        # FX / no consolidated venue volume → abstain (no DB I/O), mirror the
-        # honest-N/A path of _section_volume_rvol.
-        return build_volume_vote(
-            asset=asset,
-            status="absent",
-            volume_available=False,
-            rvol_ratio=None,
-            age_days=None,
-            max_age_days=VOLUME_MAX_AGE_DAYS,
-        )
-    reading = await assess_relative_volume(session, asset)
-    return _volume_vote_from_reading(asset, reading, now_date=now_date)
+# r-round8 — Chantier-C DimensionVote write-side builders extracted VERBATIM to
+# the sibling ``dimension_vote_builders`` module (pure structural move, zero
+# behavior change ; shrinks this god-file). Re-exported here for back-compat so
+# every public import path (cli/run_session_card.py + the C-3 wiring tests) stays
+# byte-identical. The names are pinned in ``__all__`` (above) so ruff F401 cannot
+# strip the re-export. The 3 shared constants (_COT_MARKET_BY_ASSET, _VOLUME_ASSETS,
+# _VOLUME_RVOL_MAX_AGE_DAYS) STAY here (the _section_* read-side blocks read them
+# too) ; the new module imports them back. This import sits AFTER those constants
+# are defined, so the one-way pair (data_pool ← builders for re-export ;
+# builders ← data_pool for constants) resolves with NO partial-init cycle.
+from .dimension_vote_builders import (  # noqa: E402
+    _cot_vote_from_rows,
+    _volume_vote_from_reading,
+    build_cot_vote_for_asset,
+    build_volume_vote_for_asset,
+)
 
 
 async def _section_prediction_markets(

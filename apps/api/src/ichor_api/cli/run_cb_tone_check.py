@@ -16,13 +16,13 @@ Usage :
 from __future__ import annotations
 
 import argparse
-import asyncio
 import sys
 
 import structlog
 
 from ..db import get_engine, get_sessionmaker
 from ..services.cb_tone_check import CB_TO_METRIC, evaluate_cb_tone
+from ._exit import cron_main
 
 log = structlog.get_logger(__name__)
 
@@ -70,7 +70,9 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--lookback-hours", type=int, default=24)
     args = parser.parse_args(argv[1:])
     cbs = [args.cb] if args.cb else sorted(CB_TO_METRIC.keys())
-    return asyncio.run(_main(persist=args.persist, cbs=cbs, lookback_hours=args.lookback_hours))
+    return cron_main(
+        lambda: _main(persist=args.persist, cbs=cbs, lookback_hours=args.lookback_hours)
+    )
 
 
 if __name__ == "__main__":

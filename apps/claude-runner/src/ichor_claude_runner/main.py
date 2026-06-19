@@ -125,7 +125,7 @@ class AsyncTaskStatus(BaseModel):
     task_id: UUID
     status: str
     """'pending' (queued), 'running' (subprocess in flight),
-    'done' (result available), 'error' (failed), 'unknown' (not found)."""
+    'done' (result available), 'error' (failed)."""
     elapsed_sec: float | None = None
     # Wave 67 — accept BriefingTaskResponse (briefing async) OR
     # AgentTaskResponse (agent async). Union avoids Pydantic 500 on serialize.
@@ -537,6 +537,15 @@ async def _run_briefing_background(
             error_message=str(e),
             duration_ms=int((time.monotonic() - started) * 1000),
         )
+    except asyncio.CancelledError:
+        # Lifespan shutdown cancels in-flight bg tasks. Without this arm the
+        # entry would stay stuck at status='running' forever (GC never evicts
+        # 'running', so it also wedges admission). Mark it terminal, then
+        # re-raise to honor cancellation (S02 socle round 8).
+        log.warning("claude_runner.async_task.cancelled", task_id=task_id)
+        _async_tasks[task_id]["status"] = "error"
+        _async_tasks[task_id]["error"] = "cancelled (runner shutdown)"
+        raise
     except Exception as e:
         log.exception("claude_runner.async_task.crashed", task_id=task_id)
         _async_tasks[task_id]["status"] = "error"
@@ -571,6 +580,17 @@ async def briefing_task_async(
     the subprocess. If you submit 5 async tasks back-to-back, only one
     runs at a time (max_concurrent_subprocess=1).
     """
+    # GC old completed tasks before adding new one.
+    _async_task_gc()
+
+    task_id = str(req.task_id)
+    # Admission FIRST (409 on a duplicate in-flight id, 503 when full) so the
+    # consumer's submit-backoff is effective instead of polling a silent backlog.
+    # This runs BEFORE the rate-limiter (S02 socle round 8): HourlyRateLimiter
+    # has no refund, so a submit rejected by admission must not burn an hour-quota
+    # token — only a submit that actually gets admitted should consume quota.
+    _admit_async_task(task_id, max_concurrent=settings.max_concurrent_subprocess)
+
     if not _rate_limiter.try_acquire():
         log.warning(
             "claude_runner.async.rate_limited",
@@ -583,13 +603,6 @@ async def briefing_task_async(
             detail="Hourly rate limit exceeded — Max 20x quota self-protection",
         )
 
-    # GC old completed tasks before adding new one
-    _async_task_gc()
-
-    task_id = str(req.task_id)
-    # Bound the queue (409 on a duplicate in-flight id, 503 when full) so the
-    # consumer's submit-backoff is effective instead of polling a silent backlog.
-    _admit_async_task(task_id, max_concurrent=settings.max_concurrent_subprocess)
     _async_tasks[task_id] = {
         "status": "pending",
         "result": None,
@@ -715,6 +728,15 @@ async def _run_agent_background(
             error_message=str(e),
             duration_ms=int((time.monotonic() - started) * 1000),
         )
+    except asyncio.CancelledError:
+        # Lifespan shutdown cancels in-flight bg tasks. Mark terminal so the
+        # entry doesn't stay stuck at 'running' (which would wedge admission),
+        # then re-raise to honor cancellation (S02 socle round 8). Mirror
+        # _run_briefing_background.
+        log.warning("claude_runner.agent_async.cancelled", task_id=task_id)
+        _async_tasks[task_id]["status"] = "error"
+        _async_tasks[task_id]["error"] = "cancelled (runner shutdown)"
+        raise
     except Exception as e:
         log.exception("claude_runner.agent_async.crashed", task_id=task_id)
         _async_tasks[task_id]["status"] = "error"
@@ -744,6 +766,14 @@ async def agent_task_async(
     this to bypass the Cloudflare Tunnel 100s edge timeout that hits Haiku
     big-prompt runs.
     """
+    _async_task_gc()
+
+    task_id = str(req.task_id)
+    # Admission FIRST (409 duplicate / 503 queue-full), THEN the rate-limiter
+    # (S02 socle round 8): HourlyRateLimiter has no refund, so a submit rejected
+    # by admission must not burn an hour-quota token — mirror briefing_task_async.
+    _admit_async_task(task_id, max_concurrent=settings.max_concurrent_subprocess)
+
     if not _rate_limiter.try_acquire():
         log.warning(
             "claude_runner.agent_async.rate_limited",
@@ -756,10 +786,6 @@ async def agent_task_async(
             detail="Hourly rate limit exceeded — Max 20x quota self-protection",
         )
 
-    _async_task_gc()
-
-    task_id = str(req.task_id)
-    _admit_async_task(task_id, max_concurrent=settings.max_concurrent_subprocess)
     _async_tasks[task_id] = {
         "status": "pending",
         "result": None,

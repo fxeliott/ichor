@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import ARRAY, DateTime, Float, String, Text
+from sqlalchemy import ARRAY, DateTime, Float, String, Text, func
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -25,7 +25,9 @@ class NewsItem(Base):
     fetched_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), primary_key=True, index=True
     )
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
 
     source: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     source_kind: Mapped[str] = mapped_column(String(32), nullable=False)
