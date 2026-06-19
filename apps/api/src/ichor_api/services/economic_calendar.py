@@ -29,10 +29,13 @@ from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, timedelta
 from typing import Literal
 
+import structlog
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models import EconomicEvent, FredObservation
+
+log = structlog.get_logger(__name__)
 
 Impact = Literal["high", "medium", "low"]
 
@@ -242,6 +245,31 @@ def _next_recurring_date(today: date, day_of_month: int) -> date:
         return last
 
 
+# ── Permanence guard for the hardcoded central-bank meetings table ──────
+# `_CB_MEETINGS_2026` is a static annual table. Once its dates are all in
+# the past (2027+), the CB section of the calendar goes SILENTLY empty —
+# the DB freshness monitor cannot watch a Python list (it is table+ts_column
+# only), so nothing alerts. This pure helper makes the expiry observable:
+# `assess_calendar` logs on it at runtime, and CI asserts it via a tripwire
+# test, so the table gets re-seeded loudly before it ever breaks in prod.
+_CB_TABLE_MAX_DATE: date = max(d for d, *_ in _CB_MEETINGS_2026)
+_CB_TABLE_EXPIRY_WARN_DAYS = 45
+
+
+def cb_table_status(today: date) -> Literal["ok", "expiring", "expired"]:
+    """Forward-coverage status of the static CB meetings table on `today`.
+
+    Pure + date-injected so the expiry guard is testable without time-travel.
+    `expired` = no meeting on/after today ; `expiring` = last meeting within
+    `_CB_TABLE_EXPIRY_WARN_DAYS` ; else `ok`.
+    """
+    if _CB_TABLE_MAX_DATE < today:
+        return "expired"
+    if (_CB_TABLE_MAX_DATE - today).days <= _CB_TABLE_EXPIRY_WARN_DAYS:
+        return "expiring"
+    return "ok"
+
+
 async def assess_calendar(
     session: AsyncSession,
     *,
@@ -305,6 +333,22 @@ async def assess_calendar(
                     source=f"static:cb_meetings_2026:{region}",
                 )
             )
+
+    # Permanence guard: surface a silent expiry of the static CB table
+    # (the DB freshness monitor cannot watch this Python list).
+    _cb_status = cb_table_status(today)
+    if _cb_status == "expired":
+        log.error(
+            "cb_calendar.table_expired",
+            max_date=_CB_TABLE_MAX_DATE.isoformat(),
+            remedy="re-seed _CB_MEETINGS_* in services/economic_calendar.py",
+        )
+    elif _cb_status == "expiring":
+        log.warning(
+            "cb_calendar.table_expiring_soon",
+            max_date=_CB_TABLE_MAX_DATE.isoformat(),
+            days_left=(_CB_TABLE_MAX_DATE - today).days,
+        )
 
     # 2. Recurring data : project from latest observation date
     for (
