@@ -67,10 +67,12 @@ networks:
   n8n:
     name: ichor-n8n
     driver: bridge
-    # Explicit subnet OUTSIDE the daemon default-address-pool (172.20.0.0/16) —
-    # same exhaustion class as the observability #265 incident. searxng=172.21,
-    # observability=172.22, langfuse=172.23 are taken ; 172.24.0.0/24 is free.
-    # (S02 socle residual audit 2026-06-19, mirror of the observability #265 fix.)
-    ipam:
-      config:
-        - subnet: 172.24.0.0/24
+    # NOTE: deliberately NOT subnet-pinned (unlike searxng/observability/langfuse).
+    # An ipam pin changes the compose config-hash, which forces `docker compose up`
+    # to RECREATE ichor-n8n — and on this host that recreate FAILS to stop the
+    # pre-existing crash-looping container ("tried to kill container, but did not
+    # receive an exit event", red-failed deploy run 27819190652 / 2026-06-19). n8n
+    # is loopback-only auxiliary (non-critical) and the address-pool-exhaustion
+    # class (#265) is already mitigated for the critical stacks via prune-before-
+    # start. Pin this network together with the n8n 1.123.x upgrade round that
+    # actually fixes the crash-loop — not before. (S02 socle residual audit.)
