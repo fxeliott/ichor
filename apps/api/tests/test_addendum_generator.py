@@ -299,6 +299,60 @@ async def test_generate_happy_path_returns_typed_envelope() -> None:
     assert 0.0 <= result.importance <= 1.0
 
 
+@pytest.mark.asyncio
+async def test_generate_calls_runner_with_real_signature_contract() -> None:
+    """Regression guard (S02 socle audit) : the prod call site must use the
+    EXACT keyword contract of `ichor_agents.claude_runner.call_agent_task_async`
+    (`cfg`, kwonly `system=`, `prompt=`, `output_type=`). The other stubs use
+    `**_kw`, which silently swallows ANY kwarg name — so a `system_prompt=` /
+    `user_prompt=` mismatch (the historical bug) would TypeError in prod, get
+    eaten by the best-effort `except Exception`, and skip every pocket while the
+    suite stayed green. This stub mirrors the real signature so a future drift
+    raises here instead of dying silently behind the Voie-D flag."""
+    captured: dict[str, Any] = {}
+
+    async def _real_signature_llm(
+        cfg: Any,
+        *,
+        system: str,
+        prompt: str,
+        output_type: type | None = None,
+        poll_interval_sec: float = 5.0,
+        poll_timeout_sec: float = 960.0,
+    ) -> _AddendumOut:
+        captured["cfg"] = cfg
+        captured["system"] = system
+        captured["prompt"] = prompt
+        captured["output_type"] = output_type
+        return _AddendumOut(
+            addendum_text=(
+                "EUR/USD anti-skill in usd_complacency : steelman should weigh "
+                "Fed-put repricing against the DXY trend before Pass-3."
+            ),
+            importance=0.6,
+        )
+
+    result = await generate_addendum_text(
+        asset="EUR_USD",
+        regime="usd_complacency",
+        skill_delta=-0.05,
+        mean_pbs=2.45,
+        mean_baseline_pbs=2.40,
+        n_observations=13,
+        latest_drift_event_at=None,
+        runner_cfg="sentinel-cfg",
+        call_fn=_real_signature_llm,
+    )
+
+    assert result is not None
+    # The call site bound the kwonly params by their REAL names — proving the
+    # `system_prompt=`/`user_prompt=` regression cannot reappear undetected.
+    assert captured["cfg"] == "sentinel-cfg"
+    assert captured["system"]  # non-empty system prompt forwarded
+    assert "EUR_USD" in captured["prompt"]
+    assert captured["output_type"] is _AddendumOut
+
+
 # ──────────────────────────── _AddendumOut Pydantic ──────────────────────────
 
 

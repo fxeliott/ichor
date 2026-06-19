@@ -4,13 +4,15 @@ Reads recent CB speeches/communiqués from Fed, ECB, BoE, BoJ, SNB, PBoC
 and produces hawkish/dovish scores per CB + key shifts identified +
 projected impact per rate-sensitive asset.
 
-Routing per ADR-023 (which supersedes ADR-021's mapping table) :
+Routing per ADR-108 §11 (supersedes ADR-023, itself superseding ADR-021's
+mapping table) :
 Claude Opus 4.8 effort=low (primary) → Cerebras Llama 3.3-70B →
-Groq Llama 3.3-70B-versatile (last-resort). ADR-021 originally
-prescribed Sonnet medium but the Free-tier Cloudflare Tunnel caps
-requests at ~100 s and Sonnet medium routinely exceeds that on a
-~5 KB CB-speeches context. Haiku 4.5 stays well under the budget
-(~30 s) and quality is sufficient for structured rhetoric scoring.
+Groq Llama 3.3-70B-versatile (last-resort). History : ADR-021 prescribed
+Sonnet medium, but the Free-tier Cloudflare Tunnel ~100 s edge cap ruled it
+out on the legacy sync endpoint and ADR-023 fell back to Haiku 4.5. Wave 67
+then moved Couche-2 to the async-polling path (CF-edge-immune), so ADR-108
+restored Opus 4.8 at effort=low — within budget and higher quality for
+structured rhetoric scoring.
 """
 
 from __future__ import annotations

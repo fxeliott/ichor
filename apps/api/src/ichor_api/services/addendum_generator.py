@@ -184,8 +184,8 @@ async def generate_addendum_text(
     try:
         result = await call_fn(
             cfg=runner_cfg,
-            system_prompt=_SYSTEM_PROMPT,
-            user_prompt=user_prompt,
+            system=_SYSTEM_PROMPT,
+            prompt=user_prompt,
             output_type=_AddendumOut,
         )
     except Exception as e:  # noqa: BLE001 — best-effort, Voie D

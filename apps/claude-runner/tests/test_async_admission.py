@@ -176,6 +176,53 @@ def test_async_submit_admitted_does_burn_rate_limit(client, monkeypatch) -> None
     assert main_mod._rate_limiter.current_count() == before + 1
 
 
+# ─────────────────────────────────────────────────────────────────────────
+# S02 socle residual audit (2026-06-19) — the LEGACY SYNC endpoints
+# (/v1/agent-task, /v1/briefing-task) were missing the round-8 reorder: they
+# called _rate_limiter.try_acquire() (which consumes a token under quota)
+# BEFORE the 503 busy check, so a request rejected with 503 on a busy slot
+# burned an hour-quota token with no refund. These mirror the async no-burn
+# guards for the sync path.
+# ─────────────────────────────────────────────────────────────────────────
+
+
+class _LockedSem:
+    """Stand-in for the subprocess semaphore reporting itself as busy."""
+
+    def locked(self) -> bool:
+        return True
+
+
+def test_sync_agent_task_503_busy_does_not_burn_rate_limit(client, monkeypatch) -> None:
+    from ichor_claude_runner import main as main_mod
+
+    monkeypatch.setattr(main_mod, "_subprocess_semaphore", _LockedSem())
+    before = main_mod._rate_limiter.current_count()
+
+    r = client.post("/v1/agent-task", json={"task_id": str(uuid4()), **_agent_payload()})
+
+    assert r.status_code == 503, r.text
+    # 503 (busy) now raised BEFORE the rate-limiter → 0 token burned.
+    assert main_mod._rate_limiter.current_count() == before
+
+
+def test_sync_agent_task_admitted_burns_one_token(client, monkeypatch) -> None:
+    """Counter-test: a non-busy sync agent-task consumes exactly one token —
+    proves the reorder didn't drop rate-limiting on the happy path."""
+    from ichor_claude_runner import main as main_mod
+
+    async def _ok(*a, **kw):
+        return {"type": "result", "subtype": "success", "result": "ok"}
+
+    monkeypatch.setattr(main_mod, "run_claude", _ok)
+    before = main_mod._rate_limiter.current_count()
+
+    r = client.post("/v1/agent-task", json={"task_id": str(uuid4()), **_agent_payload()})
+
+    assert r.status_code == 200, r.text
+    assert main_mod._rate_limiter.current_count() == before + 1
+
+
 def test_gc_never_evicts_running_over_max(main_mod) -> None:
     # Overfill with terminal + a few running ; the cap must drop only terminal.
     # Use FRESH timestamps (within TTL) so the TTL pass doesn't remove the done

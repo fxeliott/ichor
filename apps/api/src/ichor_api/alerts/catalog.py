@@ -724,6 +724,25 @@ DATA_FRESHNESS_ALERTS: tuple[AlertDef, ...] = (
             "MAX() freshness check (S02 socle audit 2026-06-18)."
         ),
     ),
+    AlertDef(
+        "FRED_SYNTHETIC_SILENT",
+        "warning",
+        "{value:.0f} source(s) synthétique(s) FRED silencieuse(s) au-delà de leur fenêtre : {silent_sources}",
+        "fred_synthetic_silent",
+        0.5,
+        "above",
+        description=(
+            "One or more SYNTHETIC fred_observations source families "
+            "(BLS_/ECB_/ZQ_/AAII_/BOE_/WIKI_PV_/TREASURY_AUC_/DTS_) stopped "
+            "writing past their cadence window. These collectors are covered by "
+            "NEITHER the whole-table `fred` spec (kept fresh by VIX_LIVE) NOR the "
+            "genuine-FRED-code `fred_series_silent` sweep. Without this def the "
+            "round-5 synthetic sweep (run_data_freshness_check._sweep_fred_synthetic_sources) "
+            "emitted to a metric_name with NO matching AlertDef → evaluate_metric "
+            "returned [] → 8 synthetic collectors could die silently (S02 socle "
+            "residual-gap audit 2026-06-19, twin of FRED_SERIES_SILENT)."
+        ),
+    ),
 )
 
 # S03 Chantier D — pre-announcement sentinel ("être prévenu de TOUTES les
@@ -779,13 +798,14 @@ def get_alert_def(code: str) -> AlertDef:
 
 
 def assert_catalog_complete() -> None:
-    """Sanity check at startup: total = 62 alerts, all unique codes.
+    """Sanity check at startup: total = 63 alerts, all unique codes.
 
     r165 Strand E added 3 SCENARIO_INVALIDATION_* entries (54 → 57).
     S03 Chantier D added 3 DATA_FRESHNESS + 1 EVENT_SENTINEL (57 → 61).
     S02 socle audit 2026-06-18 added 1 DATA_FRESHNESS FRED_SERIES_SILENT (61 → 62).
+    S02 socle residual audit 2026-06-19 added 1 DATA_FRESHNESS FRED_SYNTHETIC_SILENT (62 → 63).
     """
     codes = [a.code for a in ALL_ALERTS]
     assert len(codes) == len(set(codes)), f"Duplicate alert codes: {codes}"
-    assert len(ALL_ALERTS) == 62, f"Expected 62 alerts, got {len(ALL_ALERTS)}"
+    assert len(ALL_ALERTS) == 63, f"Expected 63 alerts, got {len(ALL_ALERTS)}"
     assert len(CRISIS_TRIGGERS) >= 5, f"Expected ≥5 crisis triggers, got {len(CRISIS_TRIGGERS)}"

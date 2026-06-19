@@ -263,6 +263,22 @@ async def briefing_task(
     """Run a Claude briefing on behalf of Hetzner."""
     global _in_flight
 
+    # Busy-admission FIRST, rate-limiter SECOND — S02 socle round-8 parity for
+    # this legacy sync path (the async endpoint already does this, main.py:586).
+    # HourlyRateLimiter has NO refund, so a request rejected with 503 (slot
+    # busy) must not burn an hour-quota token; only an admitted request consumes
+    # quota. (S02 socle residual audit 2026-06-19.)
+    if _subprocess_semaphore.locked():
+        log.warning(
+            "claude_runner.busy",
+            task_id=str(req.task_id),
+            requester=identity,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Another briefing in flight — try again in a moment",
+        )
+
     if not _rate_limiter.try_acquire():
         log.warning(
             "claude_runner.rate_limited",
@@ -273,17 +289,6 @@ async def briefing_task(
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail="Hourly rate limit exceeded — Max 20x quota self-protection",
-        )
-
-    if _subprocess_semaphore.locked():
-        log.warning(
-            "claude_runner.busy",
-            task_id=str(req.task_id),
-            requester=identity,
-        )
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Another briefing in flight — try again in a moment",
         )
 
     log.info(
@@ -369,6 +374,22 @@ async def agent_task(
     """
     global _in_flight
 
+    # Busy-admission FIRST, rate-limiter SECOND — S02 socle round-8 parity for
+    # this legacy sync path (mirror of /v1/briefing-task + the async endpoint).
+    # HourlyRateLimiter has NO refund, so a 503 (slot busy) must not burn an
+    # hour-quota token. (S02 socle residual audit 2026-06-19.)
+    if _subprocess_semaphore.locked():
+        log.warning(
+            "claude_runner.busy",
+            task_id=str(req.task_id),
+            requester=identity,
+            endpoint="agent-task",
+        )
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Another task in flight — try again in a moment",
+        )
+
     if not _rate_limiter.try_acquire():
         log.warning(
             "claude_runner.rate_limited",
@@ -380,18 +401,6 @@ async def agent_task(
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail="Hourly rate limit exceeded — Max 20x quota self-protection",
-        )
-
-    if _subprocess_semaphore.locked():
-        log.warning(
-            "claude_runner.busy",
-            task_id=str(req.task_id),
-            requester=identity,
-            endpoint="agent-task",
-        )
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Another task in flight — try again in a moment",
         )
 
     log.info(
