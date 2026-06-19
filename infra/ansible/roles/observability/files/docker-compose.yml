@@ -73,7 +73,8 @@ networks:
     # exhausted pool and the whole stack fails to start ("all predefined address
     # pools have been fully subnetted", 2026-06-18 incident). 172.22.0.0/24 is
     # free. Pinned fleet allocation (S02 socle audit): bridge=172.17,
-    # searxng=172.21, observability=172.22, langfuse=172.23, n8n=172.24.
+    # searxng=172.21, observability=172.22, langfuse=172.23. n8n is intentionally
+    # unpinned (recreate unsafe on its pre-existing crash-loop — see the n8n role).
     ipam:
       config:
         - subnet: 172.22.0.0/24

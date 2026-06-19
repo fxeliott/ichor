@@ -46,7 +46,8 @@ services:
 # Explicit subnet OUTSIDE the daemon auto-pool (172.20.0.0/16, fully subnetted —
 # "all predefined address pools have been fully subnetted"). 172.21.0.0/24 is
 # free. Pinned fleet allocation (S02 socle audit): bridge=172.17, searxng=172.21,
-# observability=172.22, langfuse=172.23, n8n=172.24.
+# observability=172.22, langfuse=172.23. n8n is intentionally unpinned (recreate
+# is unsafe on its pre-existing crash-loop — see the n8n role).
 networks:
   default:
     ipam:
