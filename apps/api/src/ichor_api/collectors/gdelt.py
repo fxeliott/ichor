@@ -21,7 +21,7 @@ Schema reference :
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Iterable
+from collections.abc import AsyncIterator, Iterable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
@@ -204,19 +204,44 @@ def _parse_response(query_label: str, payload: dict) -> list[GdeltArticle]:
     return out
 
 
+# Per-retry sleep is capped here: GDELT 429s clear on the order of seconds, so
+# a 45 s sleep just burned the systemd TimeoutStartSec budget across 14 queries
+# (collector killed before persist → 0 rows, down ≥2 days witnessed 2026-06-19).
+_MAX_RETRY_SLEEP_S = 30.0
+
+# Polite inter-query delay (community-observed safe GDELT rate ≈ 1 req / few s).
+# Single source so poll_all and poll_each stay in lockstep on the rate policy.
+_POLITENESS_DELAY_S = 5.0
+
+
+def _retry_sleep(retry_after: str | None, backoff: float) -> float:
+    """Honor a server ``Retry-After`` (seconds) when present, else the local
+    backoff — both capped at ``_MAX_RETRY_SLEEP_S`` so one slow query can't
+    starve the rest of the run."""
+    delay = backoff
+    if retry_after:
+        try:
+            delay = float(retry_after)
+        except (TypeError, ValueError):
+            delay = backoff
+    return min(delay, _MAX_RETRY_SLEEP_S)
+
+
 async def fetch_query(
     q: GdeltQuery,
     *,
     client: httpx.AsyncClient,
     timeout: float = 20.0,
-    max_retries: int = 3,
+    max_retries: int = 2,
 ) -> list[GdeltArticle]:
     """One bucket → JSON → parsed list. Returns [] on any error.
 
-    Retries with exponential backoff on 429 / 5xx — 5 s / 15 s / 45 s:
-    the original 1/3/9 ladder retried INSIDE the same rate-limit window
-    and burned its retries (429s on 6/14 queries witnessed prod
-    2026-06-11 21:33 evening peak).
+    Retries with capped exponential backoff on 429 / 5xx (3 s → 9 s, capped at
+    30 s and overridden by a server ``Retry-After``). The cap + fewer retries
+    bound the per-query wall-clock so a 429-heavy run finishes (and its earlier
+    queries get persisted incrementally) instead of being SIGTERM'd before any
+    write — the original 5/15/45 ladder across 14 queries blew the 600 s unit
+    timeout and the collector lost everything (S03 residual audit 2026-06-19).
     """
     params = {
         "query": q.query,
@@ -225,7 +250,7 @@ async def fetch_query(
         "timespan": q.timespan,
         "maxrecords": str(q.max_records),
     }
-    backoff = 5.0
+    backoff = 3.0
     for attempt in range(max_retries + 1):
         try:
             r = await client.get(
@@ -235,7 +260,7 @@ async def fetch_query(
                 headers={"User-Agent": "IchorGdeltCollector/0.1"},
             )
             if r.status_code in (429, 502, 503, 504) and attempt < max_retries:
-                await asyncio.sleep(backoff)
+                await asyncio.sleep(_retry_sleep(r.headers.get("Retry-After"), backoff))
                 backoff *= 3
                 continue
             r.raise_for_status()
@@ -250,7 +275,7 @@ async def fetch_query(
             return _parse_response(q.label, payload)
         except httpx.HTTPError as e:
             if attempt < max_retries:
-                await asyncio.sleep(backoff)
+                await asyncio.sleep(min(backoff, _MAX_RETRY_SLEEP_S))
                 backoff *= 3
                 continue
             log.warning("gdelt.fetch_failed", query=q.label, error=str(e))
@@ -262,7 +287,7 @@ async def poll_all(
     queries: Iterable[GdeltQuery] = ALL_QUERIES,
     *,
     concurrency: int = 1,
-    politeness_delay_s: float = 5.0,
+    politeness_delay_s: float = _POLITENESS_DELAY_S,
 ) -> list[GdeltArticle]:
     """Run the queries strictly sequentially. Dedupe by URL.
 
@@ -302,3 +327,35 @@ async def poll_all(
 
     flat.sort(key=lambda a: a.seendate, reverse=True)
     return flat
+
+
+async def poll_each(
+    queries: Iterable[GdeltQuery] = ALL_QUERIES,
+    *,
+    politeness_delay_s: float = _POLITENESS_DELAY_S,
+) -> AsyncIterator[tuple[str, list[GdeltArticle]]]:
+    """Yield ``(query_label, deduped articles)`` ONE query at a time, sequentially,
+    with the polite inter-query delay.
+
+    The streaming twin of :func:`poll_all`: it lets the persist layer commit
+    after each query so a run that is SIGTERM'd by the systemd ``TimeoutStartSec``
+    on a 429-slow window keeps the queries it already completed, instead of the
+    fetch-all-then-persist-once path losing the ENTIRE batch (root cause of the
+    GDELT collector being down ≥2 days, S03 residual audit 2026-06-19).
+
+    Intra-query URL dedup only; the cross-query ``(url, query_label)`` dedup is
+    delegated to the DB (``ON CONFLICT (url, query_label, seendate)``), so the
+    per-asset density preserved by :func:`poll_all` is preserved here too.
+    """
+    async with httpx.AsyncClient() as client:
+        for q in queries:
+            arts = await fetch_query(q, client=client)
+            seen: set[str] = set()
+            deduped: list[GdeltArticle] = []
+            for a in arts:
+                if a.url and a.url not in seen:
+                    seen.add(a.url)
+                    deduped.append(a)
+            yield q.label, deduped
+            if politeness_delay_s > 0:
+                await asyncio.sleep(politeness_delay_s)

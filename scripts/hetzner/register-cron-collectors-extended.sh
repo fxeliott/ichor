@@ -58,7 +58,11 @@ Group=ichor
 WorkingDirectory=/opt/ichor/api/src
 EnvironmentFile=/etc/ichor/api.env
 ExecStart=/opt/ichor/api/.venv/bin/python -m ichor_api.cli.run_collectors %i --persist
-TimeoutStartSec=600
+# 900s (was 600): a 429-heavy GDELT run with capped backoff can take longer than
+# 600s across 14 queries; the incremental per-query persist (run_collectors._run_gdelt,
+# S03 residual audit 2026-06-19) already makes a timeout non-fatal, this just adds margin.
+# Re-run this script on the host to apply (regenerates the unit + daemon-reload).
+TimeoutStartSec=900
 SuccessExitStatus=0 1
 StandardOutput=journal
 StandardError=journal

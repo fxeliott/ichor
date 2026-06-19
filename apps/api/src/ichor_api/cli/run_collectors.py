@@ -51,7 +51,6 @@ from ..collectors.forex_factory import (
 )
 from ..collectors.fred import poll_all as poll_fred
 from ..collectors.fred_extended import merged_series as fred_merged_series
-from ..collectors.gdelt import poll_all as poll_gdelt
 from ..collectors.gex_yfinance import poll_all as poll_gex_yfinance
 from ..collectors.kalshi import poll_all as poll_kalshi
 from ..collectors.manifold import poll_all as poll_manifold
@@ -295,22 +294,29 @@ async def _run_fred_backfill(*, persist: bool) -> int:
 
 
 async def _run_gdelt(*, persist: bool) -> int:
-    """Pull GDELT 2.0 articles for all configured queries."""
-    articles = await poll_gdelt()
-    print(f"GDELT · {len(articles)} articles fetched across queries")
-    by_query: dict[str, int] = {}
-    for a in articles:
-        by_query[a.query_label] = by_query.get(a.query_label, 0) + 1
-    for label, n in sorted(by_query.items()):
-        print(f"  [{label:30s}] {n:>3d} articles")
-    if persist:
-        from ..collectors.persistence import persist_gdelt_articles
+    """Pull GDELT 2.0 articles for all configured queries, persisting
+    INCREMENTALLY per query (S03 residual audit 2026-06-19).
 
-        sm = get_sessionmaker()
-        async with sm() as session:
-            inserted = await persist_gdelt_articles(session, articles)
-        print(f"GDELT · persisted {inserted} new rows ({len(articles) - inserted} dedup)")
-    return 0 if articles else 1
+    The previous fetch-all-then-persist-once path lost the ENTIRE batch when the
+    systemd ``TimeoutStartSec`` SIGTERM'd a 429-slow run mid-fetch → the
+    collector was down ≥2 days persisting 0 rows. Streaming per-query persist
+    means a killed run keeps every query it already completed; the next 30-min
+    cycle fills the rest. Dedup is the DB's job (ON CONFLICT url,query_label,
+    seendate)."""
+    from ..collectors.gdelt import poll_each
+    from ..collectors.persistence import persist_gdelt_articles
+
+    sm = get_sessionmaker() if persist else None
+    total_fetched = 0
+    total_inserted = 0
+    async for label, arts in poll_each():
+        total_fetched += len(arts)
+        print(f"  [{label:30s}] {len(arts):>3d} articles")
+        if persist and arts and sm is not None:
+            async with sm() as session:
+                total_inserted += await persist_gdelt_articles(session, arts)
+    print(f"GDELT · {total_fetched} articles fetched, {total_inserted} new rows persisted")
+    return 0 if total_fetched else 1
 
 
 async def _run_ai_gpr(*, persist: bool) -> int:
