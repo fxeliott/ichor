@@ -2,11 +2,16 @@ name: ichor-n8n
 
 services:
   n8n:
-    # SECURITY: pinned to a 1.x stable past CVE-2026-33660 (Merge-Node
-    # AlaSQL RCE, CVSS 9.4, fixed in 1.123.x). See deps audit
-    # docs/audits/dependencies-2026-05-03.md (CRITICAL-DEPS-1). Verify
-    # the digest at https://hub.docker.com/r/n8nio/n8n/tags before
-    # rolling forward.
+    # SECURITY (corrected S02 socle residual audit 2026-06-19): CVE-2026-33660
+    # (Merge-Node AlaSQL RCE, CVSS 9.4) is fixed in 1.123.x, but this image is
+    # pinned to 1.78.1 which is BELOW that fix — so the CVE is RE-EXPOSED at the
+    # image level (the earlier "pinned past the CVE" claim was made false by the
+    # round-7 revert below). It is MITIGATED operationally, NOT patched: n8n binds
+    # loopback-only (127.0.0.1:5678 below) behind Cloudflare Access
+    # (N8N_BASIC_AUTH_ACTIVE=false → auth handled upstream), so there is no public
+    # surface and an RCE would require pre-existing host-internal access. The real
+    # fix (upgrade to 1.123.x) is a dedicated round — see the revert note.
+    # See deps audit docs/audits/dependencies-2026-05-03.md (CRITICAL-DEPS-1).
     # Reverted 1.123.27 → 1.78.1 (S02 round 7): the 1.78→1.123 jump fails to
     # START (breaking changes / migration), which red-failed the deploy at the
     # n8n role. 1.78.1 is the version that deployed cleanly before the bump.
@@ -62,3 +67,10 @@ networks:
   n8n:
     name: ichor-n8n
     driver: bridge
+    # Explicit subnet OUTSIDE the daemon default-address-pool (172.20.0.0/16) —
+    # same exhaustion class as the observability #265 incident. searxng=172.21,
+    # observability=172.22, langfuse=172.23 are taken ; 172.24.0.0/24 is free.
+    # (S02 socle residual audit 2026-06-19, mirror of the observability #265 fix.)
+    ipam:
+      config:
+        - subnet: 172.24.0.0/24

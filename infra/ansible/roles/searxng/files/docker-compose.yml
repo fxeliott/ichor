@@ -7,7 +7,13 @@
 # from `openssl rand -hex 32` into settings.yml — never committed.
 services:
   searxng:
-    image: searxng/searxng:latest
+    # Pinned (was :latest — the only floating image in the fleet ; S02 socle
+    # residual audit 2026-06-19). A date+hash tag is immutable, unlike :latest
+    # whose content mutates under the tag on every recreate. Verify a newer tag
+    # at https://hub.docker.com/r/searxng/searxng/tags (or docker manifest
+    # inspect) before rolling forward — cf. #266: a tag retired from the Hub
+    # red-fails the deploy.
+    image: searxng/searxng:2026.6.17-4dfdc822c
     container_name: ichor-searxng
     restart: unless-stopped
     ports:
@@ -37,11 +43,10 @@ services:
       retries: 3
       start_period: 20s
 
-# Explicit subnet: the daemon auto-pool (172.20.0.0/16) is fully consumed by
-# the ichor-n8n network, so a new auto-network can't be allocated ("all
-# predefined address pools have been fully subnetted"). 172.21.0.0/24 is free
-# (172.17 bridge / 172.19 langfuse / 172.20 n8n are taken) and avoids a
-# disruptive dockerd restart.
+# Explicit subnet OUTSIDE the daemon auto-pool (172.20.0.0/16, fully subnetted —
+# "all predefined address pools have been fully subnetted"). 172.21.0.0/24 is
+# free. Pinned fleet allocation (S02 socle audit): bridge=172.17, searxng=172.21,
+# observability=172.22, langfuse=172.23, n8n=172.24.
 networks:
   default:
     ipam:

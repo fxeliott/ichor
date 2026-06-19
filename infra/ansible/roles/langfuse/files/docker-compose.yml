@@ -89,3 +89,11 @@ networks:
   langfuse:
     name: ichor-langfuse
     driver: bridge
+    # Explicit subnet OUTSIDE the daemon default-address-pool (172.20.0.0/16),
+    # which a 2026-06-18 incident (#265) showed can be fully subnetted ("all
+    # predefined address pools have been fully subnetted" → obs down ~5 weeks).
+    # searxng=172.21, observability=172.22 are taken ; 172.23.0.0/24 is free.
+    # (S02 socle residual audit 2026-06-19, mirror of the observability #265 fix.)
+    ipam:
+      config:
+        - subnet: 172.23.0.0/24

@@ -58,6 +58,24 @@ def upgrade() -> None:
     # 1. Install pgvector extension at the database level. Idempotent.
     op.execute("CREATE EXTENSION IF NOT EXISTS vector")
 
+    # rag_chunks_index is ALREADY created by 0012 (the CANONICAL schema, used by
+    # the live raw-SQL writer services/rag/ingestion.py + reader
+    # services/rag/rag_embeddings.py + migration 0041). 0040 was authored later
+    # with a DIVERGENT schema (source_kind/chunk_text/chunk_at) that never became
+    # canonical, and re-CREATEd the same table + a same-named hnsw index — so on a
+    # fresh DB `alembic upgrade head` crashed here with DuplicateTable
+    # (runtime-reproduced 2026-06-19 against timescaledb-ha pg17). Prod survived
+    # only because the table pre-existed Alembic (see 0041's header). When 0012's
+    # table is present we SKIP the superseded re-creation and keep only the
+    # idempotent CREATE EXTENSION above; this makes the full chain runnable on a
+    # DR / fresh-env rebuild without touching the live schema. The original 0040
+    # body is preserved below for the — now unreachable in the linear chain —
+    # case where the table does not yet exist.
+    # (S02 socle residual audit 2026-06-19. Aligning the dead ORM model
+    # models/rag_chunk_index.py onto schema A is a separate follow-up.)
+    if sa.inspect(op.get_bind()).has_table("rag_chunks_index"):
+        return
+
     # 2. rag_chunks_index : one row per session_card_audit (1-card-1-chunk
     #    strategy per Anthropic context-engineering 2026 best practice).
     op.create_table(
@@ -146,9 +164,12 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_index("ix_rag_chunks_asset_session_time", table_name="rag_chunks_index")
-    op.execute("DROP INDEX IF EXISTS ix_rag_chunks_embedding_hnsw")
-    op.drop_table("rag_chunks_index")
-    # pgvector extension is NOT dropped on downgrade — other features
-    # may rely on it (W110+ pgvector-on-narrative). Manual `DROP
-    # EXTENSION vector` if explicitly desired.
+    # Symmetric with the guarded upgrade: when 0012's canonical table is present,
+    # 0040 contributed nothing to rag_chunks_index (it skipped the re-creation),
+    # so there is nothing to undo here — 0012.downgrade() owns the table and the
+    # ix_rag_chunks_embedding_hnsw index. Only 0040's unique addition
+    # (ix_rag_chunks_asset_session_time, created solely on the unreachable
+    # no-0012 path) is dropped, guarded by IF EXISTS so this is a safe no-op on a
+    # real DB. The table + hnsw index are deliberately NOT dropped here (doing so
+    # would corrupt the live schema). pgvector extension is left installed.
+    op.execute("DROP INDEX IF EXISTS ix_rag_chunks_asset_session_time")
