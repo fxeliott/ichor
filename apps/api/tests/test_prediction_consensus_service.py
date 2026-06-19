@@ -38,7 +38,7 @@ def _kalshi(ticker: str, yes: float, title: str) -> SimpleNamespace:
         ticker=ticker,
         title=title,
         yes_price=yes,
-        no_price=1 - yes,
+        no_price=(1 - yes) if yes is not None else None,
         volume_24h=5000,
     )
 
@@ -129,6 +129,39 @@ async def test_render_consensus_block_honest_absence() -> None:
     assert "Cross-venue consensus" in md
     assert "no event matched" in md
     assert sources == []
+
+
+@pytest.mark.asyncio
+async def test_section_prediction_markets_kalshi_dedup_group_drop_none() -> None:
+    """S03 surfacing fix: the Kalshi block dedups per-ticker, drops
+    None-priced rows, and groups a strike ladder in ticker order."""
+    from ichor_api.services.data_pool import _section_prediction_markets
+
+    k_dup = _kalshi("KXFED-27APR-T4.25", 0.34, "Fed upper bound <= 4.25%")
+    k_lo = _kalshi("KXFED-27APR-T4.00", 0.59, "Fed upper bound <= 4.00%")
+    k_dup2 = _kalshi("KXFED-27APR-T4.25", 0.36, "Fed upper bound <= 4.25% (newer dup)")
+    k_none = _kalshi("KXCPIYOY-26NOV-T5.0", None, "CPI YoY <= 5.0%")  # unpriced → dropped
+    session = _ThreeQuerySession([], [k_dup, k_lo, k_dup2, k_none], [])
+    md, sources = await _section_prediction_markets(session)  # type: ignore[arg-type]
+
+    assert "[KXFED]" in md  # grouped by series
+    assert "CPI YoY" not in md  # None-priced dropped
+    # duplicate ticker collapsed to one entry
+    assert sources.count("kalshi:KXFED-27APR-T4.25") == 1
+    # ladder rendered in ticker (strike) order: T4.00 before T4.25
+    assert md.index("KXFED-27APR-T4.00") < md.index("KXFED-27APR-T4.25")
+    assert "kalshi:KXFED-27APR-T4.00" in sources
+
+
+@pytest.mark.asyncio
+async def test_section_prediction_markets_manifold_dedup() -> None:
+    from ichor_api.services.data_pool import _section_prediction_markets
+
+    m1 = _manifold("recession-2026", 0.30, "US recession in 2026?")
+    m1_dup = _manifold("recession-2026", 0.32, "US recession in 2026? (newer)")
+    session = _ThreeQuerySession([], [], [m1, m1_dup])
+    _, sources = await _section_prediction_markets(session)  # type: ignore[arg-type]
+    assert sources.count("manifold:recession-2026") == 1
 
 
 @pytest.mark.asyncio
