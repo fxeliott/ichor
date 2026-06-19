@@ -159,7 +159,12 @@ def _parse_market(m: dict[str, Any], fetched: datetime) -> KalshiMarketSnapshot 
     try:
         return KalshiMarketSnapshot(
             ticker=str(m.get("ticker", ""))[:128],
-            title=str(m.get("title", ""))[:512],
+            # `title`/`expiration_time` are the fields Kalshi currently serves but
+            # are marked deprecated in the v2 OpenAPI; keep them PRIMARY (zero
+            # behavior change today) with the modern replacements as fallback so
+            # the parse survives the field's eventual removal instead of silently
+            # emitting empty titles / NULL expirations (resilience, no flag).
+            title=str(m.get("title") or m.get("yes_sub_title") or "")[:512],
             yes_price=_yes_price(m),
             no_price=_dollars_to_prob(m.get("no_bid_dollars")),
             volume_24h=_fp_to_int(m.get("volume_24h_fp") or m.get("volume_fp"))
@@ -168,7 +173,7 @@ def _parse_market(m: dict[str, Any], fetched: datetime) -> KalshiMarketSnapshot 
             open_interest=_fp_to_int(m.get("open_interest_fp"))
             if m.get("open_interest_fp") is not None
             else m.get("open_interest"),
-            expiration_time=_parse_iso(m.get("expiration_time")),
+            expiration_time=_parse_iso(m.get("expiration_time") or m.get("latest_expiration_time")),
             status=str(m.get("status", ""))[:32],
             fetched_at=fetched,
         )

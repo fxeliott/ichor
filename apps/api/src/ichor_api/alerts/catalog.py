@@ -743,6 +743,27 @@ DATA_FRESHNESS_ALERTS: tuple[AlertDef, ...] = (
             "residual-gap audit 2026-06-19, twin of FRED_SERIES_SILENT)."
         ),
     ),
+    AlertDef(
+        "COLLECTOR_CONTENT_DEGRADED",
+        "warning",
+        "{value:.0f} colonne(s) de collecte sans valeurs réelles (NULL/dégénéré) : {degraded_columns}",
+        "collector_content_degraded",
+        0.5,
+        "above",
+        description=(
+            "One or more collect columns are arriving (rows fresh, MAX(ts) green) "
+            "but carry NO real values — all-NULL or degenerate (single repeated "
+            "value). This is the Kalshi yes_price-all-NULL silent-death class "
+            "(2026-06-19): an upstream schema migration left the value column "
+            "unparsed while the freshness check stayed GREEN. Emitted by "
+            "run_data_freshness_check._sweep_content_validity over the "
+            "_CONTENT_PROBES (kalshi_price/manifold_prob/gdelt_tone). Without this "
+            "def the content sweep emitted to a metric_name with NO matching "
+            "AlertDef → evaluate_metric returned [] → the very monitor built to "
+            "catch silent value-rot was itself silently dead (S03 residual-gap "
+            "audit 2026-06-19, third twin of FRED_SYNTHETIC_SILENT/FRED_SERIES_SILENT)."
+        ),
+    ),
 )
 
 # S03 Chantier D — pre-announcement sentinel ("être prévenu de TOUTES les
@@ -798,14 +819,15 @@ def get_alert_def(code: str) -> AlertDef:
 
 
 def assert_catalog_complete() -> None:
-    """Sanity check at startup: total = 63 alerts, all unique codes.
+    """Sanity check at startup: total = 64 alerts, all unique codes.
 
     r165 Strand E added 3 SCENARIO_INVALIDATION_* entries (54 → 57).
     S03 Chantier D added 3 DATA_FRESHNESS + 1 EVENT_SENTINEL (57 → 61).
     S02 socle audit 2026-06-18 added 1 DATA_FRESHNESS FRED_SERIES_SILENT (61 → 62).
     S02 socle residual audit 2026-06-19 added 1 DATA_FRESHNESS FRED_SYNTHETIC_SILENT (62 → 63).
+    S03 residual audit 2026-06-19 added 1 DATA_FRESHNESS COLLECTOR_CONTENT_DEGRADED (63 → 64).
     """
     codes = [a.code for a in ALL_ALERTS]
     assert len(codes) == len(set(codes)), f"Duplicate alert codes: {codes}"
-    assert len(ALL_ALERTS) == 63, f"Expected 63 alerts, got {len(ALL_ALERTS)}"
+    assert len(ALL_ALERTS) == 64, f"Expected 64 alerts, got {len(ALL_ALERTS)}"
     assert len(CRISIS_TRIGGERS) >= 5, f"Expected ≥5 crisis triggers, got {len(CRISIS_TRIGGERS)}"

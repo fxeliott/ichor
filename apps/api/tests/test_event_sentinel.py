@@ -132,3 +132,17 @@ async def test_paris_local_time_in_payload() -> None:
     session = _session([_event("ECB Press Conference", "EUR", ECB_AT)], [])
     hits = await evaluate_upcoming_event_hits(session, now_utc=NOW)
     assert hits[0][0].source_payload["local_paris"] == "14:15"
+
+
+@pytest.mark.asyncio
+async def test_all_day_events_excluded_from_query() -> None:
+    """All-day high-impact events carry a placeholder 00:00 UTC scheduled_at,
+    not a real release time → a T-60 'imminent' pre-announce would fire at the
+    wrong moment. The query must carry the is_all_day=False predicate (the DB
+    does the filtering; this guards against the predicate being dropped). They
+    stay covered by _section_today_schedule. S03 audit 2026-06-19."""
+    session = _session([], [])
+    await evaluate_upcoming_event_hits(session, now_utc=NOW)
+    stmt = session.execute.call_args_list[0].args[0]
+    compiled = str(stmt.compile())
+    assert "is_all_day" in compiled

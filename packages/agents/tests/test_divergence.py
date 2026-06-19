@@ -137,6 +137,58 @@ def test_match_rejects_invalid_threshold() -> None:
         match_across_venues([], [], [], threshold=-0.1)
 
 
+# ──────────────────── Event-key gating (use_event_key=True) ─────────────────
+
+
+def test_event_key_off_is_default_and_preserves_happy_path() -> None:
+    """Same-event markets still match with the gate ON (no happy-path break)."""
+    poly = [_pm("polymarket", "p1", "Will the Fed cut rates by May 2026?", 0.62)]
+    kal = [_pm("kalshi", "KXFED-26MAY-T4.25", "Will the Fed cut rates by May 2026 ?", 0.47)]
+    man: list[PredictionMarket] = []
+    off = match_across_venues(poly, kal, man, threshold=0.5)
+    on = match_across_venues(poly, kal, man, threshold=0.5, use_event_key=True)
+    assert len(off) == 1 and "kalshi" in off[0].by_venue
+    assert len(on) == 1 and "kalshi" in on[0].by_venue
+
+
+def test_event_key_precision_gate_blocks_different_meetings() -> None:
+    """Two Fed markets for *different* meetings share enough tokens to clear
+    Jaccard (false positive) but are different events. OFF false-matches; ON
+    blocks via the differing period key."""
+    poly = [_pm("polymarket", "p_jun", "Will the Fed cut rates in June 2026?", 0.60)]
+    kal = [_pm("kalshi", "KXFED-26JUL-T4.25", "Will the Fed cut rates in July 2026?", 0.40)]
+    man: list[PredictionMarket] = []
+    off = match_across_venues(poly, kal, man, threshold=0.55)
+    assert any("kalshi" in m.by_venue for m in off)  # Jaccard alone false-matches
+    on = match_across_venues(poly, kal, man, threshold=0.55, use_event_key=True)
+    assert all("kalshi" not in m.by_venue for m in on)  # gate kills the cross-meeting match
+
+
+def test_event_key_recall_floor_matches_divergent_recession_phrasing() -> None:
+    """Same binary event (recession 2026), phrasing diverges below threshold.
+    OFF misses it; ON matches via the same-key floor (recession is not
+    laddered)."""
+    poly = [_pm("polymarket", "p_rec", "US recession in 2026?", 0.30)]
+    kal = [_pm("kalshi", "KXWRECSS-26", "NBER-declared downturn before year-end 2026", 0.25)]
+    man: list[PredictionMarket] = []
+    off = match_across_venues(poly, kal, man, threshold=0.55)
+    assert all("kalshi" not in m.by_venue for m in off)
+    on = match_across_venues(poly, kal, man, threshold=0.55, use_event_key=True)
+    assert any("kalshi" in m.by_venue for m in on)
+
+
+def test_event_key_laddered_class_keeps_strike_vs_binary_unmatched() -> None:
+    """A Kalshi Fed *strike* and a Polymarket Fed *binary* share the class+period
+    key but are different questions. Laddered classes get no recall floor, so a
+    low token overlap stays unmatched (the strike is never fused with the
+    binary — that reduction is intentionally out of scope)."""
+    poly = [_pm("polymarket", "p_fed", "Will the Fed cut in June 2026?", 0.62)]
+    kal = [_pm("kalshi", "KXFED-26JUN-T4.25", "Fed funds upper bound 4.25 percent", 0.10)]
+    man: list[PredictionMarket] = []
+    on = match_across_venues(poly, kal, man, threshold=0.55, use_event_key=True)
+    assert all("kalshi" not in m.by_venue for m in on)
+
+
 # ─────────────────────────── Divergence detection ──────────────────────
 
 

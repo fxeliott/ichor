@@ -615,6 +615,17 @@ async def _section_executive_summary(session: AsyncSession) -> tuple[str, list[s
         .scalars()
         .first()
     )
+    # Liveness gate (mirror the tail-risk-skew sibling, data_pool.py ~3661): a
+    # stale SKEW must NOT feed the master regime classifier — a weeks-old reading
+    # could spuriously flip the regime to 'crisis' (SKEW>150 branch). The sibling
+    # tail-risk band already gates this; the TOP regime section bypassed it.
+    skew_live = classify_liveness(
+        "CBOE:SKEW",
+        skew_latest_row.observation_date if skew_latest_row else None,
+        now=datetime.now(UTC),
+        max_age_days=_SKEW_MAX_AGE_DAYS,
+        impacted="Pass-1 master regime classifier (SKEW)",
+    )
     vix_v = await _latest_fred(session, "VIXCLS", max_age_days=7)
     hy_oas_v = await _latest_fred(session, "BAMLH0A0HYM2", max_age_days=14)
     nfci_v = await _latest_fred(session, "NFCI", max_age_days=14)
@@ -622,7 +633,11 @@ async def _section_executive_summary(session: AsyncSession) -> tuple[str, list[s
     expinf_v = await _latest_fred(session, "EXPINF1YR", max_age_days=45)
     term_v = await _latest_fred(session, "THREEFYTP10", max_age_days=30)
 
-    skew = skew_latest_row.skew_value if skew_latest_row else None
+    skew = (
+        skew_latest_row.skew_value
+        if (skew_latest_row is not None and not skew_live.is_degraded)
+        else None
+    )
     vix = vix_v[0] if vix_v else None
     hy_oas = hy_oas_v[0] if hy_oas_v else None
     nfci = nfci_v[0] if nfci_v else None
@@ -703,7 +718,14 @@ async def _section_executive_summary(session: AsyncSession) -> tuple[str, list[s
             if skew_row.skew_value >= 115
             else "neutral <115"
         )
-        vol_pieces.append(f"SKEW {skew_row.skew_value:.0f} ({band})")
+        # Honest staleness marker (reuse the regime gate above): a SKEW past its
+        # freshness window is shown with the observation date + a STALE tag so the
+        # band is never read as the current vol surface (display-side of the same
+        # stale-as-fresh class fixed for the regime classifier).
+        stale_tag = (
+            f", STALE @{skew_row.observation_date.isoformat()}" if skew_live.is_degraded else ""
+        )
+        vol_pieces.append(f"SKEW {skew_row.skew_value:.0f} ({band}{stale_tag})")
         sources.append(f"CBOE:SKEW@{skew_row.observation_date.isoformat()}")
     if vvix_row:
         v_band = (
@@ -4864,7 +4886,9 @@ async def _section_prediction_markets(
             sections.append(f"#### {cat}")
             for r in cat_rows:
                 yes = r.last_prices[0] if (r.last_prices and len(r.last_prices) > 0) else None
-                yes_str = f"YES={yes:.2f}" if yes is not None else "YES=n/a"
+                # Percent format to match Kalshi/Manifold/consensus (was decimal
+                # 0.42 vs their 42% — same quantity, two formats in one pool).
+                yes_str = f"YES={yes:.0%}" if yes is not None else "YES=n/a"
                 vol_str = f"${(r.volume_usd or 0) / 1e6:.1f}M" if r.volume_usd else "$?"
                 sections.append(f"- {r.question[:80]} → {yes_str} vol={vol_str} (slug:{r.slug})")
                 sources.append(f"polymarket:{r.slug}")
@@ -5326,13 +5350,18 @@ async def _section_recent_actuals(session: AsyncSession) -> tuple[str, list[str]
     from .recent_actuals import fetch_recent_actuals
 
     rows = await fetch_recent_actuals(session, lookback_days=3, currency=None, limit=25)
+    # Traded-currency universe = event_sentinel.RELEVANT_CURRENCIES (USD/EUR/GBP/CAD):
+    # CAD belongs in here because USD_CAD is a traded asset (session_verdict_builder
+    # maps it), so a CAD print (BoC, jobs) must feed the real-time reactivity layer.
     relevant = [
-        r for r in rows if r.currency in {"USD", "EUR", "GBP"} and r.impact in {"high", "medium"}
+        r
+        for r in rows
+        if r.currency in {"USD", "EUR", "GBP", "CAD"} and r.impact in {"high", "medium"}
     ]
     lines = ["## Résultats économiques publiés (72h — actual vs consensus + surprise)"]
     if not relevant:
         lines.append(
-            "- (aucun résultat à fort/moyen impact publié sur USD/EUR/GBP dans les 72h — "
+            "- (aucun résultat à fort/moyen impact publié sur USD/EUR/GBP/CAD dans les 72h — "
             "hors fenêtre de publication, p. ex. week-end ; surveiller le calendrier ci-dessus)"
         )
         return "\n".join(lines), []
@@ -6129,15 +6158,22 @@ async def build_data_pool(
     c2_md, c2_src = await render_couche2_block(session, asset)
     sections.append(("couche2", c2_md, c2_src))
 
-    # Phase 2 — divergence cross-venue (Polymarket vs Kalshi vs Manifold)
-    div_md, div_src = await render_divergence_block(session)
+    # Phase 2 — divergence cross-venue (Polymarket vs Kalshi vs Manifold).
+    # The deterministic event-key matcher layer is read once here (fail-closed:
+    # flag absent → False → Jaccard-only, byte-identical) and threaded into both
+    # the divergence and consensus blocks so they share one matcher decision.
+    from .divergence import EVENT_KEY_MATCHER_FLAG
+    from .feature_flags import is_enabled
+
+    pred_event_key = await is_enabled(session, EVENT_KEY_MATCHER_FLAG)
+    div_md, div_src = await render_divergence_block(session, use_event_key=pred_event_key)
     sections.append(("divergence", div_md, div_src))
 
     # S03 Chantier D — cross-venue consensus: one reliability-weighted
     # probability per matched macro event (complements divergence's spread).
     # Real-money venues carry it, play-money Manifold discounted. Descriptive
     # macro prior for Pass-2 (ADR-017 — never a trade signal).
-    cons_md, cons_src = await render_consensus_block(session)
+    cons_md, cons_src = await render_consensus_block(session, use_event_key=pred_event_key)
     sections.append(("prediction_consensus", cons_md, cons_src))
 
     # Phase 2 — Dealer GEX (only emits when asset has options coverage)

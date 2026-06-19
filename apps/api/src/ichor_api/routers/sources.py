@@ -198,7 +198,9 @@ _CATALOG: list[dict[str, object]] = [
         "api_key": False,
         "model": NewsItem,
         "ts_col": "fetched_at",
-        "filter": ("source_kind", "rss"),
+        # RSS collectors persist source_kind ∈ {central_bank, news, regulator}
+        # (collectors/rss.py) — never the literal "rss" → match the real kinds.
+        "filter": ("source_kind", ["central_bank", "news", "regulator"]),
     },
     {
         "id": "gdelt",
@@ -358,7 +360,9 @@ _CATALOG: list[dict[str, object]] = [
         "api_key": False,
         "model": NewsItem,
         "ts_col": "fetched_at",
-        "filter": ("source_kind", "mastodon"),
+        # Mastodon persists source_kind="social" and tags source="mastodon:<host>"
+        # (collectors/mastodon.py) — the real discriminant is the source prefix.
+        "filter": ("source", "like", "mastodon:%"),
     },
     {
         "id": "reddit",
@@ -406,10 +410,24 @@ async def list_sources(
             last_stmt = select(ts_col).order_by(desc(ts_col)).limit(1)
             count_stmt = select(func.count()).select_from(model).where(ts_col >= cutoff_24h)
             if base_filter:
-                col_name, value = base_filter
-                col = getattr(model, col_name)
-                last_stmt = last_stmt.where(col == value)
-                count_stmt = count_stmt.where(col == value)
+                # Backward-compatible filter forms:
+                #   ("col", value)            → col == value          (default)
+                #   ("col", [v1, v2, ...])    → col IN (...)          (multi-kind)
+                #   ("col", "like", pattern)  → col LIKE pattern      (prefix tag)
+                # The IN/LIKE forms exist because some collectors persist a
+                # discriminator that the single-value `==` could never match
+                # (RSS source_kind is central_bank|news|regulator, never "rss";
+                # Mastodon tags source="mastodon:<host>" with source_kind="social")
+                # → the card showed a permanent false "down/0".
+                col = getattr(model, base_filter[0])
+                if len(base_filter) == 3 and base_filter[1] == "like":
+                    cond = col.like(base_filter[2])
+                elif isinstance(base_filter[1], list | tuple):
+                    cond = col.in_(list(base_filter[1]))
+                else:
+                    cond = col == base_filter[1]
+                last_stmt = last_stmt.where(cond)
+                count_stmt = count_stmt.where(cond)
 
             try:
                 last_raw = (await session.execute(last_stmt)).scalar_one_or_none()

@@ -284,13 +284,20 @@ async def poll_all(
     async with httpx.AsyncClient() as client:
         results = await asyncio.gather(*(_one(q, client) for q in queries))
 
-    seen_urls: set[str] = set()
+    # Dedup on (url, query_label), NOT url alone: the same article can legitimately
+    # surface under a global query AND a per-asset query. URL-only dedup let the
+    # first-issued (global) query win the race and silently dropped the per-asset
+    # label → starved the PER_ASSET_QUERIES density that feeds S04 geo. The
+    # (url, query_label) key matches the persist uniqueness (uq_gdelt_url_query_seen)
+    # so no extra DB churn. A truly identical (url, label) repeat is still deduped.
+    seen: set[tuple[str, str]] = set()
     flat: list[GdeltArticle] = []
     for batch in results:
         for art in batch:
-            if not art.url or art.url in seen_urls:
+            key = (art.url, art.query_label)
+            if not art.url or key in seen:
                 continue
-            seen_urls.add(art.url)
+            seen.add(key)
             flat.append(art)
 
     flat.sort(key=lambda a: a.seendate, reverse=True)

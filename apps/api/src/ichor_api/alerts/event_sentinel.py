@@ -92,6 +92,11 @@ async def evaluate_upcoming_event_hits(
             EconomicEvent.impact == "high",
             EconomicEvent.currency.in_(sorted(RELEVANT_CURRENCIES)),
             EconomicEvent.scheduled_at.is_not(None),
+            # All-day events carry a placeholder 00:00 UTC scheduled_at, not a real
+            # release time → a T-60 "imminent" pre-announce would fire at the wrong
+            # moment. They stay covered by _section_today_schedule. (is_all_day is
+            # NOT NULL default False, so .is_(False) is exact.)
+            EconomicEvent.is_all_day.is_(False),
             EconomicEvent.scheduled_at > now,
             EconomicEvent.scheduled_at <= horizon_end,
         )

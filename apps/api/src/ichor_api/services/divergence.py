@@ -26,6 +26,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models import KalshiMarket, ManifoldMarket, PolymarketSnapshot
 
+# Fail-closed flag gating the deterministic event-key matcher layer. Read once
+# at the live assembly point (``data_pool.build_data_pool``) via
+# ``feature_flags.is_enabled``: absent in the DB → False → the matcher runs
+# Jaccard-only, byte-identical to the pre-event-key behavior. Flipped on only
+# after a prod witness confirms the matched/consensus sets improve.
+EVENT_KEY_MATCHER_FLAG = "prediction_event_key_matcher_enabled"
+
 
 async def _latest_polymarket(session: AsyncSession, since: datetime) -> list[PredictionMarket]:
     # Latest row per slug since cutoff. Subquery picks max fetched_at per slug.
@@ -149,18 +156,23 @@ async def scan_divergences(
     match_threshold: float = 0.55,
     gap_threshold: float = 0.05,
     limit: int = 25,
+    use_event_key: bool = False,
 ) -> list[dict[str, Any]]:
     """Run a full cross-venue divergence scan.
 
     Returns alerts sorted by gap descending. Empty list if no divergence
-    above gap_threshold.
+    above gap_threshold. ``use_event_key`` (default off → Jaccard-only,
+    byte-identical) is read from the fail-closed feature flag once at the live
+    assembly point and threaded down.
     """
     since = datetime.now(UTC) - timedelta(hours=since_hours)
     poly = await _latest_polymarket(session, since)
     kal = await _latest_kalshi(session, since)
     man = await _latest_manifold(session, since)
 
-    matched = match_across_venues(poly, kal, man, threshold=match_threshold)
+    matched = match_across_venues(
+        poly, kal, man, threshold=match_threshold, use_event_key=use_event_key
+    )
     alerts = detect_divergences(matched, gap_threshold=gap_threshold)
     return [_alert_to_dict(a) for a in alerts[:limit]]
 
@@ -171,6 +183,7 @@ async def render_divergence_block(
     since_hours: int = 6,
     gap_threshold: float = 0.05,
     top: int = 5,
+    use_event_key: bool = False,
 ) -> tuple[str, list[str]]:
     """Markdown block for the data_pool `divergence` section.
 
@@ -181,6 +194,7 @@ async def render_divergence_block(
         since_hours=since_hours,
         gap_threshold=gap_threshold,
         limit=top,
+        use_event_key=use_event_key,
     )
     if not alerts:
         return (
@@ -228,19 +242,24 @@ async def scan_consensus(
     match_threshold: float = 0.55,
     min_venues: int = 2,
     limit: int = 25,
+    use_event_key: bool = False,
 ) -> list[dict[str, Any]]:
     """Run a full cross-venue consensus scan.
 
     One reliability-weighted probability per macro event matched across
     venues. Empty list if no event has >= ``min_venues`` priced venues.
-    Sorted by confidence (high→low) then dispersion ascending.
+    Sorted by confidence (high→low) then dispersion ascending. ``use_event_key``
+    (default off → Jaccard-only, byte-identical) is read from the fail-closed
+    feature flag once at the live assembly point and threaded down.
     """
     since = datetime.now(UTC) - timedelta(hours=since_hours)
     poly = await _latest_polymarket(session, since)
     kal = await _latest_kalshi(session, since)
     man = await _latest_manifold(session, since)
 
-    matched = match_across_venues(poly, kal, man, threshold=match_threshold)
+    matched = match_across_venues(
+        poly, kal, man, threshold=match_threshold, use_event_key=use_event_key
+    )
     estimates = compute_consensus(matched, min_venues=min_venues)
     return [_consensus_to_dict(c) for c in estimates[:limit]]
 
@@ -250,6 +269,7 @@ async def render_consensus_block(
     *,
     since_hours: int = 24,
     top: int = 6,
+    use_event_key: bool = False,
 ) -> tuple[str, list[str]]:
     """Markdown block for the data_pool ``prediction_consensus`` section.
 
@@ -263,7 +283,9 @@ async def render_consensus_block(
     card wants the last day of prediction-market state, not the last 6h
     (witnessed 2026-06-19 on prod: 6h → 0 matches, 24h → matches surface).
     """
-    estimates = await scan_consensus(session, since_hours=since_hours, limit=top)
+    estimates = await scan_consensus(
+        session, since_hours=since_hours, limit=top, use_event_key=use_event_key
+    )
     title = "## Cross-venue consensus (Polymarket / Kalshi / Manifold — reliability-weighted)"
     if not estimates:
         return (
