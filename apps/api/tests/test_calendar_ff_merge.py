@@ -8,13 +8,34 @@ test_macro_omniscient_services.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
 import pytest
-from ichor_api.services.economic_calendar import _FF_CURRENCY_MAP, assess_calendar
+from ichor_api.services.economic_calendar import (
+    _CB_MEETINGS_2026,
+    _FF_CURRENCY_MAP,
+    assess_calendar,
+)
+
+
+def _next_future_boe(today: date) -> date | None:
+    """The next UK 'BoE rate decision' still in the FUTURE per the static
+    schedule. Used to keep the dedup test date-robust: a hardcoded date breaks
+    the day it goes past (it did — 2026-06-18 passed on 2026-06-19). Picking the
+    next future static meeting guarantees the static row is inside the horizon
+    window so dedup actually has something to drop the FF copy against."""
+    return min(
+        (
+            d
+            for (d, region, label, _assets) in _CB_MEETINGS_2026
+            if region == "UK" and label == "BoE rate decision" and d > today
+        ),
+        default=None,
+    )
+
 
 # ─────────────────────── _FF_CURRENCY_MAP integrity ────────────────
 
@@ -150,27 +171,38 @@ async def test_ff_dedup_against_existing_event_same_label_region_date() -> None:
     a static CB or FRED-projected one, dedup must drop the FF copy.
     Labels that differ (e.g. "FOMC rate decision" vs "FOMC rate decision
     + SEP") are intentionally NOT deduped — they may carry different
-    metadata."""
+    metadata.
+
+    Date-robust: the FF event is pinned to the NEXT FUTURE static BoE meeting
+    (computed from `_CB_MEETINGS_2026`) so this never silently rots once a
+    hardcoded date goes past — the failure mode the previous hardcoded
+    2026-06-18 hit on 2026-06-19 (static row filtered by horizon → FF copy
+    wrongly survived → source='forex_factory')."""
+    today = datetime.now(UTC).date()
+    boe_date = _next_future_boe(today)
+    if boe_date is None:
+        pytest.skip("no future UK BoE meeting in _CB_MEETINGS_2026 — extend the static schedule")
     rows = [
-        # Match exactly the static CB label "BoE rate decision" on 2026-06-18.
-        # NOTE: when bumping to a year past 2026, replace the date with a
-        # static BoE meeting that's STILL IN THE FUTURE relative to today
-        # (per `economic_calendar.py:_STATIC_CB_MEETINGS`). Past dates get
-        # filtered by the horizon window and the test fails with N=0.
+        # Match exactly the static CB "BoE rate decision" on its real future date.
         _ff_row(
             currency="GBP",
             title="BoE rate decision",
-            scheduled_at=datetime(2026, 6, 18, 11, 0, tzinfo=UTC),
+            scheduled_at=datetime(boe_date.year, boe_date.month, boe_date.day, 11, 0, tzinfo=UTC),
             forecast=None,
             previous=None,
         )
     ]
     session = _StubSession(rows)
-    rep = await assess_calendar(session, horizon_days=60)
+    # Horizon just past the target meeting → exactly one BoE in window (meetings
+    # are ~6-8 weeks apart), so the month filter below isolates it.
+    horizon = (boe_date - today).days + 5
+    rep = await assess_calendar(session, horizon_days=horizon)
     boe = [
         e
         for e in rep.events
-        if e.label.lower() == "boe rate decision" and e.when.year == 2026 and e.when.month == 6
+        if e.label.lower() == "boe rate decision"
+        and e.when.year == boe_date.year
+        and e.when.month == boe_date.month
     ]
     # Exact match → only the static CB row survives, FF dropped.
     assert len(boe) == 1
