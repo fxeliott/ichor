@@ -14,6 +14,7 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+from ichor_agents.predictions.consensus import ConsensusEstimate, compute_consensus
 from ichor_agents.predictions.divergence import (
     DivergenceAlert,
     PredictionMarket,
@@ -198,4 +199,92 @@ async def render_divergence_block(
         )
         for v in a["by_venue"]:
             sources.append(f"{v}:{a['by_venue'][v]['market_id']}")
+    return "\n".join(lines), sources
+
+
+# ─────────────────────── Cross-venue consensus ─────────────────────────
+# Companion to divergence: divergence shows the *spread*, consensus fuses
+# the venues into one reliability-weighted probability per matched event
+# (real-money Polymarket/Kalshi carry it, play-money Manifold discounted).
+# S03 Chantier D — "structuration propre pour les moteurs d'analyse".
+
+
+def _consensus_to_dict(c: ConsensusEstimate) -> dict[str, Any]:
+    return {
+        "question": c.representative_question,
+        "consensus_prob": round(c.consensus_prob, 4),
+        "n_venues": c.n_venues,
+        "dispersion": round(c.dispersion, 4),
+        "confidence": c.confidence,
+        "by_venue": {v: round(p, 4) for v, p in c.by_venue.items()},
+        "market_ids": dict(c.market_ids),
+    }
+
+
+async def scan_consensus(
+    session: AsyncSession,
+    *,
+    since_hours: int = 24,
+    match_threshold: float = 0.55,
+    min_venues: int = 2,
+    limit: int = 25,
+) -> list[dict[str, Any]]:
+    """Run a full cross-venue consensus scan.
+
+    One reliability-weighted probability per macro event matched across
+    venues. Empty list if no event has >= ``min_venues`` priced venues.
+    Sorted by confidence (high→low) then dispersion ascending.
+    """
+    since = datetime.now(UTC) - timedelta(hours=since_hours)
+    poly = await _latest_polymarket(session, since)
+    kal = await _latest_kalshi(session, since)
+    man = await _latest_manifold(session, since)
+
+    matched = match_across_venues(poly, kal, man, threshold=match_threshold)
+    estimates = compute_consensus(matched, min_venues=min_venues)
+    return [_consensus_to_dict(c) for c in estimates[:limit]]
+
+
+async def render_consensus_block(
+    session: AsyncSession,
+    *,
+    since_hours: int = 24,
+    top: int = 6,
+) -> tuple[str, list[str]]:
+    """Markdown block for the data_pool ``prediction_consensus`` section.
+
+    Returns (markdown, source_ids). Honest-absence prose when no event
+    matched across >= 2 venues. ADR-017 — descriptive macro prior only,
+    never a trade signal.
+
+    The 24h window (vs the divergence block's 6h) reflects that
+    prediction-market probabilities move on the timescale of hours-to-days
+    and that cross-venue *matches* are sparse in any 6h slice — a daily NY
+    card wants the last day of prediction-market state, not the last 6h
+    (witnessed 2026-06-19 on prod: 6h → 0 matches, 24h → matches surface).
+    """
+    estimates = await scan_consensus(session, since_hours=since_hours, limit=top)
+    title = "## Cross-venue consensus (Polymarket / Kalshi / Manifold — reliability-weighted)"
+    if not estimates:
+        return (
+            f"{title}\n- (no event matched across ≥ 2 venues in the last {since_hours}h)",
+            [],
+        )
+    lines = [title]
+    sources: list[str] = []
+    for e in estimates:
+        # Tag Manifold as play-money so a discordant Manifold price is
+        # transparently explained (it carries 0.15 weight and is excluded
+        # from the real-money spread that drives confidence).
+        venue_str = ", ".join(
+            f"{v} {p * 100:.0f}%" + (" (play)" if v == "manifold" else "")
+            for v, p in e["by_venue"].items()
+        )
+        lines.append(
+            f"- **{e['question'][:80]}** → consensus {e['consensus_prob'] * 100:.0f}% "
+            f"[{e['confidence']}, {e['n_venues']} venues, spread "
+            f"{e['dispersion'] * 100:.0f}pp] ({venue_str})"
+        )
+        for v, mid in e["market_ids"].items():
+            sources.append(f"{v}:{mid}")
     return "\n".join(lines), sources

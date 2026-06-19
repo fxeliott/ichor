@@ -103,7 +103,7 @@ from .daily_levels import (
     render_daily_levels_block,
 )
 from .data_liveness import classify_liveness
-from .divergence import render_divergence_block
+from .divergence import render_consensus_block, render_divergence_block
 from .economic_calendar import (
     assess_calendar,
     render_calendar_block,
@@ -4869,49 +4869,84 @@ async def _section_prediction_markets(
                 sections.append(f"- {r.question[:80]} → {yes_str} vol={vol_str} (slug:{r.slug})")
                 sources.append(f"polymarket:{r.slug}")
 
-    # Kalshi
-    kal_rows = list(
+    # Kalshi — S03: the macro-series collector fix unlocked ~270 priced macro
+    # markets; dedup latest-per-ticker + rank by 24h volume + group by series so
+    # the KXFED rate ladder reads in strike order (was a raw top-5-by-recency
+    # that discarded the macro pool + never deduped, unlike Polymarket above).
+    # Descriptive only (ADR-017): we render the ladder, we derive no P(cut).
+    kal_raw = list(
         (
             await session.execute(
                 select(KalshiMarket)
                 .where(KalshiMarket.fetched_at >= cutoff)
                 .order_by(desc(KalshiMarket.fetched_at))
-                .limit(5)
+                .limit(500)
             )
         )
         .scalars()
         .all()
     )
-    sections.append("### Kalshi")
-    if not kal_rows:
-        sections.append("- (no fresh snapshots)")
+    seen_tickers: set[str] = set()
+    kal_unique: list[KalshiMarket] = []
+    for kr in kal_raw:
+        if kr.ticker in seen_tickers or kr.yes_price is None:
+            continue
+        seen_tickers.add(kr.ticker)
+        kal_unique.append(kr)
+    kal_unique.sort(key=lambda x: -(x.volume_24h or 0))
+    kal_top = kal_unique[:12]
+    sections.append(
+        f"### Kalshi (top {len(kal_top)} priced macro by 24h volume, of {len(kal_unique)} fresh)"
+    )
+    if not kal_top:
+        sections.append("- (no fresh priced snapshots)")
     else:
-        for r in kal_rows:
-            yp = f"YES={r.yes_price:.2f}" if r.yes_price is not None else "YES=n/a"
-            sections.append(f"- {r.title[:90]} → {yp} (ticker:{r.ticker})")
-            sources.append(f"kalshi:{r.ticker}")
+        # Group by series (ticker prefix) so a strike ladder reads coherently.
+        kal_by_series: dict[str, list[KalshiMarket]] = {}
+        for kr in kal_top:
+            kal_by_series.setdefault(kr.ticker.split("-")[0], []).append(kr)
+        for series_key, series_rows in kal_by_series.items():
+            series_rows.sort(key=lambda x: x.ticker)  # strikes in order within a ladder
+            for kr in series_rows:
+                yp = f"YES={kr.yes_price:.0%}" if kr.yes_price is not None else "YES=n/a"
+                vol = f" vol={kr.volume_24h}" if kr.volume_24h else ""
+                sections.append(
+                    f"- [{series_key}] {kr.title[:78]} → {yp}{vol} (ticker:{kr.ticker})"
+                )
+                sources.append(f"kalshi:{kr.ticker}")
 
-    # Manifold
-    man_rows = list(
+    # Manifold (play-money sentiment) — same dedup-per-slug + volume rank + cap
+    # as Polymarket/Kalshi for a deterministic surface (was top-5-by-recency,
+    # undeduped). Kept smaller (8) as it is the secondary sentiment venue.
+    man_raw = list(
         (
             await session.execute(
                 select(ManifoldMarket)
                 .where(ManifoldMarket.fetched_at >= cutoff)
                 .order_by(desc(ManifoldMarket.fetched_at))
-                .limit(5)
+                .limit(500)
             )
         )
         .scalars()
         .all()
     )
-    sections.append("### Manifold")
-    if not man_rows:
-        sections.append("- (no fresh snapshots)")
+    seen_slugs_man: set[str] = set()
+    man_unique: list[ManifoldMarket] = []
+    for mr in man_raw:
+        if mr.slug in seen_slugs_man or mr.probability is None:
+            continue
+        seen_slugs_man.add(mr.slug)
+        man_unique.append(mr)
+    man_unique.sort(key=lambda x: -(x.volume or 0))
+    man_top = man_unique[:8]
+    sections.append(f"### Manifold (play-money sentiment — top {len(man_top)} by volume)")
+    if not man_top:
+        sections.append("- (no fresh priced snapshots)")
     else:
-        for r in man_rows:
-            p = f"P={r.probability:.2f}" if r.probability is not None else "P=n/a"
-            sections.append(f"- {r.question[:90]} → {p} (slug:{r.slug})")
-            sources.append(f"manifold:{r.slug}")
+        for mr in man_top:
+            p = f"P={mr.probability:.0%}" if mr.probability is not None else "P=n/a"
+            sections.append(f"- {mr.question[:90]} → {p} (slug:{mr.slug})")
+            sources.append(f"manifold:{mr.slug}")
 
     return "\n".join(sections), sources
 
@@ -6087,6 +6122,13 @@ async def build_data_pool(
     # Phase 2 — divergence cross-venue (Polymarket vs Kalshi vs Manifold)
     div_md, div_src = await render_divergence_block(session)
     sections.append(("divergence", div_md, div_src))
+
+    # S03 Chantier D — cross-venue consensus: one reliability-weighted
+    # probability per matched macro event (complements divergence's spread).
+    # Real-money venues carry it, play-money Manifold discounted. Descriptive
+    # macro prior for Pass-2 (ADR-017 — never a trade signal).
+    cons_md, cons_src = await render_consensus_block(session)
+    sections.append(("prediction_consensus", cons_md, cons_src))
 
     # Phase 2 — Dealer GEX (only emits when asset has options coverage)
     gex_md, gex_src = await render_gex_block(session, asset)

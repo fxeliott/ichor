@@ -11,6 +11,11 @@ systematically). See also the *Maduro Trade* Feb 2026 ($400k profit on
 a Polymarket gap).
 """
 
+from .consensus import (
+    VENUE_RELIABILITY,
+    ConsensusEstimate,
+    compute_consensus,
+)
 from .divergence import (
     DivergenceAlert,
     MatchedMarket,
@@ -23,9 +28,12 @@ from .divergence import (
 )
 
 __all__ = [
+    "VENUE_RELIABILITY",
+    "ConsensusEstimate",
     "DivergenceAlert",
     "MatchedMarket",
     "PredictionMarket",
+    "compute_consensus",
     "detect_divergences",
     "jaccard_similarity",
     "match_across_venues",
