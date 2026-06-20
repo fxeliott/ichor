@@ -159,7 +159,7 @@ async def test_gate_flag_off_is_inert_all_assets_run(monkeypatch):
         push_on_complete=False,
     )
     assert rc == 0
-    assert one.call_count == len(_DEFAULT_ASSETS)  # all 6 ran — gate inert
+    assert one.call_count == len(_DEFAULT_ASSETS)  # all 5 ran — gate inert
 
 
 @pytest.mark.asyncio
@@ -222,7 +222,7 @@ async def test_gate_on_us_holiday_skips_only_us_equities(monkeypatch):
     )
     assert rc == 0
     assert "SPX500_USD" not in seen and "NAS100_USD" not in seen
-    assert set(seen) == {"EUR_USD", "GBP_USD", "USD_CAD", "XAU_USD"}
+    assert set(seen) == {"EUR_USD", "GBP_USD", "XAU_USD"}
 
 
 @pytest.mark.asyncio

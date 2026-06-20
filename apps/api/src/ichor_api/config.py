@@ -168,24 +168,24 @@ class Settings(BaseSettings):
     langfuse_secret_key: str = ""
     langfuse_host: str = "http://127.0.0.1:3000"
 
-    # --- Briefing assembly (ADR-083 D1 — 6-asset universe verrouillé) ---
+    # --- Briefing assembly (5-asset card universe — owner decision 2026-06-20) ---
     briefing_assets: list[str] = Field(
         default_factory=lambda: [
             "EUR_USD",
             "GBP_USD",
-            "USD_CAD",
             "XAU_USD",
             "NAS100_USD",
             "SPX500_USD",
         ]
     )
-    """The 6 assets Eliot actually trades (verbatim 2026-05-11 + ADR-083 D1).
-    USDJPY + AUDUSD are tracked-no-card : their ticker maps remain wired in
-    data_pool (so they can be queried explicitly via --assets) but the
-    autonomous batch + cron briefings only emit cards for these 6. Pre-W104
+    """The 5 assets Eliot actually trades (owner decision 2026-06-20 —
+    supersedes the 2026-05-11 / ADR-083 D1 6-asset list by dropping USD_CAD).
+    USD_CAD now joins USDJPY + AUDUSD as tracked-no-card : their ticker maps
+    remain wired in data_pool (so they can be queried explicitly via --assets,
+    and USD_CAD stays a dollar-basket correlation input for the 5 above) but the
+    autonomous batch + cron briefings only emit cards for these 5. Pre-W104
     this was split into briefing_assets_p1 + briefing_assets_p2 with
-    pre_londres receiving only p1 — GBP and CAD therefore received 3
-    cards/jour instead of 4 (audit G1 — closed W104a)."""
+    pre_londres receiving only p1 (audit G1 — closed W104a)."""
 
     # --- Mastodon followed feeds ---
     # CSV-encoded list of `kind:instance:handle` triples, e.g.

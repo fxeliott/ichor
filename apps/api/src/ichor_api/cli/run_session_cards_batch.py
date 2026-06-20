@@ -66,14 +66,14 @@ log = structlog.get_logger(__name__)
 _MARKET_CLOSED_GATE_FLAG = "session_cards_market_closed_gate_enabled"
 
 
-# ADR-083 D1 — the 6 assets Eliot actually trades. USDJPY + AUDUSD are
-# tracked-no-card (ticker maps in data_pool still wired so they can be
-# queried explicitly via --assets, but the autonomous batch defaults to
-# the 6 below). Pre-W104 this tuple held 8 assets.
+# The 5 assets Eliot actually trades (owner decision 2026-06-20 — drops
+# USD_CAD from the former ADR-083 D1 6-asset list). USD_CAD now joins
+# USDJPY + AUDUSD as tracked-no-card (ticker maps in data_pool still wired
+# so they can be queried explicitly via --assets, but the autonomous batch
+# defaults to the 5 below). Pre-W104 this tuple held 8 assets.
 _DEFAULT_ASSETS: tuple[str, ...] = (
     "EUR_USD",
     "GBP_USD",
-    "USD_CAD",
     "XAU_USD",
     "NAS100_USD",
     "SPX500_USD",

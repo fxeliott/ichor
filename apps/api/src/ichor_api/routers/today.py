@@ -270,7 +270,7 @@ async def today_diff(
         Query(pattern=r"^(pre_londres|pre_ny|ny_mid|ny_close|event_driven)$"),
     ] = "pre_londres",
 ) -> TodayDiffOut:
-    """Server-side J vs J-1 delta for the 6-asset universe (G11 closure).
+    """Server-side J vs J-1 delta for the 5-asset card universe (G11 closure).
 
     For each asset, fetches the latest card with the requested
     `session_type` AND the previous calendar day's card with the same
@@ -287,7 +287,6 @@ async def today_diff(
     assets = (
         "EUR_USD",
         "GBP_USD",
-        "USD_CAD",
         "XAU_USD",
         "NAS100_USD",
         "SPX500_USD",
