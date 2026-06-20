@@ -14,11 +14,31 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
+from ichor_api.services.dimension_vote import DimensionVote
 from ichor_api.services.session_verdict_builder import (
     _build_coach_explanation_populated,
     _derive_direction_and_conviction,
     _extract_synthesis_primitives,
 )
+
+
+def _dir_vote(provenance: str, hint: str, strength: float = 1.0) -> DimensionVote:
+    """A directional DimensionVote (e.g. cot / positioning_tff / geopolitics-style)."""
+    return DimensionVote(
+        provenance=provenance, direction_hint=hint, strength=strength, freshness=1.0
+    )
+
+
+def _doubt_vote(provenance: str, strength: float = 1.0) -> DimensionVote:
+    """A non-directional DOUBT DimensionVote (vol_regime / correlations / liquidity-style)."""
+    return DimensionVote(
+        provenance=provenance,
+        direction_hint="neutral",
+        strength=strength,
+        freshness=1.0,
+        directional=False,
+        increases_uncertainty=True,
+    )
 
 
 def _scn(bull: float, bear: float) -> list[dict[str, object]]:
@@ -164,6 +184,74 @@ def test_derive_opposing_evidence_shaves_but_keeps_direction() -> None:
     )
     assert direction == "up"
     assert conviction < 60.0
+
+
+# ── _derive_direction_and_conviction WITH dimension votes (S04 flag-ON seam) ─
+#
+# The production read path (build_session_verdict) calls this seam with the votes
+# thawed from the card's dimension_votes snapshot. These exercise that flag-ON
+# projection — (direction, conviction, rationale) — with realistic directional +
+# DOUBT vote mixes, the gap the no-votes tests above did not cover.
+
+
+def test_derive_directional_vote_agreeing_lifts_conviction() -> None:
+    _, base, _ = _derive_direction_and_conviction(_scn(0.60, 0.30), asset="EUR_USD")
+    _, lifted, _ = _derive_direction_and_conviction(
+        _scn(0.60, 0.30), asset="EUR_USD", votes=[_dir_vote("cot", "up")]
+    )
+    assert lifted > base  # a vote agreeing with the bucket edge strengthens conviction
+
+
+def test_derive_directional_vote_never_flips_direction() -> None:
+    # ADR-017 at the seam: a strong "down" vote on an up-edge keeps direction up.
+    direction, conviction, _ = _derive_direction_and_conviction(
+        _scn(0.60, 0.30), asset="EUR_USD", votes=[_dir_vote("positioning_tff", "down")]
+    )
+    assert direction == "up"
+    assert conviction < 60.0  # disagreement shaves, never flips
+
+
+def test_derive_doubt_vote_lowers_conviction_and_surfaces_in_rationale() -> None:
+    _, base, _ = _derive_direction_and_conviction(_scn(0.60, 0.30), asset="EUR_USD")
+    direction, doubted, rationale = _derive_direction_and_conviction(
+        _scn(0.60, 0.30), asset="EUR_USD", votes=[_doubt_vote("vol_regime")]
+    )
+    assert direction == "up"  # doubt never flips
+    assert doubted < base  # doubt tempers conviction
+    assert "Incertitude élevée" in rationale  # coach surfaces the doubt (vision §D)
+
+
+def test_derive_realistic_mixed_vote_set_is_coherent() -> None:
+    # A real apex set: confluence + COT agree (up), correlations + vol_regime doubt,
+    # sentiment (contrarian) disagrees. Direction stays bucket-up; conviction nets out
+    # bounded; the rationale mentions concordance, désaccord AND incertitude.
+    direction, conviction, rationale = _derive_direction_and_conviction(
+        _scn(0.62, 0.30),
+        asset="XAU_USD",
+        confluence_lean="long",
+        votes=[
+            _dir_vote("cot", "up"),
+            _dir_vote("sentiment", "down", strength=0.6),
+            _doubt_vote("vol_regime", strength=0.8),
+            _doubt_vote("correlations", strength=0.5),
+        ],
+    )
+    assert direction == "up"  # bucket-derived, never overridden by votes (ADR-017)
+    assert 0.0 < conviction <= 95.0  # bounded
+    assert "Incertitude élevée" in rationale  # doubts surfaced
+    # no trade tokens leak from the richer multi-vote rationale
+    assert not any(t in rationale for t in ("BUY", "SELL", "TP", "SL"))
+
+
+def test_derive_stacked_doubt_floors_not_zeroes_conviction() -> None:
+    # Many doubts cannot zero a strong bucket edge — AGREEMENT_FLOOR (0.60) holds at
+    # the production seam, not just in the fuser unit test.
+    _, conviction, _ = _derive_direction_and_conviction(
+        _scn(0.70, 0.20),
+        asset="EUR_USD",
+        votes=[_doubt_vote(f"doubt_{i}") for i in range(6)],
+    )
+    assert conviction == 70.0 * 0.60  # base 70 × AGREEMENT_FLOOR
 
 
 # ── coach explanation surfaces the grounding ───────────────────────────────
