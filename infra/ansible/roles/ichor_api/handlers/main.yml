@@ -5,3 +5,15 @@
     state: restarted
     daemon_reload: true
   listen: Restart ichor-api
+
+# ichor-fx-stream runs the SAME apps/api code (python -m ichor_api.cli.run_fx_stream)
+# as a long-running service, so it must also restart when the code syncs — else it
+# serves stale code exactly like the api did (witnessed 2026-06-20: api up 6 days).
+# The unit is created by scripts/hetzner/register-fx-stream.sh (not ansible), so this
+# handler tolerates its absence on hosts where the stream isn't installed.
+- name: Restart ichor-fx-stream
+  ansible.builtin.systemd:
+    name: ichor-fx-stream
+    state: restarted
+  failed_when: false
+  listen: Restart ichor-fx-stream
