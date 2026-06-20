@@ -698,12 +698,27 @@ async def build_session_verdict(
     # that contribute EXACTLY 0 (ADR-103) — never raises. Lazy import mirrors the
     # fuse_conviction import below (collection-time cycle avoidance).
     votes: Sequence[DimensionVote] = ()
+    from .correlations_vote import CORRELATIONS_DIMENSION_VOTE_FLAG
     from .cot_vote import COT_DIMENSION_VOTE_FLAG
     from .feature_flags import is_enabled
+    from .geopolitics_vote import GEOPOLITICS_DIMENSION_VOTE_FLAG
+    from .manipulation_liquidity_vote import MANIPULATION_LIQUIDITY_DIMENSION_VOTE_FLAG
+    from .positioning_divergence_vote import POSITIONING_DIVERGENCE_DIMENSION_VOTE_FLAG
+    from .positioning_tff_vote import POSITIONING_TFF_DIMENSION_VOTE_FLAG
+    from .sentiment_vote import SENTIMENT_DIMENSION_VOTE_FLAG
+    from .vol_regime_vote import VOL_REGIME_DIMENSION_VOTE_FLAG
     from .volume_vote import VOLUME_DIMENSION_VOTE_FLAG
 
-    if await is_enabled(session, COT_DIMENSION_VOTE_FLAG) or await is_enabled(
-        session, VOLUME_DIMENSION_VOTE_FLAG
+    if (
+        await is_enabled(session, COT_DIMENSION_VOTE_FLAG)
+        or await is_enabled(session, VOLUME_DIMENSION_VOTE_FLAG)
+        or await is_enabled(session, GEOPOLITICS_DIMENSION_VOTE_FLAG)
+        or await is_enabled(session, POSITIONING_TFF_DIMENSION_VOTE_FLAG)
+        or await is_enabled(session, SENTIMENT_DIMENSION_VOTE_FLAG)
+        or await is_enabled(session, VOL_REGIME_DIMENSION_VOTE_FLAG)
+        or await is_enabled(session, POSITIONING_DIVERGENCE_DIMENSION_VOTE_FLAG)
+        or await is_enabled(session, MANIPULATION_LIQUIDITY_DIMENSION_VOTE_FLAG)
+        or await is_enabled(session, CORRELATIONS_DIMENSION_VOTE_FLAG)
     ):
         from .dimension_vote import votes_from_snapshot
 

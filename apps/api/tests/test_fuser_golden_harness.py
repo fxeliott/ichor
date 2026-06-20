@@ -254,6 +254,7 @@ def serialize_grounding(g: ConvictionGrounding) -> dict[str, Any]:
         "agreeing": list(g.agreeing),
         "disagreeing": list(g.disagreeing),
         "rationale_fr": g.rationale_fr,
+        "doubts": list(g.doubts),
     }
 
 

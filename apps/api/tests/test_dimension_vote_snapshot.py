@@ -37,6 +37,14 @@ _SAMPLE_VOTES = [
     DimensionVote(provenance="theme", direction_hint="neutral", strength=0.6, directional=False),
     DimensionVote(provenance="cot", direction_hint="up", strength=1.0, honest_absence=True),
     DimensionVote(provenance="cot", direction_hint="neutral", strength=0.0),
+    DimensionVote(  # a DOUBT layer (non-directional, lowers conviction) — round-trip it too
+        provenance="vol_regime",
+        direction_hint="neutral",
+        strength=0.7,
+        freshness=0.8,
+        directional=False,
+        increases_uncertainty=True,
+    ),
 ]
 
 
@@ -79,8 +87,58 @@ def test_snapshot_is_plain_json_scalars() -> None:
         "freshness",
         "honest_absence",
         "directional",
+        "increases_uncertainty",
     }
     json.dumps(snap)  # must not raise
+
+
+def test_legacy_snapshot_without_doubt_key_thaws_to_corroborating() -> None:
+    """A snapshot written before the doubt term (no ``increases_uncertainty`` key) must
+    thaw to a corroborating vote (increases_uncertainty=False) — byte-identical to the
+    pre-doubt behaviour (ADR backward-compat)."""
+    legacy = {
+        "provenance": "cot",
+        "direction_hint": "up",
+        "strength": 0.8,
+        "freshness": 0.9,
+        "honest_absence": False,
+        "directional": True,
+        # no "increases_uncertainty" key
+    }
+    v = from_snapshot(legacy)
+    assert v.increases_uncertainty is False
+    assert v.doubt_penalty() == 0.0
+    assert v == DimensionVote(provenance="cot", direction_hint="up", strength=0.8, freshness=0.9)
+
+
+def test_corrupted_doubt_flag_type_abstains() -> None:
+    """A tampered snapshot with a non-bool increases_uncertainty must ABSTAIN (fail-closed),
+    never be silently coerced."""
+    bad = {
+        "provenance": "vol_regime",
+        "direction_hint": "neutral",
+        "strength": 0.7,
+        "freshness": 0.8,
+        "honest_absence": False,
+        "directional": False,
+        "increases_uncertainty": "yes",  # not a bool
+    }
+    assert from_snapshot(bad).honest_absence is True
+
+
+def test_doubt_snapshot_directional_true_abstains() -> None:
+    """A forged snapshot claiming both directional AND increases_uncertainty is
+    self-contradictory → abstain (a doubt layer can never be directional)."""
+    forged = {
+        "provenance": "vol_regime",
+        "direction_hint": "neutral",
+        "strength": 0.7,
+        "freshness": 0.8,
+        "honest_absence": False,
+        "directional": True,
+        "increases_uncertainty": True,
+    }
+    assert from_snapshot(forged).honest_absence is True
 
 
 # --------------------------------------------------------------------------- #

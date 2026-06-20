@@ -80,8 +80,16 @@ __all__ = (
     "_NEWS_KEYWORDS",
     "_cot_vote_from_rows",
     "_matches_asset",
+    "_tff_vote_from_rows",
     "_volume_vote_from_reading",
+    "build_correlations_vote_for_asset",
     "build_cot_vote_for_asset",
+    "build_geopolitics_vote_for_asset",
+    "build_manipulation_liquidity_vote_for_asset",
+    "build_positioning_divergence_vote_for_asset",
+    "build_positioning_tff_vote_for_asset",
+    "build_sentiment_vote_for_asset",
+    "build_vol_regime_vote_for_asset",
     "build_volume_vote_for_asset",
 )
 from .confluence_engine import (
@@ -4752,8 +4760,16 @@ async def _section_cot(
 # builders ← data_pool for constants) resolves with NO partial-init cycle.
 from .dimension_vote_builders import (  # noqa: E402
     _cot_vote_from_rows,
+    _tff_vote_from_rows,
     _volume_vote_from_reading,
+    build_correlations_vote_for_asset,
     build_cot_vote_for_asset,
+    build_geopolitics_vote_for_asset,
+    build_manipulation_liquidity_vote_for_asset,
+    build_positioning_divergence_vote_for_asset,
+    build_positioning_tff_vote_for_asset,
+    build_sentiment_vote_for_asset,
+    build_vol_regime_vote_for_asset,
     build_volume_vote_for_asset,
 )
 
