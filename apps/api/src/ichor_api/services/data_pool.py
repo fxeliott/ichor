@@ -85,6 +85,7 @@ __all__ = (
     "build_cot_vote_for_asset",
     "build_geopolitics_vote_for_asset",
     "build_positioning_tff_vote_for_asset",
+    "build_sentiment_vote_for_asset",
     "build_volume_vote_for_asset",
 )
 from .confluence_engine import (
@@ -4760,6 +4761,7 @@ from .dimension_vote_builders import (  # noqa: E402
     build_cot_vote_for_asset,
     build_geopolitics_vote_for_asset,
     build_positioning_tff_vote_for_asset,
+    build_sentiment_vote_for_asset,
     build_volume_vote_for_asset,
 )
 

@@ -24,10 +24,18 @@ from datetime import UTC, date, datetime
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..models import CftcTffObservation, CotPosition
+from ..models import CftcTffObservation, CotPosition, MyfxbookOutlook
 from .data_liveness import classify_liveness
 from .dimension_vote import DimensionVote
 from .microstructure import RelativeVolumeReading, assess_relative_volume
+
+# MyFXBook pair string per Ichor asset (the pair IS the asset directly — contrarian sign
+# needs no foreign-leg reversal). Keys mirror ``sentiment_vote._SENTIMENT_ASSETS``.
+_SENTIMENT_PAIR_BY_ASSET: dict[str, str] = {
+    "EUR_USD": "EURUSD",
+    "GBP_USD": "GBPUSD",
+    "XAU_USD": "XAUUSD",
+}
 
 
 def _cot_vote_from_rows(
@@ -298,3 +306,55 @@ async def build_positioning_tff_vote_for_asset(
     )
     rows = list((await session.execute(stmt)).scalars().all())
     return _tff_vote_from_rows(asset, market, rows, now_date=now_date)
+
+
+async def build_sentiment_vote_for_asset(
+    session: AsyncSession, asset: str, *, now_utc: datetime
+) -> DimensionVote:
+    """Sentiment write-side — read the latest MyFXBook Community Outlook snapshot for
+    ``asset``'s pair (the SAME source ``_section_myfxbook_outlook`` feeds the LLM with) and
+    map retail positioning to ONE CONTRARIAN Chantier-C ``DimensionVote`` via the pure
+    ``sentiment_vote.build_sentiment_vote``.
+
+    Only EUR_USD / GBP_USD / XAU_USD have a MyFXBook pair; other assets (indices) abstain
+    WITHOUT a DB read. The MyFXBook collector is dormant unless its creds are set
+    (``collectors/myfxbook_outlook.py``), so an empty table → honest-absence vote
+    (contributes EXACTLY 0 — ADR-103). Pure persistence (Voie D): no LLM, no new feed; the
+    caller wraps this best-effort so card generation never fails on a sentiment read.
+    """
+    from .sentiment_vote import SENTIMENT_MAX_AGE_DAYS, build_sentiment_vote
+
+    now_date = now_utc.astimezone(UTC).date()
+    pair = _SENTIMENT_PAIR_BY_ASSET.get(asset)
+    if pair is None:
+        return build_sentiment_vote(
+            asset=asset,
+            status="absent",
+            long_pct=None,
+            short_pct=None,
+            age_days=None,
+            max_age_days=SENTIMENT_MAX_AGE_DAYS,
+        )
+    stmt = (
+        select(MyfxbookOutlook)
+        .where(MyfxbookOutlook.pair == pair)
+        .order_by(desc(MyfxbookOutlook.fetched_at))
+        .limit(1)  # latest snapshot — mirror _section_myfxbook_outlook
+    )
+    row = (await session.execute(stmt)).scalars().first()
+    latest_date = row.fetched_at.astimezone(UTC).date() if row else None
+    live = classify_liveness(
+        f"MYFXBOOK:{pair}",
+        latest_date,
+        now=now_date,
+        max_age_days=SENTIMENT_MAX_AGE_DAYS,
+        impacted=f"sentiment:{asset}",
+    )
+    return build_sentiment_vote(
+        asset=asset,
+        status=live.status,
+        long_pct=row.long_pct if row else None,
+        short_pct=row.short_pct if row else None,
+        age_days=live.age_days,
+        max_age_days=SENTIMENT_MAX_AGE_DAYS,
+    )
