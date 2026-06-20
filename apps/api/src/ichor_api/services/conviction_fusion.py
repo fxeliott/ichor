@@ -219,6 +219,7 @@ _FR_LAYER_NAMES = {
     "volume": "volume / participation",
     "geopolitics": "risque géopolitique",
     "sentiment": "sentiment retail (contrarian)",
+    "real_yield": "taux réels (DFII10 → or)",
     # Doubt layers (lower conviction).
     "vol_regime": "régime de volatilité (VIX)",
     "manipulation_liquidity": "liquidité de financement",

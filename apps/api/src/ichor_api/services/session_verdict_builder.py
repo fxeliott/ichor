@@ -705,6 +705,7 @@ async def build_session_verdict(
     from .manipulation_liquidity_vote import MANIPULATION_LIQUIDITY_DIMENSION_VOTE_FLAG
     from .positioning_divergence_vote import POSITIONING_DIVERGENCE_DIMENSION_VOTE_FLAG
     from .positioning_tff_vote import POSITIONING_TFF_DIMENSION_VOTE_FLAG
+    from .real_yield_vote import REAL_YIELD_DIMENSION_VOTE_FLAG
     from .sentiment_vote import SENTIMENT_DIMENSION_VOTE_FLAG
     from .vol_regime_vote import VOL_REGIME_DIMENSION_VOTE_FLAG
     from .volume_vote import VOLUME_DIMENSION_VOTE_FLAG
@@ -719,6 +720,7 @@ async def build_session_verdict(
         or await is_enabled(session, POSITIONING_DIVERGENCE_DIMENSION_VOTE_FLAG)
         or await is_enabled(session, MANIPULATION_LIQUIDITY_DIMENSION_VOTE_FLAG)
         or await is_enabled(session, CORRELATIONS_DIMENSION_VOTE_FLAG)
+        or await is_enabled(session, REAL_YIELD_DIMENSION_VOTE_FLAG)
     ):
         from .dimension_vote import votes_from_snapshot
 
