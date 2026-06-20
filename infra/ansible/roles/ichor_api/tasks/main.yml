@@ -123,6 +123,13 @@
       - "--exclude=.pytest_cache"
       - "--exclude=*.egg-info"
   delegate_to: "{{ inventory_hostname }}"
+  # Restart the long-running api when the CODE changes, not just when the unit
+  # file changes. Without this the api process served STALE code across every
+  # code-only deploy (witnessed 2026-06-20: api PID up 6 days since 2026-06-14
+  # while PRs #261-281 shipped to disk but never served — e.g. /v1/sources still
+  # ran the pre-#280 filter). The systemd-service task below also notifies, but
+  # the unit rarely changes; the source sync is what changes on a normal deploy.
+  notify: Restart ichor-api
 
 - name: Fix ownership after sync
   ansible.builtin.file:
