@@ -358,3 +358,95 @@ async def build_sentiment_vote_for_asset(
         age_days=live.age_days,
         max_age_days=SENTIMENT_MAX_AGE_DAYS,
     )
+
+
+async def build_vol_regime_vote_for_asset(
+    session: AsyncSession, asset: str, *, now_utc: datetime
+) -> DimensionVote:
+    """Volatility-regime DOUBT write-side — read the VIX term structure (the SAME
+    ``assess_vix_term`` the LLM prompt sees) and map it to ONE non-directional DOUBT
+    ``DimensionVote`` (a backwardated VIX lowers conviction). The VIX read is GLOBAL, so
+    ``asset`` does not change the value (the same doubt attaches to every asset); the param is
+    kept for a uniform per-asset call contract.
+
+    Pure persistence (Voie D): no LLM, no new feed. A missing VIX leg, a stale source, or any
+    read error all resolve to an honest-absence vote (contributes EXACTLY 0 — ADR-103); the
+    caller wraps this best-effort so card generation never fails on a VIX read.
+    """
+    from .vix_term_structure import assess_vix_term
+    from .vol_regime_vote import VOL_REGIME_MAX_AGE_DAYS, build_vol_regime_vote
+
+    now_date = now_utc.astimezone(UTC).date()
+    reading = await assess_vix_term(session)
+    obs = reading.observation_date
+    latest_date = obs.astimezone(UTC).date() if obs is not None else None
+    live = classify_liveness(
+        "FRED:VIX_TERM",
+        latest_date,
+        now=now_date,
+        max_age_days=VOL_REGIME_MAX_AGE_DAYS,
+        impacted="vol_regime",
+    )
+    return build_vol_regime_vote(
+        status=live.status,
+        vix_ratio=reading.ratio,
+        age_days=live.age_days,
+        max_age_days=VOL_REGIME_MAX_AGE_DAYS,
+    )
+
+
+async def build_positioning_divergence_vote_for_asset(
+    session: AsyncSession, asset: str, *, now_utc: datetime
+) -> DimensionVote:
+    """Institutional-divergence DOUBT write-side — read the latest CFTC-TFF report for
+    ``asset`` (the SAME row ``_section_tff_positioning`` shows) and map the LevFunds-vs-AssetMgr
+    opposition to ONE non-directional DOUBT ``DimensionVote`` (disagreement lowers conviction).
+    Per-asset (each asset's own TFF report).
+
+    Pure persistence (Voie D): no LLM, no new feed. An asset off the TFF whitelist, an empty /
+    stale table, or any read error all resolve to an honest-absence vote (contributes 0 —
+    ADR-103); the caller wraps this best-effort.
+    """
+    from .data_pool import _TFF_MARKET_BY_ASSET
+    from .positioning_divergence_vote import (
+        DIVERGENCE_MAX_AGE_DAYS,
+        build_positioning_divergence_vote,
+    )
+
+    now_date = now_utc.astimezone(UTC).date()
+    market = _TFF_MARKET_BY_ASSET.get(asset)
+    if market is None:
+        return build_positioning_divergence_vote(
+            asset=asset,
+            status="absent",
+            lev_net=None,
+            am_net=None,
+            open_interest=None,
+            age_days=None,
+        )
+    stmt = (
+        select(CftcTffObservation)
+        .where(CftcTffObservation.market_code == market)
+        .order_by(desc(CftcTffObservation.report_date))
+        .limit(1)  # divergence reads the CURRENT report only (no trend needed)
+    )
+    row = (await session.execute(stmt)).scalars().first()
+    latest_date = row.report_date if row else None
+    live = classify_liveness(
+        f"CFTC:TFF:{market}",
+        latest_date,
+        now=now_date,
+        max_age_days=DIVERGENCE_MAX_AGE_DAYS,
+        impacted=f"divergence:{asset}",
+    )
+    lev_net = (row.lev_money_long - row.lev_money_short) if row else None
+    am_net = (row.asset_mgr_long - row.asset_mgr_short) if row else None
+    return build_positioning_divergence_vote(
+        asset=asset,
+        status=live.status,
+        lev_net=lev_net,
+        am_net=am_net,
+        open_interest=row.open_interest if row else None,
+        age_days=live.age_days,
+        max_age_days=DIVERGENCE_MAX_AGE_DAYS,
+    )

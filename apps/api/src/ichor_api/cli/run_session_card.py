@@ -663,8 +663,12 @@ async def _run(
             from ..services.dimension_vote import DimensionVote
             from ..services.feature_flags import is_enabled
             from ..services.geopolitics_vote import GEOPOLITICS_DIMENSION_VOTE_FLAG
+            from ..services.positioning_divergence_vote import (
+                POSITIONING_DIVERGENCE_DIMENSION_VOTE_FLAG,
+            )
             from ..services.positioning_tff_vote import POSITIONING_TFF_DIMENSION_VOTE_FLAG
             from ..services.sentiment_vote import SENTIMENT_DIMENSION_VOTE_FLAG
+            from ..services.vol_regime_vote import VOL_REGIME_DIMENSION_VOTE_FLAG
             from ..services.volume_vote import VOLUME_DIMENSION_VOTE_FLAG
 
             _now_utc = datetime.now(UTC)
@@ -696,6 +700,20 @@ async def _run(
 
                 _votes.append(
                     await build_sentiment_vote_for_asset(session, row.asset, now_utc=_now_utc)
+                )
+            if await is_enabled(session, VOL_REGIME_DIMENSION_VOTE_FLAG):
+                from ..services.data_pool import build_vol_regime_vote_for_asset
+
+                _votes.append(
+                    await build_vol_regime_vote_for_asset(session, row.asset, now_utc=_now_utc)
+                )
+            if await is_enabled(session, POSITIONING_DIVERGENCE_DIMENSION_VOTE_FLAG):
+                from ..services.data_pool import build_positioning_divergence_vote_for_asset
+
+                _votes.append(
+                    await build_positioning_divergence_vote_for_asset(
+                        session, row.asset, now_utc=_now_utc
+                    )
                 )
             if _votes:
                 from ..services.dimension_vote import votes_to_snapshot

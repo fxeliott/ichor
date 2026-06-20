@@ -84,8 +84,10 @@ __all__ = (
     "_volume_vote_from_reading",
     "build_cot_vote_for_asset",
     "build_geopolitics_vote_for_asset",
+    "build_positioning_divergence_vote_for_asset",
     "build_positioning_tff_vote_for_asset",
     "build_sentiment_vote_for_asset",
+    "build_vol_regime_vote_for_asset",
     "build_volume_vote_for_asset",
 )
 from .confluence_engine import (
@@ -4760,8 +4762,10 @@ from .dimension_vote_builders import (  # noqa: E402
     _volume_vote_from_reading,
     build_cot_vote_for_asset,
     build_geopolitics_vote_for_asset,
+    build_positioning_divergence_vote_for_asset,
     build_positioning_tff_vote_for_asset,
     build_sentiment_vote_for_asset,
+    build_vol_regime_vote_for_asset,
     build_volume_vote_for_asset,
 )
 
