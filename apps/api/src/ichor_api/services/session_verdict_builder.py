@@ -379,7 +379,6 @@ async def _safe_evaluate_tradeability(
 _ASSET_TRIGGER_CURRENCIES: dict[str, tuple[str, ...]] = {
     "EUR_USD": ("USD", "EUR"),
     "GBP_USD": ("USD", "GBP"),
-    "USD_CAD": ("USD", "CAD"),
     "XAU_USD": ("USD",),
     "SPX500_USD": ("USD",),
     "NAS100_USD": ("USD",),

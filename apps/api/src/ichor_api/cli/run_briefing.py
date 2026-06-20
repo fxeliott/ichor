@@ -4,7 +4,7 @@ Usage: python -m ichor_api.cli.run_briefing <briefing_type>
    where briefing_type ∈ {pre_londres, pre_ny, ny_mid, ny_close, weekly, crisis}
 
 Workflow (all error-handled with structured logging):
-  1. Resolve the asset list from settings.briefing_assets (6-asset universe per ADR-083 D1)
+  1. Resolve the asset list from settings.briefing_assets (5-asset card universe — owner 2026-06-20)
   2. Insert briefings row with status='pending'
   3. Assemble context_markdown from:
        - latest BiasSignal per asset (current_signals)
