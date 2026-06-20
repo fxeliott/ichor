@@ -64,7 +64,12 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
-from .dimension_vote import DimensionVote, net_dimension_vote, total_uncertainty_credit
+from .dimension_vote import (
+    DimensionVote,
+    net_dimension_vote,
+    total_doubt_penalty,
+    total_uncertainty_credit,
+)
 
 # --------------------------------------------------------------------------- #
 # Types                                                                       #
@@ -175,6 +180,11 @@ class ConvictionGrounding:
     agreeing: tuple[str, ...] = field(default_factory=tuple)
     disagreeing: tuple[str, ...] = field(default_factory=tuple)
     rationale_fr: str = ""
+    doubts: tuple[str, ...] = field(default_factory=tuple)
+    """Non-directional DOUBT layers that LOWERED conviction (wide-distribution regime:
+    vol stress, funding drain, systemic correlation, institutional divergence). Distinct
+    from ``disagreeing`` (which points the opposite *direction*) — a doubt does not contest
+    the direction, it widens the outcome. Empty ⇒ byte-identical to the pre-doubt output."""
 
 
 # --------------------------------------------------------------------------- #
@@ -203,6 +213,17 @@ _FR_LAYER_NAMES = {
     "confluence": "confluence des facteurs",
     "dollar_coherence": "cohérence dollar",
     "theme": "thème dominant",
+    # Chantier C dimension votes (coach-FR surface, vision §D « expliquer »).
+    "cot": "positionnement COT (smart money)",
+    "positioning_tff": "positionnement institutionnel (TFF)",
+    "volume": "volume / participation",
+    "geopolitics": "risque géopolitique",
+    "sentiment": "sentiment retail (contrarian)",
+    # Doubt layers (lower conviction).
+    "vol_regime": "régime de volatilité (VIX)",
+    "manipulation_liquidity": "liquidité de financement",
+    "correlations": "régime de corrélations",
+    "positioning_divergence": "divergence institutionnelle",
 }
 
 
@@ -299,6 +320,7 @@ def fuse_conviction(
     # --- Evidence votes (magnitude only — direction is already fixed). ----- #
     agreeing: list[str] = []
     disagreeing: list[str] = []
+    doubts: list[str] = []
     net_vote = 0.0
 
     # confluence: aligned -> +, opposed -> -, neutral/None -> 0.
@@ -339,6 +361,10 @@ def fuse_conviction(
     # harness, ``tests/test_fuser_golden_harness.assert_fuser_golden``).
     net_vote += net_dimension_vote(votes) * direction_num
     net_vote += total_uncertainty_credit(votes)
+    # Doubt layers (vol stress, funding drain, systemic correlation, institutional
+    # divergence) SUBTRACT — they widen the outcome distribution, so a directional read
+    # earns less conviction (calibrated humility, ADR-017: still never a direction).
+    net_vote -= total_doubt_penalty(votes)
     for vote in votes:
         if not vote.is_effective:
             continue
@@ -347,7 +373,9 @@ def fuse_conviction(
             agreeing.append(vote.provenance)
         elif contribution < 0:
             disagreeing.append(vote.provenance)
-        else:  # present but non-directional → anti-uncertainty credit only (ADR-017)
+        elif vote.increases_uncertainty:  # non-directional DOUBT → lowered conviction
+            doubts.append(vote.provenance)
+        else:  # present but non-directional corroboration → anti-uncertainty credit (ADR-017)
             agreeing.append(vote.provenance)
 
     agreement_factor = _clamp(1.0 + VOTE_GAIN_K * net_vote, AGREEMENT_FLOOR, AGREEMENT_CEIL)
@@ -362,6 +390,7 @@ def fuse_conviction(
         agreeing=agreeing,
         disagreeing=disagreeing,
         soft_zone_scale=soft_zone_scale,
+        doubts=doubts,
     )
 
     return ConvictionGrounding(
@@ -373,6 +402,7 @@ def fuse_conviction(
         agreeing=tuple(agreeing),
         disagreeing=tuple(disagreeing),
         rationale_fr=rationale,
+        doubts=tuple(doubts),
     )
 
 
@@ -383,6 +413,7 @@ def _build_rationale_fr(
     agreeing: Sequence[str],
     disagreeing: Sequence[str],
     soft_zone_scale: float,
+    doubts: Sequence[str] = (),
 ) -> str:
     """Plain-French coach grounding. Zero trade-signal tokens by construction
     (mirror of ``scenarios.py:50-53`` — no BUY/SELL/TP/SL/entry/exit)."""
@@ -400,8 +431,14 @@ def _build_rationale_fr(
     else:
         body = " Aucune preuve de synthèse disponible (conviction issue des seuls scénarios)."
 
+    # Doubt layers temper conviction WITHOUT contesting the direction (wide-distribution
+    # regime) — surfaced distinctly so the coach explains the « pourquoi » (vision §D).
+    doubt_clause = ""
+    if doubts:
+        doubt_clause = f" Incertitude élevée ({_fr_join(doubts)}) : conviction tempérée."
+
     tail = ""
     if soft_zone_scale < 1.0:
         tail = " Bord directionnel faible (zone tampon) : conviction atténuée."
 
-    return head + body + tail
+    return head + body + doubt_clause + tail

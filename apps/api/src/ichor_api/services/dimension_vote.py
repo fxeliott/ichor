@@ -53,6 +53,15 @@ class DimensionVote:
     - ``honest_absence``: ``True`` = no usable data (ADR-103) → contributes 0.
     - ``directional``: whether this layer may carry a long/short tilt at all
       (ADR-017: a theme-presence layer is structurally non-directional).
+    - ``increases_uncertainty``: ``True`` = this is a **DOUBT** layer — a
+      non-directional read whose honest meaning is "the outcome distribution is
+      *wider* right now" (e.g. a VIX-backwardation stress regime, a funding-
+      liquidity drain, a systemic-correlation spike, institutions on opposite
+      sides). It LOWERS conviction via ``doubt_penalty()`` instead of raising it
+      — the calibrated-humility half of the fusion ("pas de pile-ou-face"). A
+      doubt layer is structurally non-directional (``directional=False``,
+      ``direction_hint="neutral"``) and contributes NO positive credit. Default
+      ``False`` ⇒ every legacy / corroborating vote is byte-identical.
     """
 
     provenance: str
@@ -61,6 +70,7 @@ class DimensionVote:
     freshness: float = 1.0
     honest_absence: bool = False
     directional: bool = True
+    increases_uncertainty: bool = False
 
     def __post_init__(self) -> None:
         # Fail-closed on out-of-contract input rather than silently clamping —
@@ -71,6 +81,10 @@ class DimensionVote:
             raise ValueError(f"freshness must be in [0, 1], got {self.freshness!r}")
         if not self.directional and self.direction_hint != "neutral":
             raise ValueError("a non-directional vote must have direction_hint='neutral'")
+        # A doubt layer can never carry a tilt (it widens the distribution, it does
+        # not point a direction) — enforce the non-directional contract explicitly.
+        if self.increases_uncertainty and self.directional:
+            raise ValueError("a doubt vote (increases_uncertainty) must be non-directional")
 
     @property
     def is_effective(self) -> bool:
@@ -94,13 +108,27 @@ class DimensionVote:
     def uncertainty_credit(self) -> float:
         """Non-directional anti-uncertainty credit in ``[0, 1]`` (mirrors
         ``conviction_fusion.THEME_PRESENCE_VOTE``): a present neutral / non-
-        directional layer still attests "a real driver exists here", which makes
-        a directional read marginally less likely to be noise — but it NEVER
-        tilts long/short (ADR-017). = ``strength * freshness`` when effective and
-        neutral / non-directional, else 0."""
+        directional **corroborating** layer attests "a real driver exists here",
+        which makes a directional read marginally less likely to be noise — but it
+        NEVER tilts long/short (ADR-017). = ``strength * freshness`` when effective,
+        neutral / non-directional, and NOT a doubt layer; else 0. A doubt layer
+        (``increases_uncertainty``) contributes via ``doubt_penalty()`` instead."""
         if not self.is_effective:
             return 0.0
         if self.directional and self.direction_hint != "neutral":
+            return 0.0
+        if self.increases_uncertainty:
+            return 0.0  # a doubt layer lowers conviction (doubt_penalty), never raises it
+        # Clamp to the documented [0, 1] output contract (defensive vs field tampering).
+        return max(0.0, min(1.0, self.strength * self.freshness))
+
+    def doubt_penalty(self) -> float:
+        """Non-directional **doubt** in ``[0, 1]``: a present doubt layer
+        (``increases_uncertainty``) attests "the outcome distribution is wider right
+        now", so the fuser SUBTRACTS this from the net vote to LOWER conviction (the
+        symmetric counterpart of ``uncertainty_credit``). = ``strength * freshness``
+        when effective and a doubt layer, else 0. NEVER tilts long/short (ADR-017)."""
+        if not self.is_effective or not self.increases_uncertainty:
             return 0.0
         # Clamp to the documented [0, 1] output contract (defensive vs field tampering).
         return max(0.0, min(1.0, self.strength * self.freshness))
@@ -114,8 +142,16 @@ def net_dimension_vote(votes: Sequence[DimensionVote]) -> float:
 
 
 def total_uncertainty_credit(votes: Sequence[DimensionVote]) -> float:
-    """Sum of non-directional anti-uncertainty credits across dimensions."""
+    """Sum of non-directional anti-uncertainty credits across dimensions (corroborating
+    layers only — doubt layers contribute via :func:`total_doubt_penalty`)."""
     return sum((v.uncertainty_credit() for v in votes), 0.0)
+
+
+def total_doubt_penalty(votes: Sequence[DimensionVote]) -> float:
+    """Sum of non-directional doubt penalties across dimensions — the fuser SUBTRACTS this
+    from the net vote to LOWER conviction in a wide-distribution regime. Absent / neutral /
+    corroborating dimensions contribute 0 (honest)."""
+    return sum((v.doubt_penalty() for v in votes), 0.0)
 
 
 def effective_provenances(votes: Sequence[DimensionVote]) -> tuple[str, ...]:
@@ -153,6 +189,7 @@ def to_snapshot(vote: DimensionVote) -> dict[str, Any]:
         "freshness": vote.freshness,
         "honest_absence": vote.honest_absence,
         "directional": vote.directional,
+        "increases_uncertainty": vote.increases_uncertainty,
     }
 
 
@@ -181,6 +218,9 @@ def from_snapshot(data: Mapping[str, Any] | None) -> DimensionVote:
         provenance = data["provenance"]
         directional = data.get("directional", True)
         honest_absence = data.get("honest_absence", False)
+        # Legacy snapshots (written before the doubt term) have no key → default False,
+        # so they thaw to a corroborating vote byte-identical to the old behaviour.
+        increases_uncertainty = data.get("increases_uncertainty", False)
         # Strict types (fail-closed): a snapshot we wrote always carries str / bool;
         # a tampered one with the wrong type must ABSTAIN, never be silently coerced
         # (e.g. directional "no" → bool("no") == True would wrongly turn a
@@ -189,10 +229,14 @@ def from_snapshot(data: Mapping[str, Any] | None) -> DimensionVote:
             isinstance(provenance, str)
             and isinstance(directional, bool)
             and isinstance(honest_absence, bool)
+            and isinstance(increases_uncertainty, bool)
         ):
             return absent
         # Enforce ADR-017: a non-directional layer can never carry a tilt.
         if not directional and direction_hint != "neutral":
+            return absent
+        # A doubt layer can never be directional (it widens, never points).
+        if increases_uncertainty and directional:
             return absent
         # Fail-closed on a corrupted magnitude: reject NaN / inf EXPLICITLY (not by
         # the side-effect of the range comparison) and enforce the [0, 1] contract —
@@ -210,6 +254,7 @@ def from_snapshot(data: Mapping[str, Any] | None) -> DimensionVote:
             freshness=freshness,
             honest_absence=honest_absence,
             directional=directional,
+            increases_uncertainty=increases_uncertainty,
         )
     except (KeyError, TypeError, ValueError):
         return absent
