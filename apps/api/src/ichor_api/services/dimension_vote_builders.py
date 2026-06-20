@@ -177,3 +177,44 @@ async def build_volume_vote_for_asset(
         )
     reading = await assess_relative_volume(session, asset)
     return _volume_vote_from_reading(asset, reading, now_date=now_date)
+
+
+async def build_geopolitics_vote_for_asset(
+    session: AsyncSession, asset: str, *, now_utc: datetime
+) -> DimensionVote:
+    """Geopolitics write-side — read the AI-GPR trailing-30d z-score (the SAME flash the
+    ``GEOPOL_FLASH`` alert computes and ``_section_geopolitics`` liveness-gates) and map it
+    to ONE **non-directional** Chantier-C ``DimensionVote`` via the pure
+    ``geopolitics_vote.build_geopolitics_vote``.
+
+    AI-GPR is a single GLOBAL scalar (``data_pool.py:5017``), so ``asset`` does not change
+    the value — the same anti-uncertainty credit attaches to every asset. The parameter is
+    kept for a uniform per-asset call contract (the write-side loops per asset, exactly like
+    the COT / volume builders) so the capture block stays a flat list of
+    ``build_*_vote_for_asset`` calls.
+
+    Pure persistence of an already-computable structure (Voie D) : ``persist=False`` so this
+    read NEVER fires the alert (that is the alert CLI's job) — no LLM, no new feed. An empty
+    table, a not-yet-warm window (< 20 obs), a stale source, or any read error all resolve to
+    an honest-absence vote (contributes EXACTLY 0 to the fuser — ADR-103) ; the caller wraps
+    this best-effort so card generation never fails on a geopolitics read.
+    """
+    from .geopol_flash_check import evaluate_geopol_flash
+    from .geopolitics_vote import GPR_MAX_AGE_DAYS, build_geopolitics_vote
+
+    now_date = now_utc.astimezone(UTC).date()
+    # persist=False: a pure read for the vote, never a write/alert side-effect.
+    flash = await evaluate_geopol_flash(session, persist=False)
+    live = classify_liveness(
+        "AI-GPR",
+        flash.current_date,
+        now=now_date,
+        max_age_days=GPR_MAX_AGE_DAYS,
+        impacted="geopolitics",
+    )
+    return build_geopolitics_vote(
+        status=live.status,
+        z_score=flash.z_score,
+        age_days=live.age_days,
+        max_age_days=GPR_MAX_AGE_DAYS,
+    )

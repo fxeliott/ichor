@@ -700,10 +700,13 @@ async def build_session_verdict(
     votes: Sequence[DimensionVote] = ()
     from .cot_vote import COT_DIMENSION_VOTE_FLAG
     from .feature_flags import is_enabled
+    from .geopolitics_vote import GEOPOLITICS_DIMENSION_VOTE_FLAG
     from .volume_vote import VOLUME_DIMENSION_VOTE_FLAG
 
-    if await is_enabled(session, COT_DIMENSION_VOTE_FLAG) or await is_enabled(
-        session, VOLUME_DIMENSION_VOTE_FLAG
+    if (
+        await is_enabled(session, COT_DIMENSION_VOTE_FLAG)
+        or await is_enabled(session, VOLUME_DIMENSION_VOTE_FLAG)
+        or await is_enabled(session, GEOPOLITICS_DIMENSION_VOTE_FLAG)
     ):
         from .dimension_vote import votes_from_snapshot
 
