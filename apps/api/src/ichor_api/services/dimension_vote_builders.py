@@ -19,12 +19,12 @@ imported first (a module-level back-import would deadlock a standalone
 from __future__ import annotations
 
 from collections.abc import Sequence
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..models import CftcTffObservation, CotPosition, MyfxbookOutlook
+from ..models import CftcTffObservation, CotPosition, FredObservation, MyfxbookOutlook
 from .data_liveness import classify_liveness
 from .dimension_vote import DimensionVote
 from .microstructure import RelativeVolumeReading, assess_relative_volume
@@ -522,4 +522,97 @@ async def build_correlations_vote_for_asset(
         avg_abs_corr=avg_abs,
         n_returns_used=n_used,
         min_returns=CORR_MIN_RETURNS,
+    )
+
+
+# Real-yield (DFII10) move-window band — pick the prior obs ~28 days back (21-42d band) to
+# read a ~1-month real-yield change, holiday/weekend-gap safe (mirror cot's band approach).
+_REAL_YIELD_TREND_TARGET_DAYS = 28
+_REAL_YIELD_TREND_MIN_SPAN_DAYS = 21
+_REAL_YIELD_TREND_MAX_SPAN_DAYS = 42
+
+
+def _real_yield_delta_pp(rows_newest_first: Sequence[tuple[date, float]]) -> float | None:
+    """Pure : current DFII10 minus the obs whose calendar gap is closest to ~28 days within
+    [21, 42] → the ~1-month real-yield change in percentage points. ``None`` if no obs in the
+    band (so a short / gappy history is never silently mis-read). Unit-testable without a DB."""
+    if not rows_newest_first:
+        return None
+    current_date, current_val = rows_newest_first[0]
+    best_val: float | None = None
+    best_key: int | None = None
+    for rdate, val in rows_newest_first[1:]:
+        span = (current_date - rdate).days
+        if span < _REAL_YIELD_TREND_MIN_SPAN_DAYS or span > _REAL_YIELD_TREND_MAX_SPAN_DAYS:
+            continue
+        key = abs(span - _REAL_YIELD_TREND_TARGET_DAYS)
+        if best_key is None or key < best_key:
+            best_key = key
+            best_val = val
+    if best_val is None:
+        return None
+    return current_val - best_val
+
+
+async def build_real_yield_vote_for_asset(
+    session: AsyncSession, asset: str, *, now_utc: datetime
+) -> DimensionVote:
+    """Real-yield→gold FUNDAMENTAL write-side — read the recent DFII10 (10Y TIPS real yield)
+    move + the XAU↔DFII10 carry-divergence z, and map them to ONE directional ``DimensionVote``
+    via the pure ``real_yield_vote.build_real_yield_vote`` (rising real yields → gold down).
+
+    XAU only (the carry channel is gold-specific; other assets' macro is the rate differential,
+    already the dollar_coherence vote) → every non-XAU asset abstains WITHOUT a DB read.
+
+    Pure persistence (Voie D): no LLM, no new feed. An empty / stale DFII10 series, a sub-noise
+    move, a detected carry-divergence, or any read error all resolve to honest-absence
+    (contributes 0 — ADR-103); the caller wraps this best-effort.
+    """
+    from .real_yield_vote import REAL_YIELD_MAX_AGE_DAYS, build_real_yield_vote
+
+    now_date = now_utc.astimezone(UTC).date()
+    if asset != "XAU_USD":
+        return build_real_yield_vote(
+            asset=asset,
+            status="absent",
+            real_yield_delta_pp=None,
+            divergence_z=None,
+            age_days=None,
+        )
+    cutoff = now_date - timedelta(days=_REAL_YIELD_TREND_MAX_SPAN_DAYS + 7)
+    stmt = (
+        select(FredObservation.observation_date, FredObservation.value)
+        .where(
+            FredObservation.series_id == "DFII10",
+            FredObservation.observation_date >= cutoff,
+            FredObservation.value.is_not(None),
+        )
+        .order_by(desc(FredObservation.observation_date))
+    )
+    rows = [(r[0], float(r[1])) for r in (await session.execute(stmt)).all() if r[1] is not None]
+    latest_date = rows[0][0] if rows else None
+    live = classify_liveness(
+        "FRED:DFII10",
+        latest_date,
+        now=now_date,
+        max_age_days=REAL_YIELD_MAX_AGE_DAYS,
+        impacted="real_yield:XAU_USD",
+    )
+    delta_pp = _real_yield_delta_pp(rows)
+    # Carry-divergence reliability gate (best-effort): abstain when gold has decoupled from
+    # real yields. A read failure leaves z=None → the directional move still stands (fail-open).
+    divergence_z: float | None = None
+    try:
+        from .real_yield_gold_check import evaluate_real_yield_gold_divergence
+
+        divergence_z = (await evaluate_real_yield_gold_divergence(session, persist=False)).z_score
+    except Exception:  # noqa: BLE001 — the divergence gate is a refinement, never fail the vote on it
+        divergence_z = None
+    return build_real_yield_vote(
+        asset=asset,
+        status=live.status,
+        real_yield_delta_pp=delta_pp,
+        divergence_z=divergence_z,
+        age_days=live.age_days,
+        max_age_days=REAL_YIELD_MAX_AGE_DAYS,
     )

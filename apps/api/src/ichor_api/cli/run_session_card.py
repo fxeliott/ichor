@@ -671,6 +671,7 @@ async def _run(
                 POSITIONING_DIVERGENCE_DIMENSION_VOTE_FLAG,
             )
             from ..services.positioning_tff_vote import POSITIONING_TFF_DIMENSION_VOTE_FLAG
+            from ..services.real_yield_vote import REAL_YIELD_DIMENSION_VOTE_FLAG
             from ..services.sentiment_vote import SENTIMENT_DIMENSION_VOTE_FLAG
             from ..services.vol_regime_vote import VOL_REGIME_DIMENSION_VOTE_FLAG
             from ..services.volume_vote import VOLUME_DIMENSION_VOTE_FLAG
@@ -732,6 +733,12 @@ async def _run(
 
                 _votes.append(
                     await build_correlations_vote_for_asset(session, row.asset, now_utc=_now_utc)
+                )
+            if await is_enabled(session, REAL_YIELD_DIMENSION_VOTE_FLAG):
+                from ..services.data_pool import build_real_yield_vote_for_asset
+
+                _votes.append(
+                    await build_real_yield_vote_for_asset(session, row.asset, now_utc=_now_utc)
                 )
             if _votes:
                 from ..services.dimension_vote import votes_to_snapshot
