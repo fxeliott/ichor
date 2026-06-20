@@ -659,10 +659,14 @@ async def _run(
         # failing the persist. Voie D: pure persistence of positioning /
         # participation the LLM already saw — ZERO LLM call, ZERO new feed.
         try:
+            from ..services.correlations_vote import CORRELATIONS_DIMENSION_VOTE_FLAG
             from ..services.cot_vote import COT_DIMENSION_VOTE_FLAG
             from ..services.dimension_vote import DimensionVote
             from ..services.feature_flags import is_enabled
             from ..services.geopolitics_vote import GEOPOLITICS_DIMENSION_VOTE_FLAG
+            from ..services.manipulation_liquidity_vote import (
+                MANIPULATION_LIQUIDITY_DIMENSION_VOTE_FLAG,
+            )
             from ..services.positioning_divergence_vote import (
                 POSITIONING_DIVERGENCE_DIMENSION_VOTE_FLAG,
             )
@@ -714,6 +718,20 @@ async def _run(
                     await build_positioning_divergence_vote_for_asset(
                         session, row.asset, now_utc=_now_utc
                     )
+                )
+            if await is_enabled(session, MANIPULATION_LIQUIDITY_DIMENSION_VOTE_FLAG):
+                from ..services.data_pool import build_manipulation_liquidity_vote_for_asset
+
+                _votes.append(
+                    await build_manipulation_liquidity_vote_for_asset(
+                        session, row.asset, now_utc=_now_utc
+                    )
+                )
+            if await is_enabled(session, CORRELATIONS_DIMENSION_VOTE_FLAG):
+                from ..services.data_pool import build_correlations_vote_for_asset
+
+                _votes.append(
+                    await build_correlations_vote_for_asset(session, row.asset, now_utc=_now_utc)
                 )
             if _votes:
                 from ..services.dimension_vote import votes_to_snapshot

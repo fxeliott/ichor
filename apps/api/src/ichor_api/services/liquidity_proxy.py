@@ -22,7 +22,7 @@ Reads only ; persistence + alert firing live in
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -51,6 +51,11 @@ class LiquidityProxyReading:
     """Which TGA series actually supplied the value (``DTS_TGA_CLOSE`` or the
     ``WTREGEN`` fallback). Drives accurate source provenance in the render —
     never claim DTS_TGA_CLOSE when the number came from WTREGEN."""
+    as_of: date | None = None
+    """Observation date of the proxy snapshot (``min(rrp_date, tga_date)`` — the
+    snap_date). ``None`` when the proxy could not be computed (missing series).
+    Exposed so consumers (the S04 liveness gate / the manipulation_liquidity vote)
+    can fail-closed on staleness — the proxy is at best weekly-fresh (the TGA leg)."""
 
 
 async def _latest_value_at_or_before(
@@ -163,6 +168,7 @@ async def assess_liquidity_proxy(
             delta_bn=None,
             note=f"insufficient history (need ≥ {lookback_days} d)",
             tga_series=tga_src,
+            as_of=snap_date,
         )
 
     proxy_lag = round(rrp_lag_bn + tga_lag_mn / 1000.0, 2)
@@ -179,6 +185,7 @@ async def assess_liquidity_proxy(
             f"→ Δ {delta:+.0f}bn"
         ),
         tga_series=tga_src,
+        as_of=snap_date,
     )
 
 

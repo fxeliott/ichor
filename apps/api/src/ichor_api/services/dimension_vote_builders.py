@@ -450,3 +450,76 @@ async def build_positioning_divergence_vote_for_asset(
         age_days=live.age_days,
         max_age_days=DIVERGENCE_MAX_AGE_DAYS,
     )
+
+
+async def build_manipulation_liquidity_vote_for_asset(
+    session: AsyncSession, asset: str, *, now_utc: datetime
+) -> DimensionVote:
+    """Funding-liquidity DOUBT write-side — read the RRP+TGA proxy (the SAME
+    ``assess_liquidity_proxy`` the LLM prompt sees) and map a funding DRAIN to ONE
+    non-directional DOUBT ``DimensionVote`` (a drain widens outcomes → lowers conviction).
+    GLOBAL (one market-wide proxy), so ``asset`` does not change the value.
+
+    Pure persistence (Voie D): no LLM, no new feed. Missing series, insufficient history, a
+    stale proxy (the TGA leg is weekly), or any read error all resolve to honest-absence
+    (contributes 0 — ADR-103); the caller wraps this best-effort.
+    """
+    from .liquidity_proxy import assess_liquidity_proxy
+    from .manipulation_liquidity_vote import (
+        LIQUIDITY_MAX_AGE_DAYS,
+        build_manipulation_liquidity_vote,
+    )
+
+    now_date = now_utc.astimezone(UTC).date()
+    reading = await assess_liquidity_proxy(session)
+    live = classify_liveness(
+        "FRED:RRP+TGA",
+        reading.as_of,
+        now=now_date,
+        max_age_days=LIQUIDITY_MAX_AGE_DAYS,
+        impacted="manipulation_liquidity",
+    )
+    return build_manipulation_liquidity_vote(
+        status=live.status,
+        delta_bn=reading.delta_bn,
+        age_days=live.age_days,
+        max_age_days=LIQUIDITY_MAX_AGE_DAYS,
+    )
+
+
+async def build_correlations_vote_for_asset(
+    session: AsyncSession, asset: str, *, now_utc: datetime
+) -> DimensionVote:
+    """Cross-asset-correlation DOUBT write-side — read the rolling correlation matrix (the SAME
+    ``assess_correlations`` the LLM prompt sees), average the off-diagonal |corr| cells, and map
+    a high-systemic-correlation regime to ONE non-directional DOUBT ``DimensionVote`` (rising
+    co-movement widens outcomes → lowers conviction). GLOBAL (one market-wide regime).
+
+    Liveness is derived from the matrix overlap (``n_returns_used``) rather than a date gate —
+    the matrix is recomputed live each card from the rolling intraday window, so sufficient
+    overlap IS the freshness signal (a thin / cold-start matrix → ``status="absent"`` → abstain).
+    Pure persistence (Voie D): no LLM, no new feed; the caller wraps this best-effort.
+    """
+    from .correlations import assess_correlations
+    from .correlations_vote import CORR_MIN_RETURNS, build_correlations_vote
+
+    matrix_obj = await assess_correlations(session)
+    rows = matrix_obj.matrix
+    n = len(rows)
+    cells: list[float] = []  # explicit narrowing (mypy: matrix cells are float | None)
+    for i in range(n):
+        for j in range(i + 1, n):
+            cell = rows[i][j]
+            if cell is not None:
+                cells.append(cell)
+    avg_abs = (sum(abs(c) for c in cells) / len(cells)) if cells else None
+    n_used = matrix_obj.n_returns_used
+    # Derive fail-closed status from overlap: a usable matrix needs >= CORR_MIN_RETURNS
+    # overlapping returns AND at least one readable off-diagonal cell.
+    status = "fresh" if (n_used >= CORR_MIN_RETURNS and cells) else "absent"
+    return build_correlations_vote(
+        status=status,
+        avg_abs_corr=avg_abs,
+        n_returns_used=n_used,
+        min_returns=CORR_MIN_RETURNS,
+    )
