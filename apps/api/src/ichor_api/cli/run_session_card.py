@@ -663,6 +663,7 @@ async def _run(
             from ..services.dimension_vote import DimensionVote
             from ..services.feature_flags import is_enabled
             from ..services.geopolitics_vote import GEOPOLITICS_DIMENSION_VOTE_FLAG
+            from ..services.positioning_tff_vote import POSITIONING_TFF_DIMENSION_VOTE_FLAG
             from ..services.volume_vote import VOLUME_DIMENSION_VOTE_FLAG
 
             _now_utc = datetime.now(UTC)
@@ -682,6 +683,12 @@ async def _run(
 
                 _votes.append(
                     await build_geopolitics_vote_for_asset(session, row.asset, now_utc=_now_utc)
+                )
+            if await is_enabled(session, POSITIONING_TFF_DIMENSION_VOTE_FLAG):
+                from ..services.data_pool import build_positioning_tff_vote_for_asset
+
+                _votes.append(
+                    await build_positioning_tff_vote_for_asset(session, row.asset, now_utc=_now_utc)
                 )
             if _votes:
                 from ..services.dimension_vote import votes_to_snapshot

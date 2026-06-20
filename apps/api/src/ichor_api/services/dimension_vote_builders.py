@@ -24,7 +24,7 @@ from datetime import UTC, date, datetime
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..models import CotPosition
+from ..models import CftcTffObservation, CotPosition
 from .data_liveness import classify_liveness
 from .dimension_vote import DimensionVote
 from .microstructure import RelativeVolumeReading, assess_relative_volume
@@ -218,3 +218,83 @@ async def build_geopolitics_vote_for_asset(
         age_days=live.age_days,
         max_age_days=GPR_MAX_AGE_DAYS,
     )
+
+
+def _tff_vote_from_rows(
+    asset: str,
+    market: str,
+    rows: Sequence[CftcTffObservation],
+    *,
+    now_date: date,
+) -> DimensionVote:
+    """Pure mapper : recent ``CftcTffObservation`` rows (newest-first) → one Chantier-C
+    ``DimensionVote`` (positioning_tff). Split out of the async fetch so the row→vote logic
+    is unit-testable WITHOUT a DB.
+
+    Liveness is recomputed from the freshest ``report_date`` exactly as
+    ``_section_tff_positioning`` does, so the vote's ``status``/``age_days`` match the TFF
+    band the LLM saw. The heavy lifting (band-aligned Δ4w/Δ1w, OI normalisation, SPX500-only
+    polarity, fail-closed gates) lives in the pure ``positioning_tff_vote.build_positioning_tff_vote``
+    — this only adapts the ORM rows (LevFunds net = lev_money_long − lev_money_short)."""
+    from .positioning_tff_vote import TFF_MAX_AGE_DAYS, build_positioning_tff_vote
+
+    latest_date = rows[0].report_date if rows else None
+    live = classify_liveness(
+        f"CFTC:TFF:{market}",
+        latest_date,
+        now=now_date,
+        max_age_days=TFF_MAX_AGE_DAYS,
+        impacted=f"tff:{asset}",
+    )
+    history = [(r.report_date, r.lev_money_long - r.lev_money_short) for r in rows]
+    open_interest = rows[0].open_interest if rows else None
+    return build_positioning_tff_vote(
+        asset=asset,
+        status=live.status,
+        history=history,
+        open_interest=open_interest,
+        age_days=live.age_days,
+        max_age_days=TFF_MAX_AGE_DAYS,
+    )
+
+
+async def build_positioning_tff_vote_for_asset(
+    session: AsyncSession, asset: str, *, now_utc: datetime
+) -> DimensionVote:
+    """positioning_tff write-side — fetch the recent CFTC-TFF rows for ``asset`` (the SAME
+    market ``_section_tff_positioning`` feeds the LLM with) and map LevFunds net positioning
+    to ONE Chantier-C ``DimensionVote`` via the pure ``positioning_tff_vote``.
+
+    Only ``SPX500_USD`` gets a directional vote (the asset COT does not cover) — every other
+    asset abstains WITHOUT a DB read, since a directional TFF read on EUR/GBP/XAU/NAS would
+    double-count ``cot_vote`` on the identical CFTC market codes (the producer abstains there
+    anyway; this skips the useless query).
+
+    Pure persistence of an already-computable structure (Voie D) : no LLM, no new feed. An
+    asset off the SPX500-only map, an empty / stale table, or any read error all resolve to an
+    honest-absence vote (contributes EXACTLY 0 — ADR-103) ; the caller wraps this best-effort
+    so card generation never fails on a TFF read.
+    """
+    from .data_pool import _TFF_MARKET_BY_ASSET
+    from .positioning_tff_vote import TFF_MAX_AGE_DAYS, build_positioning_tff_vote
+
+    now_date = now_utc.astimezone(UTC).date()
+    market = _TFF_MARKET_BY_ASSET.get(asset)
+    # SPX500-only directional edge (COT covers the rest) → cheap DB-free abstain otherwise.
+    if asset != "SPX500_USD" or market is None:
+        return build_positioning_tff_vote(
+            asset=asset,
+            status="absent",
+            history=(),
+            open_interest=None,
+            age_days=None,
+            max_age_days=TFF_MAX_AGE_DAYS,
+        )
+    stmt = (
+        select(CftcTffObservation)
+        .where(CftcTffObservation.market_code == market)
+        .order_by(desc(CftcTffObservation.report_date))
+        .limit(13)  # ~3 months of weekly reports — enough for the Δ4w trend band
+    )
+    rows = list((await session.execute(stmt)).scalars().all())
+    return _tff_vote_from_rows(asset, market, rows, now_date=now_date)
