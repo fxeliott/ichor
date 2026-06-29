@@ -33,7 +33,7 @@ services:
     # (dashboard auth bypass /apis/dashboard.grafana.app/*),
     # CVE-2025-6023 / CVE-2025-6197. See deps audit
     # docs/audits/dependencies-2026-05-03.md (HIGH-DEPS-Grafana).
-    image: grafana/grafana:11.4.3
+    image: grafana/grafana:13.1.0
     container_name: ichor-grafana
     restart: unless-stopped
     environment:
