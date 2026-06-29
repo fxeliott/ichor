@@ -2,7 +2,7 @@ name: ichor-observability
 
 services:
   loki:
-    image: grafana/loki:3.7.2
+    image: grafana/loki:3.7.3
     container_name: ichor-loki
     restart: unless-stopped
     command: -config.file=/etc/loki/local-config.yaml
